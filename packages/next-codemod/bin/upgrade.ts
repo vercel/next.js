@@ -53,6 +53,8 @@ async function loadHighestNPMVersionMatching(query: string) {
   // npm-view returns an array if there are multiple versions matching the query.
   if (Array.isArray(versionOrVersions)) {
     // The last entry will be the latest version published.
+    // But we want the highest version.
+    versionOrVersions.sort(compareVersions)
     return versionOrVersions[versionOrVersions.length - 1]
   }
   return versionOrVersions
@@ -424,7 +426,7 @@ async function suggestTurbopack(
   packageJson: any,
   targetNextVersion: string
 ): Promise<void> {
-  const devScript: string = packageJson.scripts['dev']
+  const devScript: string | undefined = packageJson.scripts?.['dev']
   // Turbopack flag was changed from `--turbo` to `--turbopack` in v15.0.1-canary.3
   // PR: https://github.com/vercel/next.js/pull/71657
   // Release: https://github.com/vercel/next.js/releases/tag/v15.0.1-canary.3

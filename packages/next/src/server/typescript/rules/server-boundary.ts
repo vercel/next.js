@@ -64,8 +64,11 @@ const serverBoundary = {
     const diagnostics: tsModule.Diagnostic[] = []
 
     const exportClause = node.exportClause
-    if (exportClause && ts.isNamedExports(exportClause)) {
+    if (!node.isTypeOnly && exportClause && ts.isNamedExports(exportClause)) {
       for (const e of exportClause.elements) {
+        if (e.isTypeOnly) {
+          continue
+        }
         if (!isFunctionReturningPromise(e, typeChecker, ts)) {
           diagnostics.push({
             file: source,

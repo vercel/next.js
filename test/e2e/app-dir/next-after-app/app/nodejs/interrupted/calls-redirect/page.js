@@ -1,4 +1,4 @@
-import { unstable_after as after, connection } from 'next/server'
+import { after, connection } from 'next/server'
 import { redirect } from 'next/navigation'
 import { cliLog } from '../../../../utils/log'
 

@@ -1,5 +1,4 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type { Segment } from '../../../server/app-render/types'
+import type { CacheNode, Segment } from '../../../shared/lib/app-router-types'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { createRouterCacheKey } from './create-router-cache-key'
@@ -11,6 +10,7 @@ import type { NormalizedFlightData } from '../../flight-data-helpers'
  * Common logic for filling cache with new sub tree data.
  */
 function fillCacheHelper(
+  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
   flightData: NormalizedFlightData,
@@ -78,6 +78,7 @@ function fillCacheHelper(
             fillLazyItems && existingChildCacheNode
               ? new Map(existingChildCacheNode.parallelRoutes)
               : new Map(),
+          navigatedAt,
         }
 
         if (existingChildCacheNode && fillLazyItems) {
@@ -89,6 +90,7 @@ function fillCacheHelper(
         }
         if (fillLazyItems) {
           fillLazyItemsTillLeafWithHead(
+            navigatedAt,
             childCacheNode,
             existingChildCacheNode,
             treePatch,
@@ -132,19 +134,35 @@ function fillCacheHelper(
  * Fill cache with rsc based on flightDataPath
  */
 export function fillCacheWithNewSubTreeData(
+  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
   flightData: NormalizedFlightData,
   prefetchEntry?: PrefetchCacheEntry
 ): void {
-  fillCacheHelper(newCache, existingCache, flightData, prefetchEntry, true)
+  fillCacheHelper(
+    navigatedAt,
+    newCache,
+    existingCache,
+    flightData,
+    prefetchEntry,
+    true
+  )
 }
 
 export function fillCacheWithNewSubTreeDataButOnlyLoading(
+  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
   flightData: NormalizedFlightData,
   prefetchEntry?: PrefetchCacheEntry
 ): void {
-  fillCacheHelper(newCache, existingCache, flightData, prefetchEntry, false)
+  fillCacheHelper(
+    navigatedAt,
+    newCache,
+    existingCache,
+    flightData,
+    prefetchEntry,
+    false
+  )
 }

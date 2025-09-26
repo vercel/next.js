@@ -1,8 +1,8 @@
 0 -> 2 free var = FreeVar(module)
 
-0 -> 3 typeof = typeof((???*0* | new ???*1*(???*2*)))
+0 -> 3 typeof = typeof((???*0* | new ???*1*((???*2* | undefined["length"]))))
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* FreeVar(Array)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -20,8 +20,8 @@
 - *0* typeof((???*1* | ???*2*))
   ⚠️  nested operation
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *2* new ???*3*(???*4*)
+  ⚠️  function calls are not analyzed yet
+- *2* new ???*3*((???*4* | undefined["length"]))
   ⚠️  nested operation
 - *3* FreeVar(Array)
   ⚠️  unknown global
@@ -40,12 +40,14 @@
 
 4 -> 6 free var = FreeVar(encodeURIComponent)
 
-4 -> 7 call = ???*0*((???*1* | new ???*2*(???*3*)))
+4 -> 7 call = ???*0*(
+    (???*1* | new ???*2*((???*3* | undefined["length"])))
+)
 - *0* FreeVar(encodeURIComponent)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *2* FreeVar(Array)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -72,7 +74,7 @@
 
 4 -> 9 free var = FreeVar(Array)
 
-4 -> 11 call = new ???*0*(???*1*)
+4 -> 11 call = new ???*0*((???*1* | undefined["length"]))
 - *0* FreeVar(Array)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -86,7 +88,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-4 -> 15 member call = ???*0*["charCodeAt"]((0 | ???*2*))
+4 -> 15 member call = (???*0* | undefined)["charCodeAt"]((0 | undefined | ???*2*))
 - *0* ???*1*(FreeVar(encodeURIComponent)(bytes))
   ⚠️  unknown callee
   ⚠️  This value might have side effects
@@ -96,9 +98,11 @@
 - *2* updated with update expression
   ⚠️  This value might have side effects
 
-0 -> 16 call = (...) => output((???*0* | new ???*1*(???*2*)))
+0 -> 16 call = (...) => output(
+    (???*0* | new ???*1*((???*2* | undefined["length"])))
+)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* FreeVar(Array)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -182,7 +186,7 @@
 - *5* ???*6*[i]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -200,7 +204,7 @@
 - *5* ???*6*[(i + 1)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -218,7 +222,7 @@
 - *5* ???*6*[(i + 2)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 42 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, ???*7*)
 - *0* unsupported expression
@@ -234,7 +238,7 @@
 - *5* ???*6*[(i + 3)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -252,7 +256,7 @@
 - *5* ???*6*[(i + 4)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -270,7 +274,7 @@
 - *5* ???*6*[(i + 5)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 48 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, ???*7*)
 - *0* unsupported expression
@@ -286,7 +290,7 @@
 - *5* ???*6*[(i + 6)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -304,7 +308,7 @@
 - *5* ???*6*[(i + 7)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -322,7 +326,7 @@
 - *5* ???*6*[(i + 8)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 54 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, ???*7*)
 - *0* unsupported expression
@@ -338,7 +342,7 @@
 - *5* ???*6*[(i + 9)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -356,7 +360,7 @@
 - *5* ???*6*[(i + 10)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -374,7 +378,7 @@
 - *5* ???*6*[(i + 11)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -392,7 +396,7 @@
 - *5* ???*6*[(i + 12)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 62 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, ???*7*)
 - *0* unsupported expression
@@ -408,7 +412,7 @@
 - *5* ???*6*[(i + 13)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -426,7 +430,7 @@
 - *5* ???*6*[(i + 14)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -444,7 +448,7 @@
 - *5* ???*6*[(i + 15)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 68 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, ???*7*)
 - *0* unsupported expression
@@ -460,7 +464,7 @@
 - *5* ???*6*[(i + 1)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -478,7 +482,7 @@
 - *5* ???*6*[(i + 6)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -496,7 +500,7 @@
 - *5* ???*6*[(i + 11)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 74 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, ???*7*)
 - *0* unsupported expression
@@ -512,7 +516,7 @@
 - *5* ???*6*[i]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -530,7 +534,7 @@
 - *5* ???*6*[(i + 5)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -548,7 +552,7 @@
 - *5* ???*6*[(i + 10)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 80 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, ???*7*)
 - *0* unsupported expression
@@ -564,7 +568,7 @@
 - *5* ???*6*[(i + 15)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -582,7 +586,7 @@
 - *5* ???*6*[(i + 4)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -600,7 +604,7 @@
 - *5* ???*6*[(i + 9)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 86 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, ???*7*)
 - *0* unsupported expression
@@ -616,7 +620,7 @@
 - *5* ???*6*[(i + 14)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -634,7 +638,7 @@
 - *5* ???*6*[(i + 3)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -652,7 +656,7 @@
 - *5* ???*6*[(i + 8)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 92 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, ???*7*)
 - *0* unsupported expression
@@ -668,7 +672,7 @@
 - *5* ???*6*[(i + 13)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -686,7 +690,7 @@
 - *5* ???*6*[(i + 2)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -704,7 +708,7 @@
 - *5* ???*6*[(i + 7)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 98 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, ???*7*)
 - *0* unsupported expression
@@ -720,7 +724,7 @@
 - *5* ???*6*[(i + 12)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -738,7 +742,7 @@
 - *5* ???*6*[(i + 5)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -756,7 +760,7 @@
 - *5* ???*6*[(i + 8)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -774,7 +778,7 @@
 - *5* ???*6*[(i + 11)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 106 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, ???*7*)
 - *0* unsupported expression
@@ -790,7 +794,7 @@
 - *5* ???*6*[(i + 14)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -808,7 +812,7 @@
 - *5* ???*6*[(i + 1)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -826,7 +830,7 @@
 - *5* ???*6*[(i + 4)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 112 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, ???*7*)
 - *0* unsupported expression
@@ -842,7 +846,7 @@
 - *5* ???*6*[(i + 7)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -860,7 +864,7 @@
 - *5* ???*6*[(i + 10)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -878,7 +882,7 @@
 - *5* ???*6*[(i + 13)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 118 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, ???*7*)
 - *0* unsupported expression
@@ -894,7 +898,7 @@
 - *5* ???*6*[i]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -912,7 +916,7 @@
 - *5* ???*6*[(i + 3)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -930,7 +934,7 @@
 - *5* ???*6*[(i + 6)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 124 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, ???*7*)
 - *0* unsupported expression
@@ -946,7 +950,7 @@
 - *5* ???*6*[(i + 9)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -964,7 +968,7 @@
 - *5* ???*6*[(i + 12)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -982,7 +986,7 @@
 - *5* ???*6*[(i + 15)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 130 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, ???*7*)
 - *0* unsupported expression
@@ -998,7 +1002,7 @@
 - *5* ???*6*[(i + 2)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1016,7 +1020,7 @@
 - *5* ???*6*[i]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1034,7 +1038,7 @@
 - *5* ???*6*[(i + 7)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 136 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, ???*7*)
 - *0* unsupported expression
@@ -1050,7 +1054,7 @@
 - *5* ???*6*[(i + 14)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1068,7 +1072,7 @@
 - *5* ???*6*[(i + 5)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1086,7 +1090,7 @@
 - *5* ???*6*[(i + 12)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 142 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, ???*7*)
 - *0* unsupported expression
@@ -1102,7 +1106,7 @@
 - *5* ???*6*[(i + 3)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1120,7 +1124,7 @@
 - *5* ???*6*[(i + 10)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1138,7 +1142,7 @@
 - *5* ???*6*[(i + 1)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1156,7 +1160,7 @@
 - *5* ???*6*[(i + 8)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 150 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, ???*7*)
 - *0* unsupported expression
@@ -1172,7 +1176,7 @@
 - *5* ???*6*[(i + 15)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1190,7 +1194,7 @@
 - *5* ???*6*[(i + 6)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1208,7 +1212,7 @@
 - *5* ???*6*[(i + 13)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 156 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, ???*7*)
 - *0* unsupported expression
@@ -1224,7 +1228,7 @@
 - *5* ???*6*[(i + 4)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1242,7 +1246,7 @@
 - *5* ???*6*[(i + 11)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1260,7 +1264,7 @@
 - *5* ???*6*[(i + 2)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 162 call = (...) => md5cmn(???*0*, a, b, x, s, t)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, ???*7*)
 - *0* unsupported expression
@@ -1276,7 +1280,7 @@
 - *5* ???*6*[(i + 9)]
   ⚠️  unknown object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* unsupported expression
   ⚠️  This value might have side effects
 
@@ -1316,7 +1320,9 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 170 free var = FreeVar(undefined)
+0 -> 175 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
 
 0 -> 176 unreachable = ???*0*
 - *0* unreachable
@@ -1326,27 +1332,23 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 178 unreachable = ???*0*
-- *0* unreachable
+0 -> 178 call = (...) => ???*0*(???*1*, ???*2*)
+- *0* unsupported expression
   ⚠️  This value might have side effects
+- *1* arguments[1]
+  ⚠️  function calls are not analyzed yet
+- *2* arguments[0]
+  ⚠️  function calls are not analyzed yet
 
 0 -> 179 call = (...) => ???*0*(???*1*, ???*2*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+- *1* arguments[3]
+  ⚠️  function calls are not analyzed yet
+- *2* arguments[5]
+  ⚠️  function calls are not analyzed yet
 
 0 -> 180 call = (...) => ???*0*(???*1*, ???*2*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* arguments[3]
-  ⚠️  function calls are not analysed yet
-- *2* arguments[5]
-  ⚠️  function calls are not analysed yet
-
-0 -> 181 call = (...) => ???*0*(???*1*, ???*2*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* unsupported expression
@@ -1354,106 +1356,106 @@
 - *2* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 182 call = (...) => ???*0*(???*1*, ???*2*)
+0 -> 181 call = (...) => ???*0*(???*1*, ???*2*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* unsupported expression
   ⚠️  This value might have side effects
 - *2* arguments[4]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
-0 -> 183 call = (...) => ???*0*(???*1*, ???*2*)
+0 -> 182 call = (...) => ???*0*(???*1*, ???*2*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* unsupported expression
   ⚠️  This value might have side effects
 - *2* arguments[2]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
-0 -> 184 unreachable = ???*0*
+0 -> 183 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 185 call = (...) => safeAdd(
+0 -> 184 call = (...) => safeAdd(
     bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s),
     b
 )(???*0*, ???*1*, ???*2*, ???*3*, ???*4*, ???*5*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *2* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* arguments[4]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *4* arguments[5]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* arguments[6]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
-0 -> 186 unreachable = ???*0*
+0 -> 185 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 187 call = (...) => safeAdd(
+0 -> 186 call = (...) => safeAdd(
     bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s),
     b
 )(???*0*, ???*1*, ???*2*, ???*3*, ???*4*, ???*5*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *2* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* arguments[4]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *4* arguments[5]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* arguments[6]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
-0 -> 188 unreachable = ???*0*
+0 -> 187 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 189 call = (...) => safeAdd(
+0 -> 188 call = (...) => safeAdd(
     bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s),
     b
 )(???*0*, ???*1*, ???*2*, ???*3*, ???*4*, ???*5*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *2* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* arguments[4]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *4* arguments[5]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* arguments[6]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
-0 -> 190 unreachable = ???*0*
+0 -> 189 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 191 call = (...) => safeAdd(
+0 -> 190 call = (...) => safeAdd(
     bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s),
     b
 )(???*0*, ???*1*, ???*2*, ???*3*, ???*4*, ???*5*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *2* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* arguments[4]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *4* arguments[5]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* arguments[6]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
-0 -> 192 unreachable = ???*0*
+0 -> 191 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects

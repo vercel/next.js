@@ -3,7 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 import * as Log from './utils/log'
 import { assertNoRedbox, retry } from '../../../../lib/next-test-utils'
 
-describe('unstable_after() in generateStaticParams', () => {
+describe('after() in generateStaticParams', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true, // reading CLI logs to observe after
@@ -26,7 +26,7 @@ describe('unstable_after() in generateStaticParams', () => {
   }
 
   if (isNextDev) {
-    it('runs unstable_after callbacks when visiting a page in dev', async () => {
+    it('runs after callbacks when visiting a page in dev', async () => {
       await next.start()
       const browser = await next.browser('/one/a')
 
@@ -48,7 +48,7 @@ describe('unstable_after() in generateStaticParams', () => {
       })
     })
   } else {
-    it('runs unstable_after callbacks for each page during build', async () => {
+    it('runs after callbacks for each page during build', async () => {
       const buildResult = await next.build()
       expect(buildResult?.exitCode).toBe(0)
 

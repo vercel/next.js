@@ -18,11 +18,10 @@ import {
   type WorkStoreContext,
 } from '../../async-storage/work-store'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
-import { getImplicitTags } from '../../lib/implicit-tags'
+import { getImplicitTags, type ImplicitTags } from '../../lib/implicit-tags'
 import { patchFetch } from '../../lib/patch-fetch'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
-import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
 import * as Log from '../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import {
@@ -51,7 +50,7 @@ import {
   type ActionStore,
 } from '../../app-render/action-async-storage.external'
 import * as sharedModules from './shared-modules'
-import { getIsServerAction } from '../../lib/server-action-request-meta'
+import { getIsPossibleServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
@@ -82,6 +81,10 @@ import {
 } from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
+import { executeRevalidates } from '../../revalidation-utils'
+import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
+import { InvariantError } from '../../../shared/lib/invariant-error'
+import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
 
 export class WrappedNextRouterError {
   constructor(
@@ -96,6 +99,10 @@ export class WrappedNextRouterError {
  */
 export type AppRouteModule = typeof import('../../../build/templates/app-route')
 
+export type AppRouteSharedContext = {
+  buildId: string
+}
+
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
  * handler for app routes.
@@ -105,6 +112,7 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
     CollectedCacheInfo
   prerenderManifest: DeepReadonly<PrerenderManifest>
+  sharedContext: AppRouteSharedContext
 }
 
 type CollectedCacheInfo = {
@@ -208,10 +216,12 @@ export class AppRouteRouteModule extends RouteModule<
   constructor({
     userland,
     definition,
+    distDir,
+    relativeProjectDir,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition })
+    super({ userland, definition, distDir, relativeProjectDir })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
@@ -295,12 +305,13 @@ export class AppRouteRouteModule extends RouteModule<
     // inside this function. Right now we get passed a RequestStore even when
     // we're going to do a prerender. We should probably just split do up into prexecute and execute
     requestStore: RequestStore,
-    implicitTags: string[],
+    implicitTags: ImplicitTags,
     request: NextRequest,
     context: AppRouteRouteHandlerContext
   ) {
     const isStaticGeneration = workStore.isStaticGeneration
-    const dynamicIOEnabled = !!context.renderOpts.experimental?.dynamicIO
+    const cacheComponentsEnabled =
+      !!context.renderOpts.experimental?.cacheComponents
 
     // Patch the global fetch.
     patchFetch({
@@ -317,6 +328,19 @@ export class AppRouteRouteModule extends RouteModule<
         : undefined,
     }
 
+    const resolvePendingRevalidations = () => {
+      context.renderOpts.pendingWaitUntil = executeRevalidates(
+        workStore
+      ).finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log(
+            'pending revalidates promise finished for:',
+            requestStore.url
+          )
+        }
+      })
+    }
+
     let prerenderStore: null | PrerenderStore = null
 
     let res: unknown
@@ -331,10 +355,10 @@ export class AppRouteRouteModule extends RouteModule<
             ? INFINITE_CACHE
             : userlandRevalidate
 
-        if (dynamicIOEnabled) {
+        if (cacheComponentsEnabled) {
           /**
            * When we are attempting to statically prerender the GET handler of a route.ts module
-           * and dynamicIO is on we follow a similar pattern to rendering.
+           * and cacheComponents is on we follow a similar pattern to rendering.
            *
            * We first run the handler letting caches fill. If something synchronously dynamic occurs
            * during this prospective render then we can infer it will happen on every render and we
@@ -355,22 +379,42 @@ export class AppRouteRouteModule extends RouteModule<
           const cacheSignal = new CacheSignal()
           let dynamicTracking = createDynamicTrackingState(undefined)
 
+          // TODO: Route handlers are never resumed, so it's counter-intuitive
+          // to use an RDC here. However, we need the data cache to store cached
+          // results in memory during the prospective prerender, so that they
+          // can be retrieved during the final prerender within microtasks. This
+          // is crucial when doing revalidations of a deployed route handler,
+          // where the default cache handler does not do any in-memory caching.
+          // We should replace the `prerenderResumeDataCache` and
+          // `renderResumeDataCache` with a single `dataCache` property that is
+          // conceptually not tied to resuming, and also avoids the unnecessary
+          // complexity of using a mutable and an immutable resume data cache.
+          const prerenderResumeDataCache = createPrerenderResumeDataCache()
+
           const prospectiveRoutePrerenderStore: PrerenderStore =
             (prerenderStore = {
               type: 'prerender',
               phase: 'action',
-              implicitTags: implicitTags,
+              // This replicates prior behavior where rootParams is empty in routes
+              // TODO we need to make this have the proper rootParams for this route
+              rootParams: {},
+              fallbackRouteParams: null,
+              implicitTags,
               renderSignal: prospectiveController.signal,
               controller: prospectiveController,
               cacheSignal,
               // During prospective render we don't use a controller
               // because we need to let all caches fill.
               dynamicTracking,
+              allowEmptyStaticShell: false,
               revalidate: defaultRevalidate,
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
-              tags: [...implicitTags],
-              prerenderResumeDataCache: null,
+              tags: [...implicitTags.tags],
+              prerenderResumeDataCache,
+              renderResumeDataCache: null,
+              hmrRefreshHash: undefined,
+              captureOwnerStack: undefined,
             })
 
           let prospectiveResult
@@ -416,6 +460,8 @@ export class AppRouteRouteModule extends RouteModule<
               }
             )
           }
+
+          trackPendingModules(cacheSignal)
           await cacheSignal.cacheReady()
 
           if (prospectiveRenderIsDynamic) {
@@ -445,16 +491,22 @@ export class AppRouteRouteModule extends RouteModule<
           const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
             type: 'prerender',
             phase: 'action',
-            implicitTags: implicitTags,
+            rootParams: {},
+            fallbackRouteParams: null,
+            implicitTags,
             renderSignal: finalController.signal,
             controller: finalController,
             cacheSignal: null,
             dynamicTracking,
+            allowEmptyStaticShell: false,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
-            tags: [...implicitTags],
-            prerenderResumeDataCache: null,
+            tags: [...implicitTags.tags],
+            prerenderResumeDataCache,
+            renderResumeDataCache: null,
+            hmrRefreshHash: undefined,
+            captureOwnerStack: undefined,
           })
 
           let responseHandled = false
@@ -496,7 +548,7 @@ export class AppRouteRouteModule extends RouteModule<
                   if (!bodyHandled) {
                     bodyHandled = true
                     finalController.abort()
-                    reject(createDynamicIOError(workStore.route))
+                    reject(createCacheComponentsError(workStore.route))
                   }
                 })
               } catch (err) {
@@ -507,13 +559,13 @@ export class AppRouteRouteModule extends RouteModule<
               if (!responseHandled) {
                 responseHandled = true
                 finalController.abort()
-                reject(createDynamicIOError(workStore.route))
+                reject(createCacheComponentsError(workStore.route))
               }
             })
           })
           if (finalController.signal.aborted) {
             // We aborted from within the execution
-            throw createDynamicIOError(workStore.route)
+            throw createCacheComponentsError(workStore.route)
           } else {
             // We didn't abort during the execution. We can abort now as a matter of semantics
             // though at the moment nothing actually consumes this signal so it won't halt any
@@ -524,11 +576,12 @@ export class AppRouteRouteModule extends RouteModule<
           prerenderStore = {
             type: 'prerender-legacy',
             phase: 'action',
-            implicitTags: implicitTags,
+            rootParams: {},
+            implicitTags,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
-            tags: [...implicitTags],
+            tags: [...implicitTags.tags],
           }
 
           res = await workUnitAsyncStorage.run(
@@ -559,11 +612,11 @@ export class AppRouteRouteModule extends RouteModule<
 
         // Let's append any cookies that were added by the
         // cookie API.
-        // TODO leaving the gate here b/c it indicates that we we might not actually want to do this
+        // TODO leaving the gate here b/c it indicates that we might not actually want to do this
         // on every `do` call. During prerender there should be no mutableCookies because
-        if (requestStore.type === 'request') {
-          appendMutableCookies(headers, requestStore.mutableCookies)
-        }
+        appendMutableCookies(headers, requestStore.mutableCookies)
+
+        resolvePendingRevalidations()
 
         // Return the redirect response.
         return new Response(null, {
@@ -592,12 +645,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     context.renderOpts.fetchMetrics = workStore.fetchMetrics
 
-    context.renderOpts.pendingWaitUntil = Promise.all([
-      workStore.incrementalCache?.revalidateTag(
-        workStore.revalidatedTags || []
-      ),
-      ...Object.values(workStore.pendingRevalidates || {}),
-    ])
+    resolvePendingRevalidations()
 
     if (prerenderStore) {
       context.renderOpts.collectedTags = prerenderStore.tags?.join(',')
@@ -610,10 +658,7 @@ export class AppRouteRouteModule extends RouteModule<
     // to merge the modified cookies and the returned response
     // here.
     const headers = new Headers(res.headers)
-    if (
-      requestStore.type === 'request' &&
-      appendMutableCookies(headers, requestStore.mutableCookies)
-    ) {
+    if (appendMutableCookies(headers, requestStore.mutableCookies)) {
       return new Response(res.body, {
         status: res.status,
         statusText: res.statusText,
@@ -633,10 +678,10 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Get the context for the static generation.
     const staticGenerationContext: WorkStoreContext = {
-      // App Routes don't support unknown route params.
-      fallbackRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
+      buildId: context.sharedContext.buildId,
+      previouslyRevalidatedTags: [],
     }
 
     // Add the fetchCache option to the renderOpts.
@@ -644,10 +689,10 @@ export class AppRouteRouteModule extends RouteModule<
 
     const actionStore: ActionStore = {
       isAppRoute: true,
-      isAction: getIsServerAction(req),
+      isAction: getIsPossibleServerAction(req),
     }
 
-    const implicitTags = getImplicitTags(
+    const implicitTags = await getImplicitTags(
       this.definition.page,
       req.nextUrl,
       // App Routes don't support unknown route params.
@@ -694,6 +739,14 @@ export class AppRouteRouteModule extends RouteModule<
               case 'force-dynamic': {
                 // Routes of generated paths should be dynamic
                 workStore.forceDynamic = true
+                if (workStore.isStaticGeneration) {
+                  const err = new DynamicServerError(
+                    'Route is configured with dynamic = error which cannot be statically generated.'
+                  )
+                  workStore.dynamicUsageDescription = err.message
+                  workStore.dynamicUsageStack = err.stack
+                  throw err
+                }
                 break
               }
               case 'force-static':
@@ -711,25 +764,28 @@ export class AppRouteRouteModule extends RouteModule<
                 if (workStore.isStaticGeneration)
                   request = new Proxy(req, requireStaticRequestHandlers)
                 break
-              default:
-                // We proxy `NextRequest` to track dynamic access, and potentially bail out of static generation
+              case undefined:
+              case 'auto':
+                // We proxy `NextRequest` to track dynamic access, and
+                // potentially bail out of static generation.
                 request = proxyNextRequest(req, workStore)
+                break
+              default:
+                this.dynamic satisfies never
             }
-
-            // TODO: propagate this pathname from route matcher
-            const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
 
             const tracer = getTracer()
 
             // Update the root span attribute for the route.
-            tracer.setRootSpanAttribute('next.route', route)
+            const { pathname } = this.definition
+            tracer.setRootSpanAttribute('next.route', pathname)
 
             return tracer.trace(
               AppRouteRouteHandlersSpan.runHandler,
               {
-                spanName: `executing api route (app) ${route}`,
+                spanName: `executing api route (app) ${pathname}`,
                 attributes: {
-                  'next.route': route,
+                  'next.route': pathname,
                 },
               },
               async () =>
@@ -1096,29 +1152,17 @@ const requireStaticNextUrlHandlers = {
   },
 }
 
-function createDynamicIOError(route: string) {
+function createCacheComponentsError(route: string) {
   return new DynamicServerError(
-    `Route ${route} couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/dynamic-io`
+    `Route ${route} couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/cache-components`
   )
 }
 
-export function trackDynamic(
+function trackDynamic(
   store: WorkStore,
   workUnitStore: undefined | WorkUnitStore,
   expression: string
 ): void {
-  if (workUnitStore) {
-    if (workUnitStore.type === 'cache') {
-      throw new Error(
-        `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-      )
-    } else if (workUnitStore.type === 'unstable-cache') {
-      throw new Error(
-        `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-      )
-    }
-  }
-
   if (store.dynamicShouldError) {
     throw new StaticGenBailoutError(
       `Route ${store.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
@@ -1126,41 +1170,61 @@ export function trackDynamic(
   }
 
   if (workUnitStore) {
-    if (workUnitStore.type === 'prerender') {
-      // dynamicIO Prerender
-      const error = new Error(
-        `Route ${store.route} used ${expression} without first calling \`await connection()\`. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-request`
-      )
-      abortAndThrowOnSynchronousRequestDataAccess(
-        store.route,
-        expression,
-        error,
-        workUnitStore
-      )
-    } else if (workUnitStore.type === 'prerender-ppr') {
-      // PPR Prerender
-      postponeWithTracking(
-        store.route,
-        expression,
-        workUnitStore.dynamicTracking
-      )
-    } else if (workUnitStore.type === 'prerender-legacy') {
-      // legacy Prerender
-      workUnitStore.revalidate = 0
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'private-cache':
+        // TODO: Should we allow reading cookies and search params from the
+        // request for private caches in route handlers?
+        throw new Error(
+          `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        )
+      case 'unstable-cache':
+        throw new Error(
+          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        )
+      case 'prerender':
+        const error = new Error(
+          `Route ${store.route} used ${expression} without first calling \`await connection()\`. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-request`
+        )
+        return abortAndThrowOnSynchronousRequestDataAccess(
+          store.route,
+          expression,
+          error,
+          workUnitStore
+        )
+      case 'prerender-client':
+        throw new InvariantError(
+          'A client prerender store should not be used for a route handler.'
+        )
+      case 'prerender-runtime':
+        throw new InvariantError(
+          'A runtime prerender store should not be used for a route handler.'
+        )
+      case 'prerender-ppr':
+        return postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
+      case 'prerender-legacy':
+        workUnitStore.revalidate = 0
 
-      const err = new DynamicServerError(
-        `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
-      )
-      store.dynamicUsageDescription = expression
-      store.dynamicUsageStack = err.stack
+        const err = new DynamicServerError(
+          `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+        )
+        store.dynamicUsageDescription = expression
+        store.dynamicUsageStack = err.stack
 
-      throw err
-    } else if (
-      process.env.NODE_ENV === 'development' &&
-      workUnitStore &&
-      workUnitStore.type === 'request'
-    ) {
-      workUnitStore.usedDynamic = true
+        throw err
+      case 'request':
+        if (process.env.NODE_ENV !== 'production') {
+          // TODO: This is currently not really needed for route handlers, as it
+          // only controls the ISR status that's shown for pages.
+          workUnitStore.usedDynamic = true
+        }
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 }

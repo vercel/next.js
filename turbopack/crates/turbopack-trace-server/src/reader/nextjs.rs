@@ -1,27 +1,23 @@
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    fmt::Display,
-    sync::Arc,
-};
+use std::{borrow::Cow, fmt::Display, sync::Arc};
 
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer, FxIndexMap};
+use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp};
 
 pub struct NextJsFormat {
     store: Arc<StoreContainer>,
-    id_mapping: HashMap<u64, SpanIndex>,
-    queued_children: HashMap<u64, Vec<SpanIndex>>,
+    id_mapping: FxHashMap<u64, SpanIndex>,
+    queued_children: FxHashMap<u64, Vec<SpanIndex>>,
 }
 
 impl NextJsFormat {
     pub fn new(store: Arc<StoreContainer>) -> Self {
         Self {
             store,
-            id_mapping: HashMap::new(),
-            queued_children: HashMap::new(),
+            id_mapping: FxHashMap::default(),
+            queued_children: FxHashMap::default(),
         }
     }
 }
@@ -31,7 +27,7 @@ impl TraceFormat for NextJsFormat {
 
     fn read(&mut self, mut buffer: &[u8], _reuse: &mut Self::Reused) -> anyhow::Result<usize> {
         let mut bytes_read = 0;
-        let mut outdated_spans = HashSet::new();
+        let mut outdated_spans = FxHashSet::default();
         loop {
             let Some(line_end) = buffer.iter().position(|b| *b == b'\n') else {
                 break;
@@ -55,6 +51,8 @@ impl TraceFormat for NextJsFormat {
                     start_time: _,
                     trace_id: _,
                 } = span;
+                let timestamp = Timestamp::from_micros(timestamp);
+                let duration = Timestamp::from_micros(duration);
                 let (parent, queue_parent) = if let Some(parent) = parent_id {
                     if let Some(parent) = self.id_mapping.get(&parent) {
                         (Some(*parent), None)
@@ -110,16 +108,16 @@ enum TagValue<'a> {
 impl Display for TagValue<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TagValue::String(s) => write!(f, "{}", s),
-            TagValue::Number(n) => write!(f, "{}", n),
-            TagValue::Bool(b) => write!(f, "{}", b),
+            TagValue::String(s) => write!(f, "{s}"),
+            TagValue::Number(n) => write!(f, "{n}"),
+            TagValue::Bool(b) => write!(f, "{b}"),
             TagValue::Array(a) => {
                 write!(f, "[")?;
                 for (i, v) in a.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", v)?;
+                    write!(f, "{v}")?;
                 }
                 write!(f, "]")
             }

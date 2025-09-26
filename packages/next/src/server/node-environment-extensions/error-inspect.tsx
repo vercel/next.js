@@ -1,3 +1,3 @@
-import { patchErrorInspect } from '../patch-error-inspect'
+import { patchErrorInspectNodeJS } from '../patch-error-inspect'
 
-patchErrorInspect()
+patchErrorInspectNodeJS(globalThis.Error)

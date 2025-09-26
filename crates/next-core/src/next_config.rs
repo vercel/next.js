@@ -1,20 +1,23 @@
-use std::collections::HashSet;
-
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
+use either::Either;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_rcstr::RcStr;
+use turbo_esregex::EsRegex;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput, Vc,
+    FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
-use turbo_tasks_env::EnvMap;
+use turbo_tasks_env::{EnvMap, ProcessEnv};
+use turbo_tasks_fetch::FetchClient;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
-    module_options_context::MdxTransformOptions, LoaderRuleItem, OptionWebpackRules,
+    ConditionItem, ConditionPath, LoaderRuleItem, WebpackRules,
+    module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
-    issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
@@ -25,30 +28,52 @@ use turbopack_ecmascript_plugins::transform::{
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems};
 
 use crate::{
-    mode::NextMode, next_import_map::mdx_import_source_file,
-    next_shared::transforms::ModularizeImportPackageConfig,
+    app_structure::FileSystemPathVec,
+    mode::NextMode,
+    next_import_map::mdx_import_source_file,
+    next_shared::{
+        transforms::ModularizeImportPackageConfig, webpack_rules::WebpackLoaderBuiltinCondition,
+    },
 };
 
 #[turbo_tasks::value]
 struct NextConfigAndCustomRoutes {
-    config: Vc<NextConfig>,
-    custom_routes: Vc<CustomRoutes>,
+    config: ResolvedVc<NextConfig>,
+    custom_routes: ResolvedVc<CustomRoutes>,
 }
 
 #[turbo_tasks::value]
 struct CustomRoutes {
-    rewrites: Vc<Rewrites>,
+    rewrites: ResolvedVc<Rewrites>,
 }
 
 #[turbo_tasks::value(transparent)]
 pub struct ModularizeImports(FxIndexMap<String, ModularizeImportPackageConfig>);
 
 #[turbo_tasks::value(transparent)]
+#[derive(Clone, Debug)]
 pub struct CacheKinds(FxHashSet<RcStr>);
 
-#[turbo_tasks::value(serialization = "custom", eq = "manual")]
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+impl CacheKinds {
+    pub fn extend<I: IntoIterator<Item = RcStr>>(&mut self, iter: I) {
+        self.0.extend(iter);
+    }
+}
+
+impl Default for CacheKinds {
+    fn default() -> Self {
+        CacheKinds(
+            ["default", "remote", "private"]
+                .iter()
+                .map(|&s| s.into())
+                .collect(),
+        )
+    }
+}
+
+#[turbo_tasks::value(eq = "manual")]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[serde(default, rename_all = "camelCase")]
 pub struct NextConfig {
     // TODO all fields should be private and access should be wrapped within a turbo-tasks function
     // Otherwise changing NextConfig will lead to invalidating all tasks accessing it.
@@ -71,6 +96,7 @@ pub struct NextConfig {
     pub transpile_packages: Option<Vec<RcStr>>,
     pub modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
     pub dist_dir: Option<RcStr>,
+    pub deployment_id: Option<RcStr>,
     sass_options: Option<serde_json::Value>,
     pub trailing_slash: Option<bool>,
     pub asset_prefix: Option<RcStr>,
@@ -81,6 +107,12 @@ pub struct NextConfig {
     pub cross_origin: Option<CrossOriginConfig>,
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
+    pub turbopack: Option<TurbopackConfig>,
+    production_browser_source_maps: bool,
+    output_file_tracing_includes: Option<serde_json::Value>,
+    output_file_tracing_excludes: Option<serde_json::Value>,
+    // TODO: This option is not respected, it uses Turbopack's root instead.
+    output_file_tracing_root: Option<RcStr>,
 
     /// Enables the bundling of node_modules packages (externals) for pages
     /// server-side bundles.
@@ -116,7 +148,6 @@ pub struct NextConfig {
     http_agent_options: HttpAgentConfig,
     on_demand_entries: OnDemandEntriesConfig,
     powered_by_header: bool,
-    production_browser_source_maps: bool,
     public_runtime_config: FxIndexMap<String, serde_json::Value>,
     server_runtime_config: FxIndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
@@ -126,27 +157,59 @@ pub struct NextConfig {
     webpack: Option<serde_json::Value>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum CrossOriginConfig {
     Anonymous,
     UseCredentials,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 struct AmpConfig {
     canonical_base: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 struct EslintConfig {
     dirs: Option<Vec<String>>,
     ignore_during_builds: Option<bool>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum BuildActivityPositions {
     #[default]
@@ -156,27 +219,68 @@ pub enum BuildActivityPositions {
     TopLeft,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
-pub struct DevIndicatorsConfig {
-    pub build_activity: Option<bool>,
+pub struct DevIndicatorsOptions {
     pub build_activity_position: Option<BuildActivityPositions>,
+    pub position: Option<BuildActivityPositions>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
+#[serde(untagged)]
+pub enum DevIndicatorsConfig {
+    WithOptions(DevIndicatorsOptions),
+    Boolean(bool),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 struct OnDemandEntriesConfig {
     max_inactive_age: f64,
     pages_buffer_length: f64,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 struct HttpAgentConfig {
     keep_alive: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct DomainLocale {
     pub default_locale: String,
@@ -185,7 +289,9 @@ pub struct DomainLocale {
     pub locales: Option<Vec<String>>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct I18NConfig {
     pub default_locale: String,
@@ -194,7 +300,9 @@ pub struct I18NConfig {
     pub locales: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum OutputType {
     Standalone,
@@ -213,6 +321,8 @@ pub enum OutputType {
     TraceRawVcs,
     Serialize,
     Deserialize,
+    NonLocalValue,
+    OperationValue,
 )]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum RouteHas {
@@ -236,14 +346,14 @@ pub enum RouteHas {
     },
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct HeaderValue {
     pub key: RcStr,
     pub value: RcStr,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct Header {
     pub source: String,
@@ -258,14 +368,18 @@ pub struct Header {
     pub missing: Option<Vec<RouteHas>>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub enum RedirectStatus {
     StatusCode(f64),
     Permanent(bool),
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct Redirect {
     pub source: String,
@@ -283,7 +397,7 @@ pub struct Redirect {
     pub status: RedirectStatus,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct Rewrite {
     pub source: String,
@@ -307,14 +421,24 @@ pub struct Rewrites {
     pub fallback: Vec<Rewrite>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct TypeScriptConfig {
     pub ignore_build_errors: Option<bool>,
-    pub ts_config_path: Option<String>,
+    pub tsconfig_path: Option<String>,
 }
 
-#[turbo_tasks::value(eq = "manual")]
+#[turbo_tasks::value(eq = "manual", operation)]
 #[derive(Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ImageConfig {
@@ -365,7 +489,9 @@ impl Default for ImageConfig {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum ImageLoader {
     Default,
@@ -375,7 +501,9 @@ pub enum ImageLoader {
     Custom,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 pub enum ImageFormat {
     #[serde(rename = "image/webp")]
     Webp,
@@ -383,107 +511,261 @@ pub enum ImageFormat {
     Avif,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct RemotePattern {
     pub hostname: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub protocol: Option<RemotePatternProtocal>,
+    pub protocol: Option<RemotePatternProtocol>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pathname: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "kebab-case")]
-pub enum RemotePatternProtocal {
+pub enum RemotePatternProtocol {
     Http,
     Https,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
-pub struct ExperimentalTurboConfig {
+pub struct TurbopackConfig {
     /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
-    pub rules: Option<FxIndexMap<RcStr, RuleConfigItemOrShortcut>>,
+    pub rules: Option<FxIndexMap<RcStr, RuleConfigCollection>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
-    pub tree_shaking: Option<bool>,
-    pub module_id_strategy: Option<ModuleIdStrategy>,
-    pub minify: Option<bool>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Serialize, Deserialize, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, OperationValue,
+)]
+#[serde(deny_unknown_fields)]
+pub struct RegexComponents {
+    source: RcStr,
+    flags: RcStr,
+}
+
+/// This type should not be hand-written, but instead `packages/next/src/build/swc/index.ts` will
+/// transform a JS `RegExp` to a `RegexComponents` or a string to a `Glob` before passing it to us.
+///
+/// This is needed because `RegExp` objects are not otherwise serializable.
+#[derive(
+    Clone, PartialEq, Eq, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
+#[serde(
+    tag = "type",
+    content = "value",
+    rename_all = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ConfigConditionPath {
+    Glob(RcStr),
+    Regex(RegexComponents),
+}
+
+impl TryFrom<ConfigConditionPath> for ConditionPath {
+    type Error = anyhow::Error;
+
+    fn try_from(config: ConfigConditionPath) -> Result<ConditionPath> {
+        Ok(match config {
+            ConfigConditionPath::Glob(path) => ConditionPath::Glob(path),
+            ConfigConditionPath::Regex(path) => {
+                ConditionPath::Regex(EsRegex::try_from(path)?.resolved_cell())
+            }
+        })
+    }
+}
+
+impl TryFrom<RegexComponents> for EsRegex {
+    type Error = anyhow::Error;
+
+    fn try_from(components: RegexComponents) -> Result<EsRegex> {
+        EsRegex::new(&components.source, &components.flags)
+    }
+}
+
+#[derive(
+    Serialize, Deserialize, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, OperationValue,
+)]
+// We can end up with confusing behaviors if we silently ignore extra properties, since `Base` will
+// match nearly every object, since it has no required field.
+#[serde(deny_unknown_fields)]
+pub enum ConfigConditionItem {
+    #[serde(rename = "all")]
+    All(Box<[ConfigConditionItem]>),
+    #[serde(rename = "any")]
+    Any(Box<[ConfigConditionItem]>),
+    #[serde(rename = "not")]
+    Not(Box<ConfigConditionItem>),
+    #[serde(untagged)]
+    Builtin(WebpackLoaderBuiltinCondition),
+    #[serde(untagged)]
+    Base {
+        #[serde(default)]
+        path: Option<ConfigConditionPath>,
+        #[serde(default)]
+        content: Option<RegexComponents>,
+    },
+}
+
+impl TryFrom<ConfigConditionItem> for ConditionItem {
+    type Error = anyhow::Error;
+
+    fn try_from(config: ConfigConditionItem) -> Result<Self> {
+        let try_from_vec = |conds: Box<[_]>| {
+            conds
+                .into_iter()
+                .map(ConditionItem::try_from)
+                .collect::<Result<_>>()
+        };
+        Ok(match config {
+            ConfigConditionItem::All(conds) => ConditionItem::All(try_from_vec(conds)?),
+            ConfigConditionItem::Any(conds) => ConditionItem::Any(try_from_vec(conds)?),
+            ConfigConditionItem::Not(cond) => ConditionItem::Not(Box::new((*cond).try_into()?)),
+            ConfigConditionItem::Builtin(cond) => {
+                ConditionItem::Builtin(RcStr::from(cond.as_str()))
+            }
+            ConfigConditionItem::Base { path, content } => ConditionItem::Base {
+                path: path.map(ConditionPath::try_from).transpose()?,
+                content: content
+                    .map(EsRegex::try_from)
+                    .transpose()?
+                    .map(EsRegex::resolved_cell),
+            },
+        })
+    }
+}
+
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
-pub struct RuleConfigItemOptions {
+pub struct RuleConfigItem {
     pub loaders: Vec<LoaderItem>,
     #[serde(default, alias = "as")]
     pub rename_as: Option<RcStr>,
+    #[serde(default)]
+    pub condition: Option<ConfigConditionItem>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
-#[serde(rename_all = "camelCase", untagged)]
-pub enum RuleConfigItemOrShortcut {
-    Loaders(Vec<LoaderItem>),
-    Advanced(RuleConfigItem),
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TraceRawVcs, NonLocalValue, OperationValue)]
+#[serde(transparent)]
+pub struct RuleConfigCollection(Vec<RuleConfigCollectionItem>);
+
+impl<'de> Deserialize<'de> for RuleConfigCollection {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match either::serde_untagged::deserialize::<Vec<RuleConfigCollectionItem>, RuleConfigItem, D>(
+            deserializer,
+        )? {
+            Either::Left(collection) => Ok(RuleConfigCollection(collection)),
+            Either::Right(item) => Ok(RuleConfigCollection(vec![RuleConfigCollectionItem::Full(
+                item,
+            )])),
+        }
+    }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
-#[serde(rename_all = "camelCase", untagged)]
-pub enum RuleConfigItem {
-    Options(RuleConfigItemOptions),
-    Conditional(FxIndexMap<RcStr, RuleConfigItem>),
-    Boolean(bool),
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
+#[serde(untagged)]
+pub enum RuleConfigCollectionItem {
+    Shorthand(LoaderItem),
+    Full(RuleConfigItem),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(untagged)]
 pub enum LoaderItem {
     LoaderName(RcStr),
     LoaderOptions(WebpackLoaderItem),
 }
 
-#[turbo_tasks::value]
-#[derive(Clone, Debug)]
+#[turbo_tasks::value(operation)]
+#[derive(Copy, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub enum ModuleIdStrategy {
+pub enum ModuleIds {
     Named,
     Deterministic,
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionModuleIdStrategy(pub Option<ModuleIdStrategy>);
+pub struct OptionModuleIds(pub Option<ModuleIds>);
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(untagged)]
 pub enum MdxRsOptions {
     Boolean(bool),
     Option(MdxTransformOptions),
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[turbo_tasks::value(shared, operation)]
+#[derive(Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
-pub enum ReactCompilerMode {
+pub enum ReactCompilerCompilationMode {
+    #[default]
     Infer,
     Annotation,
     All,
 }
 
-/// Subset of react compiler options
-#[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ReactCompilerOptions {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compilation_mode: Option<ReactCompilerMode>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub panic_threshold: Option<RcStr>,
+#[turbo_tasks::value(shared, operation)]
+#[derive(Clone, Debug, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ReactCompilerPanicThreshold {
+    #[default]
+    None,
+    CriticalErrors,
+    AllErrors,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+/// Subset of react compiler options
+#[turbo_tasks::value(shared, operation)]
+#[derive(Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ReactCompilerOptions {
+    #[serde(default)]
+    pub compilation_mode: ReactCompilerCompilationMode,
+    #[serde(default)]
+    pub panic_threshold: ReactCompilerPanicThreshold,
+}
+
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(untagged)]
 pub enum ReactCompilerOptionsOrBoolean {
     Boolean(bool),
@@ -494,7 +776,16 @@ pub enum ReactCompilerOptionsOrBoolean {
 pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>);
 
 #[derive(
-    Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
@@ -513,12 +804,8 @@ pub struct ExperimentalConfig {
     mdx_rs: Option<MdxRsOptions>,
     strict_next_head: Option<bool>,
     swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
-    turbo: Option<ExperimentalTurboConfig>,
     external_middleware_rewrites_resolve: Option<bool>,
     scroll_restoration: Option<bool>,
-    use_deployment_id: Option<bool>,
-    use_deployment_id_server_actions: Option<bool>,
-    deployment_id: Option<RcStr>,
     manual_client_base_path: Option<bool>,
     optimistic_client_cache: Option<bool>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
@@ -530,8 +817,9 @@ pub struct ExperimentalConfig {
     server_actions: Option<ServerActionsOrLegacyBool>,
     sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
-    #[serde(rename = "dynamicIO")]
-    dynamic_io: Option<bool>,
+    cache_components: Option<bool>,
+    use_cache: Option<bool>,
+    root_params: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -569,14 +857,12 @@ pub struct ExperimentalConfig {
     /// Automatically apply the "modularize_imports" optimization to imports of
     /// the specified packages.
     optimize_package_imports: Option<Vec<RcStr>>,
-    output_file_tracing_ignores: Option<Vec<RcStr>>,
-    output_file_tracing_includes: Option<serde_json::Value>,
-    output_file_tracing_root: Option<RcStr>,
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
-    react_owner_stack: Option<bool>,
+    #[serde(rename = "routerBFCache")]
+    router_bfcache: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -585,18 +871,40 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
-    /// Generate Route types and enable type checking for Link and Router.push,
-    /// etc. This option requires `appDir` to be enabled first.
-    /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes)
-    typed_routes: Option<bool>,
+
     url_imports: Option<serde_json::Value>,
+    view_transition: Option<bool>,
     /// This option is to enable running the Webpack build in a worker thread
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+
+    turbopack_minify: Option<bool>,
+    turbopack_module_ids: Option<ModuleIds>,
+    turbopack_persistent_caching: Option<bool>,
+    turbopack_source_maps: Option<bool>,
+    turbopack_tree_shaking: Option<bool>,
+    turbopack_scope_hoisting: Option<bool>,
+    turbopack_import_type_bytes: Option<bool>,
+    turbopack_use_system_tls_certs: Option<bool>,
+    /// Disable automatic configuration of the sass loader.
+    #[serde(default)]
+    turbopack_use_builtin_sass: Option<bool>,
+    /// Disable automatic configuration of the babel loader when a babel configuration file is
+    /// present.
+    #[serde(default)]
+    turbopack_use_builtin_babel: Option<bool>,
+    // Whether to enable the global-not-found convention
+    global_not_found: Option<bool>,
+    /// Defaults to false in development mode, true in production mode.
+    turbopack_remove_unused_exports: Option<bool>,
+    /// Devtool option for the segment explorer.
+    devtool_segment_explorer: Option<bool>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct CacheLifeProfile {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -651,13 +959,17 @@ fn test_cache_life_profiles_invalid() {
     );
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum ExperimentalPartialPrerenderingIncrementalValue {
     Incremental,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(untagged)]
 pub enum ExperimentalPartialPrerendering {
     Boolean(bool),
@@ -694,13 +1006,17 @@ fn test_parse_experimental_partial_prerendering() {
     assert!(config.is_err());
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct SubResourceIntegrity {
     pub algorithm: Option<RcStr>,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(untagged)]
 pub enum ServerActionsOrLegacyBool {
     /// The current way to configure server actions sub behaviors.
@@ -711,13 +1027,17 @@ pub enum ServerActionsOrLegacyBool {
     LegacyBool(bool),
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum EsmExternalsValue {
     Loose,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(untagged)]
 pub enum EsmExternals {
     Loose(EsmExternalsValue),
@@ -743,14 +1063,25 @@ fn test_esm_externals_deserialization() {
     );
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Deserialize,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerActions {
     /// Allows adjusting body parser size limit for server actions.
     pub body_size_limit: Option<SizeLimit>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue)]
 #[serde(untagged)]
 pub enum SizeLimit {
     Number(f64),
@@ -771,14 +1102,18 @@ impl PartialEq for SizeLimit {
 
 impl Eq for SizeLimit {}
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum MiddlewarePrefetchType {
     Strict,
     Flexible,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(untagged)]
 pub enum EmotionTransformOptionsOrBoolean {
     Boolean(bool),
@@ -794,7 +1129,9 @@ impl EmotionTransformOptionsOrBoolean {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(untagged)]
 pub enum StyledComponentsTransformOptionsOrBoolean {
     Boolean(bool),
@@ -811,7 +1148,7 @@ impl StyledComponentsTransformOptionsOrBoolean {
 }
 
 #[turbo_tasks::value(eq = "manual")]
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Clone, Debug, PartialEq, Default, OperationValue)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerConfig {
     pub react_remove_properties: Option<ReactRemoveProperties>,
@@ -821,7 +1158,9 @@ pub struct CompilerConfig {
     pub styled_components: Option<StyledComponentsTransformOptionsOrBoolean>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum ReactRemoveProperties {
     Boolean(bool),
@@ -837,7 +1176,9 @@ impl ReactRemoveProperties {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(untagged)]
 pub enum RemoveConsoleConfig {
     Boolean(bool),
@@ -867,16 +1208,119 @@ pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
 pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
 
 #[turbo_tasks::value(transparent)]
+pub struct OptionFileSystemPath(Option<FileSystemPath>);
+
+#[turbo_tasks::value(transparent)]
 pub struct OptionServerActions(Option<ServerActions>);
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionJsonValue(pub Option<serde_json::Value>);
+
+fn turbopack_config_documentation_link() -> RcStr {
+    rcstr!("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders")
+}
+
+#[turbo_tasks::value(shared)]
+struct InvalidLoaderRuleRenameAsIssue {
+    glob: RcStr,
+    rename_as: RcStr,
+    config_file_path: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for InvalidLoaderRuleRenameAsIssue {
+    #[turbo_tasks::function]
+    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.config_file_path.clone().cell())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Config.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(
+            StyledString::Text(format!("Invalid loader rule for extension: {}", self.glob).into())
+                .cell(),
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(
+            StyledString::Text(RcStr::from(format!(
+                "The extension {} contains a wildcard, but the `as` option does not: {}",
+                self.glob, self.rename_as,
+            )))
+            .resolved_cell(),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    fn documentation_link(&self) -> Vc<RcStr> {
+        Vc::cell(turbopack_config_documentation_link())
+    }
+}
+
+#[turbo_tasks::value(shared)]
+struct InvalidLoaderRuleConditionIssue {
+    condition: ConfigConditionItem,
+    config_file_path: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for InvalidLoaderRuleConditionIssue {
+    #[turbo_tasks::function]
+    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self.await?.config_file_path.clone().cell())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::Config.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Text(rcstr!("Invalid condition for Turbopack loader rule")).cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(
+            StyledString::Text(RcStr::from(
+                serde_json::to_string_pretty(&self.condition)
+                    .expect("condition must be serializable"),
+            ))
+            .resolved_cell(),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    fn documentation_link(&self) -> Vc<RcStr> {
+        Vc::cell(turbopack_config_documentation_link())
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl NextConfig {
     #[turbo_tasks::function]
     pub async fn from_string(string: Vc<RcStr>) -> Result<Vc<Self>> {
         let string = string.await?;
-        let config: NextConfig = serde_json::from_str(&string)
-            .with_context(|| format!("failed to parse next.config.js: {}", string))?;
+        let mut jdeserializer = serde_json::Deserializer::from_str(&string);
+        let config: NextConfig = serde_path_to_error::deserialize(&mut jdeserializer)
+            .with_context(|| format!("failed to parse next.config.js: {string}"))?;
         Ok(config.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn config_file_path(
+        &self,
+        project_path: FileSystemPath,
+    ) -> Result<Vc<FileSystemPath>> {
+        Ok(project_path.join(&self.config_file_name)?.cell())
     }
 
     #[turbo_tasks::function]
@@ -905,8 +1349,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn cache_handler(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.cache_handler.clone())
+    pub fn cache_handler(&self, project_path: FileSystemPath) -> Result<Vc<OptionFileSystemPath>> {
+        if let Some(handler) = &self.cache_handler {
+            Ok(Vc::cell(Some(project_path.join(handler)?)))
+        } else {
+            Ok(Vc::cell(None))
+        }
     }
 
     #[turbo_tasks::function]
@@ -949,30 +1397,34 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn is_global_not_found_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.global_not_found.unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
     pub fn transpile_packages(&self) -> Vc<Vec<RcStr>> {
         Vc::cell(self.transpile_packages.clone().unwrap_or_default())
     }
 
     #[turbo_tasks::function]
-    pub fn webpack_rules(&self, active_conditions: Vec<RcStr>) -> Vc<OptionWebpackRules> {
-        let Some(turbo_rules) = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|t| t.rules.as_ref())
-        else {
-            return Vc::cell(None);
+    pub async fn webpack_rules(
+        self: Vc<Self>,
+        project_path: FileSystemPath,
+    ) -> Result<Vc<WebpackRules>> {
+        let this = self.await?;
+        let Some(turbo_rules) = this.turbopack.as_ref().and_then(|t| t.rules.as_ref()) else {
+            return Ok(Vc::cell(Vec::new()));
         };
         if turbo_rules.is_empty() {
-            return Vc::cell(None);
+            return Ok(Vc::cell(Vec::new()));
         }
-        let active_conditions = active_conditions.into_iter().collect::<HashSet<_>>();
-        let mut rules = FxIndexMap::default();
-        for (ext, rule) in turbo_rules.iter() {
-            fn transform_loaders(loaders: &[LoaderItem]) -> ResolvedVc<WebpackLoaderItems> {
+        let mut rules = Vec::new();
+        for (glob, rule_collection) in turbo_rules.iter() {
+            fn transform_loaders(
+                loaders: &mut dyn Iterator<Item = &LoaderItem>,
+            ) -> ResolvedVc<WebpackLoaderItems> {
                 ResolvedVc::cell(
                     loaders
-                        .iter()
                         .map(|item| match item {
                             LoaderItem::LoaderName(name) => WebpackLoaderItem {
                                 loader: name.clone(),
@@ -983,69 +1435,90 @@ impl NextConfig {
                         .collect(),
                 )
             }
-            enum FindRuleResult<'a> {
-                Found(&'a RuleConfigItemOptions),
-                NotFound,
-                Break,
-            }
-            fn find_rule<'a>(
-                rule: &'a RuleConfigItem,
-                active_conditions: &HashSet<RcStr>,
-            ) -> FindRuleResult<'a> {
-                match rule {
-                    RuleConfigItem::Options(rule) => FindRuleResult::Found(rule),
-                    RuleConfigItem::Conditional(map) => {
-                        for (condition, rule) in map.iter() {
-                            if condition == "default" || active_conditions.contains(condition) {
-                                match find_rule(rule, active_conditions) {
-                                    FindRuleResult::Found(rule) => {
-                                        return FindRuleResult::Found(rule);
-                                    }
-                                    FindRuleResult::Break => {
-                                        return FindRuleResult::Break;
-                                    }
-                                    FindRuleResult::NotFound => {}
-                                }
-                            }
-                        }
-                        FindRuleResult::NotFound
-                    }
-                    RuleConfigItem::Boolean(_) => FindRuleResult::Break,
-                }
-            }
-            match rule {
-                RuleConfigItemOrShortcut::Loaders(loaders) => {
-                    rules.insert(
-                        ext.clone(),
-                        LoaderRuleItem {
-                            loaders: transform_loaders(loaders),
-                            rename_as: None,
-                        },
-                    );
-                }
-                RuleConfigItemOrShortcut::Advanced(rule) => {
-                    if let FindRuleResult::Found(RuleConfigItemOptions { loaders, rename_as }) =
-                        find_rule(rule, &active_conditions)
-                    {
-                        rules.insert(
-                            ext.clone(),
+            for item in &rule_collection.0 {
+                match item {
+                    RuleConfigCollectionItem::Shorthand(loaders) => {
+                        rules.push((
+                            glob.clone(),
                             LoaderRuleItem {
-                                loaders: transform_loaders(loaders),
-                                rename_as: rename_as.clone(),
+                                loaders: transform_loaders(&mut [loaders].into_iter()),
+                                rename_as: None,
+                                condition: None,
                             },
-                        );
+                        ));
+                    }
+                    RuleConfigCollectionItem::Full(RuleConfigItem {
+                        loaders,
+                        rename_as,
+                        condition,
+                    }) => {
+                        // If the extension contains a wildcard, and the rename_as does not,
+                        // emit an issue to prevent users from encountering duplicate module
+                        // names.
+                        if glob.contains("*")
+                            && let Some(rename_as) = rename_as.as_ref()
+                            && !rename_as.contains("*")
+                        {
+                            InvalidLoaderRuleRenameAsIssue {
+                                glob: glob.clone(),
+                                config_file_path: self
+                                    .config_file_path(project_path.clone())
+                                    .owned()
+                                    .await?,
+                                rename_as: rename_as.clone(),
+                            }
+                            .resolved_cell()
+                            .emit();
+                        }
+
+                        // convert from Next.js-specific condition type to internal Turbopack
+                        // condition type
+                        let condition = if let Some(condition) = condition {
+                            if let Ok(cond) = ConditionItem::try_from(condition.clone()) {
+                                Some(cond)
+                            } else {
+                                InvalidLoaderRuleConditionIssue {
+                                    condition: condition.clone(),
+                                    config_file_path: self
+                                        .config_file_path(project_path.clone())
+                                        .owned()
+                                        .await?,
+                                }
+                                .resolved_cell()
+                                .emit();
+                                None
+                            }
+                        } else {
+                            None
+                        };
+                        rules.push((
+                            glob.clone(),
+                            LoaderRuleItem {
+                                loaders: transform_loaders(&mut loaders.iter()),
+                                rename_as: rename_as.clone(),
+                                condition,
+                            },
+                        ));
                     }
                 }
             }
         }
-        Vc::cell(Some(ResolvedVc::cell(rules)))
+        Ok(Vc::cell(rules))
+    }
+
+    #[turbo_tasks::function]
+    pub fn persistent_caching_enabled(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.experimental
+                .turbopack_persistent_caching
+                .unwrap_or_default(),
+        ))
     }
 
     #[turbo_tasks::function]
     pub fn resolve_alias_options(&self) -> Result<Vc<ResolveAliasMap>> {
         let Some(resolve_alias) = self
-            .experimental
-            .turbo
+            .turbopack
             .as_ref()
             .and_then(|t| t.resolve_alias.as_ref())
         else {
@@ -1058,8 +1531,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn resolve_extension(&self) -> Vc<ResolveExtensions> {
         let Some(resolve_extensions) = self
-            .experimental
-            .turbo
+            .turbopack
             .as_ref()
             .and_then(|t| t.resolve_extensions.as_ref())
         else {
@@ -1069,7 +1541,7 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn import_externals(&self) -> Result<Vc<bool>> {
+    pub fn import_externals(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(match self.experimental.esm_externals {
             Some(EsmExternals::Bool(b)) => b,
             Some(EsmExternals::Loose(_)) => bail!("esmExternals = \"loose\" is not supported"),
@@ -1113,6 +1585,23 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn experimental_cache_handlers(
+        &self,
+        project_path: FileSystemPath,
+    ) -> Result<Vc<FileSystemPathVec>> {
+        if let Some(handlers) = &self.experimental.cache_handlers {
+            Ok(Vc::cell(
+                handlers
+                    .values()
+                    .map(|h| project_path.join(h))
+                    .collect::<Result<Vec<_>>>()?,
+            ))
+        } else {
+            Ok(Vc::cell(vec![]))
+        }
+    }
+
+    #[turbo_tasks::function]
     pub fn experimental_swc_plugins(&self) -> Vc<SwcPlugins> {
         Vc::cell(self.experimental.swc_plugins.clone().unwrap_or_default())
     }
@@ -1134,18 +1623,22 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn react_compiler(&self) -> Vc<OptionalReactCompilerOptions> {
+    pub fn experimental_turbopack_use_builtin_babel(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.experimental.turbopack_use_builtin_babel)
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_turbopack_use_builtin_sass(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.experimental.turbopack_use_builtin_sass)
+    }
+
+    #[turbo_tasks::function]
+    pub fn react_compiler_options(&self) -> Vc<OptionalReactCompilerOptions> {
         let options = &self.experimental.react_compiler;
 
         let options = match options {
             Some(ReactCompilerOptionsOrBoolean::Boolean(true)) => {
-                OptionalReactCompilerOptions(Some(
-                    ReactCompilerOptions {
-                        compilation_mode: None,
-                        panic_threshold: None,
-                    }
-                    .resolved_cell(),
-                ))
+                OptionalReactCompilerOptions(Some(ReactCompilerOptions::default().resolved_cell()))
             }
             Some(ReactCompilerOptionsOrBoolean::Option(options)) => OptionalReactCompilerOptions(
                 Some(ReactCompilerOptions { ..options.clone() }.resolved_cell()),
@@ -1191,6 +1684,17 @@ impl NextConfig {
         )))
     }
 
+    /// Returns the suffix to use for chunk loading.
+    #[turbo_tasks::function]
+    pub async fn chunk_suffix_path(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
+        let this = self.await?;
+
+        match &this.deployment_id {
+            Some(deployment_id) => Ok(Vc::cell(Some(format!("?dpl={deployment_id}").into()))),
+            None => Ok(Vc::cell(None)),
+        }
+    }
+
     #[turbo_tasks::function]
     pub fn enable_ppr(&self) -> Vc<bool> {
         Vc::cell(
@@ -1213,24 +1717,46 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_react_owner_stack(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.react_owner_stack.unwrap_or(false))
+    pub fn enable_view_transition(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.view_transition.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
-    pub fn enable_dynamic_io(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.dynamic_io.unwrap_or(false))
+    pub fn enable_cache_components(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.cache_components.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_use_cache(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .use_cache
+                // "use cache" was originally implicitly enabled with the
+                // cacheComponents flag, so we transfer the value for cacheComponents to the
+                // explicit useCache flag to ensure backwards compatibility.
+                .unwrap_or(self.experimental.cache_components.unwrap_or(false)),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_root_params(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .root_params
+                // rootParams should be enabled implicitly in cacheComponents.
+                .unwrap_or(self.experimental.cache_components.unwrap_or(false)),
+        )
     }
 
     #[turbo_tasks::function]
     pub fn cache_kinds(&self) -> Vc<CacheKinds> {
-        Vc::cell(
-            self.experimental
-                .cache_handlers
-                .as_ref()
-                .map(|handlers| handlers.keys().cloned().collect())
-                .unwrap_or_default(),
-        )
+        let mut cache_kinds = CacheKinds::default();
+
+        if let Some(handlers) = self.experimental.cache_handlers.as_ref() {
+            cache_kinds.extend(handlers.keys().cloned());
+        }
+
+        cache_kinds.cell()
     }
 
     #[turbo_tasks::function]
@@ -1246,70 +1772,129 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn tree_shaking_mode_for_foreign_code(
         &self,
-        is_development: bool,
+        _is_development: bool,
     ) -> Vc<OptionTreeShaking> {
-        let tree_shaking = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|v| v.tree_shaking);
-
-        OptionTreeShaking(match tree_shaking {
+        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),
             Some(true) => Some(TreeShakingMode::ModuleFragments),
-            None => {
-                if is_development {
-                    Some(TreeShakingMode::ReexportsOnly)
-                } else {
-                    Some(TreeShakingMode::ModuleFragments)
-                }
-            }
+            None => Some(TreeShakingMode::ReexportsOnly),
         })
         .cell()
     }
 
     #[turbo_tasks::function]
-    pub fn tree_shaking_mode_for_user_code(&self, is_development: bool) -> Vc<OptionTreeShaking> {
-        let tree_shaking = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|v| v.tree_shaking);
-
-        OptionTreeShaking(match tree_shaking {
+    pub fn tree_shaking_mode_for_user_code(&self, _is_development: bool) -> Vc<OptionTreeShaking> {
+        OptionTreeShaking(match self.experimental.turbopack_tree_shaking {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),
             Some(true) => Some(TreeShakingMode::ModuleFragments),
-            None => {
-                if is_development {
-                    Some(TreeShakingMode::ReexportsOnly)
-                } else {
-                    Some(TreeShakingMode::ModuleFragments)
-                }
-            }
+            None => Some(TreeShakingMode::ReexportsOnly),
         })
         .cell()
     }
 
     #[turbo_tasks::function]
-    pub fn module_id_strategy_config(&self) -> Vc<OptionModuleIdStrategy> {
-        let Some(module_id_strategy) = self
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|t| t.module_id_strategy.as_ref())
-        else {
-            return Vc::cell(None);
-        };
-        Vc::cell(Some(module_id_strategy.clone()))
+    pub async fn turbopack_remove_unused_exports(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.experimental
+                .turbopack_remove_unused_exports
+                .unwrap_or(matches!(*mode.await?, NextMode::Build)),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_ids(&self, mode: Vc<NextMode>) -> Result<Vc<ModuleIds>> {
+        Ok(match *mode.await? {
+            // Ignore configuration in development mode, HMR only works with `named`
+            NextMode::Development => ModuleIds::Named.cell(),
+            NextMode::Build => self
+                .experimental
+                .turbopack_module_ids
+                .unwrap_or(ModuleIds::Deterministic)
+                .cell(),
+        })
     }
 
     #[turbo_tasks::function]
     pub async fn turbo_minify(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        let minify = self.experimental.turbo.as_ref().and_then(|t| t.minify);
-
+        let minify = self.experimental.turbopack_minify;
         Ok(Vc::cell(
             minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbo_scope_hoisting(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match *mode.await? {
+            // Ignore configuration in development mode to not break HMR
+            NextMode::Development => false,
+            NextMode::Build => self.experimental.turbopack_scope_hoisting.unwrap_or(true),
+        }))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbopack_import_type_bytes(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_import_type_bytes
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let source_maps = self.experimental.turbopack_source_maps;
+        Ok(Vc::cell(source_maps.unwrap_or(match &*mode.await? {
+            NextMode::Development => true,
+            NextMode::Build => self.production_browser_source_maps,
+        })))
+    }
+
+    #[turbo_tasks::function]
+    pub fn server_source_maps(&self) -> Result<Vc<bool>> {
+        let source_maps = self.experimental.turbopack_source_maps;
+        Ok(Vc::cell(source_maps.unwrap_or(true)))
+    }
+
+    #[turbo_tasks::function]
+    pub fn typescript_tsconfig_path(&self) -> Result<Vc<Option<RcStr>>> {
+        Ok(Vc::cell(
+            self.typescript
+                .tsconfig_path
+                .as_ref()
+                .map(|path| path.to_owned().into()),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_file_tracing_includes(&self) -> Vc<OptionJsonValue> {
+        Vc::cell(self.output_file_tracing_includes.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_file_tracing_excludes(&self) -> Vc<OptionJsonValue> {
+        Vc::cell(self.output_file_tracing_excludes.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn fetch_client(&self, env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<FetchClient>> {
+        // Support both an env var and the experimental flag to provide more flexibility to
+        // developers on locked down systems, depending on if they want to configure this on a
+        // per-system or per-project basis.
+        let use_system_tls_certs = env
+            .read(rcstr!("NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS"))
+            .await?
+            .as_ref()
+            .and_then(|env_value| {
+                // treat empty value same as an unset value
+                (!env_value.is_empty()).then(|| env_value == "1" || env_value == "true")
+            })
+            .or(self.experimental.turbopack_use_system_tls_certs)
+            .unwrap_or(false);
+        Ok(FetchClient {
+            tls_built_in_webpki_certs: !use_system_tls_certs,
+            tls_built_in_native_certs: use_system_tls_certs,
+        }
+        .cell())
     }
 }
 
@@ -1328,7 +1913,7 @@ impl JsConfig {
     pub async fn from_string(string: Vc<RcStr>) -> Result<Vc<Self>> {
         let string = string.await?;
         let config: JsConfig = serde_json::from_str(&string)
-            .with_context(|| format!("failed to parse next.config.js: {}", string))?;
+            .with_context(|| format!("failed to parse next.config.js: {string}"))?;
 
         Ok(config.cell())
     }
@@ -1339,43 +1924,65 @@ impl JsConfig {
     }
 }
 
-#[turbo_tasks::value]
-struct OutdatedConfigIssue {
-    path: Vc<FileSystemPath>,
-    old_name: RcStr,
-    new_name: RcStr,
-    description: RcStr,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[turbo_tasks::value_impl]
-impl Issue for OutdatedConfigIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.into()
-    }
+    #[test]
+    fn test_serde_rule_config_item_options() {
+        let json_value = serde_json::json!({
+            "loaders": [],
+            "as": "*.js",
+            "condition": {
+                "all": [
+                    "production",
+                    {"not": "foreign"},
+                    {"any": [
+                        "browser",
+                        {
+                            "path": { "type": "glob", "value": "*.svg"},
+                            "content": {
+                                "source": "@someTag",
+                                "flags": ""
+                            }
+                        }
+                    ]},
+                ],
+            }
+        });
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Config.into()
-    }
+        let rule_config: RuleConfigItem = serde_json::from_value(json_value).unwrap();
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
-            StyledString::Code(self.old_name.clone()),
-            StyledString::Text(" has been replaced by ".into()),
-            StyledString::Code(self.new_name.clone()),
-        ])
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.description.clone()).cell()))
+        assert_eq!(
+            rule_config,
+            RuleConfigItem {
+                loaders: vec![],
+                rename_as: Some(rcstr!("*.js")),
+                condition: Some(ConfigConditionItem::All(
+                    [
+                        ConfigConditionItem::Builtin(WebpackLoaderBuiltinCondition::Production),
+                        ConfigConditionItem::Not(Box::new(ConfigConditionItem::Builtin(
+                            WebpackLoaderBuiltinCondition::Foreign
+                        ))),
+                        ConfigConditionItem::Any(
+                            vec![
+                                ConfigConditionItem::Builtin(
+                                    WebpackLoaderBuiltinCondition::Browser
+                                ),
+                                ConfigConditionItem::Base {
+                                    path: Some(ConfigConditionPath::Glob(rcstr!("*.svg"))),
+                                    content: Some(RegexComponents {
+                                        source: rcstr!("@someTag"),
+                                        flags: rcstr!(""),
+                                    }),
+                                },
+                            ]
+                            .into(),
+                        ),
+                    ]
+                    .into(),
+                )),
+            }
+        );
     }
 }

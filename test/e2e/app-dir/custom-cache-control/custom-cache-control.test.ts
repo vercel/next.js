@@ -33,7 +33,7 @@ describe('custom-cache-control', () => {
       expect(res.headers.get('cache-control')).toBe(
         isNextDev
           ? 'no-store, must-revalidate'
-          : 's-maxage=120, stale-while-revalidate'
+          : 's-maxage=120, stale-while-revalidate=31535880'
       )
     }
   )
@@ -71,7 +71,7 @@ describe('custom-cache-control', () => {
     expect(res.headers.get('cache-control')).toBe(
       isNextDev
         ? 'no-store, must-revalidate'
-        : 's-maxage=120, stale-while-revalidate'
+        : 's-maxage=120, stale-while-revalidate=31535880'
     )
   })
 

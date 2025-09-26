@@ -6,7 +6,7 @@ related:
   title: Related
   description: View related API references.
   links:
-    - app/api-reference/config/next-config-js/dynamicIO
+    - app/api-reference/config/next-config-js/cacheComponents
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/revalidateTag
     - app/api-reference/functions/cacheTag
@@ -16,14 +16,14 @@ The `cacheLife` function is used to set the cache lifetime of a function or comp
 
 ## Usage
 
-To use `cacheLife`, enable the [`dynamicIO` flag](/docs/app/api-reference/config/next-config-js/dynamicIO) in your `next.config.js` file:
+To use `cacheLife`, enable the [`cacheComponents` flag](/docs/app/api-reference/config/next-config-js/cacheComponents) in your `next.config.js` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
   },
 }
 
@@ -33,14 +33,14 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
   },
 }
 
 export default nextConfig
 ```
 
-Then, import and invoke The `cacheLife` function within the scope of the function or component:
+Then, import and invoke the `cacheLife` function within the scope of the function or component:
 
 ```tsx filename="app/page.tsx" highlight={5} switcher
 'use cache'
@@ -66,21 +66,23 @@ export default async function Page() {
 
 ### Default cache profiles
 
-Next.js provides a set of named cache profiles modeled on various timescales. If you don't specify a cache profile in the `cacheLife` function alongside the `use cache` directive, Next.js will automatically apply the “default” cache profile.
+Next.js provides a set of named cache profiles modeled on various timescales. If you don't specify a cache profile in the `cacheLife` function alongside the `use cache` directive, Next.js will automatically apply the `default` cache profile.
 
 However, we recommend always adding a cache profile when using the `use cache` directive to explicitly define caching behavior.
 
-| **Profile** | **Stale** | **Revalidate** | **Expire**     | **Description**                                                          |
-| ----------- | --------- | -------------- | -------------- | ------------------------------------------------------------------------ |
-| `default`   | undefined | 15 minutes     | INFINITE_CACHE | Default profile, suitable for content that doesn't need frequent updates |
-| `seconds`   | undefined | 1 second       | 1 minute       | For rapidly changing content requiring near real-time updates            |
-| `minutes`   | 5 minutes | 1 minute       | 1 hour         | For content that updates frequently within an hour                       |
-| `hours`     | 5 minutes | 1 hour         | 1 day          | For content that updates daily but can be slightly stale                 |
-| `days`      | 5 minutes | 1 day          | 1 week         | For content that updates weekly but can be a day old                     |
-| `weeks`     | 5 minutes | 1 week         | 1 month        | For content that updates monthly but can be a week old                   |
-| `max`       | 5 minutes | 1 month        | INFINITE_CACHE | For very stable content that rarely needs updating                       |
+| **Profile** | `stale`   | `revalidate` | `expire` | **Description**                                                          |
+| ----------- | --------- | ------------ | -------- | ------------------------------------------------------------------------ |
+| `default`   | 5 minutes | 15 minutes   | 1 year   | Default profile, suitable for content that doesn't need frequent updates |
+| `seconds`   | 0         | 1 second     | 1 second | For rapidly changing content requiring near real-time updates            |
+| `minutes`   | 5 minutes | 1 minute     | 1 hour   | For content that updates frequently within an hour                       |
+| `hours`     | 5 minutes | 1 hour       | 1 day    | For content that updates daily but can be slightly stale                 |
+| `days`      | 5 minutes | 1 day        | 1 week   | For content that updates weekly but can be a day old                     |
+| `weeks`     | 5 minutes | 1 week       | 30 days  | For content that updates monthly but can be a week old                   |
+| `max`       | 5 minutes | 30 days      | 1 year   | For very stable content that rarely needs updating                       |
 
 The string values used to reference cache profiles don't carry inherent meaning; instead they serve as semantic labels. This allows you to better understand and manage your cached content within your codebase.
+
+> **Good to know:** Updating the [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) and [`expireTime`](/docs/app/api-reference/config/next-config-js/expireTime) config options also updates the `stale` and `expire` properties of the `default` cache profile.
 
 ### Custom cache profiles
 
@@ -109,7 +111,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
     cacheLife: {
       biweekly: {
         stale: 60 * 60 * 24 * 14, // 14 days
@@ -126,7 +128,7 @@ module.exports = nextConfig
 ```js filename="next.config.js" switcher
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
     cacheLife: {
       biweekly: {
         stale: 60 * 60 * 24 * 14, // 14 days
@@ -163,7 +165,7 @@ The example below shows how to override the default “days” cache profile:
 ```ts filename="next.config.ts"
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
     cacheLife: {
       days: {
         stale: 3600, // 1 hour

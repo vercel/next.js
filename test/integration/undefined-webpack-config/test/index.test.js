@@ -8,7 +8,7 @@ const expectedErr =
   /Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js/
 
 // Tests webpack, not needed for Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'undefined webpack config error',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

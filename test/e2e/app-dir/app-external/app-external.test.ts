@@ -1,10 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertNoRedbox,
-  check,
-  retry,
-  shouldRunTurboDevTest,
-} from 'next-test-utils'
+import { assertNoRedbox, check, retry } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -24,13 +19,13 @@ describe('app dir - external dependency', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      swr: 'latest',
-      undici: 'latest',
+      swr: '2.2.5',
+      undici: '6.21.0',
     },
     packageJson: {
       scripts: {
         build: 'next build',
-        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
+        dev: 'next dev',
         start: 'next start',
       },
     },
@@ -292,7 +287,9 @@ describe('app dir - external dependency', () => {
   describe('server actions', () => {
     it('should prefer to resolve esm over cjs for bundling optout packages', async () => {
       const browser = await next.browser('/optout/action')
-      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
+      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe(
+        'initial'
+      )
 
       browser.elementByCss('#dual-pkg-outout button').click()
       await check(async () => {

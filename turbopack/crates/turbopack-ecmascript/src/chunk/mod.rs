@@ -1,4 +1,6 @@
+pub(crate) mod batch;
 pub(crate) mod chunk_type;
+pub(crate) mod code_and_ids;
 pub(crate) mod content;
 pub(crate) mod data;
 pub(crate) mod item;
@@ -6,30 +8,33 @@ pub(crate) mod placeable;
 
 use std::fmt::Write;
 
-use anyhow::{bail, Result};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use anyhow::Result;
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
     ident::AssetIdent,
     introspect::{
-        module::IntrospectableModule,
-        utils::{children_from_output_assets, content_to_details},
-        Introspectable, IntrospectableChildren,
+        Introspectable, IntrospectableChildren, module::IntrospectableModule,
+        utils::children_from_output_assets,
     },
     output::OutputAssets,
     server_fs::ServerFileSystem,
 };
 
 pub use self::{
+    batch::{
+        EcmascriptChunkBatchWithAsyncInfo, EcmascriptChunkItemBatchGroup,
+        EcmascriptChunkItemOrBatchWithAsyncInfo,
+    },
     chunk_type::EcmascriptChunkType,
+    code_and_ids::{BatchGroupCodeAndIds, CodeAndIds, batch_group_code_and_ids, item_code_and_ids},
     content::EcmascriptChunkContent,
     data::EcmascriptChunkData,
     item::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
-        EcmascriptChunkItemOptions,
+        EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo,
     },
     placeable::{EcmascriptChunkPlaceable, EcmascriptExports},
 };
@@ -56,96 +61,87 @@ impl EcmascriptChunk {
 
     #[turbo_tasks::function]
     pub fn entry_ids(self: Vc<Self>) -> Vc<ModuleIds> {
-        // TODO return something usefull
+        // TODO return something useful
         Vc::cell(Default::default())
     }
-}
-
-#[turbo_tasks::function]
-fn chunk_item_key() -> Vc<RcStr> {
-    Vc::cell("chunk item".into())
-}
-
-#[turbo_tasks::function]
-fn availability_root_key() -> Vc<RcStr> {
-    Vc::cell("current_availability_root".into())
 }
 
 #[turbo_tasks::value_impl]
 impl Chunk for EcmascriptChunk {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut assets = Vec::new();
-
-        let EcmascriptChunkContent { chunk_items, .. } = &*self.content.await?;
-        let mut common_path = if let Some((chunk_item, _)) = chunk_items.first() {
-            let path = chunk_item.asset_ident().path().to_resolved().await?;
-            Some((path, path.await?))
+        let chunk_items = &*self.content.included_chunk_items().await?;
+        let mut common_path = if let Some(chunk_item) = chunk_items.first() {
+            let path = chunk_item.asset_ident().path().owned().await?;
+            Some(path)
         } else {
             None
         };
 
         // The included chunk items describe the chunk uniquely
-        let chunk_item_key = chunk_item_key();
-        for &(chunk_item, _) in chunk_items.iter() {
-            if let Some((common_path_vc, common_path_ref)) = common_path.as_mut() {
+        for &chunk_item in chunk_items.iter() {
+            if let Some(common_path_ref) = common_path.as_mut() {
                 let path = chunk_item.asset_ident().path().await?;
                 while !path.is_inside_or_equal_ref(common_path_ref) {
-                    let parent = common_path_vc.parent().to_resolved().await?;
-                    if parent == *common_path_vc {
+                    let parent = common_path_ref.parent();
+                    if parent == *common_path_ref {
                         common_path = None;
                         break;
                     }
-                    *common_path_vc = parent;
-                    *common_path_ref = (*common_path_vc).await?;
+                    *common_path_ref = parent;
                 }
             }
-            assets.push((
-                chunk_item_key.to_resolved().await?,
-                chunk_item.content_ident().to_resolved().await?,
-            ));
         }
 
-        // The previous resolve loop is no longer needed since we're already using ResolvedVc
+        let assets = chunk_items
+            .iter()
+            .map(|&chunk_item| async move {
+                Ok((
+                    rcstr!("chunk item"),
+                    chunk_item.content_ident().to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?;
 
         let ident = AssetIdent {
-            path: if let Some((common_path, _)) = common_path {
-                *common_path
+            path: if let Some(common_path) = common_path {
+                common_path
             } else {
-                *ServerFileSystem::new().root().to_resolved().await?
+                ServerFileSystem::new().root().owned().await?
             },
-            query: *Vc::<RcStr>::default().to_resolved().await?,
-            fragment: None,
+            query: RcStr::default(),
+            fragment: RcStr::default(),
             assets,
             modifiers: Vec::new(),
             parts: Vec::new(),
             layer: None,
+            content_type: None,
         };
 
-        Ok(AssetIdent::new(Value::new(ident)))
+        Ok(AssetIdent::new(ident))
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
         let content = self.content.await?;
-        Ok(Vc::cell(content.referenced_output_assets.clone()))
+        let referenced_output_assets = content
+            .chunk_items
+            .iter()
+            .map(async |with_info| Ok(with_info.references().await?.into_iter().copied()))
+            .try_flat_join()
+            .await?;
+        Ok(Vc::cell(referenced_output_assets))
     }
 
     #[turbo_tasks::function]
-    async fn chunk_items(&self) -> Result<Vc<ChunkItems>> {
-        let EcmascriptChunkContent { chunk_items, .. } = &*self.content.await?;
-        Ok(ChunkItems(
-            chunk_items
-                .iter()
-                .map(|(item, _)| Vc::upcast(*item))
-                .collect(),
-        )
-        .cell())
+    fn chunk_items(&self) -> Vc<ChunkItems> {
+        self.content.included_chunk_items()
     }
 }
 
@@ -165,68 +161,42 @@ impl EcmascriptChunk {
     pub fn chunk_content(&self) -> Vc<EcmascriptChunkContent> {
         *self.content
     }
-
-    #[turbo_tasks::function]
-    pub async fn chunk_items_count(&self) -> Result<Vc<usize>> {
-        Ok(Vc::cell(self.content.await?.chunk_items.len()))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptChunk {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        bail!("EcmascriptChunk::content() is not implemented")
-    }
-}
-
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("ecmascript chunk".into())
-}
-
-#[turbo_tasks::function]
-fn chunk_item_module_key() -> Vc<RcStr> {
-    Vc::cell("module".into())
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for EcmascriptChunk {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("ecmascript chunk"))
     }
 
     #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<RcStr> {
-        self.path().to_string()
+        self.ident().to_string()
     }
 
     #[turbo_tasks::function]
     async fn details(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        let content = content_to_details(self.content());
         let mut details = String::new();
         let this = self.await?;
-        let chunk_content = this.content.await?;
         details += "Chunk items:\n\n";
-        for (chunk_item, _) in chunk_content.chunk_items.iter() {
+        for chunk_item in this.content.included_chunk_items().await? {
             writeln!(details, "- {}", chunk_item.asset_ident().to_string().await?)?;
         }
-        details += "\nContent:\n\n";
-        write!(details, "{}", content.await?)?;
         Ok(Vc::cell(details.into()))
     }
 
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
         let mut children = children_from_output_assets(self.references())
-            .await?
-            .clone_value();
-        let chunk_item_module_key = chunk_item_module_key();
-        for &(chunk_item, _) in self.await?.content.await?.chunk_items.iter() {
+            .owned()
+            .await?;
+        for chunk_item in self.await?.content.included_chunk_items().await? {
             children.insert((
-                chunk_item_module_key,
-                IntrospectableModule::new(chunk_item.module()),
+                rcstr!("module"),
+                IntrospectableModule::new(chunk_item.module())
+                    .to_resolved()
+                    .await?,
             ));
         }
         Ok(Vc::cell(children))

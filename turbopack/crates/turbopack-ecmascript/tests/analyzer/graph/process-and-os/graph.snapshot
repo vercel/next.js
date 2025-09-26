@@ -11,7 +11,7 @@
                 [
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "os",
                             ),
                         ),
@@ -467,7 +467,7 @@
                 [
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "os",
                             ),
                         ),
@@ -501,7 +501,7 @@
                 [
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "os",
                             ),
                         ),
@@ -529,7 +529,7 @@
                 [
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "process",
                             ),
                         ),

@@ -22,7 +22,7 @@ describe('app dir - not-found - conflict route', () => {
 
     it('should allow to have a valid /not-found route', async () => {
       const html = await next.render('/not-found')
-      expect(html).toContain("I'm still a valid page")
+      expect(html).toContain('I am still a valid page')
     })
   }
 

@@ -3,10 +3,9 @@ import type {
   ExportPageInput,
   ExportPageResult,
   ExportRouteResult,
-  ExportedPageFile,
-  FileWriter,
   WorkerRenderOpts,
   ExportPagesResult,
+  ExportPathEntry,
 } from './types'
 
 import '../server/node-environment'
@@ -21,7 +20,6 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
-import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
@@ -29,7 +27,7 @@ import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { hasNextSupport } from '../server/ci-info'
 import { exportAppRoute } from './routes/app-route'
-import { exportAppPage, prospectiveRenderAppPage } from './routes/app-page'
+import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
@@ -42,14 +40,19 @@ import {
 } from '../build/turborepo-access-trace'
 import type { Params } from '../server/request/params'
 import {
-  getFallbackRouteParams,
-  type FallbackRouteParams,
+  createOpaqueFallbackRouteParams,
+  type OpaqueFallbackRouteParams,
 } from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module.compiled'
 import { isStaticGenBailoutError } from '../client/components/static-generation-bailout'
+import type { PagesRenderContext, PagesSharedContext } from '../server/render'
+import type { AppSharedContext } from '../server/app-render/app-render'
+import { MultiFileWriter } from '../lib/multi-file-writer'
+import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 
-const envConfig = require('../shared/lib/runtime-config.external')
+const envConfig =
+  require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
 
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
@@ -65,11 +68,10 @@ class ExportPageError extends Error {
 
 async function exportPageImpl(
   input: ExportPageInput,
-  fileWriter: FileWriter
+  fileWriter: MultiFileWriter
 ): Promise<ExportRouteResult | undefined> {
   const {
-    path,
-    pathMap,
+    exportPath,
     distDir,
     pagesDataDir,
     buildExport = false,
@@ -81,6 +83,11 @@ async function exportPageImpl(
     enableExperimentalReact,
     ampValidatorPath,
     trailingSlash,
+    sriEnabled,
+    renderOpts: commonRenderOpts,
+    outDir: commonOutDir,
+    buildId,
+    renderResumeDataCache,
   } = input
 
   if (enableExperimentalReact) {
@@ -88,6 +95,7 @@ async function exportPageImpl(
   }
 
   const {
+    path,
     page,
 
     // The parameters that are currently unknown.
@@ -103,40 +111,37 @@ async function exportPageImpl(
     // the renderOpts.
     _isRoutePPREnabled: isRoutePPREnabled,
 
-    // If this is a prospective render, we don't actually want to persist the
-    // result, we just want to use it to error the build if there's a problem.
-    _isProspectiveRender: isProspectiveRender = false,
+    // Configure the rendering of the page to allow that an empty static shell
+    // is generated while rendering using PPR and Cache Components.
+    _allowEmptyStaticShell: allowEmptyStaticShell = false,
 
     // Pull the original query out.
     query: originalQuery = {},
-  } = pathMap
+  } = exportPath
 
-  const fallbackRouteParams: FallbackRouteParams | null =
-    getFallbackRouteParams(_fallbackRouteParams)
+  const fallbackRouteParams: OpaqueFallbackRouteParams | null =
+    createOpaqueFallbackRouteParams(_fallbackRouteParams)
 
   let query = { ...originalQuery }
   const pathname = normalizeAppPath(page)
   const isDynamic = isDynamicRoute(page)
-  const outDir = isAppDir ? join(distDir, 'server/app') : input.outDir
+  const outDir = isAppDir ? join(distDir, 'server/app') : commonOutDir
 
   const filePath = normalizePagePath(path)
   const ampPath = `${filePath}.amp`
   let renderAmpPath = ampPath
 
-  let updatedPath = query.__nextSsgPath || path
-  delete query.__nextSsgPath
+  let updatedPath = exportPath._ssgPath || path
+  let locale = exportPath._locale || commonRenderOpts.locale
 
-  let locale = query.__nextLocale || input.renderOpts.locale
-  delete query.__nextLocale
-
-  if (input.renderOpts.locale) {
-    const localePathResult = normalizeLocalePath(path, input.renderOpts.locales)
+  if (commonRenderOpts.locale) {
+    const localePathResult = normalizeLocalePath(path, commonRenderOpts.locales)
 
     if (localePathResult.detectedLocale) {
       updatedPath = localePathResult.pathname
       locale = localePathResult.detectedLocale
 
-      if (locale === input.renderOpts.defaultLocale) {
+      if (locale === commonRenderOpts.defaultLocale) {
         renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
       }
     }
@@ -149,7 +154,7 @@ async function exportPageImpl(
   // Check if the page is a specified dynamic route
   const { pathname: nonLocalizedPath } = normalizeLocalePath(
     path,
-    input.renderOpts.locales
+    commonRenderOpts.locales
   )
 
   let params: Params | undefined
@@ -183,8 +188,8 @@ async function exportPageImpl(
   if (
     locale &&
     buildExport &&
-    input.renderOpts.domainLocales &&
-    input.renderOpts.domainLocales.some(
+    commonRenderOpts.domainLocales &&
+    commonRenderOpts.domainLocales.some(
       (dl) => dl.defaultLocale === locale || dl.locales?.includes(locale || '')
     )
   ) {
@@ -193,7 +198,7 @@ async function exportPageImpl(
 
   envConfig.setConfig({
     serverRuntimeConfig,
-    publicRuntimeConfig: input.renderOpts.runtimeConfig,
+    publicRuntimeConfig: commonRenderOpts.runtimeConfig,
   })
 
   const getHtmlFilename = (p: string) =>
@@ -233,6 +238,9 @@ async function exportPageImpl(
     distDir,
     page,
     isAppPath: isAppDir,
+    isDev: false,
+    sriEnabled,
+    needsManifestsForLegacyReasons: true,
   })
 
   // Handle App Routes.
@@ -243,49 +251,40 @@ async function exportPageImpl(
       params,
       page,
       components.routeModule as AppRouteRouteModule,
-      input.renderOpts.incrementalCache,
-      input.renderOpts.cacheLifeProfiles,
+      commonRenderOpts.incrementalCache,
+      commonRenderOpts.cacheLifeProfiles,
       htmlFilepath,
       fileWriter,
-      input.renderOpts.experimental,
-      input.renderOpts.buildId
+      commonRenderOpts.experimental,
+      buildId
     )
   }
 
   const renderOpts: WorkerRenderOpts = {
     ...components,
-    ...input.renderOpts,
+    ...commonRenderOpts,
     ampPath: renderAmpPath,
     params,
     optimizeCss,
     disableOptimizedLoading,
     locale,
     supportsDynamicResponse: false,
+    // During the export phase in next build, we always enable the streaming metadata since if there's
+    // any dynamic access in metadata we can determine it in the build phase.
+    // If it's static, then it won't affect anything.
+    // If it's dynamic, then it can be handled when request hits the route.
+    serveStreamingMetadata: true,
+    allowEmptyStaticShell,
     experimental: {
-      ...input.renderOpts.experimental,
+      ...commonRenderOpts.experimental,
       isRoutePPREnabled,
     },
-  }
-
-  if (hasNextSupport) {
-    renderOpts.isRevalidate = true
+    renderResumeDataCache,
   }
 
   // Handle App Pages
   if (isAppDir) {
-    // If this is a prospective render, don't return any metrics or revalidate
-    // timings as we aren't persisting this render (it was only to error).
-    if (isProspectiveRender) {
-      return prospectiveRenderAppPage(
-        req,
-        res,
-        page,
-        pathname,
-        query,
-        fallbackRouteParams,
-        renderOpts
-      )
-    }
+    const sharedContext: AppSharedContext = { buildId }
 
     return exportAppPage(
       req,
@@ -299,8 +298,21 @@ async function exportPageImpl(
       htmlFilepath,
       debugOutput,
       isDynamicError,
-      fileWriter
+      fileWriter,
+      sharedContext
     )
+  }
+
+  const sharedContext: PagesSharedContext = {
+    buildId,
+    deploymentId: commonRenderOpts.deploymentId,
+    customServer: undefined,
+  }
+
+  const renderContext: PagesRenderContext = {
+    isFallback: exportPath._pagesFallback ?? false,
+    isDraftMode: false,
+    developmentNotFoundSourcePage: undefined,
   }
 
   return exportPagesPage(
@@ -319,6 +331,8 @@ async function exportPageImpl(
     pagesDataDir,
     buildExport,
     isDynamic,
+    sharedContext,
+    renderContext,
     hasOrigQueryValues,
     renderOpts,
     components,
@@ -330,8 +344,7 @@ export async function exportPages(
   input: ExportPagesInput
 ): Promise<ExportPagesResult> {
   const {
-    exportPathMap,
-    paths,
+    exportPaths,
     dir,
     distDir,
     outDir,
@@ -342,7 +355,17 @@ export async function exportPages(
     renderOpts,
     nextConfig,
     options,
+    renderResumeDataCachesByPage = {},
   } = input
+
+  if (nextConfig.experimental.enablePrerenderSourceMaps) {
+    try {
+      // Same as `next dev`
+      // Limiting the stack trace to a useful amount of frames is handled by ignore-listing.
+      // TODO: How high can we go without severely impacting CPU/memory?
+      Error.stackTraceLimit = 50
+    } catch {}
+  }
 
   // If the fetch cache was enabled, we need to create an incremental
   // cache instance for this page.
@@ -352,7 +375,6 @@ export async function exportPages(
     fetchCacheKeyPrefix,
     distDir,
     dir,
-    dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
@@ -365,19 +387,28 @@ export async function exportPages(
     nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
   const results: ExportPagesResult = []
 
-  const exportPageWithRetry = async (path: string, maxAttempts: number) => {
-    const pathMap = exportPathMap[path]
-    const { page } = exportPathMap[path]
+  const exportPageWithRetry = async (
+    exportPath: ExportPathEntry,
+    maxAttempts: number
+  ) => {
+    const { page, path } = exportPath
     const pageKey = page !== path ? `${page}: ${path}` : path
     let attempt = 0
     let result
+
+    const hasDebuggerAttached =
+      // Also tests for `inspect-brk`
+      process.env.NODE_OPTIONS?.includes('--inspect')
+
+    const renderResumeDataCache = renderResumeDataCachesByPage[page]
+      ? createRenderResumeDataCache(renderResumeDataCachesByPage[page])
+      : undefined
 
     while (attempt < maxAttempts) {
       try {
         result = await Promise.race<ExportPageResult | undefined>([
           exportPage({
-            path,
-            pathMap,
+            exportPath,
             distDir,
             outDir,
             pagesDataDir,
@@ -395,13 +426,19 @@ export async function exportPages(
             httpAgentOptions: nextConfig.httpAgentOptions,
             debugOutput: options.debugOutput,
             enableExperimentalReact: needsExperimentalReact(nextConfig),
+            sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
+            buildId: input.buildId,
+            renderResumeDataCache,
           }),
-          // If exporting the page takes longer than the timeout, reject the promise.
-          new Promise((_, reject) => {
-            setTimeout(() => {
-              reject(new TimeoutError())
-            }, nextConfig.staticPageGenerationTimeout * 1000)
-          }),
+          hasDebuggerAttached
+            ? // With a debugger attached, exporting can take infinitely if we paused script execution.
+              new Promise(() => {})
+            : // If exporting the page takes longer than the timeout, reject the promise.
+              new Promise((_, reject) => {
+                setTimeout(() => {
+                  reject(new TimeoutError())
+                }, nextConfig.staticPageGenerationTimeout * 1000)
+              }),
         ])
 
         // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
@@ -453,23 +490,29 @@ export async function exportPages(
               `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
             )
           }
-          await new Promise((r) => setTimeout(r, Math.random() * 500))
+
+          // Exponential backoff with random jitter to avoid thundering herd on retries
+          const baseDelay = 500 // 500ms
+          const maxDelay = 2000 // 2 seconds
+          const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
+          const jitter = Math.random() * 0.3 * delay // Add up to 30% random jitter
+          await new Promise((r) => setTimeout(r, delay + jitter))
         }
       }
 
       attempt++
     }
 
-    return { result, path, pageKey }
+    return { result, path, page, pageKey }
   }
 
-  for (let i = 0; i < paths.length; i += maxConcurrency) {
-    const subset = paths.slice(i, i + maxConcurrency)
+  for (let i = 0; i < exportPaths.length; i += maxConcurrency) {
+    const subset = exportPaths.slice(i, i + maxConcurrency)
 
     const subsetResults = await Promise.all(
-      subset.map((path) =>
+      subset.map((exportPath) =>
         exportPageWithRetry(
-          path,
+          exportPath,
           nextConfig.experimental.staticGenerationRetryCount ?? 1
         )
       )
@@ -484,24 +527,20 @@ export async function exportPages(
 async function exportPage(
   input: ExportPageInput
 ): Promise<ExportPageResult | undefined> {
-  trace('export-page', input.parentSpanId).setAttribute('path', input.path)
+  trace('export-page', input.parentSpanId).setAttribute(
+    'path',
+    input.exportPath.path
+  )
 
   // Configure the http agent.
   setHttpClientAndAgentOptions({
     httpAgentOptions: input.httpAgentOptions,
   })
 
-  const files: ExportedPageFile[] = []
-  const baseFileWriter: FileWriter = async (
-    type,
-    path,
-    content,
-    encodingOptions = 'utf-8'
-  ) => {
-    await fs.mkdir(dirname(path), { recursive: true })
-    await fs.writeFile(path, content, encodingOptions)
-    files.push({ type, path })
-  }
+  const fileWriter = new MultiFileWriter({
+    writeFile: (filePath, data) => fs.writeFile(filePath, data),
+    mkdir: (dir) => fs.mkdir(dir, { recursive: true }),
+  })
 
   const exportPageSpan = trace('export-page-worker', input.parentSpanId)
 
@@ -514,21 +553,24 @@ async function exportPage(
   try {
     result = await exportPageSpan.traceAsyncFn(() =>
       turborepoTraceAccess(
-        () => exportPageImpl(input, baseFileWriter),
+        () => exportPageImpl(input, fileWriter),
         turborepoAccessTraceResult
       )
     )
+
+    // Wait for all the files to flush to disk.
+    await fileWriter.wait()
 
     // If there was no result, then we can exit early.
     if (!result) return
 
     // If there was an error, then we can exit early.
     if ('error' in result) {
-      return { error: result.error, duration: Date.now() - start, files: [] }
+      return { error: result.error, duration: Date.now() - start }
     }
   } catch (err) {
     console.error(
-      `Error occurred prerendering page "${input.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
+      `Error occurred prerendering page "${input.exportPath.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
     )
 
     // bailoutToCSRError errors should not leak to the user as they are not actionable; they're
@@ -537,18 +579,17 @@ async function exportPage(
       // A static generation bailout error is a framework signal to fail static generation but
       // and will encode a reason in the error message. If there is a message, we'll print it.
       // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
+      // TODO: Always log the full error. ignore-listing will take care of hiding internal stacks.
       if (isStaticGenBailoutError(err)) {
         if (err.message) {
           console.error(`Error: ${err.message}`)
         }
-      } else if (isError(err) && err.stack) {
-        console.error(err.stack)
       } else {
         console.error(err)
       }
     }
 
-    return { error: true, duration: Date.now() - start, files: [] }
+    return { error: true, duration: Date.now() - start }
   }
 
   // Notify the parent process that we processed a page (used by the progress activity indicator)
@@ -556,16 +597,9 @@ async function exportPage(
 
   // Otherwise we can return the result.
   return {
+    ...result,
     duration: Date.now() - start,
-    files,
-    ampValidations: result.ampValidations,
-    revalidate: result.revalidate,
-    metadata: result.metadata,
-    ssgNotFound: result.ssgNotFound,
-    hasEmptyPrelude: result.hasEmptyPrelude,
-    hasPostponed: result.hasPostponed,
     turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
-    fetchMetrics: result.fetchMetrics,
   }
 }
 

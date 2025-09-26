@@ -1,8 +1,12 @@
-import type { Segment } from '../../server/app-render/types'
+import type { Segment } from './app-router-types'
 
 export function isGroupSegment(segment: string) {
   // Use array[0] for performant purpose
   return segment[0] === '(' && segment.endsWith(')')
+}
+
+export function isParallelRouteSegment(segment: string) {
+  return segment.startsWith('@') && segment !== '@children'
 }
 
 export function addSearchParamsIfPageSegment(

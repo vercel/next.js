@@ -2,20 +2,34 @@ import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.exte
 import { validateTags } from '../lib/patch-fetch'
 
 export function cacheTag(...tags: string[]): void {
-  if (!process.env.__NEXT_DYNAMIC_IO) {
+  if (!process.env.__NEXT_USE_CACHE) {
     throw new Error(
-      'cacheTag() is only available with the experimental.dynamicIO config.'
+      '`cacheTag()` is only available with the `experimental.cacheComponents` config.'
     )
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (!workUnitStore || workUnitStore.type !== 'cache') {
-    throw new Error(
-      'cacheTag() can only be called inside a "use cache" function.'
-    )
+
+  switch (workUnitStore?.type) {
+    case 'prerender':
+    case 'prerender-client':
+    case 'prerender-runtime':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'request':
+    case 'unstable-cache':
+    case undefined:
+      throw new Error(
+        '`cacheTag()` can only be called inside a "use cache" function.'
+      )
+    case 'cache':
+    case 'private-cache':
+      break
+    default:
+      workUnitStore satisfies never
   }
 
-  const validTags = validateTags(tags, 'cacheTag()')
+  const validTags = validateTags(tags, '`cacheTag()`')
 
   if (!workUnitStore.tags) {
     workUnitStore.tags = validTags

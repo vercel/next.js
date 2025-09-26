@@ -1,6 +1,7 @@
 pub mod availability_info;
-pub mod available_chunk_items;
+pub mod available_modules;
 pub mod chunk_group;
+pub(crate) mod chunk_item_batch;
 pub mod chunking;
 pub(crate) mod chunking_context;
 pub(crate) mod containment_tree;
@@ -9,47 +10,46 @@ pub(crate) mod evaluate;
 pub mod module_id_strategies;
 pub mod optimize;
 
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::{Debug, Display},
-    future::Future,
-    hash::Hash,
-};
+use std::fmt::Display;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
-use tracing::{info_span, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat,
-    graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
-    trace::TraceRawVcs,
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
-    Upcast, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
-use self::{availability_info::AvailabilityInfo, available_chunk_items::AvailableChunkItems};
 pub use self::{
+    chunk_item_batch::{
+        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
+        ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
+    },
     chunking_context::{
-        ChunkGroupResult, ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, MinifyType,
+        ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
+        ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType, SourceMapsType,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
 };
 use crate::{
     asset::Asset,
-    environment::ChunkLoading,
+    chunk::availability_info::AvailabilityInfo,
     ident::AssetIdent,
     module::Module,
+    module_graph::{
+        ModuleGraph,
+        module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
+    },
     output::OutputAssets,
-    reference::{ModuleReference, ModuleReferences},
+    reference::ModuleReference,
+    resolve::ExportUsage,
 };
 
 /// A module id, which can be a number or string
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 #[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash)]
 #[serde(untagged)]
 pub enum ModuleId {
@@ -60,8 +60,8 @@ pub enum ModuleId {
 impl Display for ModuleId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ModuleId::Number(i) => write!(f, "{}", i),
-            ModuleId::String(s) => write!(f, "{}", s),
+            ModuleId::Number(i) => write!(f, "{i}"),
+            ModuleId::String(s) => write!(f, "{s}"),
         }
     }
 }
@@ -85,15 +85,111 @@ impl ModuleId {
 
 /// A list of module ids.
 #[turbo_tasks::value(transparent, shared)]
-pub struct ModuleIds(Vec<Vc<ModuleId>>);
+pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
 
 /// A [Module] that can be converted into a [Chunk].
 #[turbo_tasks::value_trait]
 pub trait ChunkableModule: Module + Asset {
+    #[turbo_tasks::function]
     fn as_chunk_item(
-        self: ResolvedVc<Self>,
-        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>>;
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct ChunkableModules(Vec<ResolvedVc<Box<dyn ChunkableModule>>>);
+
+#[turbo_tasks::value_impl]
+impl ChunkableModules {
+    #[turbo_tasks::function]
+    pub fn interned(modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>) -> Vc<Self> {
+        Vc::cell(modules)
+    }
+}
+
+/// A [Module] that can be merged with other [Module]s (to perform scope hoisting)
+// TODO currently this is only used for ecmascript modules, and with the current API cannot be used
+// with other module types (as a MergeableModule cannot prevent itself from being merged with other
+// module types)
+#[turbo_tasks::value_trait]
+pub trait MergeableModule: Module + Asset {
+    /// Even though MergeableModule is implemented, this allows a dynamic condition to determine
+    /// mergeability
+    #[turbo_tasks::function]
+    fn is_mergeable(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(true)
+    }
+
+    /// Create a new module representing the merged content of the given `modules`.
+    ///
+    /// Group entry points are not referenced by any other module in the group. This list is needed
+    /// because the merged module is created by recursively inlining modules when they are imported,
+    /// but this process has to start somewhere (= with these entry points).
+    #[turbo_tasks::function]
+    fn merge(
+        self: Vc<Self>,
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
+    ) -> Vc<Box<dyn ChunkableModule>>;
+}
+#[turbo_tasks::value(transparent)]
+pub struct MergeableModules(Vec<ResolvedVc<Box<dyn MergeableModule>>>);
+
+#[turbo_tasks::value_impl]
+impl MergeableModules {
+    #[turbo_tasks::function]
+    pub fn interned(modules: Vec<ResolvedVc<Box<dyn MergeableModule>>>) -> Vc<Self> {
+        Vc::cell(modules)
+    }
+}
+
+/// Whether a given module needs to be exposed (depending on how it is imported by other modules)
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    TaskInput,
+    Hash,
+)]
+pub enum MergeableModuleExposure {
+    // This module is only used from within the current group, and only individual exports are
+    // used (and no namespace object is required).
+    None,
+    // This module is only used from within the current group, and but the namespace object is
+    // needed.
+    Internal,
+    // The exports of this module are read from outside this group (necessitating a namespace
+    // object anyway).
+    External,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct MergeableModulesExposed(
+    Vec<(
+        ResolvedVc<Box<dyn MergeableModule>>,
+        MergeableModuleExposure,
+    )>,
+);
+
+#[turbo_tasks::value_impl]
+impl MergeableModulesExposed {
+    #[turbo_tasks::function]
+    pub fn interned(
+        modules: Vec<(
+            ResolvedVc<Box<dyn MergeableModule>>,
+            MergeableModuleExposure,
+        )>,
+    ) -> Vc<Self> {
+        Vc::cell(modules)
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -108,25 +204,26 @@ impl Chunks {
     }
 }
 
-/// A chunk is one type of asset.
+/// A [Chunk] group chunk items together into something that will become an [OutputAsset].
 /// It usually contains multiple chunk items.
+// TODO This could be simplified to and merged with [OutputChunk]
 #[turbo_tasks::value_trait]
-pub trait Chunk: Asset {
+pub trait Chunk {
+    #[turbo_tasks::function]
     fn ident(self: Vc<Self>) -> Vc<AssetIdent>;
+    #[turbo_tasks::function]
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
-    // TODO Once output assets have their own trait, this path() method will move
-    // into that trait and ident() will be removed from that. Assets on the
-    // output-level only have a path and no complex ident.
-    /// The path of the chunk.
-    fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.ident().path()
-    }
+    // fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
+    //     self.ident().path()
+    // }
 
     /// Other [OutputAsset]s referenced from this [Chunk].
+    #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {
         OutputAssets::empty()
     }
 
+    #[turbo_tasks::function]
     fn chunk_items(self: Vc<Self>) -> Vc<ChunkItems> {
         ChunkItems(vec![]).cell()
     }
@@ -146,17 +243,24 @@ pub struct OutputChunkRuntimeInfo {
     pub placeholder_for_future_extensions: (),
 }
 
+#[turbo_tasks::value_impl]
+impl OutputChunkRuntimeInfo {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Self::default().cell()
+    }
+}
+
 #[turbo_tasks::value_trait]
 pub trait OutputChunk: Asset {
+    #[turbo_tasks::function]
     fn runtime_info(self: Vc<Self>) -> Vc<OutputChunkRuntimeInfo>;
 }
 
 /// Specifies how a chunk interacts with other chunks when building a chunk
 /// group
 #[derive(
-    Copy,
     Debug,
-    Default,
     Clone,
     Hash,
     TraceRawVcs,
@@ -165,23 +269,136 @@ pub trait OutputChunk: Asset {
     Eq,
     PartialEq,
     ValueDebugFormat,
+    NonLocalValue,
 )]
 pub enum ChunkingType {
-    /// Module is placed in the same chunk group and is loaded in parallel. It
-    /// doesn't become an async module when the referenced module is async.
-    #[default]
-    Parallel,
-    /// Module is placed in the same chunk group and is loaded in parallel. It
-    /// becomes an async module when the referenced module is async.
-    ParallelInheritAsync,
+    /// The referenced module is placed in the same chunk group and is loaded in parallel.
+    Parallel {
+        /// Whether the parent module becomes an async module when the referenced module is async.
+        /// This should happen for e.g. ESM imports, but not for CommonJS requires.
+        inherit_async: bool,
+        /// Whether the referenced module is executed always immediately before the parent module
+        /// (corresponding to ESM import semantics).
+        hoisted: bool,
+    },
     /// An async loader is placed into the referencing chunk and loads the
     /// separate chunk group in which the module is placed.
     Async,
-    /// Module not placed in chunk group, but its references are still followed and placed into the
-    /// chunk group.
-    Passthrough,
+    /// Create a new chunk group in a separate context, merging references with the same tag into a
+    /// single chunk group. It does not inherit the available modules from the parent.
+    // TODO this is currently skipped in chunking
+    Isolated {
+        _ty: ChunkGroupType,
+        merge_tag: Option<RcStr>,
+    },
+    /// Create a new chunk group in a separate context, merging references with the same tag into a
+    /// single chunk group. It provides available modules to the current chunk group. It's assumed
+    /// to be loaded before the current chunk group.
+    Shared {
+        inherit_async: bool,
+        merge_tag: Option<RcStr>,
+    },
     // Module not placed in chunk group, but its references are still followed.
     Traced,
+}
+
+impl Display for ChunkingType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ChunkingType::Parallel {
+                inherit_async,
+                hoisted,
+            } => {
+                write!(
+                    f,
+                    "Parallel(inherit_async: {inherit_async}, hoisted: {hoisted})",
+                )
+            }
+            ChunkingType::Async => write!(f, "Async"),
+            ChunkingType::Isolated {
+                _ty,
+                merge_tag: Some(merge_tag),
+            } => {
+                write!(f, "Isolated(merge_tag: {merge_tag})")
+            }
+            ChunkingType::Isolated {
+                _ty,
+                merge_tag: None,
+            } => {
+                write!(f, "Isolated")
+            }
+            ChunkingType::Shared {
+                inherit_async,
+                merge_tag: Some(merge_tag),
+            } => {
+                write!(
+                    f,
+                    "Shared(inherit_async: {inherit_async}, merge_tag: {merge_tag})"
+                )
+            }
+            ChunkingType::Shared {
+                inherit_async,
+                merge_tag: None,
+            } => {
+                write!(f, "Shared(inherit_async: {inherit_async})")
+            }
+            ChunkingType::Traced => write!(f, "Traced"),
+        }
+    }
+}
+
+impl ChunkingType {
+    pub fn is_inherit_async(&self) -> bool {
+        matches!(
+            self,
+            ChunkingType::Parallel {
+                inherit_async: true,
+                ..
+            } | ChunkingType::Shared {
+                inherit_async: true,
+                ..
+            }
+        )
+    }
+
+    pub fn is_parallel(&self) -> bool {
+        matches!(self, ChunkingType::Parallel { .. })
+    }
+
+    pub fn is_merged(&self) -> bool {
+        matches!(
+            self,
+            ChunkingType::Isolated {
+                merge_tag: Some(_),
+                ..
+            } | ChunkingType::Shared {
+                merge_tag: Some(_),
+                ..
+            }
+        )
+    }
+
+    pub fn without_inherit_async(&self) -> Self {
+        match self {
+            ChunkingType::Parallel { hoisted, .. } => ChunkingType::Parallel {
+                hoisted: *hoisted,
+                inherit_async: false,
+            },
+            ChunkingType::Async => ChunkingType::Async,
+            ChunkingType::Isolated { _ty, merge_tag } => ChunkingType::Isolated {
+                _ty: *_ty,
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkingType::Shared {
+                inherit_async: _,
+                merge_tag,
+            } => ChunkingType::Shared {
+                inherit_async: false,
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkingType::Traced => ChunkingType::Traced,
+        }
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -195,520 +412,26 @@ pub struct ChunkingTypeOption(Option<ChunkingType>);
 /// specific interface is implemented.
 #[turbo_tasks::value_trait]
 pub trait ChunkableModuleReference: ModuleReference + ValueToString {
+    #[turbo_tasks::function]
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::default()))
+        Vc::cell(Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        }))
+    }
+
+    #[turbo_tasks::function]
+    fn export_usage(self: Vc<Self>) -> Vc<ExportUsage> {
+        ExportUsage::all()
     }
 }
 
-type AsyncInfo = FxIndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>;
-
-pub struct ChunkContentResult {
-    pub chunk_items: FxIndexSet<Vc<Box<dyn ChunkItem>>>,
+pub struct ChunkGroupContent {
+    pub chunkable_items: Vec<ChunkableModuleOrBatch>,
+    pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
-    pub external_module_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
-    /// A map from local module to all children from which the async module
-    /// status is inherited
-    pub forward_edges_inherit_async: AsyncInfo,
-    /// A map from local module to all parents that inherit the async module
-    /// status
-    pub local_back_edges_inherit_async: AsyncInfo,
-    /// A map from already available async modules to all local parents that
-    /// inherit the async module status
-    pub available_async_modules_back_edges_inherit_async: AsyncInfo,
-}
-
-pub async fn chunk_content(
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
-    availability_info: AvailabilityInfo,
-) -> Result<ChunkContentResult> {
-    chunk_content_internal_parallel(chunking_context, chunk_entries, availability_info).await
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, Debug)]
-enum InheritAsyncEdge {
-    /// The chunk item is in the current chunk group and async module info need
-    /// to be computed for it
-    LocalModule,
-    /// The chunk item is already available in the parent chunk group and is an
-    /// async module. Chunk items that are available but not async modules are
-    /// not included in back edges at all since they don't influence the parent
-    /// module in terms of being an async module.
-    AvailableAsyncModule,
-}
-
-#[derive(Eq, PartialEq, Clone, Hash, Serialize, Deserialize, TraceRawVcs, Debug)]
-enum ChunkContentGraphNode {
-    // A chunk item not placed in the current chunk, but whose references we will
-    // follow to find more graph nodes.
-    PassthroughChunkItem {
-        item: Vc<Box<dyn ChunkItem>>,
-    },
-    // Chunk items that are placed into the current chunk group
-    ChunkItem {
-        item: Vc<Box<dyn ChunkItem>>,
-        ident: ReadRef<RcStr>,
-    },
-    // Async module that is referenced from the chunk group
-    AsyncModule {
-        module: Vc<Box<dyn ChunkableModule>>,
-    },
-    // Module that is referenced as traced and will be turned into a separate RebasedAsset
-    TracedModule {
-        module: Vc<Box<dyn Module>>,
-    },
-    // ModuleReferences that are not placed in the current chunk group
-    ExternalModuleReference(ResolvedVc<Box<dyn ModuleReference>>),
-    /// A list of directly referenced chunk items from which `is_async_module`
-    /// will be inherited.
-    InheritAsyncInfo {
-        item: Vc<Box<dyn ChunkItem>>,
-        references: Vec<(ResolvedVc<Box<dyn ChunkItem>>, InheritAsyncEdge)>,
-    },
-}
-
-#[derive(Debug, Clone, Copy, TaskInput, PartialEq, Eq, Hash, Serialize, Deserialize)]
-enum ChunkGraphNodeToReferences {
-    PassthroughChunkItem(ResolvedVc<Box<dyn ChunkItem>>),
-    ChunkItem(ResolvedVc<Box<dyn ChunkItem>>),
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TraceRawVcs)]
-struct ChunkGraphEdge {
-    key: Option<ResolvedVc<Box<dyn Module>>>,
-    node: ChunkContentGraphNode,
-}
-
-#[derive(Debug, Clone)]
-#[turbo_tasks::value(transparent)]
-struct ChunkGraphEdges(Vec<ChunkGraphEdge>);
-
-#[turbo_tasks::function]
-async fn graph_node_to_referenced_nodes_with_available_chunk_items(
-    node: ChunkGraphNodeToReferences,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    available_chunk_items: Vc<AvailableChunkItems>,
-) -> Result<Vc<ChunkGraphEdges>> {
-    let edges = graph_node_to_referenced_nodes(node, chunking_context);
-    let edges_ref = edges.await?;
-    for (unchanged, edge) in edges_ref.iter().enumerate() {
-        if let ChunkContentGraphNode::ChunkItem { item, .. } = edge.node {
-            if let Some(info) = *available_chunk_items.get(item).await? {
-                let mut new_edges = Vec::with_capacity(edges_ref.len());
-                new_edges.extend(edges_ref[0..unchanged].iter().cloned());
-                let mut available_chunk_item_info = HashMap::new();
-                available_chunk_item_info.insert(item, info);
-                for edge in edges_ref[unchanged + 1..].iter() {
-                    match edge.node {
-                        ChunkContentGraphNode::ChunkItem { item, .. } => {
-                            if let Some(info) = *available_chunk_items.get(item).await? {
-                                available_chunk_item_info.insert(item, info);
-                                continue;
-                            }
-                        }
-                        ChunkContentGraphNode::InheritAsyncInfo {
-                            item,
-                            ref references,
-                        } => {
-                            let new_references = references
-                                .iter()
-                                .filter_map(|&(r, _)| {
-                                    if let Some(info) = available_chunk_item_info.get(&r) {
-                                        if info.is_async {
-                                            Some((r, InheritAsyncEdge::AvailableAsyncModule))
-                                        } else {
-                                            None
-                                        }
-                                    } else {
-                                        Some((r, InheritAsyncEdge::LocalModule))
-                                    }
-                                })
-                                .collect();
-                            new_edges.push(ChunkGraphEdge {
-                                key: edge.key,
-                                node: ChunkContentGraphNode::InheritAsyncInfo {
-                                    item,
-                                    references: new_references,
-                                },
-                            });
-                            continue;
-                        }
-                        _ => {}
-                    }
-                    new_edges.push(edge.clone())
-                }
-                return Ok(Vc::cell(new_edges));
-            }
-        }
-    }
-    Ok(edges)
-}
-
-#[turbo_tasks::function]
-async fn graph_node_to_referenced_nodes(
-    node: ChunkGraphNodeToReferences,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<ChunkGraphEdges>> {
-    let (parent, references) = match &node {
-        ChunkGraphNodeToReferences::PassthroughChunkItem(item) => (None, item.references()),
-        ChunkGraphNodeToReferences::ChunkItem(item) => (Some(*item), item.references()),
-    };
-
-    let references = references.await?;
-    let graph_nodes = references
-        .iter()
-        .map(|reference| async {
-            let reference = *reference;
-            let Some(chunkable_module_reference) =
-                Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
-            else {
-                return Ok(vec![ChunkGraphEdge {
-                    key: None,
-                    node: ChunkContentGraphNode::ExternalModuleReference(
-                        reference.to_resolved().await?,
-                    ),
-                }]);
-            };
-
-            let Some(chunking_type) = *chunkable_module_reference.chunking_type().await? else {
-                return Ok(vec![ChunkGraphEdge {
-                    key: None,
-                    node: ChunkContentGraphNode::ExternalModuleReference(
-                        reference.to_resolved().await?,
-                    ),
-                }]);
-            };
-
-            let module_data = reference
-                .resolve_reference()
-                .resolve()
-                .await?
-                .primary_modules()
-                .await?
-                .into_iter()
-                .map(|&module| async move {
-                    if chunking_type == ChunkingType::Traced {
-                        if *chunking_context.is_tracing_enabled().await? {
-                            return Ok((
-                                Some(ChunkGraphEdge {
-                                    key: None,
-                                    node: ChunkContentGraphNode::TracedModule { module: *module },
-                                }),
-                                None,
-                            ));
-                        } else {
-                            return Ok((None, None));
-                        }
-                    }
-
-                    let Some(chunkable_module) =
-                        ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?
-                    else {
-                        return Ok((
-                            Some(ChunkGraphEdge {
-                                key: None,
-                                node: ChunkContentGraphNode::ExternalModuleReference(
-                                    reference.to_resolved().await?,
-                                ),
-                            }),
-                            None,
-                        ));
-                    };
-
-                    match chunking_type {
-                        ChunkingType::Parallel => {
-                            let chunk_item = chunkable_module
-                                .as_chunk_item(chunking_context)
-                                .resolve()
-                                .await?;
-                            Ok((
-                                Some(ChunkGraphEdge {
-                                    key: Some(module.to_resolved().await?),
-                                    node: ChunkContentGraphNode::ChunkItem {
-                                        item: chunk_item,
-                                        ident: module.ident().to_string().await?,
-                                    },
-                                }),
-                                None,
-                            ))
-                        }
-                        ChunkingType::ParallelInheritAsync => {
-                            let chunk_item = chunkable_module
-                                .as_chunk_item(chunking_context)
-                                .resolve()
-                                .await?;
-                            Ok((
-                                Some(ChunkGraphEdge {
-                                    key: Some(module.to_resolved().await?),
-                                    node: ChunkContentGraphNode::ChunkItem {
-                                        item: chunk_item,
-                                        ident: module.ident().to_string().await?,
-                                    },
-                                }),
-                                Some((
-                                    chunk_item.to_resolved().await?,
-                                    InheritAsyncEdge::LocalModule,
-                                )),
-                            ))
-                        }
-                        ChunkingType::Passthrough => {
-                            let chunk_item = chunkable_module
-                                .as_chunk_item(chunking_context)
-                                .resolve()
-                                .await?;
-
-                            Ok((
-                                Some(ChunkGraphEdge {
-                                    key: None,
-                                    node: ChunkContentGraphNode::PassthroughChunkItem {
-                                        item: chunk_item,
-                                    },
-                                }),
-                                None,
-                            ))
-                        }
-                        ChunkingType::Async => {
-                            let chunk_loading =
-                                chunking_context.environment().chunk_loading().await?;
-                            if matches!(*chunk_loading, ChunkLoading::Edge) {
-                                let chunk_item = chunkable_module
-                                    .as_chunk_item(chunking_context)
-                                    .resolve()
-                                    .await?;
-                                Ok((
-                                    Some(ChunkGraphEdge {
-                                        key: Some(module.to_resolved().await?),
-                                        node: ChunkContentGraphNode::ChunkItem {
-                                            item: chunk_item,
-                                            ident: module.ident().to_string().await?,
-                                        },
-                                    }),
-                                    None,
-                                ))
-                            } else {
-                                Ok((
-                                    Some(ChunkGraphEdge {
-                                        key: None,
-                                        node: ChunkContentGraphNode::AsyncModule {
-                                            module: *chunkable_module,
-                                        },
-                                    }),
-                                    None,
-                                ))
-                            }
-                        }
-                        ChunkingType::Traced => {
-                            bail!("unreachable ChunkingType::Traced");
-                        }
-                    }
-                })
-                .try_join()
-                .await?;
-
-            let mut graph_nodes = vec![];
-            let mut inherit_async_references = vec![];
-            for (n, iar) in module_data {
-                if let Some(n) = n {
-                    graph_nodes.push(n);
-                }
-                if let Some(iar) = iar {
-                    inherit_async_references.push(iar);
-                }
-            }
-
-            if !inherit_async_references.is_empty() {
-                if let Some(parent) = parent {
-                    graph_nodes.push(ChunkGraphEdge {
-                        key: None,
-                        node: ChunkContentGraphNode::InheritAsyncInfo {
-                            item: *parent,
-                            references: inherit_async_references,
-                        },
-                    })
-                }
-            }
-
-            Ok(graph_nodes)
-        })
-        .try_flat_join()
-        .await?;
-
-    Ok(Vc::cell(graph_nodes))
-}
-
-struct ChunkContentVisit {
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    available_chunk_items: Option<Vc<AvailableChunkItems>>,
-    processed_modules: HashSet<Vc<Box<dyn Module>>>,
-}
-
-type ChunkItemToGraphNodesEdges = impl Iterator<Item = ChunkGraphEdge>;
-
-type ChunkItemToGraphNodesFuture = impl Future<Output = Result<ChunkItemToGraphNodesEdges>>;
-
-impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
-    type Edge = ChunkGraphEdge;
-    type EdgesIntoIter = ChunkItemToGraphNodesEdges;
-    type EdgesFuture = ChunkItemToGraphNodesFuture;
-
-    fn visit(&mut self, edge: ChunkGraphEdge) -> VisitControlFlow<ChunkContentGraphNode, ()> {
-        let ChunkGraphEdge { key, node } = edge;
-        let Some(module) = key else {
-            if matches!(node, ChunkContentGraphNode::PassthroughChunkItem { .. }) {
-                return VisitControlFlow::Continue(node);
-            } else {
-                // All other types don't have edges
-                return VisitControlFlow::Skip(node);
-            }
-        };
-
-        if !self.processed_modules.insert(*module) {
-            return VisitControlFlow::Skip(node);
-        }
-
-        VisitControlFlow::Continue(node)
-    }
-
-    fn edges(&mut self, node: &ChunkContentGraphNode) -> Self::EdgesFuture {
-        let node = node.clone();
-
-        let chunking_context = self.chunking_context;
-        let available_chunk_items = self.available_chunk_items;
-
-        async move {
-            let node = match node {
-                ChunkContentGraphNode::PassthroughChunkItem { item } => {
-                    ChunkGraphNodeToReferences::PassthroughChunkItem(item.to_resolved().await?)
-                }
-                ChunkContentGraphNode::ChunkItem { item, .. } => {
-                    ChunkGraphNodeToReferences::ChunkItem(item.to_resolved().await?)
-                }
-                _ => {
-                    return Ok(None.into_iter().flatten());
-                }
-            };
-
-            let nodes = if let Some(available_chunk_items) = available_chunk_items {
-                graph_node_to_referenced_nodes_with_available_chunk_items(
-                    node,
-                    chunking_context,
-                    available_chunk_items,
-                )
-            } else {
-                graph_node_to_referenced_nodes(node, chunking_context)
-            }
-            .await?;
-            Ok(Some(nodes.into_iter().cloned()).into_iter().flatten())
-        }
-    }
-
-    fn span(&mut self, node: &ChunkContentGraphNode) -> Span {
-        if let ChunkContentGraphNode::ChunkItem { ident, .. } = node {
-            info_span!("chunking module", name = display(ident))
-        } else {
-            Span::current()
-        }
-    }
-}
-
-async fn chunk_content_internal_parallel(
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
-    availability_info: AvailabilityInfo,
-) -> Result<ChunkContentResult> {
-    let root_edges = chunk_entries
-        .into_iter()
-        .map(|entry| async move {
-            let entry = entry.resolve().await?;
-            let Some(chunkable_module) =
-                Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(entry).await?
-            else {
-                return Ok(None);
-            };
-            Ok(Some(ChunkGraphEdge {
-                key: Some(entry.to_resolved().await?),
-                node: ChunkContentGraphNode::ChunkItem {
-                    item: chunkable_module.as_chunk_item(chunking_context),
-                    ident: chunkable_module.ident().to_string().await?,
-                },
-            }))
-        })
-        .try_flat_join()
-        .await?;
-
-    let visit = ChunkContentVisit {
-        chunking_context,
-        available_chunk_items: availability_info.available_chunk_items(),
-        processed_modules: Default::default(),
-    };
-
-    let GraphTraversalResult::Completed(traversal_result) =
-        AdjacencyMap::new().visit(root_edges, visit).await
-    else {
-        unreachable!();
-    };
-
-    let graph_nodes: Vec<_> = traversal_result?.into_reverse_topological().collect();
-
-    let mut chunk_items = FxIndexSet::default();
-    let mut async_modules = FxIndexSet::default();
-    let mut external_module_references = FxIndexSet::default();
-    let mut forward_edges_inherit_async = FxIndexMap::default();
-    let mut local_back_edges_inherit_async = FxIndexMap::default();
-    let mut available_async_modules_back_edges_inherit_async = FxIndexMap::default();
-    let mut traced_modules = FxIndexSet::default();
-
-    for graph_node in graph_nodes {
-        match graph_node {
-            ChunkContentGraphNode::PassthroughChunkItem { .. } => {}
-            ChunkContentGraphNode::TracedModule { module } => {
-                let module = module.to_resolved().await?;
-                traced_modules.insert(module);
-            }
-            ChunkContentGraphNode::ChunkItem { item, .. } => {
-                chunk_items.insert(*item.to_resolved().await?);
-            }
-            ChunkContentGraphNode::AsyncModule { module } => {
-                let module = module.to_resolved().await?;
-                async_modules.insert(module);
-            }
-            ChunkContentGraphNode::ExternalModuleReference(reference) => {
-                let reference = reference.resolve().await?;
-                external_module_references.insert(*reference);
-            }
-            ChunkContentGraphNode::InheritAsyncInfo { item, references } => {
-                for &(reference, ty) in &references {
-                    match ty {
-                        InheritAsyncEdge::LocalModule => local_back_edges_inherit_async
-                            .entry(*reference)
-                            .or_insert_with(Vec::new)
-                            .push(item),
-                        InheritAsyncEdge::AvailableAsyncModule => {
-                            available_async_modules_back_edges_inherit_async
-                                .entry(*reference)
-                                .or_insert_with(Vec::new)
-                                .push(item)
-                        }
-                    }
-                }
-                forward_edges_inherit_async
-                    .entry(item)
-                    .or_insert_with(Vec::new)
-                    .extend(references.into_iter().map(|(r, _)| *r));
-            }
-        }
-    }
-
-    Ok(ChunkContentResult {
-        chunk_items,
-        async_modules,
-        traced_modules,
-        external_module_references,
-        forward_edges_inherit_async,
-        local_back_edges_inherit_async,
-        available_async_modules_back_edges_inherit_async,
-    })
+    pub availability_info: AvailabilityInfo,
 }
 
 #[turbo_tasks::value_trait]
@@ -716,47 +439,51 @@ pub trait ChunkItem {
     /// The [AssetIdent] of the [Module] that this [ChunkItem] was created from.
     /// For most chunk types this must uniquely identify the chunk item at
     /// runtime as it's the source of the module id used at runtime.
+    #[turbo_tasks::function]
     fn asset_ident(self: Vc<Self>) -> Vc<AssetIdent>;
     /// A [AssetIdent] that uniquely identifies the content of this [ChunkItem].
-    /// It is unusally identical to [ChunkItem::asset_ident] but can be
+    /// It is usually identical to [ChunkItem::asset_ident] but can be
     /// different when the chunk item content depends on available modules e. g.
     /// for chunk loaders.
+    #[turbo_tasks::function]
     fn content_ident(self: Vc<Self>) -> Vc<AssetIdent> {
         self.asset_ident()
     }
-    /// A [ChunkItem] can describe different `references` than its original
-    /// [Module].
-    /// TODO(alexkirsz) This should have a default impl that returns empty
-    /// references.
-    fn references(self: Vc<Self>) -> Vc<ModuleReferences>;
+    /// A [ChunkItem] can reference OutputAssets, unlike [Module]s referencing other [Module]s.
+    #[turbo_tasks::function]
+    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
+        OutputAssets::empty()
+    }
 
     /// The type of chunk this item should be assembled into.
+    #[turbo_tasks::function]
     fn ty(self: Vc<Self>) -> Vc<Box<dyn ChunkType>>;
 
     /// A temporary method to retrieve the module associated with this
     /// ChunkItem. TODO: Remove this as part of the chunk refactoring.
+    #[turbo_tasks::function]
     fn module(self: Vc<Self>) -> Vc<Box<dyn Module>>;
 
+    #[turbo_tasks::function]
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
-
-    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
-    }
 }
 
 #[turbo_tasks::value_trait]
 pub trait ChunkType: ValueToString {
     /// Whether the source (reference) order of items needs to be retained during chunking.
-    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool>;
+    #[turbo_tasks::function]
+    fn is_style(self: Vc<Self>) -> Vc<bool>;
 
     /// Create a new chunk for the given chunk items
+    #[turbo_tasks::function]
     fn chunk(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
-        referenced_output_assets: Vc<OutputAssets>,
+        chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+        batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     ) -> Vc<Box<dyn Chunk>>;
 
+    #[turbo_tasks::function]
     fn chunk_item_size(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -771,31 +498,32 @@ pub fn round_chunk_item_size(size: usize) -> usize {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkItems(pub Vec<Vc<Box<dyn ChunkItem>>>);
+pub struct ChunkItems(pub Vec<ResolvedVc<Box<dyn ChunkItem>>>);
 
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {
-    pub referenced_async_modules: AutoSet<ResolvedVc<Box<dyn ChunkItem>>>,
+    pub referenced_async_modules: AutoSet<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl AsyncModuleInfo {
     #[turbo_tasks::function]
-    pub async fn new(referenced_async_modules: Vec<Vc<Box<dyn ChunkItem>>>) -> Result<Vc<Self>> {
-        let resolved_modules = referenced_async_modules
-            .into_iter()
-            .map(|m| m.to_resolved())
-            .try_join()
-            .await?;
-
+    pub fn new(referenced_async_modules: Vec<ResolvedVc<Box<dyn Module>>>) -> Result<Vc<Self>> {
         Ok(Self {
-            referenced_async_modules: resolved_modules.into_iter().collect(),
+            referenced_async_modules: referenced_async_modules.into_iter().collect(),
         }
         .cell())
     }
 }
 
-pub type ChunkItemWithAsyncModuleInfo = (Vc<Box<dyn ChunkItem>>, Option<Vc<AsyncModuleInfo>>);
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+)]
+pub struct ChunkItemWithAsyncModuleInfo {
+    pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
+}
 
 #[turbo_tasks::value(transparent)]
 pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
@@ -811,8 +539,27 @@ where
 {
     /// Returns the module id of this chunk item.
     fn id(self: Vc<Self>) -> Vc<ModuleId> {
-        let chunk_item = Vc::upcast(self);
+        let chunk_item = Vc::upcast_non_strict(self);
         chunk_item.chunking_context().chunk_item_id(chunk_item)
+    }
+}
+
+pub trait ModuleChunkItemIdExt {
+    /// Returns the chunk item id of this module.
+    fn chunk_item_id(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<ModuleId>;
+}
+impl<T> ModuleChunkItemIdExt for T
+where
+    T: Upcast<Box<dyn Module>>,
+{
+    fn chunk_item_id(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<ModuleId> {
+        chunking_context.chunk_item_id_from_module(Vc::upcast_non_strict(self))
     }
 }
 
@@ -831,6 +578,8 @@ mod tests {
         assert_eq!(round_chunk_item_size(6), 6);
         assert_eq!(round_chunk_item_size(7), 6);
         assert_eq!(round_chunk_item_size(8), 8);
+        assert_eq!(round_chunk_item_size(49000), 32_768);
+        assert_eq!(round_chunk_item_size(50000), 49_152);
 
         assert_eq!(changes_in_range(0..1000), 19);
         assert_eq!(changes_in_range(1000..2000), 2);

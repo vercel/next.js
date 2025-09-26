@@ -3,10 +3,10 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Visitor};
 use tokio::runtime::Handle;
 
-use crate::{manager::with_turbo_tasks, trace::TraceRawVcs, TaskId, TurboTasksApi};
+use crate::{TaskId, TurboTasksApi, manager::with_turbo_tasks, trace::TraceRawVcs};
 
 #[derive(Clone)]
 pub struct SerializationInvalidator {
@@ -36,7 +36,7 @@ impl SerializationInvalidator {
             turbo_tasks,
             handle,
         } = self;
-        let _ = handle.enter();
+        let _guard = handle.enter();
         if let Some(turbo_tasks) = turbo_tasks.upgrade() {
             turbo_tasks.invalidate_serialization(*task);
         }

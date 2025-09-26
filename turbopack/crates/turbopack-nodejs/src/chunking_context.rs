@@ -1,21 +1,26 @@
-use std::iter::once;
-
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    asset::Asset,
     chunk::{
+        Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
+        ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
+        ModuleId, SourceMapsType,
         availability_info::AvailabilityInfo,
-        chunk_group::{make_chunk_group, MakeChunkGroupResult},
+        chunk_group::{MakeChunkGroupResult, make_chunk_group},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
-        EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
+    module_graph::{
+        ModuleGraph,
+        chunk_group_info::ChunkGroup,
+        export_usage::{ExportUsageInfo, ModuleExportUsage},
+    },
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
@@ -35,7 +40,7 @@ pub struct NodeJsChunkingContextBuilder {
 }
 
 impl NodeJsChunkingContextBuilder {
-    pub fn asset_prefix(mut self, asset_prefix: ResolvedVc<Option<RcStr>>) -> Self {
+    pub fn asset_prefix(mut self, asset_prefix: Option<RcStr>) -> Self {
         self.chunking_context.asset_prefix = asset_prefix;
         self
     }
@@ -45,8 +50,27 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn source_maps(mut self, source_maps: SourceMapsType) -> Self {
+        self.chunking_context.source_maps_type = source_maps;
+        self
+    }
+
     pub fn file_tracing(mut self, enable_tracing: bool) -> Self {
         self.chunking_context.enable_file_tracing = enable_tracing;
+        self
+    }
+
+    pub fn module_merging(mut self, enable_module_merging: bool) -> Self {
+        self.chunking_context.enable_module_merging = enable_module_merging;
+        self
+    }
+
+    pub fn dynamic_chunk_content_loading(
+        mut self,
+        enable_dynamic_chunk_content_loading: bool,
+    ) -> Self {
+        self.chunking_context.enable_dynamic_chunk_content_loading =
+            enable_dynamic_chunk_content_loading;
         self
     }
 
@@ -73,121 +97,148 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn export_usage(mut self, export_usage: Option<ResolvedVc<ExportUsageInfo>>) -> Self {
+        self.chunking_context.export_usage = export_usage;
+        self
+    }
+
+    pub fn chunking_config<T>(mut self, ty: ResolvedVc<T>, chunking_config: ChunkingConfig) -> Self
+    where
+        T: Upcast<Box<dyn ChunkType>>,
+    {
+        self.chunking_context
+            .chunking_configs
+            .push((ResolvedVc::upcast_non_strict(ty), chunking_config));
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
-        NodeJsChunkingContext::new(Value::new(self.chunking_context))
+        NodeJsChunkingContext::cell(self.chunking_context)
     }
 }
 
 /// A chunking context for build mode.
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Hash)]
+#[turbo_tasks::value]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub struct NodeJsChunkingContext {
-    /// This path get stripped off of chunk paths before generating output asset
-    /// paths.
-    context_path: ResolvedVc<FileSystemPath>,
+    /// The root path of the project
+    root_path: FileSystemPath,
     /// This path is used to compute the url to request chunks or assets from
-    output_root: ResolvedVc<FileSystemPath>,
+    output_root: FileSystemPath,
+    /// The relative path from the output_root to the root_path.
+    output_root_to_root_path: RcStr,
     /// This path is used to compute the url to request chunks or assets from
-    client_root: ResolvedVc<FileSystemPath>,
+    client_root: FileSystemPath,
     /// Chunks are placed at this path
-    chunk_root_path: ResolvedVc<FileSystemPath>,
+    chunk_root_path: FileSystemPath,
     /// Static assets are placed at this path
-    asset_root_path: ResolvedVc<FileSystemPath>,
+    asset_root_path: FileSystemPath,
     /// Static assets requested from this url base
-    asset_prefix: ResolvedVc<Option<RcStr>>,
+    asset_prefix: Option<RcStr>,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
     /// Enable tracing for this chunking
     enable_file_tracing: bool,
+    /// Enable module merging
+    enable_module_merging: bool,
+    /// Enable dynamic chunk content loading.
+    enable_dynamic_chunk_content_loading: bool,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
+    /// Whether to generate source maps
+    source_maps_type: SourceMapsType,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
+    /// The module export usage info, if available.
+    export_usage: Option<ResolvedVc<ExportUsageInfo>>,
     /// Whether to use file:// uris for source map sources
     should_use_file_source_map_uris: bool,
+    /// The chunking configs
+    chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
 }
 
 impl NodeJsChunkingContext {
     /// Creates a new chunking context builder.
     pub fn builder(
-        context_path: ResolvedVc<FileSystemPath>,
-        output_root: ResolvedVc<FileSystemPath>,
-        client_root: ResolvedVc<FileSystemPath>,
-        chunk_root_path: ResolvedVc<FileSystemPath>,
-        asset_root_path: ResolvedVc<FileSystemPath>,
+        root_path: FileSystemPath,
+        output_root: FileSystemPath,
+        output_root_to_root_path: RcStr,
+        client_root: FileSystemPath,
+        chunk_root_path: FileSystemPath,
+        asset_root_path: FileSystemPath,
         environment: ResolvedVc<Environment>,
         runtime_type: RuntimeType,
     ) -> NodeJsChunkingContextBuilder {
         NodeJsChunkingContextBuilder {
             chunking_context: NodeJsChunkingContext {
-                context_path,
+                root_path,
                 output_root,
+                output_root_to_root_path,
                 client_root,
                 chunk_root_path,
                 asset_root_path,
-                asset_prefix: ResolvedVc::cell(None),
+                asset_prefix: None,
                 enable_file_tracing: false,
+                enable_module_merging: false,
+                enable_dynamic_chunk_content_loading: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
+                source_maps_type: SourceMapsType::Full,
                 manifest_chunks: false,
                 should_use_file_source_map_uris: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
+                export_usage: None,
+                chunking_configs: Default::default(),
             },
         }
-    }
-}
-
-impl NodeJsChunkingContext {
-    /// Returns the kind of runtime to include in output chunks.
-    ///
-    /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
-    /// when `RuntimeType` has a single variant.
-    pub fn runtime_type(&self) -> RuntimeType {
-        self.runtime_type
-    }
-
-    /// Returns the minify type.
-    pub fn minify_type(&self) -> MinifyType {
-        self.minify_type
     }
 }
 
 #[turbo_tasks::value_impl]
 impl NodeJsChunkingContext {
     #[turbo_tasks::function]
-    fn new(this: Value<NodeJsChunkingContext>) -> Vc<Self> {
-        this.into_value().cell()
-    }
-
-    #[turbo_tasks::function]
-    pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
-        *self.asset_prefix
-    }
-
-    #[turbo_tasks::function]
     async fn generate_chunk(
         self: Vc<Self>,
-        chunk: Vc<Box<dyn Chunk>>,
+        chunk: ResolvedVc<Box<dyn Chunk>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         Ok(
-            if let Some(ecmascript_chunk) =
-                Vc::try_resolve_downcast_type::<EcmascriptChunk>(chunk).await?
+            if let Some(ecmascript_chunk) = ResolvedVc::try_downcast_type::<EcmascriptChunk>(chunk)
             {
-                Vc::upcast(EcmascriptBuildNodeChunk::new(self, ecmascript_chunk))
+                Vc::upcast(EcmascriptBuildNodeChunk::new(self, *ecmascript_chunk))
             } else if let Some(output_asset) =
-                Vc::try_resolve_sidecast::<Box<dyn OutputAsset>>(chunk).await?
+                ResolvedVc::try_sidecast::<Box<dyn OutputAsset>>(chunk)
             {
-                output_asset
+                *output_asset
             } else {
                 bail!("Unable to generate output asset for chunk");
             },
         )
+    }
+
+    /// Returns the kind of runtime to include in output chunks.
+    ///
+    /// This is defined directly on `NodeJsChunkingContext` so it is zero-cost
+    /// when `RuntimeType` has a single variant.
+    #[turbo_tasks::function]
+    pub fn runtime_type(&self) -> Vc<RuntimeType> {
+        self.runtime_type.cell()
+    }
+
+    /// Returns the minify type.
+    #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.asset_prefix.clone())
     }
 }
 
@@ -195,17 +246,22 @@ impl NodeJsChunkingContext {
 impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn name(&self) -> Vc<RcStr> {
-        Vc::cell("unknown".into())
+        Vc::cell(rcstr!("unknown"))
     }
 
     #[turbo_tasks::function]
-    fn context_path(&self) -> Vc<FileSystemPath> {
-        *self.context_path
+    fn root_path(&self) -> Vc<FileSystemPath> {
+        self.root_path.clone().cell()
     }
 
     #[turbo_tasks::function]
     fn output_root(&self) -> Vc<FileSystemPath> {
-        *self.output_root
+        self.output_root.clone().cell()
+    }
+
+    #[turbo_tasks::function]
+    fn output_root_to_root_path(&self) -> Vc<RcStr> {
+        Vc::cell(self.output_root_to_root_path.clone())
     }
 
     #[turbo_tasks::function]
@@ -219,21 +275,31 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
-        let asset_path = ident.path().await?.to_string();
+    fn is_module_merging_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_module_merging)
+    }
+
+    #[turbo_tasks::function]
+    fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_dynamic_chunk_content_loading)
+    }
+
+    #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn asset_url(&self, ident: FileSystemPath) -> Result<Vc<RcStr>> {
+        let asset_path = ident.to_string();
         let asset_path = asset_path
-            .strip_prefix(&format!("{}/", this.client_root.await?.path))
+            .strip_prefix(&format!("{}/", self.client_root.path))
             .context("expected client root to contain asset path")?;
 
         Ok(Vc::cell(
             format!(
                 "{}{}",
-                this.asset_prefix
-                    .await?
-                    .as_ref()
-                    .map(|s| s.clone())
-                    .unwrap_or_else(|| "/".into()),
+                self.asset_prefix.clone().unwrap_or(rcstr!("/")),
                 asset_path
             )
             .into(),
@@ -241,24 +307,50 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn chunk_root_path(&self) -> Vc<FileSystemPath> {
+        self.chunk_root_path.clone().cell()
+    }
+
+    #[turbo_tasks::function]
     async fn chunk_path(
         &self,
+        _asset: Option<Vc<Box<dyn Asset>>>,
         ident: Vc<AssetIdent>,
+        prefix: Option<RcStr>,
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
-        let root_path = *self.chunk_root_path;
-        let name = ident.output_name(*self.context_path, extension).await?;
-        Ok(root_path.join(name.clone_value()))
+        let root_path = self.chunk_root_path.clone();
+        let name = ident
+            .output_name(self.root_path.clone(), prefix, extension)
+            .owned()
+            .await?;
+        Ok(root_path.join(&name)?.cell())
     }
 
     #[turbo_tasks::function]
     fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
-        Vc::cell(true)
+        Vc::cell(match self.source_maps_type {
+            SourceMapsType::Full => true,
+            SourceMapsType::None => false,
+        })
+    }
+
+    #[turbo_tasks::function]
+    fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
+        Vc::cell(match self.source_maps_type {
+            SourceMapsType::Full => true,
+            SourceMapsType::None => false,
+        })
     }
 
     #[turbo_tasks::function]
     fn should_use_file_source_map_uris(&self) -> Vc<bool> {
         Vc::cell(self.should_use_file_source_map_uris)
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_configs(&self) -> Result<Vc<ChunkingConfigs>> {
+        Ok(Vc::cell(self.chunking_configs.iter().cloned().collect()))
     }
 
     #[turbo_tasks::function]
@@ -280,28 +372,29 @@ impl ChunkingContext for NodeJsChunkingContext {
                 content_hash = &content_hash[..8]
             ),
         };
-        Ok(self.asset_root_path.join(asset_path.into()))
+        Ok(self.asset_root_path.join(&asset_path)?.cell())
     }
 
     #[turbo_tasks::function]
     async fn chunk_group(
-        self: Vc<Self>,
-        _ident: Vc<AssetIdent>,
-        module: Vc<Box<dyn ChunkableModule>>,
-        availability_info: Value<AvailabilityInfo>,
+        self: ResolvedVc<Self>,
+        ident: Vc<AssetIdent>,
+        chunk_group: ChunkGroup,
+        module_graph: Vc<ModuleGraph>,
+        availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!(
-            "chunking",
-            module = module.ident().to_string().await?.to_string()
-        );
+        let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
+            let modules = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
+                referenced_output_assets,
                 availability_info,
             } = make_chunk_group(
-                Vc::upcast(self),
-                [Vc::upcast(module)],
-                availability_info.into_value(),
+                modules,
+                module_graph,
+                ResolvedVc::upcast(self),
+                availability_info,
             )
             .await?;
 
@@ -312,7 +405,8 @@ impl ChunkingContext for NodeJsChunkingContext {
                 .await?;
 
             Ok(ChunkGroupResult {
-                assets: Vc::cell(assets),
+                assets: ResolvedVc::cell(assets),
+                referenced_assets: ResolvedVc::cell(referenced_output_assets),
                 availability_info,
             }
             .cell())
@@ -321,81 +415,87 @@ impl ChunkingContext for NodeJsChunkingContext {
         .await
     }
 
-    /// Generates an output chunk that:
-    /// * evaluates the given assets; and
-    /// * exports the result of evaluating the given module as a CommonJS default export.
     #[turbo_tasks::function]
     pub async fn entry_chunk_group(
-        self: Vc<Self>,
-        path: Vc<FileSystemPath>,
-        module: Vc<Box<dyn Module>>,
+        self: ResolvedVc<Self>,
+        path: FileSystemPath,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
-        availability_info: Value<AvailabilityInfo>,
+        extra_referenced_assets: Vc<OutputAssets>,
+        availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
-        let availability_info = availability_info.into_value();
-
-        let MakeChunkGroupResult {
-            chunks,
-            availability_info,
-        } = make_chunk_group(
-            Vc::upcast(self),
-            once(module).chain(
-                evaluatable_assets
-                    .await?
-                    .iter()
-                    .map(|&asset| Vc::upcast(asset)),
-            ),
-            availability_info,
-        )
-        .await?;
-
-        let extra_chunks = extra_chunks.await?;
-        let other_chunks: Vec<_> = extra_chunks
-            .iter()
-            .copied()
-            .chain(
-                chunks
-                    .iter()
-                    .map(|chunk| self.generate_chunk(**chunk).to_resolved())
-                    .try_join()
-                    .await?,
-            )
-            .collect();
-
-        let Some(module) = Vc::try_resolve_downcast(module).await? else {
-            bail!("module must be placeable in an ecmascript chunk");
-        };
-
-        let asset = ResolvedVc::upcast(
-            EcmascriptBuildNodeEntryChunk::new(
-                path,
-                self,
-                Vc::cell(other_chunks),
-                evaluatable_assets,
-                module,
-            )
-            .to_resolved()
-            .await?,
+        let span = tracing::info_span!(
+            "chunking",
+            name = display(path.value_to_string().await?),
+            chunking_type = "entry",
         );
+        async move {
+            let evaluatable_assets_ref = evaluatable_assets.await?;
+            let entries = evaluatable_assets_ref
+                .iter()
+                .map(|&asset| ResolvedVc::upcast::<Box<dyn Module>>(asset));
 
-        Ok(EntryChunkGroupResult {
-            asset,
-            availability_info,
+            let MakeChunkGroupResult {
+                chunks,
+                mut referenced_output_assets,
+                availability_info,
+            } = make_chunk_group(
+                entries,
+                module_graph,
+                ResolvedVc::upcast(self),
+                availability_info,
+            )
+            .await?;
+
+            let extra_chunks = extra_chunks.await?;
+            let mut other_chunks = chunks
+                .iter()
+                .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+                .try_join()
+                .await?;
+            other_chunks.extend(extra_chunks.iter().copied());
+
+            referenced_output_assets.extend(extra_referenced_assets.await?.iter().copied());
+
+            let Some(module) = ResolvedVc::try_sidecast(*evaluatable_assets_ref.last().unwrap())
+            else {
+                bail!("module must be placeable in an ecmascript chunk");
+            };
+
+            let asset = ResolvedVc::upcast(
+                EcmascriptBuildNodeEntryChunk::new(
+                    path,
+                    Vc::cell(other_chunks),
+                    evaluatable_assets,
+                    *module,
+                    Vc::cell(referenced_output_assets),
+                    module_graph,
+                    *self,
+                )
+                .to_resolved()
+                .await?,
+            );
+
+            Ok(EntryChunkGroupResult {
+                asset,
+                availability_info,
+            }
+            .cell())
         }
-        .cell())
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]
     fn evaluated_chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        _evaluatable_assets: Vc<EvaluatableAssets>,
-        _availability_info: Value<AvailabilityInfo>,
+        _chunk_group: ChunkGroup,
+        _module_graph: Vc<ModuleGraph>,
+        _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        // TODO(alexkirsz) This method should be part of a separate trait that is
-        // only implemented for client/edge runtimes.
-        bail!("the build chunking context does not support evaluated chunk groups")
+        bail!("the Node.js chunking context does not support evaluated chunk groups")
     }
 
     #[turbo_tasks::function]
@@ -407,18 +507,20 @@ impl ChunkingContext for NodeJsChunkingContext {
     async fn async_loader_chunk_item(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
-        availability_info: Value<AvailabilityInfo>,
+        module_graph: Vc<ModuleGraph>,
+        availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
         Ok(if self.await?.manifest_chunks {
             let manifest_asset =
-                ManifestAsyncModule::new(module, Vc::upcast(self), availability_info);
+                ManifestAsyncModule::new(module, module_graph, Vc::upcast(self), availability_info);
             Vc::upcast(ManifestLoaderChunkItem::new(
                 manifest_asset,
+                module_graph,
                 Vc::upcast(self),
             ))
         } else {
             let module = AsyncLoaderModule::new(module, Vc::upcast(self), availability_info);
-            Vc::upcast(module.as_chunk_item(Vc::upcast(self)))
+            module.as_chunk_item(module_graph, Vc::upcast(self))
         })
     }
 
@@ -432,5 +534,19 @@ impl ChunkingContext for NodeJsChunkingContext {
         } else {
             self.chunk_item_id_from_ident(AsyncLoaderModule::asset_ident_for(module))
         })
+    }
+
+    #[turbo_tasks::function]
+    async fn module_export_usage(
+        self: Vc<Self>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ModuleExportUsage>> {
+        if let Some(export_usage) = self.await?.export_usage {
+            Ok(export_usage.await?.used_exports(module).await?)
+        } else {
+            // In development mode, we don't have export usage info, so we assume all exports are
+            // used.
+            Ok(ModuleExportUsage::all())
+        }
     }
 }

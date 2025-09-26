@@ -4,12 +4,12 @@ description: API reference for the instrumentation.js file.
 related:
   title: Learn more about Instrumentation
   links:
-    - app/building-your-application/optimizing/instrumentation
+    - app/guides/instrumentation
 ---
 
 The `instrumentation.js|ts` file is used to integrate observability tools into your application, allowing you to track the performance and behavior, and to debug issues in production.
 
-To use it, place the file in the **root** of your application or inside a [`src` folder](/docs/app/building-your-application/configuring/src-directory) if using one.
+To use it, place the file in the **root** of your application or inside a [`src` folder](/docs/app/api-reference/file-conventions/src-folder) if using one.
 
 ## Exports
 
@@ -88,7 +88,7 @@ export function onRequestError(
   request: {
     path: string // resource path, e.g. /blog?name=foo
     method: string // request method. e.g. GET, POST, etc
-    headers: { [key: string]: string }
+    headers: { [key: string]: string | string[] }
   },
   context: {
     routerKind: 'Pages Router' | 'App Router' // the router type
@@ -132,8 +132,8 @@ export function onRequestError() {
 
 ## Version History
 
-| Version      | Changes                                                 |
-| ------------ | ------------------------------------------------------- |
-| `v15.0.0-RC` | `onRequestError` introduced, `instrumentation` stable   |
-| `v14.0.4`    | Turbopack support for `instrumentation`                 |
-| `v13.2.0`    | `instrumentation` introduced as an experimental feature |
+| Version   | Changes                                                 |
+| --------- | ------------------------------------------------------- |
+| `v15.0.0` | `onRequestError` introduced, `instrumentation` stable   |
+| `v14.0.4` | Turbopack support for `instrumentation`                 |
+| `v13.2.0` | `instrumentation` introduced as an experimental feature |

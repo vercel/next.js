@@ -1,22 +1,22 @@
 a#14 = ???*0*
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 a#15 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 a#16 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 a#17 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 a#18 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 a#7 = ???*0*
 - *0* max number of linking steps reached
@@ -24,23 +24,23 @@ a#7 = ???*0*
 
 b#14 = ???*0*
 - *0* arguments[2]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 b#15 = ???*0*
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 b#16 = ???*0*
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 b#17 = ???*0*
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 b#18 = ???*0*
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 b#7 = ???*0*
 - *0* max number of linking steps reached
@@ -50,9 +50,9 @@ bitRotateLeft = (...) => ???*0*
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-bytes = (???*0* | new ???*1*(???*2*))
+bytes = (???*0* | new ???*1*((???*2* | undefined["length"])))
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* FreeVar(Array)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -70,19 +70,19 @@ bytesToWords = (...) => output
 
 c#15 = ???*0*
 - *0* arguments[2]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 c#16 = ???*0*
 - *0* arguments[2]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 c#17 = ???*0*
 - *0* arguments[2]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 c#18 = ???*0*
 - *0* arguments[2]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 c#7 = ???*0*
 - *0* max number of linking steps reached
@@ -90,23 +90,23 @@ c#7 = ???*0*
 
 cnt = ???*0*
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 d#15 = ???*0*
 - *0* arguments[3]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 d#16 = ???*0*
 - *0* arguments[3]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 d#17 = ???*0*
 - *0* arguments[3]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 d#18 = ???*0*
 - *0* arguments[3]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 d#7 = ???*0*
 - *0* max number of linking steps reached
@@ -131,57 +131,41 @@ hex = (???*0* | ???*1*)
 
 hexTab = "0123456789abcdef"
 
-i#3 = (0 | ???*0*)
+i#3 = (0 | undefined | ???*0*)
 - *0* updated with update expression
   ⚠️  This value might have side effects
 
-i#5 = (???*0* | 0 | ((???*1* | 0 | ???*2*) + 8))
+i#5 = (???*0* | 0 | (???*1* + 8))
 - *0* i
   ⚠️  pattern without value
 - *1* i
-  ⚠️  pattern without value
-- *2* (???*3* + 8)
-  ⚠️  nested operation
-- *3* i
   ⚠️  circular variable reference
 
-i#7 = (???*0* | 0 | ((???*1* | 0 | ???*2*) + 16))
+i#7 = (???*0* | 0 | (???*1* + 16))
 - *0* i
   ⚠️  pattern without value
 - *1* i
-  ⚠️  pattern without value
-- *2* (???*3* + 16)
-  ⚠️  nested operation
-- *3* i
   ⚠️  circular variable reference
 
-i#9 = (???*0* | 0 | ((???*1* | 0 | ???*2*) + 1) | ((???*4* | 0 | ???*5*) + 8))
+i#9 = (???*0* | 0 | (???*1* + 1) | (???*2* + 8))
 - *0* i
   ⚠️  pattern without value
 - *1* i
-  ⚠️  pattern without value
-- *2* (???*3* + 1)
-  ⚠️  nested operation
-- *3* i
   ⚠️  circular variable reference
-- *4* i
-  ⚠️  pattern without value
-- *5* (???*6* + 1)
-  ⚠️  nested operation
-- *6* i
+- *2* i
   ⚠️  circular variable reference
 
 input#5 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 input#9 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 len = ???*0*
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 length32 = ???*0*
 - *0* unsupported expression
@@ -224,7 +208,7 @@ md5ii = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-msg = ???*0*
+msg = (???*0* | undefined)
 - *0* ???*1*(FreeVar(encodeURIComponent)(bytes))
   ⚠️  unknown callee
   ⚠️  This value might have side effects
@@ -242,7 +226,7 @@ msw = (???*0* + ???*1* + ???*2*)
 
 num = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 olda = ???*0*
 - *0* max number of linking steps reached
@@ -266,27 +250,27 @@ output#9 = []
 
 q = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 s#14 = ???*0*
 - *0* arguments[4]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 s#15 = ???*0*
 - *0* arguments[5]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 s#16 = ???*0*
 - *0* arguments[5]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 s#17 = ???*0*
 - *0* arguments[5]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 s#18 = ???*0*
 - *0* arguments[5]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 safeAdd = (...) => ???*0*
 - *0* unsupported expression
@@ -294,49 +278,49 @@ safeAdd = (...) => ???*0*
 
 t#14 = ???*0*
 - *0* arguments[5]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 t#15 = ???*0*
 - *0* arguments[6]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 t#16 = ???*0*
 - *0* arguments[6]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 t#17 = ???*0*
 - *0* arguments[6]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 t#18 = ???*0*
 - *0* arguments[6]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 wordsToMd5 = (...) => [a, b, c, d]
 
 x#12 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 x#14 = ???*0*
 - *0* arguments[3]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 x#15 = ???*0*
 - *0* arguments[4]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 x#16 = ???*0*
 - *0* arguments[4]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 x#17 = ???*0*
 - *0* arguments[4]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 x#18 = ???*0*
 - *0* arguments[4]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 x#5 = (???*0* | ???*1*)
 - *0* x
@@ -346,8 +330,8 @@ x#5 = (???*0* | ???*1*)
 
 x#7 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 y = ???*0*
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet

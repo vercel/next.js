@@ -5,7 +5,7 @@ import type {
   PrefetchOptions as RouterPrefetchOptions,
 } from '../shared/lib/router/router'
 
-import React from 'react'
+import React, { createContext, useContext } from 'react'
 import type { UrlObject } from 'url'
 import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
@@ -26,6 +26,8 @@ type RequiredKeys<T> = {
 type OptionalKeys<T> = {
   [K in keyof T]-?: {} extends Pick<T, K> ? K : never
 }[keyof T]
+
+type OnNavigateEventHandler = (event: { preventDefault: () => void }) => void
 
 type InternalLinkProps = {
   /**
@@ -59,18 +61,12 @@ type InternalLinkProps = {
    */
   shallow?: boolean
   /**
-   * Forces `Link` to send the `href` property to its child.
-   *
-   * @defaultValue `false`
-   */
-  passHref?: boolean
-  /**
    * Prefetch the page in the background.
    * Any `<Link />` that is in the viewport (initially or through scroll) will be prefetched.
    * Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
    *
    * In App Router:
-   * - `null` (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
+   * - "auto", null, undefined (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
    * - `true`: This will prefetch the full React Server Component data for all route segments, regardless of whether they contain a segment with `loading.js`.
    * - `false`: This will not prefetch any data, even on hover.
    *
@@ -79,19 +75,13 @@ type InternalLinkProps = {
    * - `false`: Prefetching will not happen when entering the viewport, but will still happen on hover.
    * @defaultValue `true` (pages router) or `null` (app router)
    */
-  prefetch?: boolean | null
+  prefetch?: boolean | 'auto' | null | 'unstable_forceStale'
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
    * Note: This is only available in the Pages Router.
    */
   locale?: string | false
-  /**
-   * Enable legacy link behavior.
-   * @defaultValue `false`
-   * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
-   */
-  legacyBehavior?: boolean
   /**
    * Optional event handler for when the mouse pointer is moved onto Link
    */
@@ -104,15 +94,22 @@ type InternalLinkProps = {
    * Optional event handler for when Link is clicked.
    */
   onClick?: React.MouseEventHandler<HTMLAnchorElement>
+  /**
+   * Optional event handler for when the `<Link>` is navigated.
+   */
+  onNavigate?: OnNavigateEventHandler
 }
 
 // TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
-// isn't generated yet. It will be replaced when the webpack plugin runs.
+// isn't generated yet. It will be replaced when type generation runs.
+// WARNING: This should be an interface to prevent TypeScript from inlining it
+// in declarations of libraries dependending on Next.js.
+// Not trivial to reproduce so only convert to an interface when needed.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type LinkProps<RouteInferType = any> = InternalLinkProps
+export interface LinkProps<RouteInferType = any> extends InternalLinkProps {}
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
@@ -176,7 +173,7 @@ function prefetch(
 }
 
 function isModifiedEvent(event: React.MouseEvent): boolean {
-  const eventTarget = event.currentTarget as HTMLAnchorElement | SVGAElement
+  const eventTarget = event.currentTarget as HTMLAnchorElement
   const target = eventTarget.getAttribute('target')
   return (
     (target && target !== '_self') ||
@@ -196,14 +193,22 @@ function linkClicked(
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean,
-  locale?: string | false
+  locale?: string | false,
+  onNavigate?: OnNavigateEventHandler
 ): void {
-  const { nodeName } = e.currentTarget
+  if (isModifiedEvent(e) || e.currentTarget.hasAttribute('download')) {
+    // ignore click for browser’s default behavior
+    return
+  }
 
-  // anchors inside an svg have a lowercase nodeName
-  const isAnchorNodeName = nodeName.toUpperCase() === 'A'
+  if (!isLocalURL(href)) {
+    if (replace) {
+      // browser default behavior does not replace the history state
+      // so we need to do it manually
+      e.preventDefault()
+      location.replace(href)
+    }
 
-  if (isAnchorNodeName && (isModifiedEvent(e) || !isLocalURL(href))) {
     // ignore click for browser’s default behavior
     return
   }
@@ -211,6 +216,20 @@ function linkClicked(
   e.preventDefault()
 
   const navigate = () => {
+    if (onNavigate) {
+      let isDefaultPrevented = false
+
+      onNavigate({
+        preventDefault: () => {
+          isDefaultPrevented = true
+        },
+      })
+
+      if (isDefaultPrevented) {
+        return
+      }
+    }
+
     // If the router is an NextRouter instance it will have `beforePopState`
     const routerScroll = scroll ?? true
     if ('beforePopState' in router) {
@@ -252,33 +271,21 @@ function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
  */
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
   function LinkComponent(props, forwardedRef) {
-    let children: React.ReactNode
-
     const {
       href: hrefProp,
       as: asProp,
-      children: childrenProp,
+      children,
       prefetch: prefetchProp = null,
-      passHref,
       replace,
       shallow,
       scroll,
       locale,
       onClick,
+      onNavigate,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
-      legacyBehavior = false,
       ...restProps
     } = props
-
-    children = childrenProp
-
-    if (
-      legacyBehavior &&
-      (typeof children === 'string' || typeof children === 'number')
-    ) {
-      children = <a>{children}</a>
-    }
 
     const router = React.useContext(RouterContext)
 
@@ -293,7 +300,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         return new Error(
           `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`<Link>\`, but got \`${args.actual}\` instead.` +
             (typeof window !== 'undefined'
-              ? "\nOpen your browser's console to view the Component stack trace."
+              ? // TODO: Remove this addendum if Owner Stacks are available
+                "\nOpen your browser's console to view the Component stack trace."
               : '')
         )
       }
@@ -330,13 +338,12 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         replace: true,
         scroll: true,
         shallow: true,
-        passHref: true,
         prefetch: true,
         locale: true,
         onClick: true,
         onMouseEnter: true,
         onTouchStart: true,
-        legacyBehavior: true,
+        onNavigate: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -363,7 +370,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         } else if (
           key === 'onClick' ||
           key === 'onMouseEnter' ||
-          key === 'onTouchStart'
+          key === 'onTouchStart' ||
+          key === 'onNavigate'
         ) {
           if (props[key] && valType !== 'function') {
             throw createPropError({
@@ -372,18 +380,23 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               actual: valType,
             })
           }
-        } else if (
-          key === 'replace' ||
-          key === 'scroll' ||
-          key === 'shallow' ||
-          key === 'passHref' ||
-          key === 'prefetch' ||
-          key === 'legacyBehavior'
-        ) {
+        } else if (key === 'replace' || key === 'scroll' || key === 'shallow') {
           if (props[key] != null && valType !== 'boolean') {
             throw createPropError({
               key,
               expected: '`boolean`',
+              actual: valType,
+            })
+          }
+        } else if (key === 'prefetch') {
+          if (
+            props[key] != null &&
+            valType !== 'boolean' &&
+            props[key] !== 'auto'
+          ) {
+            throw createPropError({
+              key,
+              expected: '`boolean | "auto"`',
               actual: valType,
             })
           }
@@ -415,58 +428,21 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const previousHref = React.useRef<string>(href)
     const previousAs = React.useRef<string>(as)
 
-    // This will return the first child, if multiple are provided it will throw an error
-    let child: any
-    if (legacyBehavior) {
-      if (process.env.NODE_ENV === 'development') {
-        if (onClick) {
-          console.warn(
-            `"onClick" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
-          )
-        }
-        if (onMouseEnterProp) {
-          console.warn(
-            `"onMouseEnter" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onMouseEnter be set on the child of next/link`
-          )
-        }
-        try {
-          child = React.Children.only(children)
-        } catch (err) {
-          if (!children) {
-            throw new Error(
-              `No children were passed to <Link> with \`href\` of \`${hrefProp}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
-            )
-          }
-          throw new Error(
-            `Multiple children were passed to <Link> with \`href\` of \`${hrefProp}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
-              (typeof window !== 'undefined'
-                ? " \nOpen your browser's console to view the Component stack trace."
-                : '')
-          )
-        }
-      } else {
-        child = React.Children.only(children)
-      }
-    } else {
-      if (process.env.NODE_ENV === 'development') {
-        if ((children as any)?.type === 'a') {
-          throw new Error(
-            'Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>.\nLearn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor'
-          )
-        }
+    if (process.env.NODE_ENV === 'development') {
+      if ((children as any)?.type === 'a') {
+        throw new Error(
+          'Invalid <Link> with <a> child. Please remove <a>.\nLearn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor'
+        )
       }
     }
 
-    const childRef: any = legacyBehavior
-      ? child && typeof child === 'object' && child.ref
-      : forwardedRef
-
-    const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
-      rootMargin: '200px',
-    })
+    const [setIntersectionRef, isVisible, resetVisible] =
+      useIntersection<HTMLAnchorElement>({
+        rootMargin: '200px',
+      })
 
     const setIntersectionWithResetRef = React.useCallback(
-      (el: Element) => {
+      (el: HTMLAnchorElement | null) => {
         // Before the link getting observed, check if visible state need to be reset
         if (previousAs.current !== as || previousHref.current !== href) {
           resetVisible()
@@ -479,7 +455,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       [as, href, resetVisible, setIntersectionRef]
     )
 
-    const setRef = useMergedRef(setIntersectionWithResetRef, childRef)
+    const setRef = useMergedRef(setIntersectionWithResetRef, forwardedRef)
 
     // Prefetch the URL if we haven't already and it's visible.
     React.useEffect(() => {
@@ -501,33 +477,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       prefetch(router, href, as, { locale })
     }, [as, href, isVisible, locale, prefetchEnabled, router?.locale, router])
 
-    const childProps: {
-      onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
-      onMouseEnter: React.MouseEventHandler<HTMLAnchorElement>
-      onClick: React.MouseEventHandler<HTMLAnchorElement>
-      href?: string
-      ref?: any
-    } = {
+    const anchorProps: React.DetailedHTMLProps<
+      React.AnchorHTMLAttributes<HTMLAnchorElement>,
+      HTMLAnchorElement
+    > = {
       ref: setRef,
       onClick(e) {
-        if (process.env.NODE_ENV !== 'production') {
-          if (!e) {
-            throw new Error(
-              `Component rendered inside next/link has to pass click event to "onClick" prop.`
-            )
-          }
-        }
-
-        if (!legacyBehavior && typeof onClick === 'function') {
+        if (typeof onClick === 'function') {
           onClick(e)
-        }
-
-        if (
-          legacyBehavior &&
-          child.props &&
-          typeof child.props.onClick === 'function'
-        ) {
-          child.props.onClick(e)
         }
 
         if (!router) {
@@ -538,19 +495,21 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        linkClicked(e, router, href, as, replace, shallow, scroll, locale)
+        linkClicked(
+          e,
+          router,
+          href,
+          as,
+          replace,
+          shallow,
+          scroll,
+          locale,
+          onNavigate
+        )
       },
       onMouseEnter(e) {
-        if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
+        if (typeof onMouseEnterProp === 'function') {
           onMouseEnterProp(e)
-        }
-
-        if (
-          legacyBehavior &&
-          child.props &&
-          typeof child.props.onMouseEnter === 'function'
-        ) {
-          child.props.onMouseEnter(e)
         }
 
         if (!router) {
@@ -567,16 +526,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onTouchStart: process.env.__NEXT_LINK_NO_TOUCH_START
         ? undefined
         : function onTouchStart(e) {
-            if (!legacyBehavior && typeof onTouchStartProp === 'function') {
+            if (typeof onTouchStartProp === 'function') {
               onTouchStartProp(e)
-            }
-
-            if (
-              legacyBehavior &&
-              child.props &&
-              typeof child.props.onTouchStart === 'function'
-            ) {
-              child.props.onTouchStart(e)
             }
 
             if (!router) {
@@ -592,16 +543,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           },
     }
 
-    // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
-    // defined, we specify the current 'href', so that repetition is not needed by the user.
     // If the url is absolute, we can bypass the logic to prepend the domain and locale.
     if (isAbsoluteUrl(as)) {
-      childProps.href = as
-    } else if (
-      !legacyBehavior ||
-      passHref ||
-      (child.type === 'a' && !('href' in child.props))
-    ) {
+      anchorProps.href = as
+    } else {
       const curLocale = typeof locale !== 'undefined' ? locale : router?.locale
 
       // we only render domain locales if we are currently on a domain locale
@@ -610,19 +555,30 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         router?.isLocaleDomain &&
         getDomainLocale(as, curLocale, router?.locales, router?.domainLocales)
 
-      childProps.href =
+      anchorProps.href =
         localeDomain ||
         addBasePath(addLocale(as, curLocale, router?.defaultLocale))
     }
 
-    return legacyBehavior ? (
-      React.cloneElement(child, childProps)
-    ) : (
-      <a {...restProps} {...childProps}>
+    return (
+      <a {...restProps} {...anchorProps}>
         {children}
       </a>
     )
   }
 )
+
+const LinkStatusContext = createContext<{
+  pending: boolean
+}>({
+  // We do not support link status in the Pages Router, so we always return false
+  pending: false,
+})
+
+export const useLinkStatus = () => {
+  // This behaviour is like React's useFormStatus. When the component is not under
+  // a <form> tag, it will get the default value, instead of throwing an error.
+  return useContext(LinkStatusContext)
+}
 
 export default Link

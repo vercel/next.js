@@ -1,7 +1,7 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
-import formatWebpackMessages from '../../client/components/react-dev-overlay/internal/helpers/format-webpack-messages'
+import formatWebpackMessages from '../../shared/lib/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
 import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import {
@@ -17,7 +17,7 @@ import type { NextError } from '../../lib/is-error'
 import {
   TelemetryPlugin,
   type TelemetryPluginState,
-} from '../webpack/plugins/telemetry-plugin'
+} from '../webpack/plugins/telemetry-plugin/telemetry-plugin'
 import {
   NextBuildContext,
   resumePluginState,
@@ -40,8 +40,14 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
+import { durationToString } from '../duration-to-string'
 
 const debug = origDebug('next:build:webpack-build')
+
+function hrtimeToSeconds(hrtime: [number, number]): number {
+  // hrtime is a tuple of [seconds, nanoseconds]
+  return hrtime[0] + hrtime[1] / 1e9
+}
 
 type CompilerResult = {
   errors: webpack.StatsError[]
@@ -107,6 +113,7 @@ export async function webpackBuildImpl(
 
   const commonWebpackOptions = {
     isServer: false,
+    isCompileMode: NextBuildContext.isCompileMode,
     buildId: NextBuildContext.buildId!,
     encryptionKey: NextBuildContext.encryptionKey!,
     config: config,
@@ -118,7 +125,7 @@ export async function webpackBuildImpl(
     reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
     noMangling: NextBuildContext.noMangling!,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
-    previewModeId: NextBuildContext.previewModeId!,
+    previewProps: NextBuildContext.previewProps!,
     allowedRevalidateHeaderKeys: NextBuildContext.allowedRevalidateHeaderKeys!,
     fetchCacheKeyPrefix: NextBuildContext.fetchCacheKeyPrefix!,
   }
@@ -154,14 +161,6 @@ export async function webpackBuildImpl(
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
-          edgePreviewProps: {
-            __NEXT_PREVIEW_MODE_ID:
-              NextBuildContext.previewProps!.previewModeId,
-            __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
-              NextBuildContext.previewProps!.previewModeEncryptionKey,
-            __NEXT_PREVIEW_MODE_SIGNING_KEY:
-              NextBuildContext.previewProps!.previewModeSigningKey,
-          },
           ...info,
         }),
       ])
@@ -333,26 +332,32 @@ export async function webpackBuildImpl(
       err.code = 'INVALID_RESOLVE_ALIAS'
       throw err
     }
-    const err = new Error('Build failed because of webpack errors') as NextError
+    const err = new Error(
+      `Build failed because of ${process.env.NEXT_RSPACK ? 'Rspack' : 'webpack'} errors`
+    ) as NextError
     err.code = 'WEBPACK_ERRORS'
     throw err
   } else {
+    const duration = hrtimeToSeconds(webpackBuildEnd)
+    const durationString = durationToString(duration)
+
     if (result.warnings.length > 0) {
-      Log.warn('Compiled with warnings\n')
+      Log.warn(`Compiled with warnings in ${durationString}\n`)
       console.warn(result.warnings.filter(Boolean).join('\n\n'))
       console.warn()
     } else if (!compilerName) {
-      Log.event('Compiled successfully')
+      Log.event(`Compiled successfully in ${durationString}`)
     }
 
     return {
-      duration: webpackBuildEnd[0],
+      duration,
       buildTraceContext: traceEntryPointsPlugin?.buildTraceContext,
       pluginState: getPluginState(),
       telemetryState: {
         usages: telemetryPlugin?.usages() || [],
         packagesUsedInServerSideProps:
           telemetryPlugin?.packagesUsedInServerSideProps() || [],
+        useCacheTracker: telemetryPlugin?.getUseCacheTracker() || {},
       },
     }
   }
@@ -385,7 +390,8 @@ export async function workerMain(workerData: {
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
-    NextBuildContext.dir!
+    NextBuildContext.dir!,
+    { debugPrerender: NextBuildContext.debugPrerender }
   )
   NextBuildContext.nextBuildSpan = trace(
     `worker-main-${workerData.compilerName}`

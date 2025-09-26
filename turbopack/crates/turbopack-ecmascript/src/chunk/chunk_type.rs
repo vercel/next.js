@@ -1,15 +1,13 @@
-use anyhow::{bail, Result};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{TryJoinIterExt, ValueDefault, ValueToString, Vc};
-use turbopack_core::{
-    chunk::{
-        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
-        ChunkType, ChunkingContext,
-    },
-    output::OutputAssets,
+use anyhow::{Result, bail};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
+use turbopack_core::chunk::{
+    AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo,
+    ChunkType, ChunkingContext, round_chunk_item_size,
 };
 
 use super::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
+use crate::chunk::batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo};
 
 #[turbo_tasks::value]
 #[derive(Default)]
@@ -19,14 +17,14 @@ pub struct EcmascriptChunkType {}
 impl ValueToString for EcmascriptChunkType {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("ecmascript".into())
+        Vc::cell(rcstr!("ecmascript"))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkType for EcmascriptChunkType {
     #[turbo_tasks::function]
-    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool> {
+    fn is_style(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
 
@@ -34,32 +32,23 @@ impl ChunkType for EcmascriptChunkType {
     async fn chunk(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
-        referenced_output_assets: Vc<OutputAssets>,
+        chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+        batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
-        let Some(chunking_context) =
-            Vc::try_resolve_downcast::<Box<dyn ChunkingContext>>(chunking_context).await?
-        else {
-            bail!("Ecmascript chunking context not found");
-        };
         let content = EcmascriptChunkContent {
             chunk_items: chunk_items
                 .iter()
-                .map(|(chunk_item, async_info)| async move {
-                    let Some(chunk_item) =
-                        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(*chunk_item)
-                            .await?
-                    else {
-                        bail!(
-                            "Chunk item is not an ecmascript chunk item but reporting chunk type \
-                             ecmascript"
-                        );
-                    };
-                    Ok((chunk_item, *async_info))
+                .map(EcmascriptChunkItemOrBatchWithAsyncInfo::from_chunk_item_or_batch)
+                .try_join()
+                .await?,
+            batch_groups: batch_groups
+                .into_iter()
+                .map(|batch_group| {
+                    EcmascriptChunkItemBatchGroup::from_chunk_item_batch_group(*batch_group)
+                        .to_resolved()
                 })
                 .try_join()
                 .await?,
-            referenced_output_assets: referenced_output_assets.await?.clone_value(),
         }
         .cell();
         Ok(Vc::upcast(EcmascriptChunk::new(chunking_context, content)))
@@ -69,11 +58,10 @@ impl ChunkType for EcmascriptChunkType {
     async fn chunk_item_size(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<usize>> {
-        let Some(chunk_item) =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item).await?
+        let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
         else {
             bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
         };

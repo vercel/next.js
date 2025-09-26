@@ -1,7 +1,7 @@
 const o = {
-  a: "a",
-  b: "b",
-  c: "c",
-};
+  a: 'a',
+  b: 'b',
+  c: 'c',
+}
 
-module.exports = Object(o);
+module.exports = Object(o)

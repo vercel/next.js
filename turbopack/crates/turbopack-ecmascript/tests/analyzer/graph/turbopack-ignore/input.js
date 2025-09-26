@@ -1,6 +1,6 @@
-const w_i = import(/* webpackIgnore: true */ 'w_i')
+const w_i = await import(/* webpackIgnore: true */ 'w_i')
 const t_r = require(/* webpackIgnore: false */ 'w_i_f')
-const t_i = import(/* turbopackIgnore: true */ 't_i')
+const t_i = await import(/* turbopackIgnore: true */ 't_i')
 const t_r = require(/* turbopackIgnore: false */ 't_i_f')
 const w_r = require(/* webpackIgnore: true */ 'w_r_t')
 const w_r = require(/* webpackIgnore: false */ 'w_r_f')

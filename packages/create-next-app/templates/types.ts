@@ -2,6 +2,7 @@ import { PackageManager } from "../helpers/get-pkg-manager";
 
 export type TemplateType =
   | "app"
+  | "app-api"
   | "app-empty"
   | "app-tw"
   | "app-tw-empty"
@@ -25,9 +26,11 @@ export interface InstallTemplateArgs {
   template: TemplateType;
   mode: TemplateMode;
   eslint: boolean;
+  biome: boolean;
   tailwind: boolean;
   srcDir: boolean;
   importAlias: string;
   skipInstall: boolean;
   turbopack: boolean;
+  rspack: boolean;
 }

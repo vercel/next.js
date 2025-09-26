@@ -8,9 +8,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-docker-multi-env nextjs-docker-multi-env
-# or
+```
+
+```bash
 yarn create next-app --example with-docker-multi-env nextjs-docker-multi-env
-# or
+```
+
+```bash
 pnpm create next-app --example with-docker-multi-env nextjs-docker-multi-env
 ```
 

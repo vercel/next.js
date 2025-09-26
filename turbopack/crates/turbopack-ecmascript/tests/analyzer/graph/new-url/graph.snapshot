@@ -9,7 +9,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./worker.ts",
                         ),
                     ),

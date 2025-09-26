@@ -22,7 +22,7 @@ describe('Conflict between app file and pages file', () => {
   if (isNextStart) {
     it('should print error for conflicting app/page', async () => {
       const { cliOutput } = await next.build()
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(cliOutput).toContain(
           'App Router and Pages Router both match path: /'
         )
@@ -50,13 +50,13 @@ describe('Conflict between app file and pages file', () => {
   async function containConflictsError(browser, conflicts) {
     await retry(async () => {
       await assertHasRedbox(browser)
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         expect(await getRedboxDescription(browser)).toContain(
           'App Router and Pages Router both match path:'
         )
       }
 
-      if (!process.env.TURBOPACK) {
+      if (!process.env.IS_TURBOPACK_TEST) {
         for (const pair of conflicts) {
           expect(await getRedboxSource(browser)).toContain(
             `"${pair[0]}" - "${pair[1]}"`
@@ -105,12 +105,12 @@ describe('Conflict between app file and pages file', () => {
     it('should not show error overlay for non conflict pages under app or pages dir', async () => {
       const browser = await next.browser('/non-conflict')
       await assertNoRedbox(browser)
-      expect(await getRedboxHeader(browser)).toBeUndefined()
+      expect(await getRedboxHeader(browser)).toEqual(null)
       expect(await browser.elementByCss('p').text()).toBe('non-conflict app')
 
       await browser.loadPage(next.url + '/non-conflict-pages')
       await assertNoRedbox(browser)
-      expect(await getRedboxHeader(browser)).toBeUndefined()
+      expect(await getRedboxHeader(browser)).toEqual(null)
       expect(await browser.elementByCss('h1').text()).toBe('non-conflict pages')
     })
 

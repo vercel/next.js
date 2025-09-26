@@ -1,21 +1,23 @@
+import type { RenderOpts, PreloadCallbacks } from './types'
 import type {
   ActionResult,
   DynamicParamTypesShort,
   FlightRouterState,
-  FlightSegmentPath,
-  RenderOpts,
   Segment,
   CacheNodeSeedData,
-  PreloadCallbacks,
   RSCPayload,
   FlightData,
   InitialRSCPayload,
-} from './types'
+  FlightDataPath,
+} from '../../shared/lib/app-router-types'
 import {
   workAsyncStorage,
   type WorkStore,
 } from '../app-render/work-async-storage.external'
-import type { RequestStore } from '../app-render/work-unit-async-storage.external'
+import type {
+  PrerenderStoreModernRuntime,
+  RequestStore,
+} from '../app-render/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
@@ -52,11 +54,13 @@ import {
   NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_URL,
   RSC_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_HMR_REFRESH_HASH_COOKIE,
+  NEXT_DID_POSTPONE_HEADER,
+  NEXT_REQUEST_ID_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
-import {
-  createTrackedMetadataContext,
-  createMetadataContext,
-} from '../../lib/metadata/metadata-context'
+import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
 import { createWorkStore } from '../async-storage/work-store'
 import {
@@ -69,7 +73,7 @@ import {
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import { isRedirectError } from '../../client/components/redirect-error'
-import { getImplicitTags } from '../lib/implicit-tags'
+import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
@@ -79,11 +83,9 @@ import {
   createHTMLErrorHandler,
   type DigestedError,
   isUserLandError,
+  getDigestForWellKnownError,
 } from './create-error-handler'
-import {
-  getShortDynamicParamType,
-  dynamicParamTypes,
-} from './get-short-dynamic-param-type'
+import { dynamicParamTypes } from './get-short-dynamic-param-type'
 import { getSegmentParam } from './get-segment-param'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
@@ -97,12 +99,16 @@ import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
-import { createComponentTree } from './create-component-tree'
+import { createComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
-import { setReferenceManifestsSingleton } from './encryption-utils'
+import {
+  getServerModuleMap,
+  setReferenceManifestsSingleton,
+} from './encryption-utils'
 import {
   DynamicState,
   type PostponedState,
+  DynamicHTMLPreludeState,
   parsePostponedState,
 } from './postponed-state'
 import {
@@ -122,16 +128,17 @@ import {
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   accessedDynamicData,
-  createPostponedAbortSignal,
+  createRenderInBrowserAbortSignal,
   formatDynamicAPIAccesses,
   isPrerenderInterruptedError,
   createDynamicTrackingState,
   createDynamicValidationState,
-  getFirstDynamicReason,
   trackAllowedDynamicAccess,
   throwIfDisallowedDynamic,
+  PreludeState,
   consumeDynamicAccess,
   type DynamicAccess,
+  logDisallowedDynamicError,
 } from './dynamic-rendering'
 import {
   getClientComponentLoaderMetrics,
@@ -139,26 +146,26 @@ import {
 } from '../client-component-renderer-logger'
 import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
-import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import { getIsPossibleServerAction } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
-import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
+import { createMutableActionQueue } from '../../client/components/app-router-instance'
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import type { FallbackRouteParams } from '../request/fallback-params'
-import { DynamicServerError } from '../../client/components/hooks-server-context'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
+import {
+  prerenderAndAbortInSequentialTasksWithStages,
+  processPrelude,
+} from './app-render-prerender-utils'
 import {
   type ReactServerPrerenderResult,
   ReactServerResult,
   createReactServerPrerenderResult,
   createReactServerPrerenderResultFromRender,
   prerenderAndAbortInSequentialTasks,
-  prerenderServerWithPhases,
-  prerenderClientWithPhases,
 } from './app-render-prerender-utils'
 import { printDebugThrownValueForProspectiveRender } from './prospective-render-utils'
 import { scheduleInSequentialTasks } from './app-render-render-utils'
@@ -167,33 +174,59 @@ import {
   workUnitAsyncStorage,
   type PrerenderStore,
 } from './work-unit-async-storage.external'
+import { devLogsAsyncStorage } from './dev-logs-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
-import './clean-async-snapshot.external'
-import { INFINITE_CACHE } from '../../lib/constants'
+import { HTML_CONTENT_TYPE_HEADER, INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from './parse-loader-tree'
 import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,
+  type PrerenderResumeDataCache,
+  type RenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
+import isError from '../../lib/is-error'
+import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
+import { getPreviouslyRevalidatedTags } from '../server-utils'
+import { executeRevalidates } from '../revalidation-utils'
+import {
+  trackPendingChunkLoad,
+  trackPendingImport,
+  trackPendingModules,
+} from './module-loading/track-module-loading.external'
+import { isReactLargeShellError } from './react-large-shell-error'
+import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
+import { normalizeConventionFilePath } from './segment-explorer-path'
+import { getRequestMeta } from '../request-meta'
+import { getDynamicParam } from '../../shared/lib/router/utils/get-dynamic-param'
+import type { ExperimentalConfig } from '../config-shared'
+import type { Params } from '../request/params'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
   segment: string
-) => {
+) => DynamicParam | null
+
+export type DynamicParam = {
   param: string
   value: string | string[] | null
   treeSegment: Segment
   type: DynamicParamTypesShort
-} | null
+}
 
 export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
+export type AppSharedContext = {
+  buildId: string
+}
+
 export type AppRenderContext = {
+  sharedContext: AppSharedContext
   workStore: WorkStore
   url: ReturnType<typeof parseRelativeUrl>
   componentMod: AppPageModule
@@ -202,25 +235,41 @@ export type AppRenderContext = {
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   query: NextParsedUrlQuery
   isPrefetch: boolean
-  isAction: boolean
+  isPossibleServerAction: boolean
   requestTimestamp: number
   appUsingSizeAdjustment: boolean
   flightRouterState?: FlightRouterState
   requestId: string
+  htmlRequestId: string
   pagePath: string
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   assetPrefix: string
   isNotFoundPath: boolean
   nonce: string | undefined
   res: BaseNextResponse
+  /**
+   * For now, the implicit tags are common for the whole route. If we ever start
+   * rendering/revalidating segments independently, they need to move to the
+   * work unit store.
+   */
+  implicitTags: ImplicitTags
 }
 
 interface ParseRequestHeadersOptions {
   readonly isDevWarmup: undefined | boolean
   readonly isRoutePPREnabled: boolean
+  readonly previewModeId: string | undefined
 }
 
 const flightDataPathHeadKey = 'h'
+const getFlightViewportKey = (requestId: string) => requestId + 'v'
+const getFlightMetadataKey = (requestId: string) => requestId + 'm'
+
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
 
 interface ParsedRequestHeaders {
   /**
@@ -231,10 +280,14 @@ interface ParsedRequestHeaders {
    */
   readonly flightRouterState: FlightRouterState | undefined
   readonly isPrefetchRequest: boolean
+  readonly isRuntimePrefetchRequest: boolean
+  readonly isRouteTreePrefetchRequest: boolean
   readonly isDevWarmupRequest: boolean
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
+  readonly previouslyRevalidatedTags: string[]
+  readonly htmlRequestId: string | undefined
 }
 
 function parseRequestHeaders(
@@ -244,25 +297,28 @@ function parseRequestHeaders(
   const isDevWarmupRequest = options.isDevWarmup === true
 
   // dev warmup requests are treated as prefetch RSC requests
+  // runtime prefetch requests are *not* treated as prefetch requests
+  // (TODO: this is confusing, we should refactor this to express this better)
   const isPrefetchRequest =
-    isDevWarmupRequest ||
-    headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
+    isDevWarmupRequest || headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
 
-  const isHmrRefresh =
-    headers[NEXT_HMR_REFRESH_HEADER.toLowerCase()] !== undefined
+  const isRuntimePrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '2'
+
+  const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
 
   // dev warmup requests are treated as prefetch RSC requests
-  const isRSCRequest =
-    isDevWarmupRequest || headers[RSC_HEADER.toLowerCase()] !== undefined
+  const isRSCRequest = isDevWarmupRequest || headers[RSC_HEADER] !== undefined
 
   const shouldProvideFlightRouterState =
     isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
 
   const flightRouterState = shouldProvideFlightRouterState
-    ? parseAndValidateFlightRouterState(
-        headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
-      )
+    ? parseAndValidateFlightRouterState(headers[NEXT_ROUTER_STATE_TREE_HEADER])
     : undefined
+
+  // Checks if this is a prefetch of the Route Tree by the Segment Cache
+  const isRouteTreePrefetchRequest =
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === '/_tree'
 
   const csp =
     headers['content-security-policy'] ||
@@ -271,35 +327,51 @@ function parseRequestHeaders(
   const nonce =
     typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
 
+  const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
+    headers,
+    options.previewModeId
+  )
+
+  const htmlRequestId =
+    typeof headers[NEXT_HTML_REQUEST_ID_HEADER] === 'string'
+      ? headers[NEXT_HTML_REQUEST_ID_HEADER]
+      : undefined
+
   return {
     flightRouterState,
     isPrefetchRequest,
+    isRuntimePrefetchRequest,
+    isRouteTreePrefetchRequest,
     isHmrRefresh,
     isRSCRequest,
     isDevWarmupRequest,
     nonce,
+    previouslyRevalidatedTags,
+    htmlRequestId,
   }
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
-  // Align the segment with parallel-route-default in next-app-loader
   const components = loaderTree[2]
+  const hasGlobalNotFound = !!components['global-not-found']
+  const notFoundTreeComponents: LoaderTree[2] = hasGlobalNotFound
+    ? {
+        layout: components['global-not-found']!,
+        page: [() => null, 'next/dist/client/components/builtin/empty-stub'],
+      }
+    : {
+        page: components['not-found'],
+      }
+
   return [
     '',
     {
-      children: [
-        PAGE_SEGMENT_KEY,
-        {},
-        {
-          page: components['not-found'],
-        },
-      ],
+      children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents],
     },
-    components,
+    // When global-not-found is present, skip layout from components
+    hasGlobalNotFound ? components : {},
   ]
 }
-
-export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 
 /**
  * Returns a function that parses the dynamic segment and return the associated value.
@@ -307,7 +379,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
   pagePath: string,
-  fallbackRouteParams: FallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
@@ -317,79 +389,33 @@ function makeGetDynamicParamFromSegment(
     if (!segmentParam) {
       return null
     }
-
-    const key = segmentParam.param
-
-    let value = params[key]
-
-    if (fallbackRouteParams && fallbackRouteParams.has(segmentParam.param)) {
-      value = fallbackRouteParams.get(segmentParam.param)
-    } else if (Array.isArray(value)) {
-      value = value.map((i) => encodeURIComponent(i))
-    } else if (typeof value === 'string') {
-      value = encodeURIComponent(value)
-    }
-
-    if (!value) {
-      const isCatchall = segmentParam.type === 'catchall'
-      const isOptionalCatchall = segmentParam.type === 'optional-catchall'
-
-      if (isCatchall || isOptionalCatchall) {
-        const dynamicParamType = dynamicParamTypes[segmentParam.type]
-        // handle the case where an optional catchall does not have a value,
-        // e.g. `/dashboard/[[...slug]]` when requesting `/dashboard`
-        if (isOptionalCatchall) {
-          return {
-            param: key,
-            value: null,
-            type: dynamicParamType,
-            treeSegment: [key, '', dynamicParamType],
-          }
-        }
-
-        // handle the case where a catchall or optional catchall does not have a value,
-        // e.g. `/foo/bar/hello` and `@slot/[...catchall]` or `@slot/[[...catchall]]` is matched
-        value = pagePath
-          .split('/')
-          // remove the first empty string
-          .slice(1)
-          // replace any dynamic params with the actual values
-          .flatMap((pathSegment) => {
-            const param = parseParameter(pathSegment)
-            // if the segment matches a param, return the param value
-            // otherwise, it's a static segment, so just return that
-            return params[param.key] ?? param.key
-          })
-
-        return {
-          param: key,
-          value,
-          type: dynamicParamType,
-          // This value always has to be a string.
-          treeSegment: [key, value.join('/'), dynamicParamType],
-        }
-      }
-    }
-
-    const type = getShortDynamicParamType(segmentParam.type)
-
-    return {
-      param: key,
-      // The value that is passed to user code.
-      value: value,
-      // The value that is rendered in the router tree.
-      treeSegment: [key, Array.isArray(value) ? value.join('/') : value, type],
-      type: type,
-    }
+    const segmentKey = segmentParam.param
+    const dynamicParamType = dynamicParamTypes[segmentParam.type]
+    return getDynamicParam(
+      params,
+      segmentKey,
+      dynamicParamType,
+      pagePath,
+      fallbackRouteParams
+    )
   }
 }
 
-function NonIndex({ ctx }: { ctx: AppRenderContext }) {
-  const is404Page = ctx.pagePath === '/404'
-  const isInvalidStatusCode =
-    typeof ctx.res.statusCode === 'number' && ctx.res.statusCode > 400
+function NonIndex({
+  pagePath,
+  statusCode,
+  isPossibleServerAction,
+}: {
+  pagePath: string
+  statusCode: number | undefined
+  isPossibleServerAction: boolean
+}) {
+  const is404Page = pagePath === '/404'
+  const isInvalidStatusCode = typeof statusCode === 'number' && statusCode > 400
 
-  if (is404Page || isInvalidStatusCode) {
+  // Only render noindex for page request, skip for server actions
+  // TODO: is this correct if `isPossibleServerAction` is a false positive?
+  if (!isPossibleServerAction && (is404Page || isInvalidStatusCode)) {
     return <meta name="robots" content="noindex" />
   }
   return null
@@ -398,7 +424,7 @@ function NonIndex({ ctx }: { ctx: AppRenderContext }) {
 /**
  * This is used by server actions & client-side navigations to generate RSC data from a client-side request.
  * This function is only called on "dynamic" requests (ie, there wasn't already a static response).
- * It uses request headers (namely `Next-Router-State-Tree`) to determine where to start rendering.
+ * It uses request headers (namely `next-router-state-tree`) to determine where to start rendering.
  */
 async function generateDynamicRSCPayload(
   ctx: AppRenderContext,
@@ -418,9 +444,9 @@ async function generateDynamicRSCPayload(
 
   const {
     componentMod: {
-      tree: loaderTree,
-      createServerSearchParamsForMetadata,
-      createServerParamsForMetadata,
+      routeModule: {
+        userland: { loaderTree },
+      },
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -434,47 +460,58 @@ async function generateDynamicRSCPayload(
     url,
   } = ctx
 
+  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
+
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
 
-    const searchParams = createServerSearchParamsForMetadata(query, workStore)
-    const [MetadataTree, getMetadataReady] = createMetadataComponents({
+    const {
+      ViewportTree,
+      MetadataTree,
+      getViewportReady,
+      getMetadataReady,
+      StreamingMetadataOutlet,
+    } = createMetadataComponents({
       tree: loaderTree,
-      searchParams,
-      metadataContext: createTrackedMetadataContext(
-        url.pathname,
-        ctx.renderOpts,
-        workStore
-      ),
+      parsedQuery: query,
+      pathname: url.pathname,
+      metadataContext: createMetadataContext(ctx.renderOpts),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
-      createServerParamsForMetadata,
       workStore,
       MetadataBoundary,
       ViewportBoundary,
+      serveStreamingMetadata,
     })
+
     flightData = (
       await walkTreeWithFlightRouterState({
         ctx,
-        createSegmentPath: (child) => child,
         loaderTreeToFilter: loaderTree,
         parentParams: {},
         flightRouterState,
-        isFirst: true,
         // For flight, render metadata inside leaf page
-        rscPayloadHead: (
+        rscHead: (
           <React.Fragment key={flightDataPathHeadKey}>
-            <NonIndex ctx={ctx} />
+            {/* noindex needs to be blocking */}
+            <NonIndex
+              pagePath={ctx.pagePath}
+              statusCode={ctx.res.statusCode}
+              isPossibleServerAction={ctx.isPossibleServerAction}
+            />
             {/* Adding requestId as react key to make metadata remount for each render */}
-            <MetadataTree key={requestId} />
+            <ViewportTree key={getFlightViewportKey(requestId)} />
+            <MetadataTree key={getFlightMetadataKey(requestId)} />
           </React.Fragment>
         ),
         injectedCSS: new Set(),
         injectedJS: new Set(),
         injectedFontPreloadTags: new Set(),
         rootLayoutIncluded: false,
+        getViewportReady,
         getMetadataReady,
         preloadCallbacks,
+        StreamingMetadataOutlet,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -486,13 +523,13 @@ async function generateDynamicRSCPayload(
     return {
       a: options.actionResult,
       f: flightData,
-      b: ctx.renderOpts.buildId,
+      b: ctx.sharedContext.buildId,
     }
   }
 
   // Otherwise, it's a regular RSC response.
   return {
-    b: ctx.renderOpts.buildId,
+    b: ctx.sharedContext.buildId,
     f: flightData,
     S: workStore.isStaticGeneration,
   }
@@ -505,11 +542,13 @@ function createErrorContext(
   return {
     routerKind: 'App Router',
     routePath: ctx.pagePath,
-    routeType: ctx.isAction ? 'action' : 'render',
+    // TODO: is this correct if `isPossibleServerAction` is a false positive?
+    routeType: ctx.isPossibleServerAction ? 'action' : 'render',
     renderSource,
     revalidateReason: getRevalidateReason(ctx.workStore),
   }
 }
+
 /**
  * Produces a RenderResult containing the Flight data for the given request. See
  * `generateDynamicRSCPayload` for information on the contents of the render result.
@@ -526,22 +565,35 @@ async function generateDynamicFlightRenderResult(
     temporaryReferences?: WeakMap<any, string>
   }
 ): Promise<RenderResult> {
-  const renderOpts = ctx.renderOpts
+  const {
+    clientReferenceManifest,
+    componentMod,
+    htmlRequestId,
+    renderOpts,
+    requestId,
+    workStore,
+  } = ctx
+
+  const {
+    dev = false,
+    onInstrumentationRequestError,
+    setReactDebugChannel,
+  } = renderOpts
 
   function onFlightDataRenderError(err: DigestedError) {
-    return renderOpts.onInstrumentationRequestError?.(
+    return onInstrumentationRequestError?.(
       err,
       req,
       createErrorContext(ctx, 'react-server-components-payload')
     )
   }
   const onError = createFlightReactServerErrorHandler(
-    !!renderOpts.dev,
+    dev,
     onFlightDataRenderError
   )
 
   const RSCPayload: RSCPayload & {
-    /** Only available during dynamicIO development builds. Used for logging errors. */
+    /** Only available during cacheComponents development builds. Used for logging errors. */
     _validation?: Promise<React.ReactNode>
   } = await workUnitAsyncStorage.run(
     requestStore,
@@ -550,44 +602,368 @@ async function generateDynamicFlightRenderResult(
     options
   )
 
-  if (
-    // We only want this behavior when running `next dev`
-    renderOpts.dev &&
-    // We only want this behavior when we have React's dev builds available
-    process.env.NODE_ENV === 'development' &&
-    // We only have a Prerender environment for projects opted into dynamicIO
-    renderOpts.experimental.dynamicIO
-  ) {
-    const [resolveValidation, validationOutlet] = createValidationOutlet()
-    RSCPayload._validation = validationOutlet
+  const debugChannel = setReactDebugChannel && createDebugChannel()
 
-    spawnDynamicValidationInDev(
-      resolveValidation,
-      ctx.componentMod.tree,
-      ctx,
-      false,
-      ctx.clientReferenceManifest,
-      ctx.workStore.route,
-      requestStore
-    )
+  if (debugChannel) {
+    setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
   }
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
   const flightReadableStream = workUnitAsyncStorage.run(
     requestStore,
-    ctx.componentMod.renderToReadableStream,
+    componentMod.renderToReadableStream,
     RSCPayload,
-    ctx.clientReferenceManifest.clientModules,
+    clientReferenceManifest.clientModules,
     {
       onError,
       temporaryReferences: options?.temporaryReferences,
+      filterStackFrame,
+      debugChannel: debugChannel?.serverSide,
     }
   )
 
   return new FlightRenderResult(flightReadableStream, {
-    fetchMetrics: ctx.workStore.fetchMetrics,
+    fetchMetrics: workStore.fetchMetrics,
   })
+}
+
+async function generateRuntimePrefetchResult(
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  ctx: AppRenderContext,
+  requestStore: RequestStore
+): Promise<RenderResult> {
+  const { workStore } = ctx
+  const renderOpts = ctx.renderOpts
+
+  function onFlightDataRenderError(err: DigestedError) {
+    return renderOpts.onInstrumentationRequestError?.(
+      err,
+      req,
+      // TODO(runtime-ppr): should we use a different value?
+      createErrorContext(ctx, 'react-server-components-payload')
+    )
+  }
+  const onError = createFlightReactServerErrorHandler(
+    false,
+    onFlightDataRenderError
+  )
+
+  const metadata: AppPageRenderResultMetadata = {}
+
+  const generatePayload = () => generateDynamicRSCPayload(ctx, undefined)
+
+  const {
+    componentMod: {
+      routeModule: {
+        userland: { loaderTree },
+      },
+    },
+    getDynamicParamFromSegment,
+  } = ctx
+  const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
+
+  // We need to share caches between the prospective prerender and the final prerender,
+  // but we're not going to persist this anywhere.
+  const prerenderResumeDataCache = createPrerenderResumeDataCache()
+  // We're not resuming an existing render.
+  const renderResumeDataCache = null
+
+  await prospectiveRuntimeServerPrerender(
+    ctx,
+    generatePayload,
+    prerenderResumeDataCache,
+    renderResumeDataCache,
+    rootParams,
+    requestStore.headers,
+    requestStore.cookies,
+    requestStore.draftMode
+  )
+
+  const response = await finalRuntimeServerPrerender(
+    ctx,
+    generatePayload,
+    prerenderResumeDataCache,
+    renderResumeDataCache,
+    rootParams,
+    requestStore.headers,
+    requestStore.cookies,
+    requestStore.draftMode,
+    onError
+  )
+
+  applyMetadataFromPrerenderResult(response, metadata, workStore)
+  metadata.fetchMetrics = ctx.workStore.fetchMetrics
+
+  if (response.isPartial) {
+    res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
+  }
+
+  return new FlightRenderResult(response.result.prelude, metadata)
+}
+
+async function prospectiveRuntimeServerPrerender(
+  ctx: AppRenderContext,
+  getPayload: () => any,
+  prerenderResumeDataCache: PrerenderResumeDataCache | null,
+  renderResumeDataCache: RenderResumeDataCache | null,
+  rootParams: Params,
+  headers: PrerenderStoreModernRuntime['headers'],
+  cookies: PrerenderStoreModernRuntime['cookies'],
+  draftMode: PrerenderStoreModernRuntime['draftMode']
+) {
+  const { implicitTags, renderOpts, workStore } = ctx
+
+  const { clientReferenceManifest, ComponentMod } = renderOpts
+
+  assertClientReferenceManifest(clientReferenceManifest)
+
+  // Prerender controller represents the lifetime of the prerender.
+  // It will be aborted when a Task is complete or a synchronously aborting
+  // API is called. Notably during cache-filling renders this does not actually
+  // terminate the render itself which will continue until all caches are filled
+  const initialServerPrerenderController = new AbortController()
+
+  // This controller represents the lifetime of the React render call. Notably
+  // during the cache-filling render it is different from the prerender controller
+  // because we don't want to end the react render until all caches are filled.
+  const initialServerRenderController = new AbortController()
+
+  // The cacheSignal helps us track whether caches are still filling or we are ready
+  // to cut the render off.
+  const cacheSignal = new CacheSignal()
+
+  const initialServerPrerenderStore: PrerenderStoreModernRuntime = {
+    type: 'prerender-runtime',
+    phase: 'render',
+    rootParams,
+    implicitTags,
+    renderSignal: initialServerRenderController.signal,
+    controller: initialServerPrerenderController,
+    // During the initial prerender we need to track all cache reads to ensure
+    // we render long enough to fill every cache it is possible to visit during
+    // the final prerender.
+    cacheSignal,
+    // We only need to track dynamic accesses during the final prerender.
+    dynamicTracking: null,
+    // Runtime prefetches are never cached server-side, only client-side,
+    // so we set `expire` and `revalidate` to their minimum values just in case.
+    revalidate: 1,
+    expire: 0,
+    stale: INFINITE_CACHE,
+    tags: [...implicitTags.tags],
+    renderResumeDataCache,
+    prerenderResumeDataCache,
+    hmrRefreshHash: undefined,
+    captureOwnerStack: undefined,
+    // We only need task sequencing in the final prerender.
+    runtimeStagePromise: null,
+    // These are not present in regular prerenders, but allowed in a runtime prerender.
+    headers,
+    cookies,
+    draftMode,
+  }
+
+  // We're not going to use the result of this render because the only time it could be used
+  // is if it completes in a microtask and that's likely very rare for any non-trivial app
+  const initialServerPayload = await workUnitAsyncStorage.run(
+    initialServerPrerenderStore,
+    getPayload
+  )
+
+  const pendingInitialServerResult = workUnitAsyncStorage.run(
+    initialServerPrerenderStore,
+    ComponentMod.prerender,
+    initialServerPayload,
+    clientReferenceManifest.clientModules,
+    {
+      filterStackFrame,
+      onError: (err) => {
+        const digest = getDigestForWellKnownError(err)
+
+        if (digest) {
+          return digest
+        }
+
+        if (initialServerPrerenderController.signal.aborted) {
+          // The render aborted before this error was handled which indicates
+          // the error is caused by unfinished components within the render
+          return
+        } else if (
+          process.env.NEXT_DEBUG_BUILD ||
+          process.env.__NEXT_VERBOSE_LOGGING
+        ) {
+          printDebugThrownValueForProspectiveRender(err, workStore.route)
+        }
+      },
+      // we don't care to track postpones during the prospective render because we need
+      // to always do a final render anyway
+      onPostpone: undefined,
+      // We don't want to stop rendering until the cacheSignal is complete so we pass
+      // a different signal to this render call than is used by dynamic APIs to signify
+      // transitioning out of the prerender environment
+      signal: initialServerRenderController.signal,
+    }
+  )
+
+  // Wait for all caches to be finished filling and for async imports to resolve
+  trackPendingModules(cacheSignal)
+  await cacheSignal.cacheReady()
+
+  initialServerRenderController.abort()
+  initialServerPrerenderController.abort()
+
+  // We don't need to continue the prerender process if we already
+  // detected invalid dynamic usage in the initial prerender phase.
+  if (workStore.invalidDynamicUsageError) {
+    throw workStore.invalidDynamicUsageError
+  }
+
+  try {
+    return await createReactServerPrerenderResult(pendingInitialServerResult)
+  } catch (err) {
+    if (
+      initialServerRenderController.signal.aborted ||
+      initialServerPrerenderController.signal.aborted
+    ) {
+      // These are expected errors that might error the prerender. we ignore them.
+    } else if (
+      process.env.NEXT_DEBUG_BUILD ||
+      process.env.__NEXT_VERBOSE_LOGGING
+    ) {
+      // We don't normally log these errors because we are going to retry anyway but
+      // it can be useful for debugging Next.js itself to get visibility here when needed
+      printDebugThrownValueForProspectiveRender(err, workStore.route)
+    }
+    return null
+  }
+}
+
+async function finalRuntimeServerPrerender(
+  ctx: AppRenderContext,
+  getPayload: () => any,
+  prerenderResumeDataCache: PrerenderResumeDataCache | null,
+  renderResumeDataCache: RenderResumeDataCache | null,
+  rootParams: Params,
+  headers: PrerenderStoreModernRuntime['headers'],
+  cookies: PrerenderStoreModernRuntime['cookies'],
+  draftMode: PrerenderStoreModernRuntime['draftMode'],
+  onError: (err: unknown) => string | undefined
+) {
+  const { implicitTags, renderOpts } = ctx
+
+  const {
+    clientReferenceManifest,
+    ComponentMod,
+    experimental,
+    isDebugDynamicAccesses,
+  } = renderOpts
+
+  assertClientReferenceManifest(clientReferenceManifest)
+
+  const selectStaleTime = createSelectStaleTime(experimental)
+
+  let serverIsDynamic = false
+  const finalServerController = new AbortController()
+
+  const serverDynamicTracking = createDynamicTrackingState(
+    isDebugDynamicAccesses
+  )
+
+  const { promise: runtimeStagePromise, resolve: resolveBlockedRuntimeAPIs } =
+    createPromiseWithResolvers<void>()
+
+  const finalServerPrerenderStore: PrerenderStoreModernRuntime = {
+    type: 'prerender-runtime',
+    phase: 'render',
+    rootParams,
+    implicitTags,
+    renderSignal: finalServerController.signal,
+    controller: finalServerController,
+    // All caches we could read must already be filled so no tracking is necessary
+    cacheSignal: null,
+    dynamicTracking: serverDynamicTracking,
+    // Runtime prefetches are never cached server-side, only client-side,
+    // so we set `expire` and `revalidate` to their minimum values just in case.
+    revalidate: 1,
+    expire: 0,
+    stale: INFINITE_CACHE,
+    tags: [...implicitTags.tags],
+    prerenderResumeDataCache,
+    renderResumeDataCache,
+    hmrRefreshHash: undefined,
+    captureOwnerStack: undefined,
+    // Used to separate the "Static" stage from the "Runtime" stage.
+    runtimeStagePromise,
+    // These are not present in regular prerenders, but allowed in a runtime prerender.
+    headers,
+    cookies,
+    draftMode,
+  }
+
+  const finalRSCPayload = await workUnitAsyncStorage.run(
+    finalServerPrerenderStore,
+    getPayload
+  )
+
+  let prerenderIsPending = true
+  const result = await prerenderAndAbortInSequentialTasksWithStages(
+    async () => {
+      // Static stage
+      const prerenderResult = await workUnitAsyncStorage.run(
+        finalServerPrerenderStore,
+        ComponentMod.prerender,
+        finalRSCPayload,
+        clientReferenceManifest.clientModules,
+        {
+          filterStackFrame,
+          onError,
+          signal: finalServerController.signal,
+        }
+      )
+      prerenderIsPending = false
+      return prerenderResult
+    },
+    () => {
+      // Advance to the runtime stage.
+      //
+      // We make runtime APIs hang during the first task (above), and unblock them in the following task (here).
+      // This makes sure that, at this point, we'll have finished all the static parts (what we'd prerender statically).
+      // We know that they don't contain any incorrect sync IO, because that'd have caused a build error.
+      // After we unblock Runtime APIs, if we encounter sync IO (e.g. `await cookies(); Date.now()`),
+      // we'll abort, but we'll produce at least as much output as a static prerender would.
+      resolveBlockedRuntimeAPIs()
+    },
+    () => {
+      // Abort.
+      if (finalServerController.signal.aborted) {
+        // If the server controller is already aborted we must have called something
+        // that required aborting the prerender synchronously such as with new Date()
+        serverIsDynamic = true
+        return
+      }
+
+      if (prerenderIsPending) {
+        // If prerenderIsPending then we have blocked for longer than a Task and we assume
+        // there is something unfinished.
+        serverIsDynamic = true
+      }
+      finalServerController.abort()
+    }
+  )
+
+  return {
+    result,
+    // TODO(runtime-ppr): do we need to produce a digest map here?
+    // digestErrorsMap: ...,
+    dynamicAccess: serverDynamicTracking,
+    isPartial: serverIsDynamic,
+    collectedRevalidate: finalServerPrerenderStore.revalidate,
+    collectedExpire: finalServerPrerenderStore.expire,
+    collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
+    collectedTags: finalServerPrerenderStore.tags,
+  }
 }
 
 /**
@@ -601,15 +977,34 @@ async function warmupDevRender(
   req: BaseNextRequest,
   ctx: AppRenderContext
 ): Promise<RenderResult> {
-  const renderOpts = ctx.renderOpts
-  if (!renderOpts.dev) {
+  const {
+    clientReferenceManifest,
+    componentMod: ComponentMod,
+    getDynamicParamFromSegment,
+    implicitTags,
+    renderOpts,
+    workStore,
+  } = ctx
+
+  const {
+    allowEmptyStaticShell = false,
+    dev,
+    onInstrumentationRequestError,
+  } = renderOpts
+
+  if (!dev) {
     throw new InvariantError(
       'generateDynamicFlightRenderResult should never be called in `next start` mode.'
     )
   }
 
+  const rootParams = getRootParams(
+    ComponentMod.routeModule.userland.loaderTree,
+    getDynamicParamFromSegment
+  )
+
   function onFlightDataRenderError(err: DigestedError) {
-    return renderOpts.onInstrumentationRequestError?.(
+    return onInstrumentationRequestError?.(
       err,
       req,
       createErrorContext(ctx, 'react-server-components-payload')
@@ -626,20 +1021,31 @@ async function warmupDevRender(
 
   const renderController = new AbortController()
   const prerenderController = new AbortController()
+  const reactController = new AbortController()
   const cacheSignal = new CacheSignal()
+
   const prerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
-    implicitTags: [],
+    rootParams,
+    implicitTags,
     renderSignal: renderController.signal,
     controller: prerenderController,
     cacheSignal,
     dynamicTracking: null,
+    allowEmptyStaticShell,
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
     tags: [],
     prerenderResumeDataCache,
+    renderResumeDataCache: null,
+    hmrRefreshHash: req.cookies[NEXT_HMR_REFRESH_HASH_COOKIE],
+    captureOwnerStack: ComponentMod.captureOwnerStack,
+    // warmup is a dev only feature and no fallback params are used in the
+    // primary render which is static. We only use a prerender store here to
+    // allow the warmup to halt on Request data APIs and fetches.
+    fallbackRouteParams: null,
   }
 
   const rscPayload = await workUnitAsyncStorage.run(
@@ -652,28 +1058,32 @@ async function warmupDevRender(
   // which contains the subset React.
   workUnitAsyncStorage.run(
     prerenderStore,
-    ctx.componentMod.renderToReadableStream,
+    ComponentMod.renderToReadableStream,
     rscPayload,
-    ctx.clientReferenceManifest.clientModules,
+    clientReferenceManifest.clientModules,
     {
+      filterStackFrame,
       onError,
       signal: renderController.signal,
     }
   )
 
-  // Wait for all caches to be finished filling
+  // Wait for all caches to be finished filling and for async imports to resolve
+  trackPendingModules(cacheSignal)
   await cacheSignal.cacheReady()
+
   // We unset the cache so any late over-run renders aren't able to write into this cache
   prerenderStore.prerenderResumeDataCache = null
   // Abort the render
+  reactController.abort()
   renderController.abort()
 
   // We don't really want to return a result here but the stack of functions
   // that calls into renderToHTML... expects a result. We should refactor this to
   // lift the warmup pathway outside of renderToHTML... but for now this suffices
   return new FlightRenderResult('', {
-    fetchMetrics: ctx.workStore.fetchMetrics,
-    devRenderResumeDataCache: createRenderResumeDataCache(
+    fetchMetrics: workStore.fetchMetrics,
+    renderResumeDataCache: createRenderResumeDataCache(
       prerenderResumeDataCache
     ),
   })
@@ -710,9 +1120,6 @@ async function getRSCPayload(
     query,
     appUsingSizeAdjustment,
     componentMod: {
-      GlobalError,
-      createServerSearchParamsForMetadata,
-      createServerParamsForMetadata,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -726,41 +1133,50 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query
   )
+  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
+  const hasGlobalNotFound = !!tree[2]['global-not-found']
 
-  const searchParams = createServerSearchParamsForMetadata(query, workStore)
-  const [MetadataTree, getMetadataReady] = createMetadataComponents({
+  const {
+    ViewportTree,
+    MetadataTree,
+    getViewportReady,
+    getMetadataReady,
+    StreamingMetadataOutlet,
+  } = createMetadataComponents({
     tree,
-    errorType: is404 ? 'not-found' : undefined,
-    searchParams,
-    metadataContext: createTrackedMetadataContext(
-      url.pathname,
-      ctx.renderOpts,
-      workStore
-    ),
+    // When it's using global-not-found, metadata errorType is undefined, which will retrieve the
+    // metadata from the page.
+    // When it's using not-found, metadata errorType is 'not-found', which will retrieve the
+    // metadata from the not-found.js boundary.
+    // TODO: remove this condition and keep it undefined when global-not-found is stabilized.
+    errorType: is404 && !hasGlobalNotFound ? 'not-found' : undefined,
+    parsedQuery: query,
+    pathname: url.pathname,
+    metadataContext: createMetadataContext(ctx.renderOpts),
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    createServerParamsForMetadata,
     workStore,
     MetadataBoundary,
     ViewportBoundary,
+    serveStreamingMetadata,
   })
 
   const preloadCallbacks: PreloadCallbacks = []
 
   const seedData = await createComponentTree({
     ctx,
-    createSegmentPath: (child) => child,
     loaderTree: tree,
     parentParams: {},
-    firstItem: true,
     injectedCSS,
     injectedJS,
     injectedFontPreloadTags,
     rootLayoutIncluded: false,
+    getViewportReady,
     getMetadataReady,
     missingSlots,
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
+    StreamingMetadataOutlet,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -772,22 +1188,45 @@ async function getRSCPayload(
 
   const initialHead = (
     <React.Fragment key={flightDataPathHeadKey}>
-      <NonIndex ctx={ctx} />
-      {/* Adding requestId as react key to make metadata remount for each render */}
-      <MetadataTree key={ctx.requestId} />
+      <NonIndex
+        pagePath={ctx.pagePath}
+        statusCode={ctx.res.statusCode}
+        isPossibleServerAction={ctx.isPossibleServerAction}
+      />
+      <ViewportTree />
+      <MetadataTree />
     </React.Fragment>
   )
 
-  const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
+  const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
+    tree,
+    ctx
+  )
+
+  // Assume the head we're rendering contains only partial data if PPR is
+  // enabled and this is a statically generated response. This is used by the
+  // client Segment Cache after a prefetch to determine if it can skip the
+  // second request to fill in the dynamic data.
+  //
+  // See similar comment in create-component-tree.tsx for more context.
+  const isPossiblyPartialHead =
+    workStore.isStaticGeneration &&
+    ctx.renderOpts.experimental.isRoutePPREnabled === true
 
   return {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
-    b: ctx.renderOpts.buildId,
-    p: ctx.assetPrefix,
+    b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
     i: !!couldBeIntercepted,
-    f: [[initialTree, seedData, initialHead]],
+    f: [
+      [
+        initialTree,
+        seedData,
+        initialHead,
+        isPossiblyPartialHead,
+      ] as FlightDataPath,
+    ],
     m: missingSlots,
     G: [GlobalError, globalErrorStyles],
     s: typeof ctx.renderOpts.postponed === 'string',
@@ -810,6 +1249,7 @@ function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
 async function getErrorRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
+  ssrError: unknown,
   errorType: MetadataErrorType | 'redirect' | undefined
 ) {
   const {
@@ -817,42 +1257,41 @@ async function getErrorRSCPayload(
     query,
     appUsingSizeAdjustment,
     componentMod: {
-      GlobalError,
-      createServerSearchParamsForMetadata,
-      createServerParamsForMetadata,
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
     },
     url,
-    requestId,
     workStore,
   } = ctx
 
-  const searchParams = createServerSearchParamsForMetadata(query, workStore)
-  const [MetadataTree] = createMetadataComponents({
+  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
+  const { MetadataTree, ViewportTree } = createMetadataComponents({
     tree,
-    searchParams,
-    // We create an untracked metadata context here because we can't postpone
-    // again during the error render.
-    metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
+    parsedQuery: query,
+    pathname: url.pathname,
+    metadataContext: createMetadataContext(ctx.renderOpts),
     errorType,
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    createServerParamsForMetadata,
     workStore,
     MetadataBoundary,
     ViewportBoundary,
+    serveStreamingMetadata: serveStreamingMetadata,
   })
 
   const initialHead = (
     <React.Fragment key={flightDataPathHeadKey}>
-      <NonIndex ctx={ctx} />
-      {/* Adding requestId as react key to make metadata remount for each render */}
-      <MetadataTree key={requestId} />
+      <NonIndex
+        pagePath={ctx.pagePath}
+        statusCode={ctx.res.statusCode}
+        isPossibleServerAction={ctx.isPossibleServerAction}
+      />
+      <ViewportTree />
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
+      <MetadataTree />
     </React.Fragment>
   )
 
@@ -862,42 +1301,82 @@ async function getErrorRSCPayload(
     query
   )
 
+  let err: Error | undefined = undefined
+  if (ssrError) {
+    err = isError(ssrError) ? ssrError : new Error(ssrError + '')
+  }
+
   // For metadata notFound error there's no global not found boundary on top
   // so we create a not found page with AppRouter
-  const initialSeedData: CacheNodeSeedData = [
+  const seedData: CacheNodeSeedData = [
     initialTree[0],
     <html id="__next_error__">
       <head></head>
-      <body></body>
+      <body>
+        {process.env.NODE_ENV !== 'production' && err ? (
+          <template
+            data-next-error-message={err.message}
+            data-next-error-digest={'digest' in err ? err.digest : ''}
+            data-next-error-stack={err.stack}
+          />
+        ) : null}
+      </body>
     </html>,
     {},
     null,
+    false,
+    false, // We don't currently support runtime prefetching for error pages.
   ]
 
-  const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
+  const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
+    tree,
+    ctx
+  )
+
+  const isPossiblyPartialHead =
+    workStore.isStaticGeneration &&
+    ctx.renderOpts.experimental.isRoutePPREnabled === true
 
   return {
-    b: ctx.renderOpts.buildId,
-    p: ctx.assetPrefix,
+    b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
     m: undefined,
     i: false,
-    f: [[initialTree, initialSeedData, initialHead]],
+    f: [
+      [
+        initialTree,
+        seedData,
+        initialHead,
+        isPossiblyPartialHead,
+      ] as FlightDataPath,
+    ],
     G: [GlobalError, globalErrorStyles],
     s: typeof ctx.renderOpts.postponed === 'string',
     S: workStore.isStaticGeneration,
   } satisfies InitialRSCPayload
 }
 
+function assertClientReferenceManifest(
+  clientReferenceManifest: RenderOpts['clientReferenceManifest']
+): asserts clientReferenceManifest is NonNullable<
+  RenderOpts['clientReferenceManifest']
+> {
+  if (!clientReferenceManifest) {
+    throw new InvariantError('Expected clientReferenceManifest to be defined.')
+  }
+}
+
 // This component must run in an SSR context. It will render the RSC root component
 function App<T>({
   reactServerStream,
+  reactDebugStream,
   preinitScripts,
   clientReferenceManifest,
-  nonce,
   ServerInsertedHTMLProvider,
+  nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
+  reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
@@ -907,24 +1386,28 @@ function App<T>({
   const response = React.use(
     useFlightStream<InitialRSCPayload>(
       reactServerStream,
+      reactDebugStream,
       clientReferenceManifest,
       nonce
     )
   )
 
   const initialState = createInitialRouterState({
+    // This is not used during hydration, so we don't have to pass a
+    // real timestamp.
+    navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
-    // location and initialParallelRoutes are not initialized in the SSR render
-    // they are set to an empty map and window.location, respectively during hydration
-    initialParallelRoutes: null!,
+    initialParallelRoutes: new Map(),
+    // location is not initialized in the SSR render
+    // it's set to window.location during hydration
     location: null,
     couldBeIntercepted: response.i,
     postponed: response.s,
     prerendered: response.S,
   })
 
-  const actionQueue = createMutableActionQueue(initialState)
+  const actionQueue = createMutableActionQueue(initialState, null)
 
   const { HeadManagerContext } =
     require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
@@ -937,11 +1420,7 @@ function App<T>({
       }}
     >
       <ServerInsertedHTMLProvider>
-        <AppRouter
-          actionQueue={actionQueue}
-          globalErrorComponentAndStyles={response.G}
-          assetPrefix={response.p}
-        />
+        <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
       </ServerInsertedHTMLProvider>
     </HeadManagerContext.Provider>
   )
@@ -950,46 +1429,52 @@ function App<T>({
 // @TODO our error stream should be probably just use the same root component. But it was previously
 // different I don't want to figure out if that is meaningful at this time so just keeping the behavior
 // consistent for now.
-function AppWithoutContext<T>({
+function ErrorApp<T>({
   reactServerStream,
+  reactDebugStream,
   preinitScripts,
   clientReferenceManifest,
+  ServerInsertedHTMLProvider,
   nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
+  reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
+  ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
   nonce?: string
 }): JSX.Element {
   preinitScripts()
   const response = React.use(
     useFlightStream<InitialRSCPayload>(
       reactServerStream,
+      reactDebugStream,
       clientReferenceManifest,
       nonce
     )
   )
 
   const initialState = createInitialRouterState({
+    // This is not used during hydration, so we don't have to pass a
+    // real timestamp.
+    navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
-    // location and initialParallelRoutes are not initialized in the SSR render
-    // they are set to an empty map and window.location, respectively during hydration
-    initialParallelRoutes: null!,
+    initialParallelRoutes: new Map(),
+    // location is not initialized in the SSR render
+    // it's set to window.location during hydration
     location: null,
     couldBeIntercepted: response.i,
     postponed: response.s,
     prerendered: response.S,
   })
 
-  const actionQueue = createMutableActionQueue(initialState)
+  const actionQueue = createMutableActionQueue(initialState, null)
 
   return (
-    <AppRouter
-      actionQueue={actionQueue}
-      globalErrorComponentAndStyles={response.G}
-      assetPrefix={response.p}
-    />
+    <ServerInsertedHTMLProvider>
+      <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
+    </ServerInsertedHTMLProvider>
   )
 }
 
@@ -1009,10 +1494,10 @@ async function renderToHTMLOrFlightImpl(
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
-  requestEndedState: { ended?: boolean },
   postponedState: PostponedState | null,
-  implicitTags: Array<string>,
-  serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
+  sharedContext: AppSharedContext,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ) {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -1026,6 +1511,7 @@ async function renderToHTMLOrFlightImpl(
   const requestTimestamp = Date.now()
 
   const {
+    clientReferenceManifest,
     serverActionsManifest,
     ComponentMod,
     nextFontManifest,
@@ -1038,24 +1524,68 @@ async function renderToHTMLOrFlightImpl(
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app__) {
     const instrumented = wrapClientComponentLoader(ComponentMod)
-    // @ts-ignore
-    globalThis.__next_require__ = instrumented.require
+
     // When we are prerendering if there is a cacheSignal for tracking
-    // cache reads we wrap the loadChunk in this tracking. This allows us
-    // to treat chunk loading with similar semantics as cache reads to avoid
-    // async loading chunks from causing a prerender to abort too early.
-    // @ts-ignore
-    globalThis.__next_chunk_load__ = (...args: Array<any>) => {
+    // cache reads we track calls to `loadChunk` and `require`. This allows us
+    // to treat chunk/module loading with similar semantics as cache reads to avoid
+    // module loading from causing a prerender to abort too early.
+
+    const shouldTrackModuleLoading = () => {
+      if (!renderOpts.experimental.cacheComponents) {
+        return false
+      }
+      if (renderOpts.dev) {
+        return true
+      }
+      const workUnitStore = workUnitAsyncStorage.getStore()
+
+      if (!workUnitStore) {
+        return false
+      }
+
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-client':
+        case 'prerender-runtime':
+        case 'cache':
+        case 'private-cache':
+          return true
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'unstable-cache':
+          return false
+        default:
+          workUnitStore satisfies never
+      }
+    }
+
+    const __next_require__: typeof instrumented.require = (...args) => {
+      const exportsOrPromise = instrumented.require(...args)
+      if (shouldTrackModuleLoading()) {
+        // requiring an async module returns a promise.
+        trackPendingImport(exportsOrPromise)
+      }
+      return exportsOrPromise
+    }
+    // @ts-expect-error
+    globalThis.__next_require__ = __next_require__
+
+    const __next_chunk_load__: typeof instrumented.loadChunk = (...args) => {
       const loadingChunk = instrumented.loadChunk(...args)
-      trackChunkLoading(loadingChunk)
+      if (shouldTrackModuleLoading()) {
+        trackPendingChunkLoad(loadingChunk)
+      }
       return loadingChunk
     }
+    // @ts-expect-error
+    globalThis.__next_chunk_load__ = __next_chunk_load__
   }
 
   if (process.env.NODE_ENV === 'development') {
     // reset isr status at start of request
     const { pathname } = new URL(req.url || '/', 'http://n')
-    renderOpts.setAppIsrStatus?.(pathname, null)
+    renderOpts.setIsrStatus?.(pathname, false)
   }
 
   if (
@@ -1064,9 +1594,13 @@ async function renderToHTMLOrFlightImpl(
     process.env.NEXT_RUNTIME !== 'edge' &&
     isNodeNextRequest(req)
   ) {
-    req.originalRequest.on('end', () => {
-      requestEndedState.ended = true
+    res.onClose(() => {
+      // We stop tracking fetch metrics when the response closes, since we
+      // report them at that time.
+      workStore.shouldTrackFetchMetrics = false
+    })
 
+    req.originalRequest.on('end', () => {
       if ('performance' in globalThis) {
         const metrics = getClientComponentLoaderMetrics({ reset: true })
         if (metrics) {
@@ -1088,12 +1622,13 @@ async function renderToHTMLOrFlightImpl(
     })
   }
 
-  const metadata: AppPageRenderResultMetadata = {}
+  const metadata: AppPageRenderResultMetadata = {
+    statusCode: isNotFoundPath ? 404 : undefined,
+  }
 
   const appUsingSizeAdjustment = !!nextFontManifest?.appUsingSizeAdjust
 
-  // TODO: fix this typescript
-  const clientReferenceManifest = renderOpts.clientReferenceManifest!
+  assertClientReferenceManifest(clientReferenceManifest)
 
   const serverModuleMap = createServerModuleMap({ serverActionsManifest })
 
@@ -1107,11 +1642,15 @@ async function renderToHTMLOrFlightImpl(
   ComponentMod.patchFetch()
 
   // Pull out the hooks/references from the component.
-  const { tree: loaderTree, taintObjectReference } = ComponentMod
-
+  const {
+    routeModule: {
+      userland: { loaderTree },
+    },
+    taintObjectReference,
+  } = ComponentMod
   if (enableTainting) {
     taintObjectReference(
-      'Do not pass process.env to client components since it will leak sensitive data',
+      'Do not pass process.env to Client Components since it will leak sensitive data',
       process.env
     )
   }
@@ -1123,33 +1662,41 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
+  const { isStaticGeneration } = workStore
+
+  let requestId: string
+
+  if (isStaticGeneration) {
+    requestId = Buffer.from(
+      await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
+    ).toString('hex')
+  } else if (process.env.NEXT_RUNTIME === 'edge') {
+    requestId = crypto.randomUUID()
+  } else {
+    requestId = (
+      require('next/dist/compiled/nanoid') as typeof import('next/dist/compiled/nanoid')
+    ).nanoid()
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    res.setHeader(NEXT_REQUEST_ID_HEADER, requestId)
+  }
+
   const {
     flightRouterState,
     isPrefetchRequest,
+    isRuntimePrefetchRequest,
     isRSCRequest,
     isDevWarmupRequest,
     isHmrRefresh,
     nonce,
+    htmlRequestId = requestId,
   } = parsedRequestHeaders
-
-  /**
-   * The metadata items array created in next-app-loader with all relevant information
-   * that we need to resolve the final metadata.
-   */
-  let requestId: string
-
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    requestId = crypto.randomUUID()
-  } else {
-    requestId = require('next/dist/compiled/nanoid').nanoid()
-  }
 
   /**
    * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
    */
   const params = renderOpts.params ?? {}
-
-  const { isStaticGeneration, fallbackRouteParams } = workStore
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
@@ -1157,7 +1704,13 @@ async function renderToHTMLOrFlightImpl(
     fallbackRouteParams
   )
 
-  const isActionRequest = getServerActionRequestMetadata(req).isServerAction
+  const isPossibleActionRequest = getIsPossibleServerAction(req)
+
+  const implicitTags = await getImplicitTags(
+    workStore.page,
+    url,
+    fallbackRouteParams
+  )
 
   const ctx: AppRenderContext = {
     componentMod: ComponentMod,
@@ -1168,17 +1721,20 @@ async function renderToHTMLOrFlightImpl(
     getDynamicParamFromSegment,
     query,
     isPrefetch: isPrefetchRequest,
-    isAction: isActionRequest,
+    isPossibleServerAction: isPossibleActionRequest,
     requestTimestamp,
     appUsingSizeAdjustment,
     flightRouterState,
     requestId,
+    htmlRequestId,
     pagePath,
     clientReferenceManifest,
     assetPrefix,
     isNotFoundPath,
     nonce,
     res,
+    sharedContext,
+    implicitTags,
   }
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
@@ -1202,9 +1758,8 @@ async function renderToHTMLOrFlightImpl(
       res,
       ctx,
       metadata,
-      workStore,
       loaderTree,
-      implicitTags
+      fallbackRouteParams
     )
 
     // If we're debugging partial prerendering, print all the dynamic API accesses
@@ -1223,6 +1778,10 @@ async function renderToHTMLOrFlightImpl(
 
     // If we encountered any unexpected errors during build we fail the
     // prerendering phase and the build.
+    if (workStore.invalidDynamicUsageError) {
+      logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
+      throw new StaticGenBailoutError()
+    }
     if (response.digestErrorsMap.size) {
       const buildFailingError = response.digestErrorsMap.values().next().value
       if (buildFailingError) throw buildFailingError
@@ -1237,86 +1796,73 @@ async function renderToHTMLOrFlightImpl(
 
     const options: RenderResultOptions = {
       metadata,
+      contentType: HTML_CONTENT_TYPE_HEADER,
     }
     // If we have pending revalidates, wait until they are all resolved.
     if (
       workStore.pendingRevalidates ||
       workStore.pendingRevalidateWrites ||
-      workStore.revalidatedTags
+      workStore.pendingRevalidatedTags
     ) {
-      options.waitUntil = Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.revalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ])
-    }
+      const pendingPromise = executeRevalidates(workStore).finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log('pending revalidates promise finished for:', url)
+        }
+      })
 
-    if (response.collectedTags) {
-      metadata.fetchTags = response.collectedTags.join(',')
-    }
-
-    // Let the client router know how long to keep the cached entry around.
-    const staleHeader = String(response.collectedStale)
-    res.setHeader(NEXT_ROUTER_STALE_TIME_HEADER, staleHeader)
-    metadata.headers ??= {}
-    metadata.headers[NEXT_ROUTER_STALE_TIME_HEADER] = staleHeader
-
-    // If force static is specifically set to false, we should not revalidate
-    // the page.
-    if (workStore.forceStatic === false || response.collectedRevalidate === 0) {
-      metadata.revalidate = 0
-    } else {
-      // Copy the revalidation value onto the render result metadata.
-      metadata.revalidate =
-        response.collectedRevalidate >= INFINITE_CACHE
-          ? false
-          : response.collectedRevalidate
-    }
-
-    // provide bailout info for debugging
-    if (metadata.revalidate === 0) {
-      metadata.staticBailoutInfo = {
-        description: workStore.dynamicUsageDescription,
-        stack: workStore.dynamicUsageStack,
+      if (renderOpts.waitUntil) {
+        renderOpts.waitUntil(pendingPromise)
+      } else {
+        options.waitUntil = pendingPromise
       }
+    }
+
+    applyMetadataFromPrerenderResult(response, metadata, workStore)
+
+    if (response.renderResumeDataCache) {
+      metadata.renderResumeDataCache = response.renderResumeDataCache
     }
 
     return new RenderResult(await streamToString(response.stream), options)
   } else {
     // We're rendering dynamically
     const renderResumeDataCache =
-      renderOpts.devRenderResumeDataCache ??
-      postponedState?.renderResumeDataCache
+      renderOpts.renderResumeDataCache ??
+      postponedState?.renderResumeDataCache ??
+      null
 
+    const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
+    const devValidatingFallbackParams =
+      getRequestMeta(req, 'devValidatingFallbackParams') || null
     const requestStore = createRequestStoreForRender(
       req,
       res,
       url,
+      rootParams,
       implicitTags,
       renderOpts.onUpdateCookies,
       renderOpts.previewProps,
       isHmrRefresh,
       serverComponentsHmrCache,
-      renderResumeDataCache
+      renderResumeDataCache,
+      devValidatingFallbackParams
     )
 
     if (
       process.env.NODE_ENV === 'development' &&
-      renderOpts.setAppIsrStatus &&
+      renderOpts.setIsrStatus &&
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req) &&
       !isDevWarmupRequest
     ) {
-      const setAppIsrStatus = renderOpts.setAppIsrStatus
+      const setIsrStatus = renderOpts.setIsrStatus
       req.originalRequest.on('end', () => {
         if (!requestStore.usedDynamic && !workStore.forceDynamic) {
           // only node can be ISR so we only need to update the status here
           const { pathname } = new URL(req.url || '/', 'http://n')
-          setAppIsrStatus(pathname, true)
+          setIsrStatus(pathname, true)
         }
       })
     }
@@ -1324,7 +1870,11 @@ async function renderToHTMLOrFlightImpl(
     if (isDevWarmupRequest) {
       return warmupDevRender(req, ctx)
     } else if (isRSCRequest) {
-      return generateDynamicFlightRenderResult(req, ctx, requestStore)
+      if (isRuntimePrefetchRequest) {
+        return generateRuntimePrefetchResult(req, res, ctx, requestStore)
+      } else {
+        return generateDynamicFlightRenderResult(req, ctx, requestStore)
+      }
     }
 
     const renderToStreamWithTracing = getTracer().wrap(
@@ -1339,7 +1889,10 @@ async function renderToHTMLOrFlightImpl(
     )
 
     let formState: null | any = null
-    if (isActionRequest) {
+    if (isPossibleActionRequest) {
+      // For action requests, we don't want to use the resume data cache.
+      requestStore.renderResumeDataCache = null
+
       // For action requests, we handle them differently with a special render result.
       const actionRequestResult = await handleAction({
         req,
@@ -1351,24 +1904,30 @@ async function renderToHTMLOrFlightImpl(
         requestStore,
         serverActions,
         ctx,
+        metadata,
       })
 
       if (actionRequestResult) {
         if (actionRequestResult.type === 'not-found') {
           const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
           res.statusCode = 404
+          metadata.statusCode = 404
           const stream = await renderToStreamWithTracing(
             requestStore,
             req,
             res,
             ctx,
-            workStore,
             notFoundLoaderTree,
             formState,
-            postponedState
+            postponedState,
+            metadata,
+            devValidatingFallbackParams
           )
 
-          return new RenderResult(stream, { metadata })
+          return new RenderResult(stream, {
+            metadata,
+            contentType: HTML_CONTENT_TYPE_HEADER,
+          })
         } else if (actionRequestResult.type === 'done') {
           if (actionRequestResult.result) {
             actionRequestResult.result.assignMetadata(metadata)
@@ -1378,10 +1937,14 @@ async function renderToHTMLOrFlightImpl(
           }
         }
       }
+
+      // Restore the resume data cache
+      requestStore.renderResumeDataCache = renderResumeDataCache
     }
 
     const options: RenderResultOptions = {
       metadata,
+      contentType: HTML_CONTENT_TYPE_HEADER,
     }
 
     const stream = await renderToStreamWithTracing(
@@ -1389,25 +1952,37 @@ async function renderToHTMLOrFlightImpl(
       req,
       res,
       ctx,
-      workStore,
       loaderTree,
       formState,
-      postponedState
+      postponedState,
+      metadata,
+      devValidatingFallbackParams
     )
+
+    // Invalid dynamic usages should only error the request in development.
+    // In production, it's better to produce a result.
+    // (the dynamic error will still be thrown inside the component tree, but it's catchable by error boundaries)
+    if (workStore.invalidDynamicUsageError && workStore.dev) {
+      throw workStore.invalidDynamicUsageError
+    }
 
     // If we have pending revalidates, wait until they are all resolved.
     if (
       workStore.pendingRevalidates ||
       workStore.pendingRevalidateWrites ||
-      workStore.revalidatedTags
+      workStore.pendingRevalidatedTags
     ) {
-      options.waitUntil = Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.revalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ])
+      const pendingPromise = executeRevalidates(workStore).finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log('pending revalidates promise finished for:', url)
+        }
+      })
+
+      if (renderOpts.waitUntil) {
+        renderOpts.waitUntil(pendingPromise)
+      } else {
+        options.waitUntil = pendingPromise
+      }
     }
 
     // Create the new render result for the response.
@@ -1420,10 +1995,11 @@ export type AppPageRender = (
   res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
-  fallbackRouteParams: FallbackRouteParams | null,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
   renderOpts: RenderOpts,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
-  isDevWarmup: boolean
+  isDevWarmup: boolean,
+  sharedContext: AppSharedContext
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export const renderToHTMLOrFlight: AppPageRender = (
@@ -1434,7 +2010,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   fallbackRouteParams,
   renderOpts,
   serverComponentsHmrCache,
-  isDevWarmup
+  isDevWarmup,
+  sharedContext
 ) => {
   if (!req.url) {
     throw new Error('Invalid URL')
@@ -1447,11 +2024,12 @@ export const renderToHTMLOrFlight: AppPageRender = (
   const parsedRequestHeaders = parseRequestHeaders(req.headers, {
     isDevWarmup,
     isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
+    previewModeId: renderOpts.previewProps?.previewModeId,
   })
 
-  const { isPrefetchRequest } = parsedRequestHeaders
+  const { isPrefetchRequest, previouslyRevalidatedTags, nonce } =
+    parsedRequestHeaders
 
-  const requestEndedState = { ended: false }
   let postponedState: PostponedState | null = null
 
   // If provided, the postpone state should be parsed so it can be provided to
@@ -1465,32 +2043,28 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
     postponedState = parsePostponedState(
       renderOpts.postponed,
+      pagePath,
       renderOpts.params
     )
   }
 
   if (
     postponedState?.renderResumeDataCache &&
-    renderOpts.devRenderResumeDataCache
+    renderOpts.renderResumeDataCache
   ) {
     throw new InvariantError(
       'postponed state and dev warmup immutable resume data cache should not be provided together'
     )
   }
 
-  const implicitTags = getImplicitTags(
-    renderOpts.routeModule.definition.page,
-    url,
-    fallbackRouteParams
-  )
-
   const workStore = createWorkStore({
     page: renderOpts.routeModule.definition.page,
-    fallbackRouteParams,
     renderOpts,
-    requestEndedState,
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
+    buildId: sharedContext.buildId,
+    previouslyRevalidatedTags,
+    nonce,
   })
 
   return workAsyncStorage.run(
@@ -1506,11 +2080,58 @@ export const renderToHTMLOrFlight: AppPageRender = (
     renderOpts,
     workStore,
     parsedRequestHeaders,
-    requestEndedState,
     postponedState,
-    implicitTags,
-    serverComponentsHmrCache
+    serverComponentsHmrCache,
+    sharedContext,
+    fallbackRouteParams
   )
+}
+
+function applyMetadataFromPrerenderResult(
+  response: Pick<
+    PrerenderToStreamResult,
+    | 'collectedExpire'
+    | 'collectedRevalidate'
+    | 'collectedStale'
+    | 'collectedTags'
+  >,
+  metadata: AppPageRenderResultMetadata,
+  workStore: WorkStore
+) {
+  if (response.collectedTags) {
+    metadata.fetchTags = response.collectedTags.join(',')
+  }
+
+  // Let the client router know how long to keep the cached entry around.
+  const staleHeader = String(response.collectedStale)
+  metadata.headers ??= {}
+  metadata.headers[NEXT_ROUTER_STALE_TIME_HEADER] = staleHeader
+
+  // If force static is specifically set to false, we should not revalidate
+  // the page.
+  if (workStore.forceStatic === false || response.collectedRevalidate === 0) {
+    metadata.cacheControl = { revalidate: 0, expire: undefined }
+  } else {
+    // Copy the cache control value onto the render result metadata.
+    metadata.cacheControl = {
+      revalidate:
+        response.collectedRevalidate >= INFINITE_CACHE
+          ? false
+          : response.collectedRevalidate,
+      expire:
+        response.collectedExpire >= INFINITE_CACHE
+          ? undefined
+          : response.collectedExpire,
+    }
+  }
+
+  // provide bailout info for debugging
+  if (metadata.cacheControl.revalidate === 0) {
+    metadata.staticBailoutInfo = {
+      description: workStore.dynamicUsageDescription,
+      stack: workStore.dynamicUsageStack,
+    }
+  }
 }
 
 async function renderToStream(
@@ -1518,72 +2139,92 @@ async function renderToStream(
   req: BaseNextRequest,
   res: BaseNextResponse,
   ctx: AppRenderContext,
-  workStore: WorkStore,
   tree: LoaderTree,
   formState: any,
-  postponedState: PostponedState | null
+  postponedState: PostponedState | null,
+  metadata: AppPageRenderResultMetadata,
+  devValidatingFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<ReadableStream<Uint8Array>> {
-  const renderOpts = ctx.renderOpts
-  const ComponentMod = renderOpts.ComponentMod
-  // TODO: fix this typescript
-  const clientReferenceManifest = renderOpts.clientReferenceManifest!
+  const { assetPrefix, htmlRequestId, nonce, pagePath, renderOpts, requestId } =
+    ctx
+
+  const {
+    basePath,
+    buildManifest,
+    clientReferenceManifest,
+    ComponentMod,
+    crossOrigin,
+    dev = false,
+    experimental,
+    nextExport = false,
+    onInstrumentationRequestError,
+    page,
+    reactMaxHeadersLength,
+    setReactDebugChannel,
+    shouldWaitOnAllReady,
+    subresourceIntegrityManifest,
+    supportsDynamicResponse,
+  } = renderOpts
+
+  assertClientReferenceManifest(clientReferenceManifest)
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
+  const getServerInsertedMetadata = createServerInsertedMetadata(nonce)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
-    renderOpts.experimental.clientTraceMetadata
+    experimental.clientTraceMetadata
   )
 
   const polyfills: JSX.IntrinsicElements['script'][] =
-    renderOpts.buildManifest.polyfillFiles
+    buildManifest.polyfillFiles
       .filter(
         (polyfill) =>
           polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
       )
       .map((polyfill) => ({
-        src: `${ctx.assetPrefix}/_next/${polyfill}${getAssetQueryString(
+        src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
           ctx,
           false
         )}`,
-        integrity: renderOpts.subresourceIntegrityManifest?.[polyfill],
-        crossOrigin: renderOpts.crossOrigin,
+        integrity: subresourceIntegrityManifest?.[polyfill],
+        crossOrigin,
         noModule: true,
-        nonce: ctx.nonce,
+        nonce,
       }))
 
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
-    renderOpts.buildManifest,
+    buildManifest,
     // Why is assetPrefix optional on renderOpts?
     // @TODO make it default empty string on renderOpts and get rid of it from ctx
-    ctx.assetPrefix,
-    renderOpts.crossOrigin,
-    renderOpts.subresourceIntegrityManifest,
+    assetPrefix,
+    crossOrigin,
+    subresourceIntegrityManifest,
     getAssetQueryString(ctx, true),
-    ctx.nonce,
-    renderOpts.page
+    nonce,
+    page
   )
 
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   const silenceLogger = false
   function onHTMLRenderRSCError(err: DigestedError) {
-    return renderOpts.onInstrumentationRequestError?.(
+    return onInstrumentationRequestError?.(
       err,
       req,
       createErrorContext(ctx, 'react-server-components')
     )
   }
   const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
-    !!renderOpts.dev,
-    !!renderOpts.nextExport,
+    dev,
+    nextExport,
     reactServerErrorsByDigest,
     silenceLogger,
     onHTMLRenderRSCError
   )
 
   function onHTMLRenderSSRError(err: DigestedError) {
-    return renderOpts.onInstrumentationRequestError?.(
+    return onInstrumentationRequestError?.(
       err,
       req,
       createErrorContext(ctx, 'server-rendering')
@@ -1592,8 +2233,8 @@ async function renderToStream(
 
   const allCapturedErrors: Array<unknown> = []
   const htmlRendererErrorHandler = createHTMLErrorHandler(
-    !!renderOpts.dev,
-    !!renderOpts.nextExport,
+    dev,
+    nextExport,
     reactServerErrorsByDigest,
     allCapturedErrors,
     silenceLogger,
@@ -1601,23 +2242,25 @@ async function renderToStream(
   )
 
   let reactServerResult: null | ReactServerResult = null
+  let reactDebugStream: ReadableStream<Uint8Array> | undefined
 
   const setHeader = res.setHeader.bind(res)
+  const appendHeader = res.appendHeader.bind(res)
 
   try {
     if (
       // We only want this behavior when running `next dev`
-      renderOpts.dev &&
+      dev &&
       // We only want this behavior when we have React's dev builds available
       process.env.NODE_ENV === 'development' &&
       // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
       process.env.NEXT_RUNTIME !== 'edge' &&
-      // We only have a Prerender environment for projects opted into dynamicIO
-      renderOpts.experimental.dynamicIO
+      // We only have a Prerender environment for projects opted into cacheComponents
+      experimental.cacheComponents
     ) {
       // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
       const RSCPayload: InitialRSCPayload & {
-        /** Only available during dynamicIO development builds. Used for logging errors. */
+        /** Only available during cacheComponents development builds. Used for logging errors. */
         _validation?: Promise<React.ReactNode>
       } = await workUnitAsyncStorage.run(
         requestStore,
@@ -1628,6 +2271,21 @@ async function renderToStream(
       )
       const [resolveValidation, validationOutlet] = createValidationOutlet()
       RSCPayload._validation = validationOutlet
+
+      const debugChannel = setReactDebugChannel && createDebugChannel()
+
+      if (debugChannel) {
+        const [readableSsr, readableBrowser] =
+          debugChannel.clientSide.readable.tee()
+
+        reactDebugStream = readableSsr
+
+        setReactDebugChannel(
+          { readable: readableBrowser },
+          htmlRequestId,
+          requestId
+        )
+      }
 
       const reactServerStream = await workUnitAsyncStorage.run(
         requestStore,
@@ -1641,12 +2299,8 @@ async function renderToStream(
               onError: serverComponentsErrorHandler,
               environmentName: () =>
                 requestStore.prerenderPhase === true ? 'Prerender' : 'Server',
-              filterStackFrame(url: string, _functionName: string): boolean {
-                // The default implementation filters out <anonymous> stack frames
-                // but we want to retain them because current Server Components and
-                // built-in Components in parent stacks don't have source location.
-                return !url.startsWith('node:') && !url.includes('node_modules')
-              },
+              filterStackFrame,
+              debugChannel: debugChannel?.serverSide,
             }
           )
         },
@@ -1655,14 +2309,16 @@ async function renderToStream(
         }
       )
 
-      spawnDynamicValidationInDev(
+      devLogsAsyncStorage.run(
+        { dim: true },
+        spawnDynamicValidationInDev,
         resolveValidation,
         tree,
         ctx,
         res.statusCode === 404,
         clientReferenceManifest,
-        workStore.route,
-        requestStore
+        requestStore,
+        devValidatingFallbackParams
       )
 
       reactServerResult = new ReactServerResult(reactServerStream)
@@ -1676,6 +2332,21 @@ async function renderToStream(
         res.statusCode === 404
       )
 
+      const debugChannel = setReactDebugChannel && createDebugChannel()
+
+      if (debugChannel) {
+        const [readableSsr, readableBrowser] =
+          debugChannel.clientSide.readable.tee()
+
+        reactDebugStream = readableSsr
+
+        setReactDebugChannel(
+          { readable: readableBrowser },
+          htmlRequestId,
+          requestId
+        )
+      }
+
       reactServerResult = new ReactServerResult(
         workUnitAsyncStorage.run(
           requestStore,
@@ -1683,7 +2354,9 @@ async function renderToStream(
           RSCPayload,
           clientReferenceManifest.clientModules,
           {
+            filterStackFrame,
             onError: serverComponentsErrorHandler,
+            debugChannel: debugChannel?.serverSide,
           }
         )
       )
@@ -1703,8 +2376,9 @@ async function renderToStream(
         // in the static prelude.
         const inlinedReactServerDataStream = createInlinedDataReadableStream(
           reactServerResult.tee(),
-          ctx.nonce,
-          formState
+          nonce,
+          formState,
+          requestId
         )
 
         return chainStreams(
@@ -1713,74 +2387,79 @@ async function renderToStream(
         )
       } else if (postponedState) {
         // We assume we have dynamic HTML requiring a resume render to complete
-        const postponed = getPostponedFromState(postponedState)
-
-        const resume = require('react-dom/server.edge')
-          .resume as (typeof import('react-dom/server.edge'))['resume']
+        const { postponed, preludeState } =
+          getPostponedFromState(postponedState)
+        const resume = (
+          require('react-dom/server') as typeof import('react-dom/server')
+        ).resume
 
         const htmlStream = await workUnitAsyncStorage.run(
           requestStore,
           resume,
           <App
             reactServerStream={reactServerResult.tee()}
+            reactDebugStream={reactDebugStream}
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            nonce={ctx.nonce}
+            nonce={nonce}
           />,
           postponed,
-          {
-            onError: htmlRendererErrorHandler,
-            nonce: ctx.nonce,
-          }
+          { onError: htmlRendererErrorHandler, nonce }
         )
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({
           polyfills,
           renderServerInsertedHTML,
           serverCapturedErrors: allCapturedErrors,
-          basePath: renderOpts.basePath,
+          basePath,
           tracingMetadata: tracingMetadata,
         })
         return await continueDynamicHTMLResume(htmlStream, {
+          // If the prelude is empty (i.e. is no static shell), we should wait for initial HTML to be rendered
+          // to avoid injecting RSC data too early.
+          // If we have a non-empty-prelude (i.e. a static HTML shell), then it's already been sent separately,
+          // so we shouldn't wait for any HTML to be emitted from the resume before sending RSC data.
+          delayDataUntilFirstHtmlChunk:
+            preludeState === DynamicHTMLPreludeState.Empty,
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consume(),
-            ctx.nonce,
-            formState
+            nonce,
+            formState,
+            requestId
           ),
           getServerInsertedHTML,
+          getServerInsertedMetadata,
         })
       }
     }
 
     // This is a regular dynamic render
-    const renderToReadableStream = require('react-dom/server.edge')
-      .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
+    const renderToReadableStream = (
+      require('react-dom/server') as typeof import('react-dom/server')
+    ).renderToReadableStream
 
     const htmlStream = await workUnitAsyncStorage.run(
       requestStore,
       renderToReadableStream,
       <App
         reactServerStream={reactServerResult.tee()}
+        reactDebugStream={reactDebugStream}
         preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-        nonce={ctx.nonce}
+        nonce={nonce}
       />,
       {
         onError: htmlRendererErrorHandler,
-        nonce: ctx.nonce,
+        nonce,
         onHeaders: (headers: Headers) => {
           headers.forEach((value, key) => {
-            setHeader(key, value)
+            appendHeader(key, value)
           })
         },
-        maxHeadersLength: renderOpts.reactMaxHeadersLength,
-        // When debugging the static shell, client-side rendering should be
-        // disabled to prevent blanking out the page.
-        bootstrapScripts: renderOpts.isDebugStaticShell
-          ? []
-          : [bootstrapScript],
+        maxHeadersLength: reactMaxHeadersLength,
+        bootstrapScripts: [bootstrapScript],
         formState,
       }
     )
@@ -1789,7 +2468,7 @@ async function renderToStream(
       polyfills,
       renderServerInsertedHTML,
       serverCapturedErrors: allCapturedErrors,
-      basePath: renderOpts.basePath,
+      basePath,
       tracingMetadata: tracingMetadata,
     })
     /**
@@ -1802,21 +2481,29 @@ async function renderToStream(
      *        or throw an error. It is the sole responsibility of the caller to
      *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
      *
+     *   3.) If `shouldWaitOnAllReady` is true, which indicates we need to
+     *       resolve all suspenses and generate a full HTML. e.g. when it's a
+     *       html limited bot requests, we produce the full HTML content.
+     *
      * These rules help ensure that other existing features like request caching,
      * coalescing, and ISR continue working as intended.
      */
-    const generateStaticHTML = renderOpts.supportsDynamicResponse !== true
-    const validateRootLayout = renderOpts.dev
+    const generateStaticHTML =
+      supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+
     return await continueFizzStream(htmlStream, {
       inlinedDataStream: createInlinedDataReadableStream(
         reactServerResult.consume(),
-        ctx.nonce,
-        formState
+        nonce,
+        formState,
+        requestId
       ),
       isStaticGeneration: generateStaticHTML,
+      isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
+      buildId: ctx.workStore.buildId,
       getServerInsertedHTML,
-      serverInsertedHTMLToHead: true,
-      validateRootLayout,
+      getServerInsertedMetadata,
+      validateRootLayout: dev,
     })
   } catch (err) {
     if (
@@ -1839,7 +2526,7 @@ async function renderToStream(
     if (shouldBailoutToCSR) {
       const stack = getStackWithoutErrorMessage(err)
       error(
-        `${err.reason} should be wrapped in a suspense boundary at page "${ctx.pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
+        `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
       )
 
       throw err
@@ -1849,15 +2536,14 @@ async function renderToStream(
 
     if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
+      metadata.statusCode = res.statusCode
       errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
+      metadata.statusCode = res.statusCode
 
-      const redirectUrl = addPathPrefix(
-        getURLFromRedirectError(err),
-        renderOpts.basePath
-      )
+      const redirectUrl = addPathPrefix(getURLFromRedirectError(err), basePath)
 
       // If there were mutable cookies set, we need to set them on the
       // response.
@@ -1869,15 +2555,16 @@ async function renderToStream(
       setHeader('location', redirectUrl)
     } else if (!shouldBailoutToCSR) {
       res.statusCode = 500
+      metadata.statusCode = res.statusCode
     }
 
     const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
-      renderOpts.buildManifest,
-      ctx.assetPrefix,
-      renderOpts.crossOrigin,
-      renderOpts.subresourceIntegrityManifest,
+      buildManifest,
+      assetPrefix,
+      crossOrigin,
+      subresourceIntegrityManifest,
       getAssetQueryString(ctx, false),
-      ctx.nonce,
+      nonce,
       '/_not-found/page'
     )
 
@@ -1886,6 +2573,7 @@ async function renderToStream(
       getErrorRSCPayload,
       tree,
       ctx,
+      reactServerErrorsByDigest.has((err as any).digest) ? null : err,
       errorType
     )
 
@@ -1895,6 +2583,7 @@ async function renderToStream(
       errorRSCPayload,
       clientReferenceManifest.clientModules,
       {
+        filterStackFrame,
         onError: serverComponentsErrorHandler,
       }
     )
@@ -1910,17 +2599,20 @@ async function renderToStream(
         requestStore,
         renderToInitialFizzStream,
         {
-          ReactDOMServer: require('react-dom/server.edge'),
+          ReactDOMServer:
+            require('react-dom/server') as typeof import('react-dom/server'),
           element: (
-            <AppWithoutContext
+            <ErrorApp
               reactServerStream={errorServerStream}
+              reactDebugStream={undefined}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
-              nonce={ctx.nonce}
+              nonce={nonce}
             />
           ),
           streamOptions: {
-            nonce: ctx.nonce,
+            nonce,
             // Include hydration scripts in the HTML
             bootstrapScripts: [errorBootstrapScript],
             formState,
@@ -1937,31 +2629,37 @@ async function renderToStream(
        *    2.) If dynamic HTML support is requested, we must honor that request
        *        or throw an error. It is the sole responsibility of the caller to
        *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+       *    3.) If `shouldWaitOnAllReady` is true, which indicates we need to
+       *        resolve all suspenses and generate a full HTML. e.g. when it's a
+       *        html limited bot requests, we produce the full HTML content.
        *
        * These rules help ensure that other existing features like request caching,
        * coalescing, and ISR continue working as intended.
        */
-      const generateStaticHTML = renderOpts.supportsDynamicResponse !== true
-      const validateRootLayout = renderOpts.dev
+      const generateStaticHTML =
+        supportsDynamicResponse !== true || !!shouldWaitOnAllReady
       return await continueFizzStream(fizzStream, {
         inlinedDataStream: createInlinedDataReadableStream(
           // This is intentionally using the readable datastream from the
           // main render rather than the flight data from the error page
           // render
           reactServerResult.consume(),
-          ctx.nonce,
-          formState
+          nonce,
+          formState,
+          requestId
         ),
         isStaticGeneration: generateStaticHTML,
+        isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
+        buildId: ctx.workStore.buildId,
         getServerInsertedHTML: makeGetServerInsertedHTML({
           polyfills,
           renderServerInsertedHTML,
           serverCapturedErrors: [],
-          basePath: renderOpts.basePath,
+          basePath,
           tracingMetadata: tracingMetadata,
         }),
-        serverInsertedHTMLToHead: true,
-        validateRootLayout,
+        getServerInsertedMetadata,
+        validateRootLayout: dev,
       })
     } catch (finalErr: any) {
       if (
@@ -1977,6 +2675,44 @@ async function renderToStream(
   }
 }
 
+function createDebugChannel():
+  | {
+      serverSide: { readable?: ReadableStream; writable: WritableStream }
+      clientSide: { readable: ReadableStream; writable?: WritableStream }
+    }
+  | undefined {
+  if (process.env.NODE_ENV === 'production') {
+    return undefined
+  }
+
+  let readableController: ReadableStreamDefaultController | undefined
+
+  const clientSideReadable = new ReadableStream<Uint8Array>({
+    start(controller) {
+      readableController = controller
+    },
+  })
+
+  return {
+    serverSide: {
+      writable: new WritableStream<Uint8Array>({
+        write(chunk) {
+          readableController?.enqueue(chunk)
+        },
+        close() {
+          readableController?.close()
+        },
+        abort(err) {
+          readableController?.error(err)
+        },
+      }),
+    },
+    clientSide: {
+      readable: clientSideReadable,
+    },
+  }
+}
+
 function createValidationOutlet() {
   let resolveValidation: (value: React.ReactNode) => void
   let outlet = new Promise<React.ReactNode>((resolve) => {
@@ -1985,101 +2721,224 @@ function createValidationOutlet() {
   return [resolveValidation!, outlet] as const
 }
 
+/**
+ * This function is a fork of prerenderToStream cacheComponents branch.
+ * While it doesn't return a stream we want it to have identical
+ * prerender semantics to prerenderToStream and should update it
+ * in conjunction with any changes to that function.
+ */
 async function spawnDynamicValidationInDev(
   resolveValidation: (validatingElement: React.ReactNode) => void,
   tree: LoaderTree,
   ctx: AppRenderContext,
   isNotFound: boolean,
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
-  route: string,
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): Promise<void> {
-  const { componentMod: ComponentMod } = ctx
+  const {
+    componentMod: ComponentMod,
+    getDynamicParamFromSegment,
+    implicitTags,
+    nonce,
+    renderOpts,
+    workStore,
+  } = ctx
 
-  // Prerender controller represents the lifetime of the prerender.
-  // It will be aborted when a Task is complete or a synchronously aborting
-  // API is called. Notably during cache-filling renders this does not actually
-  // terminate the render itself which will continue until all caches are filled
+  const { allowEmptyStaticShell = false } = renderOpts
+
+  // These values are placeholder values for this validating render
+  // that are provided during the actual prerenderToStream.
+  const preinitScripts = () => {}
+  const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
+
+  const rootParams = getRootParams(
+    ComponentMod.routeModule.userland.loaderTree,
+    getDynamicParamFromSegment
+  )
+
+  const hmrRefreshHash = requestStore.cookies.get(
+    NEXT_HMR_REFRESH_HASH_COOKIE
+  )?.value
+
+  // The prerender controller represents the lifetime of the prerender. It will
+  // be aborted when a task is complete or a synchronously aborting API is
+  // called. Notably, during prospective prerenders, this does not actually
+  // terminate the prerender itself, which will continue until all caches are
+  // filled.
   const initialServerPrerenderController = new AbortController()
 
-  // This controller represents the lifetime of the React render call. Notably
-  // during the cache-filling render it is different from the prerender controller
-  // because we don't want to end the react render until all caches are filled.
+  // This controller is used to abort the React prerender.
+  const initialServerReactController = new AbortController()
+
+  // This controller represents the lifetime of the React prerender. Its signal
+  // can be used for any I/O operation to abort the I/O and/or to reject, when
+  // prerendering aborts. This includes our own hanging promises for accessing
+  // request data, and for fetch calls. It might be replaced in the future by
+  // React.cacheSignal(). It's aborted after the React controller, so that no
+  // pending I/O can register abort listeners that are called before React's
+  // abort listener is called. This ensures that pending I/O is not rejected too
+  // early when aborting the prerender. Notably, during the prospective
+  // prerender, it is different from the prerender controller because we don't
+  // want to end the React prerender until all caches are filled.
   const initialServerRenderController = new AbortController()
 
+  // The cacheSignal helps us track whether caches are still filling or we are
+  // ready to cut the render off.
   const cacheSignal = new CacheSignal()
-  const prerenderResumeDataCache = createPrerenderResumeDataCache()
-  const initialServerPrerenderStore: PrerenderStore = {
-    type: 'prerender',
-    phase: 'render',
-    implicitTags: [],
-    renderSignal: initialServerRenderController.signal,
-    controller: initialServerPrerenderController,
-    cacheSignal,
-    dynamicTracking: null,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
-    prerenderResumeDataCache,
-  }
 
-  const initialClientController = new AbortController()
-  const initialClientPrerenderStore: PrerenderStore = {
+  const captureOwnerStackClient = React.captureOwnerStack
+  const captureOwnerStackServer = ComponentMod.captureOwnerStack
+
+  // The resume data cache here should use a fresh instance as it's
+  // performing a fresh prerender. If we get to implementing the
+  // prerendering of an already prerendered page, we should use the passed
+  // resume data cache instead.
+  const prerenderResumeDataCache = createPrerenderResumeDataCache()
+  const initialServerPayloadPrerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
-    implicitTags: [],
-    renderSignal: initialClientController.signal,
-    controller: initialClientController,
+    rootParams,
+    fallbackRouteParams,
+    implicitTags,
+    // While this render signal isn't going to be used to abort a React render while getting the RSC payload
+    // various request data APIs bind to this controller to reject after completion.
+    renderSignal: initialServerRenderController.signal,
+    // When we generate the RSC payload we might abort this controller due to sync IO
+    // but we don't actually care about sync IO in this phase so we use a throw away controller
+    // that isn't connected to anything
+    controller: new AbortController(),
+    // During the initial prerender we need to track all cache reads to ensure
+    // we render long enough to fill every cache it is possible to visit during
+    // the final prerender.
     cacheSignal,
     dynamicTracking: null,
+    allowEmptyStaticShell,
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
-    tags: [],
+    tags: [...implicitTags.tags],
     prerenderResumeDataCache,
+    renderResumeDataCache: null,
+    hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
   }
 
   // We're not going to use the result of this render because the only time it could be used
   // is if it completes in a microtask and that's likely very rare for any non-trivial app
-  const firstAttemptRSCPayload = await workUnitAsyncStorage.run(
-    initialServerPrerenderStore,
+  const initialServerPayload = await workUnitAsyncStorage.run(
+    initialServerPayloadPrerenderStore,
     getRSCPayload,
     tree,
     ctx,
     isNotFound
   )
 
-  let initialServerStream
-  try {
-    initialServerStream = workUnitAsyncStorage.run(
-      initialServerPrerenderStore,
-      ComponentMod.renderToReadableStream,
-      firstAttemptRSCPayload,
-      clientReferenceManifest.clientModules,
-      {
-        onError: (err: unknown) => {
-          if (
-            initialServerPrerenderController.signal.aborted ||
-            initialServerRenderController.signal.aborted
-          ) {
-            // The render aborted before this error was handled which indicates
-            // the error is caused by unfinished components within the render
-            return
-          } else if (
-            process.env.NEXT_DEBUG_BUILD ||
-            process.env.__NEXT_VERBOSE_LOGGING
-          ) {
-            printDebugThrownValueForProspectiveRender(err, route)
-          }
-        },
-        signal: initialServerRenderController.signal,
-      }
+  const initialServerPrerenderStore: PrerenderStore = {
+    type: 'prerender',
+    phase: 'render',
+    rootParams,
+    fallbackRouteParams,
+    implicitTags,
+    renderSignal: initialServerRenderController.signal,
+    controller: initialServerPrerenderController,
+    // During the initial prerender we need to track all cache reads to ensure
+    // we render long enough to fill every cache it is possible to visit during
+    // the final prerender.
+    cacheSignal,
+    dynamicTracking: null,
+    allowEmptyStaticShell,
+    revalidate: INFINITE_CACHE,
+    expire: INFINITE_CACHE,
+    stale: INFINITE_CACHE,
+    tags: [...implicitTags.tags],
+    prerenderResumeDataCache,
+    renderResumeDataCache: null,
+    hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
+  }
+
+  const pendingInitialServerResult = workUnitAsyncStorage.run(
+    initialServerPrerenderStore,
+    ComponentMod.prerender,
+    initialServerPayload,
+    clientReferenceManifest.clientModules,
+    {
+      filterStackFrame,
+      onError: (err) => {
+        const digest = getDigestForWellKnownError(err)
+
+        if (digest) {
+          return digest
+        }
+
+        if (isReactLargeShellError(err)) {
+          // TODO: Aggregate
+          console.error(err)
+          return undefined
+        }
+
+        if (initialServerPrerenderController.signal.aborted) {
+          // The render aborted before this error was handled which indicates
+          // the error is caused by unfinished components within the render
+          return
+        } else if (
+          process.env.NEXT_DEBUG_BUILD ||
+          process.env.__NEXT_VERBOSE_LOGGING
+        ) {
+          printDebugThrownValueForProspectiveRender(err, workStore.route)
+        }
+      },
+      // we don't care to track postpones during the prospective render because we need
+      // to always do a final render anyway
+      onPostpone: undefined,
+      // We don't want to stop rendering until the cacheSignal is complete so we pass
+      // a different signal to this render call than is used by dynamic APIs to signify
+      // transitioning out of the prerender environment
+      signal: initialServerReactController.signal,
+    }
+  )
+
+  // The listener to abort our own render controller must be added after React
+  // has added its listener, to ensure that pending I/O is not aborted/rejected
+  // too early.
+  initialServerReactController.signal.addEventListener(
+    'abort',
+    () => {
+      initialServerRenderController.abort()
+    },
+    { once: true }
+  )
+
+  // Wait for all caches to be finished filling and for async imports to resolve
+  trackPendingModules(cacheSignal)
+  await cacheSignal.cacheReady()
+
+  initialServerReactController.abort()
+
+  // We don't need to continue the prerender process if we already
+  // detected invalid dynamic usage in the initial prerender phase.
+  const { invalidDynamicUsageError } = workStore
+  if (invalidDynamicUsageError) {
+    resolveValidation(
+      <LogSafely
+        fn={() => {
+          console.error(invalidDynamicUsageError)
+        }}
+      />
     )
-  } catch (err: unknown) {
+    return
+  }
+
+  let initialServerResult
+  try {
+    initialServerResult = await createReactServerPrerenderResult(
+      pendingInitialServerResult
+    )
+  } catch (err) {
     if (
-      initialServerPrerenderController.signal.aborted ||
-      initialServerRenderController.signal.aborted
+      initialServerReactController.signal.aborted ||
+      initialServerPrerenderController.signal.aborted
     ) {
       // These are expected errors that might error the prerender. we ignore them.
     } else if (
@@ -2088,36 +2947,68 @@ async function spawnDynamicValidationInDev(
     ) {
       // We don't normally log these errors because we are going to retry anyway but
       // it can be useful for debugging Next.js itself to get visibility here when needed
-      printDebugThrownValueForProspectiveRender(err, route)
+      printDebugThrownValueForProspectiveRender(err, workStore.route)
     }
   }
 
-  const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
-  const nonce = '1'
+  if (initialServerResult) {
+    const initialClientPrerenderController = new AbortController()
+    const initialClientReactController = new AbortController()
+    const initialClientRenderController = new AbortController()
 
-  if (initialServerStream) {
-    const [warmupStream, renderStream] = initialServerStream.tee()
-    initialServerStream = null
-    // Before we attempt the SSR initial render we need to ensure all client modules
-    // are already loaded.
-    await warmFlightResponse(warmupStream, clientReferenceManifest)
+    const initialClientPrerenderStore: PrerenderStore = {
+      type: 'prerender-client',
+      phase: 'render',
+      rootParams,
+      fallbackRouteParams,
+      implicitTags,
+      renderSignal: initialClientRenderController.signal,
+      controller: initialClientPrerenderController,
+      // For HTML Generation the only cache tracked activity
+      // is module loading, which has it's own cache signal
+      cacheSignal: null,
+      dynamicTracking: null,
+      allowEmptyStaticShell,
+      revalidate: INFINITE_CACHE,
+      expire: INFINITE_CACHE,
+      stale: INFINITE_CACHE,
+      tags: [...implicitTags.tags],
+      prerenderResumeDataCache,
+      renderResumeDataCache: null,
+      hmrRefreshHash: undefined,
+      captureOwnerStack: captureOwnerStackClient,
+    }
 
-    const prerender = require('react-dom/static.edge')
-      .prerender as (typeof import('react-dom/static.edge'))['prerender']
+    const prerender = (
+      require('react-dom/static') as typeof import('react-dom/static')
+    ).prerender
     const pendingInitialClientResult = workUnitAsyncStorage.run(
       initialClientPrerenderStore,
       prerender,
       <App
-        reactServerStream={renderStream}
-        preinitScripts={() => {}}
+        reactServerStream={initialServerResult.asUnclosingStream()}
+        reactDebugStream={undefined}
+        preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
         nonce={nonce}
       />,
       {
-        signal: initialClientController.signal,
-        onError: (err: unknown, _errorInfo: ErrorInfo) => {
-          if (initialClientController.signal.aborted) {
+        signal: initialClientReactController.signal,
+        onError: (err) => {
+          const digest = getDigestForWellKnownError(err)
+
+          if (digest) {
+            return digest
+          }
+
+          if (isReactLargeShellError(err)) {
+            // TODO: Aggregate
+            console.error(err)
+            return undefined
+          }
+
+          if (initialClientReactController.signal.aborted) {
             // These are expected errors that might error the prerender. we ignore them.
           } else if (
             process.env.NEXT_DEBUG_BUILD ||
@@ -2125,176 +3016,308 @@ async function spawnDynamicValidationInDev(
           ) {
             // We don't normally log these errors because we are going to retry anyway but
             // it can be useful for debugging Next.js itself to get visibility here when needed
-            printDebugThrownValueForProspectiveRender(err, route)
+            printDebugThrownValueForProspectiveRender(err, workStore.route)
           }
         },
+        // We don't need bootstrap scripts in this prerender
+        // bootstrapScripts: [bootstrapScript],
       }
     )
-    pendingInitialClientResult.catch((err: unknown) => {
-      if (initialClientController.signal.aborted) {
-        // We aborted the render normally and can ignore this error
-      } else {
-        // We're going to retry to so we normally would suppress this error but
-        // when verbose logging is on we print it
-        if (process.env.__NEXT_VERBOSE_LOGGING) {
-          printDebugThrownValueForProspectiveRender(err, route)
-        }
+
+    // The listener to abort our own render controller must be added after React
+    // has added its listener, to ensure that pending I/O is not
+    // aborted/rejected too early.
+    initialClientReactController.signal.addEventListener(
+      'abort',
+      () => {
+        initialClientRenderController.abort()
+      },
+      { once: true }
+    )
+
+    pendingInitialClientResult.catch((err) => {
+      if (
+        initialClientReactController.signal.aborted ||
+        isPrerenderInterruptedError(err)
+      ) {
+        // These are expected errors that might error the prerender. we ignore them.
+      } else if (
+        process.env.NEXT_DEBUG_BUILD ||
+        process.env.__NEXT_VERBOSE_LOGGING
+      ) {
+        // We don't normally log these errors because we are going to retry anyway but
+        // it can be useful for debugging Next.js itself to get visibility here when needed
+        printDebugThrownValueForProspectiveRender(err, workStore.route)
       }
     })
+
+    // This is mostly needed for dynamic `import()`s in client components.
+    // Promises passed to client were already awaited above (assuming that they came from cached functions)
+    trackPendingModules(cacheSignal)
+    await cacheSignal.cacheReady()
+    initialClientReactController.abort()
   }
 
-  await cacheSignal.cacheReady()
-  // It is important that we abort the SSR render first to avoid
-  // connection closed errors from having an incomplete RSC stream
-  initialClientController.abort()
-  initialServerRenderController.abort()
-  initialServerPrerenderController.abort()
+  const finalServerReactController = new AbortController()
+  const finalServerRenderController = new AbortController()
 
-  // We've now filled caches and triggered any inadvertent sync bailouts
-  // due to lazy module initialization. We can restart our render to capture results
-
-  const finalServerController = new AbortController()
-  const serverDynamicTracking = createDynamicTrackingState(false)
-
-  const finalServerPrerenderStore: PrerenderStore = {
+  const finalServerPayloadPrerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
-    implicitTags: [],
-    renderSignal: finalServerController.signal,
-    controller: finalServerController,
-    // During the final prerender we don't need to track cache access so we omit the signal
+    rootParams,
+    fallbackRouteParams,
+    implicitTags,
+    // While this render signal isn't going to be used to abort a React render while getting the RSC payload
+    // various request data APIs bind to this controller to reject after completion.
+    renderSignal: finalServerRenderController.signal,
+    // When we generate the RSC payload we might abort this controller due to sync IO
+    // but we don't actually care about sync IO in this phase so we use a throw away controller
+    // that isn't connected to anything
+    controller: new AbortController(),
+    // All caches we could read must already be filled so no tracking is necessary
     cacheSignal: null,
-    dynamicTracking: serverDynamicTracking,
+    dynamicTracking: null,
+    allowEmptyStaticShell,
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
-    tags: [],
+    tags: [...implicitTags.tags],
     prerenderResumeDataCache,
+    renderResumeDataCache: null,
+    hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
   }
 
-  const finalClientController = new AbortController()
-  const clientDynamicTracking = createDynamicTrackingState(false)
-  const dynamicValidation = createDynamicValidationState()
-
-  const finalClientPrerenderStore: PrerenderStore = {
-    type: 'prerender',
-    phase: 'render',
-    implicitTags: [],
-    renderSignal: finalClientController.signal,
-    controller: finalClientController,
-    // During the final prerender we don't need to track cache access so we omit the signal
-    cacheSignal: null,
-    dynamicTracking: clientDynamicTracking,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
-    prerenderResumeDataCache,
-  }
-
-  const finalServerPayload = await workUnitAsyncStorage.run(
-    finalServerPrerenderStore,
+  const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
+    finalServerPayloadPrerenderStore,
     getRSCPayload,
     tree,
     ctx,
     isNotFound
   )
 
-  const serverPrerenderStreamResult = await prerenderServerWithPhases(
-    finalServerController.signal,
-    () =>
-      workUnitAsyncStorage.run(
-        finalServerPrerenderStore,
-        ComponentMod.renderToReadableStream,
-        finalServerPayload,
-        clientReferenceManifest.clientModules,
-        {
-          onError: (err: unknown) => {
-            if (finalServerController.signal.aborted) {
-              if (isPrerenderInterruptedError(err)) {
-                return err.digest
-              }
-            }
-          },
-          signal: finalServerController.signal,
-        }
-      ),
-    () => {
-      finalServerController.abort()
-    }
+  const serverDynamicTracking = createDynamicTrackingState(
+    false // isDebugDynamicAccesses
   )
 
-  const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
-  try {
-    const prerender = require('react-dom/static.edge')
-      .prerender as (typeof import('react-dom/static.edge'))['prerender']
-    await prerenderClientWithPhases(
-      () =>
-        workUnitAsyncStorage.run(
-          finalClientPrerenderStore,
-          prerender,
-          <App
-            reactServerStream={serverPhasedStream}
-            preinitScripts={() => {}}
-            clientReferenceManifest={clientReferenceManifest}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            nonce={ctx.nonce}
-          />,
-          {
-            signal: finalClientController.signal,
-            onError: (err: unknown, errorInfo: ErrorInfo) => {
-              if (
-                isPrerenderInterruptedError(err) ||
-                finalClientController.signal.aborted
-              ) {
-                requestStore.usedDynamic = true
+  const finalServerPrerenderStore: PrerenderStore = {
+    type: 'prerender',
+    phase: 'render',
+    rootParams,
+    fallbackRouteParams,
+    implicitTags,
+    renderSignal: finalServerRenderController.signal,
+    controller: finalServerReactController,
+    // All caches we could read must already be filled so no tracking is necessary
+    cacheSignal: null,
+    dynamicTracking: serverDynamicTracking,
+    allowEmptyStaticShell,
+    revalidate: INFINITE_CACHE,
+    expire: INFINITE_CACHE,
+    stale: INFINITE_CACHE,
+    tags: [...implicitTags.tags],
+    prerenderResumeDataCache,
+    renderResumeDataCache: null,
+    hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackServer,
+  }
 
-                const componentStack: string | undefined = (errorInfo as any)
-                  .componentStack
-                if (typeof componentStack === 'string') {
-                  trackAllowedDynamicAccess(
-                    route,
-                    componentStack,
-                    dynamicValidation,
-                    serverDynamicTracking,
-                    clientDynamicTracking
-                  )
-                }
-                return
+  const reactServerResult = await createReactServerPrerenderResult(
+    prerenderAndAbortInSequentialTasks(
+      async () => {
+        const pendingPrerenderResult = workUnitAsyncStorage.run(
+          // The store to scope
+          finalServerPrerenderStore,
+          // The function to run
+          ComponentMod.prerender,
+          // ... the arguments for the function to run
+          finalAttemptRSCPayload,
+          clientReferenceManifest.clientModules,
+          {
+            filterStackFrame,
+            onError: (err: unknown) => {
+              if (
+                finalServerReactController.signal.aborted &&
+                isPrerenderInterruptedError(err)
+              ) {
+                return err.digest
               }
+
+              if (isReactLargeShellError(err)) {
+                // TODO: Aggregate
+                console.error(err)
+                return undefined
+              }
+
+              return getDigestForWellKnownError(err)
             },
+            signal: finalServerReactController.signal,
           }
-        ),
+        )
+
+        // The listener to abort our own render controller must be added after
+        // React has added its listener, to ensure that pending I/O is not
+        // aborted/rejected too early.
+        finalServerReactController.signal.addEventListener(
+          'abort',
+          () => {
+            finalServerRenderController.abort()
+          },
+          { once: true }
+        )
+
+        return pendingPrerenderResult
+      },
       () => {
-        finalClientController.abort()
-        serverPhasedStream.assertExhausted()
+        finalServerReactController.abort()
       }
     )
-  } catch (err) {
-    if (
-      isPrerenderInterruptedError(err) ||
-      finalClientController.signal.aborted
-    ) {
-      // we don't have a root because the abort errored in the root. We can just ignore this error
-    } else {
-      // This error is something else and should bubble up
-      throw err
-    }
+  )
+
+  const clientDynamicTracking = createDynamicTrackingState(
+    false //isDebugDynamicAccesses
+  )
+  const finalClientReactController = new AbortController()
+  const finalClientRenderController = new AbortController()
+
+  const finalClientPrerenderStore: PrerenderStore = {
+    type: 'prerender-client',
+    phase: 'render',
+    rootParams,
+    fallbackRouteParams,
+    implicitTags,
+    renderSignal: finalClientRenderController.signal,
+    controller: finalClientReactController,
+    // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
+    cacheSignal: null,
+    dynamicTracking: clientDynamicTracking,
+    allowEmptyStaticShell,
+    revalidate: INFINITE_CACHE,
+    expire: INFINITE_CACHE,
+    stale: INFINITE_CACHE,
+    tags: [...implicitTags.tags],
+    prerenderResumeDataCache,
+    renderResumeDataCache: null,
+    hmrRefreshHash,
+    captureOwnerStack: captureOwnerStackClient,
   }
 
-  function LogDynamicValidation() {
-    try {
-      throwIfDisallowedDynamic(
-        route,
-        dynamicValidation,
-        serverDynamicTracking,
-        clientDynamicTracking
+  let dynamicValidation = createDynamicValidationState()
+
+  try {
+    const prerender = (
+      require('react-dom/static') as typeof import('react-dom/static')
+    ).prerender
+    let { prelude: unprocessedPrelude } =
+      await prerenderAndAbortInSequentialTasks(
+        () => {
+          const pendingFinalClientResult = workUnitAsyncStorage.run(
+            finalClientPrerenderStore,
+            prerender,
+            <App
+              reactServerStream={reactServerResult.asUnclosingStream()}
+              reactDebugStream={undefined}
+              preinitScripts={preinitScripts}
+              clientReferenceManifest={clientReferenceManifest}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              nonce={nonce}
+            />,
+            {
+              signal: finalClientReactController.signal,
+              onError: (err: unknown, errorInfo: ErrorInfo) => {
+                if (
+                  isPrerenderInterruptedError(err) ||
+                  finalClientReactController.signal.aborted
+                ) {
+                  const componentStack = errorInfo.componentStack
+                  if (typeof componentStack === 'string') {
+                    trackAllowedDynamicAccess(
+                      workStore,
+                      componentStack,
+                      dynamicValidation,
+                      clientDynamicTracking
+                    )
+                  }
+                  return
+                }
+
+                if (isReactLargeShellError(err)) {
+                  // TODO: Aggregate
+                  console.error(err)
+                  return undefined
+                }
+
+                return getDigestForWellKnownError(err)
+              },
+              // We don't need bootstrap scripts in this prerender
+              // bootstrapScripts: [bootstrapScript],
+            }
+          )
+
+          // The listener to abort our own render controller must be added after
+          // React has added its listener, to ensure that pending I/O is not
+          // aborted/rejected too early.
+          finalClientReactController.signal.addEventListener(
+            'abort',
+            () => {
+              finalClientRenderController.abort()
+            },
+            { once: true }
+          )
+
+          return pendingFinalClientResult
+        },
+        () => {
+          finalClientReactController.abort()
+        }
       )
-    } catch {}
-    return null
-  }
 
-  resolveValidation(<LogDynamicValidation />)
+    const { preludeIsEmpty } = await processPrelude(unprocessedPrelude)
+    resolveValidation(
+      <LogSafely
+        fn={throwIfDisallowedDynamic.bind(
+          null,
+          workStore,
+          preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
+          dynamicValidation,
+          serverDynamicTracking
+        )}
+      />
+    )
+  } catch (thrownValue) {
+    // Even if the root errors we still want to report any cache components errors
+    // that were discovered before the root errored.
+
+    let loggingFunction = throwIfDisallowedDynamic.bind(
+      null,
+      workStore,
+      PreludeState.Errored,
+      dynamicValidation,
+      serverDynamicTracking
+    )
+
+    if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
+      // We don't normally log these errors because we are going to retry anyway but
+      // it can be useful for debugging Next.js itself to get visibility here when needed
+      const originalLoggingFunction = loggingFunction
+      loggingFunction = () => {
+        console.error(
+          'During dynamic validation the root of the page errored. The next logged error is the thrown value. It may be a duplicate of errors reported during the normal development mode render.'
+        )
+        console.error(thrownValue)
+        originalLoggingFunction()
+      }
+    }
+
+    resolveValidation(<LogSafely fn={loggingFunction} />)
+  }
+}
+
+async function LogSafely({ fn }: { fn: () => unknown }) {
+  try {
+    await fn()
+  } catch {}
+  return null
 }
 
 type PrerenderToStreamResult = {
@@ -2306,18 +3329,15 @@ type PrerenderToStreamResult = {
   collectedExpire: number
   collectedStale: number
   collectedTags: null | string[]
+  renderResumeDataCache?: RenderResumeDataCache
 }
 
 /**
  * Determines whether we should generate static flight data.
  */
 function shouldGenerateStaticFlightData(workStore: WorkStore): boolean {
-  const { fallbackRouteParams, isStaticGeneration } = workStore
+  const { isStaticGeneration } = workStore
   if (!isStaticGeneration) return false
-
-  if (fallbackRouteParams && fallbackRouteParams.size > 0) {
-    return false
-  }
 
   return true
 }
@@ -2327,78 +3347,104 @@ async function prerenderToStream(
   res: BaseNextResponse,
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
-  workStore: WorkStore,
   tree: LoaderTree,
-  implicitTags: Array<string>
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): Promise<PrerenderToStreamResult> {
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
   // more explicit than making it an optional function argument
   const formState = null
 
-  const renderOpts = ctx.renderOpts
-  const ComponentMod = renderOpts.ComponentMod
-  // TODO: fix this typescript
-  const clientReferenceManifest = renderOpts.clientReferenceManifest!
-  const fallbackRouteParams = workStore.fallbackRouteParams
+  const {
+    assetPrefix,
+    getDynamicParamFromSegment,
+    implicitTags,
+    nonce,
+    pagePath,
+    renderOpts,
+    requestId,
+    workStore,
+  } = ctx
+
+  const {
+    allowEmptyStaticShell = false,
+    basePath,
+    buildManifest,
+    clientReferenceManifest,
+    ComponentMod,
+    crossOrigin,
+    dev = false,
+    experimental,
+    isDebugDynamicAccesses,
+    nextExport = false,
+    onInstrumentationRequestError,
+    page,
+    reactMaxHeadersLength,
+    subresourceIntegrityManifest,
+  } = renderOpts
+
+  assertClientReferenceManifest(clientReferenceManifest)
+
+  const rootParams = getRootParams(tree, getDynamicParamFromSegment)
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
+  const getServerInsertedMetadata = createServerInsertedMetadata(nonce)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
-    renderOpts.experimental.clientTraceMetadata
+    experimental.clientTraceMetadata
   )
 
   const polyfills: JSX.IntrinsicElements['script'][] =
-    renderOpts.buildManifest.polyfillFiles
+    buildManifest.polyfillFiles
       .filter(
         (polyfill) =>
           polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
       )
       .map((polyfill) => ({
-        src: `${ctx.assetPrefix}/_next/${polyfill}${getAssetQueryString(
+        src: `${assetPrefix}/_next/${polyfill}${getAssetQueryString(
           ctx,
           false
         )}`,
-        integrity: renderOpts.subresourceIntegrityManifest?.[polyfill],
-        crossOrigin: renderOpts.crossOrigin,
+        integrity: subresourceIntegrityManifest?.[polyfill],
+        crossOrigin,
         noModule: true,
-        nonce: ctx.nonce,
+        nonce,
       }))
 
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
-    renderOpts.buildManifest,
+    buildManifest,
     // Why is assetPrefix optional on renderOpts?
     // @TODO make it default empty string on renderOpts and get rid of it from ctx
-    ctx.assetPrefix,
-    renderOpts.crossOrigin,
-    renderOpts.subresourceIntegrityManifest,
+    assetPrefix,
+    crossOrigin,
+    subresourceIntegrityManifest,
     getAssetQueryString(ctx, true),
-    ctx.nonce,
-    renderOpts.page
+    nonce,
+    page
   )
 
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   // We don't report errors during prerendering through our instrumentation hooks
-  const silenceLogger = !!renderOpts.experimental.isRoutePPREnabled
+  const silenceLogger = !!experimental.isRoutePPREnabled
   function onHTMLRenderRSCError(err: DigestedError) {
-    return renderOpts.onInstrumentationRequestError?.(
+    return onInstrumentationRequestError?.(
       err,
       req,
       createErrorContext(ctx, 'react-server-components')
     )
   }
   const serverComponentsErrorHandler = createHTMLReactServerErrorHandler(
-    !!renderOpts.dev,
-    !!renderOpts.nextExport,
+    dev,
+    nextExport,
     reactServerErrorsByDigest,
     silenceLogger,
     onHTMLRenderRSCError
   )
 
   function onHTMLRenderSSRError(err: DigestedError) {
-    return renderOpts.onInstrumentationRequestError?.(
+    return onInstrumentationRequestError?.(
       err,
       req,
       createErrorContext(ctx, 'server-rendering')
@@ -2406,8 +3452,8 @@ async function prerenderToStream(
   }
   const allCapturedErrors: Array<unknown> = []
   const htmlRendererErrorHandler = createHTMLErrorHandler(
-    !!renderOpts.dev,
-    !!renderOpts.nextExport,
+    dev,
+    nextExport,
     reactServerErrorsByDigest,
     allCapturedErrors,
     silenceLogger,
@@ -2415,121 +3461,327 @@ async function prerenderToStream(
   )
 
   let reactServerPrerenderResult: null | ReactServerPrerenderResult = null
-  const setHeader = (name: string, value: string | string[]) => {
-    res.setHeader(name, value)
-
+  const setMetadataHeader = (name: string) => {
     metadata.headers ??= {}
     metadata.headers[name] = res.getHeader(name)
-
+  }
+  const setHeader = (name: string, value: string | string[]) => {
+    res.setHeader(name, value)
+    setMetadataHeader(name)
     return res
   }
+  const appendHeader = (name: string, value: string | string[]) => {
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        res.appendHeader(name, item)
+      })
+    } else {
+      res.appendHeader(name, value)
+    }
+    setMetadataHeader(name)
+  }
+
+  const selectStaleTime = createSelectStaleTime(experimental)
 
   let prerenderStore: PrerenderStore | null = null
 
   try {
-    if (renderOpts.experimental.dynamicIO) {
-      if (renderOpts.experimental.isRoutePPREnabled) {
-        /**
-         * dynamicIO with PPR
-         *
-         * The general approach is to render the RSC stream first allowing any cache reads to resolve.
-         * Once we have settled all cache reads we restart the render and abort after a single Task.
-         *
-         * Unlike with the non PPR case we can't synchronously abort the render when a dynamic API is used
-         * during the initial render because we need to ensure all caches can be filled as part of the initial Task
-         * and a synchronous abort might prevent us from filling all caches.
-         *
-         * Once the render is complete we allow the SSR render to finish and use a combination of the postponed state
-         * and the reactServerIsDynamic value to determine how to treat the resulting render
-         */
+    if (experimental.cacheComponents) {
+      /**
+       * cacheComponents with PPR
+       *
+       * The general approach is to render the RSC stream first allowing any cache reads to resolve.
+       * Once we have settled all cache reads we restart the render and abort after a single Task.
+       *
+       * Unlike with the non PPR case we can't synchronously abort the render when a dynamic API is used
+       * during the initial render because we need to ensure all caches can be filled as part of the initial Task
+       * and a synchronous abort might prevent us from filling all caches.
+       *
+       * Once the render is complete we allow the SSR render to finish and use a combination of the postponed state
+       * and the reactServerIsDynamic value to determine how to treat the resulting render
+       */
 
-        // Prerender controller represents the lifetime of the prerender.
-        // It will be aborted when a Task is complete or a synchronously aborting
-        // API is called. Notably during cache-filling renders this does not actually
-        // terminate the render itself which will continue until all caches are filled
-        const initialServerPrerenderController = new AbortController()
+      // The prerender controller represents the lifetime of the prerender. It
+      // will be aborted when a task is complete or a synchronously aborting API
+      // is called. Notably, during prospective prerenders, this does not
+      // actually terminate the prerender itself, which will continue until all
+      // caches are filled.
+      const initialServerPrerenderController = new AbortController()
 
-        // This controller represents the lifetime of the React render call. Notably
-        // during the cache-filling render it is different from the prerender controller
-        // because we don't want to end the react render until all caches are filled.
-        const initialServerRenderController = new AbortController()
+      // This controller is used to abort the React prerender.
+      const initialServerReactController = new AbortController()
 
-        // The cacheSignal helps us track whether caches are still filling or we are ready
-        // to cut the render off.
-        const cacheSignal = new CacheSignal()
+      // This controller represents the lifetime of the React prerender. Its
+      // signal can be used for any I/O operation to abort the I/O and/or to
+      // reject, when prerendering aborts. This includes our own hanging
+      // promises for accessing request data, and for fetch calls. It might be
+      // replaced in the future by React.cacheSignal(). It's aborted after the
+      // React controller, so that no pending I/O can register abort listeners
+      // that are called before React's abort listener is called. This ensures
+      // that pending I/O is not rejected too early when aborting the prerender.
+      // Notably, during the prospective prerender, it is different from the
+      // prerender controller because we don't want to end the React prerender
+      // until all caches are filled.
+      const initialServerRenderController = new AbortController()
 
-        // The resume data cache here should use a fresh instance as it's
-        // performing a fresh prerender. If we get to implementing the
-        // prerendering of an already prerendered page, we should use the passed
-        // resume data cache instead.
-        const prerenderResumeDataCache = createPrerenderResumeDataCache()
+      // The cacheSignal helps us track whether caches are still filling or we are ready
+      // to cut the render off.
+      const cacheSignal = new CacheSignal()
 
-        const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
+      let resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache
+      let renderResumeDataCache: RenderResumeDataCache | null = null
+      let prerenderResumeDataCache: PrerenderResumeDataCache | null = null
+
+      if (renderOpts.renderResumeDataCache) {
+        // If a prefilled immutable render resume data cache is provided, e.g.
+        // when prerendering an optional fallback shell after having prerendered
+        // pages with defined params, we use this instead of a prerender resume
+        // data cache.
+        resumeDataCache = renderResumeDataCache =
+          renderOpts.renderResumeDataCache
+      } else {
+        // Otherwise we create a new mutable prerender resume data cache.
+        resumeDataCache = prerenderResumeDataCache =
+          createPrerenderResumeDataCache()
+      }
+
+      const initialServerPayloadPrerenderStore: PrerenderStore = {
+        type: 'prerender',
+        phase: 'render',
+        rootParams,
+        fallbackRouteParams,
+        implicitTags,
+        // While this render signal isn't going to be used to abort a React render while getting the RSC payload
+        // various request data APIs bind to this controller to reject after completion.
+        renderSignal: initialServerRenderController.signal,
+        // When we generate the RSC payload we might abort this controller due to sync IO
+        // but we don't actually care about sync IO in this phase so we use a throw away controller
+        // that isn't connected to anything
+        controller: new AbortController(),
+        // During the initial prerender we need to track all cache reads to ensure
+        // we render long enough to fill every cache it is possible to visit during
+        // the final prerender.
+        cacheSignal,
+        dynamicTracking: null,
+        allowEmptyStaticShell,
+        revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
+        tags: [...implicitTags.tags],
+        prerenderResumeDataCache,
+        renderResumeDataCache,
+        hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
+      }
+
+      // We're not going to use the result of this render because the only time it could be used
+      // is if it completes in a microtask and that's likely very rare for any non-trivial app
+      const initialServerPayload = await workUnitAsyncStorage.run(
+        initialServerPayloadPrerenderStore,
+        getRSCPayload,
+        tree,
+        ctx,
+        res.statusCode === 404
+      )
+
+      const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
+        type: 'prerender',
+        phase: 'render',
+        rootParams,
+        fallbackRouteParams,
+        implicitTags,
+        renderSignal: initialServerRenderController.signal,
+        controller: initialServerPrerenderController,
+        // During the initial prerender we need to track all cache reads to ensure
+        // we render long enough to fill every cache it is possible to visit during
+        // the final prerender.
+        cacheSignal,
+        dynamicTracking: null,
+        allowEmptyStaticShell,
+        revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
+        tags: [...implicitTags.tags],
+        prerenderResumeDataCache,
+        renderResumeDataCache,
+        hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
+      })
+
+      const pendingInitialServerResult = workUnitAsyncStorage.run(
+        initialServerPrerenderStore,
+        ComponentMod.prerender,
+        initialServerPayload,
+        clientReferenceManifest.clientModules,
+        {
+          filterStackFrame,
+          onError: (err) => {
+            const digest = getDigestForWellKnownError(err)
+
+            if (digest) {
+              return digest
+            }
+
+            if (isReactLargeShellError(err)) {
+              // TODO: Aggregate
+              console.error(err)
+              return undefined
+            }
+
+            if (initialServerPrerenderController.signal.aborted) {
+              // The render aborted before this error was handled which indicates
+              // the error is caused by unfinished components within the render
+              return
+            } else if (
+              process.env.NEXT_DEBUG_BUILD ||
+              process.env.__NEXT_VERBOSE_LOGGING
+            ) {
+              printDebugThrownValueForProspectiveRender(err, workStore.route)
+            }
+          },
+          // we don't care to track postpones during the prospective render because we need
+          // to always do a final render anyway
+          onPostpone: undefined,
+          // We don't want to stop rendering until the cacheSignal is complete so we pass
+          // a different signal to this render call than is used by dynamic APIs to signify
+          // transitioning out of the prerender environment
+          signal: initialServerReactController.signal,
+        }
+      )
+
+      // The listener to abort our own render controller must be added after
+      // React has added its listener, to ensure that pending I/O is not
+      // aborted/rejected too early.
+      initialServerReactController.signal.addEventListener(
+        'abort',
+        () => {
+          initialServerRenderController.abort()
+          initialServerPrerenderController.abort()
+        },
+        { once: true }
+      )
+
+      // Wait for all caches to be finished filling and for async imports to resolve
+      trackPendingModules(cacheSignal)
+      await cacheSignal.cacheReady()
+
+      initialServerReactController.abort()
+
+      // We don't need to continue the prerender process if we already
+      // detected invalid dynamic usage in the initial prerender phase.
+      if (workStore.invalidDynamicUsageError) {
+        logDisallowedDynamicError(workStore, workStore.invalidDynamicUsageError)
+        throw new StaticGenBailoutError()
+      }
+
+      let initialServerResult
+      try {
+        initialServerResult = await createReactServerPrerenderResult(
+          pendingInitialServerResult
+        )
+      } catch (err) {
+        if (
+          initialServerReactController.signal.aborted ||
+          initialServerPrerenderController.signal.aborted
+        ) {
+          // These are expected errors that might error the prerender. we ignore them.
+        } else if (
+          process.env.NEXT_DEBUG_BUILD ||
+          process.env.__NEXT_VERBOSE_LOGGING
+        ) {
+          // We don't normally log these errors because we are going to retry anyway but
+          // it can be useful for debugging Next.js itself to get visibility here when needed
+          printDebugThrownValueForProspectiveRender(err, workStore.route)
+        }
+      }
+
+      if (initialServerResult) {
+        const initialClientPrerenderController = new AbortController()
+        const initialClientReactController = new AbortController()
+        const initialClientRenderController = new AbortController()
+
+        const initialClientPrerenderStore: PrerenderStore = {
+          type: 'prerender-client',
           phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: initialServerRenderController.signal,
-          controller: initialServerPrerenderController,
-          cacheSignal,
+          rootParams,
+          fallbackRouteParams,
+          implicitTags,
+          renderSignal: initialClientRenderController.signal,
+          controller: initialClientPrerenderController,
+          // For HTML Generation the only cache tracked activity
+          // is module loading, which has it's own cache signal
+          cacheSignal: null,
           dynamicTracking: null,
+          allowEmptyStaticShell,
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
-          tags: [...implicitTags],
+          tags: [...implicitTags.tags],
           prerenderResumeDataCache,
-        })
+          renderResumeDataCache,
+          hmrRefreshHash: undefined,
+          captureOwnerStack: undefined, // Not available in production.
+        }
 
-        // We're not going to use the result of this render because the only time it could be used
-        // is if it completes in a microtask and that's likely very rare for any non-trivial app
-        const initialServerPayload = await workUnitAsyncStorage.run(
-          initialServerPrerenderStore,
-          getRSCPayload,
-          tree,
-          ctx,
-          res.statusCode === 404
-        )
-
-        const pendingInitialServerResult = workUnitAsyncStorage.run(
-          initialServerPrerenderStore,
-          ComponentMod.prerender,
-          initialServerPayload,
-          clientReferenceManifest.clientModules,
+        const prerender = (
+          require('react-dom/static') as typeof import('react-dom/static')
+        ).prerender
+        const pendingInitialClientResult = workUnitAsyncStorage.run(
+          initialClientPrerenderStore,
+          prerender,
+          <App
+            reactServerStream={initialServerResult.asUnclosingStream()}
+            reactDebugStream={undefined}
+            preinitScripts={preinitScripts}
+            clientReferenceManifest={clientReferenceManifest}
+            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            nonce={nonce}
+          />,
           {
-            onError: (err: unknown) => {
-              if (initialServerPrerenderController.signal.aborted) {
-                // The render aborted before this error was handled which indicates
-                // the error is caused by unfinished components within the render
-                return
+            signal: initialClientReactController.signal,
+            onError: (err) => {
+              const digest = getDigestForWellKnownError(err)
+
+              if (digest) {
+                return digest
+              }
+
+              if (isReactLargeShellError(err)) {
+                // TODO: Aggregate
+                console.error(err)
+                return undefined
+              }
+
+              if (initialClientReactController.signal.aborted) {
+                // These are expected errors that might error the prerender. we ignore them.
               } else if (
                 process.env.NEXT_DEBUG_BUILD ||
                 process.env.__NEXT_VERBOSE_LOGGING
               ) {
+                // We don't normally log these errors because we are going to retry anyway but
+                // it can be useful for debugging Next.js itself to get visibility here when needed
                 printDebugThrownValueForProspectiveRender(err, workStore.route)
               }
             },
-            // we don't care to track postpones during the prospective render because we need
-            // to always do a final render anyway
-            onPostpone: undefined,
-            // We don't want to stop rendering until the cacheSignal is complete so we pass
-            // a different signal to this render call than is used by dynamic APIs to signify
-            // transitioning out of the prerender environment
-            signal: initialServerRenderController.signal,
+            bootstrapScripts: [bootstrapScript],
           }
         )
 
-        await cacheSignal.cacheReady()
-        initialServerRenderController.abort()
-        initialServerPrerenderController.abort()
+        // The listener to abort our own render controller must be added after
+        // React has added its listener, to ensure that pending I/O is not
+        // aborted/rejected too early.
+        initialClientReactController.signal.addEventListener(
+          'abort',
+          () => {
+            initialClientRenderController.abort()
+          },
+          { once: true }
+        )
 
-        let initialServerResult
-        try {
-          initialServerResult = await createReactServerPrerenderResult(
-            pendingInitialServerResult
-          )
-        } catch (err) {
+        pendingInitialClientResult.catch((err) => {
           if (
-            initialServerRenderController.signal.aborted ||
-            initialServerPrerenderController.signal.aborted
+            initialClientReactController.signal.aborted ||
+            isPrerenderInterruptedError(err)
           ) {
             // These are expected errors that might error the prerender. we ignore them.
           } else if (
@@ -2540,204 +3792,200 @@ async function prerenderToStream(
             // it can be useful for debugging Next.js itself to get visibility here when needed
             printDebugThrownValueForProspectiveRender(err, workStore.route)
           }
-        }
-
-        if (initialServerResult) {
-          // Before we attempt the SSR initial render we need to ensure all client modules
-          // are already loaded.
-          await warmFlightResponse(
-            initialServerResult.asStream(),
-            clientReferenceManifest
-          )
-
-          const initialClientController = new AbortController()
-          const initialClientPrerenderStore: PrerenderStore = {
-            type: 'prerender',
-            phase: 'render',
-            implicitTags: implicitTags,
-            renderSignal: initialClientController.signal,
-            controller: initialClientController,
-            cacheSignal: null,
-            dynamicTracking: null,
-            revalidate: INFINITE_CACHE,
-            expire: INFINITE_CACHE,
-            stale: INFINITE_CACHE,
-            tags: [...implicitTags],
-            prerenderResumeDataCache,
-          }
-
-          const prerender = require('react-dom/static.edge')
-            .prerender as (typeof import('react-dom/static.edge'))['prerender']
-          await prerenderAndAbortInSequentialTasks(
-            () =>
-              workUnitAsyncStorage.run(
-                initialClientPrerenderStore,
-                prerender,
-                <App
-                  reactServerStream={initialServerResult.asUnclosingStream()}
-                  preinitScripts={preinitScripts}
-                  clientReferenceManifest={clientReferenceManifest}
-                  ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                  nonce={ctx.nonce}
-                />,
-                {
-                  signal: initialClientController.signal,
-                  onError: (err: unknown, _errorInfo: ErrorInfo) => {
-                    if (initialClientController.signal.aborted) {
-                      // These are expected errors that might error the prerender. we ignore them.
-                    } else if (
-                      process.env.NEXT_DEBUG_BUILD ||
-                      process.env.__NEXT_VERBOSE_LOGGING
-                    ) {
-                      // We don't normally log these errors because we are going to retry anyway but
-                      // it can be useful for debugging Next.js itself to get visibility here when needed
-                      printDebugThrownValueForProspectiveRender(
-                        err,
-                        workStore.route
-                      )
-                    }
-                  },
-                  // When debugging the static shell, client-side rendering should be
-                  // disabled to prevent blanking out the page.
-                  bootstrapScripts: renderOpts.isDebugStaticShell
-                    ? []
-                    : [bootstrapScript],
-                }
-              ),
-            () => {
-              initialClientController.abort()
-            }
-          ).catch((err) => {
-            if (
-              initialServerRenderController.signal.aborted ||
-              isPrerenderInterruptedError(err)
-            ) {
-              // These are expected errors that might error the prerender. we ignore them.
-            } else if (
-              process.env.NEXT_DEBUG_BUILD ||
-              process.env.__NEXT_VERBOSE_LOGGING
-            ) {
-              // We don't normally log these errors because we are going to retry anyway but
-              // it can be useful for debugging Next.js itself to get visibility here when needed
-              printDebugThrownValueForProspectiveRender(err, workStore.route)
-            }
-          })
-        }
-
-        let serverIsDynamic = false
-        const finalServerController = new AbortController()
-        const serverDynamicTracking = createDynamicTrackingState(
-          renderOpts.isDebugDynamicAccesses
-        )
-
-        const finalRenderPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: finalServerController.signal,
-          controller: finalServerController,
-          // During the final prerender we don't need to track cache access so we omit the signal
-          cacheSignal: null,
-          dynamicTracking: serverDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
         })
 
-        const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
-          finalRenderPrerenderStore,
-          getRSCPayload,
-          tree,
-          ctx,
-          res.statusCode === 404
-        )
-        const reactServerResult = (reactServerPrerenderResult =
-          await createReactServerPrerenderResult(
-            prerenderAndAbortInSequentialTasks(
-              () =>
-                workUnitAsyncStorage.run(
-                  // The store to scope
-                  finalRenderPrerenderStore,
-                  // The function to run
-                  ComponentMod.prerender,
-                  // ... the arguments for the function to run
-                  finalAttemptRSCPayload,
-                  clientReferenceManifest.clientModules,
-                  {
-                    onError: (err: unknown) => {
-                      if (finalServerController.signal.aborted) {
-                        serverIsDynamic = true
-                        return
-                      }
+        // This is mostly needed for dynamic `import()`s in client components.
+        // Promises passed to client were already awaited above (assuming that they came from cached functions)
+        trackPendingModules(cacheSignal)
+        await cacheSignal.cacheReady()
+        initialClientReactController.abort()
+      }
 
-                      return serverComponentsErrorHandler(err)
-                    },
-                    signal: finalServerController.signal,
-                  }
-                ),
-              () => {
-                finalServerController.abort()
+      const finalServerReactController = new AbortController()
+      const finalServerRenderController = new AbortController()
+
+      const finalServerPayloadPrerenderStore: PrerenderStore = {
+        type: 'prerender',
+        phase: 'render',
+        rootParams,
+        fallbackRouteParams,
+        implicitTags,
+        // While this render signal isn't going to be used to abort a React render while getting the RSC payload
+        // various request data APIs bind to this controller to reject after completion.
+        renderSignal: finalServerRenderController.signal,
+        // When we generate the RSC payload we might abort this controller due to sync IO
+        // but we don't actually care about sync IO in this phase so we use a throw away controller
+        // that isn't connected to anything
+        controller: new AbortController(),
+        // All caches we could read must already be filled so no tracking is necessary
+        cacheSignal: null,
+        dynamicTracking: null,
+        allowEmptyStaticShell,
+        revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
+        tags: [...implicitTags.tags],
+        prerenderResumeDataCache,
+        renderResumeDataCache,
+        hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
+      }
+
+      const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
+        finalServerPayloadPrerenderStore,
+        getRSCPayload,
+        tree,
+        ctx,
+        res.statusCode === 404
+      )
+
+      const serverDynamicTracking = createDynamicTrackingState(
+        isDebugDynamicAccesses
+      )
+      let serverIsDynamic = false
+
+      const finalServerPrerenderStore: PrerenderStore = (prerenderStore = {
+        type: 'prerender',
+        phase: 'render',
+        rootParams,
+        fallbackRouteParams,
+        implicitTags,
+        renderSignal: finalServerRenderController.signal,
+        controller: finalServerReactController,
+        // All caches we could read must already be filled so no tracking is necessary
+        cacheSignal: null,
+        dynamicTracking: serverDynamicTracking,
+        allowEmptyStaticShell,
+        revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
+        tags: [...implicitTags.tags],
+        prerenderResumeDataCache,
+        renderResumeDataCache,
+        hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
+      })
+
+      let prerenderIsPending = true
+      const reactServerResult = (reactServerPrerenderResult =
+        await createReactServerPrerenderResult(
+          prerenderAndAbortInSequentialTasks(
+            async () => {
+              const pendingPrerenderResult = workUnitAsyncStorage.run(
+                // The store to scope
+                finalServerPrerenderStore,
+                // The function to run
+                ComponentMod.prerender,
+                // ... the arguments for the function to run
+                finalAttemptRSCPayload,
+                clientReferenceManifest.clientModules,
+                {
+                  filterStackFrame,
+                  onError: (err: unknown) => {
+                    return serverComponentsErrorHandler(err)
+                  },
+                  signal: finalServerReactController.signal,
+                }
+              )
+
+              // The listener to abort our own render controller must be added
+              // after React has added its listener, to ensure that pending I/O
+              // is not aborted/rejected too early.
+              finalServerReactController.signal.addEventListener(
+                'abort',
+                () => {
+                  finalServerRenderController.abort()
+                },
+                { once: true }
+              )
+
+              const prerenderResult = await pendingPrerenderResult
+              prerenderIsPending = false
+
+              return prerenderResult
+            },
+            () => {
+              if (finalServerReactController.signal.aborted) {
+                // If the server controller is already aborted we must have called something
+                // that required aborting the prerender synchronously such as with new Date()
+                serverIsDynamic = true
+                return
               }
-            )
-          ))
 
-        const clientDynamicTracking = createDynamicTrackingState(
-          renderOpts.isDebugDynamicAccesses
-        )
-        const finalClientController = new AbortController()
-        const finalClientPrerenderStore: PrerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: finalClientController.signal,
-          controller: finalClientController,
-          // For HTML Generation we don't need to track cache reads (RSC only)
-          cacheSignal: null,
-          dynamicTracking: clientDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
-        }
+              if (prerenderIsPending) {
+                // If prerenderIsPending then we have blocked for longer than a Task and we assume
+                // there is something unfinished.
+                serverIsDynamic = true
+              }
 
-        let clientIsDynamic = false
-        let dynamicValidation = createDynamicValidationState()
+              finalServerReactController.abort()
+            }
+          )
+        ))
 
-        const prerender = require('react-dom/static.edge')
-          .prerender as (typeof import('react-dom/static.edge'))['prerender']
-        let { prelude, postponed } = await prerenderAndAbortInSequentialTasks(
-          () =>
-            workUnitAsyncStorage.run(
+      const clientDynamicTracking = createDynamicTrackingState(
+        isDebugDynamicAccesses
+      )
+
+      const finalClientReactController = new AbortController()
+      const finalClientRenderController = new AbortController()
+
+      const finalClientPrerenderStore: PrerenderStore = {
+        type: 'prerender-client',
+        phase: 'render',
+        rootParams,
+        fallbackRouteParams,
+        implicitTags,
+        renderSignal: finalClientRenderController.signal,
+        controller: finalClientReactController,
+        // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
+        cacheSignal: null,
+        dynamicTracking: clientDynamicTracking,
+        allowEmptyStaticShell,
+        revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
+        tags: [...implicitTags.tags],
+        prerenderResumeDataCache,
+        renderResumeDataCache,
+        hmrRefreshHash: undefined,
+        captureOwnerStack: undefined, // Not available in production.
+      }
+
+      let dynamicValidation = createDynamicValidationState()
+
+      const prerender = (
+        require('react-dom/static') as typeof import('react-dom/static')
+      ).prerender
+      let { prelude: unprocessedPrelude, postponed } =
+        await prerenderAndAbortInSequentialTasks(
+          () => {
+            const pendingFinalClientResult = workUnitAsyncStorage.run(
               finalClientPrerenderStore,
               prerender,
               <App
                 reactServerStream={reactServerResult.asUnclosingStream()}
+                reactDebugStream={undefined}
                 preinitScripts={preinitScripts}
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                nonce={ctx.nonce}
+                nonce={nonce}
               />,
               {
-                signal: finalClientController.signal,
+                signal: finalClientReactController.signal,
                 onError: (err: unknown, errorInfo: ErrorInfo) => {
                   if (
                     isPrerenderInterruptedError(err) ||
-                    finalClientController.signal.aborted
+                    finalClientReactController.signal.aborted
                   ) {
-                    clientIsDynamic = true
-
                     const componentStack: string | undefined = (
                       errorInfo as any
                     ).componentStack
                     if (typeof componentStack === 'string') {
                       trackAllowedDynamicAccess(
-                        workStore.route,
+                        workStore,
                         componentStack,
                         dynamicValidation,
-                        serverDynamicTracking,
                         clientDynamicTracking
                       )
                     }
@@ -2748,533 +3996,102 @@ async function prerenderToStream(
                 },
                 onHeaders: (headers: Headers) => {
                   headers.forEach((value, key) => {
-                    setHeader(key, value)
+                    appendHeader(key, value)
                   })
                 },
-                maxHeadersLength: renderOpts.reactMaxHeadersLength,
-                // When debugging the static shell, client-side rendering should be
-                // disabled to prevent blanking out the page.
-                bootstrapScripts: renderOpts.isDebugStaticShell
-                  ? []
-                  : [bootstrapScript],
+                maxHeadersLength: reactMaxHeadersLength,
+                bootstrapScripts: [bootstrapScript],
               }
-            ),
+            )
+
+            // The listener to abort our own render controller must be added
+            // after React has added its listener, to ensure that pending I/O is
+            // not aborted/rejected too early.
+            finalClientReactController.signal.addEventListener(
+              'abort',
+              () => {
+                finalClientRenderController.abort()
+              },
+              { once: true }
+            )
+
+            return pendingFinalClientResult
+          },
           () => {
-            finalClientController.abort()
+            finalClientReactController.abort()
           }
         )
 
+      const { prelude, preludeIsEmpty } =
+        await processPrelude(unprocessedPrelude)
+
+      // If we've disabled throwing on empty static shell, then we don't need to
+      // track any dynamic access that occurs above the suspense boundary because
+      // we'll do so in the route shell.
+      if (!allowEmptyStaticShell) {
         throwIfDisallowedDynamic(
-          workStore.route,
+          workStore,
+          preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
           dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
+          serverDynamicTracking
         )
+      }
 
-        const getServerInsertedHTML = makeGetServerInsertedHTML({
-          polyfills,
-          renderServerInsertedHTML,
-          serverCapturedErrors: allCapturedErrors,
-          basePath: renderOpts.basePath,
-          tracingMetadata: tracingMetadata,
-        })
+      const getServerInsertedHTML = makeGetServerInsertedHTML({
+        polyfills,
+        renderServerInsertedHTML,
+        serverCapturedErrors: allCapturedErrors,
+        basePath,
+        tracingMetadata: tracingMetadata,
+      })
 
-        const flightData = await streamToBuffer(reactServerResult.asStream())
-        metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
-          flightData,
-          finalRenderPrerenderStore,
-          ComponentMod,
-          renderOpts
-        )
+      const flightData = await streamToBuffer(reactServerResult.asStream())
+      metadata.flightData = flightData
+      metadata.segmentData = await collectSegmentData(
+        flightData,
+        finalServerPrerenderStore,
+        ComponentMod,
+        renderOpts
+      )
 
-        if (serverIsDynamic || clientIsDynamic) {
-          if (postponed != null) {
-            // Dynamic HTML case
-            metadata.postponed = await getDynamicHTMLPostponedState(
-              postponed,
-              fallbackRouteParams,
-              prerenderResumeDataCache
-            )
-          } else {
-            // Dynamic Data case
-            metadata.postponed = await getDynamicDataPostponedState(
-              prerenderResumeDataCache
-            )
-          }
-          reactServerResult.consume()
-          return {
-            digestErrorsMap: reactServerErrorsByDigest,
-            ssrErrors: allCapturedErrors,
-            stream: await continueDynamicPrerender(prelude, {
-              getServerInsertedHTML,
-            }),
-            dynamicAccess: consumeDynamicAccess(
-              serverDynamicTracking,
-              clientDynamicTracking
-            ),
-            // TODO: Should this include the SSR pass?
-            collectedRevalidate: finalRenderPrerenderStore.revalidate,
-            collectedExpire: finalRenderPrerenderStore.expire,
-            collectedStale: finalRenderPrerenderStore.stale,
-            collectedTags: finalRenderPrerenderStore.tags,
-          }
+      // If there are fallback route params, the RSC data is inherently dynamic
+      // today because it's encoded into the flight router state. Until we can
+      // move the fallback route params out of the flight router state, we need
+      // to always perform a dynamic resume after the static prerender.
+      const hasFallbackRouteParams =
+        fallbackRouteParams && fallbackRouteParams.size > 0
+
+      if (serverIsDynamic || hasFallbackRouteParams) {
+        // Dynamic case
+        // We will always need to perform a "resume" render of some kind when this route is accessed
+        // because the RSC data itself is dynamic. We determine if there are any HTML holes or not
+        // but generally this is a "partial" prerender in that there will be a per-request compute
+        // concatenated to the static shell.
+        if (postponed != null) {
+          // Dynamic HTML case
+          metadata.postponed = await getDynamicHTMLPostponedState(
+            postponed,
+            preludeIsEmpty
+              ? DynamicHTMLPreludeState.Empty
+              : DynamicHTMLPreludeState.Full,
+            fallbackRouteParams,
+            resumeDataCache,
+            experimental.cacheComponents
+          )
         } else {
-          // Static case
-          if (workStore.forceDynamic) {
-            throw new StaticGenBailoutError(
-              'Invariant: a Page with `dynamic = "force-dynamic"` did not trigger the dynamic pathway. This is a bug in Next.js'
-            )
-          }
-
-          let htmlStream = prelude
-          if (postponed != null) {
-            // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
-            // so we can set all the postponed boundaries to client render mode before we store the HTML response
-            const resume = require('react-dom/server.edge')
-              .resume as (typeof import('react-dom/server.edge'))['resume']
-
-            // We don't actually want to render anything so we just pass a stream
-            // that never resolves. The resume call is going to abort immediately anyway
-            const foreverStream = new ReadableStream<Uint8Array>()
-
-            const resumeStream = await resume(
-              <App
-                reactServerStream={foreverStream}
-                preinitScripts={() => {}}
-                clientReferenceManifest={clientReferenceManifest}
-                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                nonce={ctx.nonce}
-              />,
-              JSON.parse(JSON.stringify(postponed)),
-              {
-                signal: createPostponedAbortSignal('static prerender resume'),
-                onError: htmlRendererErrorHandler,
-                nonce: ctx.nonce,
-              }
-            )
-
-            // First we write everything from the prerender, then we write everything from the aborted resume render
-            htmlStream = chainStreams(prelude, resumeStream)
-          }
-
-          return {
-            digestErrorsMap: reactServerErrorsByDigest,
-            ssrErrors: allCapturedErrors,
-            stream: await continueStaticPrerender(htmlStream, {
-              inlinedDataStream: createInlinedDataReadableStream(
-                reactServerResult.consumeAsStream(),
-                ctx.nonce,
-                formState
-              ),
-              getServerInsertedHTML,
-            }),
-            dynamicAccess: consumeDynamicAccess(
-              serverDynamicTracking,
-              clientDynamicTracking
-            ),
-            // TODO: Should this include the SSR pass?
-            collectedRevalidate: finalRenderPrerenderStore.revalidate,
-            collectedExpire: finalRenderPrerenderStore.expire,
-            collectedStale: finalRenderPrerenderStore.stale,
-            collectedTags: finalRenderPrerenderStore.tags,
-          }
-        }
-      } else {
-        /**
-         * dynamicIO without PPR
-         *
-         * The general approach is to render the RSC tree first allowing for any inflight
-         * caches to resolve. Once we have settled inflight caches we can check and see if any
-         * synchronous dynamic APIs were used. If so we don't need to bother doing anything more
-         * because the page will be dynamic on re-render anyway
-         *
-         * If no sync dynamic APIs were used we then re-render and abort after a single Task.
-         * If the render errors we know that the page has some dynamic IO. This assumes and relies
-         * upon caches reading from a in process memory cache and resolving in a microtask. While this
-         * is true from our own default cache implementation and if you don't exceed our LRU size it
-         * might not be true for custom cache implementations.
-         *
-         * Future implementations can do some different strategies during build like using IPC to
-         * synchronously fill caches during this special rendering mode. For now this heuristic should work
-         */
-
-        const cache = workStore.incrementalCache
-        if (!cache) {
-          throw new Error(
-            'Expected incremental cache to exist. This is a bug in Next.js'
+          // Dynamic Data case
+          metadata.postponed = await getDynamicDataPostponedState(
+            resumeDataCache,
+            experimental.cacheComponents
           )
         }
-
-        // Prerender controller represents the lifetime of the prerender.
-        // It will be aborted when a Task is complete or a synchronously aborting
-        // API is called. Notably during cache-filling renders this does not actually
-        // terminate the render itself which will continue until all caches are filled
-        const initialServerPrerenderController = new AbortController()
-
-        // This controller represents the lifetime of the React render call. Notably
-        // during the cache-filling render it is different from the prerender controller
-        // because we don't want to end the react render until all caches are filled.
-        const initialServerRenderController = new AbortController()
-
-        const cacheSignal = new CacheSignal()
-        const prerenderResumeDataCache = createPrerenderResumeDataCache()
-
-        const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: initialServerRenderController.signal,
-          controller: initialServerPrerenderController,
-          cacheSignal,
-          dynamicTracking: null,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
-        })
-
-        const initialClientController = new AbortController()
-        const initialClientPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: initialClientController.signal,
-          controller: initialClientController,
-          cacheSignal,
-          dynamicTracking: null,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
-        })
-
-        // We're not going to use the result of this render because the only time it could be used
-        // is if it completes in a microtask and that's likely very rare for any non-trivial app
-        const firstAttemptRSCPayload = await workUnitAsyncStorage.run(
-          initialServerPrerenderStore,
-          getRSCPayload,
-          tree,
-          ctx,
-          res.statusCode === 404
-        )
-
-        let initialServerStream
-        try {
-          initialServerStream = workUnitAsyncStorage.run(
-            initialServerPrerenderStore,
-            ComponentMod.renderToReadableStream,
-            firstAttemptRSCPayload,
-            clientReferenceManifest.clientModules,
-            {
-              onError: (err: unknown) => {
-                if (
-                  initialServerPrerenderController.signal.aborted ||
-                  initialServerRenderController.signal.aborted
-                ) {
-                  // The render aborted before this error was handled which indicates
-                  // the error is caused by unfinished components within the render
-                  return
-                } else if (
-                  process.env.NEXT_DEBUG_BUILD ||
-                  process.env.__NEXT_VERBOSE_LOGGING
-                ) {
-                  printDebugThrownValueForProspectiveRender(
-                    err,
-                    workStore.route
-                  )
-                }
-              },
-              signal: initialServerRenderController.signal,
-            }
-          )
-        } catch (err: unknown) {
-          if (
-            initialServerPrerenderController.signal.aborted ||
-            initialServerRenderController.signal.aborted
-          ) {
-            // These are expected errors that might error the prerender. we ignore them.
-          } else if (
-            process.env.NEXT_DEBUG_BUILD ||
-            process.env.__NEXT_VERBOSE_LOGGING
-          ) {
-            // We don't normally log these errors because we are going to retry anyway but
-            // it can be useful for debugging Next.js itself to get visibility here when needed
-            printDebugThrownValueForProspectiveRender(err, workStore.route)
-          }
-        }
-
-        if (initialServerStream) {
-          const [warmupStream, renderStream] = initialServerStream.tee()
-          initialServerStream = null
-          // Before we attempt the SSR initial render we need to ensure all client modules
-          // are already loaded.
-          await warmFlightResponse(warmupStream, clientReferenceManifest)
-
-          const prerender = require('react-dom/static.edge')
-            .prerender as (typeof import('react-dom/static.edge'))['prerender']
-          const pendingInitialClientResult = workUnitAsyncStorage.run(
-            initialClientPrerenderStore,
-            prerender,
-            <App
-              reactServerStream={renderStream}
-              preinitScripts={preinitScripts}
-              clientReferenceManifest={clientReferenceManifest}
-              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              nonce={ctx.nonce}
-            />,
-            {
-              signal: initialClientController.signal,
-              onError: (err: unknown, _errorInfo: ErrorInfo) => {
-                if (initialClientController.signal.aborted) {
-                  // These are expected errors that might error the prerender. we ignore them.
-                } else if (
-                  process.env.NEXT_DEBUG_BUILD ||
-                  process.env.__NEXT_VERBOSE_LOGGING
-                ) {
-                  // We don't normally log these errors because we are going to retry anyway but
-                  // it can be useful for debugging Next.js itself to get visibility here when needed
-                  printDebugThrownValueForProspectiveRender(
-                    err,
-                    workStore.route
-                  )
-                }
-              },
-              // When debugging the static shell, client-side rendering should be
-              // disabled to prevent blanking out the page.
-              bootstrapScripts: renderOpts.isDebugStaticShell
-                ? []
-                : [bootstrapScript],
-            }
-          )
-          pendingInitialClientResult.catch((err: unknown) => {
-            if (initialClientController.signal.aborted) {
-              // We aborted the render normally and can ignore this error
-            } else {
-              // We're going to retry to so we normally would suppress this error but
-              // when verbose logging is on we print it
-              if (process.env.__NEXT_VERBOSE_LOGGING) {
-                printDebugThrownValueForProspectiveRender(err, workStore.route)
-              }
-            }
-          })
-        }
-
-        await cacheSignal.cacheReady()
-        // It is important that we abort the SSR render first to avoid
-        // connection closed errors from having an incomplete RSC stream
-        initialClientController.abort()
-        initialServerRenderController.abort()
-        initialServerPrerenderController.abort()
-
-        // We've now filled caches and triggered any inadvertant sync bailouts
-        // due to lazy module initialization. We can restart our render to capture results
-
-        let serverIsDynamic = false
-        const finalServerController = new AbortController()
-        const serverDynamicTracking = createDynamicTrackingState(
-          renderOpts.isDebugDynamicAccesses
-        )
-
-        const finalServerPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: finalServerController.signal,
-          controller: finalServerController,
-          // During the final prerender we don't need to track cache access so we omit the signal
-          cacheSignal: null,
-          dynamicTracking: serverDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
-        })
-
-        let clientIsDynamic = false
-        const finalClientController = new AbortController()
-        const clientDynamicTracking = createDynamicTrackingState(
-          renderOpts.isDebugDynamicAccesses
-        )
-        const dynamicValidation = createDynamicValidationState()
-
-        const finalClientPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: finalClientController.signal,
-          controller: finalClientController,
-          // During the final prerender we don't need to track cache access so we omit the signal
-          cacheSignal: null,
-          dynamicTracking: clientDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
-        })
-
-        const finalServerPayload = await workUnitAsyncStorage.run(
-          finalServerPrerenderStore,
-          getRSCPayload,
-          tree,
-          ctx,
-          res.statusCode === 404
-        )
-
-        const serverPrerenderStreamResult = await prerenderServerWithPhases(
-          finalServerController.signal,
-          () =>
-            workUnitAsyncStorage.run(
-              finalServerPrerenderStore,
-              ComponentMod.renderToReadableStream,
-              finalServerPayload,
-              clientReferenceManifest.clientModules,
-              {
-                onError: (err: unknown) => {
-                  if (finalServerController.signal.aborted) {
-                    serverIsDynamic = true
-                    if (isPrerenderInterruptedError(err)) {
-                      return err.digest
-                    }
-                    return
-                  }
-
-                  return serverComponentsErrorHandler(err)
-                },
-                signal: finalServerController.signal,
-              }
-            ),
-          () => {
-            finalServerController.abort()
-          }
-        )
-
-        let htmlStream
-        const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
-        try {
-          const prerender = require('react-dom/static.edge')
-            .prerender as (typeof import('react-dom/static.edge'))['prerender']
-          const result = await prerenderClientWithPhases(
-            () =>
-              workUnitAsyncStorage.run(
-                finalClientPrerenderStore,
-                prerender,
-                <App
-                  reactServerStream={serverPhasedStream}
-                  preinitScripts={preinitScripts}
-                  clientReferenceManifest={clientReferenceManifest}
-                  ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                  nonce={ctx.nonce}
-                />,
-                {
-                  signal: finalClientController.signal,
-                  onError: (err: unknown, errorInfo: ErrorInfo) => {
-                    if (
-                      isPrerenderInterruptedError(err) ||
-                      finalClientController.signal.aborted
-                    ) {
-                      clientIsDynamic = true
-
-                      const componentStack: string | undefined = (
-                        errorInfo as any
-                      ).componentStack
-                      if (typeof componentStack === 'string') {
-                        trackAllowedDynamicAccess(
-                          workStore.route,
-                          componentStack,
-                          dynamicValidation,
-                          serverDynamicTracking,
-                          clientDynamicTracking
-                        )
-                      }
-                      return
-                    }
-
-                    return htmlRendererErrorHandler(err, errorInfo)
-                  },
-                  // When debugging the static shell, client-side rendering should be
-                  // disabled to prevent blanking out the page.
-                  bootstrapScripts: renderOpts.isDebugStaticShell
-                    ? []
-                    : [bootstrapScript],
-                }
-              ),
-            () => {
-              finalClientController.abort()
-              serverPhasedStream.assertExhausted()
-            }
-          )
-          htmlStream = result.prelude
-        } catch (err) {
-          if (
-            isPrerenderInterruptedError(err) ||
-            finalClientController.signal.aborted
-          ) {
-            // we don't have a root because the abort errored in the root. We can just ignore this error
-          } else {
-            // This error is something else and should bubble up
-            throw err
-          }
-        }
-
-        throwIfDisallowedDynamic(
-          workStore.route,
-          dynamicValidation,
-          serverDynamicTracking,
-          clientDynamicTracking
-        )
-
-        if (serverIsDynamic || clientIsDynamic) {
-          const dynamicReason = serverIsDynamic
-            ? getFirstDynamicReason(serverDynamicTracking)
-            : getFirstDynamicReason(clientDynamicTracking)
-          if (dynamicReason) {
-            throw new DynamicServerError(
-              `Route "${workStore.route}" couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/next-prerender-data`
-            )
-          } else {
-            throw new DynamicServerError(
-              `Route "${workStore.route}" couldn't be rendered statically it accessed data without explicitly caching it. See more info here: https://nextjs.org/docs/messages/next-prerender-data`
-            )
-          }
-        }
-
-        const flightData = await streamToBuffer(
-          serverPrerenderStreamResult.asStream()
-        )
-        metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
-          flightData,
-          finalClientPrerenderStore,
-          ComponentMod,
-          renderOpts
-        )
-
-        const getServerInsertedHTML = makeGetServerInsertedHTML({
-          polyfills,
-          renderServerInsertedHTML,
-          serverCapturedErrors: allCapturedErrors,
-          basePath: renderOpts.basePath,
-          tracingMetadata: tracingMetadata,
-        })
-        const validateRootLayout = renderOpts.dev
+        reactServerResult.consume()
         return {
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
-          stream: await continueFizzStream(htmlStream!, {
-            inlinedDataStream: createInlinedDataReadableStream(
-              serverPrerenderStreamResult.asStream(),
-              ctx.nonce,
-              formState
-            ),
-            isStaticGeneration: true,
+          stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
-            serverInsertedHTMLToHead: true,
-            validateRootLayout,
+            getServerInsertedMetadata,
           }),
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
@@ -3283,26 +4100,97 @@ async function prerenderToStream(
           // TODO: Should this include the SSR pass?
           collectedRevalidate: finalServerPrerenderStore.revalidate,
           collectedExpire: finalServerPrerenderStore.expire,
-          collectedStale: finalServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
           collectedTags: finalServerPrerenderStore.tags,
+          renderResumeDataCache: createRenderResumeDataCache(resumeDataCache),
+        }
+      } else {
+        // Static case
+        // We will not perform resumption per request. The result can be served statically to the requestor
+        // and if there was anything dynamic it will only be rendered in the browser.
+        if (workStore.forceDynamic) {
+          throw new StaticGenBailoutError(
+            'Invariant: a Page with `dynamic = "force-dynamic"` did not trigger the dynamic pathway. This is a bug in Next.js'
+          )
+        }
+
+        let htmlStream = prelude
+        if (postponed != null) {
+          // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
+          // so we can set all the postponed boundaries to client render mode before we store the HTML response
+          const resume = (
+            require('react-dom/server') as typeof import('react-dom/server')
+          ).resume
+
+          // We don't actually want to render anything so we just pass a stream
+          // that never resolves. The resume call is going to abort immediately anyway
+          const foreverStream = new ReadableStream<Uint8Array>()
+
+          const resumeStream = await resume(
+            <App
+              reactServerStream={foreverStream}
+              reactDebugStream={undefined}
+              preinitScripts={() => {}}
+              clientReferenceManifest={clientReferenceManifest}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              nonce={nonce}
+            />,
+            JSON.parse(JSON.stringify(postponed)),
+            {
+              signal: createRenderInBrowserAbortSignal(),
+              onError: htmlRendererErrorHandler,
+              nonce,
+            }
+          )
+
+          // First we write everything from the prerender, then we write everything from the aborted resume render
+          htmlStream = chainStreams(prelude, resumeStream)
+        }
+
+        return {
+          digestErrorsMap: reactServerErrorsByDigest,
+          ssrErrors: allCapturedErrors,
+          stream: await continueStaticPrerender(htmlStream, {
+            inlinedDataStream: createInlinedDataReadableStream(
+              reactServerResult.consumeAsStream(),
+              nonce,
+              formState,
+              requestId
+            ),
+            getServerInsertedHTML,
+            getServerInsertedMetadata,
+            isBuildTimePrerendering:
+              ctx.workStore.isBuildTimePrerendering === true,
+            buildId: ctx.workStore.buildId,
+          }),
+          dynamicAccess: consumeDynamicAccess(
+            serverDynamicTracking,
+            clientDynamicTracking
+          ),
+          // TODO: Should this include the SSR pass?
+          collectedRevalidate: finalServerPrerenderStore.revalidate,
+          collectedExpire: finalServerPrerenderStore.expire,
+          collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
+          collectedTags: finalServerPrerenderStore.tags,
+          renderResumeDataCache: createRenderResumeDataCache(resumeDataCache),
         }
       }
-    } else if (renderOpts.experimental.isRoutePPREnabled) {
+    } else if (experimental.isRoutePPREnabled) {
       // We're statically generating with PPR and need to do dynamic tracking
-      let dynamicTracking = createDynamicTrackingState(
-        renderOpts.isDebugDynamicAccesses
-      )
+      let dynamicTracking = createDynamicTrackingState(isDebugDynamicAccesses)
 
       const prerenderResumeDataCache = createPrerenderResumeDataCache()
       const reactServerPrerenderStore: PrerenderStore = (prerenderStore = {
         type: 'prerender-ppr',
         phase: 'render',
-        implicitTags: implicitTags,
+        rootParams,
+        fallbackRouteParams,
+        implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...implicitTags],
+        tags: [...implicitTags.tags],
         prerenderResumeDataCache,
       })
       const RSCPayload = await workUnitAsyncStorage.run(
@@ -3321,6 +4209,7 @@ async function prerenderToStream(
             RSCPayload,
             clientReferenceManifest.clientModules,
             {
+              filterStackFrame,
               onError: serverComponentsErrorHandler,
             }
           )
@@ -3329,46 +4218,47 @@ async function prerenderToStream(
       const ssrPrerenderStore: PrerenderStore = {
         type: 'prerender-ppr',
         phase: 'render',
-        implicitTags: implicitTags,
+        rootParams,
+        fallbackRouteParams,
+        implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...implicitTags],
+        tags: [...implicitTags.tags],
         prerenderResumeDataCache,
       }
-      const prerender = require('react-dom/static.edge')
-        .prerender as (typeof import('react-dom/static.edge'))['prerender']
-      const { prelude, postponed } = await workUnitAsyncStorage.run(
-        ssrPrerenderStore,
-        prerender,
-        <App
-          reactServerStream={reactServerResult.asUnclosingStream()}
-          preinitScripts={preinitScripts}
-          clientReferenceManifest={clientReferenceManifest}
-          ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-          nonce={ctx.nonce}
-        />,
-        {
-          onError: htmlRendererErrorHandler,
-          onHeaders: (headers: Headers) => {
-            headers.forEach((value, key) => {
-              setHeader(key, value)
-            })
-          },
-          maxHeadersLength: renderOpts.reactMaxHeadersLength,
-          // When debugging the static shell, client-side rendering should be
-          // disabled to prevent blanking out the page.
-          bootstrapScripts: renderOpts.isDebugStaticShell
-            ? []
-            : [bootstrapScript],
-        }
-      )
+      const prerender = (
+        require('react-dom/static') as typeof import('react-dom/static')
+      ).prerender
+      const { prelude: unprocessedPrelude, postponed } =
+        await workUnitAsyncStorage.run(
+          ssrPrerenderStore,
+          prerender,
+          <App
+            reactServerStream={reactServerResult.asUnclosingStream()}
+            reactDebugStream={undefined}
+            preinitScripts={preinitScripts}
+            clientReferenceManifest={clientReferenceManifest}
+            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            nonce={nonce}
+          />,
+          {
+            onError: htmlRendererErrorHandler,
+            onHeaders: (headers: Headers) => {
+              headers.forEach((value, key) => {
+                appendHeader(key, value)
+              })
+            },
+            maxHeadersLength: reactMaxHeadersLength,
+            bootstrapScripts: [bootstrapScript],
+          }
+        )
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
         renderServerInsertedHTML,
         serverCapturedErrors: allCapturedErrors,
-        basePath: renderOpts.basePath,
+        basePath,
         tracingMetadata: tracingMetadata,
       })
 
@@ -3379,13 +4269,16 @@ async function prerenderToStream(
 
       if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           ssrPrerenderStore,
           ComponentMod,
           renderOpts
         )
       }
+
+      const { prelude, preludeIsEmpty } =
+        await processPrelude(unprocessedPrelude)
 
       /**
        * When prerendering there are three outcomes to consider
@@ -3407,13 +4300,18 @@ async function prerenderToStream(
           // Dynamic HTML case.
           metadata.postponed = await getDynamicHTMLPostponedState(
             postponed,
+            preludeIsEmpty
+              ? DynamicHTMLPreludeState.Empty
+              : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
-            prerenderResumeDataCache
+            prerenderResumeDataCache,
+            experimental.cacheComponents
           )
         } else {
           // Dynamic Data case.
           metadata.postponed = await getDynamicDataPostponedState(
-            prerenderResumeDataCache
+            prerenderResumeDataCache,
+            experimental.cacheComponents
           )
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
@@ -3426,18 +4324,20 @@ async function prerenderToStream(
           ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
+            getServerInsertedMetadata,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
           collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(reactServerPrerenderStore.stale),
           collectedTags: reactServerPrerenderStore.tags,
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
         metadata.postponed = await getDynamicDataPostponedState(
-          prerenderResumeDataCache
+          prerenderResumeDataCache,
+          experimental.cacheComponents
         )
 
         return {
@@ -3445,12 +4345,13 @@ async function prerenderToStream(
           ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
+            getServerInsertedMetadata,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
           collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(reactServerPrerenderStore.stale),
           collectedTags: reactServerPrerenderStore.tags,
         }
       } else {
@@ -3466,8 +4367,9 @@ async function prerenderToStream(
         if (postponed != null) {
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
-          const resume = require('react-dom/server.edge')
-            .resume as (typeof import('react-dom/server.edge'))['resume']
+          const resume = (
+            require('react-dom/server') as typeof import('react-dom/server')
+          ).resume
 
           // We don't actually want to render anything so we just pass a stream
           // that never resolves. The resume call is going to abort immediately anyway
@@ -3476,16 +4378,17 @@ async function prerenderToStream(
           const resumeStream = await resume(
             <App
               reactServerStream={foreverStream}
+              reactDebugStream={undefined}
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              nonce={ctx.nonce}
+              nonce={nonce}
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
-              signal: createPostponedAbortSignal('static prerender resume'),
+              signal: createRenderInBrowserAbortSignal(),
               onError: htmlRendererErrorHandler,
-              nonce: ctx.nonce,
+              nonce,
             }
           )
 
@@ -3499,16 +4402,21 @@ async function prerenderToStream(
           stream: await continueStaticPrerender(htmlStream, {
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
-              ctx.nonce,
-              formState
+              nonce,
+              formState,
+              requestId
             ),
             getServerInsertedHTML,
+            getServerInsertedMetadata,
+            isBuildTimePrerendering:
+              ctx.workStore.isBuildTimePrerendering === true,
+            buildId: ctx.workStore.buildId,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
           collectedExpire: reactServerPrerenderStore.expire,
-          collectedStale: reactServerPrerenderStore.stale,
+          collectedStale: selectStaleTime(reactServerPrerenderStore.stale),
           collectedTags: reactServerPrerenderStore.tags,
         }
       }
@@ -3516,11 +4424,12 @@ async function prerenderToStream(
       const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
         type: 'prerender-legacy',
         phase: 'render',
-        implicitTags: implicitTags,
+        rootParams,
+        implicitTags,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
-        tags: [...implicitTags],
+        tags: [...implicitTags.tags],
       })
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation
@@ -3531,6 +4440,7 @@ async function prerenderToStream(
         ctx,
         res.statusCode === 404
       )
+
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
@@ -3539,39 +4449,37 @@ async function prerenderToStream(
             RSCPayload,
             clientReferenceManifest.clientModules,
             {
+              filterStackFrame,
               onError: serverComponentsErrorHandler,
             }
           )
         ))
 
-      const renderToReadableStream = require('react-dom/server.edge')
-        .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
-
+      const renderToReadableStream = (
+        require('react-dom/server') as typeof import('react-dom/server')
+      ).renderToReadableStream
       const htmlStream = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
         renderToReadableStream,
         <App
           reactServerStream={reactServerResult.asUnclosingStream()}
+          reactDebugStream={undefined}
           preinitScripts={preinitScripts}
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-          nonce={ctx.nonce}
+          nonce={nonce}
         />,
         {
           onError: htmlRendererErrorHandler,
-          nonce: ctx.nonce,
-          // When debugging the static shell, client-side rendering should be
-          // disabled to prevent blanking out the page.
-          bootstrapScripts: renderOpts.isDebugStaticShell
-            ? []
-            : [bootstrapScript],
+          nonce,
+          bootstrapScripts: [bootstrapScript],
         }
       )
 
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(reactServerResult.asStream())
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
@@ -3583,7 +4491,7 @@ async function prerenderToStream(
         polyfills,
         renderServerInsertedHTML,
         serverCapturedErrors: allCapturedErrors,
-        basePath: renderOpts.basePath,
+        basePath,
         tracingMetadata: tracingMetadata,
       })
       return {
@@ -3592,17 +4500,21 @@ async function prerenderToStream(
         stream: await continueFizzStream(htmlStream, {
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consumeAsStream(),
-            ctx.nonce,
-            formState
+            nonce,
+            formState,
+            requestId
           ),
           isStaticGeneration: true,
+          isBuildTimePrerendering:
+            ctx.workStore.isBuildTimePrerendering === true,
+          buildId: ctx.workStore.buildId,
           getServerInsertedHTML,
-          serverInsertedHTMLToHead: true,
+          getServerInsertedMetadata,
         }),
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
         collectedExpire: prerenderLegacyStore.expire,
-        collectedStale: prerenderLegacyStore.stale,
+        collectedStale: selectStaleTime(prerenderLegacyStore.stale),
         collectedTags: prerenderLegacyStore.tags,
       }
     }
@@ -3633,7 +4545,7 @@ async function prerenderToStream(
     if (shouldBailoutToCSR) {
       const stack = getStackWithoutErrorMessage(err)
       error(
-        `${err.reason} should be wrapped in a suspense boundary at page "${ctx.pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
+        `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
       )
 
       throw err
@@ -3649,45 +4561,56 @@ async function prerenderToStream(
 
     if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
+      metadata.statusCode = res.statusCode
       errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
     } else if (isRedirectError(err)) {
       errorType = 'redirect'
       res.statusCode = getRedirectStatusCodeFromError(err)
+      metadata.statusCode = res.statusCode
 
-      const redirectUrl = addPathPrefix(
-        getURLFromRedirectError(err),
-        renderOpts.basePath
-      )
+      const redirectUrl = addPathPrefix(getURLFromRedirectError(err), basePath)
 
       setHeader('location', redirectUrl)
     } else if (!shouldBailoutToCSR) {
       res.statusCode = 500
+      metadata.statusCode = res.statusCode
     }
 
     const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
-      renderOpts.buildManifest,
-      ctx.assetPrefix,
-      renderOpts.crossOrigin,
-      renderOpts.subresourceIntegrityManifest,
+      buildManifest,
+      assetPrefix,
+      crossOrigin,
+      subresourceIntegrityManifest,
       getAssetQueryString(ctx, false),
-      ctx.nonce,
+      nonce,
       '/_not-found/page'
     )
 
     const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
       type: 'prerender-legacy',
       phase: 'render',
+      rootParams,
       implicitTags: implicitTags,
-      revalidate: INFINITE_CACHE,
-      expire: INFINITE_CACHE,
-      stale: INFINITE_CACHE,
-      tags: [...implicitTags],
+      revalidate:
+        typeof prerenderStore?.revalidate !== 'undefined'
+          ? prerenderStore.revalidate
+          : INFINITE_CACHE,
+      expire:
+        typeof prerenderStore?.expire !== 'undefined'
+          ? prerenderStore.expire
+          : INFINITE_CACHE,
+      stale:
+        typeof prerenderStore?.stale !== 'undefined'
+          ? prerenderStore.stale
+          : INFINITE_CACHE,
+      tags: [...(prerenderStore?.tags || implicitTags.tags)],
     })
     const errorRSCPayload = await workUnitAsyncStorage.run(
       prerenderLegacyStore,
       getErrorRSCPayload,
       tree,
       ctx,
+      reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
       errorType
     )
 
@@ -3697,35 +4620,46 @@ async function prerenderToStream(
       errorRSCPayload,
       clientReferenceManifest.clientModules,
       {
+        filterStackFrame,
         onError: serverComponentsErrorHandler,
       }
     )
 
     try {
-      const fizzStream = await renderToInitialFizzStream({
-        ReactDOMServer: require('react-dom/server.edge'),
-        element: (
-          <AppWithoutContext
-            reactServerStream={errorServerStream}
-            preinitScripts={errorPreinitScripts}
-            clientReferenceManifest={clientReferenceManifest}
-            nonce={ctx.nonce}
-          />
-        ),
-        streamOptions: {
-          nonce: ctx.nonce,
-          // Include hydration scripts in the HTML
-          bootstrapScripts: [errorBootstrapScript],
-          formState,
-        },
-      })
+      // TODO we should use the same prerender semantics that we initially rendered
+      // with in this case too. The only reason why this is ok atm is because it's essentially
+      // an empty page and no user code runs.
+      const fizzStream = await workUnitAsyncStorage.run(
+        prerenderLegacyStore,
+        renderToInitialFizzStream,
+        {
+          ReactDOMServer:
+            require('react-dom/server') as typeof import('react-dom/server'),
+          element: (
+            <ErrorApp
+              reactServerStream={errorServerStream}
+              reactDebugStream={undefined}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              preinitScripts={errorPreinitScripts}
+              clientReferenceManifest={clientReferenceManifest}
+              nonce={nonce}
+            />
+          ),
+          streamOptions: {
+            nonce,
+            // Include hydration scripts in the HTML
+            bootstrapScripts: [errorBootstrapScript],
+            formState,
+          },
+        }
+      )
 
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(
           reactServerPrerenderResult.asStream()
         )
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
@@ -3733,7 +4667,10 @@ async function prerenderToStream(
         )
       }
 
-      const validateRootLayout = renderOpts.dev
+      // This is intentionally using the readable datastream from the main
+      // render rather than the flight data from the error page render
+      const flightStream = reactServerPrerenderResult.consumeAsStream()
+
       return {
         // Returning the error that was thrown so it can be used to handle
         // the response in the caller.
@@ -3741,31 +4678,33 @@ async function prerenderToStream(
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(fizzStream, {
           inlinedDataStream: createInlinedDataReadableStream(
-            // This is intentionally using the readable datastream from the
-            // main render rather than the flight data from the error page
-            // render
-            reactServerPrerenderResult.consumeAsStream(),
-            ctx.nonce,
-            formState
+            flightStream,
+            nonce,
+            formState,
+            requestId
           ),
           isStaticGeneration: true,
+          isBuildTimePrerendering:
+            ctx.workStore.isBuildTimePrerendering === true,
+          buildId: ctx.workStore.buildId,
           getServerInsertedHTML: makeGetServerInsertedHTML({
             polyfills,
             renderServerInsertedHTML,
             serverCapturedErrors: [],
-            basePath: renderOpts.basePath,
+            basePath,
             tracingMetadata: tracingMetadata,
           }),
-          serverInsertedHTMLToHead: true,
-          validateRootLayout,
+          getServerInsertedMetadata,
+          validateRootLayout: dev,
         }),
         dynamicAccess: null,
         collectedRevalidate:
           prerenderStore !== null ? prerenderStore.revalidate : INFINITE_CACHE,
         collectedExpire:
           prerenderStore !== null ? prerenderStore.expire : INFINITE_CACHE,
-        collectedStale:
-          prerenderStore !== null ? prerenderStore.stale : INFINITE_CACHE,
+        collectedStale: selectStaleTime(
+          prerenderStore !== null ? prerenderStore.stale : INFINITE_CACHE
+        ),
         collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
       }
     } catch (finalErr: any) {
@@ -3782,70 +4721,19 @@ async function prerenderToStream(
   }
 }
 
-const loadingChunks: Set<Promise<unknown>> = new Set()
-const chunkListeners: Array<(x?: unknown) => void> = []
-
-function trackChunkLoading(load: Promise<unknown>) {
-  loadingChunks.add(load)
-  load.finally(() => {
-    if (loadingChunks.has(load)) {
-      loadingChunks.delete(load)
-      if (loadingChunks.size === 0) {
-        // We are not currently loading any chunks. We can notify all listeners
-        for (let i = 0; i < chunkListeners.length; i++) {
-          chunkListeners[i]()
-        }
-        chunkListeners.length = 0
-      }
-    }
-  })
-}
-
-export async function warmFlightResponse(
-  flightStream: ReadableStream<Uint8Array>,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
-) {
-  let createFromReadableStream
-  if (process.env.TURBOPACK) {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-turbopack/client.edge').createFromReadableStream
-  } else {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client.edge').createFromReadableStream
-  }
-
-  try {
-    createFromReadableStream(flightStream, {
-      serverConsumerManifest: {
-        moduleLoading: clientReferenceManifest.moduleLoading,
-        moduleMap: clientReferenceManifest.ssrModuleMapping,
-        serverModuleMap: null,
-      },
-    })
-  } catch {
-    // We don't want to handle errors here but we don't want it to
-    // interrupt the outer flow. We simply ignore it here and expect
-    // it will bubble up during a render
-  }
-
-  // We'll wait at least one task and then if no chunks have started to load
-  // we'll we can infer that there are none to load from this flight response
-  trackChunkLoading(waitAtLeastOneReactRenderTask())
-  return new Promise((r) => {
-    chunkListeners.push(r)
-  })
-}
-
 const getGlobalErrorStyles = async (
   tree: LoaderTree,
   ctx: AppRenderContext
-): Promise<React.ReactNode | undefined> => {
+): Promise<{
+  GlobalError: GlobalErrorComponent
+  styles: React.ReactNode | undefined
+}> => {
   const {
     modules: { 'global-error': globalErrorModule },
   } = parseLoaderTree(tree)
 
+  const GlobalErrorComponent: GlobalErrorComponent =
+    ctx.componentMod.GlobalError
   let globalErrorStyles
   if (globalErrorModule) {
     const [, styles] = await createComponentStylesAndScripts({
@@ -3857,8 +4745,44 @@ const getGlobalErrorStyles = async (
     })
     globalErrorStyles = styles
   }
+  if (ctx.renderOpts.dev) {
+    const dir =
+      (process.env.NEXT_RUNTIME === 'edge'
+        ? process.env.__NEXT_EDGE_PROJECT_DIR
+        : ctx.renderOpts.dir) || ''
 
-  return globalErrorStyles
+    const globalErrorModulePath = normalizeConventionFilePath(
+      dir,
+      globalErrorModule?.[1]
+    )
+    if (globalErrorModulePath) {
+      const SegmentViewNode = ctx.componentMod.SegmentViewNode
+      globalErrorStyles = (
+        // This will be rendered next to GlobalError component under ErrorBoundary,
+        // it requires a key to avoid React warning about duplicate keys.
+        <SegmentViewNode
+          key="ge-svn"
+          type="global-error"
+          pagePath={globalErrorModulePath}
+        >
+          {globalErrorStyles}
+        </SegmentViewNode>
+      )
+    }
+  }
+
+  return {
+    GlobalError: GlobalErrorComponent,
+    styles: globalErrorStyles,
+  }
+}
+
+function createSelectStaleTime(experimental: ExperimentalConfig) {
+  return (stale: number) =>
+    stale === INFINITE_CACHE &&
+    typeof experimental.staleTimes?.static === 'number'
+      ? experimental.staleTimes.static
+      : stale
 }
 
 async function collectSegmentData(
@@ -3883,7 +4807,14 @@ async function collectSegmentData(
   const clientReferenceManifest = renderOpts.clientReferenceManifest
   if (
     !clientReferenceManifest ||
-    renderOpts.experimental.isRoutePPREnabled !== true
+    // Do not generate per-segment data unless the experimental Segment Cache
+    // flag is enabled.
+    //
+    // We also skip generating segment data if flag is set to "client-only",
+    // rather than true. (The "client-only" option only affects the behavior of
+    // the client-side implementation; per-segment prefetches are intentionally
+    // disabled in that configuration).
+    renderOpts.experimental.clientSegmentCache !== true
   ) {
     return
   }
@@ -3899,11 +4830,12 @@ async function collectSegmentData(
     moduleMap: isEdgeRuntime
       ? clientReferenceManifest.edgeRscModuleMapping
       : clientReferenceManifest.rscModuleMapping,
-    serverModuleMap: null,
+    serverModuleMap: getServerModuleMap(),
   }
 
   const staleTime = prerenderStore.stale
   return await ComponentMod.collectSegmentData(
+    renderOpts.experimental.clientParamParsing,
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,

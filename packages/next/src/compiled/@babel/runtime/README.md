@@ -2,7 +2,7 @@
 
 > babel's modular runtime helpers
 
-See our website [@babel/runtime](https://babeljs.io/docs/en/babel-runtime) for more information.
+See our website [@babel/runtime](https://babeljs.io/docs/babel-runtime) for more information.
 
 ## Install
 

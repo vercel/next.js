@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, ReadRef, State, TraitRef, Vc,
+    IntoTraitRef, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -11,20 +12,23 @@ use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use crate::asset::AssetContent;
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionVersionedContent(Option<Vc<Box<dyn VersionedContent>>>);
+pub struct OptionVersionedContent(Option<ResolvedVc<Box<dyn VersionedContent>>>);
 
 /// The content of an [Asset] alongside its version.
 #[turbo_tasks::value_trait]
 pub trait VersionedContent {
     /// The content of the [Asset].
+    #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
 
     /// Get a [`Version`] implementor that contains enough information to
     /// identify and diff a future [`VersionedContent`] against it.
+    #[turbo_tasks::function]
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>>;
 
     /// Describes how to update the content from an earlier version to the
     /// latest available one.
+    #[turbo_tasks::function]
     async fn update(self: Vc<Self>, from: Vc<Box<dyn Version>>) -> Result<Vc<Update>> {
         // By default, since we can't make any assumptions about the versioning
         // scheme of the content, we ask for a full invalidation, except in the
@@ -34,7 +38,7 @@ pub trait VersionedContent {
         let to_ref = to.into_trait_ref().await?;
 
         // Fast path: versions are the same.
-        if from_ref == to_ref {
+        if TraitRef::ptr_eq(&from_ref, &to_ref) {
             return Ok(Update::None.into());
         }
 
@@ -118,13 +122,16 @@ impl VersionedContentExt for AssetContent {
     }
 }
 
-/// Describes the current version of an object, and how to update them from an
-/// earlier version.
+/// Describes the current version of an object, and how to update them from an earlier version.
+///
+/// **Important:** Implementations must not contain instances of [`Vc`]! This should describe a
+/// specific version, and the value of a [`Vc`] can change due to invalidations or cache eviction.
 #[turbo_tasks::value_trait]
 pub trait Version {
     /// Get a unique identifier of the version as a string. There is no way
     /// to convert an id back to its original `Version`, so the original object
     /// needs to be stored somewhere.
+    #[turbo_tasks::function]
     fn id(self: Vc<Self>) -> Vc<RcStr>;
 }
 
@@ -135,6 +142,7 @@ pub trait Version {
 /// together.
 #[turbo_tasks::value_trait]
 pub trait MergeableVersionedContent: VersionedContent {
+    #[turbo_tasks::function]
     fn get_merger(self: Vc<Self>) -> Vc<Box<dyn VersionedContentMerger>>;
 }
 
@@ -142,13 +150,14 @@ pub trait MergeableVersionedContent: VersionedContent {
 /// single one.
 #[turbo_tasks::value_trait]
 pub trait VersionedContentMerger {
+    #[turbo_tasks::function]
     fn merge(self: Vc<Self>, contents: Vc<VersionedContents>) -> Vc<Box<dyn VersionedContent>>;
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct VersionedContents(Vec<Vc<Box<dyn VersionedContent>>>);
+pub struct VersionedContents(Vec<ResolvedVc<Box<dyn VersionedContent>>>);
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(operation)]
 pub struct NotFoundVersion;
 
 #[turbo_tasks::value_impl]
@@ -187,17 +196,22 @@ pub enum Update {
 }
 
 /// A total update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct TotalUpdate {
     /// The version this update will bring the object to.
+    //
+    // TODO: This trace_ignore is wrong, and could cause problems if/when we add a GC. While
+    // `Version` assumes the implementation does not contain `Vc`, `EcmascriptDevChunkListVersion`
+    // is broken and violates this assumption.
     #[turbo_tasks(trace_ignore)]
     pub to: TraitRef<Box<dyn Version>>,
 }
 
 /// A partial update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct PartialUpdate {
     /// The version this update will bring the object to.
+    // TODO: This trace_ignore is *very* wrong, and could cause problems if/when we add a GC
     #[turbo_tasks(trace_ignore)]
     pub to: TraitRef<Box<dyn Version>>,
     /// The instructions to be passed to a remote system in order to update the
@@ -208,7 +222,7 @@ pub struct PartialUpdate {
 
 /// [`Version`] implementation that hashes a file at a given path and returns
 /// the hex encoded hash as a version identifier.
-#[turbo_tasks::value]
+#[turbo_tasks::value(operation)]
 #[derive(Clone)]
 pub struct FileHashVersion {
     hash: RcStr,
@@ -241,31 +255,39 @@ impl Version for FileHashVersion {
     }
 }
 
+/// This is a dummy wrapper type to (incorrectly) implement [`OperationValue`] (required by
+/// [`State`]), because the [`Version`] trait is not (yet?) a subtype of [`OperationValue`].
+#[derive(Debug, Eq, PartialEq, TraceRawVcs, NonLocalValue, OperationValue)]
+struct VersionRef(
+    // TODO: This trace_ignore is *very* wrong, and could cause problems if/when we add a GC.
+    // It also allows to `Version`s that don't implement `OperationValue`, which could lead to
+    // incorrect results when attempting to strongly resolve Vcs.
+    #[turbo_tasks(trace_ignore)] TraitRef<Box<dyn Version>>,
+);
+
 #[turbo_tasks::value(serialization = "none")]
 pub struct VersionState {
-    #[turbo_tasks(trace_ignore)]
-    version: State<TraitRef<Box<dyn Version>>>,
+    version: State<VersionRef>,
 }
 
 #[turbo_tasks::value_impl]
 impl VersionState {
     #[turbo_tasks::function]
     pub fn get(&self) -> Vc<Box<dyn Version>> {
-        let version = TraitRef::cell(self.version.get().clone());
-        version
+        TraitRef::cell(self.version.get().0.clone())
     }
 }
 
 impl VersionState {
     pub async fn new(version: TraitRef<Box<dyn Version>>) -> Result<Vc<Self>> {
         Ok(Self::cell(VersionState {
-            version: State::new(version),
+            version: State::new(VersionRef(version)),
         }))
     }
 
     pub async fn set(self: Vc<Self>, new_version: TraitRef<Box<dyn Version>>) -> Result<()> {
         let this = self.await?;
-        this.version.set(new_version);
+        this.version.set(VersionRef(new_version));
         Ok(())
     }
 }

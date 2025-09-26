@@ -20,7 +20,11 @@ export function createServerModuleMap({
         const workers =
           serverActionsManifest[
             process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ][id].workers
+          ]?.[id]?.workers
+
+        if (!workers) {
+          return undefined
+        }
 
         const workStore = workAsyncStorage.getStore()
 

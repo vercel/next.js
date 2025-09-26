@@ -5,7 +5,9 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   Segment,
-} from '../server/app-render/types'
+  HeadData,
+} from '../shared/lib/app-router-types'
+import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
 
 export type NormalizedFlightData = {
   /**
@@ -19,7 +21,8 @@ export type NormalizedFlightData = {
   segment: Segment
   tree: FlightRouterState
   seedData: CacheNodeSeedData | null
-  head: React.ReactNode | null
+  head: HeadData
+  isHeadPartial: boolean
   isRootRender: boolean
 }
 
@@ -30,10 +33,13 @@ export type NormalizedFlightData = {
 export function getFlightDataPartsFromPath(
   flightDataPath: FlightDataPath
 ): NormalizedFlightData {
+  // Pick the last 4 items from the `FlightDataPath` to get the [tree, seedData, viewport, isHeadPartial].
+  const flightDataPathLength = 4
   // tree, seedData, and head are *always* the last three items in the `FlightDataPath`.
-  const [tree, seedData, head] = flightDataPath.slice(-3)
+  const [tree, seedData, head, isHeadPartial] =
+    flightDataPath.slice(-flightDataPathLength)
   // The `FlightSegmentPath` is everything except the last three items. For a root render, it won't be present.
-  const segmentPath = flightDataPath.slice(0, -3)
+  const segmentPath = flightDataPath.slice(0, -flightDataPathLength)
 
   return {
     // TODO: Unify these two segment path helpers. We are inconsistently pushing an empty segment ("")
@@ -47,7 +53,8 @@ export function getFlightDataPartsFromPath(
     tree,
     seedData,
     head,
-    isRootRender: flightDataPath.length === 3,
+    isHeadPartial,
+    isRootRender: flightDataPath.length === flightDataPathLength,
   }
 }
 
@@ -68,5 +75,99 @@ export function normalizeFlightData(
     return flightData
   }
 
-  return flightData.map(getFlightDataPartsFromPath)
+  return flightData.map((flightDataPath) =>
+    getFlightDataPartsFromPath(flightDataPath)
+  )
+}
+
+/**
+ * This function is used to prepare the flight router state for the request.
+ * It removes markers that are not needed by the server, and are purely used
+ * for stashing state on the client.
+ * @param flightRouterState - The flight router state to prepare.
+ * @param isHmrRefresh - Whether this is an HMR refresh request.
+ * @returns The prepared flight router state.
+ */
+export function prepareFlightRouterStateForRequest(
+  flightRouterState: FlightRouterState,
+  isHmrRefresh?: boolean
+): string {
+  // HMR requests need the complete, unmodified state for proper functionality
+  if (isHmrRefresh) {
+    return encodeURIComponent(JSON.stringify(flightRouterState))
+  }
+
+  return encodeURIComponent(
+    JSON.stringify(stripClientOnlyDataFromFlightRouterState(flightRouterState))
+  )
+}
+
+/**
+ * Recursively strips client-only data from FlightRouterState while preserving
+ * server-needed information for proper rendering decisions.
+ */
+function stripClientOnlyDataFromFlightRouterState(
+  flightRouterState: FlightRouterState
+): FlightRouterState {
+  const [
+    segment,
+    parallelRoutes,
+    _url, // Intentionally unused - URLs are client-only
+    refreshMarker,
+    isRootLayout,
+    hasLoadingBoundary,
+  ] = flightRouterState
+
+  // __PAGE__ segments are always fetched from the server, so there's
+  // no need to send them up
+  const cleanedSegment = stripSearchParamsFromPageSegment(segment)
+
+  // Recursively process parallel routes
+  const cleanedParallelRoutes: { [key: string]: FlightRouterState } = {}
+  for (const [key, childState] of Object.entries(parallelRoutes)) {
+    cleanedParallelRoutes[key] =
+      stripClientOnlyDataFromFlightRouterState(childState)
+  }
+
+  const result: FlightRouterState = [
+    cleanedSegment,
+    cleanedParallelRoutes,
+    null, // URLs omitted - server reconstructs paths from segments
+    shouldPreserveRefreshMarker(refreshMarker) ? refreshMarker : null,
+  ]
+
+  // Append optional fields if present
+  if (isRootLayout !== undefined) {
+    result[4] = isRootLayout
+  }
+  if (hasLoadingBoundary !== undefined) {
+    result[5] = hasLoadingBoundary
+  }
+
+  return result
+}
+
+/**
+ * Strips search parameters from __PAGE__ segments to prevent sensitive
+ * client-side data from being sent to the server.
+ */
+function stripSearchParamsFromPageSegment(segment: Segment): Segment {
+  if (
+    typeof segment === 'string' &&
+    segment.startsWith(PAGE_SEGMENT_KEY + '?')
+  ) {
+    return PAGE_SEGMENT_KEY
+  }
+  return segment
+}
+
+/**
+ * Determines whether the refresh marker should be sent to the server
+ * Client-only markers like 'refresh' are stripped, while server-needed markers
+ * like 'refetch' and 'inside-shared-layout' are preserved.
+ */
+function shouldPreserveRefreshMarker(
+  refreshMarker: FlightRouterState[3]
+): boolean {
+  return Boolean(refreshMarker && refreshMarker !== 'refresh')
 }

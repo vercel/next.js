@@ -1,9 +1,8 @@
 use proc_macro2::Span;
 use syn::{
-    parse::{Parse, ParseStream},
-    punctuated::Punctuated,
-    spanned::Spanned,
     Meta, Result, Token, Type,
+    parse::{Parse, ParseStream},
+    spanned::Spanned,
 };
 
 #[derive(Debug)]
@@ -20,7 +19,7 @@ impl Parse for PrimitiveInput {
             manual_shrink_to_fit: None,
         };
         if input.parse::<Option<Token![,]>>()?.is_some() {
-            let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
+            let punctuated = input.parse_terminated(Meta::parse, Token![,])?;
             for meta in punctuated {
                 match (
                     meta.path()
@@ -37,7 +36,7 @@ impl Parse for PrimitiveInput {
                         return Err(syn::Error::new_spanned(
                             meta,
                             "unexpected token, expected: \"manual_shrink_to_fit\"",
-                        ))
+                        ));
                     }
                 }
             }

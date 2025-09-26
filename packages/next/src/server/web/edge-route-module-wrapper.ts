@@ -11,7 +11,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
-import { getUtils } from '../server-utils'
+import { getServerUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import { CloseController, trackStreamConsumed } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
@@ -71,7 +71,7 @@ export class EdgeRouteModuleWrapper {
     request: NextRequest,
     evt: NextFetchEvent
   ): Promise<Response> {
-    const utils = getUtils({
+    const utils = getServerUtils({
       pageIsDynamic: this.matcher.isDynamic,
       page: this.matcher.definition.pathname,
       basePath: request.nextUrl.basePath,
@@ -82,10 +82,9 @@ export class EdgeRouteModuleWrapper {
     })
 
     const { params } = utils.normalizeDynamicRouteParams(
-      searchParamsToUrlQuery(request.nextUrl.searchParams)
+      searchParamsToUrlQuery(request.nextUrl.searchParams),
+      false
     )
-
-    const isAfterEnabled = !!process.env.__NEXT_AFTER
 
     const waitUntil = evt.waitUntil.bind(evt)
     const closeController = new CloseController()
@@ -109,12 +108,13 @@ export class EdgeRouteModuleWrapper {
         onClose: closeController.onClose.bind(closeController),
         onAfterTaskError: undefined,
         experimental: {
-          after: isAfterEnabled,
-          dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
+          cacheComponents: !!process.env.__NEXT_CACHE_COMPONENTS,
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
-        buildId: '', // TODO: Populate this properly.
         cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+      },
+      sharedContext: {
+        buildId: '', // TODO: Populate this properly.
       },
     }
 
@@ -127,25 +127,21 @@ export class EdgeRouteModuleWrapper {
     }
     evt.waitUntil(Promise.all(waitUntilPromises))
 
-    if (closeController) {
-      const _closeController = closeController // TS annoyance - "possibly undefined" in callbacks
-
-      if (!res.body) {
-        // we can delay running it until a bit later --
-        // if it's needed, we'll have a `waitUntil` lock anyway.
-        setTimeout(() => _closeController.dispatchClose(), 0)
-      } else {
-        // NOTE: if this is a streaming response, onClose may be called later,
-        // so we can't rely on `closeController.listeners` -- it might be 0 at this point.
-        const trackedBody = trackStreamConsumed(res.body, () =>
-          _closeController.dispatchClose()
-        )
-        res = new Response(trackedBody, {
-          status: res.status,
-          statusText: res.statusText,
-          headers: res.headers,
-        })
-      }
+    if (!res.body) {
+      // we can delay running it until a bit later --
+      // if it's needed, we'll have a `waitUntil` lock anyway.
+      setTimeout(() => closeController.dispatchClose(), 0)
+    } else {
+      // NOTE: if this is a streaming response, onClose may be called later,
+      // so we can't rely on `closeController.listeners` -- it might be 0 at this point.
+      const trackedBody = trackStreamConsumed(res.body, () =>
+        closeController.dispatchClose()
+      )
+      res = new Response(trackedBody, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: res.headers,
+      })
     }
 
     return res

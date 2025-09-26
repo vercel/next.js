@@ -3,9 +3,31 @@ title: generateStaticParams
 description: API reference for the generateStaticParams function.
 ---
 
-The `generateStaticParams` function can be used in combination with [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes) to [**statically generate**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) routes at build time instead of on-demand at request time.
+The `generateStaticParams` function can be used in combination with [dynamic route segments](/docs/app/api-reference/file-conventions/dynamic-routes) to [**statically generate**](/docs/app/getting-started/partial-prerendering#static-rendering) routes at build time instead of on-demand at request time.
 
-```jsx filename="app/blog/[slug]/page.js"
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+// Return a list of `params` to populate the [slug] dynamic segment
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  return posts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+
+// Multiple versions of this page will be statically generated
+// using the `params` returned by `generateStaticParams`
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  // ...
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
 // Return a list of `params` to populate the [slug] dynamic segment
 export async function generateStaticParams() {
   const posts = await fetch('https://.../posts').then((res) => res.json())
@@ -193,6 +215,16 @@ export async function generateStaticParams() {
 }
 ```
 
+```jsx filename="app/blog/[slug]/page.js" switcher
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  return posts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
 #### Subset of paths at build time
 
 To statically render a subset of paths at build time, and the rest the first time they're visited at runtime, return a partial list of paths:
@@ -208,9 +240,34 @@ export async function generateStaticParams() {
 }
 ```
 
+```jsx filename="app/blog/[slug]/page.js" switcher
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  // Render the first 10 posts at build time
+  return posts.slice(0, 10).map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
 Then, by using the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) segment config option, you can control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
 
-```jsx filename="app/blog/[slug]/page.js"
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+// All posts besides the top 10 will be a 404
+export const dynamicParams = false
+
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+  const topPosts = posts.slice(0, 10)
+
+  return topPosts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
 // All posts besides the top 10 will be a 404
 export const dynamicParams = false
 
@@ -242,7 +299,7 @@ export const dynamic = 'force-static'
 
 ### Disable rendering for unspecified paths
 
-To prevent unspecified paths from being statically rendered at runtime, add the `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and unspecified routes will 404 or match (in the case of [catch-all routes](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)).
+To prevent unspecified paths from being statically rendered at runtime, add the `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and unspecified routes will 404 or match (in the case of [catch-all routes](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments)).
 
 ### Multiple Dynamic Segments in a Route
 
@@ -379,7 +436,27 @@ export default function Page({ params }) {
 }
 ```
 
-> **Good to know**: `fetch` requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization) for the same data across all `generate`-prefixed functions, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/caching#react-cache-function) if `fetch` is unavailable.
+Notice that the params argument can be accessed synchronously and includes only parent segment params.
+
+For type completion, you can make use of the TypeScript `Awaited` helper in combination with either [`Page Props helper`](/docs/app/api-reference/file-conventions/page#page-props-helper) or [`Layout Props helper`](/docs/app/api-reference/file-conventions/layout#layout-props-helper):
+
+```ts filename="app/products/[category]/[product]/page.tsx" switcher
+export async function generateStaticParams({
+  params: { category },
+}: {
+  params: Awaited<LayoutProps<'/products/[category]'>['params']>
+}) {
+  const products = await fetch(
+    `https://.../products?category=${category}`
+  ).then((res) => res.json())
+
+  return products.map((product) => ({
+    product: product.id,
+  }))
+}
+```
+
+> **Good to know**: `fetch` requests are automatically [memoized](/docs/app/guides/caching#request-memoization) for the same data across all `generate`-prefixed functions, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/guides/caching#react-cache-function) if `fetch` is unavailable.
 
 ## Version History
 

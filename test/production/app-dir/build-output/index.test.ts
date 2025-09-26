@@ -31,18 +31,13 @@ describe('production - app dir - build output', () => {
   })
 
   it('should match the expected output format', async () => {
-    expect(output).toContain('Size')
-    expect(output).toContain('First Load JS')
-    expect(output).toContain('+ First Load JS shared by all')
-    expect(output).toContain('└ other shared chunks (total)')
-
     // output type
     expect(output).toContain('○  (Static)  prerendered as static content')
   })
 
   it('should log errors not caught by the worker without terminating the process', async () => {
     expect(output).toContain('Error: Boom')
-    expect(output).not.toContain('Static worker exited with code: 78')
+    expect(output).not.toContain('Next.js build worker exited with code: 78')
 
     const $ = await next.render$('/uncaught-error')
     expect($('#sentinel').text()).toEqual('at buildtime')
@@ -66,7 +61,7 @@ describe('production - app dir - build output', () => {
     const { cliOutput } = await next.build()
     await next.deleteFile('app/out-of-band-dynamic-api/page.tsx')
 
-    expect(cliOutput).toContain('Static worker exited with code: 78')
+    expect(cliOutput).toContain('Next.js build worker exited with code: 78')
   })
 
   it('should fail the build if you use a dynamic API outside of a render context - headers', async () => {
@@ -87,7 +82,7 @@ describe('production - app dir - build output', () => {
     const { cliOutput } = await next.build()
     await next.deleteFile('app/out-of-band-dynamic-api/page.tsx')
 
-    expect(cliOutput).toContain('Static worker exited with code: 78')
+    expect(cliOutput).toContain('Next.js build worker exited with code: 78')
   })
 
   it('should fail the build if you use a dynamic API outside of a render context - searchParams', async () => {
@@ -106,7 +101,7 @@ describe('production - app dir - build output', () => {
     const { cliOutput } = await next.build()
     await next.deleteFile('app/out-of-band-dynamic-api/page.tsx')
 
-    expect(cliOutput).toContain('Static worker exited with code: 78')
+    expect(cliOutput).toContain('Next.js build worker exited with code: 78')
   })
 
   it('should fail the build if you use a dynamic API outside of a render context - redirect', async () => {
@@ -127,7 +122,7 @@ describe('production - app dir - build output', () => {
     const { cliOutput } = await next.build()
     await next.deleteFile('app/out-of-band-dynamic-api/page.tsx')
 
-    expect(cliOutput).toContain('Static worker exited with code: 78')
+    expect(cliOutput).toContain('Next.js build worker exited with code: 78')
   })
 
   it('should fail the build if you use a dynamic API outside of a render context - notFound', async () => {
@@ -148,6 +143,6 @@ describe('production - app dir - build output', () => {
     const { cliOutput } = await next.build()
     await next.deleteFile('app/out-of-band-dynamic-api/page.tsx')
 
-    expect(cliOutput).toContain('Static worker exited with code: 78')
+    expect(cliOutput).toContain('Next.js build worker exited with code: 78')
   })
 })

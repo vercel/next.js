@@ -1,1 +1,1 @@
-export default "baz/foo";
+export default 'baz/foo'

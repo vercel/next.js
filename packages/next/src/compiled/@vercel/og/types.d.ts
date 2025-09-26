@@ -1,10 +1,11 @@
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="node" />
+/// <reference types="node" />
 import type { SatoriOptions } from "next/dist/compiled/@vercel/og/satori";
 import type { EmojiType } from './emoji';
 import type { OutgoingHttpHeader } from 'http';
-declare type ImageOptions = {
+type ImageOptions = {
     /**
      * The width of the image.
      *
@@ -36,18 +37,17 @@ declare type ImageOptions = {
     /**
      * Using a specific Emoji style. Defaults to `twemoji`.
      *
-     * @link https://github.com/vercel/og#emoji
      * @type {EmojiType}
      * @default 'twemoji'
      */
     emoji?: EmojiType;
 };
-export declare type ImageResponseNodeOptions = ImageOptions & {
+export type ImageResponseNodeOptions = ImageOptions & {
     status?: number;
     statusText?: string;
     headers?: OutgoingHttpHeader[];
 };
-export declare type ImageResponseOptions = ImageOptions & ConstructorParameters<typeof Response>[1];
+export type ImageResponseOptions = ImageOptions & ConstructorParameters<typeof Response>[1];
 export interface FigmaImageResponseProps {
     /**
      * Link to the Figma template frame.
@@ -90,8 +90,8 @@ export interface FigmaComplexTemplate {
         centerHorizontally?: boolean;
     } & React.CSSProperties;
 }
-declare type Weight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
-declare type Style = 'normal' | 'italic';
+type Weight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
+type Style = 'normal' | 'italic';
 interface FontOptions {
     data: Buffer | ArrayBuffer;
     name: string;

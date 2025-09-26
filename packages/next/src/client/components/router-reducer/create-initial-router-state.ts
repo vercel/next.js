@@ -1,15 +1,21 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type { FlightDataPath } from '../../../server/app-render/types'
+import type {
+  CacheNode,
+  FlightDataPath,
+} from '../../../shared/lib/app-router-types'
 
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
-import { createSeededPrefetchCacheEntry } from './prefetch-cache-utils'
+import {
+  createSeededPrefetchCacheEntry,
+  STATIC_STALETIME_MS,
+} from './prefetch-cache-utils'
 import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
 import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 
 export interface InitialRouterStateParameters {
+  navigatedAt: number
   initialCanonicalUrlParts: string[]
   initialParallelRoutes: CacheNode['parallelRoutes']
   initialFlightData: FlightDataPath[]
@@ -20,6 +26,7 @@ export interface InitialRouterStateParameters {
 }
 
 export function createInitialRouterState({
+  navigatedAt,
   initialFlightData,
   initialCanonicalUrlParts,
   initialParallelRoutes,
@@ -32,13 +39,13 @@ export function createInitialRouterState({
   // This is to ensure that when the RSC payload streamed to the client, crawlers don't interpret it
   // as a URL that should be crawled.
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
+
   const normalizedFlightData = getFlightDataPartsFromPath(initialFlightData[0])
   const {
     tree: initialTree,
     seedData: initialSeedData,
     head: initialHead,
   } = normalizedFlightData
-  const isServer = !location
   // For the SSR render, seed data should always be available (we only send back a `null` response
   // in the case of a `loading` segment, pre-PPR.)
   const rsc = initialSeedData?.[1]
@@ -51,8 +58,9 @@ export function createInitialRouterState({
     head: null,
     prefetchHead: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
-    parallelRoutes: isServer ? new Map() : initialParallelRoutes,
+    parallelRoutes: initialParallelRoutes,
     loading,
+    navigatedAt,
   }
 
   const canonicalUrl =
@@ -70,11 +78,13 @@ export function createInitialRouterState({
   // When the cache hasn't been seeded yet we fill the cache with the head.
   if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
     fillLazyItemsTillLeafWithHead(
+      navigatedAt,
       cache,
       undefined,
       initialTree,
       initialSeedData,
-      initialHead
+      initialHead,
+      undefined
     )
   }
 
@@ -128,7 +138,13 @@ export function createInitialRouterState({
         // add a way to split a single Flight stream into static and dynamic
         // parts. But in the meantime we should at least make this work for
         // fully static pages.
-        staleTime: -1,
+        staleTime:
+          // In the old router, there was only a single configurable staleTime (experimental.staleTimes)
+          // As an abundance of caution, this will only set the initial staleTime to the configured value
+          // if we're not leveraging the segment cache, which has its own prefetching semantics.
+          prerendered && !process.env.__NEXT_CLIENT_SEGMENT_CACHE
+            ? STATIC_STALETIME_MS
+            : -1,
       },
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,

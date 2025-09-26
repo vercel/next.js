@@ -21,6 +21,7 @@ import {
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
+  DYNAMIC_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
 import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import type { Telemetry } from '../../../telemetry/storage'
@@ -100,9 +101,7 @@ function getEntryFiles(
   entryFiles: string[],
   meta: EntryMetadata,
   hasInstrumentationHook: boolean,
-  opts: {
-    sriEnabled: boolean
-  }
+  opts: Options
 ) {
   const files: string[] = []
   if (meta.edgeSSR) {
@@ -123,6 +122,9 @@ function getEntryFiles(
               file.replace(/\.js$/, '_' + CLIENT_REFERENCE_MANIFEST + '.js')
           )
       )
+    }
+    if (!opts.dev && !meta.edgeSSR.isAppDir) {
+      files.push(`server/${DYNAMIC_CSS_MANIFEST}.js`)
     }
 
     files.push(
@@ -149,10 +151,10 @@ function getEntryFiles(
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
-  opts: Omit<Options, 'dev'>
+  opts: Options
 }) {
   const { compilation, metadataByEntry, opts } = params
-  return (assets: any) => {
+  return () => {
     const middlewareManifest: MiddlewareManifest = {
       version: MANIFEST_VERSION,
       middleware: {},
@@ -169,11 +171,14 @@ function getCreateAssets(params: {
     const interceptionRewrites = JSON.stringify(
       opts.rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
     )
-    assets[`${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`] = new sources.RawSource(
-      `self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST=${JSON.stringify(
-        interceptionRewrites
-      )}`
-    ) as unknown as webpack.sources.RawSource
+    compilation.emitAsset(
+      `${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`,
+      new sources.RawSource(
+        `self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST=${JSON.stringify(
+          interceptionRewrites
+        )}`
+      ) as unknown as webpack.sources.RawSource
+    )
 
     for (const entrypoint of compilation.entrypoints.values()) {
       if (!entrypoint.name) {
@@ -240,8 +245,11 @@ function getCreateAssets(params: {
       Object.keys(middlewareManifest.middleware)
     )
 
-    assets[MIDDLEWARE_MANIFEST] = new sources.RawSource(
-      JSON.stringify(middlewareManifest, null, 2)
+    compilation.emitAsset(
+      MIDDLEWARE_MANIFEST,
+      new sources.RawSource(
+        JSON.stringify(middlewareManifest, null, 2)
+      ) as unknown as webpack.sources.RawSource
     )
   }
 }
@@ -271,11 +279,17 @@ function buildWebpackError({
 
 function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
   const layer = parser.state.module?.layer
-  return layer === WEBPACK_LAYERS.middleware || layer === WEBPACK_LAYERS.api
+  return layer === WEBPACK_LAYERS.middleware || layer === WEBPACK_LAYERS.apiEdge
 }
 
 function isNodeJsModule(moduleName: string) {
-  return require('module').builtinModules.includes(moduleName)
+  return (require('module') as typeof import('module')).builtinModules.includes(
+    moduleName
+  )
+}
+
+function isBunModule(moduleName: string) {
+  return moduleName === 'bun' || moduleName.startsWith('bun:')
 }
 
 function isDynamicCodeEvaluationAllowed(
@@ -295,7 +309,9 @@ function isDynamicCodeEvaluationAllowed(
 
   const name = fileName.replace(rootDir ?? '', '')
 
-  return picomatch(middlewareConfig?.unstable_allowDynamic ?? [])(name)
+  return picomatch(middlewareConfig?.unstable_allowDynamic ?? [], {
+    dot: true,
+  })(name)
 }
 
 function buildUnsupportedApiError({
@@ -507,10 +523,15 @@ function getCodeAnalyzer(params: {
           sourceContent: source.toString(),
         })
 
-        if (!dev && isNodeJsModule(importedModule)) {
+        if (
+          !dev &&
+          (isNodeJsModule(importedModule) || isBunModule(importedModule)) &&
+          !SUPPORTED_NATIVE_MODULES.includes(importedModule)
+        ) {
+          const isBun = isBunModule(importedModule)
           compilation.warnings.push(
             buildWebpackError({
-              message: `A Node.js module is loaded ('${importedModule}' at line ${node.loc.start.line}) which is not supported in the Edge Runtime.
+              message: `A ${isBun ? 'Bun' : 'Node.js'} module is loaded ('${importedModule}' at line ${node.loc.start.line}) which is not supported in the Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
               compilation,
               parser,
@@ -547,6 +568,52 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
     if (!dev) {
       // do not issue compilation warning on dev: invoking code will provide details
       registerUnsupportedApiHooks(parser, compilation)
+    }
+  }
+}
+
+async function codeAnalyzerBySwc(
+  compilation: webpack.Compilation,
+  modules: Iterable<webpack.Module>,
+  dev: boolean
+) {
+  const binding = require('../../swc') as typeof import('../../swc')
+  for (const module of modules) {
+    if (
+      module.layer !== WEBPACK_LAYERS.middleware &&
+      module.layer !== WEBPACK_LAYERS.apiEdge
+    ) {
+      continue
+    }
+    if (module.constructor.name !== 'NormalModule') {
+      continue
+    }
+    const normalModule = module as webpack.NormalModule
+    if (!normalModule.type.startsWith('javascript')) {
+      // Only analyze JavaScript modules
+      continue
+    }
+    const originalSource = normalModule.originalSource()
+    if (!originalSource) {
+      continue
+    }
+    const source = originalSource.source()
+    if (typeof source !== 'string') {
+      continue
+    }
+    const diagnostics = await binding.warnForEdgeRuntime(source, !dev)
+    for (const diagnostic of diagnostics) {
+      const webpackError = buildWebpackError({
+        message: diagnostic.message,
+        loc: diagnostic.loc,
+        compilation,
+        entryModule: module,
+      })
+      if (diagnostic.severity === 'Warning') {
+        compilation.warnings.push(webpackError)
+      } else {
+        compilation.errors.push(webpackError)
+      }
     }
   }
 }
@@ -768,18 +835,26 @@ export default class MiddlewarePlugin {
 
   public apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(NAME, (compilation, params) => {
-      const { hooks } = params.normalModuleFactory
-      /**
-       * This is the static code analysis phase.
-       */
-      const codeAnalyzer = getCodeAnalyzer({
-        dev: this.dev,
-        compiler,
-        compilation,
-      })
-      hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
-      hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
-      hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
+      // parser hooks aren't available in rspack
+      if (process.env.NEXT_RSPACK) {
+        compilation.hooks.finishModules.tapPromise(NAME, async (modules) => {
+          await codeAnalyzerBySwc(compilation, modules, this.dev)
+        })
+      } else {
+        const { hooks } = params.normalModuleFactory
+        /**
+         * This is the static code analysis phase.
+         */
+        const codeAnalyzer = getCodeAnalyzer({
+          dev: this.dev,
+          compiler,
+          compilation,
+        })
+
+        hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
+        hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
+        hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
+      }
 
       /**
        * Extract all metadata for the entry points in a Map object.
@@ -810,6 +885,7 @@ export default class MiddlewarePlugin {
             sriEnabled: this.sriEnabled,
             rewrites: this.rewrites,
             edgeEnvironments: this.edgeEnvironments,
+            dev: this.dev,
           },
         })
       )
@@ -849,8 +925,8 @@ export async function handleWebpackExternalForEdgeRuntime({
 }) {
   if (
     (contextInfo.issuerLayer === WEBPACK_LAYERS.middleware ||
-      contextInfo.issuerLayer === WEBPACK_LAYERS.api) &&
-    isNodeJsModule(request) &&
+      contextInfo.issuerLayer === WEBPACK_LAYERS.apiEdge) &&
+    (isNodeJsModule(request) || isBunModule(request)) &&
     !supportedEdgePolyfills.has(request)
   ) {
     // allows user to provide and use their polyfills, as we do with buffer.

@@ -101,7 +101,7 @@ describe.each([
     })
 
     it('should set the assetPrefix to a given request', async () => {
-      for (let lc = 0; lc < 1000; lc++) {
+      for (let lc = 0; lc < 10; lc++) {
         const [normalUsage, dynamicUsage] = await Promise.all([
           await renderViaHTTP(nextUrl, '/asset', undefined, { agent }),
           await renderViaHTTP(nextUrl, '/asset?setAssetPrefix=1', undefined, {

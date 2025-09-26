@@ -4,8 +4,6 @@ This example features how to configure and use [`babel-macros`](https://github.c
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-babel-macros)
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-babel-macros&project-name=with-babel-macros&repository-name=with-babel-macros)
 
 ## How to use
@@ -29,7 +27,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 ## Note
 
 You'll notice the configuration in `.babelrc` includes the `babel-macros`
-plugin, then we can use the `preval.macro` in `pages/index.js` to pre-evaluate
+plugin, then we can use the `preval.macro` in `app/page.tsx` to pre-evaluate
 code at build-time. `preval.macro` is effectively transforming our code, but
 we didn't have to configure it to make that happen!
 

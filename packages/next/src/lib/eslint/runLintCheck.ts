@@ -58,7 +58,9 @@ async function cliPrompt(cwd: string): Promise<{ config?: any }> {
 
   try {
     const cliSelect = (
-      await Promise.resolve(require('next/dist/compiled/cli-select'))
+      await Promise.resolve(
+        require('next/dist/compiled/cli-select') as typeof import('next/dist/compiled/cli-select')
+      )
     ).default
     const { value } = await cliSelect({
       values: await getESLintPromptValues(cwd),
@@ -113,7 +115,7 @@ async function lint(
 > {
   try {
     // Load ESLint after we're sure it exists:
-    const deps = await hasNecessaryDependencies(baseDir, requiredPackages)
+    const deps = hasNecessaryDependencies(baseDir, requiredPackages)
     const packageManager = getPkgManager(baseDir)
 
     if (deps.missing.some((dep) => dep.pkg === 'eslint')) {
@@ -360,12 +362,11 @@ export async function runLintCheck(
           'eslint.config.js',
           'eslint.config.mjs',
           'eslint.config.cjs',
-          // TODO(jiwon): Support when it's stable.
-          // TS extensions are experimental and requires to install another package `jiti`.
+          // TS extensions require to install a separate package `jiti`.
           // https://eslint.org/docs/latest/use/configure/configuration-files#typescript-configuration-files
-          // 'eslint.config.ts',
-          // 'eslint.config.mts',
-          // 'eslint.config.cts',
+          'eslint.config.ts',
+          'eslint.config.mts',
+          'eslint.config.cts',
           // eslint <= v8
           '.eslintrc.js',
           '.eslintrc.cjs',

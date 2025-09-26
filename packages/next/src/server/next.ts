@@ -6,7 +6,7 @@ import type {
 import type { UrlWithParsedQuery } from 'url'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
-import type { NextUrlWithParsedQuery } from './request-meta'
+import type { NextUrlWithParsedQuery, RequestMeta } from './request-meta'
 
 import './require-hook'
 import './node-polyfill-crypto'
@@ -14,7 +14,7 @@ import './node-polyfill-crypto'
 import type { default as NextNodeServer } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import path, { resolve } from 'path'
+import path from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import {
   PHASE_DEVELOPMENT_SERVER,
@@ -26,12 +26,21 @@ import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 import type { ServerInitResult } from './lib/render-server'
+import { AsyncCallbackSet } from './lib/async-callback-set'
+import {
+  RouterServerContextSymbol,
+  routerServerGlobal,
+} from './lib/router-utils/router-server-context'
 
 let ServerImpl: typeof NextNodeServer
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined) {
-    ServerImpl = (await Promise.resolve(require('./next-server'))).default
+    ServerImpl = (
+      await Promise.resolve(
+        require('./next-server') as typeof import('./next-server')
+      )
+    ).default
   }
   return ServerImpl
 }
@@ -76,6 +85,12 @@ interface NextWrapperServer {
   // legacy methods that we left exposed in the past
 
   logError(...args: Parameters<NextNodeServer['logError']>): void
+
+  revalidate(
+    ...args: Parameters<NextNodeServer['revalidate']>
+  ): ReturnType<NextNodeServer['revalidate']>
+
+  logErrorWithOriginalStack(err: unknown, type: string): void
 
   render(
     ...args: Parameters<NextNodeServer['render']>
@@ -133,6 +148,27 @@ export class NextServer implements NextWrapperServer {
     }
   }
 
+  /**
+   * @internal - this method is internal to Next.js and should not be used
+   * directly by end-users, only used in testing
+   */
+  getRequestHandlerWithMetadata(meta: RequestMeta): RequestHandler {
+    return async (
+      req: IncomingMessage,
+      res: ServerResponse,
+      parsedUrl?: UrlWithParsedQuery
+    ) => {
+      return getTracer().trace(
+        NextServerSpan.getRequestHandlerWithMetadata,
+        async () => {
+          const server = await this.getServer()
+          const handler = server.getRequestHandlerWithMetadata(meta)
+          return handler(req, res, parsedUrl)
+        }
+      )
+    }
+  }
+
   getUpgradeHandler(): UpgradeHandler {
     return async (req: IncomingMessage, socket: any, head: any) => {
       const server = await this.getServer()
@@ -154,6 +190,19 @@ export class NextServer implements NextWrapperServer {
     if (this.server) {
       this.server.logError(...args)
     }
+  }
+
+  async logErrorWithOriginalStack(err: unknown, type: string) {
+    const server = await this.getServer()
+    // this is only available on dev server
+    if ((server as any).logErrorWithOriginalStack) {
+      return (server as any).logErrorWithOriginalStack(err, type)
+    }
+  }
+
+  async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {
+    const server = await this.getServer()
+    return server.revalidate(...args)
   }
 
   async render(...args: Parameters<NextWrapperServer['render']>) {
@@ -198,8 +247,7 @@ export class NextServer implements NextWrapperServer {
 
   async close() {
     if (this.server) {
-      // BaseServer.close() is protected
-      await this.server['close']()
+      await this.server.close()
     }
   }
 
@@ -208,8 +256,9 @@ export class NextServer implements NextWrapperServer {
   ): Promise<NextNodeServer> {
     let ServerImplementation: typeof NextNodeServer
     if (options.dev) {
-      ServerImplementation = require('./dev/next-dev-server')
-        .default as typeof import('./dev/next-dev-server').default
+      ServerImplementation = (
+        require('./dev/next-dev-server') as typeof import('./dev/next-dev-server')
+      ).default as typeof import('./dev/next-dev-server').default
     } else {
       ServerImplementation = await getServerImpl()
     }
@@ -219,7 +268,9 @@ export class NextServer implements NextWrapperServer {
   }
 
   private async [SYMBOL_LOAD_CONFIG]() {
-    const dir = resolve(this.options.dir || '.')
+    const dir = path.resolve(
+      /* turbopackIgnore: true */ this.options.dir || '.'
+    )
 
     const config = await loadConfig(
       this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
@@ -231,13 +282,17 @@ export class NextServer implements NextWrapperServer {
     )
 
     // check serialized build config when available
-    if (process.env.NODE_ENV === 'production') {
+    if (!this.options.dev) {
       try {
         const serializedConfig = require(
-          path.join(dir, '.next', SERVER_FILES_MANIFEST)
+          /* turbopackIgnore: true */
+          path.join(
+            /* turbopackIgnore: true */ dir,
+            config.distDir,
+            SERVER_FILES_MANIFEST
+          )
         ).config
 
-        // @ts-expect-error internal field
         config.experimental.isExperimentalCompile =
           serializedConfig.experimental.isExperimentalCompile
       } catch (_) {
@@ -301,7 +356,7 @@ export class NextServer implements NextWrapperServer {
 /** The wrapper server used for `import next from "next" (in a custom server)` */
 class NextCustomServer implements NextWrapperServer {
   private didWebSocketSetup: boolean = false
-  protected cleanupListeners: (() => Promise<void>)[] = []
+  protected cleanupListeners?: AsyncCallbackSet
 
   protected init?: ServerInitResult
 
@@ -342,11 +397,17 @@ class NextCustomServer implements NextWrapperServer {
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
+    let onDevServerCleanup: AsyncCallbackSet['add'] | undefined
+    if (this.options.dev) {
+      this.cleanupListeners = new AsyncCallbackSet()
+      onDevServerCleanup = this.cleanupListeners.add.bind(this.cleanupListeners)
+    }
+
     const initResult = await getRequestHandlers({
       dir: this.options.dir!,
       port: this.options.port || 3000,
       isDev: !!this.options.dev,
-      onCleanup: (listener) => this.cleanupListeners.push(listener),
+      onDevServerCleanup,
       hostname: this.options.hostname || 'localhost',
       minimalMode: this.options.minimalMode,
       quiet: this.options.quiet,
@@ -408,6 +469,22 @@ class NextCustomServer implements NextWrapperServer {
 
   setAssetPrefix(assetPrefix: string): void {
     this.server.setAssetPrefix(assetPrefix)
+
+    // update the router-server nextConfig instance as
+    // this is the source of truth for "handler" in serverful
+    const relativeProjectDir = path.relative(
+      process.cwd(),
+      this.options.dir || ''
+    )
+
+    if (
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+        ?.nextConfig
+    ) {
+      routerServerGlobal[RouterServerContextSymbol][
+        relativeProjectDir
+      ].nextConfig.assetPrefix = assetPrefix
+    }
   }
 
   getUpgradeHandler(): UpgradeHandler {
@@ -416,6 +493,14 @@ class NextCustomServer implements NextWrapperServer {
 
   logError(...args: Parameters<NextWrapperServer['logError']>) {
     this.server.logError(...args)
+  }
+
+  logErrorWithOriginalStack(err: unknown, type: string) {
+    return this.server.logErrorWithOriginalStack(err, type)
+  }
+
+  async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {
+    return this.server.revalidate(...args)
   }
 
   async renderToHTML(...args: Parameters<NextWrapperServer['renderToHTML']>) {
@@ -437,9 +522,9 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   async close() {
-    await Promise.all([
+    await Promise.allSettled([
       this.init?.server.close(),
-      ...this.cleanupListeners.map((f) => f()),
+      this.cleanupListeners?.runAll(),
     ])
   }
 }
@@ -451,7 +536,10 @@ function createServer(
     turbopack?: boolean
   }
 ): NextWrapperServer {
-  if (options && (options.turbo || options.turbopack)) {
+  if (
+    options &&
+    (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
+  ) {
     process.env.TURBOPACK = '1'
   }
   // The package is used as a TypeScript plugin.
@@ -460,7 +548,11 @@ function createServer(
     'typescript' in options &&
     'version' in (options as any).typescript
   ) {
-    return require('./next-typescript').createTSPlugin(options)
+    const pluginMod: typeof import('./next-typescript') =
+      require('./next-typescript') as typeof import('./next-typescript')
+    return pluginMod.createTSPlugin(
+      options as any
+    ) as unknown as NextWrapperServer
   }
 
   if (options == null) {
@@ -485,7 +577,7 @@ function createServer(
 
   // When the caller is a custom server (using next()).
   if (options.customServer !== false) {
-    const dir = resolve(options.dir || '.')
+    const dir = path.resolve(/* turbopackIgnore: true */ options.dir || '.')
 
     return new NextCustomServer({
       ...options,

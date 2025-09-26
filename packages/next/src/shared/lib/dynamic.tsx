@@ -1,4 +1,4 @@
-import React, { type JSX } from 'react'
+import React from 'react'
 import Loadable from './loadable.shared-runtime'
 
 const isServerSide = typeof window === 'undefined'
@@ -36,7 +36,7 @@ function convertModule<P>(mod: React.ComponentType<P> | ComponentModule<P>) {
 }
 
 export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
-  loading?: (loadingProps: DynamicOptionsLoadingProps) => JSX.Element | null
+  loading?: (loadingProps: DynamicOptionsLoadingProps) => React.ReactNode
   loader?: Loader<P> | LoaderMap
   loadableGenerated?: LoadableGeneratedOptions
   ssr?: boolean

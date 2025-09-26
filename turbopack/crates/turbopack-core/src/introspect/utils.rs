@@ -1,10 +1,10 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
 use turbo_tasks_fs::FileContent;
 
 use super::{
-    module::IntrospectableModule, output_asset::IntrospectableOutputAsset, IntrospectableChildren,
+    IntrospectableChildren, module::IntrospectableModule, output_asset::IntrospectableOutputAsset,
 };
 use crate::{
     asset::AssetContent,
@@ -13,34 +13,32 @@ use crate::{
     reference::{ModuleReference, ModuleReferences},
 };
 
-#[turbo_tasks::function]
-fn reference_ty() -> Vc<RcStr> {
-    Vc::cell("reference".into())
+fn reference_ty() -> RcStr {
+    rcstr!("reference")
 }
 
-#[turbo_tasks::function]
-fn parallel_reference_ty() -> Vc<RcStr> {
-    Vc::cell("parallel reference".into())
+fn parallel_reference_ty() -> RcStr {
+    rcstr!("parallel reference")
 }
 
-#[turbo_tasks::function]
-fn parallel_inherit_async_reference_ty() -> Vc<RcStr> {
-    Vc::cell("parallel reference (inherit async module)".into())
+fn parallel_inherit_async_reference_ty() -> RcStr {
+    rcstr!("parallel reference (inherit async module)")
 }
 
-#[turbo_tasks::function]
-fn async_reference_ty() -> Vc<RcStr> {
-    Vc::cell("async reference".into())
+fn async_reference_ty() -> RcStr {
+    rcstr!("async reference")
 }
 
-#[turbo_tasks::function]
-fn passthrough_reference_ty() -> Vc<RcStr> {
-    Vc::cell("passthrough reference".into())
+fn isolated_reference_ty() -> RcStr {
+    rcstr!("isolated reference")
 }
 
-#[turbo_tasks::function]
-fn traced_reference_ty() -> Vc<RcStr> {
-    Vc::cell("traced reference".into())
+fn shared_reference_ty() -> RcStr {
+    rcstr!("shared reference")
+}
+
+fn traced_reference_ty() -> RcStr {
+    rcstr!("traced reference")
 }
 
 #[turbo_tasks::function]
@@ -54,7 +52,7 @@ pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> 
                     Err(_) => Vc::cell(format!("{} binary bytes", content.len()).into()),
                 }
             }
-            FileContent::NotFound => Vc::cell("not found".into()),
+            FileContent::NotFound => Vc::cell(rcstr!("not found")),
         },
         AssetContent::Redirect { target, link_type } => {
             Vc::cell(format!("redirect to {target} with type {link_type:?}").into())
@@ -70,21 +68,26 @@ pub async fn children_from_module_references(
     let mut children = FxIndexSet::default();
     let references = references.await?;
     for &reference in &*references {
-        let mut key = key;
-        if let Some(chunkable) =
-            Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
+        let key = if let Some(chunkable) =
+            ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(reference)
         {
             match &*chunkable.chunking_type().await? {
-                None => {}
-                Some(ChunkingType::Parallel) => key = parallel_reference_ty(),
-                Some(ChunkingType::ParallelInheritAsync) => {
-                    key = parallel_inherit_async_reference_ty()
+                None => key.clone(),
+                Some(ChunkingType::Parallel { inherit_async, .. }) => {
+                    if *inherit_async {
+                        parallel_inherit_async_reference_ty()
+                    } else {
+                        parallel_reference_ty()
+                    }
                 }
-                Some(ChunkingType::Async) => key = async_reference_ty(),
-                Some(ChunkingType::Passthrough) => key = passthrough_reference_ty(),
-                Some(ChunkingType::Traced) => key = traced_reference_ty(),
+                Some(ChunkingType::Async) => async_reference_ty(),
+                Some(ChunkingType::Isolated { .. }) => isolated_reference_ty(),
+                Some(ChunkingType::Shared { .. }) => shared_reference_ty(),
+                Some(ChunkingType::Traced) => traced_reference_ty(),
             }
-        }
+        } else {
+            key.clone()
+        };
 
         for &module in reference
             .resolve_reference()
@@ -94,7 +97,10 @@ pub async fn children_from_module_references(
             .await?
             .iter()
         {
-            children.insert((key, IntrospectableModule::new(*module)));
+            children.insert((
+                key.clone(),
+                IntrospectableModule::new(*module).to_resolved().await?,
+            ));
         }
         for &output_asset in reference
             .resolve_reference()
@@ -102,7 +108,12 @@ pub async fn children_from_module_references(
             .await?
             .iter()
         {
-            children.insert((key, IntrospectableOutputAsset::new(*output_asset)));
+            children.insert((
+                key.clone(),
+                IntrospectableOutputAsset::new(*output_asset)
+                    .to_resolved()
+                    .await?,
+            ));
         }
     }
     Ok(Vc::cell(children))
@@ -117,8 +128,10 @@ pub async fn children_from_output_assets(
     let references = references.await?;
     for &reference in &*references {
         children.insert((
-            key,
-            IntrospectableOutputAsset::new(*ResolvedVc::upcast(reference)),
+            key.clone(),
+            IntrospectableOutputAsset::new(*reference)
+                .to_resolved()
+                .await?,
         ));
     }
     Ok(Vc::cell(children))

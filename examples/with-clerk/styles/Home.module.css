@@ -74,11 +74,8 @@
 
 .card:empty {
   padding: 2em;
-  background-image: radial-gradient(
-      circle 14px at 46px 46px,
-      #f2f2f2 99%,
-      transparent 0
-    ),
+  background-image:
+    radial-gradient(circle 14px at 46px 46px, #f2f2f2 99%, transparent 0),
     linear-gradient(
       100deg,
       rgba(255, 255, 255, 0),

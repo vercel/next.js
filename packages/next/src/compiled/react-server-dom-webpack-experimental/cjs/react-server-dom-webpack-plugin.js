@@ -33,8 +33,9 @@ function _arrayLikeToArray(arr, len) {
   return arr2;
 }
 function _createForOfIteratorHelper(o, allowArrayLike) {
-  var it;
-  if ("undefined" === typeof Symbol || null == o[Symbol.iterator]) {
+  var it =
+    ("undefined" !== typeof Symbol && o[Symbol.iterator]) || o["@@iterator"];
+  if (!it) {
     if (
       Array.isArray(o) ||
       (it = _unsupportedIterableToArray(o)) ||
@@ -63,7 +64,7 @@ function _createForOfIteratorHelper(o, allowArrayLike) {
     err;
   return {
     s: function () {
-      it = o[Symbol.iterator]();
+      it = it.call(o);
     },
     n: function () {
       var step = it.next();
@@ -252,8 +253,12 @@ class ReactFlightWebpackPlugin {
                 try {
                   for (_iterator.s(); !(_step = _iterator.n()).done; ) {
                     const file = _step.value;
-                    if (!file.endsWith(".js")) break;
-                    if (file.endsWith(".hot-update.js")) break;
+                    if (!file.endsWith(".js") && !file.endsWith(".mjs")) break;
+                    if (
+                      file.endsWith(".hot-update.js") ||
+                      file.endsWith(".hot-update.mjs")
+                    )
+                      break;
                     chunks.push(c.id, file);
                     break;
                   }

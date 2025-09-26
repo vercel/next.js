@@ -29,19 +29,19 @@ DEALINGS IN THE SOFTWARE.
 use std::{
     cell::RefCell,
     fs::read_to_string,
-    panic::{catch_unwind, AssertUnwindSafe},
+    panic::{AssertUnwindSafe, catch_unwind},
     rc::Rc,
-    sync::Arc,
 };
 
-use anyhow::{anyhow, bail, Context as _};
-use fxhash::FxHashSet;
+use anyhow::{Context as _, anyhow, bail};
 use napi::bindgen_prelude::*;
-use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
 use once_cell::sync::Lazy;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    base::{try_with_handler, Compiler, TransformOutput},
-    common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
+    atoms::Atom,
+    base::{Compiler, TransformOutput, try_with_handler},
+    common::{FileName, GLOBALS, Mark, comments::SingleThreadedComments, errors::ColorConfig},
     ecma::ast::noop_pass,
 };
 
@@ -57,7 +57,7 @@ pub enum Input {
 }
 
 pub struct TransformTask {
-    pub c: Arc<Compiler>,
+    pub c: Compiler,
     pub input: Input,
     pub options: Buffer,
 }
@@ -81,12 +81,15 @@ fn skip_filename() -> bool {
 }
 
 impl Task for TransformTask {
-    type Output = (TransformOutput, FxHashSet<String>);
+    type Output = (TransformOutput, FxHashSet<Atom>, FxHashMap<String, usize>);
     type JsValue = Object;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
-            let eliminated_packages: Rc<RefCell<fxhash::FxHashSet<String>>> = Default::default();
+            let eliminated_packages: Rc<RefCell<FxHashSet<Atom>>> = Default::default();
+            let use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>> =
+                Default::default();
+
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
                     self.c.cm.clone(),
@@ -116,7 +119,7 @@ impl Task for TransformTask {
                                     self.c.cm.new_source_file(
                                         FileName::Real(filename.into()).into(),
                                         read_to_string(filename).with_context(|| {
-                                            format!("Failed to read source code from {}", filename)
+                                            format!("Failed to read source code from {filename}")
                                         })?,
                                     )
                                 }
@@ -143,6 +146,7 @@ impl Task for TransformTask {
                                         comments.clone(),
                                         eliminated_packages.clone(),
                                         unresolved_mark,
+                                        use_cache_telemetry_tracker.clone(),
                                     )
                                 },
                                 |_| noop_pass(),
@@ -161,12 +165,21 @@ impl Task for TransformTask {
 
             match res {
                 Ok(res) => res
-                    .map(|o| (o, eliminated_packages.replace(Default::default())))
+                    .map(|o| {
+                        (
+                            o,
+                            eliminated_packages.replace(Default::default()),
+                            Rc::into_inner(use_cache_telemetry_tracker)
+                                .expect(
+                                    "All other copies of use_cache_telemetry_tracker should be \
+                                     dropped by this point",
+                                )
+                                .into_inner(),
+                        )
+                    })
+                    .map_err(|e| e.to_pretty_error())
                     .convert_err(),
-                Err(err) => Err(napi::Error::new(
-                    Status::GenericFailure,
-                    format!("{:?}", err),
-                )),
+                Err(err) => Err(napi::Error::new(Status::GenericFailure, format!("{err:?}"))),
             }
         })
     }
@@ -174,9 +187,14 @@ impl Task for TransformTask {
     fn resolve(
         &mut self,
         env: Env,
-        (output, eliminated_packages): Self::Output,
+        (output, eliminated_packages, use_cache_telemetry_tracker): Self::Output,
     ) -> napi::Result<Self::JsValue> {
-        complete_output(&env, output, eliminated_packages)
+        complete_output(
+            &env,
+            output,
+            eliminated_packages,
+            use_cache_telemetry_tracker,
+        )
     }
 }
 
@@ -228,7 +246,7 @@ fn test_deser() {
 
     let tr: TransformOptions = serde_json::from_str(JSON_STR).unwrap();
 
-    println!("{:#?}", tr);
+    println!("{tr:#?}");
 }
 
 #[test]
@@ -237,5 +255,5 @@ fn test_deserialize_transform_regenerator() {
 
     let tr: TransformOptions = serde_json::from_str(JSON_STR).unwrap();
 
-    println!("{:#?}", tr);
+    println!("{tr:#?}");
 }

@@ -8,7 +8,7 @@ export default function Nav() {
   return (
     <nav className={styles.nav}>
       <li className={styles.li}>
-        <Link href="/" passHref>
+        <Link href="/">
           <FormattedMessage
             defaultMessage="Home"
             description="Nav: Index name"
@@ -16,7 +16,7 @@ export default function Nav() {
         </Link>
       </li>
       <li className={styles.li}>
-        <Link href="/about" passHref>
+        <Link href="/about">
           <FormattedMessage
             defaultMessage="About"
             description="Nav: About item"
@@ -31,7 +31,6 @@ export default function Nav() {
           <Link
             href={asPath}
             locale={availableLocale}
-            passHref
             prefetch={false}
             className={availableLocale === locale ? styles.active : undefined}
           >

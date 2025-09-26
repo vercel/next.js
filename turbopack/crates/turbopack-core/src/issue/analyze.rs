@@ -1,42 +1,61 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{
-    Issue, IssueSeverity, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
-    StyledString,
-};
-use crate::ident::AssetIdent;
+use super::{Issue, IssueSeverity, IssueSource, IssueStage, OptionStyledString, StyledString};
+use crate::{ident::AssetIdent, issue::OptionIssueSource};
 
 #[turbo_tasks::value(shared)]
 pub struct AnalyzeIssue {
-    pub severity: ResolvedVc<IssueSeverity>,
-    pub source_ident: Vc<AssetIdent>,
+    pub severity: IssueSeverity,
+    pub source_ident: ResolvedVc<AssetIdent>,
     pub title: ResolvedVc<RcStr>,
     pub message: ResolvedVc<StyledString>,
     pub code: Option<RcStr>,
-    pub source: Option<Vc<IssueSource>>,
+    pub source: Option<IssueSource>,
+}
+
+#[turbo_tasks::value_impl]
+impl AnalyzeIssue {
+    #[turbo_tasks::function]
+    pub fn new(
+        severity: IssueSeverity,
+        source_ident: ResolvedVc<AssetIdent>,
+        title: ResolvedVc<RcStr>,
+        message: ResolvedVc<StyledString>,
+        code: Option<RcStr>,
+        source: Option<IssueSource>,
+    ) -> Vc<Self> {
+        Self {
+            severity,
+            source_ident,
+            title,
+            message,
+            code,
+            source,
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for AnalyzeIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        *self.severity
+    fn severity(&self) -> IssueSeverity {
+        self.severity
     }
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        let title = &**self.title.await?;
+        let title = &*self.title.await?;
         Ok(if let Some(code) = self.code.as_ref() {
             StyledString::Line(vec![
                 StyledString::Strong(code.clone()),
-                StyledString::Text(" ".into()),
-                StyledString::Text(title.into()),
+                StyledString::Text(rcstr!(" ")),
+                StyledString::Text(title.clone()),
             ])
         } else {
-            StyledString::Text(title.into())
+            StyledString::Text(title.clone())
         }
         .cell())
     }
@@ -53,14 +72,11 @@ impl Issue for AnalyzeIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.message))
+        Vc::cell(Some(self.message))
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(
-            self.source
-                .map(|s| s.resolve_source_map(self.source_ident.path())),
-        )
+    async fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(self.source)
     }
 }

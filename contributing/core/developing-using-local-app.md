@@ -12,9 +12,9 @@ If you already have an app and it has dependencies, you can follow these steps:
 
 1. Move your app inside of the Next.js monorepo.
 
-2. Run with `pnpm next-with-deps ./app-path-in-monorepo`
+2. Run with `pnpm next-with-deps ./app-path-in-monorepo`.
 
-## Set as a local dependency in package.json
+## Set as a local dependency in `package.json`
 
 1. Run `pnpm dev` in the background in the Next.js monorepo.
 
@@ -38,7 +38,7 @@ If you already have an app and it has dependencies, you can follow these steps:
 Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc
 ```
 
-Try to add the below section to your `package.json`, then run again
+Try to add the below section to your `package.json`, then run again.
 
 ```json
 {

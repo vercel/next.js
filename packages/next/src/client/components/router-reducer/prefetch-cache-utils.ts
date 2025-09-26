@@ -291,7 +291,7 @@ export function createSeededPrefetchCacheEntry({
     kind,
     prefetchTime: Date.now(),
     lastUsedTime: Date.now(),
-    staleTime: -1,
+    staleTime: data.staleTime,
     key: prefetchCacheKey,
     status: PrefetchCacheEntryStatus.fresh,
     url,
@@ -394,32 +394,17 @@ export function prunePrefetchCache(
 
 // These values are set by `define-env-plugin` (based on `nextConfig.experimental.staleTimes`)
 // and default to 5 minutes (static) / 0 seconds (dynamic)
-const DYNAMIC_STALETIME_MS =
+export const DYNAMIC_STALETIME_MS =
   Number(process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME) * 1000
 
-const STATIC_STALETIME_MS =
+export const STATIC_STALETIME_MS =
   Number(process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME) * 1000
 
 function getPrefetchEntryCacheStatus({
   kind,
   prefetchTime,
   lastUsedTime,
-  staleTime,
 }: PrefetchCacheEntry): PrefetchCacheEntryStatus {
-  if (staleTime !== -1) {
-    // `staleTime` is the value sent by the server during static generation.
-    // When this is available, it takes precedence over any of the heuristics
-    // that follow.
-    //
-    // TODO: When PPR is enabled, the server will *always* return a stale time
-    // when prefetching. We should never use a prefetch entry that hasn't yet
-    // received data from the server. So the only two cases should be 1) we use
-    // the server-generated stale time 2) the unresolved entry is discarded.
-    return Date.now() < prefetchTime + staleTime
-      ? PrefetchCacheEntryStatus.fresh
-      : PrefetchCacheEntryStatus.stale
-  }
-
   // We will re-use the cache entry data for up to the `dynamic` staletime window.
   if (Date.now() < (lastUsedTime ?? prefetchTime) + DYNAMIC_STALETIME_MS) {
     return lastUsedTime

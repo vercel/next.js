@@ -1,23 +1,23 @@
 use std::{
     borrow::Cow,
-    cmp::{min, Ordering},
+    cmp::{Ordering, min},
     fmt,
     io::{BufRead, Read, Result as IoResult, Write},
     mem,
     ops::{AddAssign, Deref},
     pin::Pin,
-    sync::Arc,
     task::{Context as TaskContext, Poll},
 };
 
+use RopeElem::{Local, Shared};
 use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
 use futures::Stream;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_bytes::ByteBuf;
 use tokio::io::{AsyncRead, ReadBuf};
+use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
-use RopeElem::{Local, Shared};
 
 static EMPTY_BUF: &[u8] = &[];
 
@@ -27,7 +27,7 @@ static EMPTY_BUF: &[u8] = &[];
 /// sharing the contents of one Rope can be done by just cloning an Arc.
 ///
 /// Ropes are immutable, in order to construct one see [RopeBuilder].
-#[turbo_tasks::value(shared, serialization = "custom", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "custom", eq = "manual", operation)]
 #[derive(Clone, Debug, Default)]
 pub struct Rope {
     /// Total length of all held bytes.
@@ -41,7 +41,7 @@ pub struct Rope {
 /// An Arc container for ropes. This indirection allows for easily sharing the
 /// contents between Ropes (and also RopeBuilders/RopeReaders).
 #[derive(Clone, Debug)]
-struct InnerRope(Arc<[RopeElem]>);
+struct InnerRope(Arc<Vec<RopeElem>>);
 
 /// Differentiates the types of stored bytes in a rope.
 #[derive(Clone, Debug)]
@@ -113,13 +113,31 @@ impl Rope {
     }
 
     /// Returns a slice of all bytes
-    pub fn to_bytes(&self) -> Result<Cow<'_, [u8]>> {
+    pub fn to_bytes(&self) -> Cow<'_, [u8]> {
         self.data.to_bytes(self.length)
+    }
+
+    pub fn into_bytes(self) -> Bytes {
+        self.data.into_bytes(self.length)
+    }
+}
+
+impl From<Vec<u8>> for Rope {
+    fn from(mut bytes: Vec<u8>) -> Self {
+        bytes.shrink_to_fit();
+        Rope::from(Bytes::from(bytes))
+    }
+}
+
+impl From<String> for Rope {
+    fn from(mut bytes: String) -> Self {
+        bytes.shrink_to_fit();
+        Rope::from(Bytes::from(bytes))
     }
 }
 
 impl<T: Into<Bytes>> From<T> for Rope {
-    fn from(bytes: T) -> Self {
+    default fn from(bytes: T) -> Self {
         let bytes = bytes.into();
         // We can't have an InnerRope which contains an empty Local section.
         if bytes.is_empty() {
@@ -127,7 +145,7 @@ impl<T: Into<Bytes>> From<T> for Rope {
         } else {
             Rope {
                 length: bytes.len(),
-                data: InnerRope(Arc::from([Local(bytes)])),
+                data: InnerRope(Arc::from(vec![Local(bytes)])),
             }
         }
     }
@@ -166,7 +184,7 @@ impl RopeBuilder {
         self.finish();
 
         self.length += bytes.len();
-        self.committed.push(Local(bytes.into()));
+        self.committed.push(Local(Bytes::from_static(bytes)));
     }
 
     /// Concatenate another Rope instance into our builder.
@@ -185,10 +203,11 @@ impl RopeBuilder {
         self.committed.push(Shared(other.data.clone()));
     }
 
-    /// Writes any pending bytes into our committed queue.
+    /// Writes any pending bytes into our committed queue. This is called automatically by other
+    /// `RopeBuilder` methods.
     ///
     /// This may be called multiple times without issue.
-    pub fn finish(&mut self) {
+    fn finish(&mut self) {
         if let Some(b) = self.uncommitted.finish() {
             debug_assert!(!b.is_empty(), "must not have empty uncommitted bytes");
             self.length += b.len();
@@ -307,8 +326,11 @@ impl Uncommitted {
     fn finish(&mut self) -> Option<Bytes> {
         match mem::take(self) {
             Self::None => None,
-            Self::Static(s) => Some(s.into()),
-            Self::Owned(v) => Some(v.into()),
+            Self::Static(s) => Some(Bytes::from_static(s)),
+            Self::Owned(mut v) => {
+                v.shrink_to_fit();
+                Some(v.into())
+            }
         }
     }
 }
@@ -343,8 +365,7 @@ impl Serialize for Rope {
     /// deserialization won't deduplicate and share the Arcs (being the only
     /// possible owner of a individual "shared" data doesn't make sense).
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::Error;
-        let bytes = self.to_bytes().map_err(Error::custom)?;
+        let bytes = self.to_bytes();
         match bytes {
             Cow::Borrowed(b) => serde_bytes::Bytes::new(b).serialize(serializer),
             Cow::Owned(b) => ByteBuf::from(b).serialize(serializer),
@@ -361,7 +382,7 @@ impl<'de> Deserialize<'de> for Rope {
 }
 
 pub mod ser_as_string {
-    use serde::{ser::Error, Serializer};
+    use serde::{Serializer, ser::Error};
 
     use super::Rope;
 
@@ -369,6 +390,22 @@ pub mod ser_as_string {
     pub fn serialize<S: Serializer>(rope: &Rope, serializer: S) -> Result<S::Ok, S::Error> {
         let s = rope.to_str().map_err(Error::custom)?;
         serializer.serialize_str(&s)
+    }
+}
+
+pub mod ser_option_as_string {
+    use serde::{Serializer, ser::Error};
+
+    use super::Rope;
+
+    /// Serializes a Rope into a string.
+    pub fn serialize<S: Serializer>(rope: &Option<Rope>, serializer: S) -> Result<S::Ok, S::Error> {
+        if let Some(rope) = rope {
+            let s = rope.to_str().map_err(Error::custom)?;
+            serializer.serialize_some(&s)
+        } else {
+            serializer.serialize_none()
+        }
     }
 }
 
@@ -488,24 +525,51 @@ impl InnerRope {
     }
 
     /// Returns a slice of all bytes.
-    fn to_bytes(&self, len: usize) -> Result<Cow<'_, [u8]>> {
+    fn to_bytes(&self, len: usize) -> Cow<'_, [u8]> {
         match &self[..] {
-            [] => Ok(Cow::Borrowed(EMPTY_BUF)),
+            [] => Cow::Borrowed(EMPTY_BUF),
             [Shared(inner)] => inner.to_bytes(len),
-            [Local(bytes)] => Ok(Cow::Borrowed(bytes)),
+            [Local(bytes)] => Cow::Borrowed(bytes),
             _ => {
                 let mut read = RopeReader::new(self, 0);
                 let mut buf = Vec::with_capacity(len);
-                read.read_to_end(&mut buf)?;
-                Ok(Cow::Owned(buf))
+                read.read_to_end(&mut buf)
+                    .expect("rope reader should not fail");
+                buf.into()
             }
         }
+    }
+
+    fn into_bytes(mut self, len: usize) -> Bytes {
+        if self.0.is_empty() {
+            return Bytes::default();
+        } else if self.0.len() == 1 {
+            let data = Arc::try_unwrap(self.0);
+            match data {
+                Ok(data) => {
+                    return data.into_iter().next().unwrap().into_bytes(len);
+                }
+                Err(data) => {
+                    // If we have a single element, we can return it directly.
+                    if let Local(bytes) = &data[0] {
+                        return bytes.clone();
+                    }
+                    self.0 = data;
+                }
+            }
+        }
+
+        let mut read = RopeReader::new(&self, 0);
+        let mut buf = Vec::with_capacity(len);
+        read.read_to_end(&mut buf)
+            .expect("read of rope cannot fail");
+        buf.into()
     }
 }
 
 impl Default for InnerRope {
     fn default() -> Self {
-        InnerRope(Arc::from([]))
+        InnerRope(Arc::new(vec![]))
     }
 }
 
@@ -522,7 +586,7 @@ impl DeterministicHash for InnerRope {
 }
 
 impl From<Vec<RopeElem>> for InnerRope {
-    fn from(els: Vec<RopeElem>) -> Self {
+    fn from(mut els: Vec<RopeElem>) -> Self {
         if cfg!(debug_assertions) {
             // It's important that an InnerRope never contain an empty Bytes section.
             for el in els.iter() {
@@ -538,12 +602,13 @@ impl From<Vec<RopeElem>> for InnerRope {
                 }
             }
         }
+        els.shrink_to_fit();
         InnerRope(Arc::from(els))
     }
 }
 
 impl Deref for InnerRope {
-    type Target = Arc<[RopeElem]>;
+    type Target = Arc<Vec<RopeElem>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -572,6 +637,13 @@ impl RopeElem {
                 None
             }
             _ => None,
+        }
+    }
+
+    fn into_bytes(self, len: usize) -> Bytes {
+        match self {
+            Local(bytes) => bytes,
+            Shared(inner) => inner.into_bytes(len),
         }
     }
 }
@@ -1009,7 +1081,7 @@ mod test {
     #[test]
     fn test_to_bytes() -> Result<()> {
         let rope = Rope::from("abc");
-        assert_eq!(rope.to_bytes()?, Cow::Borrowed::<[u8]>(&[0x61, 0x62, 0x63]));
+        assert_eq!(rope.to_bytes(), Cow::Borrowed::<[u8]>(&[0x61, 0x62, 0x63]));
         Ok(())
     }
 }

@@ -1,8 +1,8 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
@@ -14,18 +14,14 @@ export const ACTION_HMR_REFRESH = 'hmr-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
 
 export type RouterChangeByServerResponse = ({
+  navigatedAt,
   previousTree,
   serverResponse,
 }: {
+  navigatedAt: number
   previousTree: FlightRouterState
   serverResponse: FetchServerResponseResult
 }) => void
-
-export type RouterNavigate = (
-  href: string,
-  navigateType: 'push' | 'replace',
-  shouldScroll: boolean
-) => void
 
 export interface Mutable {
   mpaNavigation?: boolean
@@ -73,6 +69,7 @@ export interface ServerActionAction {
   actionArgs: any[]
   resolve: (value: any) => void
   reject: (reason?: any) => void
+  didRevalidate?: boolean
 }
 
 /**
@@ -137,6 +134,7 @@ export interface RestoreAction {
  */
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
+  navigatedAt: number
   serverResponse: FetchServerResponseResult
   previousTree: FlightRouterState
 }

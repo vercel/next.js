@@ -21,7 +21,7 @@ describe.each(['app', 'pages'] as const)(
 
     const allFlagValues = {
       app: [isApp ? '--app' : '--no-app'],
-      turbo: [process.env.TURBOPACK ? '--turbopack' : '--no-turbopack'],
+      turbo: [process.env.IS_TURBOPACK_TEST ? '--turbopack' : '--no-turbopack'],
 
       ts: ['--js', '--ts'],
       importAlias: [
@@ -30,7 +30,7 @@ describe.each(['app', 'pages'] as const)(
         '--no-import-alias',
       ],
       // doesn't affect if the app builds or not
-      // eslint: ['--eslint', '--no-eslint'],
+      // eslint: ['--eslint', '--no-linter'],
       eslint: ['--eslint'],
 
       srcDir: ['--src-dir', '--no-src-dir'],
@@ -60,7 +60,11 @@ describe.each(['app', 'pages'] as const)(
       await useTempDir(async (cwd) => {
         const projectName = `cna-matrix-${pagesOrApp}-${id++}`
         const { exitCode } = await run(
-          [projectName, ...flags],
+          [
+            projectName,
+            ...flags,
+            ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+          ],
           nextTgzFilename,
           {
             cwd,

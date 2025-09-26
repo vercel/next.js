@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation'
 
 export default function page() {
-  return 'redirect to basic'
+  return 'redirect page'
 }
 
 export async function generateMetadata() {
-  redirect('/basic')
+  redirect('/async/redirect/dest')
 }

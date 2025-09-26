@@ -23,13 +23,13 @@ import { useIntersection } from '../use-intersection'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
+import { findClosestQuality } from '../../shared/lib/find-closest-quality'
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 
 const supportsFloat = typeof ReactDOM.preload === 'function'
-
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -150,9 +150,8 @@ function defaultLoader({
         process.env.NEXT_RUNTIME !== 'edge'
       ) {
         // We use dynamic require because this should only error in development
-        const {
-          hasLocalMatch,
-        } = require('../../shared/lib/match-local-pattern')
+        const { hasLocalMatch } =
+          require('../../shared/lib/match-local-pattern') as typeof import('../../shared/lib/match-local-pattern')
         if (!hasLocalMatch(config.localPatterns, src)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\` does not match \`images.localPatterns\` configured in your \`next.config.js\`\n` +
@@ -179,9 +178,8 @@ function defaultLoader({
         process.env.NEXT_RUNTIME !== 'edge'
       ) {
         // We use dynamic require because this should only error in development
-        const {
-          hasRemoteMatch,
-        } = require('../../shared/lib/match-remote-pattern')
+        const { hasRemoteMatch } =
+          require('../../shared/lib/match-remote-pattern') as typeof import('../../shared/lib/match-remote-pattern')
         if (!hasRemoteMatch(config.domains, config.remotePatterns, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
@@ -192,6 +190,8 @@ function defaultLoader({
     }
   }
 
+  const q = findClosestQuality(quality, config)
+
   if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
@@ -200,7 +200,7 @@ function defaultLoader({
 
   return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(
     src
-  )}&w=${width}&q=${quality || 75}`
+  )}&w=${width}&q=${q}`
 }
 
 const loaders = new Map<
@@ -641,7 +641,8 @@ export default function Image({
     const c = configEnv || configContext || imageConfigDefault
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    return { ...c, allSizes, deviceSizes }
+    const qualities = c.qualities?.sort((a, b) => a - b)
+    return { ...c, allSizes, deviceSizes, qualities }
   }, [configContext])
 
   let rest: Partial<ImageProps> = all
@@ -843,6 +844,30 @@ export default function Image({
       if ('ref' in rest) {
         warnOnce(
           `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+        )
+      }
+
+      if (
+        qualityInt &&
+        config.qualities &&
+        !config.qualities.includes(qualityInt)
+      ) {
+        warnOnce(
+          `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
+        )
+      }
+
+      if (
+        src.startsWith('/') &&
+        src.includes('?') &&
+        (!config?.localPatterns?.length ||
+          (config.localPatterns.length === 1 &&
+            config.localPatterns[0].pathname === '/_next/static/media/**'))
+      ) {
+        warnOnce(
+          `Image with src "${src}" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
         )
       }
 

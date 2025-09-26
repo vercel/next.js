@@ -1,6 +1,6 @@
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    atoms::JsWord,
-    common::collections::{AHashMap, AHashSet},
+    atoms::{atom, Atom},
     ecma::{
         ast::{
             Expr, Id, ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, MemberProp,
@@ -13,16 +13,16 @@ use swc_core::{
 #[derive(Debug, Default)]
 pub(crate) struct ImportMap {
     /// Map from module name to (module path, exported symbol)
-    imports: AHashMap<Id, (JsWord, JsWord)>,
+    imports: FxHashMap<Id, (Atom, Atom)>,
 
-    namespace_imports: AHashMap<Id, JsWord>,
+    namespace_imports: FxHashMap<Id, Atom>,
 
-    imported_modules: AHashSet<JsWord>,
+    imported_modules: FxHashSet<Atom>,
 }
 
 #[allow(unused)]
 impl ImportMap {
-    pub fn is_module_imported(&mut self, module: &JsWord) -> bool {
+    pub fn is_module_imported(&mut self, module: &Atom) -> bool {
         self.imported_modules.contains(module)
     }
 
@@ -80,7 +80,7 @@ impl Visit for Analyzer<'_> {
                     Some(imported) => (local.to_id(), orig_name(imported)),
                     _ => (local.to_id(), local.sym.clone()),
                 },
-                ImportSpecifier::Default(s) => (s.local.to_id(), "default".into()),
+                ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
                 ImportSpecifier::Namespace(s) => {
                     self.data
                         .namespace_imports
@@ -96,7 +96,7 @@ impl Visit for Analyzer<'_> {
     }
 }
 
-fn orig_name(n: &ModuleExportName) -> JsWord {
+fn orig_name(n: &ModuleExportName) -> Atom {
     match n {
         ModuleExportName::Ident(v) => v.sym.clone(),
         ModuleExportName::Str(v) => v.value.clone(),

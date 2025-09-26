@@ -6,7 +6,7 @@ import { NextInstance, NextInstanceOpts } from '../next-modes/base'
 import { NextDevInstance } from '../next-modes/next-dev'
 import { NextStartInstance } from '../next-modes/next-start'
 import { NextDeployInstance } from '../next-modes/next-deploy'
-import { shouldRunTurboDevTest } from '../next-test-utils'
+import { shouldUseTurbopack } from '../next-test-utils'
 
 export type { NextInstance }
 
@@ -14,9 +14,7 @@ export type { NextInstance }
 // if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
 // this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
 // test job exceeds the 6 hours limit.
-let testTimeout = shouldRunTurboDevTest()
-  ? (240 * 1000) / 2
-  : (process.platform === 'win32' ? 240 : 120) * 1000
+let testTimeout = (process.platform === 'win32' ? 240 : 120) * 1000
 
 if (process.env.NEXT_E2E_TEST_TIMEOUT) {
   try {
@@ -71,7 +69,7 @@ if (testModeFromFile === 'e2e') {
     testMode = 'start'
   }
   assert(
-    validE2EModes.includes(testMode),
+    validE2EModes.includes(testMode!),
     `NEXT_TEST_MODE must be one of ${validE2EModes.join(
       ', '
     )} for e2e tests but received ${testMode}`
@@ -164,9 +162,9 @@ export async function createNext(
 
     setupTracing()
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
-      const useTurbo = !!process.env.TEST_WASM
+      const useTurbo = !!process.env.NEXT_TEST_WASM
         ? false
-        : opts?.turbo ?? shouldRunTurboDevTest()
+        : (opts?.turbo ?? shouldUseTurbopack())
 
       if (testMode === 'dev') {
         // next dev
@@ -194,6 +192,8 @@ export async function createNext(
         })
       }
 
+      nextInstance = nextInstance!
+
       nextInstance.on('destroy', () => {
         nextInstance = undefined
       })
@@ -204,7 +204,7 @@ export async function createNext(
         await rootSpan
           .traceChild('start next instance')
           .traceAsyncFn(async () => {
-            await nextInstance.start()
+            await nextInstance!.start()
           })
       }
 
@@ -272,6 +272,15 @@ export function nextTestSetup(
       const prop = next[property]
       return typeof prop === 'function' ? prop.bind(next) : prop
     },
+    set: function (_target, key, value) {
+      if (!next) {
+        throw new Error(
+          'next instance is not initialized yet, make sure you call methods on next instance in test body.'
+        )
+      }
+      next[key] = value
+      return true
+    },
   })
 
   return {
@@ -280,7 +289,7 @@ export function nextTestSetup(
     },
     get isTurbopack(): boolean {
       return Boolean(
-        !process.env.TEST_WASM && (options.turbo ?? shouldRunTurboDevTest())
+        !process.env.NEXT_TEST_WASM && (options.turbo ?? shouldUseTurbopack())
       )
     },
 

@@ -6,7 +6,7 @@
             values: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "",
                         ),
                     ),
@@ -22,7 +22,7 @@
                         ),
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "x",
                                 ),
                             ),

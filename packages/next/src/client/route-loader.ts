@@ -19,6 +19,7 @@ declare global {
     __MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
     __MIDDLEWARE_MANIFEST_CB?: Function
     __REACT_LOADABLE_MANIFEST?: any
+    __DYNAMIC_CSS_MANIFEST?: any
     __RSC_MANIFEST?: any
     __RSC_SERVER_MANIFEST?: any
     __NEXT_FONT_MANIFEST?: any

@@ -3,7 +3,6 @@ import type { NextApiRequest, NextApiResponse } from '../../../shared/lib/utils'
 import type { PageConfig, ResponseLimit } from '../../../types'
 import type { __ApiPreviewProps } from '../.'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import type { ServerOnInstrumentationRequestError } from '../../app-render/types'
 
 import bytes from 'next/dist/compiled/bytes'
 import { generateETag } from '../../lib/etag'
@@ -25,24 +24,22 @@ import {
 } from './../index'
 import { getCookieParser } from './../get-cookie-parser'
 import {
+  JSON_CONTENT_TYPE_HEADER,
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../../lib/constants'
 import { tryGetPreviewData } from './try-get-preview-data'
 import { parseBody } from './parse-body'
-
-type RevalidateFn = (config: {
-  urlPath: string
-  revalidateHeaders: { [key: string]: string | string[] }
-  opts: { unstable_onlyGenerated?: boolean }
-}) => Promise<void>
+import type { RevalidateFn } from '../../lib/router-utils/router-server-context'
+import type { InstrumentationOnRequestError } from '../../instrumentation/types'
 
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
-  revalidate?: RevalidateFn
   multiZoneDraftMode?: boolean
+  dev: boolean
+  internalRevalidate?: RevalidateFn
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -107,7 +104,7 @@ function sendData(req: NextApiRequest, res: NextApiResponse, body: any): void {
   }
 
   if (isJSONLike) {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
   }
 
   res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
@@ -121,7 +118,7 @@ function sendData(req: NextApiRequest, res: NextApiResponse, body: any): void {
  */
 function sendJson(res: NextApiResponse, jsonBody: any): void {
   // Set header to application/json
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
 
   // Use send to handle request
   res.send(JSON.stringify(jsonBody))
@@ -146,7 +143,7 @@ function setDraftMode<T>(
   // https://tools.ietf.org/html/rfc6265#section-4.1.1
   // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
   const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+    require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -212,7 +209,7 @@ function setPreviewData<T>(
   }
 
   const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+    require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -271,10 +268,15 @@ async function revalidate(
   }
   const allowedRevalidateHeaderKeys = [
     ...(context.allowedRevalidateHeaderKeys || []),
-    ...(context.trustHostHeader
-      ? ['cookie', 'x-vercel-protection-bypass']
-      : []),
   ]
+
+  if (context.trustHostHeader || context.dev) {
+    allowedRevalidateHeaderKeys.push('cookie')
+  }
+
+  if (context.trustHostHeader) {
+    allowedRevalidateHeaderKeys.push('x-vercel-protection-bypass')
+  }
 
   for (const key of Object.keys(req.headers)) {
     if (allowedRevalidateHeaderKeys.includes(key)) {
@@ -282,7 +284,20 @@ async function revalidate(
     }
   }
 
+  const internalRevalidate = context.internalRevalidate
+
   try {
+    // We use the revalidate in router-server if available.
+    // If we are operating without router-server (serverless)
+    // we must go through network layer with fetch request
+    if (internalRevalidate) {
+      return await internalRevalidate({
+        urlPath,
+        revalidateHeaders,
+        opts,
+      })
+    }
+
     if (context.trustHostHeader) {
       const res = await fetch(`https://${req.headers.host}${urlPath}`, {
         method: 'HEAD',
@@ -296,19 +311,14 @@ async function revalidate(
 
       if (
         cacheHeader?.toUpperCase() !== 'REVALIDATED' &&
+        res.status !== 200 &&
         !(res.status === 404 && opts.unstable_onlyGenerated)
       ) {
         throw new Error(`Invalid response ${res.status}`)
       }
-    } else if (context.revalidate) {
-      await context.revalidate({
-        urlPath,
-        revalidateHeaders,
-        opts,
-      })
     } else {
       throw new Error(
-        `Invariant: required internal revalidate method not passed to api-utils`
+        `Invariant: missing internal router-server-methods this is an internal bug`
       )
     }
   } catch (err: unknown) {
@@ -327,7 +337,7 @@ export async function apiResolver(
   propagateError: boolean,
   dev?: boolean,
   page?: string,
-  onError?: ServerOnInstrumentationRequestError
+  onError?: InstrumentationOnRequestError
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -438,12 +448,20 @@ export async function apiResolver(
       }
     }
   } catch (err) {
-    onError?.(err, req, {
-      routerKind: 'Pages Router',
-      routePath: page || '',
-      routeType: 'route',
-      revalidateReason: undefined,
-    })
+    await onError?.(
+      err,
+      {
+        method: req.method || 'GET',
+        headers: req.headers,
+        path: req.url || '/',
+      },
+      {
+        routerKind: 'Pages Router',
+        routePath: page || '',
+        routeType: 'route',
+        revalidateReason: undefined,
+      }
+    )
 
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)

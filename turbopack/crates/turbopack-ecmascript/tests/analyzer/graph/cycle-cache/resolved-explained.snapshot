@@ -39,15 +39,15 @@
 *arrow function 578* = (...) => 1
 
 a = (1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | ???*0*)
-- *0* b
+- *0* a
   ⚠️  circular variable reference
 
 b = (4 | 5 | 6 | 7 | 8 | 9 | 1 | 2 | 3 | ???*0*)
-- *0* c
+- *0* b
   ⚠️  circular variable reference
 
 c = (7 | 8 | 9 | 1 | 2 | 3 | 4 | 5 | 6 | ???*0*)
-- *0* a
+- *0* c
   ⚠️  circular variable reference
 
 d = ???*0*

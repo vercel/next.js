@@ -33,11 +33,13 @@ const checkAssetStatus = async (assetId: string): Promise<Status> => {
 // For this example, calling the Mux API on each request and then polling is sufficient.
 export const dynamic = "force-dynamic";
 
-export default async function Page({
-  params: { assetId },
-}: {
-  params: { assetId: string };
+export default async function Page(props: {
+  params: Promise<{ assetId: string }>;
 }) {
+  const params = await props.params;
+
+  const { assetId } = params;
+
   const initialStatus = await checkAssetStatus(assetId);
   return (
     <AssetStatusPoll

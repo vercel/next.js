@@ -1,23 +1,29 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
+use serde::{Deserialize, Serialize};
 use swc_core::{
+    common::util::take::Take,
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+};
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
+    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
 };
 
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::AstPath,
+    runtime_functions::TURBOPACK_REQUIRE,
+    utils::module_id_to_lit,
     worker_chunk::module::WorkerLoaderModule,
 };
 
@@ -26,28 +32,23 @@ use crate::{
 pub struct WorkerAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub path: ResolvedVc<AstPath>,
-    pub issue_source: ResolvedVc<IssueSource>,
+    pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
-#[turbo_tasks::value_impl]
 impl WorkerAssetReference {
-    #[turbo_tasks::function]
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        path: ResolvedVc<AstPath>,
-        issue_source: ResolvedVc<IssueSource>,
+        issue_source: IssueSource,
         in_try: bool,
-    ) -> Vc<Self> {
-        Self::cell(WorkerAssetReference {
+    ) -> Self {
+        WorkerAssetReference {
             origin,
             request,
-            path,
             issue_source,
             in_try,
-        })
+        }
     }
 }
 
@@ -59,23 +60,23 @@ impl WorkerAssetReference {
             *self.origin,
             *self.request,
             // TODO support more worker types
-            Value::new(ReferenceType::Worker(WorkerReferenceSubType::WebWorker)),
-            Some(*self.issue_source),
+            ReferenceType::Worker(WorkerReferenceSubType::WebWorker),
+            Some(self.issue_source),
             self.in_try,
         );
 
         let Some(module) = *module.first_module().await? else {
-            bail!("Expected worker to resolve to a module");
+            return Ok(None);
         };
-        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
-        else {
+        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
             CodeGenerationIssue {
-                severity: IssueSeverity::Bug.into(),
-                title: StyledString::Text("non-ecmascript placeable asset".into()).cell(),
-                message: StyledString::Text("asset is not placeable in ESM chunks".into()).cell(),
-                path: self.origin.origin_path(),
+                severity: IssueSeverity::Bug,
+                title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
+                message: StyledString::Text(rcstr!("asset is not placeable in ESM chunks"))
+                    .resolved_cell(),
+                path: self.origin.origin_path().owned().await?,
             }
-            .cell()
+            .resolved_cell()
             .emit();
             return Ok(None);
         };
@@ -89,12 +90,11 @@ impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if let Some(worker_loader_module) = self.worker_loader_module().await? {
-            Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+            Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
                 worker_loader_module.to_resolved().await?,
-            ))
-            .cell())
+            )))
         } else {
-            Ok(ModuleResolveResult::unresolvable().cell())
+            Ok(*ModuleResolveResult::unresolvable())
         }
     }
 }
@@ -112,14 +112,31 @@ impl ValueToString for WorkerAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for WorkerAssetReference {}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for WorkerAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
+impl IntoCodeGenReference for WorkerAssetReference {
+    fn into_code_gen_reference(
+        self,
+        path: AstPath,
+    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
+        let reference = self.resolved_cell();
+        (
+            ResolvedVc::upcast(reference),
+            CodeGen::WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen { reference, path }),
+        )
+    }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct WorkerAssetReferenceCodeGen {
+    reference: ResolvedVc<WorkerAssetReference>,
+    path: AstPath,
+}
+
+impl WorkerAssetReferenceCodeGen {
+    pub async fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let Some(loader) = self.worker_loader_module().await? else {
+    ) -> Result<CodeGeneration> {
+        let Some(loader) = self.reference.await?.worker_loader_module().await? else {
             bail!("Worker loader could not be created");
         };
 
@@ -127,27 +144,34 @@ impl CodeGenerateable for WorkerAssetReference {
             .chunk_item_id_from_ident(loader.ident())
             .await?;
 
-        let path = &self.path.await?;
-
-        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
-            let message = if let Expr::New(NewExpr { args, ..}) = expr {
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+            let message = if let Expr::New(NewExpr { args, .. }) = expr {
                 if let Some(args) = args {
-                    match args.iter_mut().next() {
+                    match args.first_mut() {
                         Some(ExprOrSpread { spread: None, expr }) => {
-                            let item_id = Expr::Lit(Lit::Str(item_id.to_string().into()));
+                            let item_id = module_id_to_lit(&item_id);
                             *expr = quote_expr!(
-                                "__turbopack_require__($item_id)",
+                                "$turbopack_require($item_id)",
+                                turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                                 item_id: Expr = item_id
                             );
+
+                            if let Some(opts) = args.get_mut(1)
+                                && opts.spread.is_none()
+                            {
+                                *opts.expr = *quote_expr!(
+                                    "{...$opts, type: undefined}",
+                                    opts: Expr = (*opts.expr).take()
+                                );
+                            }
                             return;
                         }
                         // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
-                        Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
-                            "spread operator is illegal in new Worker() expressions."
-                        }
-                        _ => {
-                            "new Worker() expressions require at least 1 argument"
-                        }
+                        Some(ExprOrSpread {
+                            spread: Some(_),
+                            expr: _,
+                        }) => "spread operator is illegal in new Worker() expressions.",
+                        _ => "new Worker() expressions require at least 1 argument",
                     }
                 } else {
                     "new Worker() expressions require at least 1 argument"

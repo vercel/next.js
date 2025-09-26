@@ -9,29 +9,27 @@ use anyhow::{Context, Result};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
     project::{ProjectContainer, ProjectOptions},
-    route::{Endpoint, Route},
+    route::{Endpoint, EndpointOutputPaths, Route, endpoint_write_to_disk},
 };
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadConsistency, TransientInstance, TurboTasks, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ReadConsistency, ResolvedVc, TransientInstance, TurboTasks, Vc, get_effects};
+use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
 use turbo_tasks_malloc::TurboMalloc;
-use turbo_tasks_memory::MemoryBackend;
 
 pub async fn main_inner(
-    tt: &TurboTasks<MemoryBackend>,
-    strat: Strategy,
+    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    strategy: Strategy,
     factor: usize,
     limit: usize,
     files: Option<Vec<String>>,
 ) -> Result<()> {
-    register();
-
     let path = std::env::current_dir()?.join("project_options.json");
     let mut file = std::fs::File::open(&path)
         .with_context(|| format!("loading file at {}", path.display()))?;
 
     let mut options: ProjectOptions = serde_json::from_reader(&mut file)?;
 
-    if matches!(strat, Strategy::Development { .. }) {
+    if matches!(strategy, Strategy::Development { .. }) {
         options.dev = true;
         options.watch.enable = true;
     } else {
@@ -40,21 +38,19 @@ pub async fn main_inner(
     }
 
     let project = tt
-        .run_once(async {
-            let project = ProjectContainer::new("next-build-test".into(), options.dev);
-            let project = project.resolve().await?;
+        .run(async {
+            let project = ProjectContainer::new(rcstr!("next-build-test"), options.dev);
+            let project = project.to_resolved().await?;
             project.initialize(options).await?;
             Ok(project)
         })
         .await?;
 
     tracing::info!("collecting endpoints");
-    let entrypoints = tt
-        .run_once(async move { project.entrypoints().await })
-        .await?;
+    let entrypoints = tt.run(async move { project.entrypoints().await }).await?;
 
     let mut routes = if let Some(files) = files {
-        tracing::info!("builing only the files:");
+        tracing::info!("building only the files:");
         for file in &files {
             tracing::info!("  {}", file);
         }
@@ -72,12 +68,12 @@ pub async fn main_inner(
         Box::new(entrypoints.routes.clone().into_iter())
     };
 
-    if strat.randomized() {
+    if strategy.randomized() {
         routes = Box::new(shuffle(routes))
     }
 
     let start = Instant::now();
-    let count = render_routes(tt, routes, strat, factor, limit).await?;
+    let count = render_routes(tt, routes, strategy, factor, limit).await?;
     tracing::info!("rendered {} pages in {:?}", count, start.elapsed());
 
     if count == 0 {
@@ -87,16 +83,11 @@ pub async fn main_inner(
         }
     }
 
-    if matches!(strat, Strategy::Development { .. }) {
-        hmr(tt, project).await?;
+    if matches!(strategy, Strategy::Development { .. }) {
+        hmr(tt, *project).await?;
     }
 
     Ok(())
-}
-
-pub fn register() {
-    next_api::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
 #[derive(PartialEq, Copy, Clone)]
@@ -150,7 +141,7 @@ impl Strategy {
 }
 
 pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item = T> {
-    use rand::{seq::SliceRandom, SeedableRng};
+    use rand::{SeedableRng, seq::SliceRandom};
     let mut rng = rand::rngs::SmallRng::from_seed([0; 32]);
     let mut input = items.collect::<Vec<_>>();
     input.shuffle(&mut rng);
@@ -158,14 +149,14 @@ pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item 
 }
 
 pub async fn render_routes(
-    tt: &TurboTasks<MemoryBackend>,
+    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
     routes: impl Iterator<Item = (RcStr, Route)>,
     strategy: Strategy,
     factor: usize,
     limit: usize,
 ) -> Result<usize> {
     tracing::info!(
-        "rendering routes with {} parallel and strat {}",
+        "rendering routes with {} parallel and strategy {}",
         factor,
         strategy
     );
@@ -177,7 +168,7 @@ pub async fn render_routes(
 
             let memory = TurboMalloc::memory_usage();
 
-            tt.run_once({
+            tt.run({
                 let name = name.clone();
                 async move {
                     match route {
@@ -185,21 +176,21 @@ pub async fn render_routes(
                             html_endpoint,
                             data_endpoint: _,
                         } => {
-                            html_endpoint.write_to_disk().await?;
+                            endpoint_write_to_disk_with_effects(*html_endpoint).await?;
                         }
                         Route::PageApi { endpoint } => {
-                            endpoint.write_to_disk().await?;
+                            endpoint_write_to_disk_with_effects(*endpoint).await?;
                         }
                         Route::AppPage(routes) => {
                             for route in routes {
-                                route.html_endpoint.write_to_disk().await?;
+                                endpoint_write_to_disk_with_effects(*route.html_endpoint).await?;
                             }
                         }
                         Route::AppRoute {
                             original_name: _,
                             endpoint,
                         } => {
-                            endpoint.write_to_disk().await?;
+                            endpoint_write_to_disk_with_effects(*endpoint).await?;
                         }
                         Route::Conflict => {
                             tracing::info!("WARN: conflict {}", name);
@@ -242,11 +233,31 @@ pub async fn render_routes(
     Ok(stream.len())
 }
 
-async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> Result<()> {
+#[turbo_tasks::function]
+async fn endpoint_write_to_disk_with_effects(
+    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+) -> Result<Vc<EndpointOutputPaths>> {
+    let op = endpoint_write_to_disk_operation(endpoint);
+    let result = op.resolve_strongly_consistent().await?;
+    get_effects(op).await?.apply().await?;
+    Ok(*result)
+}
+
+#[turbo_tasks::function(operation)]
+pub fn endpoint_write_to_disk_operation(
+    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+) -> Vc<EndpointOutputPaths> {
+    endpoint_write_to_disk(*endpoint)
+}
+
+async fn hmr(
+    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    project: Vc<ProjectContainer>,
+) -> Result<()> {
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
     let idents = tt
-        .run_once(async move { project.hmr_identifiers().await })
+        .run(async move { project.hmr_identifiers().await })
         .await?;
     let start = Instant::now();
     for ident in idents {

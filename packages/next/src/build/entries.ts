@@ -12,9 +12,8 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { posix, join, dirname, extname } from 'path'
+import { posix, join, normalize } from 'path'
 import { stringify } from 'querystring'
-import fs from 'fs'
 import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
@@ -27,7 +26,7 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   APP_CLIENT_INTERNALS,
   RSC_MODULE_TYPES,
-  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -45,12 +44,8 @@ import {
   isMiddlewareFilename,
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
-  reduceAppConfig,
 } from './utils'
-import {
-  getAppPageStaticInfo,
-  getPageStaticInfo,
-} from './analysis/get-page-static-info'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import type { ServerRuntime } from '../types'
@@ -74,105 +69,330 @@ import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
 import { PAGE_TYPES } from '../lib/page-types'
-import { isAppPageRoute } from '../lib/is-app-page-route'
+import { recursiveReadDir } from '../lib/recursive-readdir'
+import type { createValidFileMatcher } from '../server/lib/find-page-file'
+import { isReservedPage } from './utils'
+import { isParallelRouteSegment } from '../shared/lib/segment'
+import { ensureLeadingSlash } from '../shared/lib/page-path/ensure-leading-slash'
+import {
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+} from '../shared/lib/entry-constants'
+import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 
-export function sortByPageExts(pageExtensions: PageExtensions) {
-  return (a: string, b: string) => {
-    // prioritize entries according to pageExtensions order
-    // for consistency as fs order can differ across systems
-    // NOTE: this is reversed so preferred comes last and
-    // overrides prior
-    const aExt = extname(a)
-    const bExt = extname(b)
-
-    const aNoExt = a.substring(0, a.length - aExt.length)
-    const bNoExt = a.substring(0, b.length - bExt.length)
-
-    if (aNoExt !== bNoExt) return 0
-
-    // find extension index (skip '.' as pageExtensions doesn't have it)
-    const aExtIndex = pageExtensions.indexOf(aExt.substring(1))
-    const bExtIndex = pageExtensions.indexOf(bExt.substring(1))
-
-    return bExtIndex - aExtIndex
-  }
-}
-
-export async function getStaticInfoIncludingLayouts({
-  isInsideAppDir,
-  pageExtensions,
-  pageFilePath,
-  appDir,
-  config: nextConfig,
-  isDev,
-  page,
-}: {
-  isInsideAppDir: boolean
-  pageExtensions: PageExtensions
-  pageFilePath: string
-  appDir: string | undefined
-  config: NextConfigComplete
-  isDev: boolean | undefined
-  page: string
-}): Promise<PageStaticInfo> {
-  // TODO: sync types for pages: PAGE_TYPES, ROUTER_TYPE, 'app' | 'pages', etc.
-  const pageType = isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES
-
-  const pageStaticInfo = await getPageStaticInfo({
-    nextConfig,
-    pageFilePath,
-    isDev,
-    page,
-    pageType,
+/**
+ * Collect app pages, layouts, and default files from the app directory
+ * @param appDir - The app directory path
+ * @param validFileMatcher - File matcher object
+ * @returns Object containing appPaths, layoutPaths, and defaultPaths arrays
+ */
+export async function collectAppFiles(
+  appDir: string,
+  validFileMatcher: ReturnType<typeof createValidFileMatcher>
+): Promise<{
+  appPaths: string[]
+  layoutPaths: string[]
+  defaultPaths: string[]
+}> {
+  // Collect app pages, layouts, and default files in a single directory traversal
+  const allAppFiles = await recursiveReadDir(appDir, {
+    pathnameFilter: (absolutePath) =>
+      validFileMatcher.isAppRouterPage(absolutePath) ||
+      validFileMatcher.isRootNotFound(absolutePath) ||
+      validFileMatcher.isAppLayoutPage(absolutePath) ||
+      validFileMatcher.isAppDefaultPage(absolutePath),
+    ignorePartFilter: (part) => part.startsWith('_'),
   })
 
-  if (pageStaticInfo.type === PAGE_TYPES.PAGES || !appDir) {
-    return pageStaticInfo
-  }
+  // Separate app pages, layouts, and defaults
+  const appPaths = allAppFiles.filter(
+    (absolutePath) =>
+      validFileMatcher.isAppRouterPage(absolutePath) ||
+      validFileMatcher.isRootNotFound(absolutePath)
+  )
+  const layoutPaths = allAppFiles.filter((absolutePath) =>
+    validFileMatcher.isAppLayoutPage(absolutePath)
+  )
+  const defaultPaths = allAppFiles.filter((absolutePath) =>
+    validFileMatcher.isAppDefaultPage(absolutePath)
+  )
 
-  const segments = [pageStaticInfo]
+  return { appPaths, layoutPaths, defaultPaths }
+}
 
-  // inherit from layout files only if it's a page route
-  if (isAppPageRoute(page)) {
-    const layoutFiles = []
-    const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
-    let dir = dirname(pageFilePath)
+/**
+ * Collect pages from the pages directory
+ * @param pagesDir - The pages directory path
+ * @param validFileMatcher - File matcher object
+ * @returns Array of page file paths
+ */
+export async function collectPagesFiles(
+  pagesDir: string,
+  validFileMatcher: ReturnType<typeof createValidFileMatcher>
+): Promise<string[]> {
+  return recursiveReadDir(pagesDir, {
+    pathnameFilter: validFileMatcher.isPageFile,
+  })
+}
 
-    // Uses startsWith to not include directories further up.
-    while (dir.startsWith(appDir)) {
-      for (const potentialLayoutFile of potentialLayoutFiles) {
-        const layoutFile = join(dir, potentialLayoutFile)
-        if (!fs.existsSync(layoutFile)) {
-          continue
-        }
-        layoutFiles.push(layoutFile)
-      }
-      // Walk up the directory tree
-      dir = join(dir, '..')
-    }
+// Types for route processing
+export type RouteInfo = {
+  route: string
+  filePath: string
+}
 
-    for (const layoutFile of layoutFiles) {
-      const layoutStaticInfo = await getAppPageStaticInfo({
-        nextConfig,
-        pageFilePath: layoutFile,
-        isDev,
-        page,
-        pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
+export type SlotInfo = {
+  name: string
+  parent: string
+}
+
+/**
+ * Create a relative file path from a mapped page path
+ * @param baseDir - The base directory path
+ * @param filePath - The mapped file path (with private prefix)
+ * @param prefix - The directory prefix ('pages' or 'app')
+ * @param isSrcDir - Whether the project uses src directory structure
+ * @returns The relative file path
+ */
+export function createRelativeFilePath(
+  baseDir: string,
+  filePath: string,
+  prefix: 'pages' | 'app',
+  isSrcDir: boolean
+): string {
+  const privatePrefix =
+    prefix === 'pages' ? 'private-next-pages' : 'private-next-app-dir'
+  const srcPrefix = isSrcDir ? 'src/' : ''
+  return join(
+    baseDir,
+    filePath.replace(new RegExp(`^${privatePrefix}/`), `${srcPrefix}${prefix}/`)
+  )
+}
+
+/**
+ * Process pages routes from mapped pages
+ * @param mappedPages - The mapped pages object
+ * @param baseDir - The base directory path
+ * @param isSrcDir - Whether the project uses src directory structure
+ * @returns Object containing pageRoutes and pageApiRoutes
+ */
+export function processPageRoutes(
+  mappedPages: { [page: string]: string },
+  baseDir: string,
+  isSrcDir: boolean
+): {
+  pageRoutes: RouteInfo[]
+  pageApiRoutes: RouteInfo[]
+} {
+  const pageRoutes: RouteInfo[] = []
+  const pageApiRoutes: RouteInfo[] = []
+
+  for (const [route, filePath] of Object.entries(mappedPages)) {
+    const relativeFilePath = createRelativeFilePath(
+      baseDir,
+      filePath,
+      'pages',
+      isSrcDir
+    )
+
+    if (route.startsWith('/api/')) {
+      pageApiRoutes.push({
+        route: normalizePathSep(route),
+        filePath: relativeFilePath,
       })
+    } else {
+      // Filter out _app, _error, _document
+      if (isReservedPage(route)) continue
 
-      segments.unshift(layoutStaticInfo)
+      pageRoutes.push({
+        route: normalizePathSep(route),
+        filePath: relativeFilePath,
+      })
     }
   }
 
-  const config = reduceAppConfig(segments)
+  return { pageRoutes, pageApiRoutes }
+}
 
-  return {
-    ...pageStaticInfo,
-    config,
-    runtime: config.runtime,
-    preferredRegion: config.preferredRegion,
-    maxDuration: config.maxDuration,
+/**
+ * Extract slots from app routes
+ * @param mappedAppPages - The mapped app pages object
+ * @returns Array of slot information
+ */
+export function extractSlotsFromAppRoutes(mappedAppPages: {
+  [page: string]: string
+}): SlotInfo[] {
+  const slots: SlotInfo[] = []
+
+  for (const [page] of Object.entries(mappedAppPages)) {
+    if (
+      page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY ||
+      page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+    ) {
+      continue
+    }
+
+    const segments = page.split('/')
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const segment = segments[i]
+      if (isParallelRouteSegment(segment)) {
+        const parentPath = normalizeAppPath(segments.slice(0, i).join('/'))
+        const slotName = segment.slice(1)
+
+        // Check if the slot already exists
+        if (slots.some((s) => s.name === slotName && s.parent === parentPath))
+          continue
+
+        slots.push({
+          name: slotName,
+          parent: parentPath,
+        })
+        break
+      }
+    }
   }
+
+  return slots
+}
+
+/**
+ * Extract slots from default files
+ * @param mappedDefaultFiles - The mapped default files object
+ * @returns Array of slot information
+ */
+export function extractSlotsFromDefaultFiles(mappedDefaultFiles: {
+  [page: string]: string
+}): SlotInfo[] {
+  const slots: SlotInfo[] = []
+
+  for (const [route] of Object.entries(mappedDefaultFiles)) {
+    const segments = route.split('/')
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const segment = segments[i]
+      if (isParallelRouteSegment(segment)) {
+        const parentPath = normalizeAppPath(segments.slice(0, i).join('/'))
+        const slotName = segment.slice(1)
+
+        // Check if the slot already exists
+        if (slots.some((s) => s.name === slotName && s.parent === parentPath))
+          continue
+
+        slots.push({
+          name: slotName,
+          parent: parentPath,
+        })
+        break
+      }
+    }
+  }
+
+  return slots
+}
+
+/**
+ * Combine and deduplicate slot arrays using a Set
+ * @param slotArrays - Arrays of slot information to combine
+ * @returns Deduplicated array of slots
+ */
+export function combineSlots(...slotArrays: SlotInfo[][]): SlotInfo[] {
+  const slotSet = new Set<string>()
+  const result: SlotInfo[] = []
+
+  for (const slots of slotArrays) {
+    for (const slot of slots) {
+      const key = `${slot.name}:${slot.parent}`
+      if (!slotSet.has(key)) {
+        slotSet.add(key)
+        result.push(slot)
+      }
+    }
+  }
+
+  return result
+}
+
+/**
+ * Process app routes from mapped app pages
+ * @param mappedAppPages - The mapped app pages object
+ * @param validFileMatcher - File matcher object
+ * @param baseDir - The base directory path
+ * @param isSrcDir - Whether the project uses src directory structure
+ * @returns Array of route information
+ */
+export function processAppRoutes(
+  mappedAppPages: { [page: string]: string },
+  validFileMatcher: ReturnType<typeof createValidFileMatcher>,
+  baseDir: string,
+  isSrcDir: boolean
+): {
+  appRoutes: RouteInfo[]
+  appRouteHandlers: RouteInfo[]
+} {
+  const appRoutes: RouteInfo[] = []
+  const appRouteHandlers: RouteInfo[] = []
+
+  for (const [page, filePath] of Object.entries(mappedAppPages)) {
+    if (
+      page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY ||
+      page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+    ) {
+      continue
+    }
+
+    const relativeFilePath = createRelativeFilePath(
+      baseDir,
+      filePath,
+      'app',
+      isSrcDir
+    )
+
+    if (validFileMatcher.isAppRouterRoute(filePath)) {
+      appRouteHandlers.push({
+        route: normalizeAppPath(normalizePathSep(page)),
+        filePath: relativeFilePath,
+      })
+    } else {
+      appRoutes.push({
+        route: normalizeAppPath(normalizePathSep(page)),
+        filePath: relativeFilePath,
+      })
+    }
+  }
+
+  return { appRoutes, appRouteHandlers }
+}
+
+/**
+ * Process layout routes from mapped app layouts
+ * @param mappedAppLayouts - The mapped app layouts object
+ * @param baseDir - The base directory path
+ * @param isSrcDir - Whether the project uses src directory structure
+ * @returns Array of layout route information
+ */
+export function processLayoutRoutes(
+  mappedAppLayouts: { [page: string]: string },
+  baseDir: string,
+  isSrcDir: boolean
+): RouteInfo[] {
+  const layoutRoutes: RouteInfo[] = []
+
+  for (const [route, filePath] of Object.entries(mappedAppLayouts)) {
+    const relativeFilePath = createRelativeFilePath(
+      baseDir,
+      filePath,
+      'app',
+      isSrcDir
+    )
+    layoutRoutes.push({
+      route: ensureLeadingSlash(
+        normalizeAppPath(normalizePathSep(route)).replace(/\/layout$/, '')
+      ),
+      filePath: relativeFilePath,
+    })
+  }
+
+  return layoutRoutes
 }
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
@@ -230,6 +450,7 @@ export async function createPagesMapping({
   pagesType,
   pagesDir,
   appDir,
+  appDirOnly,
 }: {
   isDev: boolean
   pageExtensions: PageExtensions
@@ -237,6 +458,7 @@ export async function createPagesMapping({
   pagesType: PAGE_TYPES
   pagesDir: string | undefined
   appDir: string | undefined
+  appDirOnly: boolean
 }): Promise<MappedPages> {
   const isAppRoute = pagesType === 'app'
   const pages: MappedPages = {}
@@ -249,8 +471,11 @@ export async function createPagesMapping({
     let pageKey = getPageFromPath(pagePath, pageExtensions)
     if (isAppRoute) {
       pageKey = pageKey.replace(/%5F/g, '_')
-      if (pageKey === '/not-found') {
+      if (pageKey === UNDERSCORE_NOT_FOUND_ROUTE) {
         pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+      }
+      if (pageKey === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
+        pageKey = UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
       }
     }
 
@@ -296,15 +521,21 @@ export async function createPagesMapping({
       return pages
     }
     case PAGE_TYPES.APP: {
-      const hasAppPages = Object.keys(pages).some((page) =>
-        page.endsWith('/page')
-      )
+      const hasAppPages = Object.keys(pages).length > 0
+      // Whether to emit App router 500.html entry, which only presents in production and only app router presents
+      const hasAppGlobalError = !isDev && appDirOnly
       return {
-        // If there's any app pages existed, add a default not-found page.
-        // If there's any custom not-found page existed, it will override the default one.
+        // If there's any app pages existed, add a default /_not-found route as 404.
+        // If there's any custom /_not-found page, it will override the default one.
         ...(hasAppPages && {
-          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]:
-            'next/dist/client/components/not-found-error',
+          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]: require.resolve(
+            'next/dist/client/components/builtin/global-not-found'
+          ),
+        }),
+        ...(hasAppGlobalError && {
+          [UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY]: require.resolve(
+            'next/dist/client/components/builtin/app-error'
+          ),
         }),
         ...pages,
       }
@@ -322,10 +553,13 @@ export async function createPagesMapping({
       const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
 
       return {
-        '/_app': `${root}/_app`,
-        '/_error': `${root}/_error`,
-        '/_document': `${root}/_document`,
-        ...pages,
+        // Don't add default pages entries if this is an app-router-only build
+        ...((isDev || !appDirOnly) && {
+          '/_app': `${root}/_app`,
+          '/_error': `${root}/_error`,
+          '/_document': `${root}/_document`,
+          ...pages,
+        }),
       }
     }
     default: {
@@ -381,6 +615,9 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
+      cacheHandlers: JSON.stringify(
+        opts.config.experimental.cacheHandlers || {}
+      ),
     }
 
     return {
@@ -403,7 +640,10 @@ export function getEdgeServerEntry(opts: {
       ).toString('base64'),
     }
 
-    return `next-middleware-loader?${stringify(loaderParams)}!`
+    return {
+      import: `next-middleware-loader?${stringify(loaderParams)}!`,
+      layer: WEBPACK_LAYERS.middleware,
+    }
   }
 
   if (isAPIRoute(opts.page)) {
@@ -417,7 +657,10 @@ export function getEdgeServerEntry(opts: {
       ).toString('base64'),
     }
 
-    return `next-edge-function-loader?${stringify(loaderParams)}!`
+    return {
+      import: `next-edge-function-loader?${stringify(loaderParams)}!`,
+      layer: WEBPACK_LAYERS.apiEdge,
+    }
   }
 
   const loaderParams: EdgeSSRLoaderQuery = {
@@ -470,9 +713,18 @@ export function getInstrumentationEntry(opts: {
   }
 }
 
+export function getAppLoader() {
+  return process.env.BUILTIN_APP_LOADER
+    ? `builtin:next-app-loader`
+    : 'next-app-loader'
+}
+
 export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
+  if (process.env.NEXT_RSPACK && process.env.BUILTIN_APP_LOADER) {
+    ;(opts as any).projectRoot = normalize(join(__dirname, '../../..'))
+  }
   return {
-    import: `next-app-loader?${stringify(opts)}!`,
+    import: `${getAppLoader()}?${stringify(opts)}!`,
     layer: WEBPACK_LAYERS.reactServerComponents,
   }
 }
@@ -514,9 +766,15 @@ export function runDependingOnPageType<T>(params: {
   }
 
   if (isMiddlewareFile(params.page)) {
-    params.onEdgeServer()
-    return
+    if (params.pageRuntime === 'nodejs') {
+      params.onServer()
+      return
+    } else {
+      params.onEdgeServer()
+      return
+    }
   }
+
   if (isAPIRoute(params.page)) {
     if (isEdgeRuntime(params.pageRuntime)) {
       params.onEdgeServer()
@@ -647,6 +905,7 @@ export async function createEntrypoints(
 
       const isInstrumentation =
         isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
+
       runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
@@ -675,13 +934,11 @@ export async function createEntrypoints(
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
-              flyingShuttle: Boolean(config.experimental.flyingShuttle),
-              nextConfigExperimentalUseEarlyImport: config.experimental
-                .useEarlyImport
-                ? true
-                : undefined,
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
+              isGlobalNotFoundEnabled: config.experimental.globalNotFound
+                ? true
+                : undefined,
             })
           } else if (isInstrumentation) {
             server[serverBundlePath.replace('src/', '')] =
@@ -690,6 +947,20 @@ export async function createEntrypoints(
                 isEdgeServer: false,
                 isDev: false,
               })
+          } else if (isMiddlewareFile(page)) {
+            server[serverBundlePath.replace('src/', '')] = getEdgeServerEntry({
+              ...params,
+              rootDir,
+              absolutePagePath: absolutePagePath,
+              bundlePath: clientBundlePath,
+              isDev: false,
+              isServerComponent,
+              page,
+              middleware: staticInfo?.middleware,
+              pagesType,
+              preferredRegion: staticInfo.preferredRegion,
+              middlewareConfig: staticInfo.middleware,
+            })
           } else if (isAPIRoute(page)) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({
@@ -741,13 +1012,15 @@ export async function createEntrypoints(
                 basePath: config.basePath,
                 assetPrefix: config.assetPrefix,
                 nextConfigOutput: config.output,
-                flyingShuttle: Boolean(config.experimental.flyingShuttle),
                 // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
                 // Still passing it here for consistency.
                 preferredRegion: staticInfo.preferredRegion,
                 middlewareConfig: Buffer.from(
                   JSON.stringify(staticInfo.middleware || {})
                 ).toString('base64'),
+                isGlobalNotFoundEnabled: config.experimental.globalNotFound
+                  ? true
+                  : undefined,
               }).import
             }
             edgeServer[serverBundlePath] = getEdgeServerEntry({
@@ -811,7 +1084,7 @@ export function finalizeEntrypoint({
   isServerComponent,
   hasAppDir,
 }: {
-  compilerType?: CompilerNameValues
+  compilerType: CompilerNameValues
   name: string
   value: ObjectValue<webpack.EntryObject>
   isServerComponent?: boolean
@@ -828,12 +1101,14 @@ export function finalizeEntrypoint({
   switch (compilerType) {
     case COMPILER_NAMES.server: {
       const layer = isApi
-        ? WEBPACK_LAYERS.api
+        ? WEBPACK_LAYERS.apiNode
         : isInstrumentation
           ? WEBPACK_LAYERS.instrument
           : isServerComponent
             ? WEBPACK_LAYERS.reactServerComponents
-            : undefined
+            : name.startsWith('pages/')
+              ? WEBPACK_LAYERS.pagesDirNode
+              : undefined
 
       return {
         publicPath: isApi ? '' : undefined,
@@ -845,10 +1120,12 @@ export function finalizeEntrypoint({
     case COMPILER_NAMES.edgeServer: {
       return {
         layer: isApi
-          ? WEBPACK_LAYERS.api
+          ? WEBPACK_LAYERS.apiEdge
           : isMiddlewareFilename(name) || isInstrumentation
             ? WEBPACK_LAYERS.middleware
-            : undefined,
+            : name.startsWith('pages/')
+              ? WEBPACK_LAYERS.pagesDirEdge
+              : undefined,
         library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
         runtime: EDGE_RUNTIME_WEBPACK,
         asyncChunks: false,
@@ -883,6 +1160,7 @@ export function finalizeEntrypoint({
             name.startsWith('pages/') && name !== 'pages/_app'
               ? 'pages/_app'
               : CLIENT_STATIC_FILES_RUNTIME_MAIN,
+          layer: WEBPACK_LAYERS.pagesDirBrowser,
           ...entry,
         }
       }
@@ -894,11 +1172,12 @@ export function finalizeEntrypoint({
         }
       }
 
-      return entry
+      return {
+        layer: WEBPACK_LAYERS.pagesDirBrowser,
+        ...entry,
+      }
     }
-    default: {
-      // Should never happen.
-      throw new Error('Invalid compiler type')
-    }
+    default:
+      return compilerType satisfies never
   }
 }

@@ -1,7 +1,6 @@
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
-import { getTurbopackFlag } from '../turbo'
 import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -21,24 +20,27 @@ export class NextDevInstance extends NextInstance {
     return this._cliOutput || ''
   }
 
-  public async start(useDirArg: boolean = false) {
+  public async start() {
     if (this.childProcess) {
       throw new Error('next already started')
     }
 
     const useTurbo =
-      !process.env.TEST_WASM &&
+      !process.env.NEXT_TEST_WASM &&
       ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [
       'pnpm',
       'next',
-      useTurbo ? getTurbopackFlag() : undefined,
-      useDirArg && this.testDir,
+      useTurbo ? '--turbopack' : undefined,
     ].filter(Boolean) as string[]
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
+    }
+
+    if (this.startArgs) {
+      startArgs.push(...this.startArgs)
     }
 
     if (process.env.NEXT_SKIP_ISOLATE) {
@@ -52,7 +54,7 @@ export class NextDevInstance extends NextInstance {
     await new Promise<void>((resolve, reject) => {
       try {
         this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
-          cwd: useDirArg ? process.cwd() : this.testDir,
+          cwd: this.testDir,
           stdio: ['ignore', 'pipe', 'pipe'],
           shell: false,
           env: {
@@ -61,35 +63,41 @@ export class NextDevInstance extends NextInstance {
             NODE_ENV: this.env.NODE_ENV || ('' as any),
             PORT: this.forcedPort || '0',
             __NEXT_TEST_MODE: 'e2e',
-            __NEXT_TEST_WITH_DEVTOOL: '1',
           },
         })
 
         this._cliOutput = ''
 
-        this.childProcess.stdout.on('data', (chunk) => {
+        this.childProcess.stdout!.on('data', (chunk) => {
           const msg = chunk.toString()
-          if (!process.env.CI) process.stdout.write(chunk)
+          process.stdout.write(chunk)
           this._cliOutput += msg
           this.emit('stdout', [msg])
         })
-        this.childProcess.stderr.on('data', (chunk) => {
+        this.childProcess.stderr!.on('data', (chunk) => {
           const msg = chunk.toString()
-          if (!process.env.CI) process.stderr.write(chunk)
+          process.stderr.write(chunk)
           this._cliOutput += msg
           this.emit('stderr', [msg])
         })
 
+        const serverReadyTimeoutId = this.setServerReadyTimeout(
+          reject,
+          this.startServerTimeout
+        )
+
         this.childProcess.on('close', (code, signal) => {
           if (this.isStopping) return
           if (code || signal) {
-            require('console').error(
+            this.childProcess = undefined
+            const error = new Error(
               `next dev exited unexpectedly with code/signal ${code || signal}`
             )
+            clearTimeout(serverReadyTimeoutId)
+            require('console').error(error)
+            reject(error)
           }
         })
-
-        const serverReadyTimeoutId = this.setServerReadyTimeout(reject)
 
         const readyCb = (msg) => {
           const resolveServer = () => {
@@ -132,7 +140,7 @@ export class NextDevInstance extends NextInstance {
     // This is a temporary workaround for turbopack starting watching too late.
     // So we delay file changes by 500ms to give it some time
     // to connect the WebSocket and start watching.
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       require('console').log('fs dev delay before', filename)
       await waitFor(500)
     }
@@ -157,13 +165,13 @@ export class NextDevInstance extends NextInstance {
   ) {
     await this.handleDevWatchDelayBeforeChange(filename)
     try {
-      const cliOutputLengthBefore = this.cliOutput.length
+      let cliOutputLength = this.cliOutput.length
       const isServerRunning = this.childProcess && !this.isStopping
 
       const detectServerRestart = async () => {
         await retry(async () => {
           const isServerReady = this.serverReadyPattern.test(
-            this.cliOutput.slice(cliOutputLengthBefore)
+            this.cliOutput.slice(cliOutputLength)
           )
           if (isServerRunning && !isServerReady) {
             throw new Error('Server has not finished restarting.')
@@ -198,6 +206,7 @@ export class NextDevInstance extends NextInstance {
           runWithTempContent
             ? async (...args) => {
                 await waitServerToBeReadyAfterPatchFile()
+                cliOutputLength = this.cliOutput.length
 
                 return runWithTempContent(...args)
               }

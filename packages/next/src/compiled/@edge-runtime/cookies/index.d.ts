@@ -143,7 +143,7 @@ type RequestCookie = Pick<CookieListItem, 'name' | 'value'>;
  */
 declare class RequestCookies {
     constructor(requestHeaders: Headers);
-    [Symbol.iterator](): IterableIterator<[string, RequestCookie]>;
+    [Symbol.iterator](): MapIterator<[string, RequestCookie]>;
     /**
      * The amount of cookies received from the client
      */

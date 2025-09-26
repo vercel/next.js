@@ -38,14 +38,14 @@ impl<T, H> Sharded<T, H> {
         self.data[shard as usize].lock()
     }
 
-    pub fn take(&self) -> Vec<T>
+    pub fn take<R>(&self, map: impl Fn(T) -> R) -> Vec<R>
     where
         T: Default,
     {
         let locked = self.data.iter().map(|m| m.lock()).collect::<Vec<_>>();
         locked
             .into_iter()
-            .map(|mut m| std::mem::take(&mut *m))
+            .map(|mut m| map(std::mem::take(&mut *m)))
             .collect()
     }
 }

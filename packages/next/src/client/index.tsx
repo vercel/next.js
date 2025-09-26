@@ -14,7 +14,7 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-ru
 import mitt from '../shared/lib/mitt'
 import type { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
-import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from '../shared/lib/router/utils/disable-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   urlQueryToSearchParams,
@@ -45,9 +45,9 @@ import {
   SearchParamsContext,
   PathParamsContext,
 } from '../shared/lib/hooks-client-context.shared-runtime'
-import { onRecoverableError } from './react-client-callbacks/shared'
+import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import tracer from './tracing/tracer'
-import reportToSocket from './tracing/report-to-socket'
+import { isNextRouterError } from './components/is-next-router-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -55,6 +55,7 @@ declare global {
   interface Window {
     /* test fns */
     __NEXT_HYDRATED?: boolean
+    __NEXT_HYDRATED_AT?: number
     __NEXT_HYDRATED_CB?: () => void
 
     /* prod */
@@ -178,9 +179,11 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const ReactDevOverlay: typeof import('./components/react-dev-overlay/pages/client').ReactDevOverlay =
-        require('./components/react-dev-overlay/pages/client').ReactDevOverlay
-      return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
+      const { PagesDevOverlayBridge } =
+        require('../next-devtools/userspace/pages/pages-dev-overlay-setup') as typeof import('../next-devtools/userspace/pages/pages-dev-overlay-setup')
+      return (
+        <PagesDevOverlayBridge>{this.props.children}</PagesDevOverlayBridge>
+      )
     }
   }
 }
@@ -188,10 +191,13 @@ class Container extends React.Component<{
 export async function initialize(opts: { devClient?: any } = {}): Promise<{
   assetPrefix: string
 }> {
-  tracer.onSpanEnd(reportToSocket)
-
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
+    tracer.onSpanEnd(
+      (
+        require('./tracing/report-to-socket') as typeof import('./tracing/report-to-socket')
+      ).default
+    )
     devClient = opts.devClient
   }
 
@@ -264,7 +270,8 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   }
 
   if (initialData.scriptLoader) {
-    const { initScriptLoader } = require('./script')
+    const { initScriptLoader } =
+      require('./script') as typeof import('./script')
     initScriptLoader(initialData.scriptLoader)
   }
 
@@ -608,6 +615,7 @@ function Root({
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
       window.__NEXT_HYDRATED = true
+      window.__NEXT_HYDRATED_AT = performance.now()
 
       if (window.__NEXT_HYDRATED_CB) {
         window.__NEXT_HYDRATED_CB()
@@ -762,7 +770,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
     if (input.scroll) {
       const { x, y } = input.scroll
-      handleSmoothScroll(() => {
+      disableSmoothScrollDuringRouteTransition(() => {
         window.scrollTo(x, y)
       })
     }
@@ -895,7 +903,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('next/dist/compiled/react-is')
+      const { isValidElementType } =
+        require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
       if (!isValidElementType(CachedComponent)) {
         throw new Error(
           `The default export is not a React Component in page: "${initialData.page}"`
@@ -908,8 +917,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const getServerError: typeof import('./components/react-dev-overlay/pages/client').getServerError =
-      require('./components/react-dev-overlay/pages/client').getServerError
+    const getServerError = (
+      require('../server/dev/node-stack-frames') as typeof import('../server/dev/node-stack-frames')
+    ).getServerError
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
@@ -927,7 +937,16 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-          throw getServerError(error, initialErr!.source!)
+          const errSource = initialErr.source!
+
+          // In development, error the navigation API usage in runtime,
+          // since it's not allowed to be used in pages router as it doesn't contain error boundary like app router.
+          if (isNextRouterError(initialErr)) {
+            error.message =
+              'Next.js navigation API is not allowed to be used in Pages Router.'
+          }
+
+          throw getServerError(error, errSource)
         })
       }
       // We replaced the server-side error with a client-side error, and should

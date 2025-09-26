@@ -62,14 +62,14 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "1",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "2",
                         ),
                     ),

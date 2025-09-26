@@ -1,5 +1,5 @@
-use anyhow::{bail, Result};
-use turbo_tasks::{Upcast, Value, ValueToString, Vc};
+use anyhow::{Result, bail};
+use turbo_tasks::{ResolvedVc, Upcast, ValueToString, Vc};
 
 use super::ChunkableModule;
 use crate::{
@@ -32,7 +32,7 @@ where
         self: Vc<Self>,
         asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Vc<Box<dyn EvaluatableAsset>> {
-        to_evaluatable(Vc::upcast(self), asset_context)
+        to_evaluatable(Vc::upcast_non_strict(self), asset_context)
     }
 }
 
@@ -42,10 +42,7 @@ async fn to_evaluatable(
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
     let module = asset_context
-        .process(
-            asset,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Runtime)),
-        )
+        .process(asset, ReferenceType::Entry(EntryReferenceSubType::Runtime))
         .module();
     let Some(entry) = Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await? else {
         bail!(
@@ -57,7 +54,7 @@ async fn to_evaluatable(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EvaluatableAssets(Vec<Vc<Box<dyn EvaluatableAsset>>>);
+pub struct EvaluatableAssets(Vec<ResolvedVc<Box<dyn EvaluatableAsset>>>);
 
 #[turbo_tasks::value_impl]
 impl EvaluatableAssets {
@@ -67,21 +64,21 @@ impl EvaluatableAssets {
     }
 
     #[turbo_tasks::function]
-    pub fn one(entry: Vc<Box<dyn EvaluatableAsset>>) -> Vc<EvaluatableAssets> {
+    pub fn one(entry: ResolvedVc<Box<dyn EvaluatableAsset>>) -> Vc<EvaluatableAssets> {
         EvaluatableAssets(vec![entry]).cell()
     }
 
     #[turbo_tasks::function]
-    pub fn many(assets: Vec<Vc<Box<dyn EvaluatableAsset>>>) -> Vc<EvaluatableAssets> {
+    pub fn many(assets: Vec<ResolvedVc<Box<dyn EvaluatableAsset>>>) -> Vc<EvaluatableAssets> {
         EvaluatableAssets(assets).cell()
     }
 
     #[turbo_tasks::function]
     pub async fn with_entry(
         self: Vc<Self>,
-        entry: Vc<Box<dyn EvaluatableAsset>>,
+        entry: ResolvedVc<Box<dyn EvaluatableAsset>>,
     ) -> Result<Vc<EvaluatableAssets>> {
-        let mut entries = self.await?.clone_value();
+        let mut entries = self.owned().await?;
         entries.push(entry);
         Ok(EvaluatableAssets(entries).cell())
     }

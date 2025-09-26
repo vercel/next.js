@@ -6,7 +6,7 @@
 /// Currently this is for node.js / edge runtime both.
 /// If a fn requires node.js specific behavior, it should be placed in `node-external-utils` instead.
 
-async function externalImport(id: ModuleId) {
+async function externalImport(id: DependencySpecifier) {
   let raw
   try {
     raw = await import(id)
@@ -24,6 +24,7 @@ async function externalImport(id: ModuleId) {
 
   return raw
 }
+contextPrototype.y = externalImport
 
 function externalRequire(
   id: ModuleId,
@@ -56,3 +57,4 @@ externalRequire.resolve = (
 ) => {
   return require.resolve(id, options)
 }
+contextPrototype.x = externalRequire

@@ -11,7 +11,7 @@ import type {
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
@@ -34,6 +34,7 @@ function hmrRefreshReducerImpl(
 
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
+  const navigatedAt = Date.now()
   cache.lazyData = fetchServerResponse(new URL(href, origin), {
     flightRouterState: [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
     nextUrl: includeNextUrl ? state.nextUrl : null,
@@ -95,6 +96,7 @@ function hmrRefreshReducerImpl(
           mutable.canonicalUrl = canonicalUrlOverrideHref
         }
         const applied = applyFlightData(
+          navigatedAt,
           currentCache,
           cache,
           normalizedFlightData

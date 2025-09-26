@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
-import { BrowserInterface } from 'next-webdriver'
+import { Playwright } from 'next-webdriver'
 import {
   browserConfigWithFixedTime,
   createRequestsListener,
@@ -21,10 +21,7 @@ describe('app dir client cache semantics (30s/5min)', () => {
   if (isNextDev) {
     // dev doesn't support prefetch={true}, so this just performs a basic test to make sure data is reused for 30s
     it('should renew the 30s cache once the data is revalidated', async () => {
-      let browser = (await next.browser(
-        '/',
-        browserConfigWithFixedTime
-      )) as BrowserInterface
+      let browser = await next.browser('/', browserConfigWithFixedTime)
 
       // navigate to prefetch-auto page
       await browser.elementByCss('[href="/1"]').click()
@@ -70,13 +67,10 @@ describe('app dir client cache semantics (30s/5min)', () => {
     })
   } else {
     describe('prefetch={true}', () => {
-      let browser: BrowserInterface
+      let browser: Playwright
 
       beforeEach(async () => {
-        browser = (await next.browser(
-          '/',
-          browserConfigWithFixedTime
-        )) as BrowserInterface
+        browser = await next.browser('/', browserConfigWithFixedTime)
       })
 
       it('should prefetch the full page', async () => {
@@ -175,13 +169,10 @@ describe('app dir client cache semantics (30s/5min)', () => {
       })
     })
     describe('prefetch={false}', () => {
-      let browser: BrowserInterface
+      let browser: Playwright
 
       beforeEach(async () => {
-        browser = (await next.browser(
-          '/',
-          browserConfigWithFixedTime
-        )) as BrowserInterface
+        browser = await next.browser('/', browserConfigWithFixedTime)
       })
       it('should not prefetch the page at all', async () => {
         const { getRequests } = await createRequestsListener(browser)
@@ -233,13 +224,10 @@ describe('app dir client cache semantics (30s/5min)', () => {
       })
     })
     describe('prefetch={undefined} - default', () => {
-      let browser: BrowserInterface
+      let browser: Playwright
 
       beforeEach(async () => {
-        browser = (await next.browser(
-          '/',
-          browserConfigWithFixedTime
-        )) as BrowserInterface
+        browser = await next.browser('/', browserConfigWithFixedTime)
       })
 
       it('should prefetch partially a dynamic page', async () => {
@@ -439,10 +427,7 @@ describe('app dir client cache semantics (30s/5min)', () => {
     })
 
     it('should seed the prefetch cache with the fetched page data', async () => {
-      const browser = (await next.browser(
-        '/1',
-        browserConfigWithFixedTime
-      )) as BrowserInterface
+      const browser = await next.browser('/1', browserConfigWithFixedTime)
 
       const initialNumber = await browser.elementById('random-number').text()
 
@@ -458,10 +443,10 @@ describe('app dir client cache semantics (30s/5min)', () => {
     })
 
     it('should renew the initial seeded data after expiration time', async () => {
-      const browser = (await next.browser(
+      const browser = await next.browser(
         '/without-loading/1',
         browserConfigWithFixedTime
-      )) as BrowserInterface
+      )
 
       const initialNumber = await browser.elementById('random-number').text()
 

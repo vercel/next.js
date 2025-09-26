@@ -1,10 +1,10 @@
 //! The following code was mostly generated using GTP-4 from
 //! next.js/packages/next/src/shared/lib/router/utils/route-regex.ts
 
-use std::collections::HashMap;
-
 use once_cell::sync::Lazy;
 use regex::Regex;
+use regress;
+use rustc_hash::FxHashMap;
 
 const INTERCEPTION_ROUTE_MARKERS: [&str; 4] = ["(..)(..)", "(.)", "(..)", "(...)"];
 const NEXT_QUERY_PARAM_PREFIX: &str = "nxtP";
@@ -19,7 +19,7 @@ pub struct Group {
 
 #[derive(Debug)]
 pub struct RouteRegex {
-    pub groups: HashMap<String, Group>,
+    pub groups: FxHashMap<String, Group>,
     pub regex: String,
 }
 
@@ -27,7 +27,7 @@ pub struct RouteRegex {
 pub struct NamedRouteRegex {
     pub regex: RouteRegex,
     pub named_regex: String,
-    pub route_keys: HashMap<String, String>,
+    pub route_keys: FxHashMap<String, String>,
 }
 
 #[derive(Debug)]
@@ -65,7 +65,7 @@ fn parse_parameter(param: &str) -> ParsedParameter {
 }
 
 fn escape_string_regexp(segment: &str) -> String {
-    regex::escape(segment)
+    regress::escape(segment)
 }
 
 /// Removes the trailing slash for a given route or page path. Preserves the
@@ -83,9 +83,9 @@ fn remove_trailing_slash(route: &str) -> &str {
 
 static PARAM_MATCH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());
 
-fn get_parametrized_route(route: &str) -> (String, HashMap<String, Group>) {
+fn get_parametrized_route(route: &str) -> (String, FxHashMap<String, Group>) {
     let segments: Vec<&str> = remove_trailing_slash(route)[1..].split('/').collect();
-    let mut groups: HashMap<String, Group> = HashMap::new();
+    let mut groups: FxHashMap<String, Group> = FxHashMap::default();
     let mut group_index = 1;
     let parameterized_route = segments
         .iter()
@@ -135,7 +135,7 @@ fn get_parametrized_route(route: &str) -> (String, HashMap<String, Group>) {
 pub fn get_route_regex(normalized_route: &str) -> RouteRegex {
     let (parameterized_route, groups) = get_parametrized_route(normalized_route);
     RouteRegex {
-        regex: format!("^{}(?:/)?$", parameterized_route),
+        regex: format!("^{parameterized_route}(?:/)?$"),
         groups,
     }
 }
@@ -163,8 +163,9 @@ fn build_get_safe_route_key() -> impl FnMut() -> String {
 fn get_safe_key_from_segment(
     get_safe_route_key: &mut impl FnMut() -> String,
     segment: &str,
-    route_keys: &mut HashMap<String, String>,
+    route_keys: &mut FxHashMap<String, String>,
     key_prefix: Option<&'static str>,
+    intercept_prefix: Option<&str>,
 ) -> String {
     let ParsedParameter {
         key,
@@ -176,7 +177,7 @@ fn get_safe_key_from_segment(
     // the named regex
     let mut cleaned_key = key.replace(|c: char| !c.is_alphanumeric(), "");
     if let Some(prefix) = key_prefix {
-        cleaned_key = format!("{}{}", prefix, cleaned_key);
+        cleaned_key = format!("{prefix}{cleaned_key}");
     }
     let mut invalid_key = false;
 
@@ -192,33 +193,36 @@ fn get_safe_key_from_segment(
         cleaned_key = get_safe_route_key();
     }
     if let Some(prefix) = key_prefix {
-        route_keys.insert(cleaned_key.clone(), format!("{}{}", prefix, key));
+        route_keys.insert(cleaned_key.clone(), format!("{prefix}{key}"));
     } else {
         route_keys.insert(cleaned_key.clone(), key);
     }
+
+    let intercept_prefix = intercept_prefix.map_or_else(String::new, escape_string_regexp);
     match (repeat, optional) {
-        (true, true) => format!(r"(?:/(?P<{}>.+?))?", cleaned_key),
-        (true, false) => format!(r"/(?P<{}>.+?)", cleaned_key),
-        (false, true) => format!(r"(?:/(?P<{}>[^/]+?))?", cleaned_key),
-        (false, false) => format!(r"/(?P<{}>[^/]+?)", cleaned_key),
+        (true, true) => format!(r"(?:/{intercept_prefix}(?P<{cleaned_key}>.+?))?"),
+        (true, false) => format!(r"/{intercept_prefix}(?P<{cleaned_key}>.+?)"),
+        (false, true) => format!(r"(?:/{intercept_prefix}(?P<{cleaned_key}>[^/]+?))?"),
+        (false, false) => format!(r"/{intercept_prefix}(?P<{cleaned_key}>[^/]+?)"),
     }
 }
 
 fn get_named_parametrized_route(
     route: &str,
     prefix_route_keys: bool,
-) -> (String, HashMap<String, String>) {
+) -> (String, FxHashMap<String, String>) {
     let segments: Vec<&str> = remove_trailing_slash(route)[1..].split('/').collect();
     let get_safe_route_key = &mut build_get_safe_route_key();
-    let mut route_keys: HashMap<String, String> = HashMap::new();
+    let mut route_keys: FxHashMap<String, String> = FxHashMap::default();
     let parameterized_route = segments
         .iter()
         .map(|segment| {
+            let interception_marker = INTERCEPTION_ROUTE_MARKERS
+                .iter()
+                .find(|&m| segment.starts_with(m))
+                .copied();
             let key_prefix = if prefix_route_keys {
-                let has_interception_marker = INTERCEPTION_ROUTE_MARKERS
-                    .iter()
-                    .any(|&m| segment.starts_with(m));
-                if has_interception_marker {
+                if interception_marker.is_some() {
                     Some(NEXT_INTERCEPTION_MARKER_PREFIX)
                 } else {
                     Some(NEXT_QUERY_PARAM_PREFIX)
@@ -234,6 +238,7 @@ fn get_named_parametrized_route(
                     &matches[1],
                     &mut route_keys,
                     key_prefix,
+                    interception_marker,
                 );
             }
             format!("/{}", escape_string_regexp(segment))
@@ -255,7 +260,7 @@ pub fn get_named_route_regex(normalized_route: &str) -> NamedRouteRegex {
     let regex = get_route_regex(normalized_route);
     NamedRouteRegex {
         regex,
-        named_regex: format!("^{}(?:/)?$", parameterized_route),
+        named_regex: format!("^{parameterized_route}(?:/)?$"),
         route_keys,
     }
 }
@@ -264,5 +269,41 @@ pub fn get_named_route_regex(normalized_route: &str) -> NamedRouteRegex {
 /// This is intended to be using for build time only.
 pub fn get_named_middleware_regex(normalized_route: &str) -> String {
     let (parameterized_route, _route_keys) = get_named_parametrized_route(normalized_route, true);
-    format!("^{}(?:/)?$", parameterized_route)
+    format!("^{parameterized_route}(?:/)?$")
+}
+
+#[cfg(test)]
+mod test {
+    use super::get_named_middleware_regex;
+
+    #[test]
+    fn should_properly_handle_intercept_routes() {
+        let tests = [
+            (
+                "/[locale]/example/(...)[locale]/intercepted",
+                "^/(?P<nxtPlocale>[^/]+?)/example/\\(\\.\\.\\.\\)(?P<nxtIlocale>[^/]+?)/\
+                 intercepted(?:/)?$",
+            ),
+            (
+                "/[locale]/example/(..)[locale]/intercepted",
+                "^/(?P<nxtPlocale>[^/]+?)/example/\\(\\.\\.\\)(?P<nxtIlocale>[^/]+?)/intercepted(?\
+                 :/)?$",
+            ),
+            (
+                "/[locale]/example/(.)[locale]/intercepted",
+                "^/(?P<nxtPlocale>[^/]+?)/example/\\(\\.\\)(?P<nxtIlocale>[^/]+?)/intercepted(?:/\
+                 )?$",
+            ),
+            (
+                "/[locale]/example/(..)(..)[locale]/intercepted",
+                "^/(?P<nxtPlocale>[^/]+?)/example/\\(\\.\\.\\)\\(\\.\\.\\)(?P<nxtIlocale>[^/]+?)/\
+                 intercepted(?:/)?$",
+            ),
+        ];
+
+        for test in tests {
+            let intercept_route = get_named_middleware_regex(test.0);
+            assert_eq!(intercept_route, test.1);
+        }
+    }
 }

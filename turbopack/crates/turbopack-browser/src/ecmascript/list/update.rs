@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, IntoTraitRef, TraitRef, Vc};
+use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, TraitRef, Vc};
 use turbopack_core::version::{
     MergeableVersionedContent, PartialUpdate, TotalUpdate, Update, Version, VersionedContent,
     VersionedContentMerger,
@@ -50,11 +50,11 @@ impl ChunkListUpdate<'_> {
 #[turbo_tasks::function]
 pub(super) async fn update_chunk_list(
     content: Vc<EcmascriptDevChunkListContent>,
-    from_version: Vc<Box<dyn Version>>,
+    from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Vc<Update>> {
     let to_version = content.version();
     let from_version = if let Some(from) =
-        Vc::try_resolve_downcast_type::<EcmascriptDevChunkListVersion>(from_version).await?
+        ResolvedVc::try_downcast_type::<EcmascriptDevChunkListVersion>(from_version)
     {
         from
     } else {
@@ -70,10 +70,9 @@ pub(super) async fn update_chunk_list(
     let to = to_version.await?;
     let from = from_version.await?;
 
-    // When to and from point to the same value we can skip comparing them.
-    // This will happen since `TraitRef<Vc<Box<dyn Version>>>::cell` will not clone
-    // the value, but only make the cell point to the same immutable value
-    // (Arc).
+    // When to and from point to the same value we can skip comparing them. This will happen since
+    // `TraitRef::<Box<dyn Version>>::cell` will not clone the value, but only make the cell point
+    // to the same immutable value (`Arc`).
     if from.ptr_eq(&to) {
         return Ok(Update::None.cell());
     }
@@ -92,9 +91,9 @@ pub(super) async fn update_chunk_list(
 
     for (chunk_path, chunk_content) in &content.chunks_contents {
         if let Some(mergeable) =
-            Vc::try_resolve_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content).await?
+            ResolvedVc::try_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
         {
-            let merger = mergeable.get_merger().resolve().await?;
+            let merger = mergeable.get_merger().to_resolved().await?;
             by_merger.entry(merger).or_default().push(*chunk_content);
         } else {
             by_path.insert(chunk_path, chunk_content);

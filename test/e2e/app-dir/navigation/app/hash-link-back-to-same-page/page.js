@@ -21,8 +21,8 @@ export default function HashPage() {
         {items.map((item) => {
           if (item.id === 160) {
             return (
-              <>
-                <div key={item.id}>
+              <div key={item.id}>
+                <div>
                   <div id={`hash-${item.id}`}>{item.id}</div>
                 </div>
                 <div key="to-other-page">
@@ -35,7 +35,7 @@ export default function HashPage() {
                     </Link>
                   </div>
                 </div>
-              </>
+              </div>
             )
           }
           return (

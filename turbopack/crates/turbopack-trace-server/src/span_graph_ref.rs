@@ -7,12 +7,13 @@ use std::{
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
-    bottom_up::build_bottom_up_graph,
-    span::{SpanGraph, SpanGraphEvent, SpanIndex},
-    span_bottom_up_ref::SpanBottomUpRef,
-    span_ref::SpanRef,
-    store::{SpanId, Store},
     FxIndexMap,
+    bottom_up::build_bottom_up_graph,
+    span::{SpanGraph, SpanGraphEvent},
+    span_bottom_up_ref::SpanBottomUpRef,
+    span_ref::{GroupNameToDirectAndRecusiveSpans, SpanRef},
+    store::{SpanId, Store},
+    timestamp::Timestamp,
 };
 
 #[derive(Clone)]
@@ -39,7 +40,7 @@ impl<'a> SpanGraphRef<'a> {
         if self.count() == 1 {
             self.first_span().nice_name()
         } else {
-            ("", self.first_span().group_name())
+            self.first_span().group_name()
         }
     }
 
@@ -86,21 +87,20 @@ impl<'a> SpanGraphRef<'a> {
                 self.first_span().extra().graph.get().unwrap().clone()
             } else {
                 let self_group = self.first_span().group_name();
-                let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
-                    FxIndexMap::default();
+                let mut map: GroupNameToDirectAndRecusiveSpans = FxIndexMap::default();
                 let mut queue = VecDeque::with_capacity(8);
                 for span in self.recursive_spans() {
                     for span in span.children() {
                         let name = span.group_name();
                         if name != self_group {
-                            let (list, recusive_list) = map.entry(name).or_default();
+                            let (list, recursive_list) = map.entry(name).or_default();
                             list.push(span.index());
                             queue.push_back(span);
                             while let Some(child) = queue.pop_front() {
                                 for nested_child in child.children() {
                                     let nested_name = nested_child.group_name();
                                     if name == nested_name {
-                                        recusive_list.push(nested_child.index());
+                                        recursive_list.push(nested_child.index());
                                         queue.push_back(nested_child);
                                     }
                                 }
@@ -175,7 +175,7 @@ impl<'a> SpanGraphRef<'a> {
         })
     }
 
-    pub fn self_time(&self) -> u64 {
+    pub fn self_time(&self) -> Timestamp {
         *self.graph.self_time.get_or_init(|| {
             self.recursive_spans()
                 .map(|span| span.self_time())
@@ -184,7 +184,7 @@ impl<'a> SpanGraphRef<'a> {
         })
     }
 
-    pub fn total_time(&self) -> u64 {
+    pub fn total_time(&self) -> Timestamp {
         *self.graph.total_time.get_or_init(|| {
             self.children()
                 .map(|graph| graph.total_time())
@@ -284,27 +284,25 @@ impl<'a> SpanGraphRef<'a> {
         })
     }
 
-    pub fn corrected_self_time(&self) -> u64 {
+    pub fn corrected_self_time(&self) -> Timestamp {
         *self.graph.corrected_self_time.get_or_init(|| {
             self.recursive_spans_par()
                 .map(|span| span.corrected_self_time())
-                .sum::<u64>()
+                .sum::<Timestamp>()
         })
     }
 
-    pub fn corrected_total_time(&self) -> u64 {
+    pub fn corrected_total_time(&self) -> Timestamp {
         *self.graph.corrected_total_time.get_or_init(|| {
             self.children_par()
                 .map(|graph| graph.corrected_total_time())
-                .sum::<u64>()
+                .sum::<Timestamp>()
                 + self.corrected_self_time()
         })
     }
 }
 
-pub fn event_map_to_list(
-    map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)>,
-) -> Vec<SpanGraphEvent> {
+pub fn event_map_to_list(map: GroupNameToDirectAndRecusiveSpans) -> Vec<SpanGraphEvent> {
     map.into_iter()
         .map(|(_, (root_spans, recursive_spans))| {
             let graph = SpanGraph {
@@ -353,19 +351,19 @@ impl Debug for SpanGraphRef<'_> {
 #[allow(dead_code)]
 #[derive(Clone)]
 pub enum SpanGraphEventRef<'a> {
-    SelfTime { duration: u64 },
+    SelfTime { duration: Timestamp },
     Child { graph: SpanGraphRef<'a> },
 }
 
 impl SpanGraphEventRef<'_> {
-    pub fn corrected_total_time(&self) -> u64 {
+    pub fn corrected_total_time(&self) -> Timestamp {
         match self {
             SpanGraphEventRef::SelfTime { duration } => *duration,
             SpanGraphEventRef::Child { graph } => graph.corrected_total_time(),
         }
     }
 
-    pub fn total_time(&self) -> u64 {
+    pub fn total_time(&self) -> Timestamp {
         match self {
             SpanGraphEventRef::SelfTime { duration } => *duration,
             SpanGraphEventRef::Child { graph } => graph.total_time(),

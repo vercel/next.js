@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -11,9 +11,9 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
+        ModuleResolveResult,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ModuleResolveResult,
     },
     source::Source,
 };
@@ -54,14 +54,27 @@ impl Module for TsConfigModuleAsset {
         let configs = read_tsconfigs(
             self.source.content().file_content(),
             self.source,
-            apply_cjs_specific_options(self.origin.resolve_options(Value::new(
-                ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-            ))),
+            apply_cjs_specific_options(
+                self.origin
+                    .resolve_options(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined))
+                    .await?,
+            ),
         )
         .await?;
-        for (_, config_asset) in configs[1..].iter() {
-            references.push(Vc::upcast(TsExtendsReference::new(**config_asset)));
-        }
+        references.extend(
+            configs[1..]
+                .iter()
+                .map(|(_, config_asset)| async move {
+                    Ok(ResolvedVc::upcast(
+                        TsExtendsReference::new(**config_asset)
+                            .to_resolved()
+                            .await?,
+                    ))
+                })
+                .try_join()
+                .await?,
+        );
+
         // ts-node options
         {
             let compiler = read_from_tsconfigs(&configs, |json, source| {
@@ -70,14 +83,15 @@ impl Module for TsConfigModuleAsset {
                     .map(|s| (source, s.to_string()))
             })
             .await?;
-            let compiler: RcStr = compiler
-                .map(|(_, c)| c)
-                .unwrap_or_else(|| "typescript".to_string())
-                .into();
-            references.push(Vc::upcast(CompilerReference::new(
-                *self.origin,
-                Request::parse(Value::new(compiler.into())),
-            )));
+            let compiler = match compiler {
+                Some((_, c)) => RcStr::from(c),
+                None => rcstr!("typescript"),
+            };
+            references.push(ResolvedVc::upcast(
+                CompilerReference::new(*self.origin, Request::parse(compiler.into()))
+                    .to_resolved()
+                    .await?,
+            ));
             let require = read_from_tsconfigs(&configs, |json, source| {
                 if let JsonValue::Array(array) = &json["ts-node"]["require"] {
                     Some(
@@ -93,10 +107,11 @@ impl Module for TsConfigModuleAsset {
             .await?;
             if let Some(require) = require {
                 for (_, request) in require {
-                    references.push(Vc::upcast(TsNodeRequireReference::new(
-                        *self.origin,
-                        Request::parse(Value::new(request.into())),
-                    )));
+                    references.push(ResolvedVc::upcast(
+                        TsNodeRequireReference::new(*self.origin, Request::parse(request.into()))
+                            .to_resolved()
+                            .await?,
+                    ));
                 }
             }
         }
@@ -119,12 +134,10 @@ impl Module for TsConfigModuleAsset {
                 types
             } else {
                 let mut all_types = Vec::new();
-                let mut current = self.source.ident().path().parent().resolve().await?;
+                let mut current = self.source.ident().path().await?.parent();
                 loop {
-                    if let DirectoryContent::Entries(entries) = &*current
-                        .join("node_modules/@types".into())
-                        .read_dir()
-                        .await?
+                    if let DirectoryContent::Entries(entries) =
+                        &*current.join("node_modules/@types")?.read_dir().await?
                     {
                         all_types.extend(entries.iter().filter_map(|(name, _)| {
                             if name.starts_with('.') {
@@ -134,7 +147,7 @@ impl Module for TsConfigModuleAsset {
                             }
                         }));
                     }
-                    let parent = current.parent().resolve().await?;
+                    let parent = current.parent();
                     if parent == current {
                         break;
                     }
@@ -143,15 +156,19 @@ impl Module for TsConfigModuleAsset {
                 all_types
             };
             for (_, name) in types {
-                references.push(Vc::upcast(TsConfigTypesReference::new(
-                    *self.origin,
-                    Request::module(
-                        name,
-                        Value::new(RcStr::default().into()),
-                        Vc::<RcStr>::default(),
-                        Vc::<RcStr>::default(),
-                    ),
-                )));
+                references.push(ResolvedVc::upcast(
+                    TsConfigTypesReference::new(
+                        *self.origin,
+                        Request::module(
+                            name.into(),
+                            RcStr::default().into(),
+                            RcStr::default(),
+                            RcStr::default(),
+                        ),
+                    )
+                    .to_resolved()
+                    .await?,
+                ));
             }
         }
         Ok(Vc::cell(references))
@@ -188,7 +205,13 @@ impl CompilerReference {
 impl ModuleReference for CompilerReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(*self.origin, *self.request, None, false)
+        cjs_resolve(
+            *self.origin,
+            *self.request,
+            CommonJsReferenceSubType::Undefined,
+            None,
+            false,
+        )
     }
 }
 
@@ -220,12 +243,9 @@ impl TsExtendsReference {
 impl ModuleReference for TsExtendsReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        Ok(ModuleResolveResult::module(ResolvedVc::upcast(
-            RawModule::new(*ResolvedVc::upcast(self.config))
-                .to_resolved()
-                .await?,
-        ))
-        .cell())
+        Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
+            RawModule::new(*self.config).to_resolved().await?,
+        )))
     }
 }
 
@@ -265,7 +285,13 @@ impl TsNodeRequireReference {
 impl ModuleReference for TsNodeRequireReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(*self.origin, *self.request, None, false)
+        cjs_resolve(
+            *self.origin,
+            *self.request,
+            CommonJsReferenceSubType::Undefined,
+            None,
+            false,
+        )
     }
 }
 

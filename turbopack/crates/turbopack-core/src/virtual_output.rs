@@ -3,7 +3,6 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     asset::{Asset, AssetContent},
-    ident::AssetIdent,
     output::{OutputAsset, OutputAssets},
 };
 
@@ -11,28 +10,28 @@ use crate::{
 /// to other assets.
 #[turbo_tasks::value]
 pub struct VirtualOutputAsset {
-    pub path: ResolvedVc<FileSystemPath>,
+    pub path: FileSystemPath,
     pub content: ResolvedVc<AssetContent>,
-    pub references: Vc<OutputAssets>,
+    pub references: ResolvedVc<OutputAssets>,
 }
 
 #[turbo_tasks::value_impl]
 impl VirtualOutputAsset {
     #[turbo_tasks::function]
-    pub fn new(path: ResolvedVc<FileSystemPath>, content: ResolvedVc<AssetContent>) -> Vc<Self> {
+    pub fn new(path: FileSystemPath, content: ResolvedVc<AssetContent>) -> Vc<Self> {
         VirtualOutputAsset {
             path,
             content,
-            references: OutputAssets::empty(),
+            references: OutputAssets::empty_resolved(),
         }
         .cell()
     }
 
     #[turbo_tasks::function]
     pub fn new_with_references(
-        path: ResolvedVc<FileSystemPath>,
+        path: FileSystemPath,
         content: ResolvedVc<AssetContent>,
-        references: Vc<OutputAssets>,
+        references: ResolvedVc<OutputAssets>,
     ) -> Vc<Self> {
         VirtualOutputAsset {
             path,
@@ -46,13 +45,13 @@ impl VirtualOutputAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for VirtualOutputAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(*self.path)
+    fn path(&self) -> Vc<FileSystemPath> {
+        self.path.clone().cell()
     }
 
     #[turbo_tasks::function]
     fn references(&self) -> Vc<OutputAssets> {
-        self.references
+        *self.references
     }
 }
 

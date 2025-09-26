@@ -1,5 +1,5 @@
-import Link from 'next/link'
+import { LinkAccordion } from '../components/link-accordion'
 
 export default function Page() {
-  return <Link href="/test">Go to test page</Link>
+  return <LinkAccordion href="/test">Go to test page</LinkAccordion>
 }

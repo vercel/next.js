@@ -1,35 +1,32 @@
-use std::{
-    collections::{HashSet, VecDeque},
-    iter::once,
-};
+use std::{collections::VecDeque, iter::once};
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use rustc_hash::FxHashSet;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    fxindexset, Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, Vc, fxindexset,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
-    introspect::{output_asset::IntrospectableOutputAsset, Introspectable, IntrospectableChildren},
+    introspect::{Introspectable, IntrospectableChildren, output_asset::IntrospectableOutputAsset},
     output::{OutputAsset, OutputAssetsSet},
 };
 
 use super::{
-    route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceSideEffect,
     GetContentSourceContent,
+    route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
 };
 
 #[turbo_tasks::value(transparent)]
 struct OutputAssetsMap(FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>);
 
-type ExpandedState = State<HashSet<RcStr>>;
+type ExpandedState = State<FxHashSet<RcStr>>;
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
-    root_path: ResolvedVc<FileSystemPath>,
+    root_path: FileSystemPath,
     root_assets: ResolvedVc<OutputAssetsSet>,
     expanded: Option<ExpandedState>,
 }
@@ -39,7 +36,7 @@ impl AssetGraphContentSource {
     /// Serves all assets references by root_asset.
     #[turbo_tasks::function]
     pub fn new_eager(
-        root_path: ResolvedVc<FileSystemPath>,
+        root_path: FileSystemPath,
         root_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
@@ -53,20 +50,20 @@ impl AssetGraphContentSource {
     /// asset when it has served its content before.
     #[turbo_tasks::function]
     pub fn new_lazy(
-        root_path: ResolvedVc<FileSystemPath>,
+        root_path: FileSystemPath,
         root_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
-            expanded: Some(State::new(HashSet::new())),
+            expanded: Some(State::new(FxHashSet::default())),
         })
     }
 
     /// Serves all assets references by all root_assets.
     #[turbo_tasks::function]
     pub fn new_eager_multiple(
-        root_path: ResolvedVc<FileSystemPath>,
+        root_path: FileSystemPath,
         root_assets: ResolvedVc<OutputAssetsSet>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
@@ -80,13 +77,13 @@ impl AssetGraphContentSource {
     /// of an asset when it has served its content before.
     #[turbo_tasks::function]
     pub fn new_lazy_multiple(
-        root_path: ResolvedVc<FileSystemPath>,
+        root_path: FileSystemPath,
         root_assets: ResolvedVc<OutputAssetsSet>,
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets,
-            expanded: Some(State::new(HashSet::new())),
+            expanded: Some(State::new(FxHashSet::default())),
         })
     }
 
@@ -95,7 +92,7 @@ impl AssetGraphContentSource {
         Ok(Vc::cell(
             expand(
                 &*self.root_assets.await?,
-                &*self.root_path.await?,
+                &self.root_path,
                 self.expanded.as_ref(),
             )
             .await?,
@@ -111,11 +108,11 @@ async fn expand(
     let mut map = FxIndexMap::default();
     let mut assets = Vec::new();
     let mut queue = VecDeque::with_capacity(32);
-    let mut assets_set = HashSet::new();
+    let mut assets_set = FxHashSet::default();
     let root_assets_with_path = root_assets
         .iter()
         .map(|&asset| async move {
-            let path = asset.ident().path().await?;
+            let path = asset.path().await?;
             Ok((path, asset))
         })
         .try_join()
@@ -155,7 +152,7 @@ async fn expand(
     while let Some(references) = queue.pop_front() {
         for asset in references.await?.iter() {
             if assets_set.insert(*asset) {
-                let path = asset.ident().path().await?;
+                let path = asset.path().await?;
                 if let Some(sub_path) = root_path.get_path_to(&path) {
                     let (sub_paths_buffer, sub_paths) = get_sub_paths(sub_path);
                     let expanded = if let Some(expanded) = &expanded {
@@ -178,9 +175,8 @@ async fn expand(
         }
     }
     for (sub_path, asset) in assets {
-        let asset = asset.to_resolved().await?;
         if &*sub_path == "index.html" {
-            map.insert("".into(), asset);
+            map.insert(rcstr!(""), asset);
         } else if let Some(p) = sub_path.strip_suffix("/index.html") {
             map.insert(p.into(), asset);
             map.insert(format!("{p}/").into(), asset);
@@ -195,7 +191,7 @@ async fn expand(
 fn get_sub_paths(sub_path: &str) -> ([RcStr; 3], usize) {
     let sub_paths_buffer: [RcStr; 3];
     let n = if sub_path == "index.html" {
-        sub_paths_buffer = ["".into(), sub_path.into(), Default::default()];
+        sub_paths_buffer = [rcstr!(""), sub_path.into(), Default::default()];
         2
     } else if let Some(p) = sub_path.strip_suffix("/index.html") {
         sub_paths_buffer = [p.into(), format!("{p}/").into(), sub_path.into()];
@@ -210,11 +206,18 @@ fn get_sub_paths(sub_path: &str) -> ([RcStr; 3], usize) {
     (sub_paths_buffer, n)
 }
 
+#[turbo_tasks::function(operation)]
+fn all_assets_map_operation(source: ResolvedVc<AssetGraphContentSource>) -> Vc<OutputAssetsMap> {
+    source.all_assets_map()
+}
+
 #[turbo_tasks::value_impl]
 impl ContentSource for AssetGraphContentSource {
     #[turbo_tasks::function]
-    async fn get_routes(self: Vc<Self>) -> Result<Vc<RouteTree>> {
-        let assets = self.all_assets_map().strongly_consistent().await?;
+    async fn get_routes(self: ResolvedVc<Self>) -> Result<Vc<RouteTree>> {
+        let assets = all_assets_map_operation(self)
+            .read_strongly_consistent()
+            .await?;
         let mut paths = Vec::new();
         let routes = assets
             .iter()
@@ -224,7 +227,7 @@ impl ContentSource for AssetGraphContentSource {
                     BaseSegment::from_static_pathname(path).collect(),
                     RouteType::Exact,
                     Vc::upcast(AssetGraphGetContentSourceContent::new(
-                        self,
+                        *self,
                         path.clone(),
                         **asset,
                     )),
@@ -264,12 +267,12 @@ impl AssetGraphGetContentSourceContent {
 impl GetContentSourceContent for AssetGraphGetContentSourceContent {
     #[turbo_tasks::function]
     async fn get(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         _path: RcStr,
-        _data: Value<ContentSourceData>,
+        _data: ContentSourceData,
     ) -> Result<Vc<ContentSourceContent>> {
         let this = self.await?;
-        turbo_tasks::emit(Vc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
+        turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
         Ok(ContentSourceContent::static_content(
             this.asset.versioned_content(),
         ))
@@ -289,21 +292,16 @@ impl ContentSourceSideEffect for AssetGraphGetContentSourceContent {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("asset graph content source".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for AssetGraphContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("asset graph content source"))
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<RcStr> {
-        self.root_path.to_string()
+        self.root_path.value_to_string()
     }
 
     #[turbo_tasks::function]
@@ -311,78 +309,83 @@ impl Introspectable for AssetGraphContentSource {
         Vc::cell(if let Some(expanded) = &self.expanded {
             format!("{} assets expanded", expanded.get().len()).into()
         } else {
-            "eager".into()
+            rcstr!("eager")
         })
     }
 
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
         let this = self.await?;
-        let key = Vc::cell("root".into());
-        let inner_key = Vc::cell("inner".into());
-        let expanded_key = Vc::cell("expanded".into());
 
         let root_assets = this.root_assets.await?;
-        let root_asset_children = root_assets.iter().map(|&asset| {
-            (
-                key,
-                IntrospectableOutputAsset::new(*ResolvedVc::upcast(asset)),
-            )
-        });
+        let root_asset_children = root_assets
+            .iter()
+            .map(|&asset| async move {
+                Ok((
+                    rcstr!("root"),
+                    IntrospectableOutputAsset::new(*asset).to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?;
 
         let expanded_assets = self.all_assets_map().await?;
         let expanded_asset_children = expanded_assets
             .values()
             .filter(|&a| !root_assets.contains(a))
-            .map(|&asset| {
-                (
-                    inner_key,
-                    IntrospectableOutputAsset::new(*ResolvedVc::upcast(asset)),
-                )
-            });
+            .map(|&asset| async move {
+                Ok((
+                    rcstr!("inner"),
+                    IntrospectableOutputAsset::new(*asset).to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?;
 
         Ok(Vc::cell(
             root_asset_children
+                .into_iter()
                 .chain(expanded_asset_children)
                 .chain(once((
-                    expanded_key,
-                    Vc::upcast(FullyExpaned(self.to_resolved().await?).cell()),
+                    rcstr!("expanded"),
+                    ResolvedVc::upcast(FullyExpanded(self.to_resolved().await?).resolved_cell()),
                 )))
                 .collect(),
         ))
     }
 }
 
-#[turbo_tasks::function]
-fn fully_expaned_introspectable_type() -> Vc<RcStr> {
-    Vc::cell("fully expanded asset graph content source".into())
-}
-
 #[turbo_tasks::value]
-struct FullyExpaned(ResolvedVc<AssetGraphContentSource>);
+struct FullyExpanded(ResolvedVc<AssetGraphContentSource>);
 
 #[turbo_tasks::value_impl]
-impl Introspectable for FullyExpaned {
+impl Introspectable for FullyExpanded {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        fully_expaned_introspectable_type()
+        Vc::cell(rcstr!("fully expanded asset graph content source"))
     }
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<RcStr>> {
-        Ok(self.0.await?.root_path.to_string())
+        Ok(self.0.await?.root_path.value_to_string())
     }
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let source = self.0.await?;
-        let key = Vc::cell("asset".into());
 
-        let expanded_assets =
-            expand(&*source.root_assets.await?, &*source.root_path.await?, None).await?;
+        let expanded_assets = expand(&*source.root_assets.await?, &source.root_path, None).await?;
         let children = expanded_assets
             .iter()
-            .map(|(_k, &v)| (key, IntrospectableOutputAsset::new(*v)))
+            .map(|(_k, &v)| async move {
+                Ok((
+                    rcstr!("asset"),
+                    IntrospectableOutputAsset::new(*v).to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?
+            .into_iter()
             .collect();
 
         Ok(Vc::cell(children))

@@ -226,11 +226,6 @@ exports.unstable_clearLog = function () {
   yieldedValues = null;
   return values;
 };
-exports.unstable_continueExecution = function () {
-  isHostCallbackScheduled ||
-    isPerformingWork ||
-    ((isHostCallbackScheduled = !0), (scheduledCallback = flushWork));
-};
 exports.unstable_flushAll = function () {
   if (null !== yieldedValues)
     throw Error(
@@ -292,9 +287,6 @@ exports.unstable_forceFrameRate = function () {};
 exports.unstable_getCurrentPriorityLevel = function () {
   return currentPriorityLevel;
 };
-exports.unstable_getFirstCallbackNode = function () {
-  return peek(taskQueue);
-};
 exports.unstable_hasPendingWork = function () {
   return null !== scheduledCallback;
 };
@@ -319,7 +311,6 @@ exports.unstable_next = function (eventHandler) {
 exports.unstable_now = function () {
   return currentMockTime;
 };
-exports.unstable_pauseExecution = function () {};
 exports.unstable_requestPaint = function () {
   needsPaint = !0;
 };

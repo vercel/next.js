@@ -1,1 +1,1 @@
-export default "exports";
+export default 'exports'

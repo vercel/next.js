@@ -6,7 +6,7 @@
    : ^^^^^^^^^^^^^^^^^^^^^^^^^
    `----
   x You're importing a component that imports react-dom/client. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-  | \nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n
+  | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
     ,-[input.js:11:1]
  10 | 
  11 | import 'react-dom/client'

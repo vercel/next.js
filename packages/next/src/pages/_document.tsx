@@ -1,3 +1,5 @@
+/// <reference types="webpack/module.d.ts" />
+
 import React, { type JSX } from 'react'
 import { NEXT_BUILTIN_DOCUMENT } from '../shared/lib/constants'
 import type {
@@ -214,10 +216,10 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   if (!nextScriptWorkers || process.env.NEXT_RUNTIME === 'edge') return null
 
   try {
-    let {
-      partytownSnippet,
-      // @ts-ignore: Prevent webpack from processing this require
-    } = __non_webpack_require__('@builder.io/partytown/integration'!)
+    // @ts-expect-error: Prevent webpack from processing this require
+    let { partytownSnippet } = __non_webpack_require__(
+      '@builder.io/partytown/integration'!
+    )
 
     const children = Array.isArray(props.children)
       ? props.children
@@ -328,7 +330,7 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
           {...scriptProps}
           key={scriptProps.src || index}
           defer={scriptProps.defer ?? !disableOptimizedLoading}
-          nonce={props.nonce}
+          nonce={scriptProps.nonce || props.nonce}
           data-nscript="beforeInteractive"
           crossOrigin={props.crossOrigin || crossOrigin}
         />
@@ -429,6 +431,7 @@ export class Head extends React.Component<HeadProps> {
       assetPrefix,
       assetQueryString,
       dynamicImports,
+      dynamicCssManifest,
       crossOrigin,
       optimizeCss,
     } = this.context
@@ -438,21 +441,23 @@ export class Head extends React.Component<HeadProps> {
     // Unmanaged files are CSS files that will be handled directly by the
     // webpack runtime (`mini-css-extract-plugin`).
     let unmanagedFiles: Set<string> = new Set([])
-    let dynamicCssFiles = Array.from(
+    let localDynamicCssFiles = Array.from(
       new Set(dynamicImports.filter((file) => file.endsWith('.css')))
     )
-    if (dynamicCssFiles.length) {
+    if (localDynamicCssFiles.length) {
       const existing = new Set(cssFiles)
-      dynamicCssFiles = dynamicCssFiles.filter(
+      localDynamicCssFiles = localDynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
-      unmanagedFiles = new Set(dynamicCssFiles)
-      cssFiles.push(...dynamicCssFiles)
+      unmanagedFiles = new Set(localDynamicCssFiles)
+      cssFiles.push(...localDynamicCssFiles)
     }
 
     let cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
+      const isUnmanagedFile = unmanagedFiles.has(file)
+      const isFileInDynamicCssManifest = dynamicCssManifest.has(file)
 
       if (!optimizeCss) {
         cssLinkElements.push(
@@ -469,7 +474,6 @@ export class Head extends React.Component<HeadProps> {
         )
       }
 
-      const isUnmanagedFile = unmanagedFiles.has(file)
       cssLinkElements.push(
         <link
           key={file}
@@ -480,7 +484,11 @@ export class Head extends React.Component<HeadProps> {
           )}${assetQueryString}`}
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
-          data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
+          data-n-p={
+            isSharedFile || isUnmanagedFile || isFileInDynamicCssManifest
+              ? undefined
+              : ''
+          }
         />
       )
     })
@@ -649,22 +657,12 @@ export class Head extends React.Component<HeadProps> {
           child.props['rel'] === 'preload' &&
           child.props['as'] === 'style'
         ) {
-          if (this.context.strictNextHead) {
-            cssPreloads.push(
-              React.cloneElement(child, { 'data-next-head': '' })
-            )
-          } else {
-            cssPreloads.push(child)
-          }
+          cssPreloads.push(child)
         } else {
           if (child) {
-            if (this.context.strictNextHead) {
-              otherHeadElements.push(
-                React.cloneElement(child, { 'data-next-head': '' })
-              )
-            } else {
-              otherHeadElements.push(child)
-            }
+            otherHeadElements.push(
+              React.cloneElement(child, { 'data-next-head': '' })
+            )
           }
         }
       })
@@ -803,12 +801,6 @@ export class Head extends React.Component<HeadProps> {
           </>
         )}
         {head}
-        {this.context.strictNextHead ? null : (
-          <meta
-            name="next-head-count"
-            content={React.Children.count(head || []).toString()}
-          />
-        )}
 
         {children}
 
@@ -826,7 +818,9 @@ export class Head extends React.Component<HeadProps> {
                 rel="canonical"
                 href={
                   canonicalBase +
-                  require('../server/utils').cleanAmpPath(dangerousAsPath)
+                  (
+                    require('../server/utils') as typeof import('../server/utils')
+                  ).cleanAmpPath(dangerousAsPath)
                 }
               />
             )}
@@ -996,7 +990,9 @@ export class NextScript extends React.Component<OriginProps> {
         process.env.NEXT_RUNTIME === 'edge'
           ? new TextEncoder().encode(data).buffer.byteLength
           : Buffer.from(data).byteLength
-      const prettyBytes = require('../lib/pretty-bytes').default
+      const prettyBytes = (
+        require('../lib/pretty-bytes') as typeof import('../lib/pretty-bytes')
+      ).default
 
       if (largePageDataBytes && bytes > largePageDataBytes) {
         if (process.env.NODE_ENV === 'production') {
@@ -1192,10 +1188,10 @@ export default class Document<P = {}> extends React.Component<
   render() {
     return (
       <Html>
-        <Head />
+        <Head nonce={this.props.nonce} />
         <body>
           <Main />
-          <NextScript />
+          <NextScript nonce={this.props.nonce} />
         </body>
       </Html>
     )

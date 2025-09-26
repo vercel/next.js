@@ -1,10 +1,10 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TryJoinIterExt, Vc};
 
 use super::{
     ContentSourceContent, ContentSourceData, ContentSourceDataVary, GetContentSourceContent,
-    Rewrite, RewriteType,
+    GetContentSourceContents, Rewrite, RewriteType,
 };
 
 /// A ContentSourceProcessor handles the final processing of an eventual
@@ -16,6 +16,7 @@ use super::{
 /// [ContentSourceContent].
 #[turbo_tasks::value_trait]
 pub trait ContentSourceProcessor {
+    #[turbo_tasks::function]
     fn process(self: Vc<Self>, content: Vc<ContentSourceContent>) -> Vc<ContentSourceContent>;
 }
 
@@ -40,6 +41,27 @@ impl WrappedGetContentSourceContent {
     }
 }
 
+#[turbo_tasks::function(operation)]
+async fn wrap_sources_operation(
+    sources: OperationVc<GetContentSourceContents>,
+    processor: ResolvedVc<Box<dyn ContentSourceProcessor>>,
+) -> Result<Vc<GetContentSourceContents>> {
+    Ok(Vc::cell(
+        sources
+            .connect()
+            .await?
+            .iter()
+            .map(|s| {
+                Vc::upcast::<Box<dyn GetContentSourceContent>>(WrappedGetContentSourceContent::new(
+                    **s, *processor,
+                ))
+            })
+            .map(|v| async move { v.to_resolved().await })
+            .try_join()
+            .await?,
+    ))
+}
+
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for WrappedGetContentSourceContent {
     #[turbo_tasks::function]
@@ -48,11 +70,7 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
     }
 
     #[turbo_tasks::function]
-    async fn get(
-        &self,
-        path: RcStr,
-        data: Value<ContentSourceData>,
-    ) -> Result<Vc<ContentSourceContent>> {
+    async fn get(&self, path: RcStr, data: ContentSourceData) -> Result<Vc<ContentSourceContent>> {
         let res = self.inner.get(path, data);
         if let ContentSourceContent::Rewrite(rewrite) = &*res.await? {
             let rewrite = rewrite.await?;
@@ -63,22 +81,7 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
                             "Rewrites for WrappedGetContentSourceContent are not implemented yet"
                         ),
                         RewriteType::Sources { sources } => RewriteType::Sources {
-                            sources: Vc::cell(
-                                sources
-                                    .await?
-                                    .iter()
-                                    .map(|s| {
-                                        Vc::upcast::<Box<dyn GetContentSourceContent>>(
-                                            WrappedGetContentSourceContent::new(
-                                                **s,
-                                                *self.processor,
-                                            ),
-                                        )
-                                    })
-                                    .map(|v| async move { v.to_resolved().await })
-                                    .try_join()
-                                    .await?,
-                            ),
+                            sources: wrap_sources_operation(*sources, self.processor),
                         },
                     },
                     response_headers: rewrite.response_headers,

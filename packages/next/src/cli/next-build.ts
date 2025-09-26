@@ -13,13 +13,16 @@ import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 
 export type NextBuildOptions = {
   debug?: boolean
+  debugPrerender?: boolean
   profile?: boolean
   lint: boolean
   mangling: boolean
+  turbo?: boolean
+  turbopack?: boolean
   experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
-  experimentalBuildMode: 'default' | 'compile' | 'generate'
+  experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env'
   experimentalUploadTrace?: string
 }
 
@@ -29,12 +32,12 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
 
   const {
     debug,
+    debugPrerender,
     experimentalDebugMemoryUsage,
     profile,
     lint,
     mangling,
     experimentalAppOnly,
-    experimentalTurbo,
     experimentalBuildMode,
     experimentalUploadTrace,
   } = options
@@ -50,13 +53,21 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
 
   if (!mangling) {
     warn(
-      'Mangling is disabled. Note: This may affect performance and should only be used for debugging purposes.'
+      `Mangling is disabled. ${italic('Note: This may affect performance and should only be used for debugging purposes.')}`
     )
   }
 
   if (profile) {
     warn(
       `Profiling is enabled. ${italic('Note: This may affect performance.')}`
+    )
+  }
+
+  if (debugPrerender) {
+    warn(
+      `Prerendering is running in debug mode. ${italic(
+        'Note: This may affect performance and should not be used for production.'
+      )}`
     )
   }
 
@@ -71,7 +82,10 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (experimentalTurbo) {
+  const isTurbopack = Boolean(
+    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
+  )
+  if (isTurbopack) {
     process.env.TURBOPACK = '1'
   }
 
@@ -79,10 +93,11 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     dir,
     profile,
     debug || Boolean(process.env.NEXT_DEBUG_BUILD),
+    debugPrerender,
     lint,
     !mangling,
     experimentalAppOnly,
-    !!process.env.TURBOPACK,
+    isTurbopack,
     experimentalBuildMode,
     traceUploadUrl
   )

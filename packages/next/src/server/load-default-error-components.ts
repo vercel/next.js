@@ -48,7 +48,9 @@ export type LoadComponentsReturnType = {
 async function loadDefaultErrorComponentsImpl(
   distDir: string
 ): Promise<LoadComponentsReturnType> {
+  // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
   const Document = interopDefault(require('next/dist/pages/_document'))
+  // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
   const AppMod = require('next/dist/pages/_app')
   const App = interopDefault(AppMod)
 

@@ -22,6 +22,10 @@ import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
 import { intervalsManager, timeoutsManager } from './resource-managers'
 import { createLocalRequestContext } from '../../after/builtin-request-context'
+import {
+  patchErrorInspectEdgeLite,
+  patchErrorInspectNodeJS,
+} from '../../patch-error-inspect'
 
 interface ModuleContext {
   runtime: EdgeRuntime
@@ -29,18 +33,19 @@ interface ModuleContext {
   warnedEvals: Set<string>
 }
 
-let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack').getServerError
+let getServerError: typeof import('../../dev/node-stack-frames').getServerError
 let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
-  const middleware =
-    require('../../../client/components/react-dev-overlay/server/middleware-webpack') as typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack')
-  getServerError = middleware.getServerError
-  decorateServerError =
-    require('../../../shared/lib/error-source').decorateServerError
+  getServerError = (
+    require('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames')
+  ).getServerError
+  decorateServerError = (
+    require('../../../shared/lib/error-source') as typeof import('../../../shared/lib/error-source')
+  ).decorateServerError
 } else {
-  getServerError = (error: Error, _: string) => error
-  decorateServerError = (_: Error, __: string) => {}
+  getServerError = (error) => error
+  decorateServerError = () => {}
 }
 
 /**
@@ -100,6 +105,7 @@ async function loadWasm(
   await Promise.all(
     wasm.map(async (binding) => {
       const module = await WebAssembly.compile(
+        // @ts-expect-error - Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BufferSource'.
         await fs.readFile(binding.filePath)
       )
       modules[binding.name] = module
@@ -358,23 +364,6 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
         init.headers = new Headers(init.headers ?? {})
 
-        // Forward subrequest header from incoming request to outgoing request
-        const store = requestStore.getStore()
-        if (
-          store?.headers.has('x-middleware-subrequest') &&
-          !init.headers.has('x-middleware-subrequest')
-        ) {
-          init.headers.set(
-            'x-middleware-subrequest',
-            store.headers.get('x-middleware-subrequest') ?? ''
-          )
-        }
-
-        const prevs =
-          init.headers.get(`x-middleware-subrequest`)?.split(':') || []
-        const value = prevs.concat(options.moduleName).join(':')
-        init.headers.set('x-middleware-subrequest', value)
-
         if (!init.headers.has('user-agent')) {
           init.headers.set(`user-agent`, `Next.js Middleware`)
         }
@@ -418,8 +407,14 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
             typeof input !== 'string' && 'url' in input
               ? input.url
               : String(input)
-          validateURL(url)
-          super(url, init)
+
+          if (typeof input === 'string') {
+            validateURL(url)
+            super(input, init)
+          } else {
+            super(input, init)
+            validateURL(url)
+          }
           this.next = init?.next
         }
       }
@@ -477,6 +472,11 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
     'unhandledrejection',
     decorateUnhandledRejection
   )
+
+  patchErrorInspectEdgeLite(runtime.context.Error)
+  // An Error from within the Edge Runtime could also bubble up into the Node.js process.
+  // For example, uncaught errors are handled in the Node.js runtime.
+  patchErrorInspectNodeJS(runtime.context.Error)
 
   return {
     runtime,

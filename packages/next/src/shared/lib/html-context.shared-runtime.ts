@@ -8,7 +8,7 @@ import { createContext, useContext, type JSX } from 'react'
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
-  strictNextHead: boolean
+  nonce?: string
   dangerousAsPath: string
   docComponentsRendered: {
     Html?: boolean
@@ -22,6 +22,11 @@ export type HtmlProps = {
   hybridAmp: boolean
   isDevelopment: boolean
   dynamicImports: string[]
+  /**
+   * This manifest is only needed for Pages dir, Production, Webpack
+   * @see https://github.com/vercel/next.js/pull/72959
+   */
+  dynamicCssManifest: Set<string>
   assetPrefix?: string
   canonicalBase: string
   headTags: any[]

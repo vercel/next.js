@@ -1,47 +1,53 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Vc};
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
-use super::available_chunk_items::{AvailableChunkItemInfoMap, AvailableChunkItems};
+use super::available_modules::{AvailableModules, AvailableModulesSet};
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Hash, Clone, Copy, Debug)]
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Clone,
+    Copy,
+    Debug,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
+    Serialize,
+    Deserialize,
+)]
 pub enum AvailabilityInfo {
     /// Availability of modules is not tracked
     Untracked,
-    /// Availablility of modules is tracked, but no modules are available
+    /// Availability of modules is tracked, but no modules are available
     Root,
     /// There are modules already available.
     Complete {
-        available_chunk_items: ResolvedVc<AvailableChunkItems>,
+        available_modules: ResolvedVc<AvailableModules>,
     },
 }
 
 impl AvailabilityInfo {
-    pub fn available_chunk_items(&self) -> Option<Vc<AvailableChunkItems>> {
+    pub fn available_modules(&self) -> Option<ResolvedVc<AvailableModules>> {
         match self {
             Self::Untracked => None,
             Self::Root => None,
             Self::Complete {
-                available_chunk_items,
-                ..
-            } => Some(**available_chunk_items),
+                available_modules, ..
+            } => Some(*available_modules),
         }
     }
 
-    pub async fn with_chunk_items(
-        self,
-        chunk_items: Vc<AvailableChunkItemInfoMap>,
-    ) -> Result<Self> {
+    pub async fn with_modules(self, modules: Vc<AvailableModulesSet>) -> Result<Self> {
         Ok(match self {
             AvailabilityInfo::Untracked => AvailabilityInfo::Untracked,
             AvailabilityInfo::Root => AvailabilityInfo::Complete {
-                available_chunk_items: AvailableChunkItems::new(chunk_items).to_resolved().await?,
+                available_modules: AvailableModules::new(modules).to_resolved().await?,
             },
-            AvailabilityInfo::Complete {
-                available_chunk_items,
-            } => AvailabilityInfo::Complete {
-                available_chunk_items: available_chunk_items
-                    .with_chunk_items(chunk_items)
+            AvailabilityInfo::Complete { available_modules } => AvailabilityInfo::Complete {
+                available_modules: available_modules
+                    .with_modules(modules)
                     .to_resolved()
                     .await?,
             },

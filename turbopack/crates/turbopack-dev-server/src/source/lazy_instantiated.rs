@@ -1,15 +1,16 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
-use super::{route_tree::RouteTree, ContentSource};
+use super::{ContentSource, route_tree::RouteTree};
 
 /// A functor to get a [ContentSource]. Will be invoked when needed when using
 /// [LazyInstantiatedContentSource].
 #[turbo_tasks::value_trait]
 pub trait GetContentSource {
     /// Returns the [ContentSource]
+    #[turbo_tasks::function]
     fn content_source(self: Vc<Self>) -> Vc<Box<dyn ContentSource>>;
 }
 
@@ -28,33 +29,20 @@ impl ContentSource for LazyInstantiatedContentSource {
     }
 }
 
-#[turbo_tasks::function]
-fn introspectable_type() -> Vc<RcStr> {
-    Vc::cell("lazy instantiated content source".into())
-}
-
-#[turbo_tasks::function]
-fn source_key() -> Vc<RcStr> {
-    Vc::cell("source".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for LazyInstantiatedContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        introspectable_type()
+        Vc::cell(rcstr!("lazy instantiated content source"))
     }
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         Ok(Vc::cell(
-            [
-                Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(
-                    self.get_source.content_source(),
-                )
-                .await?
-                .map(|i| (source_key(), i)),
-            ]
+            [ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(
+                self.get_source.content_source().to_resolved().await?,
+            )
+            .map(|i| (rcstr!("source"), i))]
             .into_iter()
             .flatten()
             .collect(),

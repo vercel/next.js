@@ -84,9 +84,7 @@ describe('app-dir - fetch logging', () => {
   })
 })
 
-// TODO: this test has been quite flaky, so we are skipping it for now
-// will rewrite it later
-describe.skip('app-dir - logging', () => {
+describe('app-dir - logging', () => {
   const { next, isNextDev } = nextTestSetup({
     skipDeployment: true,
     files: __dirname,
@@ -262,6 +260,29 @@ describe.skip('app-dir - logging', () => {
           const expectedUrl = withFullUrlFetches
             ? 'https://next-data-api-endpoint.vercel.app/api/random'
             : 'https://next-data-api-en../api/random'
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+          })
+        })
+
+        it('should log requests for after revalidation via server action', async () => {
+          let outputIndex = next.cliOutput.length
+          const browser = await next.browser('/default-cache')
+
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+          })
+
+          outputIndex = next.cliOutput.length
+
+          await browser.elementById('revalidate-button').click()
 
           await retry(() => {
             const logs = stripAnsi(next.cliOutput.slice(outputIndex))

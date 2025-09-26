@@ -6,7 +6,10 @@ function isStringOrURL(icon: any): icon is string | URL {
 }
 
 function createLocalMetadataBase() {
-  return new URL(`http://localhost:${process.env.PORT || 3000}`)
+  // Check if experimental HTTPS is enabled
+  const isExperimentalHttps = Boolean(process.env.__NEXT_EXPERIMENTAL_HTTPS)
+  const protocol = isExperimentalHttps ? 'https' : 'http'
+  return new URL(`${protocol}://localhost:${process.env.PORT || 3000}`)
 }
 
 function getPreviewDeploymentUrl(): URL | undefined {
@@ -73,8 +76,8 @@ function resolveUrl(
   }
 
   // Handle relative or absolute paths
-  const basePath = metadataBase.pathname || ''
-  const joinedPath = path.posix.join(basePath, url)
+  const pathname = metadataBase.pathname || ''
+  const joinedPath = path.posix.join(pathname, url)
 
   return new URL(joinedPath, metadataBase)
 }
@@ -98,7 +101,8 @@ function isFilePattern(pathname: string): boolean {
 function resolveAbsoluteUrlWithPathname(
   url: string | URL,
   metadataBase: URL | null,
-  { trailingSlash, pathname }: MetadataContext
+  pathname: string,
+  { trailingSlash }: MetadataContext
 ): string {
   // Resolve url with pathname that always starts with `/`
   url = resolveRelativeUrl(url, pathname)

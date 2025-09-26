@@ -1,4 +1,4 @@
-import type { FlightRouterState } from '../../server/app-render/types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { Params } from '../../server/request/params'
 
 import { useContext, useMemo } from 'react'
@@ -15,7 +15,20 @@ import {
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import { ReadonlyURLSearchParams } from './navigation.react-server'
-import { useDynamicRouteParams } from '../../server/app-render/dynamic-rendering'
+
+const useDynamicRouteParams =
+  typeof window === 'undefined'
+    ? (
+        require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
+      ).useDynamicRouteParams
+    : undefined
+
+const useDynamicSearchParams =
+  typeof window === 'undefined'
+    ? (
+        require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
+      ).useDynamicSearchParams
+    : undefined
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
@@ -39,6 +52,8 @@ import { useDynamicRouteParams } from '../../server/app-render/dynamic-rendering
  */
 // Client components API
 export function useSearchParams(): ReadonlyURLSearchParams {
+  useDynamicSearchParams?.('useSearchParams()')
+
   const searchParams = useContext(SearchParamsContext)
 
   // In the case where this is `null`, the compat types added in
@@ -53,14 +68,6 @@ export function useSearchParams(): ReadonlyURLSearchParams {
 
     return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams]) as ReadonlyURLSearchParams
-
-  if (typeof window === 'undefined') {
-    // AsyncLocalStorage should not be included in the client bundle.
-    const { bailoutToClientRendering } =
-      require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
-    // TODO-APP: handle dynamic = 'force-static' here and on the client
-    bailoutToClientRendering('useSearchParams()')
-  }
 
   return readonlySearchParams
 }
@@ -84,7 +91,7 @@ export function useSearchParams(): ReadonlyURLSearchParams {
  */
 // Client components API
 export function usePathname(): string {
-  useDynamicRouteParams('usePathname()')
+  useDynamicRouteParams?.('usePathname()')
 
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
@@ -144,7 +151,7 @@ export function useRouter(): AppRouterInstance {
  */
 // Client components API
 export function useParams<T extends Params = Params>(): T {
-  useDynamicRouteParams('useParams()')
+  useDynamicRouteParams?.('useParams()')
 
   return useContext(PathParamsContext) as T
 }
@@ -215,13 +222,13 @@ function getSelectedLayoutSegmentPath(
 export function useSelectedLayoutSegments(
   parallelRouteKey: string = 'children'
 ): string[] {
-  useDynamicRouteParams('useSelectedLayoutSegments()')
+  useDynamicRouteParams?.('useSelectedLayoutSegments()')
 
   const context = useContext(LayoutRouterContext)
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
 
-  return getSelectedLayoutSegmentPath(context.tree, parallelRouteKey)
+  return getSelectedLayoutSegmentPath(context.parentTree, parallelRouteKey)
 }
 
 /**
@@ -246,7 +253,7 @@ export function useSelectedLayoutSegments(
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string | null {
-  useDynamicRouteParams('useSelectedLayoutSegment()')
+  useDynamicRouteParams?.('useSelectedLayoutSegment()')
 
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
 
@@ -265,6 +272,8 @@ export function useSelectedLayoutSegment(
     ? null
     : selectedLayoutSegment
 }
+
+export { unstable_isUnrecognizedActionError } from './unrecognized-action-error'
 
 // Shared components APIs
 export {

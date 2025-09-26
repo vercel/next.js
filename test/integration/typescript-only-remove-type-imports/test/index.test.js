@@ -28,7 +28,7 @@ const runTests = () => {
 }
 
 // Test specific Babel feature that is not supported in Turbopack.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'TypeScript onlyRemoveTypeImports',
   () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

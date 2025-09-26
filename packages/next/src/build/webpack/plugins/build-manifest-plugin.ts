@@ -1,5 +1,5 @@
 import type { BloomFilter } from '../../../shared/lib/bloom-filter'
-import type { Rewrite, CustomRoutes } from '../../../lib/load-custom-routes'
+import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import devalue from 'next/dist/compiled/devalue'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -17,78 +17,21 @@ import type { BuildManifest } from '../../../server/get-page-files'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { spans } from './profiling-plugin'
 import { Span } from '../../../trace'
+import { getCompilationSpan } from '../utils'
+import {
+  createEdgeRuntimeManifest,
+  normalizeRewritesForBuildManifest,
+  processRoute,
+  srcEmptySsgManifest,
+  type ClientBuildManifest,
+} from './build-manifest-plugin-utils'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
-
-export type ClientBuildManifest = {
-  [key: string]: string[]
-}
-
-// Add the runtime ssg manifest file as a lazy-loaded file dependency.
-// We also stub this file out for development mode (when it is not
-// generated).
-export const srcEmptySsgManifest = `self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
 // nodejs: '/static/<build id>/low-priority.js'
 function buildNodejsLowPriorityPath(filename: string, buildId: string) {
   return `${CLIENT_STATIC_FILES_PATH}/${buildId}/${filename}`
-}
-
-function createEdgeRuntimeManifest(originAssetMap: BuildManifest): string {
-  const manifestFilenames = ['_buildManifest.js', '_ssgManifest.js']
-
-  const assetMap: BuildManifest = {
-    ...originAssetMap,
-    lowPriorityFiles: [],
-  }
-
-  const manifestDefCode = `self.__BUILD_MANIFEST = ${JSON.stringify(
-    assetMap,
-    null,
-    2
-  )};\n`
-  // edge lowPriorityFiles item: '"/static/" + process.env.__NEXT_BUILD_ID + "/low-priority.js"'.
-  // Since lowPriorityFiles is not fixed and relying on `process.env.__NEXT_BUILD_ID`, we'll produce code creating it dynamically.
-  const lowPriorityFilesCode =
-    `self.__BUILD_MANIFEST.lowPriorityFiles = [\n` +
-    manifestFilenames
-      .map((filename) => {
-        return `"/static/" + process.env.__NEXT_BUILD_ID + "/${filename}",\n`
-      })
-      .join(',') +
-    `\n];`
-
-  return manifestDefCode + lowPriorityFilesCode
-}
-
-function normalizeRewrite(item: {
-  source: string
-  destination: string
-  has?: any
-}): CustomRoutes['rewrites']['beforeFiles'][0] {
-  return {
-    has: item.has,
-    source: item.source,
-    destination: item.destination,
-  }
-}
-
-export function normalizeRewritesForBuildManifest(
-  rewrites: CustomRoutes['rewrites']
-): CustomRoutes['rewrites'] {
-  return {
-    afterFiles: rewrites.afterFiles
-      ?.map(processRoute)
-      ?.map((item) => normalizeRewrite(item)),
-    beforeFiles: rewrites.beforeFiles
-      ?.map(processRoute)
-      ?.map((item) => normalizeRewrite(item)),
-    fallback: rewrites.fallback
-      ?.map(processRoute)
-      ?.map((item) => normalizeRewrite(item)),
-  }
 }
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
@@ -104,9 +47,9 @@ export function generateClientManifest(
   compilation?: any
 ): string | undefined {
   const compilationSpan = compilation
-    ? spans.get(compilation)
+    ? getCompilationSpan(compilation)
     : compiler
-      ? spans.get(compiler)
+      ? getCompilationSpan(compiler)
       : new Span({ name: 'client-manifest' })
 
   const genClientManifestSpan = compilationSpan?.traceChild(
@@ -157,17 +100,6 @@ export function getEntrypointFiles(entrypoint: any): string[] {
   )
 }
 
-export const processRoute = (r: Rewrite) => {
-  const rewrite = { ...r }
-
-  // omit external rewrite destinations since these aren't
-  // handled client-side
-  if (!rewrite?.destination?.startsWith('/')) {
-    delete (rewrite as any).destination
-  }
-  return rewrite
-}
-
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
@@ -198,12 +130,18 @@ export default class BuildManifestPlugin {
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
   }
 
-  createAssets(compiler: any, compilation: any, assets: any) {
-    const compilationSpan = spans.get(compilation) || spans.get(compiler)
-    const createAssetsSpan = compilationSpan?.traceChild(
+  createAssets(compiler: any, compilation: any) {
+    const compilationSpan =
+      getCompilationSpan(compilation) ?? getCompilationSpan(compiler)
+    if (!compilationSpan) {
+      throw new Error('No span found for compilation')
+    }
+
+    const createAssetsSpan = compilationSpan.traceChild(
       'NextJsBuildManifest-createassets'
     )
-    return createAssetsSpan?.traceFn(() => {
+
+    return createAssetsSpan.traceFn(() => {
       const entrypoints: Map<string, any> = compilation.entrypoints
       const assetMap: DeepMutable<BuildManifest> = {
         polyfillFiles: [],
@@ -295,7 +233,10 @@ export default class BuildManifestPlugin {
           this.buildId
         )
         assetMap.lowPriorityFiles.push(buildManifestPath, ssgManifestPath)
-        assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
+        compilation.emitAsset(
+          ssgManifestPath,
+          new sources.RawSource(srcEmptySsgManifest)
+        )
       }
 
       assetMap.pages = Object.keys(assetMap.pages)
@@ -312,41 +253,42 @@ export default class BuildManifestPlugin {
         buildManifestName = `fallback-${BUILD_MANIFEST}`
       }
 
-      assets[buildManifestName] = new sources.RawSource(
-        JSON.stringify(assetMap, null, 2)
+      compilation.emitAsset(
+        buildManifestName,
+        new sources.RawSource(JSON.stringify(assetMap, null, 2))
       )
 
-      assets[`server/${MIDDLEWARE_BUILD_MANIFEST}.js`] = new sources.RawSource(
-        `${createEdgeRuntimeManifest(assetMap)}`
+      compilation.emitAsset(
+        `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
+        new sources.RawSource(`${createEdgeRuntimeManifest(assetMap)}`)
       )
 
       if (!this.isDevFallback) {
-        const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
-
-        assets[clientManifestPath] = new sources.RawSource(
-          `self.__BUILD_MANIFEST = ${generateClientManifest(
-            assetMap,
-            this.rewrites,
-            this.clientRouterFilters,
-            compiler,
-            compilation
-          )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+        compilation.emitAsset(
+          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`,
+          new sources.RawSource(
+            `self.__BUILD_MANIFEST = ${generateClientManifest(
+              assetMap,
+              this.rewrites,
+              this.clientRouterFilters,
+              compiler,
+              compilation
+            )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+          )
         )
       }
-
-      return assets
     })
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
+    compiler.hooks.make.tap('NextJsBuildManifest', (compilation: any) => {
       compilation.hooks.processAssets.tap(
         {
           name: 'NextJsBuildManifest',
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => {
-          this.createAssets(compiler, compilation, assets)
+        () => {
+          this.createAssets(compiler, compilation)
         }
       )
     })

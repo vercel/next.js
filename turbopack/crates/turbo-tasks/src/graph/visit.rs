@@ -10,7 +10,7 @@ use super::VisitControlFlow;
 pub trait Visit<Node, Abort = !, Impl = ()> {
     type Edge;
     type EdgesIntoIter: IntoIterator<Item = Self::Edge>;
-    type EdgesFuture: Future<Output = Result<Self::EdgesIntoIter>>;
+    type EdgesFuture: Future<Output = Result<Self::EdgesIntoIter>> + Send;
 
     /// Visits an edge to get to the neighbor node. Should return a
     /// [`VisitControlFlow`] that indicates whether to:
@@ -19,8 +19,13 @@ pub trait Visit<Node, Abort = !, Impl = ()> {
     /// * abort the traversal entirely.
     fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Node, Abort>;
 
-    /// Returns a future that resolves to the outgoing edges of the given
-    /// `node`.
+    /// Returns a future that resolves to the outgoing edges of the given `node`.
+    ///
+    /// Lifetimes:
+    /// - The returned future's lifetime cannot depend on the reference to self because there are
+    ///   multiple `edges` futures created and awaited concurrently.
+    /// - The returned future's lifetime cannot depend on `node` because `GraphStore::insert`
+    ///   returns a node reference that's only valid for the lifetime of its `&mut self` reference.
     fn edges(&mut self, node: &Node) -> Self::EdgesFuture;
 
     /// Returns a [Span] for the given `node`, under which all edges are
@@ -41,7 +46,7 @@ pub struct ImplRef;
 impl<Node, VisitFn, NeighFut, NeighIt> Visit<Node, !, ImplRef> for VisitFn
 where
     VisitFn: FnMut(&Node) -> NeighFut,
-    NeighFut: Future<Output = Result<NeighIt>>,
+    NeighFut: Future<Output = Result<NeighIt>> + Send,
     NeighIt: IntoIterator<Item = Node>,
 {
     type Edge = Node;
@@ -63,7 +68,7 @@ impl<Node, VisitFn, NeighFut, NeighIt> Visit<Node, !, ImplValue> for VisitFn
 where
     Node: Clone,
     VisitFn: FnMut(Node) -> NeighFut,
-    NeighFut: Future<Output = Result<NeighIt>>,
+    NeighFut: Future<Output = Result<NeighIt>> + Send,
     NeighIt: IntoIterator<Item = Node>,
 {
     type Edge = Node;

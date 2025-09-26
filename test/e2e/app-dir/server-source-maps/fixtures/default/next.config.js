@@ -3,9 +3,11 @@
  */
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    cpus: 1,
+    cacheComponents: true,
     serverSourceMaps: true,
   },
+  serverExternalPackages: ['external-pkg'],
 }
 
 module.exports = nextConfig

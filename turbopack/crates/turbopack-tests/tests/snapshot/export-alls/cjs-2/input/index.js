@@ -1,3 +1,3 @@
 // a.js
-import * as B from "./b";
-console.log(B);
+import * as B from './b'
+console.log(B)

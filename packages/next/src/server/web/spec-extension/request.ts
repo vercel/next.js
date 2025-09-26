@@ -12,6 +12,7 @@ export const INTERNALS = Symbol('internal request')
  * Read more: [Next.js Docs: `NextRequest`](https://nextjs.org/docs/app/api-reference/functions/next-request)
  */
 export class NextRequest extends Request {
+  /** @internal */
   [INTERNALS]: {
     cookies: RequestCookies
     url: string
@@ -21,9 +22,22 @@ export class NextRequest extends Request {
   constructor(input: URL | RequestInfo, init: RequestInit = {}) {
     const url =
       typeof input !== 'string' && 'url' in input ? input.url : String(input)
+
     validateURL(url)
+
+    // node Request instance requires duplex option when a body
+    // is present or it errors, we don't handle this for
+    // Request being passed in since it would have already
+    // errored if this wasn't configured
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      if (init.body && init.duplex !== 'half') {
+        init.duplex = 'half'
+      }
+    }
+
     if (input instanceof Request) super(input, init)
     else super(url, init)
+
     const nextUrl = new NextURL(url, {
       headers: toNodeOutgoingHttpHeaders(this.headers),
       nextConfig: init.nextConfig,
@@ -97,4 +111,6 @@ export interface RequestInit extends globalThis.RequestInit {
     trailingSlash?: boolean
   }
   signal?: AbortSignal
+  // see https://github.com/whatwg/fetch/pull/1457
+  duplex?: 'half'
 }

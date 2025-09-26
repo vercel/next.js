@@ -2,8 +2,8 @@ import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { assertNoRedbox } from 'next-test-utils'
 
-// Skipped in Turbopack, will be added later.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+// This is implemented in Turbopack, but Turbopack doesn't log the module count.
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Skipped in Turbopack',
   () => {
     describe('optimizePackageImports - mui', () => {

@@ -1,31 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
-
-import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
-
-const browserConfigWithFixedTime = {
-  beforePageLoad: (page) => {
-    page.addInitScript(() => {
-      const startTime = new Date()
-      const fixedTime = new Date('2023-04-17T00:00:00Z')
-
-      // Override the Date constructor
-      // @ts-ignore
-      // eslint-disable-next-line no-native-reassign
-      Date = class extends Date {
-        constructor() {
-          super()
-          // @ts-ignore
-          return new startTime.constructor(fixedTime)
-        }
-
-        static now() {
-          return fixedTime.getTime()
-        }
-      }
-    })
-  },
-}
+import { retry, waitFor } from 'next-test-utils'
 
 describe('app dir - prefetching (custom staleTime)', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -34,8 +8,8 @@ describe('app dir - prefetching (custom staleTime)', () => {
     nextConfig: {
       experimental: {
         staleTimes: {
-          static: 180,
-          dynamic: 30,
+          static: 10,
+          dynamic: 5,
         },
       },
     },
@@ -47,7 +21,7 @@ describe('app dir - prefetching (custom staleTime)', () => {
   }
 
   it('should not fetch again when a static page was prefetched when navigating to it twice', async () => {
-    const browser = await next.browser('/404', browserConfigWithFixedTime)
+    const browser = await next.browser('/404')
     let requests: string[] = []
 
     browser.on('request', (req) => {
@@ -55,17 +29,10 @@ describe('app dir - prefetching (custom staleTime)', () => {
     })
     await browser.eval('location.href = "/"')
 
-    await browser.eval(
-      `window.nd.router.prefetch("/static-page", {kind: "auto"})`
-    )
-
     await retry(async () => {
       expect(
-        requests.filter(
-          (request) =>
-            request === '/static-page' || request.includes(NEXT_RSC_UNION_QUERY)
-        ).length
-      ).toBe(1)
+        requests.filter((request) => request === '/static-page')
+      ).toHaveLength(1)
     })
 
     await browser
@@ -86,11 +53,49 @@ describe('app dir - prefetching (custom staleTime)', () => {
 
     await retry(async () => {
       expect(
-        requests.filter(
-          (request) =>
-            request === '/static-page' || request.includes(NEXT_RSC_UNION_QUERY)
-        ).length
-      ).toBe(1)
+        requests.filter((request) => request === '/static-page')
+      ).toHaveLength(1)
+    })
+  })
+
+  it('should fetch again when a static page was prefetched when navigating to it after the stale time has passed', async () => {
+    const browser = await next.browser('/404')
+    let requests: string[] = []
+
+    browser.on('request', (req) => {
+      requests.push(new URL(req.url()).pathname)
+    })
+    await browser.eval('location.href = "/"')
+
+    await retry(async () => {
+      expect(
+        requests.filter((request) => request === '/static-page')
+      ).toHaveLength(1)
+    })
+
+    await browser
+      .elementByCss('#to-static-page')
+      .click()
+      .waitForElementByCss('#static-page')
+
+    const linkToStaticPage = await browser
+      .elementByCss('#to-home')
+      // Go back to home page
+      .click()
+      // Wait for homepage to load
+      .waitForElementByCss('#to-static-page')
+
+    // Wait for the stale time to pass.
+    await waitFor(10000)
+    // Click on the link to the static page again
+    await linkToStaticPage.click()
+    // Wait for the static page to load again
+    await browser.waitForElementByCss('#static-page')
+
+    await retry(async () => {
+      expect(
+        requests.filter((request) => request === '/static-page')
+      ).toHaveLength(2)
     })
   })
 
@@ -125,5 +130,109 @@ describe('app dir - prefetching (custom staleTime)', () => {
     // reloading the page, we should now get an accurate total number of fetches
     // the initial fetch, 2 sub-page fetches, and a final fetch when reloading the page
     expect(await browser.elementById('count').text()).toBe('4')
+  })
+
+  it('should fetch again when the initially visited static page is visited after the stale time has passed', async () => {
+    const browser = await next.browser('/404')
+    let requests: string[] = []
+
+    browser.on('request', (req) => {
+      const path = new URL(req.url()).pathname
+      const headers = req.headers()
+
+      if (headers['rsc']) {
+        requests.push(path)
+      }
+    })
+
+    await browser.eval('location.href = "/static-page-no-prefetch"')
+
+    await browser
+      .elementByCss('#to-home')
+      .click()
+      .waitForElementByCss('#to-static-page')
+
+    // Wait for the stale time to pass.
+    await waitFor(10000)
+
+    await browser.elementByCss('#to-static-page-no-prefetch').click()
+
+    // Wait for the static page to load again
+    await browser.waitForElementByCss('#static-page-no-prefetch')
+
+    await retry(async () => {
+      expect(
+        requests.filter((request) => request === '/static-page-no-prefetch')
+      ).toHaveLength(1)
+    })
+  })
+
+  it('should renew the stale time after refetching expired RSC data', async () => {
+    const browser = await next.browser('/404')
+    let requests: string[] = []
+
+    browser.on('request', (req) => {
+      requests.push(new URL(req.url()).pathname)
+    })
+
+    // Navigate to home and wait for static page to be prefetched
+    await browser.eval('location.href = "/"')
+
+    await retry(async () => {
+      expect(
+        requests.filter((request) => request === '/static-page')
+      ).toHaveLength(1)
+    })
+
+    // Navigate to static page (should use cached data)
+    await browser
+      .elementByCss('#to-static-page')
+      .click()
+      .waitForElementByCss('#static-page')
+
+    // Go back to home
+    await browser
+      .elementByCss('#to-home')
+      .click()
+      .waitForElementByCss('#to-static-page')
+
+    // Wait for stale time to expire (10 seconds)
+    await waitFor(10000)
+
+    // Navigate to static page again (should refetch due to expired cache)
+    await browser
+      .elementByCss('#to-static-page')
+      .click()
+      .waitForElementByCss('#static-page')
+
+    // Verify that refetch happened
+    await retry(async () => {
+      expect(
+        requests.filter((request) => request === '/static-page')
+      ).toHaveLength(2)
+    })
+
+    // Go back to home
+    await browser
+      .elementByCss('#to-home')
+      .click()
+      .waitForElementByCss('#to-static-page')
+
+    // Wait less than the stale time (5 seconds - should still be fresh)
+    await waitFor(5000)
+
+    // Navigate to static page again (should NOT refetch - stale time should be renewed)
+    await browser
+      .elementByCss('#to-static-page')
+      .click()
+      .waitForElementByCss('#static-page')
+
+    // This should still be 2 - no new request should have been made
+    // If this fails, it means the stale time was not renewed after the refetch
+    await retry(async () => {
+      expect(
+        requests.filter((request) => request === '/static-page')
+      ).toHaveLength(2)
+    })
   })
 })

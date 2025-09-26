@@ -1,7 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_rcstr::rcstr;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
@@ -14,7 +15,7 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 /// cost of the compilation.
 #[turbo_tasks::value(serialization = "none", eq = "manual", into = "new", cell = "new")]
 pub struct SwcPluginModule(
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(trace_ignore, debug_ignore)]
     #[cfg(feature = "swc_ecma_transform_plugin")]
     pub swc_core::plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
     // Dummy field to avoid turbo_tasks macro complaining about empty struct.
@@ -27,15 +28,15 @@ impl SwcPluginModule {
     pub fn new(plugin_name: &str, plugin_bytes: Vec<u8>) -> Self {
         #[cfg(feature = "swc_ecma_transform_plugin")]
         {
-            Self({
-                use swc_core::plugin_runner::plugin_module_bytes::{
-                    CompiledPluginModuleBytes, RawPluginModuleBytes,
-                };
-                CompiledPluginModuleBytes::from(RawPluginModuleBytes::new(
-                    plugin_name.to_string(),
-                    plugin_bytes,
-                ))
-            })
+            use swc_core::plugin_runner::plugin_module_bytes::{
+                CompiledPluginModuleBytes, RawPluginModuleBytes,
+            };
+            use swc_plugin_backend_wasmer::WasmerRuntime;
+
+            Self(CompiledPluginModuleBytes::from_raw_module(
+                &WasmerRuntime,
+                RawPluginModuleBytes::new(plugin_name.to_string(), plugin_bytes),
+            ))
         }
 
         #[cfg(not(feature = "swc_ecma_transform_plugin"))]
@@ -49,14 +50,13 @@ impl SwcPluginModule {
 
 #[turbo_tasks::value(shared)]
 struct UnsupportedSwcEcmaTransformPluginsIssue {
-    pub file_path: ResolvedVc<FileSystemPath>,
+    pub file_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Warning.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
     }
 
     #[turbo_tasks::function]
@@ -66,24 +66,25 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unsupported SWC EcmaScript transform plugins on this platform.".into())
-            .cell()
+        StyledString::Text(rcstr!(
+            "Unsupported SWC EcmaScript transform plugins on this platform."
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
+        self.file_path.clone().cell()
     }
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
-            StyledString::Text(
+            StyledString::Text(rcstr!(
                 "Turbopack does not yet support running SWC EcmaScript transform plugins on this \
                  platform."
-                    .into(),
-            )
-            .cell(),
+            ))
+            .resolved_cell(),
         ))
     }
 }
@@ -130,20 +131,23 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                     util::take::Take,
                 },
                 ecma::ast::Module,
-                plugin::proxies::{HostCommentsStorage, COMMENTS},
-                plugin_runner::plugin_module_bytes::PluginModuleBytes,
+                plugin::proxies::{COMMENTS, HostCommentsStorage},
             };
+            use swc_plugin_backend_wasmer::WasmerRuntime;
+            use turbo_tasks::TryJoinIterExt;
 
-            let mut plugins = vec![];
-            for (plugin_module, config) in &self.plugins {
-                let plugin_module = &plugin_module.await?.0;
-
-                plugins.push((
-                    plugin_module.get_module_name().to_string(),
-                    config.clone(),
-                    Box::new(plugin_module.clone()),
-                ));
-            }
+            let plugins = self
+                .plugins
+                .iter()
+                .map(async |(plugin_module, config)| {
+                    let plugin_module = plugin_module.await?;
+                    Ok((
+                        config.clone(),
+                        Box::new(plugin_module.0.clone_module(&WasmerRuntime)),
+                    ))
+                })
+                .try_join()
+                .await?;
 
             let should_enable_comments_proxy =
                 !ctx.comments.leading.is_empty() && !ctx.comments.trailing.is_empty();
@@ -186,7 +190,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                         PluginSerializedBytes::try_serialize(&module_program)?;
 
                     let transform_metadata_context = Arc::new(TransformPluginMetadataContext::new(
-                        Some(ctx.file_name_str.to_string()),
+                        Some(ctx.file_path_str.to_string()),
                         //[TODO]: Support env-related variable injection, i.e process.env.NODE_ENV
                         "development".to_string(),
                         None,
@@ -198,17 +202,16 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                     // Note: This doesn't mean plugin won't perform any se/deserialization: it
                     // still have to construct from raw bytes internally to perform actual
                     // transform.
-                    for (_plugin_name, plugin_config, plugin_module) in plugins.drain(..) {
-                        let runtime =
-                            swc_core::plugin_runner::wasix_runtime::build_wasi_runtime(None);
+                    for (plugin_config, plugin_module) in plugins {
                         let mut transform_plugin_executor =
                             swc_core::plugin_runner::create_plugin_transform_executor(
                                 ctx.source_map,
                                 &ctx.unresolved_mark,
                                 &transform_metadata_context,
+                                None,
                                 plugin_module,
                                 Some(plugin_config),
-                                runtime,
+                                Arc::new(WasmerRuntime),
                             );
 
                         serialized_program = transform_plugin_executor
@@ -226,9 +229,9 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             use turbopack_core::issue::IssueExt;
 
             UnsupportedSwcEcmaTransformPluginsIssue {
-                file_path: ctx.file_path,
+                file_path: ctx.file_path.clone(),
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 

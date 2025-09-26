@@ -2,6 +2,7 @@
 
 import {
   findPort,
+  getImagesManifest,
   killApp,
   launchApp,
   nextBuild,
@@ -17,7 +18,7 @@ let appPort
 let app
 let browser
 
-function runTests() {
+function runTests(mode: 'server' | 'dev') {
   it('should load static unicode image', async () => {
     const src = await browser.elementById('static').getAttribute('src')
     expect(src).toMatch(
@@ -65,6 +66,46 @@ function runTests() {
     const res = await fetch(fullSrc)
     expect(res.status).toBe(200)
   })
+  if (mode === 'server') {
+    it('should build correct images-manifest.json', async () => {
+      const manifest = getImagesManifest(appDir)
+      expect(manifest).toEqual({
+        version: 1,
+        images: {
+          contentDispositionType: 'attachment',
+          contentSecurityPolicy:
+            "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowSVG: false,
+          deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+          disableStaticImages: false,
+          domains: [],
+          formats: ['image/webp'],
+          imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+          loader: 'default',
+          loaderFile: '',
+          remotePatterns: [
+            {
+              protocol: 'https',
+              hostname:
+                '^(?:^(?:image\\-optimization\\-test\\.vercel\\.app)$)$',
+              port: '',
+              pathname:
+                '^(?:\\/(?!\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?))$',
+              search: '',
+            },
+          ],
+          minimumCacheTTL: 14400,
+          path: '/_next/image',
+          qualities: [75],
+          sizes: [
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
+            128, 256, 384,
+          ],
+          unoptimized: false,
+        },
+      })
+    })
+  }
 }
 
 describe('Image Component Unicode Image URL', () => {
@@ -82,7 +123,7 @@ describe('Image Component Unicode Image URL', () => {
           browser.close()
         }
       })
-      runTests()
+      runTests('dev')
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -100,7 +141,7 @@ describe('Image Component Unicode Image URL', () => {
           browser.close()
         }
       })
-      runTests()
+      runTests('server')
     }
   )
 })

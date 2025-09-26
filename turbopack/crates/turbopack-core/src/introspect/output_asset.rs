@@ -1,10 +1,10 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
 use super::{
-    utils::{children_from_output_assets, content_to_details},
     Introspectable, IntrospectableChildren,
+    utils::{children_from_output_assets, content_to_details},
 };
 use crate::{asset::Asset, output::OutputAsset};
 
@@ -14,32 +14,25 @@ pub struct IntrospectableOutputAsset(ResolvedVc<Box<dyn OutputAsset>>);
 #[turbo_tasks::value_impl]
 impl IntrospectableOutputAsset {
     #[turbo_tasks::function]
-    pub async fn new(
-        asset: ResolvedVc<Box<dyn OutputAsset>>,
-    ) -> Result<Vc<Box<dyn Introspectable>>> {
-        Ok(*ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(asset)
-            .await?
-            .unwrap_or_else(|| {
+    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vc<Box<dyn Introspectable>>> {
+        Ok(
+            *ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(asset).unwrap_or_else(|| {
                 ResolvedVc::upcast(IntrospectableOutputAsset(asset).resolved_cell())
-            }))
+            }),
+        )
     }
-}
-
-#[turbo_tasks::function]
-fn ty() -> Vc<RcStr> {
-    Vc::cell("output asset".into())
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectableOutputAsset {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        ty()
+        Vc::cell(rcstr!("output asset"))
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<RcStr> {
-        self.0.ident().to_string()
+        self.0.path().to_string()
     }
 
     #[turbo_tasks::function]

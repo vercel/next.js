@@ -1,26 +1,6 @@
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-
-// This regex will have fast negatives meaning valid identifiers may not pass
-// this test. However this is only used during static generation to provide hints
-// about why a page bailed out of some or all prerendering and we can use bracket notation
-// for example while `ಠ_ಠ` is a valid identifier it's ok to print `searchParams['ಠ_ಠ']`
-// even if this would have been fine too `searchParams.ಠ_ಠ`
-const isDefinitelyAValidIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
-
-export function describeStringPropertyAccess(target: string, prop: string) {
-  if (isDefinitelyAValidIdentifier.test(prop)) {
-    return `\`${target}.${prop}\``
-  }
-  return `\`${target}[${JSON.stringify(prop)}]\``
-}
-
-export function describeHasCheckingStringProperty(
-  target: string,
-  prop: string
-) {
-  const stringifiedProp = JSON.stringify(prop)
-  return `\`Reflect.has(${target}, ${stringifiedProp})\`, \`${stringifiedProp} in ${target}\`, or similar`
-}
+import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 
 export function throwWithStaticGenerationBailoutError(
   route: string,
@@ -40,30 +20,21 @@ export function throwWithStaticGenerationBailoutErrorWithDynamicError(
   )
 }
 
-export const wellKnownProperties = new Set([
-  'hasOwnProperty',
-  'isPrototypeOf',
-  'propertyIsEnumerable',
-  'toString',
-  'valueOf',
-  'toLocaleString',
+export function throwForSearchParamsAccessInUseCache(
+  workStore: WorkStore,
+  constructorOpt: Function
+): never {
+  const error = new Error(
+    `Route ${workStore.route} used "searchParams" inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await "searchParams" outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+  )
 
-  // Promise prototype
-  // fallthrough
-  'then',
-  'catch',
-  'finally',
+  Error.captureStackTrace(error, constructorOpt)
+  workStore.invalidDynamicUsageError ??= error
 
-  // React Promise extension
-  // fallthrough
-  'status',
+  throw error
+}
 
-  // React introspection
-  'displayName',
-
-  // Common tested properties
-  // fallthrough
-  'toJSON',
-  '$$typeof',
-  '__esModule',
-])
+export function isRequestAPICallableInsideAfter() {
+  const afterTaskStore = afterTaskAsyncStorage.getStore()
+  return afterTaskStore?.rootTaskSpawnPhase === 'action'
+}

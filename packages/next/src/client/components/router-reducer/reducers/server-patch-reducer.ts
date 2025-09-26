@@ -10,7 +10,7 @@ import type {
 import { handleExternalUrl } from './navigate-reducer'
 import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import { createEmptyCacheNode } from '../../app-router'
 
 export function serverPatchReducer(
@@ -19,6 +19,7 @@ export function serverPatchReducer(
 ): ReducerState {
   const {
     serverResponse: { flightData, canonicalUrl: canonicalUrlOverride },
+    navigatedAt,
   } = action
 
   const mutable: Mutable = {}
@@ -77,7 +78,7 @@ export function serverPatchReducer(
     }
 
     const cache: CacheNode = createEmptyCacheNode()
-    applyFlightData(currentCache, cache, normalizedFlightData)
+    applyFlightData(navigatedAt, currentCache, cache, normalizedFlightData)
 
     mutable.patchedTree = newTree
     mutable.cache = cache

@@ -1,10 +1,11 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
     context::AssetContext,
     module::Module,
+    reference_type::CommonJsReferenceSubType,
     resolve::{origin::PlainResolveOrigin, parse::Request},
     source::Source,
 };
@@ -12,7 +13,7 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {
-    Request(ResolvedVc<Request>, Vc<FileSystemPath>),
+    Request(ResolvedVc<Request>, FileSystemPath),
     Evaluatable(ResolvedVc<Box<dyn EvaluatableAsset>>),
     Source(ResolvedVc<Box<dyn Source>>),
 }
@@ -24,17 +25,18 @@ impl RuntimeEntry {
         self: Vc<Self>,
         asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<EvaluatableAssets>> {
-        let (request, path) = match *self.await? {
-            RuntimeEntry::Evaluatable(e) => return Ok(EvaluatableAssets::one(*e)),
+        let (request, path) = match &*self.await? {
+            RuntimeEntry::Evaluatable(e) => return Ok(EvaluatableAssets::one(**e)),
             RuntimeEntry::Source(source) => {
                 return Ok(EvaluatableAssets::one(source.to_evaluatable(asset_context)));
             }
-            RuntimeEntry::Request(r, path) => (r, path),
+            RuntimeEntry::Request(r, path) => (*r, path.clone()),
         };
 
         let modules = cjs_resolve(
-            Vc::upcast(PlainResolveOrigin::new(asset_context, path)),
+            Vc::upcast(PlainResolveOrigin::new(asset_context, path.clone())),
             *request,
+            CommonJsReferenceSubType::Undefined,
             None,
             false,
         )
@@ -45,10 +47,8 @@ impl RuntimeEntry {
 
         let mut runtime_entries = Vec::with_capacity(modules.len());
         for &module in &modules {
-            if let Some(entry) =
-                ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module).await?
-            {
-                runtime_entries.push(*entry);
+            if let Some(entry) = ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module) {
+                runtime_entries.push(entry);
             } else {
                 bail!(
                     "runtime reference resolved to an asset ({}) that cannot be evaluated",
@@ -62,7 +62,7 @@ impl RuntimeEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct RuntimeEntries(Vec<Vc<RuntimeEntry>>);
+pub struct RuntimeEntries(Vec<ResolvedVc<RuntimeEntry>>);
 
 #[turbo_tasks::value_impl]
 impl RuntimeEntries {

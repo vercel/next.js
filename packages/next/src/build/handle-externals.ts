@@ -10,7 +10,7 @@ import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
 } from './webpack-config'
-import { isWebpackBundledLayer, isWebpackServerOnlyLayer } from './utils'
+import { isWebpackBundledLayer, shouldUseReactServerCondition } from './utils'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
@@ -48,7 +48,6 @@ export async function resolveExternal(
   context: string,
   request: string,
   isEsmRequested: boolean,
-  _optOutBundlingPackages: string[],
   getResolve: (
     options: ResolveOptions
   ) => (
@@ -133,13 +132,11 @@ export async function resolveExternal(
 
 export function makeExternalHandler({
   config,
-  optOutBundlingPackages,
   optOutBundlingPackageRegex,
   transpiledPackages,
   dir,
 }: {
   config: NextConfigComplete
-  optOutBundlingPackages: string[]
   optOutBundlingPackageRegex: RegExp
   transpiledPackages: string[]
   dir: string
@@ -191,8 +188,13 @@ export function makeExternalHandler({
         return `commonjs ${request}`
       }
 
+      // Handle Bun builtins as external modules
+      if (request === 'bun' || request.startsWith('bun:')) {
+        return `commonjs ${request}`
+      }
+
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|form|image|legacy\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|cache|document|link|form|head|image|legacy\/image|constants|dynamic|script|navigation|headers|router|compat\/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper|private-next-rsc-track-dynamic-import$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -219,7 +221,7 @@ export function makeExternalHandler({
     // TODO-APP: bundle route.js with different layer that externals common node_module deps.
     // Make sure @vercel/og is loaded as ESM for Node.js runtime
     if (
-      isWebpackServerOnlyLayer(layer) &&
+      shouldUseReactServerCondition(layer) &&
       request === 'next/dist/compiled/@vercel/og/index.node.js'
     ) {
       return `module ${request}`
@@ -266,7 +268,6 @@ export function makeExternalHandler({
       context,
       request,
       isEsmRequested,
-      optOutBundlingPackages,
       getResolve,
       isLocal ? resolveNextExternal : undefined
     )
@@ -334,7 +335,6 @@ export function makeExternalHandler({
           context,
           pkg + '/package.json',
           isEsmRequested,
-          optOutBundlingPackages,
           getResolve,
           isLocal ? resolveNextExternal : undefined
         )

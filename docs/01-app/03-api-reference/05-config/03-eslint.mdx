@@ -29,7 +29,7 @@ The full set of rules is as follows:
 |      <Check size={18} />      | [@next/next/inline-script-id](/docs/messages/inline-script-id)                                                           | Enforce `id` attribute on `next/script` components with inline content.                                          |
 |      <Check size={18} />      | [@next/next/next-script-for-ga](/docs/messages/next-script-for-ga)                                                       | Prefer `next/script` component when using the inline script for Google Analytics.                                |
 |      <Check size={18} />      | [@next/next/no-assign-module-variable](/docs/messages/no-assign-module-variable)                                         | Prevent assignment to the `module` variable.                                                                     |
-|      <Check size={18} />      | [@next/next/no-async-client-component](/docs/messages/no-async-client-component)                                         | Prevent client components from being async functions.                                                            |
+|      <Check size={18} />      | [@next/next/no-async-client-component](/docs/messages/no-async-client-component)                                         | Prevent Client Components from being async functions.                                                            |
 |      <Check size={18} />      | [@next/next/no-before-interactive-script-outside-document](/docs/messages/no-before-interactive-script-outside-document) | Prevent usage of `next/script`'s `beforeInteractive` strategy outside of `pages/_document.js`.                   |
 |      <Check size={18} />      | [@next/next/no-css-tags](/docs/messages/no-css-tags)                                                                     | Prevent manual stylesheet tags.                                                                                  |
 |      <Check size={18} />      | [@next/next/no-document-import-in-page](/docs/messages/no-document-import-in-page)                                       | Prevent importing `next/document` outside of `pages/_document.js`.                                               |
@@ -72,7 +72,7 @@ next lint --dir pages --dir utils --file bar.js
 
 If you're using `eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `eslint-plugin-next` where to find your Next.js application using the `settings` property in your `.eslintrc`:
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
@@ -108,7 +108,7 @@ next lint --no-cache
 
 If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `.eslintrc`:
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
@@ -133,7 +133,7 @@ export default eslintConfig
 
 The `next/core-web-vitals` rule set is enabled when `next lint` is run for the first time and the **strict** option is selected.
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
@@ -158,7 +158,7 @@ export default eslintConfig
 
 In addition to the Next.js ESLint rules, `create-next-app --typescript` will also add TypeScript-specific lint rules with `next/typescript` to your config:
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
@@ -196,7 +196,7 @@ bun add --dev eslint-config-prettier
 
 Then, add `prettier` to your existing ESLint config:
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
 
 const compat = new FlatCompat({
@@ -273,7 +273,7 @@ If the following conditions are true:
   - `react-hooks`
   - `jsx-a11y`
   - `import`
-- You've defined specific `parserOptions` that are different from how Babel is configured within Next.js (this is not recommended unless you have [customized your Babel configuration](/docs/pages/building-your-application/configuring/babel))
+- You've defined specific `parserOptions` that are different from how Babel is configured within Next.js (this is not recommended unless you have [customized your Babel configuration](/docs/pages/guides/babel))
 - You have `eslint-plugin-import` installed with Node.js and/or TypeScript [resolvers](https://github.com/benmosher/eslint-plugin-import#resolvers) defined to handle imports
 
 Then we recommend either removing these settings if you prefer how these properties have been configured within [`eslint-config-next`](https://github.com/vercel/next.js/blob/canary/packages/eslint-config-next/index.js) or extending directly from the Next.js ESLint plugin instead:
@@ -305,7 +305,7 @@ This eliminates the risk of collisions or errors that can occur due to importing
 
 If you already use a separate ESLint configuration and want to include `eslint-config-next`, ensure that it is extended last after other configurations. For example:
 
-```mjs filename="eslint.config.mjs"
+```js filename="eslint.config.mjs"
 import js from '@eslint/js'
 import { FlatCompat } from '@eslint/eslintrc'
 

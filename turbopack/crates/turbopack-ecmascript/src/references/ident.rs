@@ -1,44 +1,44 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::AstPath;
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor,
 };
 
-#[turbo_tasks::value]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct IdentReplacement {
     value: RcStr,
-    path: Vc<AstPath>,
+    path: AstPath,
 }
 
-#[turbo_tasks::value_impl]
 impl IdentReplacement {
-    #[turbo_tasks::function]
-    pub fn new(value: RcStr, path: Vc<AstPath>) -> Vc<Self> {
-        Self::cell(IdentReplacement { value, path })
+    pub fn new(value: RcStr, path: AstPath) -> Self {
+        IdentReplacement { value, path }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for IdentReplacement {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
-        _context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
         let value = self.value.clone();
-        let path = &self.path.await?;
 
-        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             let id = Expr::Ident((&*value).into());
             *expr = quote!("(\"TURBOPACK ident replacement\", $e)" as Expr, e: Expr = id);
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+impl From<IdentReplacement> for CodeGen {
+    fn from(val: IdentReplacement) -> Self {
+        CodeGen::IdentReplacement(val)
     }
 }

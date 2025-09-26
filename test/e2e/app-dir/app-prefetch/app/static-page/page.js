@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { BackButton } from './back-button'
 
 export default async function Page() {
   return (
@@ -13,6 +14,9 @@ export default async function Page() {
         <Link href="/static-page" prefetch>
           To Same Page
         </Link>
+      </p>
+      <p>
+        <BackButton />
       </p>
     </>
   )

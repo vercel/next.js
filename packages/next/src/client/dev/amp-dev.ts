@@ -1,15 +1,11 @@
 /* globals __webpack_hash__ */
 import { displayContent } from './fouc'
 import initOnDemandEntries from './on-demand-entries-client'
-import {
-  addMessageListener,
-  connectHMR,
-} from '../components/react-dev-overlay/pages/websocket'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
+import { addMessageListener, connectHMR } from './hot-reloader/pages/websocket'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
+import { reportInvalidHmrMessage } from './hot-reloader/shared'
 
-declare global {
-  const __webpack_runtime_id__: string
-}
+/// <reference types="webpack/module.d.ts" />
 
 const data = JSON.parse(
   (document.getElementById('__NEXT_DATA__') as any).textContent
@@ -34,7 +30,6 @@ function isUpdateAvailable() {
 
 // Webpack disallows updates in other states.
 function canApplyUpdates() {
-  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   return module.hot.status() === 'idle'
 }
 
@@ -82,37 +77,28 @@ async function tryApplyUpdates() {
 }
 
 addMessageListener((message) => {
-  if (!('action' in message)) {
-    return
-  }
-
   try {
-    // actions which are not related to amp-dev
+    // messages which are not related to amp-dev
     if (
-      message.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR ||
-      message.action === HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
+      message.type === HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR ||
+      message.type === HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
     ) {
       return
     }
     if (
-      message.action === HMR_ACTIONS_SENT_TO_BROWSER.SYNC ||
-      message.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT
+      message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC ||
+      message.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILT
     ) {
       if (!message.hash) {
         return
       }
       mostRecentHash = message.hash
       tryApplyUpdates()
-    } else if (message.action === HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE) {
+    } else if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE) {
       window.location.reload()
     }
-  } catch (err: any) {
-    console.warn(
-      '[HMR] Invalid message: ' +
-        JSON.stringify(message) +
-        '\n' +
-        (err?.stack ?? '')
-    )
+  } catch (err: unknown) {
+    reportInvalidHmrMessage(message, err)
   }
 })
 

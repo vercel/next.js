@@ -1,10 +1,11 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import type { PrefetchCacheEntry } from './router-reducer-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 
 export function applyFlightData(
+  navigatedAt: number,
   existingCache: CacheNode,
   cache: CacheNode,
   flightData: NormalizedFlightData,
@@ -30,6 +31,7 @@ export function applyFlightData(
     // old behavior — no PPR value.
     cache.prefetchRsc = null
     fillLazyItemsTillLeafWithHead(
+      navigatedAt,
       cache,
       existingCache,
       treePatch,
@@ -47,7 +49,13 @@ export function applyFlightData(
     cache.parallelRoutes = new Map(existingCache.parallelRoutes)
     cache.loading = existingCache.loading
     // Create a copy of the existing cache with the rsc applied.
-    fillCacheWithNewSubTreeData(cache, existingCache, flightData, prefetchEntry)
+    fillCacheWithNewSubTreeData(
+      navigatedAt,
+      cache,
+      existingCache,
+      flightData,
+      prefetchEntry
+    )
   }
 
   return true

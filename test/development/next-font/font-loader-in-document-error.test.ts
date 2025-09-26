@@ -19,12 +19,18 @@ describe('font-loader-in-document-error', () => {
   test('next/font inside _document', async () => {
     const browser = await webdriver(next.url, '/')
     await assertHasRedbox(browser)
-    if (process.env.TURBOPACK) {
+    if (process.env.IS_TURBOPACK_TEST) {
       // TODO: Turbopack doesn't include pages/
       expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
         "./_document.js
         next/font: error:
         Cannot be used within _document.js"
+      `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+       "pages/_document.js
+         × \`next/font\` error:
+         │ Cannot be used within pages/_document.js."
       `)
     } else {
       expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`

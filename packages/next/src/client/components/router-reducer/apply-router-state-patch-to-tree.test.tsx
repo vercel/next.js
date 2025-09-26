@@ -2,7 +2,7 @@ import React from 'react'
 import type {
   FlightData,
   FlightRouterState,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import { applyRouterStatePatchToTree } from './apply-router-state-patch-to-tree'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
@@ -37,6 +37,7 @@ const getFlightData = (): FlightData => {
       <>
         <title>About page!</title>
       </>,
+      false,
     ],
   ]
 }
@@ -52,7 +53,8 @@ describe('applyRouterStatePatchToTree', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const [treePatch /*, cacheNodeSeedData, head*/] = flightDataPath.slice(-3)
+    const [treePatch /*, cacheNodeSeedData, head, isHeadPartial*/] =
+      flightDataPath.slice(-4)
     const flightSegmentPath = flightDataPath.slice(0, -4)
 
     const newRouterStateTree = applyRouterStatePatchToTree(

@@ -11,37 +11,35 @@
 
 use std::fmt::Write;
 
-use anyhow::{bail, Error, Result};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileJsonContent};
+use anyhow::{Error, Result, bail};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks_fs::{FileContent, FileJsonContent, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
-    reference::ModuleReferences,
+    module_graph::ModuleGraph,
     source::Source,
 };
-use turbopack_ecmascript::chunk::{
-    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptChunkType,
-    EcmascriptExports,
+use turbopack_ecmascript::{
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
+    },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
 };
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("json".into())
-}
 
 #[turbo_tasks::value]
 pub struct JsonModuleAsset {
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
 impl JsonModuleAsset {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>) -> Vc<Self> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
         Self::cell(JsonModuleAsset { source })
     }
 }
@@ -50,7 +48,7 @@ impl JsonModuleAsset {
 impl Module for JsonModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(modifier())
+        self.source.ident().with_modifier(rcstr!("json"))
     }
 }
 
@@ -66,8 +64,9 @@ impl Asset for JsonModuleAsset {
 impl ChunkableModule for JsonModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        _module_graph: Vc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(JsonChunkItem::cell(JsonChunkItem {
             module: self,
@@ -82,12 +81,17 @@ impl EcmascriptChunkPlaceable for JsonModuleAsset {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
     }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(&self, _side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
+        Vc::cell(true)
+    }
 }
 
 #[turbo_tasks::value]
 struct JsonChunkItem {
-    module: Vc<JsonModuleAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<JsonModuleAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -98,13 +102,8 @@ impl ChunkItem for JsonChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
-    }
-
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -116,17 +115,12 @@ impl ChunkItem for JsonChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        Vc::upcast(*self.module)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for JsonChunkItem {
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
-    }
-
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         // We parse to JSON and then stringify again to ensure that the
@@ -135,23 +129,28 @@ impl EcmascriptChunkItem for JsonChunkItem {
         let data = content.parse_json().await?;
         match &*data {
             FileJsonContent::Content(data) => {
-                let js_str_content = serde_json::to_string(&data.to_string())?;
-                let inner_code =
-                    format!("__turbopack_export_value__(JSON.parse({js_str_content}));");
-
+                let data_str = data.to_string();
+                let inner_code = if data_str.len() > 10_000 {
+                    // Only use JSON.parse if the content is larger than 10kb
+                    // https://v8.dev/blog/cost-of-javascript-2019#json
+                    let js_str_content = serde_json::to_string(&data_str)?;
+                    format!("{TURBOPACK_EXPORT_VALUE}(JSON.parse({js_str_content}));")
+                } else {
+                    format!("{TURBOPACK_EXPORT_VALUE}({data_str});")
+                };
                 Ok(EcmascriptChunkItemContent {
                     inner_code: inner_code.into(),
                     ..Default::default()
                 }
                 .into())
             }
-            FileJsonContent::Unparseable(e) => {
+            FileJsonContent::Unparsable(e) => {
                 let mut message = "Unable to make a module from invalid JSON: ".to_string();
                 if let FileContent::Content(content) = &*content.await? {
                     let text = content.content().to_str()?;
                     e.write_with_content(&mut message, text.as_ref())?;
                 } else {
-                    write!(message, "{}", e)?;
+                    write!(message, "{e}")?;
                 }
 
                 Err(Error::msg(message))
@@ -164,12 +163,4 @@ impl EcmascriptChunkItem for JsonChunkItem {
             }
         }
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

@@ -117,9 +117,13 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     version: '15.0.0-canary.179',
   },
   {
-    title:
-      'Transform `revalidateTag` and `revalidatePath` to `expireTag` and `expirePath`',
-    value: 'revalidate-to-expire',
-    version: '15.0.4-canary.12',
+    title: 'Updates `next.config.js` to use the new `turbopack` configuration',
+    value: 'next-experimental-turbo-to-turbopack',
+    version: '10.0.0',
+  },
+  {
+    title: 'Migrate from `next lint` to the ESLint CLI',
+    value: 'next-lint-to-eslint-cli',
+    version: '16.0.0',
   },
 ]

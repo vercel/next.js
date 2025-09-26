@@ -16,7 +16,11 @@ on:
 jobs:
   build_nextjs:
     name: Build Next.js for the turbopack integration test
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
     outputs:
       output1: ${{ steps.build-next-swc-turbopack-patch.outputs.success }}
     steps:
@@ -49,10 +53,6 @@ jobs:
       - name: Print Next.js release version to checkout
         run: echo "Checking out Next.js ${{ env.NEXTJS_VERSION }}"
 
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-
       - name: Checkout Next.js
         uses: actions/checkout@v4
         with:
@@ -82,6 +82,7 @@ jobs:
         run: |
           wget https://github.com/sharkdp/hyperfine/releases/download/v1.16.1/hyperfine_1.16.1_amd64.deb
           sudo dpkg -i hyperfine_1.16.1_amd64.deb
+          npm i -g corepack@0.31
           corepack enable
           pnpm install --loglevel error
 

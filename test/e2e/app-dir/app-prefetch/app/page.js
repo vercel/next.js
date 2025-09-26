@@ -8,12 +8,18 @@ export default function HomePage() {
       <Link href="/static-page" id="to-static-page">
         To Static Page
       </Link>
+      <Link href="/static-page-no-prefetch" id="to-static-page-no-prefetch">
+        To Static Page No Prefetch
+      </Link>
       <Link href="/dynamic-page" id="to-dynamic-page-no-params">
         To Dynamic Page
       </Link>
       <Link href="/prefetch-auto/foobar" id="to-dynamic-page">
         To Dynamic Slug Page
       </Link>
+      <a href="/static-page" id="to-static-page-hard">
+        Hard Nav to Static Page
+      </a>
     </>
   )
 }

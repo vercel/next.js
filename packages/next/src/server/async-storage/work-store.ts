@@ -3,13 +3,15 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOpts } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
-import type { FallbackRouteParams } from '../request/fallback-params'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { CacheLife } from '../use-cache/cache-life'
 
 import { AfterContext } from '../after/after-context'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { createLazyResult, type LazyResult } from '../lib/lazy-result'
+import { getCacheHandlerEntries } from '../use-cache/handlers'
+import { createSnapshot } from '../app-render/async-local-storage'
 
 export type WorkStoreContext = {
   /**
@@ -17,23 +19,18 @@ export type WorkStoreContext = {
    */
   page: string
 
-  /**
-   * The route parameters that are currently unknown.
-   */
-  fallbackRouteParams: FallbackRouteParams | null
-
-  requestEndedState?: { ended?: boolean }
   isPrefetchRequest?: boolean
+  nonce?: string
   renderOpts: {
     cacheLifeProfiles?: { [profile: string]: CacheLife }
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
     fetchCache?: AppSegmentConfig['fetchCache']
-    isServerAction?: boolean
+    isPossibleServerAction?: boolean
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'after' | 'dynamicIO' | 'authInterrupts'
+      'isRoutePPREnabled' | 'cacheComponents' | 'authInterrupts'
     >
 
     /**
@@ -56,22 +53,33 @@ export type WorkStoreContext = {
     RenderOpts,
     | 'assetPrefix'
     | 'supportsDynamicResponse'
-    | 'isRevalidate'
+    | 'shouldWaitOnAllReady'
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
-    | 'buildId'
+    | 'dev'
+    | 'hasReadableErrorStacks'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
+
+  /**
+   * The build ID of the current build.
+   */
+  buildId: string
+
+  // Tags that were previously revalidated (e.g. by a redirecting server action)
+  // and have already been sent to cache handlers.
+  previouslyRevalidatedTags: string[]
 }
 
 export function createWorkStore({
   page,
-  fallbackRouteParams,
   renderOpts,
-  requestEndedState,
   isPrefetchRequest,
+  buildId,
+  previouslyRevalidatedTags,
+  nonce,
 }: WorkStoreContext): WorkStore {
   /**
    * Rules of Static & Dynamic HTML:
@@ -91,34 +99,51 @@ export function createWorkStore({
    * coalescing, and ISR continue working as intended.
    */
   const isStaticGeneration =
+    !renderOpts.shouldWaitOnAllReady &&
     !renderOpts.supportsDynamicResponse &&
     !renderOpts.isDraftMode &&
-    !renderOpts.isServerAction
+    !renderOpts.isPossibleServerAction
+
+  const isDevelopment = renderOpts.dev ?? false
+
+  const shouldTrackFetchMetrics =
+    isDevelopment ||
+    // The only times we want to track fetch metrics outside of development is
+    // when we are performing a static generation and we either are in debug
+    // mode, or tracking fetch metrics was specifically opted into.
+    (isStaticGeneration &&
+      (!!process.env.NEXT_DEBUG_BUILD ||
+        process.env.NEXT_SSG_FETCH_METRICS === '1'))
 
   const store: WorkStore = {
     isStaticGeneration,
     page,
-    fallbackRouteParams,
     route: normalizeAppPath(page),
     incrementalCache:
       // we fallback to a global incremental cache for edge-runtime locally
       // so that it can access the fs cache without mocks
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
-    isRevalidate: renderOpts.isRevalidate,
-    isPrerendering: renderOpts.nextExport,
+    isBuildTimePrerendering: renderOpts.nextExport,
+    hasReadableErrorStacks: renderOpts.hasReadableErrorStacks,
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
     isDraftMode: renderOpts.isDraftMode,
 
-    requestEndedState,
     isPrefetchRequest,
-    buildId: renderOpts.buildId,
+    buildId,
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
+    nonce,
 
     afterContext: createAfterContext(renderOpts),
+    cacheComponentsEnabled: renderOpts.experimental.cacheComponents,
+    dev: isDevelopment,
+    previouslyRevalidatedTags,
+    refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
+    runInCleanSnapshot: createSnapshot(),
+    shouldTrackFetchMetrics,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context
@@ -127,17 +152,33 @@ export function createWorkStore({
   return store
 }
 
-function createAfterContext(
-  renderOpts: RequestLifecycleOpts & {
-    experimental: Pick<RenderOpts['experimental'], 'after'>
-  }
-): AfterContext {
-  const isEnabled = renderOpts?.experimental?.after ?? false
+function createAfterContext(renderOpts: RequestLifecycleOpts): AfterContext {
   const { waitUntil, onClose, onAfterTaskError } = renderOpts
   return new AfterContext({
     waitUntil,
-    isEnabled,
     onClose,
     onTaskError: onAfterTaskError,
   })
+}
+
+/**
+ * Creates a map with lazy results that refresh tags for the respective cache
+ * kind when they're awaited for the first time.
+ */
+function createRefreshTagsByCacheKind(): Map<string, LazyResult<void>> {
+  const refreshTagsByCacheKind = new Map<string, LazyResult<void>>()
+  const cacheHandlers = getCacheHandlerEntries()
+
+  if (cacheHandlers) {
+    for (const [kind, cacheHandler] of cacheHandlers) {
+      if ('refreshTags' in cacheHandler) {
+        refreshTagsByCacheKind.set(
+          kind,
+          createLazyResult(async () => cacheHandler.refreshTags())
+        )
+      }
+    }
+  }
+
+  return refreshTagsByCacheKind
 }

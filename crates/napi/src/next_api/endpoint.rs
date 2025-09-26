@@ -1,22 +1,23 @@
 use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use napi::{bindgen_prelude::External, JsFunction};
+use futures_util::TryFutureExt;
+use napi::{JsFunction, bindgen_prelude::External};
 use next_api::{
+    operation::OptionEndpoint,
     paths::ServerPath,
-    route::{Endpoint, WrittenEndpoint},
+    route::{
+        EndpointOutputPaths, endpoint_client_changed_operation, endpoint_server_changed_operation,
+        endpoint_write_to_disk_operation,
+    },
 };
 use tracing::Instrument;
-use turbo_tasks::{get_effects, Completion, Effects, ReadRef, Vc, VcValueType};
-use turbopack_core::{
-    diagnostics::PlainDiagnostic,
-    error::PrettyPrintError,
-    issue::{IssueSeverity, PlainIssue},
-};
+use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
+use turbopack_core::{diagnostics::PlainDiagnostic, issue::PlainIssue};
 
 use super::utils::{
-    get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
-    VcArc,
+    DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
+    strongly_consistent_catch_collectables, subscribe,
 };
 
 #[napi(object)]
@@ -33,7 +34,7 @@ pub struct NapiServerPath {
 impl From<ServerPath> for NapiServerPath {
     fn from(server_path: ServerPath) -> Self {
         Self {
-            path: server_path.path,
+            path: server_path.path.into_owned(),
             content_hash: format!("{:x}", server_path.content_hash),
         }
     }
@@ -49,21 +50,21 @@ pub struct NapiWrittenEndpoint {
     pub config: NapiEndpointConfig,
 }
 
-impl From<Option<WrittenEndpoint>> for NapiWrittenEndpoint {
-    fn from(written_endpoint: Option<WrittenEndpoint>) -> Self {
+impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
+    fn from(written_endpoint: Option<EndpointOutputPaths>) -> Self {
         match written_endpoint {
-            Some(WrittenEndpoint::NodeJs {
+            Some(EndpointOutputPaths::NodeJs {
                 server_entry_path,
                 server_paths,
                 client_paths,
             }) => Self {
                 r#type: "nodejs".to_string(),
-                entry_path: Some(server_entry_path),
+                entry_path: Some(server_entry_path.into_owned()),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
-            Some(WrittenEndpoint::Edge {
+            Some(EndpointOutputPaths::Edge {
                 server_paths,
                 client_paths,
             }) => Self {
@@ -72,7 +73,7 @@ impl From<Option<WrittenEndpoint>> for NapiWrittenEndpoint {
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
-            None => Self {
+            Some(EndpointOutputPaths::NotFound) | None => Self {
                 r#type: "none".to_string(),
                 ..Default::default()
             },
@@ -86,55 +87,31 @@ impl From<Option<WrittenEndpoint>> for NapiWrittenEndpoint {
 //    some async functions (in this case `endpoint_write_to_disk`) can cause
 //    higher-ranked lifetime errors. See https://github.com/rust-lang/rust/issues/102211
 // 2. the type_complexity clippy lint.
-pub struct ExternalEndpoint(pub VcArc<Vc<Box<dyn Endpoint>>>);
+pub struct ExternalEndpoint(pub DetachedVc<OptionEndpoint>);
 
 impl Deref for ExternalEndpoint {
-    type Target = VcArc<Vc<Box<dyn Endpoint>>>;
+    type Target = DetachedVc<OptionEndpoint>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-// Await the source and return fatal issues if there are any, otherwise
-// propagate any actual error results.
-async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
-    source: Vc<R>,
-) -> Result<(
-    Option<ReadRef<R>>,
-    Arc<Vec<ReadRef<PlainIssue>>>,
-    Arc<Vec<ReadRef<PlainDiagnostic>>>,
-    Arc<Effects>,
-)> {
-    let result = source.strongly_consistent().await;
-    let issues = get_issues(source).await?;
-    let diagnostics = get_diagnostics(source).await?;
-    let effects = Arc::new(get_effects(source).await?);
-
-    let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
-        None
-    } else {
-        Some(result?)
-    };
-
-    Ok((result, issues, diagnostics, effects))
-}
-
 #[turbo_tasks::value(serialization = "none")]
 struct WrittenEndpointWithIssues {
-    written: Option<ReadRef<WrittenEndpoint>>,
+    written: Option<ReadRef<EndpointOutputPaths>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function]
-async fn get_written_endpoint_with_issues(
-    endpoint: Vc<Box<dyn Endpoint>>,
+#[turbo_tasks::function(operation)]
+async fn get_written_endpoint_with_issues_operation(
+    endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
-    let write_to_disk = endpoint.write_to_disk();
+    let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
     let (written, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(write_to_disk).await?;
+        strongly_consistent_catch_collectables(write_to_disk_op).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -144,50 +121,56 @@ async fn get_written_endpoint_with_issues(
     .cell())
 }
 
+#[tracing::instrument(level = "info", name = "write endpoint to disk", skip_all)]
 #[napi]
-#[tracing::instrument(skip_all)]
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
-    let turbo_tasks = endpoint.turbo_tasks().clone();
-    let endpoint = ***endpoint;
-    let (written, issues, diags) = turbo_tasks
-        .run_once(async move {
-            let operation = get_written_endpoint_with_issues(endpoint);
+    let ctx = endpoint.turbopack_ctx();
+    let endpoint_op = ***endpoint;
+    let (written, issues, diags) = endpoint
+        .turbopack_ctx()
+        .turbo_tasks()
+        .run(async move {
+            let written_entrypoint_with_issues_op =
+                get_written_endpoint_with_issues_operation(endpoint_op);
             let WrittenEndpointWithIssues {
                 written,
                 issues,
                 diagnostics,
                 effects,
-            } = &*operation.strongly_consistent().await?;
+            } = &*written_entrypoint_with_issues_op
+                .read_strongly_consistent()
+                .await?;
             effects.apply().await?;
 
             Ok((written.clone(), issues.clone(), diagnostics.clone()))
         })
-        .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
     Ok(TurbopackResult {
-        result: NapiWrittenEndpoint::from(written.map(|v| v.clone_value())),
+        result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
 }
 
+#[tracing::instrument(level = "info", name = "get server-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_server_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
     issues: bool,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = endpoint.turbo_tasks().clone();
+    let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint = ***endpoint;
     subscribe(
-        turbo_tasks,
+        turbopack_ctx,
         func,
         move || {
             async move {
-                let operation = subscribe_issues_and_diags(endpoint, issues);
-                let result = operation.strongly_consistent().await?;
+                let issues_and_diags_op = subscribe_issues_and_diags_operation(endpoint, issues);
+                let result = issues_and_diags_op.read_strongly_consistent().await?;
                 result.effects.apply().await?;
                 Ok(result)
             }
@@ -234,16 +217,16 @@ impl PartialEq for EndpointIssuesAndDiags {
 
 impl Eq for EndpointIssuesAndDiags {}
 
-#[turbo_tasks::function]
-async fn subscribe_issues_and_diags(
-    endpoint: Vc<Box<dyn Endpoint>>,
+#[turbo_tasks::function(operation)]
+async fn subscribe_issues_and_diags_operation(
+    endpoint_op: OperationVc<OptionEndpoint>,
     should_include_issues: bool,
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
-    let changed = endpoint.server_changed();
+    let changed_op = endpoint_server_changed_operation(endpoint_op);
 
     if should_include_issues {
         let (changed_value, issues, diagnostics, effects) =
-            strongly_consistent_catch_collectables(changed).await?;
+            strongly_consistent_catch_collectables(changed_op).await?;
         Ok(EndpointIssuesAndDiags {
             changed: changed_value,
             issues,
@@ -252,7 +235,7 @@ async fn subscribe_issues_and_diags(
         }
         .cell())
     } else {
-        let changed_value = changed.strongly_consistent().await?;
+        let changed_value = changed_op.read_strongly_consistent().await?;
         Ok(EndpointIssuesAndDiags {
             changed: Some(changed_value),
             issues: Arc::new(vec![]),
@@ -263,22 +246,27 @@ async fn subscribe_issues_and_diags(
     }
 }
 
+#[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_client_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = endpoint.turbo_tasks().clone();
-    let endpoint = ***endpoint;
+    let turbopack_ctx = endpoint.turbopack_ctx().clone();
+    let endpoint_op = ***endpoint;
     subscribe(
-        turbo_tasks,
+        turbopack_ctx,
         func,
         move || {
             async move {
-                let changed = endpoint.client_changed();
-                // We don't capture issues and diagonistics here since we don't want to be
+                let changed_op = endpoint_client_changed_operation(endpoint_op);
+                // We don't capture issues and diagnostics here since we don't want to be
                 // notified when they change
-                changed.strongly_consistent().await?;
+                //
+                // This must be a *read*, not just a resolve, because we need the root task created
+                // by `subscribe` to re-run when the `Completion`'s value changes (via equality),
+                // even if the cell id doesn't change.
+                let _ = changed_op.read_strongly_consistent().await?;
                 Ok(())
             }
             .instrument(tracing::info_span!("client changes subscription"))

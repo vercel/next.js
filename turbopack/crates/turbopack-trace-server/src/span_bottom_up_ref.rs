@@ -5,11 +5,12 @@ use std::{
 };
 
 use crate::{
-    span::{SpanBottomUp, SpanGraphEvent, SpanIndex},
-    span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
-    span_ref::SpanRef,
-    store::{SpanId, Store},
     FxIndexMap,
+    span::{SpanBottomUp, SpanGraphEvent},
+    span_graph_ref::{SpanGraphEventRef, SpanGraphRef, event_map_to_list},
+    span_ref::{GroupNameToDirectAndRecusiveSpans, SpanRef},
+    store::{SpanId, Store},
+    timestamp::Timestamp,
 };
 
 pub struct SpanBottomUpRef<'a> {
@@ -53,7 +54,7 @@ impl<'a> SpanBottomUpRef<'a> {
         self.bottom_up.self_spans.len()
     }
 
-    pub fn group_name(&self) -> &'a str {
+    pub fn group_name(&self) -> (&'a str, &'a str) {
         self.first_span().group_name()
     }
 
@@ -61,7 +62,7 @@ impl<'a> SpanBottomUpRef<'a> {
         if self.count() == 1 {
             self.example_span().nice_name()
         } else {
-            ("", self.example_span().group_name())
+            self.example_span().group_name()
         }
     }
 
@@ -84,8 +85,7 @@ impl<'a> SpanBottomUpRef<'a> {
                     let _ = self.first_span().graph();
                     self.first_span().extra().graph.get().unwrap().clone()
                 } else {
-                    let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
-                        FxIndexMap::default();
+                    let mut map: GroupNameToDirectAndRecusiveSpans = FxIndexMap::default();
                     let mut queue = VecDeque::with_capacity(8);
                     for child in self.spans() {
                         let name = child.group_name();
@@ -128,14 +128,14 @@ impl<'a> SpanBottomUpRef<'a> {
         })
     }
 
-    pub fn corrected_self_time(&self) -> u64 {
+    pub fn corrected_self_time(&self) -> Timestamp {
         *self
             .bottom_up
             .corrected_self_time
             .get_or_init(|| self.spans().map(|span| span.corrected_self_time()).sum())
     }
 
-    pub fn self_time(&self) -> u64 {
+    pub fn self_time(&self) -> Timestamp {
         *self
             .bottom_up
             .self_time

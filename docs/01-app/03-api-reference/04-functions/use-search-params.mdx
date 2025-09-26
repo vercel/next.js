@@ -71,14 +71,15 @@ const searchParams = useSearchParams()
 
 > **Good to know**:
 >
-> - `useSearchParams` is a [Client Component](/docs/app/building-your-application/rendering/client-components) hook and is **not supported** in [Server Components](/docs/app/building-your-application/rendering/server-components) to prevent stale values during [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering).
+> - `useSearchParams` is a [Client Component](/docs/app/getting-started/server-and-client-components) hook and is **not supported** in [Server Components](/docs/app/getting-started/server-and-client-components) to prevent stale values during [partial rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions).
+> - If you want to fetch data in a Server Component based on search params, it's often a better option to read the [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional) of the corresponding Page. You can then pass it down by props to any component (Server or Client) within that Page.
 > - If an application includes the `/pages` directory, `useSearchParams` will return `ReadonlyURLSearchParams | null`. The `null` value is for compatibility during migration since search params cannot be known during pre-rendering of a page that doesn't use `getServerSideProps`
 
 ## Behavior
 
 ### Static Rendering
 
-If a route is [statically rendered](/docs/app/building-your-application/rendering/server-components#static-rendering-default), calling `useSearchParams` will cause the Client Component tree up to the closest [`Suspense` boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming#example) to be client-side rendered.
+If a route is [statically rendered](/docs/app/getting-started/partial-prerendering#static-rendering), calling `useSearchParams` will cause the Client Component tree up to the closest [`Suspense` boundary](/docs/app/api-reference/file-conventions/loading#examples) to be client-side rendered.
 
 This allows a part of the route to be statically rendered while the dynamic part that uses `useSearchParams` is client-side rendered.
 
@@ -172,9 +173,17 @@ export default function Page() {
 }
 ```
 
+> **Good to know**:
+>
+> - In development, routes are rendered on-demand, so `useSearchParams` doesn't suspend and things may appear to work without `Suspense`.
+> - During production builds, a [static page](/docs/app/getting-started/partial-prerendering#static-rendering) that calls `useSearchParams` from a Client Component must be wrapped in a `Suspense` boundary, otherwise the build fails with the [Missing Suspense boundary with useSearchParams](/docs/messages/missing-suspense-with-csr-bailout) error.
+> - If you intend the route to be dynamically rendered, prefer using the [`connection`](/docs/app/api-reference/functions/connection) function first in a Server Component to wait for an incoming request, this excludes everything below from prerendering. See what makes a route dynamic in the [Dynamic Rendering guide](/docs/app/getting-started/partial-prerendering#dynamic-rendering).
+> - If you're already in a Server Component Page, consider using the [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional) and passing the values to Client Components.
+> - You can also pass the Page [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional) directly to a Client Component and unwrap it with React's `use()`. Although this will suspend, so the Client Component should be wrapped with a `Suspense` boundary.
+
 ### Dynamic Rendering
 
-If a route is [dynamically rendered](/docs/app/building-your-application/rendering/server-components#dynamic-rendering), `useSearchParams` will be available on the server during the initial server render of the Client Component.
+If a route is [dynamically rendered](/docs/app/getting-started/partial-prerendering#dynamic-rendering), `useSearchParams` will be available on the server during the initial server render of the Client Component.
 
 For example:
 
@@ -215,11 +224,11 @@ export default function SearchBar() {
 ```
 
 ```tsx filename="app/dashboard/page.tsx" switcher
+import { connection } from 'next/server'
 import SearchBar from './search-bar'
 
-export const dynamic = 'force-dynamic'
-
-export default function Page() {
+export default async function Page() {
+  await connection()
   return (
     <>
       <nav>
@@ -232,11 +241,11 @@ export default function Page() {
 ```
 
 ```jsx filename="app/dashboard/page.js" switcher
+import { connection } from 'next/server'
 import SearchBar from './search-bar'
 
-export const dynamic = 'force-dynamic'
-
-export default function Page() {
+export default async function Page() {
+  await connection()
   return (
     <>
       <nav>
@@ -248,7 +257,9 @@ export default function Page() {
 }
 ```
 
-> **Good to know**: Setting the [`dynamic` route segment config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) to `force-dynamic` can be used to force dynamic rendering.
+> **Good to know**:
+>
+> - Previously, setting `export const dynamic = 'force-dynamic'` on the page was used to force dynamic rendering. Prefer using [`connection()`](/docs/app/api-reference/functions/connection) instead, as it semantically ties dynamic rendering to the incoming request.
 
 ### Server Components
 
@@ -258,7 +269,7 @@ To access search params in [Pages](/docs/app/api-reference/file-conventions/page
 
 #### Layouts
 
-Unlike Pages, [Layouts](/docs/app/api-reference/file-conventions/layout) (Server Components) **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) which could lead to stale `searchParams` between navigations. View [detailed explanation](/docs/app/api-reference/file-conventions/layout#layouts-do-not-receive-searchparams).
+Unlike Pages, [Layouts](/docs/app/api-reference/file-conventions/layout) (Server Components) **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/getting-started/linking-and-navigating#client-side-transitions) which could lead to stale `searchParams` between navigations. View [detailed explanation](/docs/app/api-reference/file-conventions/layout#query-params).
 
 Instead, use the Page [`searchParams`](/docs/app/api-reference/file-conventions/page) prop or the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook in a Client Component, which is re-rendered on the client with the latest `searchParams`.
 

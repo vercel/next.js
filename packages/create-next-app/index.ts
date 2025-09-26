@@ -50,13 +50,16 @@ const program = new Command(packageJson.name)
   .option('--js, --javascript', 'Initialize as a JavaScript project.')
   .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
   .option('--eslint', 'Initialize with ESLint config.')
+  .option('--biome', 'Initialize with Biome config.')
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
   .option('--turbopack', 'Enable Turbopack by default for development.')
+  .option('--rspack', 'Using Rspack as the bundler')
   .option(
     '--import-alias <prefix/*>',
     'Specify import alias to use (default "@/*").'
   )
+  .option('--api', 'Initialize a headless API using the App Router.')
   .option('--empty', 'Initialize an empty project.')
   .option(
     '--use-npm',
@@ -226,7 +229,8 @@ async function run(): Promise<void> {
   if (!example) {
     const defaults: typeof preferences = {
       typescript: true,
-      eslint: true,
+      eslint: false,
+      linter: 'none',
       tailwind: true,
       app: true,
       srcDir: false,
@@ -275,26 +279,74 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!opts.eslint && !args.includes('--no-eslint')) {
+    // Determine linter choice if not specified via CLI flags
+    // Support both --no-linter (new) and --no-eslint (legacy) for backward compatibility
+    const noLinter =
+      args.includes('--no-linter') || args.includes('--no-eslint')
+
+    if (!opts.eslint && !opts.biome && !noLinter && !opts.api) {
       if (skipPrompt) {
-        opts.eslint = getPrefOrDefault('eslint')
+        const preferredLinter = getPrefOrDefault('linter')
+        opts.eslint = preferredLinter === 'eslint'
+        opts.biome = preferredLinter === 'biome'
+        // No need to set noLinter flag since we check args at runtime
       } else {
-        const styledEslint = blue('ESLint')
-        const { eslint } = await prompts({
+        const linterIndexMap = {
+          eslint: 0,
+          biome: 1,
+          none: 2,
+        }
+        const { linter } = await prompts({
           onState: onPromptState,
-          type: 'toggle',
-          name: 'eslint',
-          message: `Would you like to use ${styledEslint}?`,
-          initial: getPrefOrDefault('eslint'),
-          active: 'Yes',
-          inactive: 'No',
+          type: 'select',
+          name: 'linter',
+          message: 'Which linter would you like to use?',
+          choices: [
+            {
+              title: 'ESLint',
+              value: 'eslint',
+              description: 'More comprehensive lint rules',
+            },
+            {
+              title: 'Biome',
+              value: 'biome',
+              description: 'Fast formatter and linter (fewer rules)',
+            },
+            {
+              title: 'None',
+              value: 'none',
+              description: 'Skip linter configuration',
+            },
+          ],
+          initial:
+            linterIndexMap[
+              getPrefOrDefault('linter') as keyof typeof linterIndexMap
+            ],
         })
-        opts.eslint = Boolean(eslint)
-        preferences.eslint = Boolean(eslint)
+
+        opts.eslint = linter === 'eslint'
+        opts.biome = linter === 'biome'
+        preferences.linter = linter
+
+        // Keep backwards compatibility with old eslint preference
+        preferences.eslint = linter === 'eslint'
       }
+    } else if (opts.eslint) {
+      opts.biome = false
+      preferences.linter = 'eslint'
+      preferences.eslint = true
+    } else if (opts.biome) {
+      opts.eslint = false
+      preferences.linter = 'biome'
+      preferences.eslint = false
+    } else if (noLinter) {
+      opts.eslint = false
+      opts.biome = false
+      preferences.linter = 'none'
+      preferences.eslint = false
     }
 
-    if (!opts.tailwind && !args.includes('--no-tailwind')) {
+    if (!opts.tailwind && !args.includes('--no-tailwind') && !opts.api) {
       if (skipPrompt) {
         opts.tailwind = getPrefOrDefault('tailwind')
       } else {
@@ -332,7 +384,7 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!opts.app && !args.includes('--no-app')) {
+    if (!opts.app && !args.includes('--no-app') && !opts.api) {
       if (skipPrompt) {
         opts.app = getPrefOrDefault('app')
       } else {
@@ -360,7 +412,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'turbopack',
-          message: `Would you like to use ${styledTurbo} for \`next dev\`?`,
+          message: `Would you like to use ${styledTurbo}? (recommended)`,
           initial: getPrefOrDefault('turbopack'),
           active: 'Yes',
           inactive: 'No',
@@ -424,12 +476,15 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       tailwind: opts.tailwind,
       eslint: opts.eslint,
+      biome: opts.biome,
       app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
       empty: opts.empty,
+      api: opts.api,
       turbopack: opts.turbopack,
+      rspack: opts.rspack,
       disableGit: opts.disableGit,
     })
   } catch (reason) {
@@ -455,6 +510,7 @@ async function run(): Promise<void> {
       packageManager,
       typescript: opts.typescript,
       eslint: opts.eslint,
+      biome: opts.biome,
       tailwind: opts.tailwind,
       app: opts.app,
       srcDir: opts.srcDir,
@@ -462,6 +518,7 @@ async function run(): Promise<void> {
       skipInstall: opts.skipInstall,
       empty: opts.empty,
       turbopack: opts.turbopack,
+      rspack: opts.rspack,
       disableGit: opts.disableGit,
     })
   }

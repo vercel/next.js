@@ -1,5 +1,5 @@
 [package]
-edition = "2021"
+edition = "2024"
 name = "next-swc-napi"
 version = "0.0.0"
 publish = false
@@ -17,6 +17,7 @@ plugin = [
     "swc_core/plugin_transform_host_native",
     "swc_core/plugin_transform_host_native_filesystem_cache",
     "swc_core/plugin_transform_host_native_shared_runtime",
+    "swc_core/plugin_backend_wasmer",
     "next-custom-transforms/plugin",
     "next-core/plugin",
     "turbopack-ecmascript-plugins",
@@ -37,48 +38,53 @@ __internal_dhat-heap = ["dhat"]
 # effectively does nothing.
 __internal_dhat-ad-hoc = ["dhat"]
 
+# Enable support for the tokio console: https://github.com/tokio-rs/console
+tokio-console = ["dep:console-subscriber"]
+
 [lints]
 workspace = true
 
+[package.metadata.cargo-shear]
+ignored = [
+  # we need to set features on these packages when building for WASM, but we don't directly use them
+  "getrandom",
+  "iana-time-zone",
+  # the plugins feature needs to set a feature on this transitively depended-on package, we never
+  # directly import it
+  "turbopack-ecmascript-plugins",
+]
+
 [dependencies]
 anyhow = "1.0.66"
-backtrace = "0.3"
-fxhash = "0.2.1"
+console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
-indexmap = { workspace = true }
+either = { workspace = true }
+futures-util = { workspace = true }
 owo-colors = { workspace = true }
-napi = { version = "2", default-features = false, features = [
-    "napi3",
-    "serde-json",
-    "tokio_rt",
-    "error_anyhow",
-    # Lightningcss uses this features
-    "napi4",
-    "napi5",
-    "compat-mode"
-] }
+napi = { workspace = true }
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
+next-taskless = { workspace = true }
 rand = { workspace = true }
+rustc-hash = { workspace = true }
 serde = "1"
 serde_json = "1"
-shadow-rs = { workspace = true }
+supports-hyperlinks = "3.1.0"
+terminal_hyperlink = "0.1.0"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-tracing-chrome = "0.5.0"
+tracing-chrome = "0.7.2"
 url = { workspace = true }
 urlencoding = { workspace = true }
 once_cell = { workspace = true }
 
 swc_core = { workspace = true, features = [
-    "base_concurrent",
     "base_node",
-    "bundler",
-    "bundler_concurrent",
     "common_concurrent",
     "ecma_ast",
     "ecma_ast_serde",
     "ecma_codegen",
+    "ecma_helpers_inline",
     "ecma_loader_lru",
     "ecma_loader_node",
     "ecma_minifier",
@@ -96,11 +102,11 @@ swc_core = { workspace = true, features = [
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 lightningcss-napi = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-turbo-rcstr = { workspace = true }
+turbo-rcstr = { workspace = true, features = ["napi"] }
 turbo-tasks = { workspace = true }
-turbo-tasks-memory = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }
+turbo-unix-path = { workspace = true }
 next-api = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
@@ -111,7 +117,6 @@ turbo-tasks-malloc = { workspace = true, default-features = false, features = [
     "custom_allocator"
 ] }
 
-turbopack = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript-hmr-protocol = { workspace = true }
 turbopack-trace-utils = { workspace = true }
@@ -134,12 +139,9 @@ turbo-tasks-malloc = { workspace = true, default-features = false }
 tokio = { workspace = true, features = ["full"] }
 
 [build-dependencies]
+anyhow = { workspace = true }
 napi-build = "2"
-serde = "1"
-serde_json = "1"
-# It is not a mistake this dependency is specified in dep / build-dep both.
-shadow-rs = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+vergen-gitcl = { workspace = true }
 
-# build-dependencies for the native, non-wasm32 build
-[target.'cfg(not(target_arch = "wasm32"))'.build-dependencies]
-turbo-tasks-build = { workspace = true }

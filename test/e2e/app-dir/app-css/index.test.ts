@@ -1,8 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 describe('app dir - css', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
@@ -92,6 +90,17 @@ describe('app dir - css', () => {
         const html = await next.render('/css/css-page')
         expect(html).not.toContain('/pages/_app.css')
       })
+
+      it('should support css modules shared between server pages', async () => {
+        const browser = await next.browser('/css/css-page-shared-loading')
+        await check(
+          async () =>
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#cssm')).color`
+            ),
+          'rgb(0, 0, 255)'
+        )
+      })
     })
 
     describe('client layouts', () => {
@@ -180,7 +189,8 @@ describe('app dir - css', () => {
       it('should include css imported in loading.js', async () => {
         const $ = await next.render$('/loading-bug/hi')
         // The link tag should be hoist into head with precedence properties
-        expect($('head link[data-precedence]').length).toBe(2)
+        const styles = $('head link[data-precedence]').length
+        expect(styles).toBe(2)
 
         expect($('body h2').text()).toBe('Loading...')
       })
@@ -292,13 +302,12 @@ describe('app dir - css', () => {
       it('should bundle css resources into chunks', async () => {
         const html = await next.render('/dashboard')
 
-        expect(
-          [
-            ...html.matchAll(
-              /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
-            ),
-          ].length
-        ).toBe(3)
+        const stylesheets = [
+          ...html.matchAll(
+            /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
+          ),
+        ].length
+        expect(stylesheets).toBe(3)
       })
     })
 
@@ -363,7 +372,7 @@ describe('app dir - css', () => {
       })
 
       // Turbopack doesn't preload styles
-      if (!process.env.TURBOPACK) {
+      if (!process.env.IS_TURBOPACK_TEST) {
         it('should not preload styles twice during HMR', async () => {
           const filePath = 'app/hmr/page.js'
           const origContent = await next.readFile(filePath)
@@ -471,7 +480,7 @@ describe('app dir - css', () => {
         it('should only include the same style once in the flight data', async () => {
           const initialHtml = await next.render('/css/css-duplicate-2/server')
 
-          if (process.env.TURBOPACK) {
+          if (process.env.IS_TURBOPACK_TEST) {
             expect(
               initialHtml.match(/app_css_css-duplicate-2_[\w]+\.css/g).length
             ).toBe(5)
@@ -479,6 +488,12 @@ describe('app dir - css', () => {
             // Even if it's deduped by Float, it should still only be included once in the payload.
 
             const matches = initialHtml
+              // The same css chunk could be split into 2 RSC script
+              // e.g.
+              // "/_next/static/css/app/"])</script><script>self.__next_f.push([1,"not-found.css"
+              // "/_next/stati"])</script><script>self.__next_f.push([1,"c/css/app/not-found.css?v=1749205445967"
+              // to "/_next/static/css/app/not-found.css"
+              .replaceAll('"])</script><script>self.__next_f.push([1,"', '')
               .match(/\/_next\/static\/css\/.+?\.css/g)
               .sort()
 
@@ -486,34 +501,18 @@ describe('app dir - css', () => {
             // Assertions may change often but what needs to be checked on change is if styles are needlessly duplicated in Flight data
             // There are 3 matches, one for the rendered <link> (HTML), one for Float preload (Flight) and one for the <link> inside Flight payload.
             // And there is one match for the not found style
-            if (isPPREnabledByDefault) {
-              expect(matches).toEqual([
-                // may be split across chunks when we bump React
-                '/_next/static/css/app/css/css-duplicate-2/layout.css',
-                '/_next/static/css/app/css/css-duplicate-2/layout.css',
-                '/_next/static/css/app/css/css-duplicate-2/layout.css',
-                '/_next/static/css/app/css/layout.css',
-                '/_next/static/css/app/css/layout.css',
-                '/_next/static/css/app/css/layout.css',
-                '/_next/static/css/app/layout.css',
-                '/_next/static/css/app/layout.css',
-                '/_next/static/css/app/layout.css',
-                '/_next/static/css/app/not-found.css',
-              ])
-            } else {
-              expect(matches).toEqual([
-                '/_next/static/css/app/css/css-duplicate-2/layout.css',
-                '/_next/static/css/app/css/css-duplicate-2/layout.css',
-                '/_next/static/css/app/css/css-duplicate-2/layout.css',
-                '/_next/static/css/app/css/layout.css',
-                '/_next/static/css/app/css/layout.css',
-                '/_next/static/css/app/css/layout.css',
-                '/_next/static/css/app/layout.css',
-                '/_next/static/css/app/layout.css',
-                '/_next/static/css/app/layout.css',
-                '/_next/static/css/app/not-found.css',
-              ])
-            }
+            expect(matches).toEqual([
+              '/_next/static/css/app/css/css-duplicate-2/layout.css',
+              '/_next/static/css/app/css/css-duplicate-2/layout.css',
+              '/_next/static/css/app/css/css-duplicate-2/layout.css',
+              '/_next/static/css/app/css/layout.css',
+              '/_next/static/css/app/css/layout.css',
+              '/_next/static/css/app/css/layout.css',
+              '/_next/static/css/app/layout.css',
+              '/_next/static/css/app/layout.css',
+              '/_next/static/css/app/layout.css',
+              '/_next/static/css/app/not-found.css',
+            ])
           }
         })
 

@@ -8,59 +8,101 @@
   | [generateBinPath(), []]
 )
 
-args = ???*0*
-- *0* max number of linking steps reached
+args = (["bin/esbuild"] | ???*0* | [])
+- *0* unknown mutation
   ⚠️  This value might have side effects
 
-binPath = (???*0* | ???*1* | ???*8*)
+binPath = (???*0* | ???*1* | ???*7*)
 - *0* binPath
   ⚠️  pattern without value
 - *1* require.resolve*2*(
-        `${(???*3* | ???*4* | ???*5* | "esbuild-linux-64")}/${(???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*)}`
+        `${(???*3* | undefined | ???*4* | "esbuild-linux-64")}/${(???*5* | "esbuild.exe" | "bin/esbuild" | ???*6*)}`
     )
   ⚠️  require.resolve non constant
   ⚠️  This value might have side effects
 - *2* require.resolve: The require.resolve method from CommonJS
 - *3* pkg
   ⚠️  pattern without value
-- *4* FreeVar(undefined)
-  ⚠️  unknown global
+- *4* unknown mutation
   ⚠️  This value might have side effects
-- *5* unknown mutation
-  ⚠️  This value might have side effects
-- *6* subpath
+- *5* subpath
   ⚠️  pattern without value
-- *7* unknown mutation
+- *6* unknown mutation
   ⚠️  This value might have side effects
-- *8* ???*9*(pkg, subpath)
+- *7* ???*8*(pkg, subpath)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *9* FreeVar(downloadedBinPath)
+- *8* FreeVar(downloadedBinPath)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*0* | ???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*0* | undefined | ???*1* | "esbuild-linux-64")}-${???*2*}`
 - *0* pkg
   ⚠️  pattern without value
-- *1* FreeVar(undefined)
-  ⚠️  unknown global
+- *1* unknown mutation
   ⚠️  This value might have side effects
-- *2* unknown mutation
-  ⚠️  This value might have side effects
-- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*))
+- *2* ???*3*((???*5* | "esbuild.exe" | "bin/esbuild" | ???*6*))
   ⚠️  unknown callee
   ⚠️  This value might have side effects
-- *4* path*5*["basename"]
+- *3* path*4*["basename"]
   ⚠️  unsupported property on Node.js path module
   ⚠️  This value might have side effects
-- *5* path: The Node.js path module: https://nodejs.org/api/path.html
-- *6* subpath
+- *4* path: The Node.js path module: https://nodejs.org/api/path.html
+- *5* subpath
   ⚠️  pattern without value
-- *7* unknown mutation
+- *6* unknown mutation
   ⚠️  This value might have side effects
 
-command = ???*0*
-- *0* max number of linking steps reached
+command = (
+  | "node"
+  | ???*0*
+  | ???*1*
+  | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*2* | undefined | ???*3* | "esbuild-linux-64")}-${???*4*}`
+  | ???*9*
+  | ???*10*
+  | ???*16*
+)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+- *1* FreeVar(ESBUILD_BINARY_PATH)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *2* pkg
+  ⚠️  pattern without value
+- *3* unknown mutation
+  ⚠️  This value might have side effects
+- *4* ???*5*((???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*))
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *5* path*6*["basename"]
+  ⚠️  unsupported property on Node.js path module
+  ⚠️  This value might have side effects
+- *6* path: The Node.js path module: https://nodejs.org/api/path.html
+- *7* subpath
+  ⚠️  pattern without value
+- *8* unknown mutation
+  ⚠️  This value might have side effects
+- *9* binPath
+  ⚠️  pattern without value
+- *10* require.resolve*11*(
+        `${(???*12* | undefined | ???*13* | "esbuild-linux-64")}/${(???*14* | "esbuild.exe" | "bin/esbuild" | ???*15*)}`
+    )
+  ⚠️  require.resolve non constant
+  ⚠️  This value might have side effects
+- *11* require.resolve: The require.resolve method from CommonJS
+- *12* pkg
+  ⚠️  pattern without value
+- *13* unknown mutation
+  ⚠️  This value might have side effects
+- *14* subpath
+  ⚠️  pattern without value
+- *15* unknown mutation
+  ⚠️  This value might have side effects
+- *16* ???*17*(pkg, subpath)
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *17* FreeVar(downloadedBinPath)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 e#10 = ???*0*
@@ -120,22 +162,16 @@ path = path*0*
 path2 = path*0*
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
-pkg#3 = (???*0* | ???*1* | ???*2* | "esbuild-linux-64")
+pkg#3 = (???*0* | undefined | ???*1* | "esbuild-linux-64")
 - *0* pkg
   ⚠️  pattern without value
-- *1* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *2* unknown mutation
+- *1* unknown mutation
   ⚠️  This value might have side effects
 
-pkg#7 = (???*0* | ???*1* | ???*2* | "esbuild-linux-64")
+pkg#7 = (???*0* | undefined | ???*1* | "esbuild-linux-64")
 - *0* pkg
   ⚠️  pattern without value
-- *1* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *2* unknown mutation
+- *1* unknown mutation
   ⚠️  This value might have side effects
 
 pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
@@ -152,6 +188,9 @@ subpath#7 = (???*0* | "esbuild.exe" | "bin/esbuild" | ???*1*)
 - *1* unknown mutation
   ⚠️  This value might have side effects
 
-x = ???*0*
-- *0* max number of linking steps reached
+x = (["bin/esbuild", "--service=0.14.12", "--ping"] | ???*0* | ["--service=0.14.12", "--ping"])
+- *0* ???*1*["concat"]("--service=0.14.12", "--ping")
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *1* unknown mutation
   ⚠️  This value might have side effects
