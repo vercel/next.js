@@ -161,7 +161,7 @@ export async function validateTurboNextConfig({
   }
 
   // If the build was defaulted to Turbopack, we want to warn about possibly ignored webpack configuration.
-  // Othwerwise the user explicitly picked turbopack and thus we expect that they have configured it correctly.
+  // Otherwise the user explicitly picked turbopack and thus we expect that they have configured it correctly.
   if (process.env.TURBOPACK === 'auto' && hasWebpackConfig && !hasTurboConfig) {
     const logMethod = isDev ? Log.warn : Log.error
     // In a production build with auto-detected Turbopack, we want to fail the build.

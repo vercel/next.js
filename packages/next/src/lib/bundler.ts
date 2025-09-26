@@ -7,7 +7,7 @@ export enum Bundler {
 /**
  * Parse the bundler arguments and potentially sets the `TURBOPACK` environment variable.
  *
- * <p>NOTE: rspack is configured via next config which is chaotic so it is possible for this to be overridden later.
+ * NOTE: rspack is configured via next config which is chaotic so it is possible for this to be overridden later.
  *
  * @param options The options to parse.
  * @returns The bundler that was configured
