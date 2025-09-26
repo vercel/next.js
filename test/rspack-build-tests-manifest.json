@@ -3253,6 +3253,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/log-file/log-file.test.ts": {
+    "passed": [
+      "log-file should capture RSC logging in log file",
+      "log-file should capture client logging in log file",
+      "log-file should capture logging in pages router"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/logging/fetch-logging.test.ts": {
     "passed": [
       "app-dir - fetch logging placeholder to satisfy at least one test when isNextDev is false",
@@ -21207,15 +21218,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/standalone-mode/node-modules/node-modules.test.ts": {
-    "passed": [
-      "standalone mode - NFT in node_modules should not trace process.cwd calls in node_modules"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/production/standalone-mode/optimizecss/index.test.ts": {
     "passed": ["standalone mode and optimizeCss should work"],
     "failed": [],
@@ -21430,6 +21432,15 @@
       "minimal-mode-response-cache app router revalidate should work with previous response cache dynamic",
       "minimal-mode-response-cache should have correct \"Started server on\" log",
       "minimal-mode-response-cache should have correct responses"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/standalone-mode/tracing/tracing.test.ts": {
+    "passed": [
+      "standalone mode - tracing should trace process.cwd calls in node_modules"
     ],
     "failed": [],
     "pending": [],
