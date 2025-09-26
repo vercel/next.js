@@ -485,8 +485,14 @@ impl DiskFileSystem {
         let vc_self = ResolvedVc::upcast(vc_self);
 
         let sys_path = simplified(sys_path);
-        let sys_path = if sys_path.is_absolute() {
-            Cow::Borrowed(sys_path.strip_prefix(self.inner.root_path()).ok()?)
+        let relative_sys_path = if sys_path.is_absolute() {
+            // `normalize_lexically` will return an error if the relative `sys_path` leaves the
+            // DiskFileSystem root
+            let normalized_sys_path = sys_path.normalize_lexically().ok()?;
+            normalized_sys_path
+                .strip_prefix(self.inner.root_path())
+                .ok()?
+                .to_owned()
         } else if let Some(relative_to) = relative_to {
             debug_assert_eq!(
                 relative_to.fs, vc_self,
@@ -494,14 +500,14 @@ impl DiskFileSystem {
             );
             let mut joined_sys_path = PathBuf::from(unix_to_sys(&relative_to.path).into_owned());
             joined_sys_path.push(sys_path);
-            Cow::Owned(joined_sys_path)
+            joined_sys_path.normalize_lexically().ok()?
         } else {
-            Cow::Borrowed(sys_path)
+            sys_path.normalize_lexically().ok()?
         };
 
         Some(FileSystemPath {
             fs: vc_self,
-            path: RcStr::from(sys_to_unix(sys_path.to_str()?)),
+            path: RcStr::from(sys_to_unix(relative_sys_path.to_str()?)),
         })
     }
 
@@ -2509,6 +2515,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
 
@@ -2589,5 +2596,104 @@ mod tests {
         })
         .await
         .unwrap()
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_try_from_sys_path() {
+        let sys_root = if cfg!(windows) {
+            Path::new(r"C:\fake\root")
+        } else {
+            Path::new(r"/fake/root")
+        };
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            let fs_vc =
+                DiskFileSystem::new(rcstr!("temp"), RcStr::from(sys_root.to_str().unwrap()))
+                    .to_resolved()
+                    .await?;
+            let fs = fs_vc.await?;
+            let fs_root_path = fs_vc.root().await?;
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    &Path::new("relative").join("directory"),
+                    /* relative_to */ None,
+                )
+                .unwrap()
+                .path,
+                "relative/directory"
+            );
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    &sys_root
+                        .join("absolute")
+                        .join("directory")
+                        .join("..")
+                        .join("normalized_path"),
+                    /* relative_to */ Some(&fs_root_path.join("ignored").unwrap()),
+                )
+                .unwrap()
+                .path,
+                "absolute/normalized_path"
+            );
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    Path::new("child"),
+                    /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
+                )
+                .unwrap()
+                .path,
+                "parent/child"
+            );
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    &Path::new("..").join("parallel_dir"),
+                    /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
+                )
+                .unwrap()
+                .path,
+                "parallel_dir"
+            );
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    &Path::new("relative")
+                        .join("..")
+                        .join("..")
+                        .join("leaves_root"),
+                    /* relative_to */ None,
+                ),
+                None
+            );
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    &sys_root
+                        .join("absolute")
+                        .join("..")
+                        .join("..")
+                        .join("leaves_root"),
+                    /* relative_to */ None,
+                ),
+                None
+            );
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
     }
 }

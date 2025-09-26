@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet};
+use std::{borrow::Cow, collections::HashSet, iter};
 
 use anyhow::{Context, Result};
 use const_format::concatcp;
@@ -99,9 +99,11 @@ pub async fn resolve_source_map_sources(
             // original_source should always be a URL (possibly a `file://` url). If it's a relative
             // URL, it should be relative to `origin` (the generated file that's being mapped).
 
-            // try to infer a `file://` URL scheme for paths starting with `/` so that we can parse
-            // it as a full URL object
-            let maybe_file_url = if original_source_url.starts_with('/') {
+            let maybe_file_url = if original_source_url.starts_with("//") {
+                // looks like a scheme-relative URL
+                Cow::Owned(format!("file:/{original_source_url}"))
+            } else if original_source_url.starts_with('/') {
+                // looks like a server-relative URL
                 Cow::Owned(format!("file://{original_source_url}"))
             } else {
                 Cow::Borrowed(original_source_url)
@@ -131,8 +133,7 @@ pub async fn resolve_source_map_sources(
 
             if let Some(fs_path) = fs_path {
                 let fs_path_str = &fs_path.path;
-                let source = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{fs_path_str}");
-                *original_source_url = source;
+                *original_source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{fs_path_str}");
 
                 if let Some(original_content) = original_content
                     && original_content.is_none()
@@ -175,15 +176,19 @@ pub async fn resolve_source_map_sources(
                 contents.resize(sources.len(), None);
                 contents
             } else {
-                Vec::with_capacity(sources.len())
+                iter::repeat_n(None, sources.len()).collect()
             };
 
             for (source, content) in sources.iter_mut().zip(contents.iter_mut()) {
                 if let Some(source) = source {
+                    if let Some(source_root) = &map.source_root {
+                        *source = format!("{source_root}{source}");
+                    }
                     resolve_source(source, Some(content)).await?;
                 }
             }
 
+            map.source_root = None;
             map.sources_content = Some(contents);
         }
         anyhow::Ok(())
@@ -261,4 +266,129 @@ pub async fn fileify_source_map(
     let map = Rope::from(serde_json::to_vec(&map)?);
 
     Ok(Some(map))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::FileSystem;
+
+    use super::*;
+
+    fn source_map_rope<'a>(
+        source_root: Option<&str>,
+        sources: impl IntoIterator<Item = &'a str>,
+    ) -> Rope {
+        Rope::from(
+            serde_json::to_string_pretty(
+                &serde_json::from_value::<SourceMapJson>(serde_json::json!({
+                    "version": 3,
+                    "mappings": "",
+                    "sourceRoot": source_root,
+                    "sources": sources.into_iter().map(Some).collect::<Vec<_>>(),
+                }))
+                .unwrap(),
+            )
+            .unwrap(),
+        )
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_resolve_source_map_sources() {
+        let sys_root = if cfg!(windows) {
+            Path::new(r"C:\fake\root")
+        } else {
+            Path::new(r"/fake/root")
+        };
+        let url_root = Url::from_directory_path(sys_root).unwrap();
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs_root_path =
+                DiskFileSystem::new(rcstr!("mock"), RcStr::from(sys_root.to_str().unwrap()))
+                    .root()
+                    .await?;
+
+            let resolved_source_map: SourceMapJson = serde_json::from_str(
+                &resolve_source_map_sources(
+                    Some(&source_map_rope(
+                        /* source_root */ None,
+                        [
+                            "page.js",
+                            "./current-dir-page.js",
+                            "../other%20route/page.js",
+                            // contains the file:// protocol/scheme
+                            url_root.join("absolute%20file%20url.js").unwrap().as_str(),
+                            // A server-relative path starting with `/`, potentially includes a
+                            // windows disk
+                            &format!("{}/server%20relative%20path.js", url_root.path()),
+                            // A scheme-relative path
+                            url_root
+                                .join("scheme%20relative%20path.js")
+                                .unwrap()
+                                .as_str()
+                                .strip_prefix("file:")
+                                .unwrap(),
+                            // non-file URLs are preserved
+                            "https://example.com/page%20path.js",
+                        ],
+                    )),
+                    // NOTE: the percent encoding here should NOT be decoded, as this is not part
+                    // of a `file://` URL
+                    &fs_root_path.join("app/source%20mapped/page.js").unwrap(),
+                )
+                .await?
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            )
+            .unwrap();
+
+            let prefix = format!("{SOURCE_URL_PROTOCOL}///[mock]");
+            assert_eq!(
+                resolved_source_map.sources,
+                Some(vec![
+                    Some(format!("{prefix}/app/source%20mapped/page.js")),
+                    Some(format!("{prefix}/app/source%20mapped/current-dir-page.js")),
+                    Some(format!("{prefix}/app/other route/page.js")),
+                    Some(format!("{prefix}/absolute file url.js")),
+                    Some(format!("{prefix}/server relative path.js")),
+                    Some(format!("{prefix}/scheme relative path.js")),
+                    Some("https://example.com/page%20path.js".to_owned()),
+                ])
+            );
+
+            // try with a `source_root`
+            let resolved_source_map: SourceMapJson = serde_json::from_str(
+                &resolve_source_map_sources(
+                    Some(&source_map_rope(
+                        // NOTE: these should get literally concated, a slash should NOT get added.
+                        Some("../source%20root%20"),
+                        ["page.js"],
+                    )),
+                    &fs_root_path.join("app/page.js").unwrap(),
+                )
+                .await?
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                resolved_source_map.sources,
+                Some(vec![Some(format!("{prefix}/source root page.js")),])
+            );
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }
