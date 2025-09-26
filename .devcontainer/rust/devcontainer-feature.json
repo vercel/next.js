@@ -5,7 +5,7 @@
   "dependsOn": {
     "ghcr.io/devcontainers/features/rust:1": {
       // this should match the `rust-toolchain.toml`
-      "version": "nightly-2025-06-04",
+      "version": "nightly-2025-09-21",
       "profile": "minimal",
       "components": "rustfmt,clippy,rust-analyzer"
     }

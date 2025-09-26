@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
-use criterion::{Bencher, BenchmarkId, Criterion};
+use criterion::{Bencher, BenchmarkId, Criterion, criterion_group, criterion_main};
 use swc_core::{
     common::{FilePathMapping, GLOBALS, Mark, SourceMap},
     ecma::{
@@ -17,12 +17,18 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     target::CompileTarget,
 };
-use turbopack_ecmascript::analyzer::{
-    graph::{EvalContext, VarGraph, create_graph},
-    imports::ImportAttributes,
-    linker::link,
-    test_utils::{early_visitor, visitor},
+use turbopack_ecmascript::{
+    AnalyzeMode,
+    analyzer::{
+        graph::{EvalContext, VarGraph, VarMeta, create_graph},
+        imports::ImportAttributes,
+        linker::link,
+        test_utils::{early_visitor, visitor},
+    },
 };
+
+#[global_allocator]
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
 pub fn benchmark(c: &mut Criterion) {
     let tests_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/analyzer/graph");
@@ -62,7 +68,11 @@ pub fn benchmark(c: &mut Criterion) {
                     None,
                     None,
                 );
-                let var_graph = create_graph(&program, &eval_context, false);
+                let var_graph = create_graph(
+                    &program,
+                    &eval_context,
+                    AnalyzeMode::CodeGenerationAndTracing,
+                );
 
                 let input = BenchInput {
                     program,
@@ -88,7 +98,13 @@ struct BenchInput {
 }
 
 fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
-    b.iter(|| create_graph(&input.program, &input.eval_context, false));
+    b.iter(|| {
+        create_graph(
+            &input.program,
+            &input.eval_context,
+            AnalyzeMode::CodeGenerationAndTracing,
+        )
+    });
 }
 
 fn bench_link(b: &mut Bencher, input: &BenchInput) {
@@ -98,7 +114,7 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
 
     b.to_async(rt).iter(|| async {
         let var_cache = Default::default();
-        for val in input.var_graph.values.values() {
+        for VarMeta { value, .. } in input.var_graph.values.values() {
             VcStorage::with(async {
                 let compile_time_info = CompileTimeInfo::builder(
                     Environment::new(ExecutionEnvironment::NodeJsLambda(
@@ -116,7 +132,7 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                 .await?;
                 link(
                     &input.var_graph,
-                    val.clone(),
+                    value.clone(),
                     &early_visitor,
                     &(|val| visitor(val, compile_time_info, ImportAttributes::empty_ref())),
                     &Default::default(),
@@ -129,3 +145,6 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
         }
     });
 }
+
+criterion_group!(analyzer_benches, benchmark);
+criterion_main!(analyzer_benches);

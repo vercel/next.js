@@ -130,6 +130,7 @@ pub enum ModuleType {
     },
     StaticUrlJs,
     StaticUrlCss,
+    InlinedBytesJs,
     WebAssembly {
         source_ty: WebAssemblySourceType,
     },

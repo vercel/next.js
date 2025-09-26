@@ -336,5 +336,5 @@
             }))
           : Internals.d.m(href));
     };
-    exports.version = "19.2.0-experimental-128abcfa-20250917";
+    exports.version = "19.2.0-experimental-b0c1dc01-20250925";
   })();

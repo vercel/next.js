@@ -73,7 +73,6 @@
             ),
         ],
         span: 50..61,
-        in_try: false,
     },
     FreeVar {
         var: "Math",
@@ -146,7 +145,6 @@
             ),
         ],
         span: 50..54,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -285,7 +283,6 @@
             ),
         ],
         span: 273..287,
-        in_try: false,
     },
     FreeVar {
         var: "JSON",
@@ -352,7 +349,6 @@
             ),
         ],
         span: 273..277,
-        in_try: false,
     },
     Conditional {
         condition: Binary(
@@ -619,7 +615,6 @@
             ),
         ],
         span: 354..392,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(

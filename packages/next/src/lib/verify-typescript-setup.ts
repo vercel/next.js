@@ -1,5 +1,5 @@
 import { bold, cyan, red, yellow } from './picocolors'
-import path from 'path'
+import path, { join } from 'path'
 
 import { hasNecessaryDependencies } from './has-necessary-dependencies'
 import type { NecessaryDependencies } from './has-necessary-dependencies'
@@ -106,20 +106,22 @@ export async function verifyTypeScriptSetup({
     }
 
     // Load TypeScript after we're sure it exists:
-    const tsPath = deps.resolved.get('typescript')!
-    const ts = (await Promise.resolve(
-      require(tsPath)
-    )) as typeof import('typescript')
+    const tsPackageJsonPath = deps.resolved.get(
+      join('typescript', 'package.json')
+    )!
+    const typescriptPackageJson = require(tsPackageJsonPath)
 
-    if (semver.lt(ts.version, '4.5.2')) {
+    const typescriptVersion = typescriptPackageJson.version
+
+    if (semver.lt(typescriptVersion, '4.5.2')) {
       log.warn(
-        `Minimum recommended TypeScript version is v4.5.2, older versions can potentially be incompatible with Next.js. Detected: ${ts.version}`
+        `Minimum recommended TypeScript version is v4.5.2, older versions can potentially be incompatible with Next.js. Detected: ${typescriptVersion}`
       )
     }
 
     // Reconfigure (or create) the user's `tsconfig.json` for them:
     await writeConfigurationDefaults(
-      ts,
+      typescriptVersion,
       resolvedTsConfigPath,
       intent.firstTimeSetup,
       hasAppDir,
@@ -141,9 +143,14 @@ export async function verifyTypeScriptSetup({
       const { runTypeCheck } =
         require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
 
+      const tsPath = deps.resolved.get('typescript')!
+      const typescript = (await Promise.resolve(
+        require(tsPath)
+      )) as typeof import('typescript')
+
       // Verify the project passes type-checking before we go to webpack phase:
       result = await runTypeCheck(
-        ts,
+        typescript,
         dir,
         distDir,
         resolvedTsConfigPath,
@@ -151,7 +158,7 @@ export async function verifyTypeScriptSetup({
         hasAppDir
       )
     }
-    return { result, version: ts.version }
+    return { result, version: typescriptVersion }
   } catch (err) {
     // These are special errors that should not show a stack trace:
     if (err instanceof CompileError) {

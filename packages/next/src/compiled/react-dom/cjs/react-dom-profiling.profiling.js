@@ -2128,14 +2128,14 @@ var isInputEventSupported = !1;
 if (canUseDOM) {
   var JSCompiler_inline_result$jscomp$303;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_447 = "oninput" in document;
-    if (!isSupported$jscomp$inline_447) {
-      var element$jscomp$inline_448 = document.createElement("div");
-      element$jscomp$inline_448.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_447 =
-        "function" === typeof element$jscomp$inline_448.oninput;
+    var isSupported$jscomp$inline_445 = "oninput" in document;
+    if (!isSupported$jscomp$inline_445) {
+      var element$jscomp$inline_446 = document.createElement("div");
+      element$jscomp$inline_446.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_445 =
+        "function" === typeof element$jscomp$inline_446.oninput;
     }
-    JSCompiler_inline_result$jscomp$303 = isSupported$jscomp$inline_447;
+    JSCompiler_inline_result$jscomp$303 = isSupported$jscomp$inline_445;
   } else JSCompiler_inline_result$jscomp$303 = !1;
   isInputEventSupported =
     JSCompiler_inline_result$jscomp$303 &&
@@ -4879,7 +4879,7 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
     );
     if (null === workInProgressRoot) throw Error(formatProdErrorMessage(349));
     isHydrating$jscomp$0 ||
-      0 !== (renderLanes & 124) ||
+      0 !== (renderLanes & 127) ||
       pushStoreConsistencyCheck(fiber, getSnapshot, getServerSnapshot);
   }
   return getServerSnapshot;
@@ -5735,7 +5735,7 @@ var ContextOnlyDispatcher = {
         getServerSnapshot = getSnapshot();
         if (null === workInProgressRoot)
           throw Error(formatProdErrorMessage(349));
-        0 !== (workInProgressRootRenderLanes & 124) ||
+        0 !== (workInProgressRootRenderLanes & 127) ||
           pushStoreConsistencyCheck(fiber, getSnapshot, getServerSnapshot);
       }
       hook.memoizedState = getServerSnapshot;
@@ -11170,7 +11170,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
   if (0 !== (executionContext & 6)) throw Error(formatProdErrorMessage(327));
   var shouldTimeSlice =
       (!forceSync &&
-        0 === (lanes & 124) &&
+        0 === (lanes & 127) &&
         0 === (lanes & root$jscomp$0.expiredLanes)) ||
       checkIfRootIsPrerendering(root$jscomp$0, lanes),
     exitStatus = shouldTimeSlice
@@ -11288,6 +11288,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
             !workInProgressRootDidSkipSuspendedSiblings
           );
           if (0 !== getNextLanes(shouldTimeSlice, 0, !0)) break a;
+          pendingEffectsLanes = lanes;
           shouldTimeSlice.timeoutHandle = scheduleTimeout(
             commitRootWhenReady.bind(
               null,
@@ -11302,7 +11303,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
               workInProgressSuspendedRetryLanes,
               workInProgressRootDidSkipSuspendedSiblings,
               renderWasConcurrent,
-              2,
+              "Throttled",
               -0,
               0
             ),
@@ -11322,7 +11323,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
           workInProgressSuspendedRetryLanes,
           workInProgressRootDidSkipSuspendedSiblings,
           renderWasConcurrent,
-          0,
+          null,
           -0,
           0
         );
@@ -11361,6 +11362,7 @@ function commitRootWhenReady(
       imgBytes: 0,
       suspenseyImages: [],
       waitingForImages: !0,
+      waitingForViewTransition: !1,
       unsuspend: noop$1
     };
     accumulateSuspenseyCommitOnFiber(
@@ -11379,6 +11381,7 @@ function commitRootWhenReady(
       timeoutOffset
     );
     if (null !== timeoutOffset) {
+      pendingEffectsLanes = lanes;
       root.cancelPendingCommit = timeoutOffset(
         commitRoot.bind(
           null,
@@ -11393,7 +11396,17 @@ function commitRootWhenReady(
           suspendedRetryLanes,
           exitStatus,
           suspendedCommitReason,
-          1,
+          suspendedCommitReason.waitingForViewTransition
+            ? "Waiting for the previous Animation"
+            : 0 < suspendedCommitReason.count
+              ? 0 < suspendedCommitReason.imgCount
+                ? "Suspended on CSS and Images"
+                : "Suspended on CSS"
+              : 1 === suspendedCommitReason.imgCount
+                ? "Suspended on an Image"
+                : 0 < suspendedCommitReason.imgCount
+                  ? "Suspended on Images"
+                  : null,
           completedRenderStartTime,
           completedRenderEndTime
         )
@@ -11498,6 +11511,7 @@ function prepareFreshStack(root, lanes) {
   timeoutHandle = root.cancelPendingCommit;
   null !== timeoutHandle &&
     ((root.cancelPendingCommit = null), timeoutHandle());
+  pendingEffectsLanes = 0;
   resetWorkInProgressStack();
   workInProgressRoot = root;
   workInProgress = timeoutHandle = createWorkInProgress(root.current, null);
@@ -12056,7 +12070,7 @@ function commitRoot(
       ? ((root.callbackNode = null),
         (root.callbackPriority = 0),
         scheduleCallback$1(NormalPriority$1, function () {
-          flushPassiveEffects(!0);
+          flushPassiveEffects();
           return null;
         }))
       : ((root.callbackNode = null), (root.callbackPriority = 0));
@@ -12333,11 +12347,11 @@ function releaseRootPooledCache(root, remainingLanes) {
     null != remainingLanes &&
       ((root.pooledCache = null), releaseCache(remainingLanes)));
 }
-function flushPendingEffects(wasDelayedCommit) {
+function flushPendingEffects() {
   flushMutationEffects();
   flushLayoutEffects();
   flushSpawnedWork();
-  return flushPassiveEffects(wasDelayedCommit);
+  return flushPassiveEffects();
 }
 function flushPassiveEffects() {
   if (5 !== pendingEffectsStatus) return !1;
@@ -12688,7 +12702,7 @@ function performWorkOnRootViaSchedulerTask(root, didTimeout) {
   if (0 !== pendingEffectsStatus && 5 !== pendingEffectsStatus)
     return (root.callbackNode = null), (root.callbackPriority = 0), null;
   var originalCallbackNode = root.callbackNode;
-  if (flushPendingEffects(!0) && root.callbackNode !== originalCallbackNode)
+  if (flushPendingEffects() && root.callbackNode !== originalCallbackNode)
     return null;
   var workInProgressRootRenderLanes$jscomp$0 = workInProgressRootRenderLanes;
   workInProgressRootRenderLanes$jscomp$0 = getNextLanes(
@@ -12826,20 +12840,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1693 = 0;
-  i$jscomp$inline_1693 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1693++
+  var i$jscomp$inline_1672 = 0;
+  i$jscomp$inline_1672 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1672++
 ) {
-  var eventName$jscomp$inline_1694 =
-      simpleEventPluginEvents[i$jscomp$inline_1693],
-    domEventName$jscomp$inline_1695 =
-      eventName$jscomp$inline_1694.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1696 =
-      eventName$jscomp$inline_1694[0].toUpperCase() +
-      eventName$jscomp$inline_1694.slice(1);
+  var eventName$jscomp$inline_1673 =
+      simpleEventPluginEvents[i$jscomp$inline_1672],
+    domEventName$jscomp$inline_1674 =
+      eventName$jscomp$inline_1673.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1675 =
+      eventName$jscomp$inline_1673[0].toUpperCase() +
+      eventName$jscomp$inline_1673.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1695,
-    "on" + capitalizedEvent$jscomp$inline_1696
+    domEventName$jscomp$inline_1674,
+    "on" + capitalizedEvent$jscomp$inline_1675
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -16557,16 +16571,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1958 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1937 = React.version;
 if (
-  "19.2.0-canary-128abcfa-20250917" !==
-  isomorphicReactPackageVersion$jscomp$inline_1958
+  "19.2.0-canary-b0c1dc01-20250925" !==
+  isomorphicReactPackageVersion$jscomp$inline_1937
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1958,
-      "19.2.0-canary-128abcfa-20250917"
+      isomorphicReactPackageVersion$jscomp$inline_1937,
+      "19.2.0-canary-b0c1dc01-20250925"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -16586,12 +16600,12 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_1965 = {
+var internals$jscomp$inline_1944 = {
   bundleType: 0,
-  version: "19.2.0-canary-128abcfa-20250917",
+  version: "19.2.0-canary-b0c1dc01-20250925",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-canary-128abcfa-20250917",
+  reconcilerVersion: "19.2.0-canary-b0c1dc01-20250925",
   getLaneLabelMap: function () {
     for (
       var map = new Map(), lane = 1, index$282 = 0;
@@ -16609,16 +16623,16 @@ var internals$jscomp$inline_1965 = {
   }
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2429 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2408 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2429.isDisabled &&
-    hook$jscomp$inline_2429.supportsFiber
+    !hook$jscomp$inline_2408.isDisabled &&
+    hook$jscomp$inline_2408.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2429.inject(
-        internals$jscomp$inline_1965
+      (rendererID = hook$jscomp$inline_2408.inject(
+        internals$jscomp$inline_1944
       )),
-        (injectedHook = hook$jscomp$inline_2429);
+        (injectedHook = hook$jscomp$inline_2408);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -16864,7 +16878,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-canary-128abcfa-20250917";
+exports.version = "19.2.0-canary-b0c1dc01-20250925";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

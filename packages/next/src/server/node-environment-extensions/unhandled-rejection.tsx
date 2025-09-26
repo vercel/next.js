@@ -32,23 +32,23 @@ const MODE:
   | string
   | undefined = process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER
 
-let ENABLE_UHR_FILTER = false
+let ENABLE_UHR_FILTER = true
 let DEBUG_UHR_FILTER = false
 
 switch (MODE) {
   case 'debug':
     DEBUG_UHR_FILTER = true
-  // fallthrough
-  case 'enabled':
-  case 'true':
-  case '1':
-    ENABLE_UHR_FILTER = true
     break
   case 'false':
   case 'disabled':
   case '0':
+    ENABLE_UHR_FILTER = false
+    break
   case '':
   case undefined:
+  case 'enabled':
+  case 'true':
+  case '1':
     break
   default:
     if (typeof MODE === 'string') {

@@ -247,12 +247,11 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-        let resource_fs_path = this.source.ident().path().owned().await?;
-        let resource_fs_path_ref = resource_fs_path.clone();
-        let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path_ref) else {
+        let resource_fs_path = this.source.ident().path().await?;
+        let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
             bail!(format!(
                 "Resource path \"{}\" need to be on project filesystem \"{}\"",
-                resource_fs_path_ref, project_path
+                resource_fs_path, project_path
             ));
         };
         let loaders = transform.loaders.await?;
@@ -298,7 +297,7 @@ impl WebpackLoadersProcessedAsset {
                 .map
                 .map(|source_map| Rope::from(source_map.into_owned()))
         };
-        let source_map = resolve_source_map_sources(source_map.as_ref(), resource_fs_path).await?;
+        let source_map = resolve_source_map_sources(source_map.as_ref(), &resource_fs_path).await?;
 
         let file = match processed.source {
             Either::Left(str) => File::from(str),

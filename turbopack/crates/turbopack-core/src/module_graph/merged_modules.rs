@@ -88,6 +88,30 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .flat_map(|g| g.entries())
             .collect::<Vec<_>>();
 
+        // First, compute the depth for each module in the graph
+        let module_depth = {
+            let _inner_span = tracing::info_span!("compute depth").entered();
+
+            let mut module_depth =
+                FxHashMap::with_capacity_and_hasher(module_count, Default::default());
+            module_graph.traverse_edges_from_entries_bfs(
+                entries.iter().copied(),
+                |parent, node| {
+                    if let Some((parent, _)) = parent {
+                        let parent_depth = *module_depth
+                            .get(&parent.module)
+                            .context("Module depth not found")?;
+                        module_depth.entry(node.module).or_insert(parent_depth + 1);
+                    } else {
+                        module_depth.insert(node.module, 0);
+                    };
+
+                    Ok(GraphTraversalAction::Continue)
+                },
+            )?;
+            module_depth
+        };
+
         // For each module, the indices in the bitmap store which merge group entry modules
         // transitively import that module. The bitmap can be treated as an opaque value, merging
         // all modules with the same bitmap.
@@ -121,7 +145,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         let mut next_index = 0u32;
         let visit_count = module_graph.traverse_edges_fixed_point_with_priority(
-            entries.iter().map(|e| (*e, 0)),
+            entries
+                .iter()
+                .map(|e| Ok((*e, -*module_depth.get(e).context("Module depth not found")?)))
+                .collect::<Result<Vec<_>>>()?,
             &mut (),
             |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ RefData)>,
              node: &'_ SingleModuleGraphModuleNode,
@@ -196,7 +223,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     }
                 })
             },
-            |_, _| Ok(0),
+            |successor, _| {
+                // Invert the ordering here. High priority values get visited first, and we want to
+                // visit the low-depth nodes first, as we are propagating bitmaps downwards.
+                Ok(-*module_depth
+                    .get(&successor.module)
+                    .context("Module depth not found")?)
+            },
         )?;
 
         drop(inner_span);
@@ -210,16 +243,23 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             // index.
             entry: usize,
             list: usize,
+            chunk_group: usize,
         }
 
         // A list of all different execution traces (orderings) of all modules, initially a union of
         // the partition of each chunk's modules (one for each ESM subtree in each chunks), but
         // further split up later on.
-        let mut lists = vec![];
+        // This is a list (one per chunk group, initially) of lists (one per ESM subtree) of modules
+        let mut lists;
         let mut lists_reverse_indices: FxIndexMap<
             ResolvedVc<Box<dyn MergeableModule>>,
             FxIndexSet<ListOccurrence>,
         > = FxIndexMap::default();
+
+        // Once we do the reconciliation below, we need to insert new lists, but the lists are per
+        // chunk group, so we put them into this one.
+        #[allow(non_snake_case)]
+        let LISTS_COMMON_IDX: usize;
 
         // A map of all references between modules with the same bitmap. These are all references,
         // including reexecution edges and cycles. Used to expose additional modules if the
@@ -237,85 +277,147 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             FxIndexSet<ResolvedVc<Box<dyn Module>>>,
         > = FxIndexMap::default();
 
-        // TODO try to parallelize this loop somehow
-        for chunk_group in &chunk_group_info.chunk_groups {
-            // A partition of all modules in the chunk into several execution traces (orderings),
-            // stored in the top-level lists and referenced here by index.
-            let mut chunk_lists: FxHashMap<&RoaringBitmapWrapper, usize> =
-                FxHashMap::with_capacity_and_hasher(
-                    module_merged_groups.len() / chunk_group_info.chunk_groups.len(),
-                    Default::default(),
-                );
+        {
+            struct ChunkGroupResult {
+                chunk_group_idx: usize,
+                lists: Vec<Vec<ResolvedVc<Box<dyn MergeableModule>>>>,
+                lists_reverse_indices:
+                    FxIndexMap<ResolvedVc<Box<dyn MergeableModule>>, FxIndexSet<ListOccurrence>>,
+                #[allow(clippy::type_complexity)]
+                intra_group_references_rev: FxIndexMap<
+                    ResolvedVc<Box<dyn Module>>,
+                    FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+                >,
+            }
 
-            // This is necessary to have the correct order with cycles: a `a -> b -> a` graph would
-            // otherwise be visited as `b->a`, `a->b`, leading to the list `a, b` which is not
-            // execution order.
-            let mut visited = FxHashSet::default();
+            let result = turbo_tasks::parallel::map_collect_owned::<_, _, Result<Vec<_>>>(
+                // TODO without collect
+                chunk_group_info.chunk_groups.iter().enumerate().collect(),
+                |(chunk_group_idx, chunk_group)| {
+                    // A partition of all modules in the chunk into several execution traces
+                    // (orderings), stored in the top-level lists and referenced here by
+                    // index.
+                    let mut chunk_lists: FxHashMap<&RoaringBitmapWrapper, usize> =
+                        FxHashMap::with_capacity_and_hasher(
+                            module_merged_groups.len() / chunk_group_info.chunk_groups.len(),
+                            Default::default(),
+                        );
 
-            module_graph.traverse_edges_from_entries_dfs(
-                chunk_group.entries(),
-                &mut (),
-                |parent_info, node, _| {
-                    if parent_info.is_none_or(|(_, r)| r.chunking_type.is_parallel())
-                        && visited.insert(node.module)
-                    {
-                        Ok(GraphTraversalAction::Continue)
-                    } else {
-                        Ok(GraphTraversalAction::Exclude)
-                    }
-                },
-                |parent_info, node, _| {
-                    let module = node.module;
-                    let bitmap = module_merged_groups
-                        .get(&module)
-                        .context("every module should have a bitmap at this point")?;
+                    // This is necessary to have the correct order with cycles: a `a -> b -> a`
+                    // graph would otherwise be visited as `b->a`, `a->b`,
+                    // leading to the list `a, b` which is not execution order.
+                    let mut visited = FxHashSet::default();
 
-                    if mergeable.contains(&module) {
-                        let mergeable_module =
-                            ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module).unwrap();
-                        match chunk_lists.entry(bitmap) {
-                            Entry::Vacant(e) => {
-                                // New list, insert the module
-                                let idx = lists.len();
-                                e.insert(idx);
-                                lists.push(vec![mergeable_module]);
-                                lists_reverse_indices
-                                    .entry(mergeable_module)
-                                    .or_default()
-                                    .insert(ListOccurrence {
-                                        list: idx,
-                                        entry: 0,
-                                    });
+                    let mut lists = vec![];
+                    let mut lists_reverse_indices: FxIndexMap<
+                        ResolvedVc<Box<dyn MergeableModule>>,
+                        FxIndexSet<ListOccurrence>,
+                    > = FxIndexMap::default();
+                    #[allow(clippy::type_complexity)]
+                    let mut intra_group_references_rev: FxIndexMap<
+                        ResolvedVc<Box<dyn Module>>,
+                        FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+                    > = FxIndexMap::default();
+
+                    module_graph.traverse_edges_from_entries_dfs(
+                        chunk_group.entries(),
+                        &mut (),
+                        |parent_info, node, _| {
+                            if parent_info.is_none_or(|(_, r)| r.chunking_type.is_parallel())
+                                && visited.insert(node.module)
+                            {
+                                Ok(GraphTraversalAction::Continue)
+                            } else {
+                                Ok(GraphTraversalAction::Exclude)
                             }
-                            Entry::Occupied(e) => {
-                                let list_idx = *e.get();
-                                let list = &mut lists[list_idx];
-                                list.push(mergeable_module);
-                                lists_reverse_indices
-                                    .entry(mergeable_module)
-                                    .or_default()
-                                    .insert(ListOccurrence {
-                                        list: list_idx,
-                                        entry: list.len() - 1,
-                                    });
+                        },
+                        |parent_info, node, _| {
+                            let module = node.module;
+                            let bitmap = module_merged_groups
+                                .get(&module)
+                                .context("every module should have a bitmap at this point")?;
+
+                            if mergeable.contains(&module) {
+                                let mergeable_module =
+                                    ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
+                                        .unwrap();
+                                match chunk_lists.entry(bitmap) {
+                                    Entry::Vacant(e) => {
+                                        // New list, insert the module
+                                        let idx = lists.len();
+                                        e.insert(idx);
+                                        lists.push(vec![mergeable_module]);
+                                        lists_reverse_indices
+                                            .entry(mergeable_module)
+                                            .or_default()
+                                            .insert(ListOccurrence {
+                                                chunk_group: chunk_group_idx,
+                                                list: idx,
+                                                entry: 0,
+                                            });
+                                    }
+                                    Entry::Occupied(e) => {
+                                        let list_idx = *e.get();
+                                        let list = &mut lists[list_idx];
+                                        list.push(mergeable_module);
+                                        lists_reverse_indices
+                                            .entry(mergeable_module)
+                                            .or_default()
+                                            .insert(ListOccurrence {
+                                                chunk_group: chunk_group_idx,
+                                                list: list_idx,
+                                                entry: list.len() - 1,
+                                            });
+                                    }
+                                }
                             }
-                        }
-                    }
 
-                    if let Some((parent, _)) = parent_info {
-                        let same_bitmap = module_merged_groups.get(&parent.module).unwrap()
-                            == module_merged_groups.get(&module).unwrap();
+                            if let Some((parent, _)) = parent_info {
+                                let same_bitmap = module_merged_groups.get(&parent.module).unwrap()
+                                    == module_merged_groups.get(&module).unwrap();
 
-                        if same_bitmap {
-                            intra_group_references_rev
-                                .entry(module)
-                                .or_default()
-                                .insert(parent.module);
-                        }
-                    }
-                    Ok(())
+                                if same_bitmap {
+                                    intra_group_references_rev
+                                        .entry(module)
+                                        .or_default()
+                                        .insert(parent.module);
+                                }
+                            }
+                            Ok(())
+                        },
+                    )?;
+                    Ok(ChunkGroupResult {
+                        chunk_group_idx,
+                        lists,
+                        lists_reverse_indices,
+                        intra_group_references_rev,
+                    })
                 },
             )?;
+
+            lists = vec![Default::default(); result.len() + 1];
+            LISTS_COMMON_IDX = result.len();
+            for ChunkGroupResult {
+                chunk_group_idx,
+                lists: result_lists,
+                lists_reverse_indices: result_lists_reverse_indices,
+                intra_group_references_rev: result_intra_group_references_rev,
+            } in result
+            {
+                lists[chunk_group_idx] = result_lists;
+                for (module, occurrences) in result_lists_reverse_indices {
+                    lists_reverse_indices
+                        .entry(module)
+                        .or_default()
+                        .extend(occurrences);
+                }
+                for (module, occurrences) in result_intra_group_references_rev {
+                    intra_group_references_rev
+                        .entry(module)
+                        .or_default()
+                        .extend(occurrences);
+                }
+            }
         }
 
         drop(inner_span);
@@ -386,15 +488,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             // Find the longest common sequence in the lists, starting from the given module.
             let mut common_length = 2;
             loop {
-                let m =
-                    lists[first_occurrence.list].get(first_occurrence.entry + common_length - 1);
+                let m = lists[first_occurrence.chunk_group][first_occurrence.list]
+                    .get(first_occurrence.entry + common_length - 1);
                 if m.is_some()
-                    && common_occurrences
-                        .iter()
-                        .skip(1)
-                        .all(|ListOccurrence { list, entry }| {
-                            lists[*list].get(*entry + common_length - 1) == m
-                        })
+                    && common_occurrences.iter().skip(1).all(
+                        |ListOccurrence {
+                             chunk_group,
+                             list,
+                             entry,
+                         }| {
+                            lists[*chunk_group][*list].get(*entry + common_length - 1) == m
+                        },
+                    )
                 {
                     common_length += 1;
                     continue;
@@ -409,12 +514,12 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             // - "common" [occurrence.entry .. occurrence.entry + common_length) -- same for all
             // - "before" [0 .. occurrence.entry)
             // - "after"  [occurrence.entry + common_length .. ]
-            let common_list = lists[first_occurrence.list]
+            let common_list = lists[first_occurrence.chunk_group][first_occurrence.list]
                 [first_occurrence.entry..first_occurrence.entry + common_length]
                 .to_vec();
 
-            let common_list_index = lists.len();
-            lists.push(common_list.clone());
+            let common_list_index = lists[LISTS_COMMON_IDX].len();
+            lists[LISTS_COMMON_IDX].push(common_list.clone());
 
             // Insert occurrences for the "common" list, skip the first because that is now
             // guaranteed to exist only once
@@ -422,19 +527,21 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 let occurrences = lists_reverse_indices.get_mut(&m).unwrap();
                 for common_occurrence in &common_occurrences {
                     let removed = occurrences.swap_remove(&ListOccurrence {
+                        chunk_group: common_occurrence.chunk_group,
                         list: common_occurrence.list,
                         entry: common_occurrence.entry + i,
                     });
                     debug_assert!(removed);
                 }
                 occurrences.insert(ListOccurrence {
+                    chunk_group: LISTS_COMMON_IDX,
                     list: common_list_index,
                     entry: i,
                 });
             }
 
             for common_occurrence in &common_occurrences {
-                let list = &mut lists[common_occurrence.list];
+                let list = &mut lists[common_occurrence.chunk_group][common_occurrence.list];
                 let after_list = list.split_off(common_occurrence.entry + common_length);
                 list.truncate(common_occurrence.entry);
                 let before_list = &*list;
@@ -491,20 +598,22 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 // The occurrences for the "before" list (`list`) are still valid, need to update
                 // the occurrences for the "after" list
                 if !after_list.is_empty() {
-                    let after_index = lists.len();
-                    lists.push(after_list.clone());
+                    let after_index = lists[LISTS_COMMON_IDX].len();
+                    lists[LISTS_COMMON_IDX].push(after_list.clone());
                     for (i, &m) in after_list.iter().enumerate() {
                         let Some(occurrences) = lists_reverse_indices.get_mut(&m) else {
                             bail!("Couldn't find module in reverse list");
                         };
 
                         let removed = occurrences.swap_remove(&ListOccurrence {
+                            chunk_group: common_occurrence.chunk_group,
                             list: common_occurrence.list,
                             entry: common_occurrence.entry + common_length + i,
                         });
                         debug_assert!(removed);
 
                         occurrences.insert(ListOccurrence {
+                            chunk_group: LISTS_COMMON_IDX,
                             list: after_index,
                             entry: i,
                         });
@@ -514,7 +623,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         }
 
         // Dedupe the lists
-        let lists = lists.into_iter().collect::<FxHashSet<_>>();
+        let lists = lists.into_iter().flatten().collect::<FxHashSet<_>>();
 
         drop(inner_span);
         let inner_span = tracing::info_span!("merging");

@@ -2,96 +2,51 @@
     (
         "*arrow function 567*",
         Function(
-            4,
+            2,
             567,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "a",
         Function(
-            4,
+            2,
             1,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "b",
         Function(
-            4,
+            2,
             45,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "c",
         Function(
-            4,
+            2,
             125,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "d",
         Function(
-            4,
+            2,
             209,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
@@ -112,58 +67,31 @@
     (
         "e#2",
         Function(
-            4,
+            2,
             284,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "f",
         Function(
-            4,
+            2,
             368,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "g",
         Function(
-            4,
+            2,
             452,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
