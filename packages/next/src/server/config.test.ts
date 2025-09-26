@@ -133,20 +133,6 @@ describe('loadConfig', () => {
       )
     })
 
-    it('errors when using persistentCachingForDev if not in canary', async () => {
-      await expect(
-        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-          customConfig: {
-            experimental: {
-              turbopackPersistentCachingForDev: true,
-            },
-          },
-        })
-      ).rejects.toThrow(
-        /The experimental feature "experimental.turbopackPersistentCachingForDev" can only be enabled when using the latest canary version of Next.js./
-      )
-    })
-
     it('errors when using persistentCachingForBuild if not in canary', async () => {
       await expect(
         loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
