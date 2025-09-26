@@ -2,15 +2,6 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 
-export function throwWithStaticGenerationBailoutError(
-  route: string,
-  expression: string
-): never {
-  throw new StaticGenBailoutError(
-    `Route ${route} couldn't be rendered statically because it used ${expression}. Dynamic API is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-  )
-}
-
 export function throwWithStaticGenerationBailoutErrorWithDynamicError(
   route: string,
   expression: string
