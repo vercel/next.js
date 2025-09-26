@@ -17,6 +17,7 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 browserslist-rs = { workspace = true }
+bytes-str = { workspace = true }
 const_format = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
@@ -42,8 +43,8 @@ turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
+url = { workspace = true }
 urlencoding = { workspace = true }
-bytes-str = { workspace = true }
 
 
 [dev-dependencies]

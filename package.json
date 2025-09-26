@@ -155,7 +155,7 @@
     "abort-controller": "3.0.0",
     "alex": "9.1.0",
     "async-sema": "3.0.1",
-    "babel-plugin-react-compiler": "0.0.0-experimental-3fde738-20250918",
+    "babel-plugin-react-compiler": "0.0.0-experimental-caf8ba5-20250925",
     "browserslist": "4.25.1",
     "buffer": "5.6.0",
     "cheerio": "0.22.0",

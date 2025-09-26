@@ -109,6 +109,7 @@ env:
   NEXT_TEST_PREFER_OFFLINE: 1
   NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
   NEXT_TEST_PROXY_ADDRESS: ${{ inputs.overrideProxyAddress || '' }}
+  __NEXT_ENABLE_REACT_COMPILER: true
 
 jobs:
   build:

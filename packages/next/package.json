@@ -234,7 +234,7 @@
     "async-sema": "3.0.0",
     "axe-playwright": "2.0.3",
     "babel-loader": "10.0.0",
-    "babel-plugin-react-compiler": "0.0.0-experimental-3fde738-20250918",
+    "babel-plugin-react-compiler": "0.0.0-experimental-caf8ba5-20250925",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "browserify-zlib": "0.2.0",
