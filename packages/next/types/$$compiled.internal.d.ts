@@ -9,7 +9,6 @@ declare module 'next/dist/compiled/postcss-modules-scope'
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'next/dist/compiled/babel/plugin-syntax-typescript'
-declare module 'next/dist/compiled/loader-utils2'
 declare module 'next/dist/compiled/react-server-dom-webpack/client'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
@@ -892,7 +891,7 @@ declare module 'next/dist/compiled/zod-validation-error' {
 }
 
 declare module 'mini-css-extract-plugin'
-declare module 'next/dist/compiled/loader-utils3'
+declare module 'next/dist/compiled/loader-utils'
 
 declare module 'next/dist/compiled/webpack-sources3' {
   interface StringBufferUtils {

@@ -1275,20 +1275,12 @@ export async function ncc_loader_runner(task, opts) {
     .ncc({ packageName: 'loader-runner', externals })
     .target('src/compiled/loader-runner')
 }
-externals['loader-utils'] = 'error loader-utils version not specified'
-externals['loader-utils2'] = 'next/dist/compiled/loader-utils2'
-export async function ncc_loader_utils2(task, opts) {
+externals['loader-utils'] = 'next/dist/compiled/loader-utils'
+export async function ncc_loader_utils(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('loader-utils2')))
-    .ncc({ packageName: 'loader-utils2', externals })
-    .target('src/compiled/loader-utils2')
-}
-externals['loader-utils3'] = 'next/dist/compiled/loader-utils3'
-export async function ncc_loader_utils3(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('loader-utils3')))
-    .ncc({ packageName: 'loader-utils3', externals })
-    .target('src/compiled/loader-utils3')
+    .source(relative(__dirname, require.resolve('loader-utils')))
+    .ncc({ packageName: 'loader-utils', externals })
+    .target('src/compiled/loader-utils')
 }
 externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
 export async function ncc_lodash_curry(task, opts) {
@@ -1804,7 +1796,6 @@ export async function ncc_sass_loader(task, opts) {
       externals: {
         ...externals,
         'schema-utils': externals['schema-utils3'],
-        'loader-utils': externals['loader-utils2'],
       },
       target: 'es5',
     })
@@ -2270,8 +2261,7 @@ export async function ncc(task, opts) {
         'ncc_json5',
         'ncc_jsonwebtoken',
         'ncc_loader_runner',
-        'ncc_loader_utils2',
-        'ncc_loader_utils3',
+        'ncc_loader_utils',
         'ncc_lodash_curry',
         'ncc_lru_cache',
         'ncc_nanoid',

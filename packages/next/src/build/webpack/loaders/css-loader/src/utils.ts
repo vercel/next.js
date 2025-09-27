@@ -5,7 +5,7 @@
 import { fileURLToPath } from 'url'
 import path from 'path'
 
-import { urlToRequest } from 'next/dist/compiled/loader-utils3'
+import { urlToRequest } from 'next/dist/compiled/loader-utils'
 import modulesValues from 'next/dist/compiled/postcss-modules-values'
 import localByDefault from 'next/dist/compiled/postcss-modules-local-by-default'
 import extractImports from 'next/dist/compiled/postcss-modules-extract-imports'
