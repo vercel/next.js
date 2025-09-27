@@ -178,13 +178,13 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
     // don't statically generate routes that manipulate draft mode.
     if (workUnitStore?.phase === 'after') {
       throw new Error(
-        `Route ${workStore.route} used "${expression}" inside \`after\`. The enabled status of draftMode can be read inside \`after\` but you cannot enable or disable draftMode. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+        `Route ${workStore.route} used "${expression}" inside \`after()\`. The enabled status of \`draftMode()\` can be read inside \`after()\` but you cannot enable or disable \`draftMode()\`. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
       )
     }
 
     if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
-        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. \`draftMode()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
 
@@ -193,7 +193,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
         case 'cache':
         case 'private-cache': {
           const error = new Error(
-            `Route ${workStore.route} used "${expression}" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+            `Route ${workStore.route} used "${expression}" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, constructorOpt)
           workStore.invalidDynamicUsageError ??= error
@@ -201,7 +201,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
         }
         case 'unstable-cache':
           throw new Error(
-            `Route ${workStore.route} used "${expression}" inside a function cached with "unstable_cache(...)". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+            `Route ${workStore.route} used "${expression}" inside a function cached with \`unstable_cache()\`. The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
           )
 
         case 'prerender':
@@ -219,7 +219,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
         case 'prerender-client':
           const exportName = '`draftMode`'
           throw new InvariantError(
-            `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
+            `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
           )
         case 'prerender-ppr':
           return postponeWithTracking(
@@ -231,7 +231,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
           workUnitStore.revalidate = 0
 
           const err = new DynamicServerError(
-            `Route ${workStore.route} couldn't be rendered statically because it used \`${expression}\`. \`draftMode()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+            `Route ${workStore.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
           )
           workStore.dynamicUsageDescription = expression
           workStore.dynamicUsageStack = err.stack
