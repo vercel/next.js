@@ -1,6 +1,6 @@
 {
   "name": "@next/rspack-binding",
-  "version": "0.0.1-canary.5",
+  "version": "0.0.1-canary.6",
   "homepage": "https://nextjs.org",
   "bugs": {
     "url": "https://github.com/vercel/next.js/issues"
