@@ -22,6 +22,20 @@ function getProductionDeploymentUrl(): URL | undefined {
   return origin ? new URL(`https://${origin}`) : undefined
 }
 
+function normalizeMetadataBase(metadataBase: string | URL): URL
+function normalizeMetadataBase(metadataBase: string | URL | null): URL | null
+function normalizeMetadataBase(metadataBase: string | URL | null): URL | null {
+  if (typeof metadataBase === 'string') {
+    try {
+      metadataBase = new URL(metadataBase)
+    } catch {
+      throw new Error(`metadataBase is not a valid URL: ${metadataBase}`)
+    }
+  }
+
+  return metadataBase
+}
+
 /**
  * Given an optional user-provided metadataBase, this determines what the metadataBase should
  * fallback to. Specifically:
@@ -31,36 +45,43 @@ function getProductionDeploymentUrl(): URL | undefined {
  * it'll fall back to the Vercel production deployment, and localhost as a last resort.
  */
 export function getSocialImageMetadataBaseFallback(
-  metadataBase: URL | null
+  metadataBase: string | URL | null
 ): URL {
   const defaultMetadataBase = createLocalMetadataBase()
   const previewDeploymentUrl = getPreviewDeploymentUrl()
   const productionDeploymentUrl = getProductionDeploymentUrl()
 
-  let fallbackMetadataBase
   if (process.env.NODE_ENV === 'development') {
-    fallbackMetadataBase = defaultMetadataBase
-  } else {
-    fallbackMetadataBase =
-      process.env.NODE_ENV === 'production' &&
-      previewDeploymentUrl &&
-      process.env.VERCEL_ENV === 'preview'
-        ? previewDeploymentUrl
-        : metadataBase || productionDeploymentUrl || defaultMetadataBase
+    return defaultMetadataBase
   }
 
-  return fallbackMetadataBase
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.VERCEL_ENV === 'preview' &&
+    previewDeploymentUrl
+  ) {
+    return previewDeploymentUrl
+  }
+
+  if (metadataBase) {
+    return normalizeMetadataBase(metadataBase)
+  }
+
+  return productionDeploymentUrl || defaultMetadataBase
 }
 
-function resolveUrl(url: null | undefined, metadataBase: URL | null): null
-function resolveUrl(url: string | URL, metadataBase: URL | null): URL
+function resolveUrl(
+  url: null | undefined,
+  metadataBase: string | URL | null
+): null
+function resolveUrl(url: string | URL, metadataBase: string | URL | null): URL
 function resolveUrl(
   url: string | URL | null | undefined,
-  metadataBase: URL | null
+  metadataBase: string | URL | null
 ): URL | null
 function resolveUrl(
   url: string | URL | null | undefined,
-  metadataBase: URL | null
+  metadataBase: string | URL | null
 ): URL | null {
   if (url instanceof URL) return url
   if (!url) return null
@@ -71,15 +92,15 @@ function resolveUrl(
     return parsedUrl
   } catch {}
 
-  if (!metadataBase) {
-    metadataBase = createLocalMetadataBase()
-  }
+  const metadataBaseURL = metadataBase
+    ? normalizeMetadataBase(metadataBase)
+    : createLocalMetadataBase()
 
   // Handle relative or absolute paths
-  const pathname = metadataBase.pathname || ''
+  const pathname = metadataBaseURL.pathname || ''
   const joinedPath = path.posix.join(pathname, url)
 
-  return new URL(joinedPath, metadataBase)
+  return new URL(joinedPath, metadataBaseURL)
 }
 
 // Resolve with `pathname` if `url` is a relative path.
@@ -100,7 +121,7 @@ function isFilePattern(pathname: string): boolean {
 // Resolve `pathname` if `url` is a relative path the compose with `metadataBase`.
 function resolveAbsoluteUrlWithPathname(
   url: string | URL,
-  metadataBase: URL | null,
+  metadataBase: string | URL | null,
   pathname: string,
   { trailingSlash }: MetadataContext
 ): string {
@@ -133,7 +154,8 @@ function resolveAbsoluteUrlWithPathname(
       try {
         const parsedUrl = new URL(resolvedUrl)
         isExternal =
-          metadataBase != null && parsedUrl.origin !== metadataBase.origin
+          metadataBase != null &&
+          parsedUrl.origin !== normalizeMetadataBase(metadataBase).origin
         isFileUrl = isFilePattern(parsedUrl.pathname)
       } catch {
         // If it's not a valid URL, treat it as external

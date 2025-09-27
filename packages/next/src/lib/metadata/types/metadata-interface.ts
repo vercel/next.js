@@ -95,7 +95,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * When relative URLs (for Open Graph images, alternates, etc.) are used, they are composed with this base.
    * If not provided, Next.js will populate a default value based on environment variables.
    */
-  metadataBase?: null | URL | undefined
+  metadataBase?: null | string | URL | undefined
 
   /**
    * The document title.
@@ -570,7 +570,7 @@ interface Metadata extends DeprecatedMetadataFields {
 interface ResolvedMetadata extends DeprecatedMetadataFields {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
-  metadataBase: null | URL
+  metadataBase: string | null | URL
 
   // The Document title and template if defined
   title: null | AbsoluteTemplateString

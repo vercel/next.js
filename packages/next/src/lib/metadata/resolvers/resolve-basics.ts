@@ -18,7 +18,7 @@ import { resolveAbsoluteUrlWithPathname } from './resolve-url'
 
 function resolveAlternateUrl(
   url: string | URL,
-  metadataBase: URL | null,
+  metadataBase: string | URL | null,
   pathname: string,
   metadataContext: MetadataContext
 ) {
@@ -108,7 +108,7 @@ async function resolveUrlValuesOfObject(
 
 async function resolveCanonicalUrl(
   urlOrDescriptor: string | URL | null | AlternateLinkDescriptor | undefined,
-  metadataBase: URL | null,
+  metadataBase: string | URL | null,
   pathname: Promise<string>,
   metadataContext: MetadataContext
 ): Promise<null | AlternateLinkDescriptor> {

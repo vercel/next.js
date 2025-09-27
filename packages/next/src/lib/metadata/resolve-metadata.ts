@@ -926,14 +926,13 @@ function resolvePendingResult<
   // In dev we clone and freeze to prevent relying on mutating resolvedMetadata directly.
   // In prod we just pass resolvedMetadata through without any copying.
   if (process.env.NODE_ENV === 'development') {
-    // @ts-expect-error -- DeepReadonly<T> is by definition not assignable to T
-    // Instead, we should only accept DeepReadonly<ResolvedType>
     parentResult = (
       require('../../shared/lib/deep-freeze') as typeof import('../../shared/lib/deep-freeze')
     ).deepFreeze(
-      (
-        require('./clone-metadata') as typeof import('./clone-metadata')
-      ).cloneMetadata(parentResult)
+      // Note that this cloning will transform URL instances to strings. This is
+      // fine, as our types allow for string URLs as well, so user code already
+      // needs to account for that.
+      JSON.parse(JSON.stringify(parentResult))
     )
   }
 
