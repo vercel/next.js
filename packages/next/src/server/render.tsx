@@ -124,7 +124,7 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   ).postProcessHTML
 } else {
   warn = console.warn.bind(console)
-  postProcessHTML = async (_pathname: string, html: string) => html
+  postProcessHTML = async (html: string) => html
 }
 
 function noRouter() {
@@ -240,17 +240,12 @@ function renderPageTree(
 }
 
 export type RenderOptsPartial = {
-  canonicalBase: string
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
   err?: Error | null
   nextExport?: boolean
   dev?: boolean
-  ampPath?: string
   ErrorDebug?: PagesDevOverlayBridgeType
-  ampValidator?: (html: string, pathname: string) => Promise<void>
-  ampSkipValidation?: boolean
-  ampOptimizerConfig?: { [key: string]: any }
   isNextDataRequest?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps | undefined
@@ -489,7 +484,6 @@ export async function renderToHTMLImpl(
   const {
     err,
     dev = false,
-    ampPath = '',
     pageConfig = {},
     buildManifest,
     reactLoadableManifest,
@@ -631,13 +625,7 @@ export async function renderToHTMLImpl(
 
     if (isAutoExport || isFallback) {
       // remove query values except ones that will be set during export
-      query = {
-        ...(query.amp
-          ? {
-              amp: query.amp,
-            }
-          : {}),
-      }
+      query = {}
       asPath = `${pathname}${
         // ensure trailing slash is present for non-dynamic auto-export pages
         req.url!.endsWith('/') && pathname !== '/' && !pageIsDynamic ? '/' : ''
@@ -727,11 +715,6 @@ export async function renderToHTMLImpl(
 
   let scriptLoader: any = {}
   const jsxStyleRegistry = createStyleRegistry()
-  const ampState = {
-    ampFirst: pageConfig.amp === true,
-    hasQuery: Boolean(query.amp),
-    hybrid: pageConfig.amp === 'hybrid',
-  }
 
   let head: JSX.Element[] = defaultHead()
   const reactLoadableModules: string[] = []
@@ -1473,7 +1456,6 @@ export async function renderToHTMLImpl(
     }
   }
 
-  const hybridAmp = ampState.hybrid
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
 
   const {
@@ -1518,13 +1500,7 @@ export async function renderToHTMLImpl(
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
     dangerousAsPath: router.asPath,
-    canonicalBase:
-      !renderOpts.ampPath && getRequestMeta(req, 'didStripLocale')
-        ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
-        : renderOpts.canonicalBase,
-    ampPath,
     isDevelopment: !!dev,
-    hybridAmp,
     dynamicImports: Array.from(dynamicImports),
     dynamicCssManifest: new Set(renderOpts.dynamicCssManifest || []),
     assetPrefix,
@@ -1599,10 +1575,7 @@ export async function renderToHTMLImpl(
 
   const content = prefix + documentResult.contentHTML + renderTargetSuffix
 
-  const optimizedHtml = await postProcessHTML(pathname, content, renderOpts, {
-    // TODO: Follow up AMP - remove this parameter
-    hybridAmp,
-  })
+  const optimizedHtml = await postProcessHTML(content, renderOpts)
 
   return new RenderResult(optimizedHtml, {
     metadata,

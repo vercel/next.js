@@ -53,14 +53,10 @@ const largePageDataWarnings = new Set<string>()
 
 function getDocumentFiles(
   buildManifest: BuildManifest,
-  pathname: string,
-  inAmpMode: boolean
+  pathname: string
 ): DocumentFiles {
   const sharedFiles: readonly string[] = getPageFiles(buildManifest, '/_app')
-  const pageFiles: readonly string[] =
-    process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
-      ? []
-      : getPageFiles(buildManifest, pathname)
+  const pageFiles: readonly string[] = getPageFiles(buildManifest, pathname)
 
   return {
     sharedFiles,
@@ -646,20 +642,9 @@ export class Head extends React.Component<HeadProps> {
         )
     }
 
-    // TODO: Follow up AMP - revisit if this is necessary
-    // show warning and remove conflicting amp head tags
-    head = React.Children.map(head || [], (child) => {
-      if (!child) return child
-
-      return child
-      // @types/react bug. Returned value from .map will not be `null` if you pass in `[null]`
-    })!
-
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
-      this.context.__NEXT_DATA__.page,
-      // TODO: Follow up AMP - remove this and from getDocumentFiles
-      false
+      this.context.__NEXT_DATA__.page
     )
 
     const nextFontLinkTags = getNextFontLinkTags(
@@ -685,17 +670,11 @@ export class Head extends React.Component<HeadProps> {
           <>
             <style
               data-next-hide-fouc
-              // TODO: Follow up AMP - remove this attribute
-              data-ampdevmode={undefined}
               dangerouslySetInnerHTML={{
                 __html: `body{display:none}`,
               }}
             />
-            <noscript
-              data-next-hide-fouc
-              // TODO: Follow up AMP - remove this attribute
-              data-ampdevmode={undefined}
-            >
+            <noscript data-next-hide-fouc>
               <style
                 dangerouslySetInnerHTML={{
                   __html: `body{display:block}`,
@@ -900,9 +879,7 @@ export class NextScript extends React.Component<OriginProps> {
 
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
-      this.context.__NEXT_DATA__.page,
-      // TODO: Follow up AMP - remove this and from getDocumentFiles
-      false
+      this.context.__NEXT_DATA__.page
     )
 
     return (
@@ -957,16 +934,7 @@ export function Html(
   docComponentsRendered.Html = true
   handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
 
-  return (
-    <html
-      {...props}
-      lang={props.lang || locale || undefined}
-      // TODO: Follow up AMP - remove this attribute
-      amp={undefined}
-      // TODO: Follow up AMP - remove this attribute
-      data-ampdevmode={undefined}
-    />
-  )
+  return <html {...props} lang={props.lang || locale || undefined} />
 }
 
 export function Main() {

@@ -17,8 +17,6 @@ export type HtmlProps = {
     NextScript?: boolean
   }
   buildManifest: BuildManifest
-  ampPath: string
-  hybridAmp: boolean
   isDevelopment: boolean
   dynamicImports: string[]
   /**
@@ -27,7 +25,6 @@ export type HtmlProps = {
    */
   dynamicCssManifest: Set<string>
   assetPrefix?: string
-  canonicalBase: string
   headTags: any[]
   unstable_runtimeJS?: false
   unstable_JsPreload?: false

@@ -144,12 +144,10 @@ export default class BuildManifestPlugin {
       const assetMap: DeepMutable<BuildManifest> = {
         polyfillFiles: [],
         devFiles: [],
-        ampDevFiles: [],
         lowPriorityFiles: [],
         rootMainFiles: [],
         rootMainFilesTree: {},
         pages: { '/_app': [] },
-        ampFirstPages: [],
       }
 
       const mainFiles = new Set(
@@ -188,9 +186,6 @@ export default class BuildManifestPlugin {
       assetMap.devFiles = getEntrypointFiles(
         entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)
       ).filter((file) => !mainFiles.has(file))
-
-      // TODO: Follow up AMP - remove this property
-      assetMap.ampDevFiles = []
 
       for (const entrypoint of compilation.entrypoints.values()) {
         if (SYSTEM_ENTRYPOINTS.has(entrypoint.name)) continue

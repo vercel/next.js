@@ -177,13 +177,6 @@ export default class DevServer extends Server {
         return JSON.stringify(value.staticPaths)?.length ?? 0
       }
     )
-    this.renderOpts.ampSkipValidation =
-      this.nextConfig.experimental?.amp?.skipValidation ?? false
-    // TODO: Follow up AMP - remove this validator
-    this.renderOpts.ampValidator = async (
-      _html: string,
-      _pathname: string
-    ) => {}
 
     const { pagesDir, appDir } = findPagesDir(this.dir)
     this.pagesDir = pagesDir
@@ -707,30 +700,6 @@ export default class DevServer extends Server {
     //     }
     //   },
     // })
-  }
-
-  _filterAmpDevelopmentScript(
-    html: string,
-    event: { line: number; col: number; code: string }
-  ): boolean {
-    if (event.code !== 'DISALLOWED_SCRIPT_TAG') {
-      return true
-    }
-
-    const snippetChunks = html.split('\n')
-
-    let snippet
-    if (
-      !(snippet = html.split('\n')[event.line - 1]) ||
-      !(snippet = snippet.substring(event.col))
-    ) {
-      return true
-    }
-
-    snippet = snippet + snippetChunks.slice(event.line).join('\n')
-    snippet = snippet.substring(0, snippet.indexOf('</script>'))
-
-    return !snippet.includes('data-amp-development-mode-only')
   }
 
   protected async getStaticPaths({

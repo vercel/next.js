@@ -97,20 +97,6 @@ function checkDeprecations(
   silent: boolean,
   dir: string
 ) {
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'amp',
-    `Built-in amp support is deprecated and the \`amp\` configuration option will be removed in Next.js 16.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'experimental.amp',
-    `Built-in amp support is deprecated and the \`experimental.amp\` configuration option will be removed in Next.js 16.`,
-    silent
-  )
-
   if (userConfig.experimental?.dynamicIO !== undefined) {
     warnOptionHasBeenDeprecated(
       userConfig,
@@ -421,10 +407,6 @@ function assignDefaultsAndValidate(
 
       if (result.assetPrefix === '') {
         result.assetPrefix = result.basePath
-      }
-
-      if (result.amp?.canonicalBase === '') {
-        result.amp.canonicalBase = result.basePath
       }
     }
   }
@@ -1487,15 +1469,6 @@ export default async function loadConfig(
         `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
-    }
-
-    if (userConfig.amp?.canonicalBase) {
-      const { canonicalBase } = userConfig.amp || ({} as any)
-      userConfig.amp = userConfig.amp || {}
-      userConfig.amp.canonicalBase =
-        (canonicalBase?.endsWith('/')
-          ? canonicalBase.slice(0, -1)
-          : canonicalBase) || ''
     }
 
     if (reactProductionProfiling) {

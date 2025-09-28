@@ -7,19 +7,8 @@ type PostProcessorFunction =
   | ((html: string) => string)
 
 async function postProcessHTML(
-  // TODO: Follow up AMP - remove this parameter
-  _pathname: string,
   content: string,
-  renderOpts: Pick<
-    RenderOpts,
-    | 'ampOptimizerConfig'
-    | 'ampValidator'
-    | 'ampSkipValidation'
-    | 'optimizeCss'
-    | 'distDir'
-    | 'assetPrefix'
-  >,
-  { hybridAmp }: { hybridAmp: boolean }
+  renderOpts: Pick<RenderOpts, 'optimizeCss' | 'distDir' | 'assetPrefix'>
 ) {
   const postProcessors: Array<PostProcessorFunction> = [
     process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeCss
@@ -40,12 +29,6 @@ async function postProcessHTML(
             ...renderOpts.optimizeCss,
           })
           return await cssOptimizer.process(html)
-        }
-      : null,
-    // TODO: Follow up AMP - remove this post processor
-    hybridAmp
-      ? (html: string) => {
-          return html.replace(/&amp;amp=1/g, '&amp=1')
         }
       : null,
   ].filter(nonNullable)

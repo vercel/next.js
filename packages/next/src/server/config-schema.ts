@@ -164,11 +164,6 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
     allowedDevOrigins: z.array(z.string()).optional(),
-    amp: z
-      .object({
-        canonicalBase: z.string().optional(),
-      })
-      .optional(),
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
     bundlePagesRouterDependencies: z.boolean().optional(),
@@ -300,14 +295,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         appNavFailHandling: z.boolean().optional(),
         preloadEntriesOnStart: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
-        amp: z
-          .object({
-            // AMP optimizer option is unknown, use z.any() here
-            optimizer: z.any().optional(),
-            skipValidation: z.boolean().optional(),
-            validator: z.string().optional(),
-          })
-          .optional(),
         staleTimes: z
           .object({
             dynamic: z.number().optional(),

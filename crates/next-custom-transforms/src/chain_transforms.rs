@@ -41,9 +41,6 @@ pub struct TransformOptions {
     pub disable_next_ssg: bool,
 
     #[serde(default)]
-    pub disable_page_config: bool,
-
-    #[serde(default)]
     pub pages_dir: Option<PathBuf>,
 
     #[serde(default)]
@@ -252,7 +249,6 @@ where
                 crate::transforms::next_ssg::next_ssg(eliminated_packages),
                 !opts.disable_next_ssg,
             ),
-            crate::transforms::amp_attributes::amp_attributes(),
             next_dynamic(
                 opts.is_development,
                 opts.is_server_compiler,
@@ -271,10 +267,6 @@ where
                 NextDynamicMode::Webpack,
                 file.name.clone(),
                 opts.pages_dir.clone().or_else(|| opts.app_dir.clone()),
-            ),
-            Optional::new(
-                crate::transforms::page_config::page_config(opts.is_development, opts.is_page_file),
-                !opts.disable_page_config,
             ),
             relay_plugin,
             match &opts.remove_console {
