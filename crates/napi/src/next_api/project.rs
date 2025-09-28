@@ -1491,12 +1491,10 @@ pub async fn project_trace_source_operation(
         return Ok(Vc::cell(None));
     };
 
-    let token = map
-        .lookup_token(
-            line.saturating_sub(1),
-            frame.column.unwrap_or(1).saturating_sub(1),
-        )
-        .await?;
+    let token = map.lookup_token(
+        line.saturating_sub(1),
+        frame.column.unwrap_or(1).saturating_sub(1),
+    );
 
     let (original_file, line, column, method_name) = match token {
         Token::Original(token) => (
