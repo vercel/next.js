@@ -74,6 +74,11 @@ describe('opentelemetry', () => {
               {
                 name: 'GET /app/[param]/rsc-fetch',
                 attributes: {
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'http.response.status_code': 200,
+                  'url.path': '/app/param/rsc-fetch',
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.route': '/app/[param]/rsc-fetch',
                   'http.status_code': 200,
@@ -136,6 +141,11 @@ describe('opentelemetry', () => {
                       {
                         name: 'fetch GET https://example.vercel.sh/',
                         attributes: {
+                          // Current OpenTelemetry semantic conventions
+                          'http.request.method': 'GET',
+                          'url.full': 'https://example.vercel.sh/',
+                          'server.address': 'example.vercel.sh',
+                          // Legacy attributes for backward compatibility
                           'http.method': 'GET',
                           'http.url': 'https://example.vercel.sh/',
                           'net.peer.name': 'example.vercel.sh',
@@ -235,6 +245,11 @@ describe('opentelemetry', () => {
                 attributes: {
                   'next.span_name': 'GET /app/[param]/rsc-fetch/edge',
                   'next.span_type': 'BaseServer.handleRequest',
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'url.path': '/app/param/rsc-fetch/edge?param=param',
+                  'http.response.status_code': 200,
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.target': '/app/param/rsc-fetch/edge?param=param',
                   'http.status_code': 200,
@@ -295,6 +310,11 @@ describe('opentelemetry', () => {
                           'next.span_name':
                             'fetch GET https://example.vercel.sh/',
                           'next.span_type': 'AppRender.fetch',
+                          // Current OpenTelemetry semantic conventions
+                          'url.full': 'https://example.vercel.sh/',
+                          'http.request.method': 'GET',
+                          'server.address': 'example.vercel.sh',
+                          // Legacy attributes for backward compatibility
                           'http.url': 'https://example.vercel.sh/',
                           'http.method': 'GET',
                           'net.peer.name': 'example.vercel.sh',
@@ -338,6 +358,11 @@ describe('opentelemetry', () => {
                 attributes: {
                   'next.span_name': 'GET',
                   'next.span_type': 'BaseServer.handleRequest',
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'url.path': '/app/param/rsc-fetch/edge',
+                  'http.response.status_code': 200,
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.target': '/app/param/rsc-fetch/edge',
                   'http.status_code': 200,
@@ -374,6 +399,11 @@ describe('opentelemetry', () => {
                 parentId: env.span.rootParentId,
                 name: 'RSC GET /app/[param]/rsc-fetch',
                 attributes: {
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'http.response.status_code': 200,
+                  'url.path': `/app/param/rsc-fetch?${NEXT_RSC_UNION_QUERY}`,
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.route': '/app/[param]/rsc-fetch',
                   'http.status_code': 200,
@@ -396,6 +426,11 @@ describe('opentelemetry', () => {
               {
                 name: 'GET /api/app/[param]/data',
                 attributes: {
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'http.response.status_code': 200,
+                  'url.path': '/api/app/param/data',
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.route': '/api/app/[param]/data',
                   'http.status_code': 200,
@@ -473,6 +508,11 @@ describe('opentelemetry', () => {
                 attributes: {
                   'next.span_name': 'GET',
                   'next.span_type': 'BaseServer.handleRequest',
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'url.path': '/api/app/param/data/edge',
+                  'http.response.status_code': 200,
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.target': '/api/app/param/data/edge',
                   'http.status_code': 200,
@@ -503,6 +543,10 @@ describe('opentelemetry', () => {
                 parentId: env.span.rootParentId,
                 name: 'middleware GET /behind-middleware',
                 attributes: {
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'url.path': '/behind-middleware',
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.target': '/behind-middleware',
                   'next.span_name': 'middleware GET /behind-middleware',
@@ -518,6 +562,11 @@ describe('opentelemetry', () => {
                 parentId: env.span.rootParentId,
                 name: 'GET /behind-middleware',
                 attributes: {
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'http.response.status_code': 200,
+                  'url.path': '/behind-middleware',
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.route': '/behind-middleware',
                   'http.status_code': 200,
@@ -540,6 +589,11 @@ describe('opentelemetry', () => {
               {
                 name: 'GET /app/[param]/rsc-fetch/error',
                 attributes: {
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'http.response.status_code': 500,
+                  'url.path': '/app/param/rsc-fetch/error?status=error',
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.route': '/app/[param]/rsc-fetch/error',
                   'http.status_code': 500,
@@ -669,6 +723,11 @@ describe('opentelemetry', () => {
               {
                 name: 'GET /pages/[param]/getServerSideProps',
                 attributes: {
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'http.response.status_code': 200,
+                  'url.path': '/pages/param/getServerSideProps',
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.route': '/pages/[param]/getServerSideProps',
                   'http.status_code': 200,
@@ -727,6 +786,11 @@ describe('opentelemetry', () => {
               {
                 name: `GET /pages/[param]/getStaticProps${v}`,
                 attributes: {
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'http.response.status_code': 200,
+                  'url.path': `/pages/param/getStaticProps${v}`,
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.route': `/pages/[param]/getStaticProps${v}`,
                   'http.status_code': 200,
@@ -866,6 +930,11 @@ describe('opentelemetry', () => {
               {
                 name: 'GET /pages/[param]/getServerSidePropsError',
                 attributes: {
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'http.response.status_code': 500,
+                  'url.path': '/pages/param/getServerSidePropsError',
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.route': '/pages/[param]/getServerSidePropsError',
                   'http.status_code': 500,
@@ -1049,6 +1118,11 @@ describe('opentelemetry', () => {
               {
                 name: 'GET /api/pages/[param]/basic',
                 attributes: {
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'http.response.status_code': 200,
+                  'url.path': '/api/pages/param/basic',
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.route': '/api/pages/[param]/basic',
                   'http.status_code': 200,
@@ -1105,6 +1179,11 @@ describe('opentelemetry', () => {
                 attributes: {
                   'next.span_name': 'GET',
                   'next.span_type': 'BaseServer.handleRequest',
+                  // Current OpenTelemetry semantic conventions
+                  'http.request.method': 'GET',
+                  'url.path': '/api/pages/param/edge',
+                  'http.response.status_code': 200,
+                  // Legacy attributes for backward compatibility
                   'http.method': 'GET',
                   'http.target': '/api/pages/param/edge',
                   'http.status_code': 200,

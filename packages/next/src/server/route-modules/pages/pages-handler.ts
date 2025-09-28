@@ -379,6 +379,9 @@ export const getHandler = ({
                   if (!span) return
 
                   span.setAttributes({
+                    // Current OpenTelemetry semantic conventions
+                    'http.response.status_code': res.statusCode,
+                    // Legacy attributes for backward compatibility
                     'http.status_code': res.statusCode,
                     'next.rsc': false,
                   })
@@ -737,6 +740,10 @@ export const getHandler = ({
               spanName: `${method} ${req.url}`,
               kind: SpanKind.SERVER,
               attributes: {
+                // Current OpenTelemetry semantic conventions
+                'http.request.method': method,
+                'url.path': req.url,
+                // Legacy attributes for backward compatibility
                 'http.method': method,
                 'http.target': req.url,
               },

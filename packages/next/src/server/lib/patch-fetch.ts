@@ -297,6 +297,12 @@ export function createPatchedFetcher(
         kind: SpanKind.CLIENT,
         spanName: ['fetch', method, fetchUrl].filter(Boolean).join(' '),
         attributes: {
+          // Current OpenTelemetry semantic conventions
+          'url.full': fetchUrl,
+          'http.request.method': method,
+          'server.address': url?.hostname,
+          'server.port': url?.port || undefined,
+          // Legacy attributes for backward compatibility
           'http.url': fetchUrl,
           'http.method': method,
           'net.peer.name': url?.hostname,

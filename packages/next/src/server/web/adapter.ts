@@ -254,6 +254,10 @@ export async function adapter(
         {
           spanName: `middleware ${request.method} ${request.nextUrl.pathname}`,
           attributes: {
+            // Current OpenTelemetry semantic conventions
+            'url.path': request.nextUrl.pathname,
+            'http.request.method': request.method,
+            // Legacy attributes for backward compatibility
             'http.target': request.nextUrl.pathname,
             'http.method': request.method,
           },
