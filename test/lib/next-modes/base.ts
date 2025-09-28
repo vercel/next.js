@@ -217,12 +217,20 @@ export class NextInstance {
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
-          '@types/react': '^19.1.1',
-          '@types/react-dom': '^19.1.2',
+          '@types/react': '19.1.14',
+          '@types/react-dom': '19.1.7',
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
+        }
+
+        if (
+          process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
+          !finalDependencies['babel-plugin-react-compiler']
+        ) {
+          finalDependencies['babel-plugin-react-compiler'] =
+            '0.0.0-experimental-3fde738-20250918'
         }
 
         if (skipInstall || skipIsolatedNext) {

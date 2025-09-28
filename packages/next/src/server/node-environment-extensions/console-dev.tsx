@@ -1,5 +1,7 @@
 import { dim } from '../../lib/picocolors'
 import { devLogsAsyncStorage } from '../app-render/dev-logs-async-storage.external'
+import { getFileLogger } from '../dev/browser-logs/file-logger'
+import { formatConsoleArgs } from '../../client/lib/console'
 
 type InterceptableConsoleMethod =
   | 'error'
@@ -168,7 +170,16 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
       if (devLogsStore?.dim === true) {
         return originalMethod.apply(this, dimConsoleCall(methodName, args))
       } else {
-        return originalMethod.apply(this, args)
+        const ret = originalMethod.apply(this, args)
+
+        const fileLogger = getFileLogger()
+        const message = formatConsoleArgs(args)
+        // Strip ANSI escape codes for file logging
+        // eslint-disable-next-line no-control-regex
+        const ansiEscapeRegex = new RegExp('\u001b\\[[0-9;]*m', 'g')
+        const cleanMessage = message.replace(ansiEscapeRegex, '')
+        fileLogger.logServer(methodName.toUpperCase(), cleanMessage)
+        return ret
       }
     }
     if (originalName) {

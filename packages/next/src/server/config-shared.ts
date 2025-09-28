@@ -168,13 +168,6 @@ export interface TurbopackOptions {
   rules?: Record<string, TurbopackRuleConfigCollection>
 
   /**
-   * The module ID strategy to use for Turbopack.
-   * If not set, the default is `'named'` for development and `'deterministic'`
-   * for production.
-   */
-  moduleIds?: 'named' | 'deterministic'
-
-  /**
    * This is the repo root usually and only files above this
    * directory can be resolved by turbopack.
    */
@@ -804,6 +797,13 @@ export interface ExperimentalConfig {
    * @default false
    */
   mcpServer?: boolean
+
+  /**
+   * The module ID strategy to use for Turbopack.
+   * If not set, the default is `'named'` for development and `'deterministic'`
+   * for production.
+   */
+  turbopackModuleIds?: 'named' | 'deterministic'
 }
 
 export type ExportPathMap = {
@@ -1516,6 +1516,7 @@ export const defaultConfig = Object.freeze({
     browserDebugInfoInTerminal: false,
     isolatedDevBuild:
       process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true',
+    mcpServer: !!process.env.__NEXT_EXPERIMENTAL_MCP_SERVER,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

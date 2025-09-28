@@ -6,6 +6,7 @@ import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 
 export function getMcpMiddleware(
   projectPath: string,
+  distDir: string,
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void,
   getActiveConnectionCount: () => number
 ) {
@@ -20,6 +21,7 @@ export function getMcpMiddleware(
     }
     const mcpServer = getOrCreateMcpServer(
       projectPath,
+      distDir,
       sendHmrMessage,
       getActiveConnectionCount
     )

@@ -25,7 +25,7 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
-use tracing::{Span, field::Empty, info_span};
+use tracing::{Span, field::Empty, info_span, trace_span};
 use turbo_tasks::{
     CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
     SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId, TurboTasksBackendApi,
@@ -1215,6 +1215,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if self.should_persist() {
             // Schedule the snapshot job
+            let _span = Span::none().entered();
             turbo_tasks.schedule_backend_background_job(TurboTasksBackendJob::InitialSnapshot);
         }
     }
@@ -1232,6 +1233,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.verify_aggregation_graph(turbo_tasks, false);
         }
         if self.should_persist() {
+            let _span = tracing::info_span!("persist on stop").entered();
             self.snapshot();
         }
         self.task_cache.drop_contents();
@@ -1752,13 +1754,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // suspend in `CleanupOldEdgesOperation`), but that's ok as the task is still dirty and
         // would be executed again.
 
-        if self.task_execution_completed_connect(&mut ctx, task_id, new_children, is_now_immutable)
+        let has_new_children = !new_children.is_empty();
+        if has_new_children
+            && self.task_execution_completed_connect(&mut ctx, task_id, new_children)
         {
             // Task was stale and has been rescheduled
             return true;
         }
 
-        if self.task_execution_completed_finish(&mut ctx, task_id, &mut removed_data) {
+        if self.task_execution_completed_finish(
+            &mut ctx,
+            task_id,
+            &mut removed_data,
+            is_now_immutable,
+        ) {
             // Task was stale and has been rescheduled
             return true;
         }
@@ -1783,6 +1792,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let Some(in_progress) = get_mut!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
+        if matches!(in_progress, InProgressState::Canceled) {
+            return Some(TaskExecutionCompletePrepareResult {
+                new_children: Default::default(),
+                removed_data: Default::default(),
+                is_now_immutable: false,
+            });
+        }
         let &mut InProgressState::InProgress(box InProgressStateInner {
             stale,
             ref mut done,
@@ -1997,12 +2013,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
         new_children: FxHashSet<TaskId>,
-        is_now_immutable: bool,
     ) -> bool {
+        debug_assert!(!new_children.is_empty());
+
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = get!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
+        if matches!(in_progress, InProgressState::Canceled) {
+            // Task was canceled in the meantime, so we don't connect the children
+            return false;
+        }
         let InProgressState::InProgress(box InProgressStateInner {
             #[cfg(not(feature = "no_fast_stale"))]
             stale,
@@ -2039,35 +2060,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return true;
         }
 
-        // If the task is not stateful and has no mutable children, it does not have a way to be
-        // invalidated and we can mark it as immutable.
-        if is_now_immutable {
-            let _ = task.add(CachedDataItem::Immutable { value: () });
-        }
-
-        let mut queue = AggregationUpdateQueue::new();
-
-        let has_new_children = !new_children.is_empty();
-        if has_new_children {
-            let has_active_count = ctx.should_track_activeness()
-                && get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
-            connect_children(
-                task_id,
-                &mut task,
-                new_children,
-                &mut queue,
-                has_active_count,
-                ctx.should_track_activeness(),
-            );
-        }
-
-        drop(task);
-
-        if has_new_children {
-            #[cfg(feature = "trace_task_completion")]
-            let _span = tracing::trace_span!("connect new children").entered();
-            queue.execute(ctx);
-        }
+        let has_active_count = ctx.should_track_activeness()
+            && get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
+        connect_children(
+            ctx,
+            task_id,
+            task,
+            new_children,
+            has_active_count,
+            ctx.should_track_activeness(),
+        );
 
         false
     }
@@ -2077,11 +2079,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
         removed_data: &mut Vec<CachedDataItem>,
+        is_now_immutable: bool,
     ) -> bool {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = remove!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
+        if matches!(in_progress, InProgressState::Canceled) {
+            // Task was canceled in the meantime, so we don't finish it
+            return false;
+        }
         let InProgressState::InProgress(box InProgressStateInner {
             done_event,
             once_task: _,
@@ -2105,6 +2112,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 },
             });
             return true;
+        }
+
+        // If the task is not stateful and has no mutable children, it does not have a way to be
+        // invalidated and we can mark it as immutable.
+        if is_now_immutable {
+            let _ = task.add(CachedDataItem::Immutable { value: () });
         }
 
         // Notify in progress cells
@@ -2216,11 +2229,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
                         const IDLE_TIMEOUT: Duration = Duration::from_secs(2);
 
-                        let time = if matches!(job, TurboTasksBackendJob::InitialSnapshot) {
-                            FIRST_SNAPSHOT_WAIT
-                        } else {
-                            SNAPSHOT_INTERVAL
-                        };
+                        let (time, mut reason) =
+                            if matches!(job, TurboTasksBackendJob::InitialSnapshot) {
+                                (FIRST_SNAPSHOT_WAIT, "initial snapshot timeout")
+                            } else {
+                                (SNAPSHOT_INTERVAL, "regular snapshot interval")
+                            };
 
                         let until = last_snapshot + time;
                         if until > Instant::now() {
@@ -2253,6 +2267,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     },
                                     _ = tokio::time::sleep_until(idle_time) => {
                                         if turbo_tasks.is_idle() {
+                                            reason = "idle timeout";
                                             break;
                                         }
                                     },
@@ -2260,6 +2275,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             }
                         }
 
+                        let _span = info_span!("persist", reason = reason).entered();
                         let this = self.clone();
                         let snapshot = this.snapshot();
                         if let Some((snapshot_start, new_data)) = snapshot {
@@ -2273,6 +2289,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 Ordering::Relaxed,
                             );
 
+                            let _span = Span::none().entered();
                             turbo_tasks.schedule_backend_background_job(
                                 TurboTasksBackendJob::FollowUpSnapshot,
                             );
@@ -2302,7 +2319,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         0..data.len()
                     };
 
-                    let _span = info_span!("prefetching").entered();
+                    let _span = trace_span!("prefetching").entered();
                     let mut ctx = self.execute_context(turbo_tasks);
                     for i in range {
                         let (&task, &with_data) = data.get_index(i).unwrap();
