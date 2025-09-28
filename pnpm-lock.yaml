@@ -1777,9 +1777,9 @@ importers:
 
   packages/next-rspack:
     dependencies:
-      '@next/rspack-core':
-        specifier: npm:@next-rspack/core@0.0.1-canary.6
-        version: '@next-rspack/core@0.0.1-canary.6(@swc/helpers@0.5.15)'
+      '@rspack/core':
+        specifier: 1.5.0
+        version: 1.5.0(@swc/helpers@0.5.15)
 
   packages/next-swc:
     devDependencies:
@@ -2997,9 +2997,6 @@ packages:
 
   '@emnapi/core@1.4.5':
     resolution: {integrity: sha512-XsLw1dEOpkSX/WucdqUhPWP7hDxSvZiY+fsUC14h+FtQ2Ifni4znbBt8punRX+Uj2JG/uDb8nEHVKvrVlvdZ5Q==}
-
-  '@emnapi/runtime@1.4.5':
-    resolution: {integrity: sha512-++LApOtY0pEEz1zrd9vy1/zXVaVJJ/EbAF3u0fXIzPJEDtnITsBGbbK0EkM72amhl/R5b+5xx0Y/QhcVOpuulg==}
 
   '@emnapi/runtime@1.5.0':
     resolution: {integrity: sha512-97/BJ3iXHww3djw6hYIfErCZFee7qCtrneuLa20UXFCOTCfBM2cvQHjWJ2EG0s0MtdNwInarqCTz35i4wWXHsQ==}
@@ -4404,72 +4401,6 @@ packages:
 
   '@napi-rs/wasm-runtime@1.0.3':
     resolution: {integrity: sha512-rZxtMsLwjdXkMUGC3WwsPwLNVqVqnTJT6MNIB6e+5fhMcSCPP0AOsNWuMQ5mdCq6HNjs/ZeWAEchpqeprqBD2Q==}
-
-  '@next-rspack/binding-android-arm-eabi@0.0.1-canary.6':
-    resolution: {integrity: sha512-7qNetbrGz86sE/3ckO0nsIe58vS87aUcl/hX6E0t8tK1aqyE4mMzcTWSS/XuKe5LB9YweiOIr486YQnvRr28Cg==}
-    cpu: [arm]
-    os: [android]
-
-  '@next-rspack/binding-android-arm64@0.0.1-canary.6':
-    resolution: {integrity: sha512-BKmcdm5bTclhmAZbGxbEG722d4Uyx4drvhzndovwIqWlfhodOVak3x/H0Xar0e5kthGe01zYvVVafgxFZ2wl4Q==}
-    cpu: [arm64]
-    os: [android]
-
-  '@next-rspack/binding-darwin-arm64@0.0.1-canary.6':
-    resolution: {integrity: sha512-7K8drvGc6h72AZfdDVLWOz82zgGSnHM8PDNwPbdI3GV6JUhnV+o6c0wRPxDh60gGmf6JDk/Kr0Ro23dAf69a1A==}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@next-rspack/binding-darwin-x64@0.0.1-canary.6':
-    resolution: {integrity: sha512-nYqTZUdXtDJ7pdn/YvLU+UgvppsbraEWslUxJQdqIk3aWDs2n+WoH132LVrRAvUNbrnGav9QELykvyZP/w4jWQ==}
-    cpu: [x64]
-    os: [darwin]
-
-  '@next-rspack/binding-linux-arm-gnueabihf@0.0.1-canary.6':
-    resolution: {integrity: sha512-I9MkIwHa0a+29tUL+r9+EJ9IsLcxfeBkl+7gHSPrg7hqbu9x1bR6u9Ba3/oDZZyIqzMiJV3NF4TnW+IMKO7h/g==}
-    cpu: [arm]
-    os: [linux]
-
-  '@next-rspack/binding-linux-arm64-gnu@0.0.1-canary.6':
-    resolution: {integrity: sha512-1obqXdpAlLwSaVpfz62tMI8X/bMifnkf6YCzQyFR2ZRbYOcyHTDJHYN3+NWTEhgN9ZuQPRWEy5lJJK+PQYUugg==}
-    cpu: [arm64]
-    os: [linux]
-
-  '@next-rspack/binding-linux-arm64-musl@0.0.1-canary.6':
-    resolution: {integrity: sha512-m+rKHVi2joxJk1WkBRYMIUIWzPQscJ9dHyQl7suAV6JWAy4tWcEiLKqsTWYU2z7iU4gjReNdd3gXFbCZZ0UC+w==}
-    cpu: [arm64]
-    os: [linux]
-
-  '@next-rspack/binding-linux-x64-gnu@0.0.1-canary.6':
-    resolution: {integrity: sha512-VmsEVuA7IgO8s7FVBa3t8tSmISXrQxRUppShagdOopKupn1MEZPYRz1egzVRN8kmpgBsoUmcoXRNCW8wReDs1g==}
-    cpu: [x64]
-    os: [linux]
-
-  '@next-rspack/binding-linux-x64-musl@0.0.1-canary.6':
-    resolution: {integrity: sha512-f+mx8aw2Dnpk1HptDQgh94TAAIVzn50kBSmPJLl1vQJIjFfwQVvGdqEGyzOGWDuwHZmgdVTwlEnzvkfXDe7wgw==}
-    cpu: [x64]
-    os: [linux]
-
-  '@next-rspack/binding-win32-arm64-msvc@0.0.1-canary.6':
-    resolution: {integrity: sha512-PjzvUXplLzMB13d/BoS4pFGbS11WDzowOhQOhDV/9LYGyGg1dJ7+UQDranAebthkWyZlwtf7D/+DDRfnCJsIfQ==}
-    cpu: [arm64]
-    os: [win32]
-
-  '@next-rspack/binding-win32-ia32-msvc@0.0.1-canary.6':
-    resolution: {integrity: sha512-qwN3CybR2YTOWue2vxWF9I1ec9w1b83+DgFCqFhe3IjWwgsZuI/APJDYkQmOMDth6Fth0bkVXDLxbTbuEMVW4g==}
-    cpu: [ia32]
-    os: [win32]
-
-  '@next-rspack/binding-win32-x64-msvc@0.0.1-canary.6':
-    resolution: {integrity: sha512-wz35bWbyIPZad53tDBEMXaLSUGZl7Q7rYcCvW2HxDbD0TfL5+JtkmRbywxbgT4CsVk/KD7XoLZ3LtddlzZycfg==}
-    cpu: [x64]
-    os: [win32]
-
-  '@next-rspack/binding@0.0.1-canary.6':
-    resolution: {integrity: sha512-dELnC3GcrP0hnnAj2nbk7BL5GRUr2HuuuKZKP6bNR6IJxmtdasTmAt2ttdsyvGqdJwpTtDcRS4D1E28YYh/QrQ==}
-
-  '@next-rspack/core@0.0.1-canary.6':
-    resolution: {integrity: sha512-HNJ3Wc1o6CU+MBbK4JzMPdHhqnlOkGSBBbPKFntyGelKlmqhJgE8VzcY60xovt0OvhTLKriv4VmTn6feFCunlg==}
 
   '@next/env@15.5.3':
     resolution: {integrity: sha512-RSEDTRqyihYXygx/OJXwvVupfr9m04+0vH8vyy0HfZ7keRto6VX9BbEk0J2PUk0VGy6YhklJUSrgForov5F9pw==}
@@ -19486,11 +19417,6 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@emnapi/runtime@1.4.5':
-    dependencies:
-      tslib: 2.8.1
-    optional: true
-
   '@emnapi/runtime@1.5.0':
     dependencies:
       tslib: 2.8.1
@@ -21306,67 +21232,9 @@ snapshots:
   '@napi-rs/wasm-runtime@1.0.3':
     dependencies:
       '@emnapi/core': 1.4.5
-      '@emnapi/runtime': 1.4.5
+      '@emnapi/runtime': 1.5.0
       '@tybys/wasm-util': 0.10.0
     optional: true
-
-  '@next-rspack/binding-android-arm-eabi@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding-android-arm64@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding-darwin-arm64@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding-darwin-x64@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding-linux-arm-gnueabihf@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding-linux-arm64-gnu@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding-linux-arm64-musl@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding-linux-x64-gnu@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding-linux-x64-musl@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding-win32-arm64-msvc@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding-win32-ia32-msvc@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding-win32-x64-msvc@0.0.1-canary.6':
-    optional: true
-
-  '@next-rspack/binding@0.0.1-canary.6':
-    optionalDependencies:
-      '@next-rspack/binding-android-arm-eabi': 0.0.1-canary.6
-      '@next-rspack/binding-android-arm64': 0.0.1-canary.6
-      '@next-rspack/binding-darwin-arm64': 0.0.1-canary.6
-      '@next-rspack/binding-darwin-x64': 0.0.1-canary.6
-      '@next-rspack/binding-linux-arm-gnueabihf': 0.0.1-canary.6
-      '@next-rspack/binding-linux-arm64-gnu': 0.0.1-canary.6
-      '@next-rspack/binding-linux-arm64-musl': 0.0.1-canary.6
-      '@next-rspack/binding-linux-x64-gnu': 0.0.1-canary.6
-      '@next-rspack/binding-linux-x64-musl': 0.0.1-canary.6
-      '@next-rspack/binding-win32-arm64-msvc': 0.0.1-canary.6
-      '@next-rspack/binding-win32-ia32-msvc': 0.0.1-canary.6
-      '@next-rspack/binding-win32-x64-msvc': 0.0.1-canary.6
-
-  '@next-rspack/core@0.0.1-canary.6(@swc/helpers@0.5.15)':
-    dependencies:
-      '@next/rspack-binding': '@next-rspack/binding@0.0.1-canary.6'
-      '@rspack/core': 1.5.0(@swc/helpers@0.5.15)
-    transitivePeerDependencies:
-      - '@swc/helpers'
 
   '@next/env@15.5.3': {}
 
