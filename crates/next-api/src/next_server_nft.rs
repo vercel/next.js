@@ -303,8 +303,6 @@ impl ServerNftJsonAsset {
             "**/next/dist/server/lib/route-resolver*",
             "**/next/dist/compiled/semver/semver/**/*.js",
             "**/next/dist/compiled/jest-worker/**/*",
-            // Turbopack doesn't support AMP
-            "**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*",
             // -- The following were added for Turbopack specifically --
             // client/components/use-action-queue.ts has a process.env.NODE_ENV guard, but we can't set that due to React: https://github.com/vercel/next.js/pull/75254
             "**/next/dist/next-devtools/userspace/use-app-dev-rendering-indicator.js",

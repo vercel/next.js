@@ -47,8 +47,6 @@
     "router.d.ts",
     "jest.js",
     "jest.d.ts",
-    "amp.js",
-    "amp.d.ts",
     "og.js",
     "og.d.ts",
     "root-params.js",
@@ -134,7 +132,6 @@
     "sharp": "^0.34.4"
   },
   "devDependencies": {
-    "@ampproject/toolbox-optimizer": "2.8.3",
     "@babel/code-frame": "7.26.2",
     "@babel/core": "7.26.10",
     "@babel/eslint-parser": "7.24.6",
@@ -188,7 +185,6 @@
     "@swc/types": "0.1.7",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
-    "@types/amphtml-validator": "1.0.0",
     "@types/babel__code-frame": "7.0.6",
     "@types/babel__core": "7.20.5",
     "@types/babel__generator": "7.27.0",
@@ -226,7 +222,6 @@
     "@vercel/nft": "0.27.1",
     "@vercel/turbopack-ecmascript-runtime": "*",
     "acorn": "8.14.0",
-    "amphtml-validator": "1.0.38",
     "anser": "1.4.9",
     "arg": "4.1.0",
     "assert": "2.0.0",
