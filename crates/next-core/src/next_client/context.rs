@@ -421,6 +421,7 @@ pub struct ClientChunkingContextOptions {
     pub source_maps: Vc<bool>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub debug_ids: Vc<bool>,
 }
 
 #[turbo_tasks::function]
@@ -441,6 +442,7 @@ pub async fn get_client_chunking_context(
         source_maps,
         no_mangling,
         scope_hoisting,
+        debug_ids,
     } = options;
 
     let next_mode = mode.await?;
@@ -473,7 +475,8 @@ pub async fn get_client_chunking_context(
     .asset_base_path(asset_prefix)
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .export_usage(*export_usage.await?)
-    .module_id_strategy(module_id_strategy.to_resolved().await?);
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .debug_ids(*debug_ids.await?);
 
     if next_mode.is_development() {
         builder = builder

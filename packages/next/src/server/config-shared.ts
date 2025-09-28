@@ -172,6 +172,14 @@ export interface TurbopackOptions {
    * directory can be resolved by turbopack.
    */
   root?: string
+
+  /**
+   * Enables generation of debug IDs in JavaScript bundles and source maps.
+   * These debug IDs help with debugging and error tracking by providing stable identifiers.
+   *
+   * @see https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md TC39 Debug ID Proposal
+   */
+  debugIds?: boolean
 }
 
 export interface WebpackConfigContext {

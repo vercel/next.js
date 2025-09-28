@@ -159,6 +159,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     .optional(),
   resolveExtensions: z.array(z.string()).optional(),
   root: z.string().optional(),
+  debugIds: z.boolean().optional(),
 })
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>

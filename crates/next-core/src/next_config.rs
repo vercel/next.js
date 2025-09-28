@@ -561,6 +561,7 @@ pub struct TurbopackConfig {
     pub rules: Option<FxIndexMap<RcStr, RuleConfigCollection>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
+    pub debug_ids: Option<bool>,
 }
 
 #[derive(
@@ -1853,6 +1854,16 @@ impl NextConfig {
     pub fn server_source_maps(&self) -> Result<Vc<bool>> {
         let source_maps = self.experimental.turbopack_source_maps;
         Ok(Vc::cell(source_maps.unwrap_or(true)))
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_debug_ids(&self) -> Vc<bool> {
+        Vc::cell(
+            self.turbopack
+                .as_ref()
+                .and_then(|turbopack| turbopack.debug_ids)
+                .unwrap_or(false),
+        )
     }
 
     #[turbo_tasks::function]

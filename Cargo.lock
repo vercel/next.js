@@ -9564,8 +9564,10 @@ dependencies = [
  "turbo-tasks-hash",
  "turbo-tasks-testing",
  "turbo-unix-path",
+ "twox-hash 2.1.0",
  "url",
  "urlencoding",
+ "uuid",
 ]
 
 [[package]]
@@ -10223,9 +10225,9 @@ checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
 
 [[package]]
 name = "uuid"
-version = "1.17.0"
+version = "1.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cf4199d1e5d15ddd86a694e4d0dffa9c323ce759fea589f00fef9d81cc1931d"
+checksum = "2f87b8aa10b915a06587d0dec516c282ff295b475d94abf425d62b57710070a2"
 dependencies = [
  "getrandom 0.3.3",
  "js-sys",

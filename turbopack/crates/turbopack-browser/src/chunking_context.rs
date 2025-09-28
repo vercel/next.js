@@ -168,6 +168,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn debug_ids(mut self, debug_ids: bool) -> Self {
+        self.chunking_context.debug_ids = debug_ids;
+        self
+    }
+
     pub fn chunking_config<T>(mut self, ty: ResolvedVc<T>, chunking_config: ChunkingConfig) -> Self
     where
         T: Upcast<Box<dyn ChunkType>>,
@@ -229,6 +234,8 @@ pub struct BrowserChunkingContext {
     enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
     enable_dynamic_chunk_content_loading: bool,
+    /// Enable debug IDs for chunks and source maps.
+    debug_ids: bool,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -279,6 +286,7 @@ impl BrowserChunkingContext {
                 enable_tracing: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
+                debug_ids: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -779,5 +787,10 @@ impl ChunkingContext for BrowserChunkingContext {
             // used.
             Ok(ModuleExportUsage::all())
         }
+    }
+
+    #[turbo_tasks::function]
+    async fn debug_ids_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.debug_ids))
     }
 }
