@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { useEffect, startTransition } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { encodeURIPath } from '../../../../shared/lib/encode-uri-path'
 import formatWebpackMessages from '../../../../shared/lib/format-webpack-messages'
 import {
   REACT_REFRESH_FULL_RELOAD,
@@ -44,6 +45,12 @@ export interface StaticIndicatorState {
   appIsrManifest: Record<string, true>
 }
 
+type WebpackRequire = typeof __webpack_require__ & {
+  hu?: (chunkId: string | number) => string
+  miniCssF?: (chunkId: string | number) => string
+  hmrF?: () => string
+}
+
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let reloading = false
@@ -51,6 +58,7 @@ let webpackStartMsSinceEpoch: number | null = null
 const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK
   ? new TurbopackHmr()
   : null
+let webpackRequire: WebpackRequire | undefined
 
 let pendingHotUpdateWebpack = Promise.resolve()
 let resolvePendingHotUpdateWebpack: () => void = () => {}
@@ -103,6 +111,32 @@ function afterApplyUpdates(fn: any) {
       }
     }
     module.hot.addStatusHandler(handler)
+  }
+}
+
+function setupHotUpdateEncoding() {
+  if (webpackRequire) {
+    return
+  }
+  webpackRequire = __webpack_require__ as WebpackRequire
+  const originalHu = webpackRequire.hu
+
+  function encodeHotUpdatePath(path: string): string {
+    if (!path) return path
+
+    const isHotUpdateFile = /\.hot-update\.(js|css)($|\?)/.test(path)
+    if (!isHotUpdateFile) {
+      return path
+    }
+
+    return encodeURIPath(path)
+  }
+
+  if (originalHu) {
+    webpackRequire.hu = function (chunkId: string | number) {
+      const filename = originalHu(chunkId)
+      return encodeHotUpdatePath(filename)
+    }
   }
 }
 
@@ -179,6 +213,11 @@ function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
       })
     }
   }
+
+  // Setup HMR hot update file path encoding to solve %5F and other special character path issues
+  // Because serve-static.ts send method will decode URI, causing encoded paths unable to find corresponding files
+  // Related issue: #82724
+  setupHotUpdateEncoding()
 
   // https://webpack.js.org/api/hot-module-replacement/#check
   module.hot
