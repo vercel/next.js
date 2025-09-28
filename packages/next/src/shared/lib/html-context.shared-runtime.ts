@@ -18,7 +18,6 @@ export type HtmlProps = {
   }
   buildManifest: BuildManifest
   ampPath: string
-  inAmpMode: boolean
   hybridAmp: boolean
   isDevelopment: boolean
   dynamicImports: string[]

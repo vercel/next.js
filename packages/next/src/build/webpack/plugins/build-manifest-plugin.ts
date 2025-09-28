@@ -10,12 +10,10 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
 import type { BuildManifest } from '../../../server/get-page-files'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
-import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { Span } from '../../../trace'
 import { getCompilationSpan } from '../utils'
@@ -154,18 +152,6 @@ export default class BuildManifestPlugin {
         ampFirstPages: [],
       }
 
-      const ampFirstEntryNames = ampFirstEntryNamesMap.get(compilation)
-      if (ampFirstEntryNames) {
-        for (const entryName of ampFirstEntryNames) {
-          const pagePath = getRouteFromEntrypoint(entryName)
-          if (!pagePath) {
-            continue
-          }
-
-          assetMap.ampFirstPages.push(pagePath)
-        }
-      }
-
       const mainFiles = new Set(
         getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
@@ -203,9 +189,8 @@ export default class BuildManifestPlugin {
         entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)
       ).filter((file) => !mainFiles.has(file))
 
-      assetMap.ampDevFiles = getEntrypointFiles(
-        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_AMP)
-      )
+      // TODO: Follow up AMP - remove this property
+      assetMap.ampDevFiles = []
 
       for (const entrypoint of compilation.entrypoints.values()) {
         if (SYSTEM_ENTRYPOINTS.has(entrypoint.name)) continue

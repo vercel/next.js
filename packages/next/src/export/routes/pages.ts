@@ -15,7 +15,6 @@ import type {
   MockedRequest,
   MockedResponse,
 } from '../../server/lib/mock-request'
-import { isInAmpMode } from '../../shared/lib/amp-mode'
 import {
   HTML_CONTENT_TYPE_HEADER,
   NEXT_DATA_SUFFIX,
@@ -25,10 +24,6 @@ import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-cs
 import { FileType, fileExists } from '../../lib/file-exists'
 import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
-import {
-  getAmpValidatorInstance,
-  getBundledAmpValidatorFilepath,
-} from '../helpers/get-amp-html-validator'
 
 /**
  * Renders & exports a page associated with the /pages directory
@@ -45,7 +40,8 @@ export async function exportPagesPage(
   ampPath: string,
   subFolders: boolean,
   outDir: string,
-  ampValidatorPath: string | undefined,
+  // TODO: Follow up AMP - remove this parameter
+  _ampValidatorPath: string | undefined,
   pagesDataDir: string,
   buildExport: boolean,
   isDynamic: boolean,
@@ -62,11 +58,7 @@ export async function exportPagesPage(
     hybrid: components.pageConfig?.amp === 'hybrid',
   }
 
-  if (!ampValidatorPath) {
-    ampValidatorPath = getBundledAmpValidatorFilepath()
-  }
-
-  const inAmpMode = isInAmpMode(ampState)
+  // TODO: Follow up AMP - remove this
   const hybridAmp = ampState.hybrid
 
   if (components.getServerSideProps) {
@@ -134,73 +126,13 @@ export async function exportPagesPage(
   const ssgNotFound = renderResult?.metadata.isNotFound
 
   const ampValidations: AmpValidation[] = []
-
-  const validateAmp = async (
-    rawAmpHtml: string,
-    ampPageName: string,
-    validatorPath: string | undefined
-  ) => {
-    const validator = await getAmpValidatorInstance(validatorPath)
-    const result = validator.validateString(rawAmpHtml)
-    const errors = result.errors.filter((error) => {
-      if (error.severity === 'ERROR') {
-        // Unclear yet if these actually prevent the page from being indexed by the AMP cache.
-        // These are coming from React so all we can do is ignore them for now.
-
-        // <link rel="expect" blocking="render" />
-        // https://github.com/ampproject/amphtml/issues/40279
-        if (
-          error.code === 'DISALLOWED_ATTR' &&
-          error.params[0] === 'blocking' &&
-          error.params[1] === 'link'
-        ) {
-          return false
-        }
-        // <template> without type
-        // https://github.com/ampproject/amphtml/issues/40280
-        if (
-          error.code === 'MANDATORY_ATTR_MISSING' &&
-          error.params[0] === 'type' &&
-          error.params[1] === 'template'
-        ) {
-          return false
-        }
-        // <template> without type
-        // https://github.com/ampproject/amphtml/issues/40280
-        if (
-          error.code === 'MISSING_REQUIRED_EXTENSION' &&
-          error.params[0] === 'template' &&
-          error.params[1] === 'amp-mustache'
-        ) {
-          return false
-        }
-        return true
-      }
-      return false
-    })
-    const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
-
-    if (warnings.length || errors.length) {
-      ampValidations.push({
-        page: ampPageName,
-        result: {
-          errors,
-          warnings,
-        },
-      })
-    }
-  }
-
   const html =
     renderResult && !renderResult.isNull ? renderResult.toUnchunkedString() : ''
 
+  // TODO: Follow up AMP - remove this
   let ampRenderResult: RenderResult | undefined
 
-  if (inAmpMode && !renderOpts.ampSkipValidation) {
-    if (!ssgNotFound) {
-      await validateAmp(html, path, ampValidatorPath)
-    }
-  } else if (hybridAmp) {
+  if (hybridAmp) {
     const ampHtmlFilename = subFolders
       ? join(ampPath, 'index.html')
       : `${ampPath}.html`
@@ -227,9 +159,6 @@ export async function exportPagesPage(
         ampRenderResult && !ampRenderResult.isNull
           ? ampRenderResult.toUnchunkedString()
           : ''
-      if (!renderOpts.ampSkipValidation) {
-        await validateAmp(ampHtml, page + '?amp=1', ampValidatorPath)
-      }
 
       fileWriter.append(ampHtmlFilepath, ampHtml)
     }

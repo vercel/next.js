@@ -7,7 +7,8 @@ type PostProcessorFunction =
   | ((html: string) => string)
 
 async function postProcessHTML(
-  pathname: string,
+  // TODO: Follow up AMP - remove this parameter
+  _pathname: string,
   content: string,
   renderOpts: Pick<
     RenderOpts,
@@ -18,21 +19,9 @@ async function postProcessHTML(
     | 'distDir'
     | 'assetPrefix'
   >,
-  { inAmpMode, hybridAmp }: { inAmpMode: boolean; hybridAmp: boolean }
+  { hybridAmp }: { hybridAmp: boolean }
 ) {
   const postProcessors: Array<PostProcessorFunction> = [
-    process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && !process.env.TURBOPACK
-      ? async (html: string) => {
-          const optimizeAmp = (
-            require('./optimize-amp') as typeof import('./optimize-amp')
-          ).default as typeof import('./optimize-amp').default
-          html = await optimizeAmp!(html, renderOpts.ampOptimizerConfig)
-          if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
-            await renderOpts.ampValidator(html, pathname)
-          }
-          return html
-        }
-      : null,
     process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeCss
       ? async (html: string) => {
           // eslint-disable-next-line import/no-extraneous-dependencies
@@ -53,7 +42,8 @@ async function postProcessHTML(
           return await cssOptimizer.process(html)
         }
       : null,
-    inAmpMode || hybridAmp
+    // TODO: Follow up AMP - remove this post processor
+    hybridAmp
       ? (html: string) => {
           return html.replace(/&amp;amp=1/g, '&amp=1')
         }

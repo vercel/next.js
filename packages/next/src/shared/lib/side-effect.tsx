@@ -10,7 +10,6 @@ export type SideEffectProps = {
   ) => State
   handleStateChange?: (state: State) => void
   headManager: any
-  inAmpMode?: boolean
   children: React.ReactNode
 }
 

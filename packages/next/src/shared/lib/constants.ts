@@ -142,6 +142,7 @@ export const CLIENT_STATIC_FILES_RUNTIME_MAIN_APP = `${CLIENT_STATIC_FILES_RUNTI
 export const APP_CLIENT_INTERNALS = 'app-pages-internals'
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
+// TODO: Follow up AMP - remove this constant
 // static/runtime/amp.js
 export const CLIENT_STATIC_FILES_RUNTIME_AMP = `amp`
 // static/runtime/webpack.js
