@@ -1,4 +1,152 @@
 name: Turbopack Next.js development integration tests
+const { google } = require("googleapis");
+
+async function main() {
+  try {
+    const creds = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS);
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+    const sheetName = process.env.SHEET_NAME;
+
+    if (!creds || !spreadsheetId || !sheetName) {
+      throw new Error("Missing required env vars: GOOGLE_SHEETS_CREDENTIALS, SPREADSHEET_ID, SHEET_NAME");
+    }
+
+    // Auth
+    const auth = new google.auth.GoogleAuth({
+      credentials: creds,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    const sheets = google.sheets({ version: "v4", auth });
+
+    // Get spreadsheet metadata
+    const sheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+    let sheet = sheetMeta.data.sheets.find(s => s.properties.title === sheetName);
+    let sheetId;
+
+    // 🚀 If sheet tab doesn’t exist, create it
+    if (!sheet) {
+      const addResp = await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              addSheet: {
+                properties: { title: sheetName },
+              },
+            },
+          ],
+        },
+      });
+      sheetId = addResp.data.replies[0].addSheet.properties.sheetId;
+      console.log(`🆕 Created new sheet tab: ${sheetName}`);
+    } else {
+      sheetId = sheet.properties.sheetId;
+    }
+
+    // 🏗️ Ensure header row exists
+    const header = [
+      "Timestamp",
+      "Branch",
+      "Commit",
+      "Message",
+      "Author",
+      "Status",
+      "Duration",
+      "Run URL",
+    ];
+
+    const current = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A1:H1`,
+    });
+
+    if (!current.data.values || current.data.values.length === 0) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!A1:H1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [header] },
+      });
+      console.log("📝 Header row created");
+    }
+
+    // ⏱️ Collect run metadata
+    const commitSha = process.env.GITHUB_SHA?.slice(0, 7) || "unknown";
+    const commitMsg = process.env.GITHUB_EVENT_HEAD_COMMIT_MESSAGE || "no message";
+    const actor = process.env.GITHUB_ACTOR || "unknown";
+    const branch = process.env.GITHUB_REF_NAME || "unknown";
+    const runUrl = `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+    const testStatus = process.env.TEST_STATUS || "unknown";
+
+    const start = process.env.WORKFLOW_START;
+    const end = Date.now();
+    let durationMin = "unknown";
+    if (start) {
+      durationMin = ((end - parseInt(start, 10)) / 60000).toFixed(2) + " min";
+    }
+
+    const values = [[
+      new Date().toISOString(),
+      branch,
+      commitSha,
+      commitMsg,
+      actor,
+      testStatus,
+      durationMin,
+      runUrl,
+    ]];
+
+    // Append new row
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${sheetName}!A1`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values },
+    });
+
+    console.log(`✅ Logged commit ${commitSha} with status ${testStatus} in ${durationMin}`);
+
+    // 🎨 Formatting
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            updateSheetProperties: {
+              properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+              fields: "gridProperties.frozenRowCount",
+            },
+          },
+          {
+            repeatCell: {
+              range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: { bold: true },
+                  horizontalAlignment: "CENTER",
+                  backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 },
+                },
+              },
+              fields: "userEnteredFormat(textFormat,horizontalAlignment,backgroundColor)",
+            },
+          },
+          {
+            autoResizeDimensions: {
+              dimensions: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 8 },
+            },
+          },
+        ],
+      },
+    });
+
+    console.log("🎨 Sheet formatted (header bold, frozen, columns auto-sized)");
+  } catch (err) {
+    console.error("❌ Sheets error:", err.message);
+    process.exit(1);
+  }
+}
+
+main();
 
 on:
   schedule:
