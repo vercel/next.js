@@ -1,5 +1,10 @@
 use std::{
-    collections::BTreeMap, fmt::Debug, future::Future, hash::Hash, sync::Arc, time::Duration,
+    collections::{BTreeMap, BTreeSet},
+    fmt::Debug,
+    future::Future,
+    hash::Hash,
+    sync::Arc,
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -8,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
 use crate::{
-    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
+    MagicAny, ReadRef, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
     trace::TraceRawVcs,
 };
 
@@ -104,6 +109,25 @@ where
 
     async fn resolve_input(&self) -> Result<Self> {
         Ok(Arc::new(Box::pin(self.as_ref().resolve_input()).await?))
+    }
+}
+
+impl<T> TaskInput for ReadRef<T>
+where
+    T: TaskInput,
+{
+    fn is_resolved(&self) -> bool {
+        Self::as_raw_ref(self).is_resolved()
+    }
+
+    fn is_transient(&self) -> bool {
+        Self::as_raw_ref(self).is_transient()
+    }
+
+    async fn resolve_input(&self) -> Result<Self> {
+        Ok(ReadRef::new_owned(
+            Box::pin(Self::as_raw_ref(self).resolve_input()).await?,
+        ))
     }
 }
 
@@ -278,7 +302,7 @@ where
 
     fn is_resolved(&self) -> bool {
         self.iter()
-            .all(|(k, v)| TaskInput::is_resolved(k) || TaskInput::is_resolved(v))
+            .all(|(k, v)| TaskInput::is_resolved(k) && TaskInput::is_resolved(v))
     }
 
     fn is_transient(&self) -> bool {
@@ -286,6 +310,41 @@ where
             .any(|(k, v)| TaskInput::is_transient(k) || TaskInput::is_transient(v))
     }
 }
+
+impl<T> TaskInput for BTreeSet<T>
+where
+    T: TaskInput + Ord,
+{
+    async fn resolve_input(&self) -> Result<Self> {
+        let mut new_map = BTreeSet::new();
+        for value in self {
+            new_map.insert(TaskInput::resolve_input(value).await?);
+        }
+        Ok(new_map)
+    }
+
+    fn is_resolved(&self) -> bool {
+        self.iter().all(TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter().any(TaskInput::is_transient)
+    }
+}
+
+impl<T> TaskInput for auto_hash_map::AutoSet<T>
+where
+    T: TaskInput,
+{
+    fn is_resolved(&self) -> bool {
+        self.iter().all(TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter().any(TaskInput::is_transient)
+    }
+}
+
 macro_rules! tuple_impls {
     ( $( $name:ident )+ ) => {
         impl<$($name: TaskInput),+> TaskInput for ($($name,)+)

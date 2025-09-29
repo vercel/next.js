@@ -41,8 +41,8 @@ import { getHostname } from '../../shared/lib/get-hostname'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { MockedResponse } from './mock-request'
 import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  type AppIsrManifestAction,
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type AppIsrManifestMessage,
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
@@ -587,6 +587,36 @@ export async function initialize(opts: {
         'private, no-cache, no-store, max-age=0, must-revalidate'
       )
 
+      let realRequestPathname = parsedUrl.pathname ?? ''
+      if (realRequestPathname) {
+        if (config.basePath) {
+          realRequestPathname = removePathPrefix(
+            realRequestPathname,
+            config.basePath
+          )
+        }
+        if (config.assetPrefix) {
+          realRequestPathname = removePathPrefix(
+            realRequestPathname,
+            config.assetPrefix
+          )
+        }
+        if (config.i18n) {
+          realRequestPathname = removePathPrefix(
+            realRequestPathname,
+            '/' + (getRequestMeta(req, 'locale') ?? '')
+          )
+        }
+      }
+      // For not found static assets, return plain text 404 instead of
+      // full HTML 404 pages to save bandwidth.
+      if (realRequestPathname.startsWith('/_next/static/')) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Not Found')
+        return null
+      }
+
       // Short-circuit favicon.ico serving so that the 404 page doesn't get built as favicon is requested by the browser when loading any route.
       if (opts.dev && !matchedOutput && parsedUrl.pathname === '/favicon.ico') {
         res.statusCode = 404
@@ -694,6 +724,9 @@ export async function initialize(opts: {
       ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
       : (err: unknown) => !opts.quiet && Log.error(err),
     setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
+    setReactDebugChannel: config.experimental.reactDebugChannel
+      ? devBundlerService?.setReactDebugChannel.bind(devBundlerService)
+      : undefined,
   }
 
   const logError = async (
@@ -771,9 +804,9 @@ export async function initialize(opts: {
             (client) => {
               client.send(
                 JSON.stringify({
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
+                  type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
                   data: devBundlerService?.appIsrManifest || {},
-                } satisfies AppIsrManifestAction)
+                } satisfies AppIsrManifestMessage)
               )
             }
           )

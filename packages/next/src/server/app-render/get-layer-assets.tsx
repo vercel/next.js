@@ -46,7 +46,7 @@ export function getLayerAssets({
         const fontFilename = preloadedFontFiles[i]
         const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
         const type = `font/${ext}`
-        const href = `${ctx.assetPrefix}/_next/${encodeURIPath(fontFilename)}${getAssetQueryString(ctx, false)}`
+        const href = `${ctx.assetPrefix}/_next/${encodeURIPath(fontFilename)}`
 
         preloadCallbacks.push(() => {
           ctx.componentMod.preloadFont(

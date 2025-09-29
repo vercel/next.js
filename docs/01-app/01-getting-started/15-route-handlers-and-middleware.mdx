@@ -109,7 +109,7 @@ export default function Page() {
   return <h1>Hello, Next.js!</h1>
 }
 
-// ❌ Conflict
+// Conflict
 // `app/route.ts`
 export async function POST(request: Request) {}
 ```
@@ -119,12 +119,29 @@ export default function Page() {
   return <h1>Hello, Next.js!</h1>
 }
 
-// ❌ Conflict
+// Conflict
 // `app/route.js`
 export async function POST(request) {}
 ```
 
 Read more about how Route Handlers [complement your frontend application](/docs/app/guides/backend-for-frontend), or explore the Route Handlers [API Reference](/docs/app/api-reference/file-conventions/route).
+
+### Route Context Helper
+
+In TypeScript, you can type the `context` parameter for Route Handlers with the globally available [`RouteContext`](/docs/app/api-reference/file-conventions/route#route-context-helper) helper:
+
+```ts filename="app/users/[id]/route.ts" switcher
+import type { NextRequest } from 'next/server'
+
+export async function GET(_req: NextRequest, ctx: RouteContext<'/users/[id]'>) {
+  const { id } = await ctx.params
+  return Response.json({ id })
+}
+```
+
+> **Good to know**
+>
+> - Types are generated during `next dev`, `next build` or `next typegen`.
 
 ## Middleware
 
@@ -147,7 +164,7 @@ Using fetch with `options.cache`, `options.next.revalidate`, or `options.next.ta
 
 ### Convention
 
-Use the file `middleware.ts` (or `.js`) in the root of your project to define Middleware. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
+Create a `middleware.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
 
 > **Note**: While only one `middleware.ts` file is supported per project, you can still organize your middleware logic into modules. Break out middleware functionalities into separate `.ts` or `.js` files and import them into your main `middleware.ts` file. This allows for cleaner management of route-specific middleware, aggregated in the `middleware.ts` for centralized control. By enforcing a single middleware file, it simplifies configuration, prevents potential conflicts, and optimizes performance by avoiding multiple middleware layers.
 

@@ -14,18 +14,25 @@ import {
   type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
-import type { FallbackRouteParams } from './fallback-params'
+import type { OpaqueFallbackRouteParams } from './fallback-params'
 import type { Params, ParamValue } from './params'
 import {
   describeStringPropertyAccess,
   wellKnownProperties,
 } from '../../shared/lib/utils/reflect-utils'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
+import { warnOnce } from '../../build/output/log'
 
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 
+/**
+ * @deprecated import specific root params from `next/root-params` instead.
+ */
 export async function unstable_rootParams(): Promise<Params> {
+  warnOnce(
+    '`unstable_rootParams()` is deprecated and will be removed in an upcoming major release. Import specific root params from `next/root-params` instead.'
+  )
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
     throw new InvariantError('Missing workStore in unstable_rootParams')
@@ -129,7 +136,7 @@ function createPrerenderRootParams(
 
 function makeErroringRootParams(
   underlyingParams: Params,
-  fallbackParams: FallbackRouteParams,
+  fallbackParams: OpaqueFallbackRouteParams,
   workStore: WorkStore,
   prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy
 ): Promise<Params> {

@@ -6,7 +6,7 @@ import { NextInstance, NextInstanceOpts } from '../next-modes/base'
 import { NextDevInstance } from '../next-modes/next-dev'
 import { NextStartInstance } from '../next-modes/next-start'
 import { NextDeployInstance } from '../next-modes/next-deploy'
-import { shouldRunTurboDevTest } from '../next-test-utils'
+import { shouldUseTurbopack } from '../next-test-utils'
 
 export type { NextInstance }
 
@@ -14,9 +14,7 @@ export type { NextInstance }
 // if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
 // this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
 // test job exceeds the 6 hours limit.
-let testTimeout = shouldRunTurboDevTest()
-  ? (240 * 1000) / 2
-  : (process.platform === 'win32' ? 240 : 120) * 1000
+let testTimeout = (process.platform === 'win32' ? 240 : 120) * 1000
 
 if (process.env.NEXT_E2E_TEST_TIMEOUT) {
   try {
@@ -166,7 +164,7 @@ export async function createNext(
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
       const useTurbo = !!process.env.NEXT_TEST_WASM
         ? false
-        : opts?.turbo ?? shouldRunTurboDevTest()
+        : (opts?.turbo ?? shouldUseTurbopack())
 
       if (testMode === 'dev') {
         // next dev
@@ -291,8 +289,7 @@ export function nextTestSetup(
     },
     get isTurbopack(): boolean {
       return Boolean(
-        !process.env.NEXT_TEST_WASM &&
-          (options.turbo ?? shouldRunTurboDevTest())
+        !process.env.NEXT_TEST_WASM && (options.turbo ?? shouldUseTurbopack())
       )
     },
 

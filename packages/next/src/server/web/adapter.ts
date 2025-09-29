@@ -297,7 +297,6 @@ export async function adapter(
                 onClose: closeController.onClose.bind(closeController),
                 onAfterTaskError: undefined,
               },
-              requestEndedState: { ended: false },
               isPrefetchRequest:
                 request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
@@ -381,10 +380,19 @@ export async function adapter(
       response.headers.set('x-nextjs-rewrite', relativeDestination)
     }
 
+    // Check to see if this is a non-relative rewrite. If it is, we need
+    // to check to see if it's an allowed origin to receive the rewritten
+    // headers.
+    const isAllowedOrigin = !isRelative
+      ? params.request.nextConfig?.experimental?.clientParamParsingOrigins?.some(
+          (origin) => new RegExp(origin).test(destination.origin)
+        )
+      : false
+
     // If this is an RSC request, and the pathname or search has changed, and
     // this isn't an external rewrite, we need to set the rewritten pathname and
     // query headers.
-    if (isRSCRequest && isRelative) {
+    if (isRSCRequest && (isRelative || isAllowedOrigin)) {
       if (requestURL.pathname !== destination.pathname) {
         response.headers.set(NEXT_REWRITTEN_PATH_HEADER, destination.pathname)
       }

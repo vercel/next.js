@@ -1,12 +1,15 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { DevOverlayContext } from '../../dev-overlay.browser'
+import {
+  DevOverlayContext,
+  useDevOverlayContext,
+} from '../../dev-overlay.browser'
 import { RenderErrorContext } from '../dev-overlay'
 import { PanelRouterContext, type PanelStateKind } from '../menu/context'
 import { INITIAL_OVERLAY_STATE } from '../shared'
 import type { OverlayState, DispatcherEvent } from '../shared'
 import type { ReadyRuntimeError } from '../utils/get-error-by-type'
 
-interface WithDevOverlayContextsProps {
+interface WithDevOverlayContextsOptions {
   state?: Partial<OverlayState>
   dispatch?: (action: DispatcherEvent) => void
   runtimeErrors?: ReadyRuntimeError[]
@@ -15,15 +18,17 @@ interface WithDevOverlayContextsProps {
   setPanel?: Dispatch<SetStateAction<PanelStateKind | null>>
   selectedIndex?: number
   setSelectedIndex?: Dispatch<SetStateAction<number>>
+  shadowRoot?: ShadowRoot
 }
 
 export const withDevOverlayContexts =
-  (props?: WithDevOverlayContextsProps) => (Story: any) => {
+  (options?: WithDevOverlayContextsOptions) => (Story: any) => {
+    const parentContext = useDevOverlayContext()
     const [panel, setPanel] = useState<PanelStateKind | null>(
-      props?.panel ?? null
+      options?.panel ?? null
     )
     const [selectedIndex, setSelectedIndex] = useState(
-      props?.selectedIndex ?? -1
+      options?.selectedIndex ?? -1
     )
     const triggerRef = useRef<HTMLButtonElement>(null)
 
@@ -31,10 +36,17 @@ export const withDevOverlayContexts =
       ...INITIAL_OVERLAY_STATE,
       routerType: 'app',
       isErrorOverlayOpen: false,
-      ...props?.state,
+      ...options?.state,
     }
 
-    const defaultDispatch = props?.dispatch || (() => {})
+    const defaultDispatch = options?.dispatch || (() => {})
+
+    const shadowRoot = options?.shadowRoot ?? parentContext?.shadowRoot
+    if (shadowRoot == null) {
+      throw new Error(
+        '`options.shadowRoot` is required without a parent context'
+      )
+    }
 
     return (
       <DevOverlayContext.Provider
@@ -42,21 +54,22 @@ export const withDevOverlayContexts =
           state: defaultState,
           dispatch: defaultDispatch,
           getSquashedHydrationErrorDetails: () => null,
+          shadowRoot,
         }}
       >
         <RenderErrorContext.Provider
           value={{
-            runtimeErrors: props?.runtimeErrors ?? [],
-            totalErrorCount: props?.totalErrorCount ?? 0,
+            runtimeErrors: options?.runtimeErrors ?? [],
+            totalErrorCount: options?.totalErrorCount ?? 0,
           }}
         >
           <PanelRouterContext.Provider
             value={{
               panel,
-              setPanel: props?.setPanel ?? setPanel,
+              setPanel: options?.setPanel ?? setPanel,
               triggerRef,
               selectedIndex,
-              setSelectedIndex: props?.setSelectedIndex ?? setSelectedIndex,
+              setSelectedIndex: options?.setSelectedIndex ?? setSelectedIndex,
             }}
           >
             <Story />

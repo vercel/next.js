@@ -1,4 +1,4 @@
-import type { TurbopackMessageAction } from '../../../server/dev/hot-reloader-types'
+import type { TurbopackMessage } from '../../../server/dev/hot-reloader-types'
 import type { Update as TurbopackUpdate } from '../../../build/swc/types'
 
 declare global {
@@ -23,9 +23,11 @@ export class TurbopackHmr {
   #startMsSinceEpoch: number | undefined
   #lastUpdateMsSinceEpoch: number | undefined
   #deferredReportHmrStartId: ReturnType<typeof setTimeout> | undefined
+  #reportedHmrStart: boolean
 
   constructor() {
     this.#updatedModules = new Set()
+    this.#reportedHmrStart = false
   }
 
   // HACK: Turbopack tends to generate a lot of irrelevant "BUILDING" actions,
@@ -39,6 +41,7 @@ export class TurbopackHmr {
   #runDeferredReportHmrStart() {
     if (this.#deferredReportHmrStartId != null) {
       console.log('[Fast Refresh] rebuilding')
+      this.#reportedHmrStart = true
       this.#cancelDeferredReportHmrStart()
     }
   }
@@ -69,7 +72,7 @@ export class TurbopackHmr {
     this.#lastUpdateMsSinceEpoch = Date.now()
   }
 
-  onTurbopackMessage(msg: TurbopackMessageAction) {
+  onTurbopackMessage(msg: TurbopackMessage) {
     this.#onUpdate()
     const updatedModules = extractModulesFromTurbopackMessage(msg.data)
     for (const module of updatedModules) {
@@ -95,14 +98,14 @@ export class TurbopackHmr {
    *   the HMR in the browser console, but the HMR was a no-op.
    */
   onBuilt(): HmrUpdate | null {
-    // Check that we got *any* `TurbopackMessageAction`, even if
+    // Check that we got *any* `TurbopackMessage`, even if
     // `updatedModules` is empty (not everything gets recorded there).
     //
     // There's also a case where `onBuilt` gets called before `onBuilding`,
     // which can happen during initial page load. Ignore that too!
     const hasUpdates =
       this.#lastUpdateMsSinceEpoch != null && this.#startMsSinceEpoch != null
-    if (!hasUpdates && this.#deferredReportHmrStartId != null) {
+    if (!hasUpdates && !this.#reportedHmrStart) {
       // suppress the update entirely
       this.#cancelDeferredReportHmrStart()
       return null
@@ -116,6 +119,7 @@ export class TurbopackHmr {
       endMsSinceEpoch: this.#lastUpdateMsSinceEpoch ?? Date.now(),
     }
     this.#updatedModules = new Set()
+    this.#reportedHmrStart = false
     return result
   }
 }

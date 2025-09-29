@@ -1,7 +1,10 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
-use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    FileJsonContent, FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     asset::Asset,
     chunk::ChunkableModule,
@@ -66,9 +69,13 @@ async fn side_effects_from_package_json(
                         if side_effect.contains('/') {
                             Some(Glob::new(
                                 side_effect.strip_prefix("./").unwrap_or(side_effect).into(),
+                                GlobOptions::default(),
                             ))
                         } else {
-                            Some(Glob::new(format!("**/{side_effect}").into()))
+                            Some(Glob::new(
+                                format!("**/{side_effect}").into(),
+                                GlobOptions::default(),
+                            ))
                         }
                     } else {
                         SideEffectsInPackageJsonIssue {
@@ -191,7 +198,7 @@ pub async fn is_marked_as_side_effect_free(
         return Ok(Vc::cell(true));
     }
 
-    let find_package_json = find_context_file(path.parent(), package_json()).await?;
+    let find_package_json = find_context_file(path.parent(), package_json(), false).await?;
 
     if let FindContextFileResult::Found(package_json, _) = &*find_package_json {
         match *side_effects_from_package_json(package_json.clone()).await? {

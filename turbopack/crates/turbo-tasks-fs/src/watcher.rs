@@ -16,13 +16,12 @@ use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
 };
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, spawn_thread,
+    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, parallel, spawn_thread,
     util::StaticOrArc,
 };
 
@@ -287,23 +286,39 @@ mod non_recursive_helpers {
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
-        let mut cur_path = dir_path;
-        loop {
-            start_watching_dir(&mut state.notify_watcher, cur_path, root_path)?;
+        let mut found_watched_ancestor = false;
 
-            let Some(parent_path) = cur_path.parent() else {
-                // this should never happen as we break before we reach the root path
-                anyhow::bail!(
-                    "failed to compute parent path of {cur_path:?} while watching {dir_path:?} in \
-                     root {root_path:?}"
-                );
-            };
+        // NOTE: `Path::ancestors` yields ancestors from longest to shortest path.
+        let dir_and_ancestor_paths: Vec<_> = [dir_path]
+            .into_iter()
+            .chain(
+                dir_path
+                    .ancestors()
+                    // skip: `ancestors` includes `dir_path` itself, as well as the ancestors, but
+                    // we only want to apply the `take_while` check to parents
+                    .skip(1)
+                    .take_while(|p| {
+                        found_watched_ancestor = *p == root_path || state.watched.contains(*p);
+                        !found_watched_ancestor
+                    }),
+            )
+            .collect();
 
-            if parent_path == root_path || !state.watched.insert(parent_path.to_path_buf()) {
-                break;
-            }
+        if !found_watched_ancestor {
+            // this should never happen, as we should eventually hit the `root_path`
+            anyhow::bail!(
+                "failed to find the fs root of {root_path:?} while watching {dir_path:?}"
+            );
+        }
 
-            cur_path = parent_path;
+        // Reverse the iterator: We want to start closest to the root and work towards `dir_path`
+        // (opposite of `Path::ancestors`), to avoid a potential race condition if directories are
+        // removed and re-added before we've watched their parent.
+        for path in dir_and_ancestor_paths.into_iter().rev() {
+            // this will silently ignore if the path is not found, expecting that we've watched the
+            // parent directory
+            start_watching_dir(&mut state.notify_watcher, path, root_path)?;
+            state.watched.insert(path.to_owned());
         }
 
         Ok(())
@@ -381,40 +396,30 @@ impl DiskWatcher {
         //
         // Best is to start_watching before starting to read
         {
-            let span = tracing::info_span!("invalidate filesystem");
-            let _span = span.clone().entered();
+            let _span = tracing::info_span!("invalidate filesystem").entered();
             let invalidator_map = take(&mut *fs_inner.invalidator_map.lock().unwrap());
             let dir_invalidator_map = take(&mut *fs_inner.dir_invalidator_map.lock().unwrap());
-            let iter = invalidator_map
-                .into_par_iter()
-                .chain(dir_invalidator_map.into_par_iter());
-            let handle = tokio::runtime::Handle::current();
+            let iter = invalidator_map.into_iter().chain(dir_invalidator_map);
             if report_invalidation_reason {
-                iter.flat_map(|(path, invalidators)| {
-                    let _span = span.clone().entered();
-                    let reason = WatchStart {
-                        name: fs_inner.name.clone(),
-                        // this path is just used for display purposes
-                        path: RcStr::from(path.to_string_lossy()),
-                    };
-                    invalidators
-                        .into_par_iter()
-                        .map(move |i| (reason.clone(), i))
-                })
-                .for_each(|(reason, (invalidator, _))| {
-                    let _span = span.clone().entered();
-                    let _guard = handle.enter();
-                    invalidator.invalidate_with_reason(reason)
+                let invalidators = iter
+                    .flat_map(|(path, invalidators)| {
+                        let reason = WatchStart {
+                            name: fs_inner.name.clone(),
+                            // this path is just used for display purposes
+                            path: RcStr::from(path.to_string_lossy()),
+                        };
+                        invalidators.into_iter().map(move |i| (reason.clone(), i))
+                    })
+                    .collect::<Vec<_>>();
+                parallel::for_each_owned(invalidators, |(reason, (invalidator, _))| {
+                    invalidator.invalidate_with_reason(reason);
                 });
             } else {
-                iter.flat_map(|(_, invalidators)| {
-                    let _span = span.clone().entered();
-                    invalidators.into_par_iter().map(move |i| i)
-                })
-                .for_each(|(invalidator, _)| {
-                    let _span = span.clone().entered();
-                    let _guard = handle.enter();
-                    invalidator.invalidate()
+                let invalidators = iter
+                    .flat_map(|(_, invalidators)| invalidators.into_keys())
+                    .collect::<Vec<_>>();
+                parallel::for_each_owned(invalidators, |invalidator| {
+                    invalidator.invalidate();
                 });
             }
         }
@@ -734,7 +739,7 @@ impl DiskWatcher {
 #[instrument(
     parent = None,
     level = "info",
-    name = "DiskFileSystem file change",
+    name = "file change",
     skip_all,
     fields(name = %path.display())
 )]

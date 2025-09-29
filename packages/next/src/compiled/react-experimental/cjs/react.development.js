@@ -199,17 +199,8 @@
       componentName = this.props.ref;
       return void 0 !== componentName ? componentName : null;
     }
-    function ReactElement(
-      type,
-      key,
-      self,
-      source,
-      owner,
-      props,
-      debugStack,
-      debugTask
-    ) {
-      self = props.ref;
+    function ReactElement(type, key, props, owner, debugStack, debugTask) {
+      var refProp = props.ref;
       type = {
         $$typeof: REACT_ELEMENT_TYPE,
         type: type,
@@ -217,7 +208,7 @@
         props: props,
         _owner: owner
       };
-      null !== (void 0 !== self ? self : null)
+      null !== (void 0 !== refProp ? refProp : null)
         ? Object.defineProperty(type, "ref", {
             enumerable: !1,
             get: elementRefGetterWithDeprecationWarning
@@ -255,16 +246,26 @@
       newKey = ReactElement(
         oldElement.type,
         newKey,
-        void 0,
-        void 0,
-        oldElement._owner,
         oldElement.props,
+        oldElement._owner,
         oldElement._debugStack,
         oldElement._debugTask
       );
       oldElement._store &&
         (newKey._store.validated = oldElement._store.validated);
       return newKey;
+    }
+    function validateChildKeys(node) {
+      isValidElement(node)
+        ? node._store && (node._store.validated = 1)
+        : "object" === typeof node &&
+          null !== node &&
+          node.$$typeof === REACT_LAZY_TYPE &&
+          ("fulfilled" === node._payload.status
+            ? isValidElement(node._payload.value) &&
+              node._payload.value._store &&
+              (node._payload.value._store.validated = 1)
+            : node._store && (node._store.validated = 1));
     }
     function isValidElement(object) {
       return (
@@ -719,16 +720,15 @@
       this.updater.enqueueForceUpdate(this, callback, "forceUpdate");
     };
     var deprecatedAPIs = {
-        isMounted: [
-          "isMounted",
-          "Instead, make sure to clean up subscriptions and pending requests in componentWillUnmount to prevent memory leaks."
-        ],
-        replaceState: [
-          "replaceState",
-          "Refactor your code to use setState instead (see https://github.com/facebook/react/issues/3236)."
-        ]
-      },
-      fnName;
+      isMounted: [
+        "isMounted",
+        "Instead, make sure to clean up subscriptions and pending requests in componentWillUnmount to prevent memory leaks."
+      ],
+      replaceState: [
+        "replaceState",
+        "Refactor your code to use setState instead (see https://github.com/facebook/react/issues/3236)."
+      ]
+    };
     for (fnName in deprecatedAPIs)
       deprecatedAPIs.hasOwnProperty(fnName) &&
         defineDeprecationWarning(fnName, deprecatedAPIs[fnName]);
@@ -822,7 +822,7 @@
         return resolveDispatcher().useMemoCache(size);
       }
     });
-    exports.Children = {
+    var fnName = {
       map: mapChildren,
       forEach: function (children, forEachFunc, forEachContext) {
         mapChildren(
@@ -855,6 +855,8 @@
         return children;
       }
     };
+    exports.Activity = REACT_ACTIVITY_TYPE;
+    exports.Children = fnName;
     exports.Component = Component;
     exports.Fragment = REACT_FRAGMENT_TYPE;
     exports.Profiler = REACT_PROFILER_TYPE;
@@ -1035,16 +1037,13 @@
       props = ReactElement(
         element.type,
         key,
-        void 0,
-        void 0,
-        owner,
         props,
+        owner,
         element._debugStack,
         element._debugTask
       );
       for (key = 2; key < arguments.length; key++)
-        (owner = arguments[key]),
-          isValidElement(owner) && owner._store && (owner._store.validated = 1);
+        validateChildKeys(arguments[key]);
       return props;
     };
     exports.createContext = function (defaultValue) {
@@ -1066,12 +1065,10 @@
       return defaultValue;
     };
     exports.createElement = function (type, config, children) {
-      for (var i = 2; i < arguments.length; i++) {
-        var node = arguments[i];
-        isValidElement(node) && node._store && (node._store.validated = 1);
-      }
+      for (var i = 2; i < arguments.length; i++)
+        validateChildKeys(arguments[i]);
       i = {};
-      node = null;
+      var key = null;
       if (null != config)
         for (propName in (didWarnAboutOldJSXRuntime ||
           !("__self" in config) ||
@@ -1081,7 +1078,7 @@
             "Your app (or one of its dependencies) is using an outdated JSX transform. Update to the modern JSX transform for faster performance: https://react.dev/link/new-jsx-transform"
           )),
         hasValidKey(config) &&
-          (checkKeyStringCoercion(config.key), (node = "" + config.key)),
+          (checkKeyStringCoercion(config.key), (key = "" + config.key)),
         config))
           hasOwnProperty.call(config, propName) &&
             "key" !== propName &&
@@ -1103,7 +1100,7 @@
       if (type && type.defaultProps)
         for (propName in ((childrenLength = type.defaultProps), childrenLength))
           void 0 === i[propName] && (i[propName] = childrenLength[propName]);
-      node &&
+      key &&
         defineKeyPropWarningGetter(
           i,
           "function" === typeof type
@@ -1113,11 +1110,9 @@
       var propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++;
       return ReactElement(
         type,
-        node,
-        void 0,
-        void 0,
-        getOwner(),
+        key,
         i,
+        getOwner(),
         propName ? Error("react-stack-top-frame") : unknownOwnerDebugStack,
         propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
@@ -1126,9 +1121,6 @@
       var refObject = { current: null };
       Object.seal(refObject);
       return refObject;
-    };
-    exports.experimental_useEffectEvent = function (callback) {
-      return resolveDispatcher().useEffectEvent(callback);
     };
     exports.experimental_useOptimistic = function (passthrough, reducer) {
       console.error(
@@ -1227,7 +1219,6 @@
       return compare;
     };
     exports.startTransition = startTransition;
-    exports.unstable_Activity = REACT_ACTIVITY_TYPE;
     exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
     exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
     exports.unstable_addTransitionType = addTransitionType;
@@ -1315,6 +1306,9 @@
         );
       return resolveDispatcher().useEffect(create, deps);
     };
+    exports.useEffectEvent = function (callback) {
+      return resolveDispatcher().useEffectEvent(callback);
+    };
     exports.useId = function () {
       return resolveDispatcher().useId();
     };
@@ -1362,7 +1356,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.2.0-experimental-ac7820a9-20250811";
+    exports.version = "19.2.0-experimental-df38ac9a-20250926";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

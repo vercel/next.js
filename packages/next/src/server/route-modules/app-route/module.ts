@@ -22,7 +22,6 @@ import { getImplicitTags, type ImplicitTags } from '../../lib/implicit-tags'
 import { patchFetch } from '../../lib/patch-fetch'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
-import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
 import * as Log from '../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import {
@@ -85,6 +84,7 @@ import { INFINITE_CACHE } from '../../../lib/constants'
 import { executeRevalidates } from '../../revalidation-utils'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
 
 export class WrappedNextRouterError {
   constructor(
@@ -229,7 +229,6 @@ export class AppRouteRouteModule extends RouteModule<
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
     this.methods = autoImplementMethods(userland)
-    this.isAppRouter = true
 
     // Get the non-static methods for this route.
     this.hasNonStaticMethods = hasNonStaticMethods(userland)
@@ -380,6 +379,18 @@ export class AppRouteRouteModule extends RouteModule<
           const cacheSignal = new CacheSignal()
           let dynamicTracking = createDynamicTrackingState(undefined)
 
+          // TODO: Route handlers are never resumed, so it's counter-intuitive
+          // to use an RDC here. However, we need the data cache to store cached
+          // results in memory during the prospective prerender, so that they
+          // can be retrieved during the final prerender within microtasks. This
+          // is crucial when doing revalidations of a deployed route handler,
+          // where the default cache handler does not do any in-memory caching.
+          // We should replace the `prerenderResumeDataCache` and
+          // `renderResumeDataCache` with a single `dataCache` property that is
+          // conceptually not tied to resuming, and also avoids the unnecessary
+          // complexity of using a mutable and an immutable resume data cache.
+          const prerenderResumeDataCache = createPrerenderResumeDataCache()
+
           const prospectiveRoutePrerenderStore: PrerenderStore =
             (prerenderStore = {
               type: 'prerender',
@@ -400,8 +411,7 @@ export class AppRouteRouteModule extends RouteModule<
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
               tags: [...implicitTags.tags],
-              // TODO: Shouldn't we provide an RDC here?
-              prerenderResumeDataCache: null,
+              prerenderResumeDataCache,
               renderResumeDataCache: null,
               hmrRefreshHash: undefined,
               captureOwnerStack: undefined,
@@ -493,8 +503,7 @@ export class AppRouteRouteModule extends RouteModule<
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
             tags: [...implicitTags.tags],
-            // TODO: Shouldn't we provide an RDC here?
-            prerenderResumeDataCache: null,
+            prerenderResumeDataCache,
             renderResumeDataCache: null,
             hmrRefreshHash: undefined,
             captureOwnerStack: undefined,
@@ -765,20 +774,18 @@ export class AppRouteRouteModule extends RouteModule<
                 this.dynamic satisfies never
             }
 
-            // TODO: propagate this pathname from route matcher
-            const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
-
             const tracer = getTracer()
 
             // Update the root span attribute for the route.
-            tracer.setRootSpanAttribute('next.route', route)
+            const { pathname } = this.definition
+            tracer.setRootSpanAttribute('next.route', pathname)
 
             return tracer.trace(
               AppRouteRouteHandlersSpan.runHandler,
               {
-                spanName: `executing api route (app) ${route}`,
+                spanName: `executing api route (app) ${pathname}`,
                 attributes: {
-                  'next.route': route,
+                  'next.route': pathname,
                 },
               },
               async () =>

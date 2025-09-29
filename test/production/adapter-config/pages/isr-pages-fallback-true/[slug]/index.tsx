@@ -7,6 +7,9 @@ export function getStaticPaths() {
       {
         params: { slug: 'second' },
       },
+      {
+        params: { slug: 'not-found' },
+      },
     ],
     fallback: true,
   }

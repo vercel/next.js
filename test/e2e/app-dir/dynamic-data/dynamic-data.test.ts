@@ -178,7 +178,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /cookies with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+           "description": "Route /cookies with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/cookies/page.js (14:24) @ Page
@@ -197,7 +197,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /connection with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+           "description": "Route /connection with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/connection/page.js (6:19) @ Page
@@ -216,7 +216,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /headers with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+           "description": "Route /headers with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/headers/page.js (14:35) @ Page
@@ -259,13 +259,13 @@ describe('dynamic-data with dynamic = "error"', () => {
       }
       // Error: Page with `dynamic = "error"` couldn't be rendered statically because it used `headers`
       expect(next.cliOutput).toMatch(
-        'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
+        'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies()`'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /connection with `dynamic = "error"` couldn\'t be rendered statically because it used `connection`'
+        'Error: Route /connection with `dynamic = "error"` couldn\'t be rendered statically because it used `connection()`'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
+        'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers()`'
       )
       expect(next.cliOutput).toMatch(
         'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `await searchParams`, `searchParams.then`, or similar'
@@ -307,7 +307,7 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /cookies used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
+           "description": "Route /cookies used \`cookies()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/cookies/page.js (4:40) @ ${isTurbopack ? '<anonymous>' : 'eval'}
@@ -327,7 +327,7 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /connection used "connection" inside a function cached with "unstable_cache(...)". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
+           "description": "Route /connection used \`connection()\` inside a function cached with \`unstable_cache()\`. The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/connection/page.js (4:54) @ ${isTurbopack ? '<anonymous>' : 'eval'}
@@ -347,7 +347,7 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /headers used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
+           "description": "Route /headers used \`headers()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/headers/page.js (4:40) @ ${isTurbopack ? '<anonymous>' : 'eval'}
@@ -371,13 +371,13 @@ describe('dynamic-data inside cache scope', () => {
         // We expect this to fail
       }
       expect(next.cliOutput).toMatch(
-        'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
+        'Error: Route /cookies used `cookies()` inside a function cached with `unstable_cache()`.'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /connection used "connection" inside a function cached with "unstable_cache(...)".'
+        'Error: Route /connection used `connection()` inside a function cached with `unstable_cache()`.'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'
+        'Error: Route /headers used `headers()` inside a function cached with `unstable_cache()`.'
       )
     })
   }

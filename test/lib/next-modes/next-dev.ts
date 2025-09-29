@@ -1,7 +1,6 @@
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
-import { getTurbopackFlag } from '../turbo'
 import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -33,7 +32,7 @@ export class NextDevInstance extends NextInstance {
     let startArgs = [
       'pnpm',
       'next',
-      useTurbo ? getTurbopackFlag() : undefined,
+      useTurbo ? '--turbopack' : undefined,
     ].filter(Boolean) as string[]
 
     if (this.startCommand) {
@@ -64,7 +63,6 @@ export class NextDevInstance extends NextInstance {
             NODE_ENV: this.env.NODE_ENV || ('' as any),
             PORT: this.forcedPort || '0',
             __NEXT_TEST_MODE: 'e2e',
-            __NEXT_TEST_WITH_DEVTOOL: '1',
           },
         })
 
@@ -83,19 +81,23 @@ export class NextDevInstance extends NextInstance {
           this.emit('stderr', [msg])
         })
 
-        this.childProcess.on('close', (code, signal) => {
-          if (this.isStopping) return
-          if (code || signal) {
-            require('console').error(
-              `next dev exited unexpectedly with code/signal ${code || signal}`
-            )
-          }
-        })
-
         const serverReadyTimeoutId = this.setServerReadyTimeout(
           reject,
           this.startServerTimeout
         )
+
+        this.childProcess.on('close', (code, signal) => {
+          if (this.isStopping) return
+          if (code || signal) {
+            this.childProcess = undefined
+            const error = new Error(
+              `next dev exited unexpectedly with code/signal ${code || signal}`
+            )
+            clearTimeout(serverReadyTimeoutId)
+            require('console').error(error)
+            reject(error)
+          }
+        })
 
         const readyCb = (msg) => {
           const resolveServer = () => {

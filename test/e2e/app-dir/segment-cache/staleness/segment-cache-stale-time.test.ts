@@ -220,4 +220,73 @@ describe('segment cache (staleness)', () => {
       'Dynamic content'
     )
   })
+
+  it('caches omitted from the prerender should not affect when the prefetch is expired', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    await page.clock.install()
+
+    // Reveal the link to trigger a prefetch
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/seconds"]')
+          .click()
+        await browser.elementByCss('a[href="/seconds"]')
+      },
+      {
+        // cacheLife("seconds") should be excluded from a static prerender
+        includes: 'Short-lived cached content',
+        block: 'reject',
+      }
+    )
+
+    // Hide the link
+    await browser.elementByCss('input[data-link-accordion="/seconds"]').click()
+
+    // Fast forward 30 seconds and 1 millisecond
+    // (matching the staleness of the "seconds" profile)
+    const timeStep = 30 * 1000 + 1
+    await page.clock.fastForward(timeStep)
+
+    // Reveal the link again to trigger new prefetch tasks.
+    // The cache with `cacheLife('seconds'`) should not affect the stale time of the prefetch,
+    // because we omit it from the prerender, so we shouldn't refetch anything yet.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/seconds"]')
+        .click()
+      await browser.elementByCss('a[href="/seconds"]')
+    }, 'no-requests')
+
+    // Hide the link again
+    await browser.elementByCss('input[data-link-accordion="/seconds"]').click()
+
+    // Fast forward to 5 minutes and 1 millisecond after the prefetch.
+    // (matching the staleness of the "minutes" profile)
+    // Note that we should exclude the timestep we've already done.
+    await page.clock.fastForward(5 * 60 * 1000 + 1 - timeStep)
+
+    // Reveal the link to trigger a prefetch.
+    // The longer-lived cache we used on the page should make the previous prefetch expire,
+    // so we should issue a new request.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/seconds"]')
+          .click()
+        await browser.elementByCss('a[href="/seconds"]')
+      },
+      {
+        includes: 'Short-lived cached content',
+        block: 'reject',
+      }
+    )
+  })
 })

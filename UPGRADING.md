@@ -1,1 +1,1 @@
-This document has been moved to [nextjs.org/docs/upgrading](https://nextjs.org/docs/upgrading). It's also available in this repository on [/docs/01-app/03-building-your-application/11-upgrading](/docs/01-app/03-building-your-application/11-upgrading).
+This document has been moved to [nextjs.org/docs](https://nextjs.org/docs/app/getting-started/upgrading). It's also available in this repository on [/docs/01-app/02-guides/upgrading](/docs/01-app/02-guides/upgrading).

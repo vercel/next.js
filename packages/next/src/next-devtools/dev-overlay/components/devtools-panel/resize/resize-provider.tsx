@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffectEvent,
   useLayoutEffect,
   useState,
   type RefObject,
@@ -71,8 +72,9 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
 
   const storageKey = value.storageKey ?? STORE_KEY_SHARED_PANEL_SIZE
 
+  const { resizeRef } = value
   const applyConstrainedDimensions = useCallback(() => {
-    if (!value.resizeRef.current) return
+    if (!resizeRef.current) return
 
     // this feels weird to read local storage on resize, but we don't
     // track the dimensions of the container, and this is better than
@@ -96,11 +98,11 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
       minHeight: minHeight ?? 80,
     })
 
-    value.resizeRef.current.style.width = `${width}px`
-    value.resizeRef.current.style.height = `${height}px`
+    resizeRef.current.style.width = `${width}px`
+    resizeRef.current.style.height = `${height}px`
     return true
   }, [
-    value.resizeRef,
+    resizeRef,
     draggingDirection,
     storageKey,
     minWidth,
@@ -108,11 +110,11 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
     value.devToolsPanelSize,
   ])
 
-  useLayoutEffect(() => {
+  const fireInitialConstrainDimensions = useEffectEvent(() => {
     const applied = applyConstrainedDimensions()
     if (
       !applied &&
-      value.resizeRef.current &&
+      resizeRef.current &&
       value.initialSize?.height &&
       value.initialSize.width
     ) {
@@ -122,11 +124,14 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
         minWidth: minWidth ?? 100,
         minHeight: minHeight ?? 80,
       })
-      value.resizeRef.current.style.width = `${width}px`
-      value.resizeRef.current.style.height = `${height}px`
+      resizeRef.current.style.width = `${width}px`
+      resizeRef.current.style.height = `${height}px`
     }
-    // eslint-disable-next-line react-hooks/react-compiler
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  })
+
+  useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- eprh bug
+    fireInitialConstrainDimensions()
   }, [])
 
   useLayoutEffect(() => {

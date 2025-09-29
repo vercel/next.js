@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import ts from 'typescript'
+// eslint-disable-next-line import/no-extraneous-dependencies
+import stripAnsi from 'strip-ansi'
 import { writeConfigurationDefaults } from './writeConfigurationDefaults'
 
 describe('writeConfigurationDefaults()', () => {
@@ -38,7 +40,7 @@ describe('writeConfigurationDefaults()', () => {
       })
 
       await writeConfigurationDefaults(
-        ts,
+        ts.version,
         tsConfigPath,
         isFirstTimeSetup,
         hasAppDir,
@@ -46,53 +48,51 @@ describe('writeConfigurationDefaults()', () => {
         hasPagesDir
       )
 
-      const tsConfig = await readFile(tsConfigPath, { encoding: 'utf8' })
+      const tsConfig = JSON.parse(
+        await readFile(tsConfigPath, { encoding: 'utf8' })
+      )
 
-      expect(JSON.parse(tsConfig)).toMatchInlineSnapshot(`
-      {
-        "compilerOptions": {
-          "allowJs": true,
-          "esModuleInterop": true,
-          "incremental": true,
-          "isolatedModules": true,
-          "jsx": "preserve",
-          "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext",
-          ],
-          "module": "esnext",
-          "moduleResolution": "node",
-          "noEmit": true,
-          "plugins": [
-            {
-              "name": "next",
-            },
-          ],
-          "resolveJsonModule": true,
-          "skipLibCheck": true,
-          "strict": false,
-          "target": "ES2017",
-        },
-        "exclude": [
-          "node_modules",
-        ],
-        "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
-          "**/*.ts",
-          "**/*.tsx",
-        ],
-      }
-    `)
+      expect(tsConfig).toMatchInlineSnapshot(`
+             {
+               "compilerOptions": {
+                 "allowJs": true,
+                 "esModuleInterop": true,
+                 "incremental": true,
+                 "isolatedModules": true,
+                 "jsx": "react-jsx",
+                 "lib": [
+                   "dom",
+                   "dom.iterable",
+                   "esnext",
+                 ],
+                 "module": "esnext",
+                 "moduleResolution": "node",
+                 "noEmit": true,
+                 "plugins": [
+                   {
+                     "name": "next",
+                   },
+                 ],
+                 "resolveJsonModule": true,
+                 "skipLibCheck": true,
+                 "strict": false,
+                 "target": "ES2017",
+               },
+               "exclude": [
+                 "node_modules",
+               ],
+               "include": [
+                 "next-env.d.ts",
+                 ".next/types/**/*.ts",
+                 "**/*.mts",
+                 "**/*.ts",
+                 "**/*.tsx",
+               ],
+             }
+          `)
 
-      expect(
-        consoleLogSpy.mock.calls
-          .flat()
-          .join('\n')
-          // eslint-disable-next-line no-control-regex
-          .replace(/\x1B\[\d+m/g, '') // remove color control characters
-      ).toMatchInlineSnapshot(`
+      expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n')))
+        .toMatchInlineSnapshot(`
         "
            We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
            The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
@@ -104,7 +104,7 @@ describe('writeConfigurationDefaults()', () => {
            	- strict was set to false
            	- noEmit was set to true
            	- incremental was set to true
-           	- include was set to ['next-env.d.ts', '.next/types/**/*.ts', '**/*.ts', '**/*.tsx']
+           	- include was set to ['next-env.d.ts', '.next/types/**/*.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
            	- plugins was updated to add { name: 'next' }
            	- exclude was set to ['node_modules']
 
@@ -115,7 +115,7 @@ describe('writeConfigurationDefaults()', () => {
            	- moduleResolution was set to node (to match webpack resolution)
            	- resolveJsonModule was set to true (to match webpack resolution)
            	- isolatedModules was set to true (requirement for SWC / Babel)
-           	- jsx was set to preserve (next.js implements its own optimized jsx transform)
+           	- jsx was set to react-jsx (next.js uses the React automatic runtime)
         "
       `)
     })
@@ -128,7 +128,7 @@ describe('writeConfigurationDefaults()', () => {
       )
 
       await writeConfigurationDefaults(
-        ts,
+        ts.version,
         tsConfigPath,
         isFirstTimeSetup,
         hasAppDir,
@@ -136,13 +136,9 @@ describe('writeConfigurationDefaults()', () => {
         hasPagesDir
       )
 
-      expect(
-        consoleLogSpy.mock.calls
-          .flat()
-          .join('\n')
-          // eslint-disable-next-line no-control-regex
-          .replace(/\x1B\[\d+m/g, '') // remove color control characters
-      ).not.toMatch('Strict-mode is set to false by default.')
+      expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n'))).not.toMatch(
+        'Strict-mode is set to false by default.'
+      )
     })
 
     describe('with tsconfig extends', () => {
@@ -154,8 +150,8 @@ describe('writeConfigurationDefaults()', () => {
         nextAppTypes = `${distDir}/types/**/*.ts`
       })
 
-      it('should support empty includes when base provides it', async () => {
-        const include = ['**/*.ts', '**/*.tsx', nextAppTypes]
+      it('should not change tsconfig with extends', async () => {
+        const include = ['**/*.ts', '**/*.tsx', nextAppTypes, '**/*.mts']
         const content = { extends: './tsconfig.base.json' }
         const baseContent = { include }
 
@@ -164,7 +160,7 @@ describe('writeConfigurationDefaults()', () => {
 
         await expect(
           writeConfigurationDefaults(
-            ts,
+            ts.version,
             tsConfigPath,
             isFirstTimeSetup,
             hasAppDir,
@@ -177,61 +173,9 @@ describe('writeConfigurationDefaults()', () => {
         const parsed = JSON.parse(output)
 
         expect(parsed.include).toBeUndefined()
-      })
-
-      it('should replace includes when base is missing appTypes', async () => {
-        const include = ['**/*.ts', '**/*.tsx']
-        const content = { extends: './tsconfig.base.json' }
-        const baseContent = { include }
-
-        await writeFile(tsConfigPath, JSON.stringify(content, null, 2))
-        await writeFile(tsConfigBasePath, JSON.stringify(baseContent, null, 2))
-
-        await expect(
-          writeConfigurationDefaults(
-            ts,
-            tsConfigPath,
-            isFirstTimeSetup,
-            hasAppDir,
-            distDir,
-            hasPagesDir
-          )
-        ).resolves.not.toThrow()
-
-        const output = await readFile(tsConfigPath, 'utf8')
-        const parsed = JSON.parse(output)
-
-        expect(parsed.include.sort()).toMatchInlineSnapshot(`
-          [
-            "**/*.ts",
-            "**/*.tsx",
-            ".next/types/**/*.ts",
-          ]
-        `)
-      })
-
-      it('should not add strictNullChecks if base provides it', async () => {
-        const content = { extends: './tsconfig.base.json' }
-
-        const baseContent = {
-          compilerOptions: { strictNullChecks: true, strict: true },
-        }
-
-        await writeFile(tsConfigPath, JSON.stringify(content, null, 2))
-        await writeFile(tsConfigBasePath, JSON.stringify(baseContent, null, 2))
-
-        await writeConfigurationDefaults(
-          ts,
-          tsConfigPath,
-          isFirstTimeSetup,
-          hasAppDir,
-          distDir,
-          hasPagesDir
-        )
-        const output = await readFile(tsConfigPath, 'utf8')
-        const parsed = JSON.parse(output)
-
-        expect(parsed.compilerOptions.strictNullChecks).toBeUndefined()
+        expect(parsed).toStrictEqual({
+          extends: './tsconfig.base.json',
+        })
       })
     })
   })

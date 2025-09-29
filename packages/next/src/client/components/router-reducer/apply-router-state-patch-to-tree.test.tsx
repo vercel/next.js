@@ -2,7 +2,7 @@ import React from 'react'
 import type {
   FlightData,
   FlightRouterState,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import { applyRouterStatePatchToTree } from './apply-router-state-patch-to-tree'
 
 const getInitialRouterStateTree = (): FlightRouterState => [

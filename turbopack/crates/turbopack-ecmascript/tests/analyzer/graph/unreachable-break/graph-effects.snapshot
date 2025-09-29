@@ -53,7 +53,6 @@
             ),
         ],
         span: 191..199,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -262,7 +261,6 @@
             ),
         ],
         span: 286..299,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -395,7 +393,6 @@
             ),
         ],
         span: 350..363,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -618,7 +615,6 @@
             ),
         ],
         span: 403..411,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -751,7 +747,6 @@
             ),
         ],
         span: 484..492,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -974,7 +969,6 @@
             ),
         ],
         span: 532..540,
-        in_try: false,
     },
     Call {
         func: Member(

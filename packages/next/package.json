@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "15.4.2-canary.40",
+  "version": "15.6.0-canary.34",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -102,7 +102,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "15.4.2-canary.40",
+    "@next/env": "15.6.0-canary.34",
     "@swc/helpers": "0.5.15",
     "caniuse-lite": "^1.0.30001579",
     "postcss": "8.4.31",
@@ -131,7 +131,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.34.3"
+    "sharp": "^0.34.4"
   },
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.8.3",
@@ -164,16 +164,17 @@
     "@hapi/accept": "5.0.2",
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
+    "@modelcontextprotocol/sdk": "1.18.1",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/font": "15.4.2-canary.40",
-    "@next/polyfill-module": "15.4.2-canary.40",
-    "@next/polyfill-nomodule": "15.4.2-canary.40",
-    "@next/react-refresh-utils": "15.4.2-canary.40",
-    "@next/swc": "15.4.2-canary.40",
+    "@next/font": "15.6.0-canary.34",
+    "@next/polyfill-module": "15.6.0-canary.34",
+    "@next/polyfill-nomodule": "15.6.0-canary.34",
+    "@next/react-refresh-utils": "15.6.0-canary.34",
+    "@next/swc": "15.6.0-canary.34",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.51.1",
-    "@rspack/core": "1.4.5",
+    "@rspack/core": "1.5.0",
     "@storybook/addon-a11y": "8.6.0",
     "@storybook/addon-essentials": "8.6.0",
     "@storybook/addon-interactions": "8.6.0",
@@ -188,11 +189,11 @@
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@types/amphtml-validator": "1.0.0",
-    "@types/babel__code-frame": "7.0.2",
-    "@types/babel__core": "7.1.12",
-    "@types/babel__generator": "7.6.2",
-    "@types/babel__template": "7.4.0",
-    "@types/babel__traverse": "7.11.0",
+    "@types/babel__code-frame": "7.0.6",
+    "@types/babel__core": "7.20.5",
+    "@types/babel__generator": "7.27.0",
+    "@types/babel__template": "7.4.4",
+    "@types/babel__traverse": "7.20.7",
     "@types/bytes": "3.1.1",
     "@types/ci-info": "2.0.0",
     "@types/compression": "0.0.36",
@@ -233,7 +234,7 @@
     "async-sema": "3.0.0",
     "axe-playwright": "2.0.3",
     "babel-loader": "10.0.0",
-    "babel-plugin-react-compiler": "19.1.0-rc.2",
+    "babel-plugin-react-compiler": "0.0.0-experimental-3fde738-20250918",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "browserify-zlib": "0.2.0",
@@ -342,7 +343,7 @@
     "text-table": "0.2.0",
     "timers-browserify": "2.0.12",
     "tty-browserify": "0.0.1",
-    "typescript": "5.8.2",
+    "typescript": "5.9.2",
     "ua-parser-js": "1.0.35",
     "unistore": "3.4.1",
     "util": "0.12.4",
@@ -369,6 +370,6 @@
     "vercel"
   ],
   "engines": {
-    "node": "^18.18.0 || ^19.8.0 || >= 20.0.0"
+    "node": ">=20.9.0"
   }
 }

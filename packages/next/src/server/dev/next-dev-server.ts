@@ -901,8 +901,7 @@ export default class DevServer extends Server {
 
         if (
           res.value?.fallbackMode !== undefined &&
-          // This matches the hasGenerateStaticParams logic
-          // we do during build
+          // This matches the hasGenerateStaticParams logic we do during build.
           (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
         ) {
           // we write the static paths to partial manifest for
@@ -916,6 +915,7 @@ export default class DevServer extends Server {
           for (const staticPath of value.staticPaths || []) {
             existingManifest.routes[staticPath] = {} as any
           }
+
           existingManifest.dynamicRoutes[pathname] = {
             dataRoute: null,
             dataRouteRegex: null,
@@ -925,6 +925,7 @@ export default class DevServer extends Server {
             fallbackHeaders: undefined,
             fallbackStatus: undefined,
             fallbackRootParams: undefined,
+            fallbackRouteParams: undefined,
             fallbackSourceRoute: pathname,
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,

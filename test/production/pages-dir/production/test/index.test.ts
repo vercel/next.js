@@ -783,7 +783,8 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      // Just wait for google.com to be revealed. We can't control which input we get.
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -800,7 +801,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -820,7 +821,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -1156,9 +1157,15 @@ describe('Production Usage', () => {
       const version = await browser.eval('window.next.version')
       expect(version).toBeTruthy()
       expect(version).toBe(
-        (await next.readJSON('node_modules/next/package.json')).version +
-          (process.env.IS_TURBOPACK_TEST ? '-turbo' : '')
+        (await next.readJSON('node_modules/next/package.json')).version
       )
+
+      const turbopack = await browser.eval('window.next.turbopack')
+      if (process.env.IS_TURBOPACK_TEST) {
+        expect(turbopack).toBeTrue()
+      } else {
+        expect(turbopack).toBeFalsy()
+      }
     } finally {
       if (browser) {
         await browser.close()

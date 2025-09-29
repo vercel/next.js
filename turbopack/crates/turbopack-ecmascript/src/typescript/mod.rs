@@ -160,7 +160,7 @@ impl Module for TsConfigModuleAsset {
                     TsConfigTypesReference::new(
                         *self.origin,
                         Request::module(
-                            name,
+                            name.into(),
                             RcStr::default().into(),
                             RcStr::default(),
                             RcStr::default(),
@@ -244,9 +244,7 @@ impl ModuleReference for TsExtendsReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            RawModule::new(*ResolvedVc::upcast(self.config))
-                .to_resolved()
-                .await?,
+            RawModule::new(*self.config).to_resolved().await?,
         )))
     }
 }

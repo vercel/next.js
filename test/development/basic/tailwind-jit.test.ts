@@ -1,11 +1,11 @@
 import { join } from 'path'
 import webdriver, { Playwright } from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, shouldRunTurboDevTest } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
 // [TODO]: It is unclear why turbopack takes longer to run this test
 // remove once it's fixed
-if (shouldRunTurboDevTest()) {
+if (process.env.IS_TURBOPACK_TEST) {
   jest.setTimeout(1000 * 60 * 5)
 }
 

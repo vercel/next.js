@@ -26,5 +26,3 @@ turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
 rustc-hash = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

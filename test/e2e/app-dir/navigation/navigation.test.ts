@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { getTitle, retry, waitFor } from 'next-test-utils'
 
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
@@ -10,7 +10,7 @@ describe('app dir - navigation', () => {
     it('should set query correctly', async () => {
       const browser = await next.browser('/')
       expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
-        `""`
+        `"<empty-query>"`
       )
 
       await browser.elementById('set-query').click()
@@ -895,7 +895,7 @@ describe('app dir - navigation', () => {
       await waitFor(resolveMetadataDuration + 500)
 
       expect(await browser.elementById('page-content').text()).toBe('Content')
-      expect(await browser.elementByCss('title').text()).toBe('Async Title')
+      expect(await getTitle(browser)).toBe('Async Title')
     })
 
     it('shows a fallback when prefetch completed', async () => {

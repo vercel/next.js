@@ -1,10 +1,12 @@
 import type {
   CacheNodeSeedData,
   FlightRouterState,
-} from '../../../server/app-render/types'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+  FlightSegmentPath,
+} from '../../../shared/lib/app-router-types'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import {
   addSearchParamsIfPageSegment,
+  DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
@@ -14,6 +16,7 @@ import { createHrefFromUrl } from './create-href-from-url'
 import { createRouterCacheKey } from './create-router-cache-key'
 import { fillCacheWithNewSubTreeDataButOnlyLoading } from './fill-cache-with-new-subtree-data'
 import { handleMutable } from './handle-mutable'
+import { generateSegmentsFromPatch } from './reducers/navigate-reducer'
 import type { Mutable, ReadonlyReducerState } from './router-reducer-types'
 
 /**
@@ -34,6 +37,7 @@ export function handleAliasedPrefetchEntry(
   let currentCache = state.cache
   const href = createHrefFromUrl(url)
   let applied
+  let scrollableSegments: FlightSegmentPath[] = []
 
   if (typeof flightData === 'string') {
     return false
@@ -115,6 +119,20 @@ export function handleAliasedPrefetchEntry(
       currentCache = newCache
       applied = true
     }
+
+    for (const subSegment of generateSegmentsFromPatch(treePatch)) {
+      const scrollableSegmentPath = [
+        ...normalizedFlightData.pathToSegment,
+        ...subSegment,
+      ]
+      // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
+      if (
+        scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
+        DEFAULT_SEGMENT_KEY
+      ) {
+        scrollableSegments.push(scrollableSegmentPath)
+      }
+    }
   }
 
   if (!applied) {
@@ -125,6 +143,7 @@ export function handleAliasedPrefetchEntry(
   mutable.cache = currentCache
   mutable.canonicalUrl = href
   mutable.hashFragment = url.hash
+  mutable.scrollableSegments = scrollableSegments
 
   return handleMutable(state, mutable)
 }

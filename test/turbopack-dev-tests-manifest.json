@@ -178,12 +178,12 @@
   },
   "packages/next-codemod/transforms/__tests__/new-link.test.js": {
     "passed": [
-      "new-link transforms correctly using \"new-link/add-legacy-behavior\" data",
       "new-link transforms correctly using \"new-link/children-interpolation\" data",
-      "new-link transforms correctly using \"new-link/excludes-links-with-legacybehavior-prop\" data",
+      "new-link transforms correctly using \"new-link/custom-component-child\" data",
       "new-link transforms correctly using \"new-link/handle-duplicate-props\" data",
       "new-link transforms correctly using \"new-link/link-a\" data",
       "new-link transforms correctly using \"new-link/link-string\" data",
+      "new-link transforms correctly using \"new-link/links-with-legacybehavior-prop\" data",
       "new-link transforms correctly using \"new-link/move-props\" data",
       "new-link transforms correctly using \"new-link/spread-props\" data",
       "new-link transforms correctly using \"new-link/styled-jsx\" data"
@@ -2539,6 +2539,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-intercept-routes/hmr-intercept-routes.test.ts": {
+    "passed": ["hmr-intercept-routes should update intercept routes via HMR"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hmr-move-file/hmr-move-file.test.ts": {
     "passed": [
       "HMR Move File should work when moving a component to another directory"
@@ -2618,7 +2625,7 @@
   "test/development/app-dir/missing-required-html-tags/index.test.ts": {
     "passed": [
       "app-dir - missing required html tags should display correct error count in dev indicator",
-      "app-dir - missing required html tags should hmr when you fix the error",
+      "app-dir - missing required html tags should reload when you fix the error",
       "app-dir - missing required html tags should show error overlay"
     ],
     "failed": [],
@@ -3680,9 +3687,7 @@
       "Client Navigation with <a/> tag inside the <Link /> should navigate the page",
       "Client Navigation with <a/> tag inside the <Link /> should not navigate if the <a/> tag has a target",
       "Client Navigation with <a/> tag inside the <Link /> should not navigate if the click-event is modified",
-      "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked",
-      "Client Navigation with unexpected <a/> nested tag should not redirect if passHref prop is not defined in Link",
-      "Client Navigation with unexpected <a/> nested tag should redirect if passHref prop is defined in Link"
+      "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked"
     ],
     "failed": [],
     "pending": [],
@@ -3793,15 +3798,13 @@
   "test/development/pages-dir/client-navigation/link.test.ts": {
     "passed": [
       "Client Navigation with <Link/> should call mouse handlers with an absolute url",
-      "Client Navigation with <Link/> should error when calling onClick without event",
       "Client Navigation with <Link/> should navigate an absolute local url",
       "Client Navigation with <Link/> should navigate an absolute local url with as",
       "Client Navigation with <Link/> should navigate an absolute url",
       "Client Navigation with <Link/> should navigate back after reload",
       "Client Navigation with <Link/> should navigate forwards after reload",
       "Client Navigation with <Link/> should navigate the page",
-      "Client Navigation with <Link/> should navigate via the client side",
-      "Client Navigation with <Link/> should not throw error when one number type child is provided"
+      "Client Navigation with <Link/> should navigate via the client side"
     ],
     "failed": [],
     "pending": [],
@@ -6740,15 +6743,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/link-component-deprecations/link-component-deprecations.test.ts": {
-    "passed": [
-      "Link component deprecations logs deprecation warning for legacyBehavior prop"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/loader-file-named-export-custom-loader-error/loader-file-named-export-custom-loader-error.test.ts": {
     "passed": [
       "Error test if the loader file export a named function in Development development only should show the error when using `Image` component",
@@ -9639,21 +9633,21 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
+  "test/e2e/app-dir/use-cache-search-params/use-cache-search-params.test.ts": {
     "passed": [
-      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
+      "use-cache-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
+      "use-cache-search-params when searchParams are caught inside of \"use cache\" should show an error",
+      "use-cache-search-params when searchParams are unused inside of \"use cache\" should not show an error",
+      "use-cache-search-params when searchParams are used inside of \"use cache\" should show an error"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
+  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
     "passed": [
-      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
-      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should show an error",
-      "use-cache-standalone-search-params when searchParams are unused inside of \"use cache\" should not show an error",
-      "use-cache-standalone-search-params when searchParams are used inside of \"use cache\" should show an error"
+      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
     "failed": [],
     "pending": [],
@@ -11485,16 +11479,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/new-link-behavior/typescript.test.ts": {
-    "passed": [
-      "New Link Behavior should apply ref on link",
-      "New Link Behavior should render link with <a>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/next-config-warnings/esm-externals-false/esm-externals-false.test.ts": {
     "passed": [],
     "failed": [],
@@ -11676,9 +11660,7 @@
   "test/e2e/next-link-errors/next-link-errors.test.ts": {
     "passed": [
       "next-link errors on invalid href",
-      "next-link invalid `prefetch` causes runtime error (dev-only)",
-      "next-link multiple children",
-      "next-link no children"
+      "next-link invalid `prefetch` causes runtime error (dev-only)"
     ],
     "failed": [],
     "pending": [],
@@ -13320,7 +13302,7 @@
     "passed": [
       "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
       "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator should validate buildActivityPosition config"
+      "Build Activity Indicator should validate position config"
     ],
     "failed": [],
     "pending": [
@@ -19195,17 +19177,6 @@
       "Link Component with Encoding spaces should have correct query on Router#push",
       "Link Component with Encoding spaces should have correct query on SSR",
       "Link Component with Encoding spaces should have correct query on simple client-side <Link>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/link-with-multiple-child/test/index.test.js": {
-    "passed": [
-      "multiple child with default legacyBehavior",
-      "multiple child with forced legacyBehavior=false",
-      "single child"
     ],
     "failed": [],
     "pending": [],

@@ -82,7 +82,6 @@ export async function collectBuildTraces({
   hasSsrAmpPages,
   buildTraceContext,
   outputFileTracingRoot,
-  isTurbopack,
 }: {
   dir: string
   distDir: string
@@ -94,7 +93,6 @@ export async function collectBuildTraces({
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
-  isTurbopack: boolean
 }) {
   const startTime = Date.now()
   debug('starting build traces')
@@ -139,6 +137,25 @@ export async function collectBuildTraces({
             path.isAbsolute(cacheHandler)
               ? cacheHandler
               : path.join(dir, cacheHandler)
+          )
+        )
+      }
+
+      // Under standalone mode, we need to ensure that the cache entry debug
+      // handler is traced so it can be copied. This is only used for testing,
+      // and is not used in production.
+      if (
+        process.env.__NEXT_TEST_MODE &&
+        process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+      ) {
+        sharedEntriesSet.push(
+          require.resolve(
+            path.isAbsolute(process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS)
+              ? process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+              : path.join(
+                  dir,
+                  process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+                )
           )
         )
       }
@@ -278,11 +295,6 @@ export async function collectBuildTraces({
           require.resolve('next/dist/compiled/jest-worker/threadChild'),
           serverTracedFiles
         )
-      }
-
-      if (isTurbopack) {
-        addToTracedFiles(distDir, './package.json', serverTracedFiles)
-        addToTracedFiles(distDir, './package.json', minimalServerTracedFiles)
       }
 
       {

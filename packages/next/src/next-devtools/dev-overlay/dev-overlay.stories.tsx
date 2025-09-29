@@ -10,7 +10,7 @@ import {
   storybookDefaultOverlayState,
   useStorybookOverlayReducer,
 } from './storybook/use-overlay-reducer'
-import { DevOverlayContext } from '../dev-overlay.browser'
+import { DevOverlayContext, useDevOverlayContext } from '../dev-overlay.browser'
 
 const meta: Meta<typeof DevOverlay> = {
   component: DevOverlay,
@@ -46,6 +46,7 @@ const initialState: OverlayState = {
 export const Default: Story = {
   render: function DevOverlayStory() {
     const [state, dispatch] = useStorybookOverlayReducer(initialState)
+    const { shadowRoot } = useDevOverlayContext()
     return (
       <div
         style={{
@@ -67,6 +68,7 @@ export const Default: Story = {
             dispatch,
             getSquashedHydrationErrorDetails:
               getNoSquashedHydrationErrorDetails,
+            shadowRoot,
             state,
           }}
         >
@@ -81,6 +83,7 @@ export const Default: Story = {
 export const WithPanel: Story = {
   render: function DevOverlayStory() {
     const [state, dispatch] = useStorybookOverlayReducer(initialState)
+    const { shadowRoot } = useDevOverlayContext()
     return (
       <>
         <img
@@ -96,6 +99,7 @@ export const WithPanel: Story = {
             dispatch,
             getSquashedHydrationErrorDetails:
               getNoSquashedHydrationErrorDetails,
+            shadowRoot,
             state,
           }}
         >

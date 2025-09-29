@@ -696,11 +696,16 @@ function getSuspenseFallbackFormatContext(resumableState, parentContext) {
   );
 }
 function getSuspenseContentFormatContext(resumableState, parentContext) {
+  resumableState = getSuspenseViewTransition(parentContext.viewTransition);
+  var subtreeScope = parentContext.tagScope | 16;
+  null !== resumableState &&
+    "none" !== resumableState.share &&
+    (subtreeScope |= 64);
   return createFormatContext(
     parentContext.insertionMode,
     parentContext.selectedValue,
-    parentContext.tagScope | 16,
-    getSuspenseViewTransition(parentContext.viewTransition)
+    subtreeScope,
+    resumableState
   );
 }
 function makeId(resumableState, treeId, localId) {
@@ -2215,6 +2220,9 @@ function pushStartInstance(
           ("t" !== srcSet[2] && "T" !== srcSet[2]) ||
           ("a" !== srcSet[3] && "A" !== srcSet[3]))
       ) {
+        null !== hoistableState &&
+          formatContext.tagScope & 64 &&
+          (hoistableState.suspenseyImages = !0);
         var sizes = "string" === typeof props.sizes ? props.sizes : void 0,
           key$jscomp$0 = srcSet ? srcSet + "\n" + (sizes || "") : src,
           promotablePreloads = renderState.preloads.images,
@@ -2605,7 +2613,7 @@ var completeSegmentScript1Full = stringToPrecomputedChunk(
   ),
   completeSegmentData2 = stringToPrecomputedChunk('" data-pid="'),
   completeBoundaryScriptFunctionOnly = stringToPrecomputedChunk(
-    '$RB=[];$RV=function(b){$RT=performance.now();for(var a=0;a<b.length;a+=2){var c=b[a],e=b[a+1];null!==e.parentNode&&e.parentNode.removeChild(e);var f=c.parentNode;if(f){var g=c.previousSibling,h=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===h)break;else h--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||h++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;e.firstChild;)f.insertBefore(e.firstChild,c);g.data="$";g._reactRetry&&g._reactRetry()}}b.length=0};\n$RC=function(b,a){if(a=document.getElementById(a))(b=document.getElementById(b))?(b.previousSibling.data="$~",$RB.push(b,a),2===$RB.length&&(b="number"!==typeof $RT?0:$RT,a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:b+300-a))):a.parentNode.removeChild(a)};'
+    '$RB=[];$RV=function(a){$RT=performance.now();for(var b=0;b<a.length;b+=2){var c=a[b],e=a[b+1];null!==e.parentNode&&e.parentNode.removeChild(e);var f=c.parentNode;if(f){var g=c.previousSibling,h=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===h)break;else h--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||h++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;e.firstChild;)f.insertBefore(e.firstChild,c);g.data="$";g._reactRetry&&requestAnimationFrame(g._reactRetry)}}a.length=0};\n$RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))?(a.previousSibling.data="$~",$RB.push(a,b),2===$RB.length&&("number"!==typeof $RT?requestAnimationFrame($RV.bind(null,$RB)):(a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:$RT+300-a)))):b.parentNode.removeChild(b)};'
   ),
   completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
   completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(
@@ -3033,7 +3041,7 @@ function writeStyleResourceAttributeInAttr(destination, name, value) {
   writeChunk(destination, escapeTextForBrowser(JSON.stringify(name)));
 }
 function createHoistableState() {
-  return { styles: new Set(), stylesheets: new Set() };
+  return { styles: new Set(), stylesheets: new Set(), suspenseyImages: !1 };
 }
 function prefetchDNS(href) {
   var request = resolveRequest();
@@ -3441,6 +3449,10 @@ function hoistStylesheetDependency(stylesheet) {
 function hoistHoistables(parentState, childState) {
   childState.styles.forEach(hoistStyleQueueDependency, parentState);
   childState.stylesheets.forEach(hoistStylesheetDependency, parentState);
+  childState.suspenseyImages && (parentState.suspenseyImages = !0);
+}
+function hasSuspenseyContent(hoistableState) {
+  return 0 < hoistableState.stylesheets.size || hoistableState.suspenseyImages;
 }
 var bind = Function.prototype.bind,
   requestStorage = new async_hooks.AsyncLocalStorage(),
@@ -4240,7 +4252,10 @@ function getViewTransitionClassName(defaultClass, eventClass) {
       : eventClass;
 }
 function isEligibleForOutlining(request, boundary) {
-  return 500 < boundary.byteSize && null === boundary.contentPreamble;
+  return (
+    (500 < boundary.byteSize || hasSuspenseyContent(boundary.contentState)) &&
+    null === boundary.contentPreamble
+  );
 }
 function defaultErrorHandler(error) {
   if (
@@ -5380,6 +5395,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
           subtreeScope = prevContext$jscomp$0.tagScope & -25;
         subtreeScope =
           "none" !== update ? subtreeScope | 32 : subtreeScope & -33;
+        "none" !== enter && (subtreeScope |= 64);
         var JSCompiler_inline_result$jscomp$3 = createFormatContext(
           prevContext$jscomp$0.insertionMode,
           prevContext$jscomp$0.selectedValue,
@@ -6293,7 +6309,7 @@ function renderNode(request, task, node, childIndex) {
           thrownValue === SuspenseException
             ? getSuspendedThenable()
             : thrownValue),
-        "object" === typeof node && null !== node)
+        12 !== request.status && "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
           childIndex =
@@ -6343,7 +6359,7 @@ function renderNode(request, task, node, childIndex) {
           thrownValue$70 === SuspenseException
             ? getSuspendedThenable()
             : thrownValue$70),
-        "object" === typeof node && null !== node)
+        12 !== request.status && "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
           segment = node;
@@ -7192,8 +7208,10 @@ function flushSegment(request, destination, segment, hoistableState) {
       hoistableState && hoistHoistables(hoistableState, boundary.fallbackState),
       flushSubtree(request, destination, segment, hoistableState);
   else if (
+    !flushingPartialBoundaries &&
     isEligibleForOutlining(request, boundary) &&
-    flushedByteSize + boundary.byteSize > request.progressiveChunkSize
+    (flushedByteSize + boundary.byteSize > request.progressiveChunkSize ||
+      hasSuspenseyContent(boundary.contentState))
   )
     (boundary.rootSegmentID = request.nextSegmentId++),
       request.completedBoundaries.push(boundary),
@@ -7363,6 +7381,7 @@ function flushPartiallyCompletedSegment(
     : writeChunkAndReturn(destination, dataElementQuotedEnd);
   return destination;
 }
+var flushingPartialBoundaries = !1;
 function flushCompletedQueues(request, destination) {
   currentView = new Uint8Array(2048);
   writtenBytes = 0;
@@ -7596,7 +7615,7 @@ function flushCompletedQueues(request, destination) {
       completeWriting(destination);
       currentView = new Uint8Array(2048);
       writtenBytes = 0;
-      destinationHasCapacity$1 = !0;
+      flushingPartialBoundaries = destinationHasCapacity$1 = !0;
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
         var boundary$83 = partialBoundaries[i];
@@ -7649,6 +7668,7 @@ function flushCompletedQueues(request, destination) {
         }
       }
       partialBoundaries.splice(0, i);
+      flushingPartialBoundaries = !1;
       var largeBoundaries = request.completedBoundaries;
       for (i = 0; i < largeBoundaries.length; i++)
         if (!flushCompletedBoundary(request, destination, largeBoundaries[i])) {
@@ -7660,20 +7680,21 @@ function flushCompletedQueues(request, destination) {
       largeBoundaries.splice(0, i);
     }
   } finally {
-    0 === request.allPendingTasks &&
-    0 === request.clientRenderedBoundaries.length &&
-    0 === request.completedBoundaries.length
-      ? ((request.flushScheduled = !1),
-        null === request.trackedPostpones &&
-          ((i = request.resumableState),
-          i.hasBody && writeChunk(destination, endChunkForTag("body")),
-          i.hasHtml && writeChunk(destination, endChunkForTag("html"))),
-        completeWriting(destination),
-        flushBuffered(destination),
-        (request.status = 14),
-        destination.end(),
-        (request.destination = null))
-      : (completeWriting(destination), flushBuffered(destination));
+    (flushingPartialBoundaries = !1),
+      0 === request.allPendingTasks &&
+      0 === request.clientRenderedBoundaries.length &&
+      0 === request.completedBoundaries.length
+        ? ((request.flushScheduled = !1),
+          null === request.trackedPostpones &&
+            ((i = request.resumableState),
+            i.hasBody && writeChunk(destination, endChunkForTag("body")),
+            i.hasHtml && writeChunk(destination, endChunkForTag("html"))),
+          completeWriting(destination),
+          flushBuffered(destination),
+          (request.status = 14),
+          destination.end(),
+          (request.destination = null))
+        : (completeWriting(destination), flushBuffered(destination));
   }
 }
 function startWork(request) {
@@ -7803,11 +7824,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-experimental-ac7820a9-20250811" !== isomorphicReactPackageVersion)
+  if ("19.2.0-experimental-df38ac9a-20250926" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-experimental-ac7820a9-20250811\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-experimental-df38ac9a-20250926\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -8365,4 +8386,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.2.0-experimental-ac7820a9-20250811";
+exports.version = "19.2.0-experimental-df38ac9a-20250926";

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use next_taskless::{BUN_EXTERNALS, EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
@@ -14,84 +15,6 @@ use crate::{
     resolve_options_context::ResolveOptionsContext,
     typescript::{apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options},
 };
-
-const NODE_EXTERNALS: [&str; 64] = [
-    "assert",
-    "assert/strict",
-    "async_hooks",
-    "buffer",
-    "child_process",
-    "cluster",
-    "console",
-    "constants",
-    "crypto",
-    "dgram",
-    "diagnostics_channel",
-    "dns",
-    "dns/promises",
-    "domain",
-    "events",
-    "fs",
-    "fs/promises",
-    "http",
-    "http2",
-    "https",
-    "inspector",
-    "module",
-    "net",
-    "os",
-    "path",
-    "path/posix",
-    "path/win32",
-    "perf_hooks",
-    "process",
-    "punycode",
-    "querystring",
-    "readline",
-    "repl",
-    "stream",
-    "stream/promises",
-    "stream/web",
-    "string_decoder",
-    "sys",
-    "timers",
-    "timers/promises",
-    "tls",
-    "trace_events",
-    "tty",
-    "url",
-    "util",
-    "util/types",
-    "v8",
-    "vm",
-    "wasi",
-    "worker_threads",
-    "zlib",
-    "pnpapi",
-    "_http_agent",
-    "_http_client",
-    "_http_common",
-    "_http_incoming",
-    "_http_outgoing",
-    "_http_server",
-    "_stream_duplex",
-    "_stream_passthrough",
-    "_stream_readable",
-    "_stream_transform",
-    "_stream_wrap",
-    "_stream_writable",
-];
-
-const EDGE_NODE_EXTERNALS: [&str; 5] = ["buffer", "events", "assert", "util", "async_hooks"];
-
-const BUN_EXTERNALS: [&str; 6] = [
-    "bun:ffi",
-    "bun:jsc",
-    "bun:sqlite",
-    "bun:test",
-    "bun:wrap",
-    "bun",
-];
 
 #[turbo_tasks::function]
 async fn base_resolve_options(
@@ -281,6 +204,7 @@ async fn base_resolve_options(
         after_resolve_plugins: opt.after_resolve_plugins.clone(),
         before_resolve_plugins: opt.before_resolve_plugins.clone(),
         loose_errors: opt.loose_errors,
+        collect_affecting_sources: opt.collect_affecting_sources,
         ..Default::default()
     }
     .into())
@@ -305,7 +229,12 @@ pub async fn resolve_options(
     let resolve_options = if options_context_value.enable_typescript {
         let find_tsconfig = async || {
             // Otherwise, attempt to find a tsconfig up the file tree
-            let tsconfig = find_context_file(resolve_path.clone(), tsconfig()).await?;
+            let tsconfig = find_context_file(
+                resolve_path.clone(),
+                tsconfig(),
+                options_context_value.collect_affecting_sources,
+            )
+            .await?;
             anyhow::Ok::<Vc<ResolveOptions>>(match &*tsconfig {
                 FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(
                     resolve_options,

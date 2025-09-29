@@ -4,8 +4,9 @@ pub mod module;
 pub mod resolve;
 
 use std::{
-    cmp::{Ordering, min},
+    cmp::min,
     fmt::{Display, Formatter},
+    sync::Arc,
 };
 
 use anyhow::{Result, anyhow};
@@ -163,8 +164,9 @@ pub trait ImportTracer {
     fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Vc<ImportTraces>;
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug)]
+#[derive(
+    Debug, Clone, TaskInput, TraceRawVcs, Hash, Eq, PartialEq, Serialize, Deserialize, NonLocalValue,
+)]
 pub struct DelegatingImportTracer {
     delegates: AutoSet<ResolvedVc<Box<dyn ImportTracer>>>,
 }
@@ -196,154 +198,6 @@ impl ValueDefault for ImportTraces {
     }
 }
 
-#[turbo_tasks::value_trait]
-trait IssueProcessingPath {
-    #[turbo_tasks::function]
-    fn shortest_path(
-        self: Vc<Self>,
-        issue: Vc<Box<dyn Issue>>,
-    ) -> Vc<OptionIssueProcessingPathItems>;
-}
-
-#[turbo_tasks::value]
-pub struct IssueProcessingPathItem {
-    pub file_path: Option<FileSystemPath>,
-    pub description: ResolvedVc<RcStr>,
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for IssueProcessingPathItem {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        if let Some(context) = &self.file_path {
-            let description_str = self.description.await?;
-            Ok(Vc::cell(
-                format!("{} ({})", context.value_to_string().await?, description_str).into(),
-            ))
-        } else {
-            Ok(*self.description)
-        }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl IssueProcessingPathItem {
-    #[turbo_tasks::function]
-    pub async fn into_plain(&self) -> Result<Vc<PlainIssueProcessingPathItem>> {
-        Ok(PlainIssueProcessingPathItem {
-            file_path: if let Some(context) = &self.file_path {
-                Some(context.value_to_string().await?)
-            } else {
-                None
-            },
-            description: self.description.await?,
-        }
-        .cell())
-    }
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionIssueProcessingPathItems(Option<Vec<ResolvedVc<IssueProcessingPathItem>>>);
-
-#[turbo_tasks::value_impl]
-impl OptionIssueProcessingPathItems {
-    #[turbo_tasks::function]
-    pub fn none() -> Vc<Self> {
-        Vc::cell(None)
-    }
-
-    #[turbo_tasks::function]
-    pub async fn into_plain(self: Vc<Self>) -> Result<Vc<PlainIssueProcessingPath>> {
-        Ok(Vc::cell(if let Some(items) = &*self.await? {
-            Some(
-                items
-                    .iter()
-                    .map(|item| item.into_plain())
-                    .try_join()
-                    .await?,
-            )
-        } else {
-            None
-        }))
-    }
-}
-
-#[turbo_tasks::value]
-struct RootIssueProcessingPath(ResolvedVc<Box<dyn Issue>>);
-
-#[turbo_tasks::value_impl]
-impl IssueProcessingPath for RootIssueProcessingPath {
-    #[turbo_tasks::function]
-    fn shortest_path(
-        &self,
-        issue: ResolvedVc<Box<dyn Issue>>,
-    ) -> Vc<OptionIssueProcessingPathItems> {
-        if self.0 == issue {
-            Vc::cell(Some(Vec::new()))
-        } else {
-            Vc::cell(None)
-        }
-    }
-}
-
-#[turbo_tasks::value]
-struct ItemIssueProcessingPath(
-    Option<ResolvedVc<IssueProcessingPathItem>>,
-    AutoSet<ResolvedVc<Box<dyn IssueProcessingPath>>>,
-);
-
-#[turbo_tasks::value_impl]
-impl IssueProcessingPath for ItemIssueProcessingPath {
-    /// Returns the shortest path from the root issue to the given issue.
-    #[turbo_tasks::function]
-    async fn shortest_path(
-        &self,
-        issue: Vc<Box<dyn Issue>>,
-    ) -> Result<Vc<OptionIssueProcessingPathItems>> {
-        assert!(!self.1.is_empty());
-        let paths = self
-            .1
-            .iter()
-            .map(|child| child.shortest_path(issue))
-            .collect::<Vec<_>>();
-        let paths = paths.iter().try_join().await?;
-        let mut shortest: Option<&Vec<_>> = None;
-        for path in paths.iter().filter_map(|p| p.as_ref()) {
-            if let Some(old) = shortest {
-                match old.len().cmp(&path.len()) {
-                    Ordering::Greater => {
-                        shortest = Some(path);
-                    }
-                    Ordering::Equal => {
-                        let (mut a, mut b) = (old.iter(), path.iter());
-                        while let (Some(a), Some(b)) = (a.next(), b.next()) {
-                            let (a, b) = (a.to_string().await?, b.to_string().await?);
-                            match RcStr::cmp(&*a, &*b) {
-                                Ordering::Less => break,
-                                Ordering::Greater => {
-                                    shortest = Some(path);
-                                    break;
-                                }
-                                Ordering::Equal => {}
-                            }
-                        }
-                    }
-                    Ordering::Less => {}
-                }
-            } else {
-                shortest = Some(path);
-            }
-        }
-        Ok(Vc::cell(shortest.map(|path| {
-            if let Some(item) = self.0 {
-                std::iter::once(item).chain(path.iter().copied()).collect()
-            } else {
-                path.clone()
-            }
-        })))
-    }
-}
-
 pub trait IssueExt {
     fn emit(self);
 }
@@ -353,11 +207,7 @@ where
     T: Upcast<Box<dyn Issue>>,
 {
     fn emit(self) {
-        let issue = ResolvedVc::upcast::<Box<dyn Issue>>(self);
-        emit(issue);
-        emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
-            RootIssueProcessingPath::resolved_cell(RootIssueProcessingPath(issue)),
-        ))
+        emit(ResolvedVc::upcast_non_strict::<Box<dyn Issue>>(self));
     }
 }
 
@@ -365,14 +215,12 @@ where
 pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
 /// A list of issues captured with [`Issue::peek_issues_with_path`] and
-/// [`Issue::take_issues_with_path`].
+/// [`Issue::take_issues`].
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct CapturedIssues {
     issues: AutoSet<ResolvedVc<Box<dyn Issue>>>,
-    #[cfg(feature = "issue_path")]
-    processing_path: ResolvedVc<ItemIssueProcessingPath>,
-    tracer: ResolvedVc<DelegatingImportTracer>,
+    tracer: Arc<DelegatingImportTracer>,
 }
 
 #[turbo_tasks::value_impl]
@@ -402,18 +250,14 @@ impl CapturedIssues {
 
     // Returns all the issues as formatted `PlainIssues`.
     pub async fn get_plain_issues(&self) -> Result<Vec<ReadRef<PlainIssue>>> {
-        let mut list = self
-            .issues
-            .iter()
-            .map(|issue| async move {
-                #[cfg(feature = "issue_path")]
-                let processing_path = self.processing_path.shortest_path(**issue);
-                #[cfg(not(feature = "issue_path"))]
-                let processing_path = OptionIssueProcessingPathItems::none();
-                PlainIssue::from_issue(**issue, Some(*self.tracer), processing_path).await
-            })
-            .try_join()
-            .await?;
+        let mut list =
+            self.issues
+                .iter()
+                .map(|issue| async move {
+                    PlainIssue::from_issue(**issue, Some(self.tracer.clone())).await
+                })
+                .try_join()
+                .await?;
         list.sort();
         Ok(list)
     }
@@ -823,7 +667,6 @@ pub struct PlainIssue {
     pub documentation_link: RcStr,
 
     pub source: Option<PlainIssueSource>,
-    pub processing_path: ReadRef<PlainIssueProcessingPath>,
     pub import_traces: Vec<PlainTrace>,
 }
 
@@ -846,7 +689,6 @@ fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: boo
     }
 
     if full {
-        hasher.write_ref(&issue.processing_path);
         hasher.write_ref(&issue.import_traces);
     }
 }
@@ -874,8 +716,7 @@ impl PlainIssue {
     #[turbo_tasks::function]
     pub async fn from_issue(
         issue: ResolvedVc<Box<dyn Issue>>,
-        import_tracer: Option<ResolvedVc<DelegatingImportTracer>>,
-        processing_path: Vc<OptionIssueProcessingPathItems>,
+        import_tracer: Option<Arc<DelegatingImportTracer>>,
     ) -> Result<Vc<Self>> {
         let description: Option<StyledString> = match *issue.description().await? {
             Some(description) => Some(description.owned().await?),
@@ -904,16 +745,10 @@ impl PlainIssue {
                     None
                 }
             },
-            processing_path: processing_path.into_plain().await?,
             import_traces: match import_tracer {
                 Some(tracer) => {
-                    into_plain_trace(
-                        tracer
-                            .await?
-                            .get_traces(issue.file_path().owned().await?)
-                            .await?,
-                    )
-                    .await?
+                    into_plain_trace(tracer.get_traces(issue.file_path().owned().await?).await?)
+                        .await?
                 }
                 None => vec![],
             },
@@ -954,17 +789,6 @@ impl PlainSource {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "none")]
-#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
-pub struct PlainIssueProcessingPath(Option<Vec<ReadRef<PlainIssueProcessingPathItem>>>);
-
-#[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
-pub struct PlainIssueProcessingPathItem {
-    pub file_path: Option<ReadRef<RcStr>>,
-    pub description: ReadRef<RcStr>,
-}
-
 #[turbo_tasks::value_trait]
 pub trait IssueReporter {
     /// Reports issues to the user (e.g. to stdio). Returns whether fatal
@@ -973,7 +797,7 @@ pub trait IssueReporter {
     /// # Arguments:
     ///
     /// * `issues` - A [ReadRef] of [CapturedIssues]. Typically obtained with
-    ///   `source.peek_issues_with_path()`.
+    ///   `source.peek_issues()`.
     /// * `source` - The root [Vc] from which issues are traced. Can be used by implementers to
     ///   determine which issues are new.
     /// * `min_failing_severity` - The minimum Vc<[IssueSeverity]>
@@ -987,134 +811,44 @@ pub trait IssueReporter {
     ) -> Vc<bool>;
 }
 
-#[async_trait]
-pub trait IssueDescriptionExt
+pub trait CollectibleIssuesExt
 where
     Self: Sized,
 {
-    #[allow(unused_variables, reason = "behind feature flag")]
-    async fn attach_file_path(
-        self,
-        file_path: impl Into<Option<FileSystemPath>> + Send,
-        description: impl Into<String> + Send,
-    ) -> Result<Self>;
-
-    #[allow(unused_variables, reason = "behind feature flag")]
-    async fn attach_description(self, description: impl Into<String> + Send) -> Result<Self>;
-
-    async fn issue_file_path(
-        self,
-        file_path: impl Into<Option<FileSystemPath>> + Send,
-        description: impl Into<String> + Send,
-    ) -> Result<Self>;
-    async fn issue_description(self, description: impl Into<String> + Send) -> Result<Self>;
-
     /// Returns all issues from `source` in a list with their associated
     /// processing path.
-    async fn peek_issues_with_path(self) -> Result<CapturedIssues>;
+    fn peek_issues(self) -> CapturedIssues;
 
     /// Returns all issues from `source` in a list with their associated
     /// processing path.
     ///
     /// This unemits the issues. They will not propagate up.
-    async fn take_issues_with_path(self) -> Result<CapturedIssues>;
+    fn take_issues(self) -> CapturedIssues;
 }
 
 #[async_trait]
-impl<T> IssueDescriptionExt for T
+impl<T> CollectibleIssuesExt for T
 where
     T: CollectiblesSource + Copy + Send,
 {
-    #[allow(unused_variables, reason = "behind feature flag")]
-    async fn attach_file_path(
-        self,
-        file_path: impl Into<Option<FileSystemPath>> + Send,
-        description: impl Into<String> + Send,
-    ) -> Result<Self> {
-        #[cfg(feature = "issue_path")]
-        {
-            let children = self.take_collectibles();
-            if !children.is_empty() {
-                emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
-                    ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
-                        Some(IssueProcessingPathItem::resolved_cell(
-                            IssueProcessingPathItem {
-                                file_path: file_path.into(),
-                                description: ResolvedVc::cell(RcStr::from(description.into())),
-                            },
-                        )),
-                        children,
-                    )),
-                ));
-            }
-        }
-        Ok(self)
-    }
-
-    #[allow(unused_variables, reason = "behind feature flag")]
-    async fn attach_description(self, description: impl Into<String> + Send) -> Result<T> {
-        self.attach_file_path(None, description).await
-    }
-
-    async fn issue_file_path(
-        self,
-        file_path: impl Into<Option<FileSystemPath>> + Send,
-        description: impl Into<String> + Send,
-    ) -> Result<Self> {
-        #[cfg(feature = "issue_path")]
-        {
-            let children = self.take_collectibles();
-            if !children.is_empty() {
-                emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
-                    ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
-                        Some(IssueProcessingPathItem::resolved_cell(
-                            IssueProcessingPathItem {
-                                file_path: file_path.into(),
-                                description: ResolvedVc::cell(RcStr::from(description.into())),
-                            },
-                        )),
-                        children,
-                    )),
-                ));
-            }
-        }
-        #[cfg(not(feature = "issue_path"))]
-        {
-            let _ = (file_path, description);
-        }
-        Ok(self)
-    }
-
-    async fn issue_description(self, description: impl Into<String> + Send) -> Result<Self> {
-        self.issue_file_path(None, description).await
-    }
-
-    async fn peek_issues_with_path(self) -> Result<CapturedIssues> {
-        Ok(CapturedIssues {
+    fn peek_issues(self) -> CapturedIssues {
+        CapturedIssues {
             issues: self.peek_collectibles(),
-            #[cfg(feature = "issue_path")]
-            processing_path: ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
-                None,
-                self.peek_collectibles(),
-            )),
-            tracer: DelegatingImportTracer::resolved_cell(DelegatingImportTracer {
+
+            tracer: Arc::new(DelegatingImportTracer {
                 delegates: self.peek_collectibles(),
             }),
-        })
+        }
     }
 
-    async fn take_issues_with_path(self) -> Result<CapturedIssues> {
-        Ok(CapturedIssues {
+    fn take_issues(self) -> CapturedIssues {
+        CapturedIssues {
             issues: self.take_collectibles(),
-            #[cfg(feature = "issue_path")]
-            processing_path: ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
-                None,
-                self.take_collectibles(),
-            )),
-            tracer: DelegatingImportTracer::resolved_cell(DelegatingImportTracer {
+
+            tracer: Arc::new(DelegatingImportTracer {
                 delegates: self.take_collectibles(),
             }),
-        })
+        }
     }
 }
 
@@ -1127,7 +861,7 @@ pub async fn handle_issues<T: Send>(
 ) -> Result<()> {
     let source_vc = source_op.connect();
     let _ = source_op.resolve_strongly_consistent().await?;
-    let issues = source_op.peek_issues_with_path().await?;
+    let issues = source_op.peek_issues();
 
     let has_fatal = issue_reporter.report_issues(
         TransientInstance::new(issues),

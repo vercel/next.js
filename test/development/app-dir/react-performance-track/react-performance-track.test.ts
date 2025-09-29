@@ -10,7 +10,9 @@ describe('react-performance-track', () => {
 
   it('should show setTimeout', async () => {
     const browser = await next.browser('/set-timeout')
-    await browser.elementByCss('[data-react-server-requests-done]')
+    await browser.elementByCss('[data-react-server-requests-done]', {
+      state: 'attached',
+    })
 
     const track = await browser.eval('window.reactServerRequests.getSnapshot()')
     expect(track).toEqual(
@@ -23,7 +25,9 @@ describe('react-performance-track', () => {
 
   it('should show fetch', async () => {
     const browser = await next.browser('/fetch')
-    await browser.elementByCss('[data-react-server-requests-done]')
+    await browser.elementByCss('[data-react-server-requests-done]', {
+      state: 'attached',
+    })
 
     const track = await browser.eval('window.reactServerRequests.getSnapshot()')
     expect(track).toEqual(

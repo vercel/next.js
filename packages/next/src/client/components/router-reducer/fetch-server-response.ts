@@ -7,7 +7,7 @@ import { createFromReadableStream as createFromReadableStreamBrowser } from 'rea
 import type {
   FlightRouterState,
   NavigationFlightResponse,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 
 import type { NEXT_ROUTER_SEGMENT_PREFETCH_HEADER } from '../app-router-headers'
 import {
@@ -20,6 +20,7 @@ import {
   NEXT_HMR_REFRESH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
@@ -35,6 +36,16 @@ import { urlToUrlWithoutFlightMarker } from '../../route-params'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
+
+let createDebugChannel:
+  | typeof import('../../dev/debug-channel').createDebugChannel
+  | undefined
+
+if (process.env.NODE_ENV !== 'production') {
+  createDebugChannel = (
+    require('../../dev/debug-channel') as typeof import('../../dev/debug-channel')
+  ).createDebugChannel
+}
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
@@ -62,6 +73,7 @@ export type RequestHeaders = {
   [NEXT_HMR_REFRESH_HEADER]?: '1'
   // A header that is only added in test mode to assert on fetch priority
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
+  [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
@@ -214,7 +226,8 @@ export async function fetchServerResponse(
       ? createUnclosingPrefetchStream(res.body)
       : res.body
     const response = await (createFromNextReadableStream(
-      flightStream
+      flightStream,
+      res.headers
     ) as Promise<NavigationFlightResponse>)
 
     if (getAppBuildId() !== response.b) {
@@ -281,6 +294,10 @@ export async function createFetch(
 
   if (process.env.NEXT_DEPLOYMENT_ID) {
     headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
+  }
+
+  if (process.env.NODE_ENV !== 'production' && self.__next_r) {
+    headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
   }
 
   const fetchOptions: RequestInit = {
@@ -383,11 +400,13 @@ export async function createFetch(
 }
 
 export function createFromNextReadableStream(
-  flightStream: ReadableStream<Uint8Array>
+  flightStream: ReadableStream<Uint8Array>,
+  responseHeaders: Headers
 ): Promise<unknown> {
   return createFromReadableStream(flightStream, {
     callServer,
     findSourceMapURL,
+    debugChannel: createDebugChannel && createDebugChannel(responseHeaders),
   })
 }
 

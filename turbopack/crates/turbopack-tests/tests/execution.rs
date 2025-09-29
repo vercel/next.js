@@ -5,7 +5,7 @@
 
 mod util;
 
-use std::{env, path::PathBuf, sync::Once};
+use std::{env, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
@@ -39,7 +39,7 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
-    issue::IssueDescriptionExt,
+    issue::CollectibleIssuesExt,
     module_graph::{
         ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
     },
@@ -84,26 +84,18 @@ enum IssueSnapshotMode {
     NoSnapshots,
 }
 
-fn register() {
-    turbo_tasks::register();
-    turbo_tasks_env::register();
-    turbo_tasks_fs::register();
-    turbopack::register();
-    turbopack_nodejs::register();
-    turbopack_env::register();
-    turbopack_ecmascript_plugins::register();
-    turbopack_resolve::register();
-    include!(concat!(env!("OUT_DIR"), "/register_test_execution.rs"));
-}
-
 // To minimize test path length and consistency with snapshot tests,
 // node_modules is stored as a sibling of the test fixtures. Don't run
 // it as a test.
 //
 // "Skip" directories named `__skipped__`, which include test directories to
 // skip.
-#[testing::fixture("tests/execution/*/*/*", exclude("node_modules|__skipped__"))]
+#[testing::fixture(
+    "tests/execution/*/*/*/input/index.js",
+    exclude("node_modules|__skipped__")
+)]
 fn test(resource: PathBuf) {
+    let resource = resource.parent().unwrap().parent().unwrap().to_path_buf();
     let messages = get_messages(run(resource, IssueSnapshotMode::Snapshots).unwrap());
     if !messages.is_empty() {
         panic!(
@@ -113,10 +105,10 @@ fn test(resource: PathBuf) {
     }
 }
 
-#[testing::fixture("tests/execution/*/*/__skipped__/*/input")]
+#[testing::fixture("tests/execution/*/*/__skipped__/*/input/index.js")]
 #[should_panic]
 fn test_skipped_fails(resource: PathBuf) {
-    let resource = resource.parent().unwrap().to_path_buf();
+    let resource = resource.parent().unwrap().parent().unwrap().to_path_buf();
 
     let JsResult {
         // Ignore uncaught exceptions for skipped tests.
@@ -169,11 +161,8 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
     messages
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsResult> {
-    static REGISTER_ONCE: Once = Once::new();
-    REGISTER_ONCE.call_once(register);
-
     // Clean up old output files.
     let output_path = resource.join("output");
     if output_path.exists() {
@@ -392,6 +381,17 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .resolved_cell(),
     );
 
+    let mut fallback_import_map = ImportMap::empty();
+    fallback_import_map.insert_exact_alias(
+        rcstr!("fallback"),
+        ImportMapping::External(
+            None,
+            ExternalType::EcmaScriptModule,
+            ExternalTraced::Untraced,
+        )
+        .resolved_cell(),
+    );
+
     let remove_unused_exports = options.remove_unused_exports.unwrap_or(true);
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
@@ -435,6 +435,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             browser: true,
             module: true,
             import_map: Some(import_map.resolved_cell()),
+            fallback_import_map: Some(fallback_import_map.resolved_cell()),
             ..Default::default()
         }
         .cell(),
@@ -562,9 +563,7 @@ async fn snapshot_issues(
     let PreparedTest { path, .. } = &*prepared_test.await?;
     let _ = run_result_op.resolve_strongly_consistent().await;
 
-    let captured_issues = run_result_op.peek_issues_with_path().await?;
-
-    let plain_issues = captured_issues.get_plain_issues().await?;
+    let plain_issues = run_result_op.peek_issues().get_plain_issues().await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)
         .await

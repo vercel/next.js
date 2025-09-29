@@ -32,7 +32,7 @@ where
         self: Vc<Self>,
         asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Vc<Box<dyn EvaluatableAsset>> {
-        to_evaluatable(Vc::upcast(self), asset_context)
+        to_evaluatable(Vc::upcast_non_strict(self), asset_context)
     }
 }
 

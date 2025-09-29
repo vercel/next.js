@@ -135,13 +135,13 @@ export const imageConfigDefault: ImageConfigComplete = {
   loaderFile: '',
   domains: [],
   disableStaticImages: false,
-  minimumCacheTTL: 60,
+  minimumCacheTTL: 14400, // 4 hours
   formats: ['image/webp'],
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
   contentDispositionType: 'attachment',
   localPatterns: undefined, // default: allow all local images
   remotePatterns: [], // default: allow no remote images
-  qualities: undefined, // default: allow all qualities
+  qualities: [75],
   unoptimized: false,
 }
