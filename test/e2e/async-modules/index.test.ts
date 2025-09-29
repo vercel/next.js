@@ -6,6 +6,8 @@ describe('Async modules', () => {
     files: __dirname,
   })
 
+  console.log('noop, see if this passes in CI')
+
   it('ssr async page modules', async () => {
     const $ = await next.render$('/')
     expect($('#app-value').text()).toBe('hello')
