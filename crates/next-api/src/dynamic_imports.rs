@@ -68,7 +68,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
                         .client_component_client_chunks
                         .get(&parent_client_reference.unwrap())
                         .unwrap()
-                        .1
+                        .availability_info
                 }
                 NextDynamicChunkAvailability::AvailabilityInfo(availability_info) => {
                     *availability_info

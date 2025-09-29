@@ -6,13 +6,17 @@ use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, ValueToString, 
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
-    module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
+    ecmascript::AnalyzeMode,
+    module_options::{
+        CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
+        TypescriptTransformOptions,
+    },
 };
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     issue::{IssueReporter, IssueSeverity, handle_issues},
@@ -69,10 +73,9 @@ async fn node_file_trace_operation(
     let input = input_dir.join(&format!("{input}"))?;
 
     let source = FileSource::new(input);
-    let environment = Environment::new(
-        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().resolved_cell()),
-        BrowserEnvironment::default().cell(),
-    );
+    let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
+        NodeJsEnvironment::default().resolved_cell(),
+    ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
         // This config should be kept in sync with
@@ -81,6 +84,9 @@ async fn node_file_trace_operation(
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 ..Default::default()
             },
             css: CssOptionsContext {
@@ -90,7 +96,7 @@ async fn node_file_trace_operation(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            is_tracing: true,
+            analyze_mode: AnalyzeMode::Tracing,
             ..Default::default()
         }
         .cell(),
@@ -99,6 +105,7 @@ async fn node_file_trace_operation(
             enable_node_modules: Some(input_dir.clone()),
             custom_conditions: vec![rcstr!("node")],
             loose_errors: true,
+            collect_affecting_sources: true,
             ..Default::default()
         }
         .cell(),

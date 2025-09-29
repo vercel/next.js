@@ -133,8 +133,9 @@ program
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
-  .option('--turbo', 'Starts development mode using Turbopack.')
-  .option('--turbopack', 'Starts development mode using Turbopack.')
+  .option('--turbo', 'Builds using Turbopack.')
+  .option('--turbopack', 'Builds using Turbopack.')
+  .option('--webpack', 'Builds using webpack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
@@ -173,6 +174,7 @@ program
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
+  .option('--webpack', 'Starts development mode using webpack.')
   .addOption(
     new Option(
       '-p, --port <port>',
@@ -395,8 +397,10 @@ program
     )}`
   )
   .action((directory: string, options: NextTypegenOptions) =>
+    // ensure process exits after typegen completes so open handles/connections
+    // don't cause process to hang
     import('../cli/next-typegen.js').then((mod) =>
-      mod.nextTypegen(options, directory)
+      mod.nextTypegen(options, directory).then(() => process.exit(0))
     )
   )
   .usage('[directory] [options]')
@@ -443,10 +447,15 @@ const internal = program
 internal
   .command('trace')
   .alias('turbo-trace-server')
-  .argument('[file]', 'Trace file to serve.')
-  .action((file: string) => {
+  .argument('file', 'Trace file to serve.')
+  .addOption(
+    new Option('-p, --port <port>', 'Override the port.').argParser(
+      parseValidPositiveInteger
+    )
+  )
+  .action((file: string, options: { port: number | undefined }) => {
     return import('../cli/internal/turbo-trace-server.js').then((mod) =>
-      mod.startTurboTraceServerCli(file)
+      mod.startTurboTraceServerCli(file, options.port)
     )
   })
 

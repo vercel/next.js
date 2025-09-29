@@ -342,10 +342,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   )
 }
 
-// For now these implementations are the same so we just reexport
-export const trackSynchronousRequestDataAccessInDev =
-  trackSynchronousPlatformIOAccessInDev
-
 /**
  * This component will call `React.postpone` that throws the postponed error.
  */

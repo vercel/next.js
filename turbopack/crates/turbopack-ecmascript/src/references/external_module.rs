@@ -84,7 +84,7 @@ impl Display for CachedExternalType {
 pub struct CachedExternalModule {
     request: RcStr,
     external_type: CachedExternalType,
-    tracing_mode: CachedExternalTracingMode,
+    analyze_mode: CachedExternalTracingMode,
 }
 
 #[turbo_tasks::value_impl]
@@ -93,12 +93,12 @@ impl CachedExternalModule {
     pub fn new(
         request: RcStr,
         external_type: CachedExternalType,
-        tracing_mode: CachedExternalTracingMode,
+        analyze_mode: CachedExternalTracingMode,
     ) -> Vc<Self> {
         Self::cell(CachedExternalModule {
             request,
             external_type,
-            tracing_mode,
+            analyze_mode,
         })
     }
 
@@ -226,7 +226,7 @@ impl Module for CachedExternalModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(match &self.tracing_mode {
+        Ok(match &self.analyze_mode {
             CachedExternalTracingMode::Untraced => ModuleReferences::empty(),
             CachedExternalTracingMode::Traced {
                 externals_context,

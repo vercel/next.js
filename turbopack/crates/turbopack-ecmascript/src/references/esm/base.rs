@@ -43,10 +43,7 @@ use crate::{
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     export::Liveness,
     magic_identifier,
-    references::{
-        esm::EsmExport,
-        util::{request_to_string, throw_module_not_found_expr},
-    },
+    references::{esm::EsmExport, util::throw_module_not_found_expr},
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
     tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, asset::EcmascriptModulePartAsset},
     utils::module_id_to_lit,
@@ -321,7 +318,8 @@ impl EsmAssetReferences {
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    pub request: ResolvedVc<Request>,
+    // Request is a string to avoid eagerly parsing into a `Request` VC
+    pub request: RcStr,
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
     pub export_name: Option<ModulePart>,
@@ -342,7 +340,7 @@ impl EsmAssetReference {
 impl EsmAssetReference {
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        request: ResolvedVc<Request>,
+        request: RcStr,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
@@ -361,7 +359,7 @@ impl EsmAssetReference {
 
     pub fn new_pure(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        request: ResolvedVc<Request>,
+        request: RcStr,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
@@ -393,6 +391,8 @@ impl ModuleReference for EsmAssetReference {
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let ty = if matches!(self.annotations.module_type(), Some("json")) {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
+        } else if matches!(self.annotations.module_type(), Some("bytes")) {
+            EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Bytes)
         } else if let Some(part) = &self.export_name {
             EcmaScriptModulesReferenceSubType::ImportPart(part.clone())
         } else {
@@ -424,8 +424,9 @@ impl ModuleReference for EsmAssetReference {
                 }
             }
         }
+        let request = Request::parse(self.request.clone().into());
 
-        if let Request::Module { module, .. } = &*self.request.await?
+        if let Request::Module { module, .. } = &*request.await?
             && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
         {
             if let Some(part) = &self.export_name {
@@ -445,7 +446,7 @@ impl ModuleReference for EsmAssetReference {
 
         let result = esm_resolve(
             self.get_origin().resolve().await?,
-            *self.request,
+            request,
             ty,
             false,
             Some(self.issue_source),
@@ -475,15 +476,8 @@ impl ModuleReference for EsmAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for EsmAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "import {} with {}",
-                self.request.to_string().await?,
-                self.annotations
-            )
-            .into(),
-        ))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell(format!("import {} with {}", self.request, self.annotations).into())
     }
 }
 
@@ -537,9 +531,9 @@ impl EsmAssetReference {
                 ReferencedAsset::Unresolvable => {
                     // Insert code that throws immediately at time of import if a request is
                     // unresolvable
-                    let request = request_to_string(*this.request).await?.to_string();
+                    let request = &this.request;
                     let stmt = Stmt::Expr(ExprStmt {
-                        expr: Box::new(throw_module_not_found_expr(&request)),
+                        expr: Box::new(throw_module_not_found_expr(request)),
                         span: DUMMY_SP,
                     });
                     return Ok(CodeGeneration::hoisted_stmt(

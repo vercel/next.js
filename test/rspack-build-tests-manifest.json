@@ -382,9 +382,7 @@
   },
   "test/e2e/app-dir/app-alias/app-alias.test.ts": {
     "passed": [
-      "app-dir alias should generate app-build-manifest correctly",
       "app-dir alias should handle typescript paths alias correctly",
-      "app-dir alias should not contain installed react/react-dom version in client chunks",
       "app-dir alias should resolve css imports from outside with src folder presented"
     ],
     "failed": [],
@@ -710,10 +708,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-middleware/app-middleware-in-src-dir.test.ts": {
+    "passed": [
+      "app dir - middleware with middleware in src dir works without crashing when using RequestStore"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-middleware/app-middleware-without-pages-dir.test.ts": {
+    "passed": ["app dir - middleware without pages dir Updates headers"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {
     "passed": [
-      "app dir - middleware with middleware in src dir works without crashing when using RequestStore",
-      "app dir - middleware without pages dir Updates headers",
       "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
       "app-dir with middleware Mutate request headers for Edge Functions Supports draft mode",
@@ -1536,7 +1548,6 @@
       "app dir - basic should have correct preferredRegion values in manifest",
       "app dir - basic should have correct searchParams and params (client)",
       "app dir - basic should have correct searchParams and params (server)",
-      "app dir - basic should have correct size in build output",
       "app dir - basic should include document html and body",
       "app dir - basic should include layouts when no direct parent layout",
       "app dir - basic should include parent document when no direct parent layout",
@@ -1683,14 +1694,15 @@
   },
   "test/e2e/app-dir/back-forward-cache/back-forward-cache.test.ts": {
     "passed": [
-      "back/forward cache React state is preserved when navigating back to a page with different search params than before ",
       "back/forward cache React state is preserved when navigating back/forward with links",
       "back/forward cache React state is preserved when navigating with back/forward buttons",
       "back/forward cache bfcache only preserves up to N entries",
       "back/forward cache navigate back and forth repeatedly between the same pages without evicting"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "back/forward cache React state is preserved when navigating back to a page with different search params than before "
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1698,13 +1710,6 @@
     "passed": [
       "RSC binary serialization should correctly encode/decode binaries and hydrate"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/build-size/index.test.ts": {
-    "passed": ["app-dir build size should have correct size in build output"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -1755,7 +1760,6 @@
   "test/e2e/app-dir/cache-components-dynamic-imports/cache-components-dynamic-imports.test.ts": {
     "passed": [
       "async imports in cacheComponents - external packages does not instrument import() in external packages",
-      "async imports in cacheComponents are not instrumented in edge edge route handler",
       "async imports in cacheComponents are not instrumented in edge middleware",
       "async imports in cacheComponents does not cause any routes to become (partially) dynamic",
       "async imports in cacheComponents inside a GET route handler import of a sync module",
@@ -1771,6 +1775,15 @@
       "async imports in cacheComponents outside of render client import of module with top-level-await",
       "async imports in cacheComponents outside of render server import of a sync module",
       "async imports in cacheComponents outside of render server import of module with top-level-await"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-errors/cache-components-console-patch.test.ts": {
+    "passed": [
+      "Cache Components Errors Sync IO in console methods Console Patching does not fail the build for Sync IO if console.log is patched to call new Date() internally"
     ],
     "failed": [],
     "pending": [],
@@ -1854,10 +1867,10 @@
       "Cache Components Errors Build With --prerender-debug Sync IO - Random - Math.random() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build With --prerender-debug Sync IO - Web Crypto - getRandomValue() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build With --prerender-debug Sync IO - Web Crypto - randomUUID() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Unhandled Rejection Suppression should suppress unhandled rejections after prerender abort",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` in `unstable_cache` should error the build",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` in `use cache` should error the build",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
-      "Cache Components Errors Build With --prerender-debug With `use cache: private` with `headers()` should not fail the build and show no runtime error (caught in userland)",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` without Suspense should error the build",
       "Cache Components Errors Build Without --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
       "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
@@ -1901,10 +1914,10 @@
       "Cache Components Errors Build Without --prerender-debug Sync IO - Random - Math.random() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build Without --prerender-debug Sync IO - Web Crypto - getRandomValue() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build Without --prerender-debug Sync IO - Web Crypto - randomUUID() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Unhandled Rejection Suppression should suppress unhandled rejections after prerender abort",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `unstable_cache` should error the build",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `use cache` should error the build",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
-      "Cache Components Errors Build Without --prerender-debug With `use cache: private` with `headers()` should not fail the build and show no runtime error (caught in userland)",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` without Suspense should error the build"
     ],
     "failed": [],
@@ -1916,6 +1929,15 @@
     "passed": [
       "Request Promises On Prerender Completion should reject request APIs after the prerender is complete when it finishes naturally",
       "Request Promises On Prerender Interruption should reject request APIs after the prerender is interrupted with synchronously dynamic APIs"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-route-handler-errors/cache-components-route-handler-errors.test.ts": {
+    "passed": [
+      "cache-components-route-handler-errors should error when route handlers use segment configs that aren't supported by cacheComponents"
     ],
     "failed": [],
     "pending": [],
@@ -3231,6 +3253,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/log-file/log-file.test.ts": {
+    "passed": [
+      "log-file should capture RSC logging in log file",
+      "log-file should capture client logging in log file",
+      "log-file should capture logging in pages router"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/logging/fetch-logging.test.ts": {
     "passed": [
       "app-dir - fetch logging placeholder to satisfy at least one test when isNextDev is false",
@@ -3437,6 +3470,66 @@
     "passed": [
       "metadata-route-like-pages should able to visit icon page",
       "metadata-route-like-pages should able to visit sitemap page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-dynamic-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-dynamic-route should have correct link tags for dynamic page",
+      "metadata-files-static-output-dynamic-route should serve static files when requested to its route for dynamic page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-group-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-group-route should have correct link tags for group page",
+      "metadata-files-static-output-group-route should serve static files when requested to its route for group page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-intercepting-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-intercepting-route should have correct link tags for intercepting page",
+      "metadata-files-static-output-intercepting-route should serve static files when requested to its route for intercepting page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-parallel-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-parallel-route should have correct link tags for parallel slot page",
+      "metadata-files-static-output-parallel-route should serve static files when requested to its route for parallel slot page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-root-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-root-route should have correct link tags for root page",
+      "metadata-files-static-output-root-route should serve static files when requested to its route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-static-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-static-route should have correct link tags for static page",
+      "metadata-files-static-output-static-route should serve static files when requested to its route for static page"
     ],
     "failed": [],
     "pending": [],
@@ -3946,6 +4039,366 @@
       "after() - pages invalid usages errors at compile time when used in pages dir errors when used in getStaticProps",
       "after() - pages invalid usages errors at compile time when used in pages dir errors when used in within a page component",
       "after() - pages runs in middleware"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/async-function/async-function-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-async-function-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/async-function/async-function-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-async-function-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/dynamic-import-esm/next-config-ts-dynamic-import-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-dynamic-import-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/export-as-default/next-config-ts-export-as-default-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-as-default-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/export-as-default/next-config-ts-export-as-default-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-as-default-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/export-default/next-config-ts-export-default-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-default-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/export-default/next-config-ts-export-default-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-default-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-from-node-modules/next-config-ts-import-from-node-modules-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-from-node-modules-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-from-node-modules/next-config-ts-import-from-node-modules-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-from-node-modules-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-js-extensions-cjs/next-config-ts-import-js-extensions-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-js-extensions-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-js-extensions-esm/next-config-ts-import-js-extensions-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-js-extensions-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-json/next-config-ts-import-json-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-json-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-json/next-config-ts-import-json-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-json-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/nested-imports/next-config-ts-nested-imports-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-nested-imports-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/nested-imports/next-config-ts-nested-imports-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-nested-imports-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/node-api-cjs/next-config-ts-node-api-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-node-api-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/node-api-esm/next-config-ts-node-api-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-node-api-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/top-level-await-esm/next-config-ts-top-level-await-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-top-level-await-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/type-error/next-config-ts-type-error-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-type-error-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/type-error/next-config-ts-type-error-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-type-error-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/async-function/async-function-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-async-function-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/async-function/async-function-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-async-function-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/dynamic-import-esm/next-config-ts-dynamic-import-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-dynamic-import-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/export-as-default/next-config-ts-export-as-default-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-as-default-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/export-as-default/next-config-ts-export-as-default-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-as-default-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/export-default/next-config-ts-export-default-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-default-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/export-default/next-config-ts-export-default-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-default-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-from-node-modules/next-config-ts-import-from-node-modules-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-from-node-modules-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-from-node-modules/next-config-ts-import-from-node-modules-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-from-node-modules-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-js-extensions-cjs/next-config-ts-import-js-extensions-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-js-extensions-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-js-extensions-esm/next-config-ts-import-js-extensions-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-js-extensions-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-json/next-config-ts-import-json-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-json-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-json/next-config-ts-import-json-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-json-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/nested-imports/next-config-ts-nested-imports-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-nested-imports-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/nested-imports/next-config-ts-nested-imports-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-nested-imports-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/node-api-cjs/next-config-ts-node-api-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-node-api-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/node-api-esm/next-config-ts-node-api-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-node-api-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/top-level-await-esm/next-config-ts-top-level-await-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-top-level-await-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/type-error/next-config-ts-type-error-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-type-error-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/type-error/next-config-ts-type-error-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-type-error-esm requires `process.features.typescript` to feature detect Node.js native TS"
     ],
     "flakey": [],
     "runtimeError": false
@@ -5508,20 +5961,10 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.legacy.test.ts": {
-    "passed": [
-      "router smooth scroll optimization (legacy with data attribute) should not warn when data attribute is present even in legacy mode",
-      "router smooth scroll optimization (legacy) should work with smooth scroll CSS and warn in development"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.optimized.test.ts": {
     "passed": [
-      "router smooth scroll optimization (optimized early exit) should exit early when CSS smooth scroll detected but no data attribute",
-      "router smooth scroll optimization (optimized) should work with smooth scroll CSS and data attribute without warning"
+      "router smooth scroll optimization (optimized early exit) should warn in dev when CSS smooth scroll detected but no data attribute",
+      "router smooth scroll optimization should work with smooth scroll CSS and data attribute without warning"
     ],
     "failed": [],
     "pending": [],
@@ -6266,21 +6709,25 @@
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a private cache",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a quickly-expiring public cache",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting cookies()",
+      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting headers()",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
       "runtime prefetching errors should trigger error boundaries for errors that occurred in runtime-prefetched content",
       "runtime prefetching in a page can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching in a page includes cookies, but not dynamic content",
       "runtime prefetching in a page includes dynamic params, but not dynamic content",
+      "runtime prefetching in a page includes headers, but not dynamic content",
       "runtime prefetching in a page includes root params, but not dynamic content",
       "runtime prefetching in a page includes search params, but not dynamic content",
       "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching in a private cache includes cookies, but not dynamic content",
       "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
+      "runtime prefetching in a private cache includes headers, but not dynamic content",
       "runtime prefetching in a private cache includes root params, but not dynamic content",
       "runtime prefetching in a private cache includes search params, but not dynamic content",
       "runtime prefetching passed to a public cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching passed to a public cache includes cookies, but not dynamic content",
       "runtime prefetching passed to a public cache includes dynamic params, but not dynamic content",
+      "runtime prefetching passed to a public cache includes headers, but not dynamic content",
       "runtime prefetching passed to a public cache includes root params, but not dynamic content",
       "runtime prefetching passed to a public cache includes search params, but not dynamic content",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
@@ -6587,6 +7034,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/trace-build-file/trace-build-file.test.ts": {
+    "passed": [
+      "trace-build-file should contain high-level build trace events",
+      "trace-build-file should create .next/trace-build file during production build",
+      "trace-build-file should have consistent traceId across all events",
+      "trace-build-file should have next-build as root span with proper hierarchy",
+      "trace-build-file should only contain allowlisted events",
+      "trace-build-file should work with basic page rendering"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/trailingslash/trailingslash.test.ts": {
     "passed": [
       "app-dir trailingSlash handling should contain trailing slash to canonical url",
@@ -6645,6 +7106,7 @@
   "test/e2e/app-dir/typed-routes/typed-routes.test.ts": {
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
+      "typed-routes should exit typegen successfully",
       "typed-routes should generate RouteContext type for route handlers",
       "typed-routes should generate route types correctly",
       "typed-routes should throw type errors"
@@ -6993,8 +7455,8 @@
   },
   "test/e2e/app-dir/with-babel/with-babel.test.ts": {
     "passed": [
-      "with babel with babel should contain og package files in middleware",
-      "with babel with babel should support babel in app dir"
+      "with babel should contain og package files in middleware",
+      "with babel should support babel in app dir"
     ],
     "failed": [],
     "pending": [],
@@ -7089,6 +7551,13 @@
     ],
     "failed": [],
     "pending": ["Async modules can render async AMP pages"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/babel/index.test.js": {
+    "passed": ["Babel Should compile a page with flowtype correctly"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7234,6 +7703,15 @@
     "pending": [
       "default browserslist target should apply default browserslist target"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/build-indicator/test/index.test.ts": {
+    "passed": [
+      "Build Activity Indicator Invalid position config should validate position config"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9215,11 +9693,18 @@
   },
   "test/e2e/persistent-caching/persistent-caching.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped (run 1)",
-      "persistent-caching should allow to change files while stopped (run 2)",
-      "persistent-caching should allow to change files while stopped (run 3)"
+      "persistent-caching should allow to change files while stopped (loader change)",
+      "persistent-caching should allow to change files while stopped (next config change)"
     ],
-    "failed": ["persistent-caching should persistent cache loaders"],
+    "failed": [
+      "persistent-caching should allow to change files while stopped (Pages change)",
+      "persistent-caching should allow to change files while stopped (RCC change)",
+      "persistent-caching should allow to change files while stopped (RSC change)",
+      "persistent-caching should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "persistent-caching should allow to change files while stopped (env var change)",
+      "persistent-caching should allow to change files while stopped (rename app page)",
+      "persistent-caching should persistent cache loaders"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9365,12 +9850,14 @@
   },
   "test/e2e/react-compiler/react-compiler.test.ts": {
     "passed": [
-      "react-compiler babelrc should render",
+      "react-compiler babelrc should memoize Components",
+      "react-compiler babelrc should name functions in dev",
       "react-compiler babelrc should show an experimental warning",
       "react-compiler babelrc should work with a library that uses the react-server condition",
       "react-compiler babelrc should work with a library using use client",
       "react-compiler babelrc throws if the React Compiler is used in a React Server environment",
-      "react-compiler default should render",
+      "react-compiler default should memoize Components",
+      "react-compiler default should name functions in dev",
       "react-compiler default should show an experimental warning",
       "react-compiler default should work with a library that uses the react-server condition",
       "react-compiler default should work with a library using use client",
@@ -9754,6 +10241,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/transpile-packages-typescript-foreign/index.test.ts": {
+    "passed": [
+      "transpile-packages-typescript-foreign with transpilePackages should work"
+    ],
+    "failed": [
+      "transpile-packages-typescript-foreign without transpilePackages should fail"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/transpile-packages/index.test.ts": {
     "passed": [
       "transpile packages css should handle css modules imports inside transpiled modules",
@@ -9788,20 +10286,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/turbopack-import-type-bytes/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["turbopack-import-type-bytes support import type: bytes"],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/turbopack-loader-config/index.test.ts": {
     "passed": ["turbopack-loader-config should only run the test in turbopack"],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/turbopack-turbo-config-compatibility/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "turbopack-turbo-config-compatibility including both turbopack and deprecated experimental turbo config prefers turbopack config over deprecated experimental turbo config",
-      "turbopack-turbo-config-compatibility only including deprecated experimental turbo config still uses the deprecated experimental turbo config"
-    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -10624,15 +11119,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/babel/test/index.test.js": {
-    "passed": [
-      "Babel Rendering via HTTP Should compile a page with flowtype correctly"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/basepath-root-catch-all/test/index.test.js": {
     "passed": [
       "development mode should use correct data URL for root catch-all",
@@ -10659,19 +11145,6 @@
   "test/integration/broken-webpack-plugin/test/index.test.js": {
     "passed": [
       "Handles a broken webpack plugin (precompile) should render error correctly"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/build-indicator/test/index.test.js": {
-    "passed": [
-      "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
-      "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
-      "Build Activity Indicator should validate position config"
     ],
     "failed": [],
     "pending": [],
@@ -19353,6 +19826,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/adapter-config/adapter-config-ppr.test.ts": {
+    "passed": [
+      "adapter-config should apply modifyConfig from adapter",
+      "adapter-config should call onBuildComplete with correct context"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/adapter-config/adapter-config.test.ts": {
     "passed": [
       "adapter-config should apply modifyConfig from adapter",
@@ -19596,15 +20079,14 @@
   },
   "test/production/app-dir/build-output-prerender/build-output-prerender.test.ts": {
     "passed": [
-      "build-output-prerender with a next config file with --debug-prerender shows all prerender errors with readable stacks and code frames",
-      "build-output-prerender with a next config file without --debug-prerender shows only a single prerender error with a mangled stack"
-    ],
-    "failed": [
       "build-output-prerender with a next config file with --debug-prerender prints a warning and the customized experimental flags",
+      "build-output-prerender with a next config file with --debug-prerender shows all prerender errors with readable stacks and code frames",
       "build-output-prerender with a next config file without --debug-prerender prints only the user-selected experimental flags (and the ones enabled via env variable)",
+      "build-output-prerender with a next config file without --debug-prerender shows only a single prerender error with a mangled stack",
       "build-output-prerender without a next config file with --debug-prerender prints a warning and the customized experimental flags",
       "build-output-prerender without a next config file without --debug-prerender prints no experimental flags (unless enabled via env variable)"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -19971,6 +20453,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/unstable-cache-foreground-revalidate/unstable-cache-foreground-revalidate.test.ts": {
+    "passed": [
+      "unstable-cache-foreground-revalidate should block and wait for fresh data when ISR page revalidate time is greater than unstable_cache TTL"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/worker-restart/worker-restart.test.ts": {
     "passed": [
       "worker-restart should fail the build if a worker process is killed",
@@ -20010,6 +20501,19 @@
       "build-spinners should handle build spinners correctly page dir (compile workers)"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/bundle-size/bundle-size.test.ts": {
+    "passed": [
+      "bundle-size should not load too much: App Router: adding a client component",
+      "bundle-size should not load too much: App Router: between RSC-only identical pages",
+      "bundle-size should not load too much: Pages Router: between identical pages"
+    ],
+    "failed": [
+      "bundle-size should not load too much: App Router: between identical pages with a client component"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -20617,11 +21121,10 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm"
-    ],
-    "failed": [
+      "pnpm support should build with dependencies installed via pnpm",
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -20851,6 +21354,7 @@
       "required server files app router should not send invalid soft tags to cache handler",
       "required server files app router should properly handle fallback for bot request",
       "required server files app router should properly handle prerender for bot request",
+      "required server files app router should properly handle resume request that looks like a data request",
       "required server files app router should properly stream resume with Next-Resume",
       "required server files app router should send cache tags in minimal mode for ISR",
       "required server files app router should still render when postponed is corrupted with Next-Resume",
@@ -20928,6 +21432,15 @@
       "minimal-mode-response-cache app router revalidate should work with previous response cache dynamic",
       "minimal-mode-response-cache should have correct \"Started server on\" log",
       "minimal-mode-response-cache should have correct responses"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/standalone-mode/tracing/tracing.test.ts": {
+    "passed": [
+      "standalone mode - tracing should trace process.cwd calls in node_modules"
     ],
     "failed": [],
     "pending": [],

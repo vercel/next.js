@@ -8,7 +8,7 @@ describe('typed-env', () => {
 
   it('should have env types from next config', async () => {
     await retry(async () => {
-      const envDTS = await next.readFile('.next/types/env.d.ts')
+      const envDTS = await next.readFile(`${next.distDir}/types/env.d.ts`)
       // since NODE_ENV is development, env types will
       // not include production-specific env
       expect(envDTS).not.toContain('FROM_ENV_PROD')
@@ -39,7 +39,7 @@ describe('typed-env', () => {
 
   it('should rewrite env types if .env is modified', async () => {
     await retry(async () => {
-      const content = await next.readFile('.next/types/env.d.ts')
+      const content = await next.readFile(`${next.distDir}/types/env.d.ts`)
       expect(content).toContain('FROM_ENV')
     })
 
@@ -50,7 +50,7 @@ describe('typed-env', () => {
     // e.g. FROM_ENV?: string
     // but have MODIFIED_ENV?: string
     await retry(async () => {
-      const content = await next.readFile('.next/types/env.d.ts')
+      const content = await next.readFile(`${next.distDir}/types/env.d.ts`)
       expect(content).toMatchInlineSnapshot(`
         "// Type definitions for Next.js environment variables
         declare global {

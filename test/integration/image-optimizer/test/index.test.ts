@@ -709,7 +709,7 @@ describe('Image Optimizer', () => {
               headers: [
                 {
                   key: 'Cache-Control',
-                  value: 'public, max-age=86400, must-revalidate',
+                  value: 'public, max-age=14400, must-revalidate',
                 },
               ],
             },
@@ -733,7 +733,7 @@ describe('Image Optimizer', () => {
           const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
           expect(res.status).toBe(200)
           expect(res.headers.get('Cache-Control')).toBe(
-            `public, max-age=86400, must-revalidate`
+            `public, max-age=14400, must-revalidate`
           )
           expect(res.headers.get('Content-Disposition')).toBe(
             `attachment; filename="test.webp"`
@@ -743,7 +743,7 @@ describe('Image Optimizer', () => {
             const files = await fsToJson(imagesDir)
 
             let found = false
-            const maxAge = '86400'
+            const maxAge = '14400'
 
             Object.keys(files).forEach((dir) => {
               if (
@@ -764,7 +764,7 @@ describe('Image Optimizer', () => {
           const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
           expect(res.status).toBe(200)
           expect(res.headers.get('Cache-Control')).toBe(
-            `public, max-age=60, must-revalidate`
+            `public, max-age=14400, must-revalidate`
           )
           expect(res.headers.get('Content-Disposition')).toBe(
             `attachment; filename="test.webp"`

@@ -289,4 +289,12 @@ export class WebpackHotMiddleware {
       this.clientsByRequestId.delete(requestId)
     }
   }
+
+  hasClients = () => {
+    return this.clients.size > 0
+  }
+
+  getClientCount = () => {
+    return this.clients.size
+  }
 }

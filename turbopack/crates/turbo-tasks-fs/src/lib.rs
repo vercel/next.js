@@ -4,7 +4,6 @@
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
 #![feature(io_error_more)]
-#![feature(round_char_boundary)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::mutable_key_type)]
@@ -257,10 +256,11 @@ impl DiskFileSystemInner {
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
     fn register_read_invalidator(&self, path: &Path) -> Result<()> {
-        let invalidator = turbo_tasks::get_invalidator();
-        self.invalidator_map
-            .insert(path.to_owned(), invalidator, None);
-        self.watcher.ensure_watched_file(path, self.root_path())?;
+        if let Some(invalidator) = turbo_tasks::get_invalidator() {
+            self.invalidator_map
+                .insert(path.to_owned(), invalidator, None);
+            self.watcher.ensure_watched_file(path, self.root_path())?;
+        }
         Ok(())
     }
 
@@ -293,10 +293,11 @@ impl DiskFileSystemInner {
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
     fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
-        let invalidator = turbo_tasks::get_invalidator();
-        self.dir_invalidator_map
-            .insert(path.to_owned(), invalidator, None);
-        self.watcher.ensure_watched_dir(path, self.root_path())?;
+        if let Some(invalidator) = turbo_tasks::get_invalidator() {
+            self.dir_invalidator_map
+                .insert(path.to_owned(), invalidator, None);
+            self.watcher.ensure_watched_dir(path, self.root_path())?;
+        }
         Ok(())
     }
 
@@ -712,11 +713,16 @@ impl FileSystem for DiskFileSystem {
             let _lock = inner.lock_path(&full_path).await;
 
             // Track the file, so that we will rewrite it if it ever changes.
-            let old_invalidators = inner.register_write_invalidator(
-                &full_path,
-                invalidator,
-                WriteContent::File(content.clone()),
-            )?;
+            let old_invalidators = invalidator
+                .map(|invalidator| {
+                    inner.register_write_invalidator(
+                        &full_path,
+                        invalidator,
+                        WriteContent::File(content.clone()),
+                    )
+                })
+                .transpose()?
+                .unwrap_or_default();
 
             // We perform an untracked comparison here, so that this write is not dependent
             // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
@@ -846,11 +852,16 @@ impl FileSystem for DiskFileSystem {
 
             let _lock = inner.lock_path(&full_path).await;
 
-            let old_invalidators = inner.register_write_invalidator(
-                &full_path,
-                invalidator,
-                WriteContent::Link(content.clone()),
-            )?;
+            let old_invalidators = invalidator
+                .map(|invalidator| {
+                    inner.register_write_invalidator(
+                        &full_path,
+                        invalidator,
+                        WriteContent::Link(content.clone()),
+                    )
+                })
+                .transpose()?
+                .unwrap_or_default();
 
             // TODO(sokra) preform a untracked read here, register an invalidator and get
             // all existing invalidators
@@ -1387,7 +1398,7 @@ impl FileSystemPath {
     // is invalid.
     pub async fn realpath(&self) -> Result<FileSystemPath> {
         let result = &(*self.realpath_with_links().await?);
-        match &result.path_or_error {
+        match &result.path_result {
             Ok(path) => Ok(path.clone()),
             Err(error) => Err(anyhow::anyhow!(error.as_error_message(self, result))),
         }
@@ -1449,7 +1460,7 @@ impl ValueToString for FileSystemPath {
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
 pub struct RealPathResult {
-    pub path_or_error: Result<FileSystemPath, RealPathResultError>,
+    pub path_result: Result<FileSystemPath, RealPathResultError>,
     pub symlinks: Vec<FileSystemPath>,
 }
 
@@ -1483,18 +1494,13 @@ impl RealPathResultError {
     }
 }
 
-#[derive(Clone, Copy, Debug, DeterministicHash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, DeterministicHash, PartialOrd, Ord)]
 #[turbo_tasks::value(shared)]
 pub enum Permissions {
     Readable,
+    #[default]
     Writable,
     Executable,
-}
-
-impl Default for Permissions {
-    fn default() -> Self {
-        Self::Writable
-    }
 }
 
 // Only handle the permissions on unix platform for now
@@ -2121,7 +2127,7 @@ impl DirectoryEntry {
     pub async fn resolve_symlink(self) -> Result<Self> {
         if let DirectoryEntry::Symlink(symlink) = &self {
             let result = &*symlink.realpath_with_links().await?;
-            let real_path = match &result.path_or_error {
+            let real_path = match &result.path_result {
                 Ok(path) => path,
                 Err(error) => {
                     return Ok(DirectoryEntry::Error(
@@ -2136,9 +2142,9 @@ impl DirectoryEntry {
                 FileSystemEntryType::NotFound => DirectoryEntry::Error(
                     format!("Symlink {symlink} points at {real_path} which does not exist").into(),
                 ),
+                // This is caused by eventual consistency
                 FileSystemEntryType::Symlink => bail!(
-                    "Symlink {symlink} points at a symlink but realpath_with_links returned a \
-                     path, this is caused by eventual consistency."
+                    "Symlink {symlink} points at a symlink but realpath_with_links returned a path"
                 ),
                 _ => self,
             })
@@ -2376,7 +2382,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         if current_path.is_root() {
             // fast path
             return Ok(RealPathResult {
-                path_or_error: Ok(current_path),
+                path_result: Ok(current_path),
                 symlinks: symlinks.into_iter().collect(),
             }
             .cell());
@@ -2395,7 +2401,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             .rsplit_once('/')
             .map_or(current_path.path.as_str(), |(_, name)| name);
         symlinks.extend(parent_result.symlinks);
-        let parent_path = match parent_result.path_or_error {
+        let parent_path = match parent_result.path_result {
             Ok(path) => {
                 if path != parent {
                     current_path = path.join(basename)?;
@@ -2415,7 +2421,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             FileSystemEntryType::Symlink
         ) {
             return Ok(RealPathResult {
-                path_or_error: Ok(current_path),
+                path_result: Ok(current_path),
                 symlinks: symlinks.into_iter().collect(), // convert set to vec
             }
             .cell());
@@ -2450,7 +2456,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
     // Returning the followed symlinks is still important, even if there is an error! Otherwise
     // we may never notice if the symlink loop is fixed.
     Ok(RealPathResult {
-        path_or_error: Err(error),
+        path_result: Err(error),
         symlinks: symlinks.into_iter().collect(),
     }
     .cell())

@@ -46,7 +46,7 @@ impl UpdateOutputOperation {
     pub fn run(
         task_id: TaskId,
         output: Result<RawVc, TurboTasksExecutionError>,
-        mut ctx: impl ExecuteContext,
+        mut ctx: impl ExecuteContext<'_>,
     ) {
         let mut dependent_tasks = Default::default();
         let mut children = Default::default();
@@ -54,11 +54,16 @@ impl UpdateOutputOperation {
 
         'output: {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
+            let in_progress_state = get!(task, InProgress);
+            if matches!(in_progress_state, Some(InProgressState::Canceled)) {
+                // Skip updating the output when the task was canceled
+                break 'output;
+            }
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 stale,
                 new_children,
                 ..
-            })) = get!(task, InProgress)
+            })) = in_progress_state
             else {
                 panic!("Task is not in progress while updating the output");
             };
@@ -66,9 +71,7 @@ impl UpdateOutputOperation {
                 // Skip updating the output when the task is stale
                 break 'output;
             }
-            if ctx.should_track_children() {
-                children = new_children.iter().copied().collect();
-            }
+            children = new_children.iter().copied().collect();
 
             let current_output = get!(task, Output);
             let output_value = match output {

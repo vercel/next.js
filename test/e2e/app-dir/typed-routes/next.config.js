@@ -1,3 +1,6 @@
+// intervals/open connections shouldn't block typegen from exiting
+setInterval(() => {}, 250)
+
 /**
  * @type {import('next').NextConfig}
  */

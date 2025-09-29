@@ -785,23 +785,10 @@ describe('Error overlay for hydration errors in App router', () => {
                                    <script>
                                    <script>
                                    <Root>
-                                     <NotFound>
-                                       <HTTPAccessErrorFallback>
-                                         <NotFound>
-                                           <HTTPAccessErrorFallback>
-                                             <NotFound>
-                                               <HTTPAccessErrorFallback>
-                                                 <NotFound>
-                                                   <HTTPAccessErrorFallback>
-                                                     <NotFound>
-                                                       <HTTPAccessErrorFallback>
-         >                                               <html>
-                                                           <body>
-                                                           <Script src="https://ex..." strategy="beforeInte...">
-         >                                                   <script
-         >                                                     nonce={undefined}
-         >                                                     dangerouslySetInnerHTML={{__html:"(self.__ne..."}}
-         >                                                   >
+         >                           <html>
+                                       <body>
+                                       <Script src="https://ex..." strategy="beforeInte...">
+         >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                                ...
                    ...
              ...",
@@ -861,23 +848,10 @@ describe('Error overlay for hydration errors in App router', () => {
                                  <SegmentViewNode type="layout" pagePath="(script-un...">
                                    <SegmentTrieNode>
                                    <Root>
-                                     <NotFound>
-                                       <HTTPAccessErrorFallback>
-                                         <NotFound>
-                                           <HTTPAccessErrorFallback>
-                                             <NotFound>
-                                               <HTTPAccessErrorFallback>
-                                                 <NotFound>
-                                                   <HTTPAccessErrorFallback>
-                                                     <NotFound>
-                                                       <HTTPAccessErrorFallback>
-         >                                               <html>
-                                                           <body>
-                                                           <Script src="https://ex..." strategy="beforeInte...">
-         >                                                   <script
-         >                                                     nonce={undefined}
-         >                                                     dangerouslySetInnerHTML={{__html:"(self.__ne..."}}
-         >                                                   >
+         >                           <html>
+                                       <body>
+                                       <Script src="https://ex..." strategy="beforeInte...">
+         >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                                ...
                    ...
              ...",
@@ -941,23 +915,10 @@ describe('Error overlay for hydration errors in App router', () => {
                                    <script>
                                    <script>
                                    <Root>
-                                     <NotFound>
-                                       <HTTPAccessErrorFallback>
-                                         <NotFound>
-                                           <HTTPAccessErrorFallback>
-                                             <NotFound>
-                                               <HTTPAccessErrorFallback>
-                                                 <NotFound>
-                                                   <HTTPAccessErrorFallback>
-                                                     <NotFound>
-                                                       <HTTPAccessErrorFallback>
-         >                                               <html>
-                                                           <body>
-                                                           <Script src="https://ex..." strategy="beforeInte...">
-         >                                                   <script
-         >                                                     nonce={undefined}
-         >                                                     dangerouslySetInnerHTML={{__html:"(self.__ne..."}}
-         >                                                   >
+         >                           <html>
+                                       <body>
+                                       <Script src="https://ex..." strategy="beforeInte...">
+         >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                                ...
                    ...
              ...",
@@ -1017,23 +978,10 @@ describe('Error overlay for hydration errors in App router', () => {
                                  <SegmentViewNode type="layout" pagePath="(script-un...">
                                    <SegmentTrieNode>
                                    <Root>
-                                     <NotFound>
-                                       <HTTPAccessErrorFallback>
-                                         <NotFound>
-                                           <HTTPAccessErrorFallback>
-                                             <NotFound>
-                                               <HTTPAccessErrorFallback>
-                                                 <NotFound>
-                                                   <HTTPAccessErrorFallback>
-                                                     <NotFound>
-                                                       <HTTPAccessErrorFallback>
-         >                                               <html>
-                                                           <body>
-                                                           <Script src="https://ex..." strategy="beforeInte...">
-         >                                                   <script
-         >                                                     nonce={undefined}
-         >                                                     dangerouslySetInnerHTML={{__html:"(self.__ne..."}}
-         >                                                   >
+         >                           <html>
+                                       <body>
+                                       <Script src="https://ex..." strategy="beforeInte...">
+         >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                                ...
                    ...
              ...",

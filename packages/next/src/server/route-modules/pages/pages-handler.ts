@@ -427,7 +427,7 @@ export const getHandler = ({
                     routePath: srcPage,
                     routeType: 'render',
                     revalidateReason: getRevalidateReason({
-                      isRevalidate: hasStaticProps,
+                      isStaticGeneration: hasStaticProps,
                       isOnDemandRevalidate,
                     }),
                   },
@@ -755,7 +755,7 @@ export const getHandler = ({
             routePath: srcPage,
             routeType: 'render',
             revalidateReason: getRevalidateReason({
-              isRevalidate: hasStaticProps,
+              isStaticGeneration: hasStaticProps,
               isOnDemandRevalidate,
             }),
           },

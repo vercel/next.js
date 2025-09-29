@@ -1,27 +1,31 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Profiler, useReducer } from 'react'
+
+if (typeof window !== 'undefined') {
+  ;(window as any).staticChildRenders = 0
+}
+
+function StaticChild() {
+  return (
+    <Profiler
+      onRender={(id, phase) => {
+        ;(window as any).staticChildRenders += 1
+      }}
+      id="test"
+    >
+      <div>static child</div>
+    </Profiler>
+  )
+}
 
 export default function Page() {
-  let $_: any
-  if (typeof window !== 'undefined') {
-    // eslint-disable-next-line no-eval
-    $_ = eval('$')
-  }
-
-  useEffect(() => {
-    if (Array.isArray($_)) {
-      document.getElementById('react-compiler-enabled-message')!.textContent =
-        `React compiler is enabled with ${$_!.length} memo slots`
-    }
-  })
-
+  const [count, increment] = useReducer((n) => n + 1, 1)
   return (
     <>
-      <div>
-        <h1 id="react-compiler-enabled-message" />
-        <p>hello world</p>
-      </div>
+      <div data-testid="parent-commits">Parent commits: {count}</div>
+      <button onClick={increment}>Increment</button>
+      <StaticChild />
     </>
   )
 }

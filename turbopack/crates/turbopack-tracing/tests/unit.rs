@@ -15,13 +15,17 @@ use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
-    module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
+    ecmascript::AnalyzeMode,
+    module_options::{
+        CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
+        TypescriptTransformOptions,
+    },
 };
 use turbopack_core::{
     chunk::ChunkingType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     module::Module,
@@ -40,12 +44,13 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // TODO fix failures
 #[rstest]
 #[case::amd_disable("amd-disable")]
-// #[case::array_emission("array-emission")]
+#[case::array_emission("array-emission")]
 #[case::array_holes("array-holes")]
+// Ternary currently becomes Unknown as opposed to Alternatives when the condition isn't static
 // #[case::asset_conditional("asset-conditional")]
 #[case::asset_fs_array_expr("asset-fs-array-expr")]
 #[case::asset_fs_array_expr_node_prefix("asset-fs-array-expr-node-prefix")]
-// #[case::asset_fs_extra("asset-fs-extra")]
+#[case::asset_fs_extra("asset-fs-extra")]
 #[case::asset_fs_inline_path_babel("asset-fs-inline-path-babel")]
 #[case::asset_fs_inline_path_enc_es("asset-fs-inline-path-enc-es")]
 #[case::asset_fs_inline_path_enc_es_2("asset-fs-inline-path-enc-es-2")]
@@ -182,11 +187,14 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
     let input_dir = workspace_fs.root().owned().await?;
     let input = input_dir.join(&input)?;
 
-    let source = FileSource::new(input);
-    let environment = Environment::new(
-        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().resolved_cell()),
-        BrowserEnvironment::default().cell(),
-    );
+    let source = FileSource::new(input.clone());
+    let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
+        NodeJsEnvironment {
+            cwd: ResolvedVc::cell(Some(input.parent())),
+            ..Default::default()
+        }
+        .resolved_cell(),
+    ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
         // TODO These test cases should move into the `node-file-trace` crate and use the same
@@ -196,6 +204,9 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 ..Default::default()
             },
             css: CssOptionsContext {
@@ -205,7 +216,7 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            is_tracing: true,
+            analyze_mode: AnalyzeMode::Tracing,
             ..Default::default()
         }
         .cell(),
@@ -263,6 +274,8 @@ async fn to_list(assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>) -> Result<Vec<Rc
 }
 
 static TRAILING_COMMA: LazyLock<Regex> = LazyLock::new(|| Regex::new(r",[\s\n]*\]").unwrap());
+static LINE_COMMENTS_COMMA: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)^\s*//.*$").unwrap());
 
 fn node_file_trace(input_path: &str) -> Result<()> {
     let r = &mut {
@@ -295,8 +308,9 @@ fn node_file_trace(input_path: &str) -> Result<()> {
 
             let reference = std::fs::read_to_string(reference)?;
             // crude JS -> JSON conversion
-            let reference = TRAILING_COMMA
-                .replace(&reference, "]")
+            let reference = TRAILING_COMMA.replace(&reference, "]");
+            let reference = LINE_COMMENTS_COMMA
+                .replace_all(&reference, "")
                 .replace(";", "")
                 .replace('\'', "\"");
             let reference = serde_json::from_str::<Vec<String>>(&reference)?

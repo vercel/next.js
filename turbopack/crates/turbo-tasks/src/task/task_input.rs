@@ -332,6 +332,19 @@ where
     }
 }
 
+impl<T> TaskInput for auto_hash_map::AutoSet<T>
+where
+    T: TaskInput,
+{
+    fn is_resolved(&self) -> bool {
+        self.iter().all(TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter().any(TaskInput::is_transient)
+    }
+}
+
 macro_rules! tuple_impls {
     ( $( $name:ident )+ ) => {
         impl<$($name: TaskInput),+> TaskInput for ($($name,)+)

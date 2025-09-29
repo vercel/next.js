@@ -1,12 +1,10 @@
-import {
-  isTerminalLoggingEnabled,
-  logQueue,
-} from '../../../../next-devtools/userspace/app/forward-logs'
+import { logQueue } from '../../../../next-devtools/userspace/app/forward-logs'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { getSocketUrl } from '../get-socket-url'
+import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
 
 let source: WebSocket
 
@@ -28,13 +26,13 @@ let reloading = false
 let serverSessionId: number | null = null
 
 export function connectHMR(options: { path: string; assetPrefix: string }) {
+  let timer: ReturnType<typeof setTimeout>
+
   function init() {
     if (source) source.close()
 
     function handleOnline() {
-      if (isTerminalLoggingEnabled) {
-        logQueue.onSocketReady(source)
-      }
+      logQueue.onSocketReady(source)
       reconnections = 0
       window.console.log('[HMR] connected')
     }
@@ -71,14 +69,13 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
       }
     }
 
-    let timer: ReturnType<typeof setTimeout>
     function handleDisconnect() {
       source.onerror = null
       source.onclose = null
       source.close()
       reconnections++
       // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
-      if (reconnections > 25) {
+      if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
         reloading = true
         window.location.reload()
         return

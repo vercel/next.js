@@ -1,5 +1,5 @@
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
-import { createPrefetchURL } from '../app-router'
+import { createPrefetchURL } from '../app-router-utils'
 import { createCacheKey } from './cache-key'
 import { schedulePrefetchTask } from './scheduler'
 import {

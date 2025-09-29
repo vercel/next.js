@@ -6,7 +6,6 @@ use next_core::{
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
-    next_server::{ServerContextType, get_server_runtime_entries},
     parse_segment_config_from_source,
     segment_config::ParseSegmentMode,
     util::{MiddlewareMatcherKind, NextRuntime},
@@ -27,7 +26,7 @@ use turbopack_core::{
         GraphEntries,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -105,36 +104,20 @@ impl MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn edge_files(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+    async fn edge_chunk_group(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         let module = self.entry_module().to_resolved().await?;
 
         let module_graph = this.project.module_graph(*module);
 
-        let evaluatable_assets = get_server_runtime_entries(
-            ServerContextType::Middleware {
-                app_dir: this.app_dir.clone(),
-                ecmascript_client_reference_transition_name: this
-                    .ecmascript_client_reference_transition_name
-                    .clone(),
-            },
-            this.project.next_mode(),
-        )
-        .resolve_entries(*this.asset_context)
-        .await?
-        .iter()
-        .map(|m| ResolvedVc::upcast(*m))
-        .chain(std::iter::once(module))
-        .collect();
-
         let edge_chunking_context = this.project.edge_chunking_context(false);
-        let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
+        let edge_chunk_grou = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            ChunkGroup::Entry(evaluatable_assets),
+            ChunkGroup::Entry(vec![module]),
             module_graph,
             AvailabilityInfo::Root,
         );
-        Ok(edge_files)
+        Ok(edge_chunk_grou)
     }
 
     #[turbo_tasks::function]
@@ -156,18 +139,9 @@ impl MiddlewareEndpoint {
                     .node_root()
                     .await?
                     .join("server/middleware.js")?,
-                get_server_runtime_entries(
-                    ServerContextType::Middleware {
-                        app_dir: this.app_dir.clone(),
-                        ecmascript_client_reference_transition_name: this
-                            .ecmascript_client_reference_transition_name
-                            .clone(),
-                    },
-                    this.project.next_mode(),
-                )
-                .resolve_entries(*this.asset_context)
-                .with_entry(*module),
+                Vc::cell(vec![module]),
                 module_graph,
+                OutputAssets::empty(),
                 OutputAssets::empty(),
                 AvailabilityInfo::Root,
             )
@@ -281,22 +255,22 @@ impl MiddlewareEndpoint {
 
             Ok(Vc::cell(output_assets))
         } else {
-            let edge_files = self.edge_files();
-            let mut output_assets = edge_files.owned().await?;
+            let edge_chunk_group = self.edge_chunk_group();
+            let edge_all_assets = edge_chunk_group.all_assets();
 
             let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &output_assets).await?;
+                get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
+                    .await?;
 
-            let all_output_assets = all_assets_from_entries(edge_files).await?;
+            let mut output_assets = all_assets_from_entries(edge_all_assets).owned().await?;
 
             let wasm_paths_from_root =
-                get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
+                get_wasm_paths_from_root(&node_root_value, &output_assets).await?;
 
-            let all_assets =
-                get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
+            let all_assets = get_asset_paths_from_root(&node_root_value, &output_assets).await?;
 
             let regions = if let Some(regions) = config.preferred_region.as_ref() {
                 if regions.len() == 1 {

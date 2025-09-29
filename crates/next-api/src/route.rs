@@ -34,7 +34,7 @@ pub struct AppPageRoute {
 pub enum Route {
     Page {
         html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
-        data_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+        data_endpoint: Option<ResolvedVc<Box<dyn Endpoint>>>,
     },
     PageApi {
         endpoint: ResolvedVc<Box<dyn Endpoint>>,

@@ -1,8 +1,13 @@
 #![doc = include_str!("../README.md")]
 
+mod constants;
+mod patterns;
+
 use std::sync::LazyLock;
 
 use anyhow::{Context, Result, bail};
+pub use constants::*;
+pub use patterns::*;
 use regex::Regex;
 use turbo_unix_path::{get_parent_path, get_relative_path_to, join_path, normalize_path};
 
@@ -30,7 +35,7 @@ pub fn expand_next_js_template<'a>(
     fn replace_all<E>(
         re: &regex::Regex,
         haystack: &str,
-        mut replacement: impl FnMut(&regex::Captures) -> Result<String, E>,
+        mut replacement: impl FnMut(&regex::Captures<'_>) -> Result<String, E>,
     ) -> Result<String, E> {
         let mut new = String::with_capacity(haystack.len());
         let mut last_match = 0;

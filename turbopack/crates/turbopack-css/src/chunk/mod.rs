@@ -236,7 +236,6 @@ pub async fn write_import_context(
 #[turbo_tasks::value]
 pub struct CssChunkContent {
     pub chunk_items: Vec<ResolvedVc<Box<dyn CssChunkItem>>>,
-    pub referenced_output_assets: ResolvedVc<OutputAssets>,
 }
 
 #[turbo_tasks::value_impl]
@@ -337,33 +336,30 @@ impl OutputAsset for CssChunk {
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let content = this.content.await?;
-        let mut references = content.referenced_output_assets.owned().await?;
         let should_generate_single_item_chunks = content.chunk_items.len() > 1
             && *this
                 .chunking_context
                 .is_dynamic_chunk_content_loading_enabled()
                 .await?;
-        references.extend(
-            content
-                .chunk_items
-                .iter()
-                .map(|item| async {
-                    let references = item.references().await?.into_iter().copied();
-                    Ok(if should_generate_single_item_chunks {
-                        Either::Left(
-                            references.chain(std::iter::once(ResolvedVc::upcast(
-                                SingleItemCssChunk::new(*this.chunking_context, **item)
-                                    .to_resolved()
-                                    .await?,
-                            ))),
-                        )
-                    } else {
-                        Either::Right(references)
-                    })
+        let mut references = content
+            .chunk_items
+            .iter()
+            .map(|item| async {
+                let references = item.references().await?.into_iter().copied();
+                Ok(if should_generate_single_item_chunks {
+                    Either::Left(
+                        references.chain(std::iter::once(ResolvedVc::upcast(
+                            SingleItemCssChunk::new(*this.chunking_context, **item)
+                                .to_resolved()
+                                .await?,
+                        ))),
+                    )
+                } else {
+                    Either::Right(references)
                 })
-                .try_flat_join()
-                .await?,
-        );
+            })
+            .try_flat_join()
+            .await?;
         if *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
@@ -501,7 +497,6 @@ impl ChunkType for CssChunkType {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
         _batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
-        referenced_output_assets: ResolvedVc<OutputAssets>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
         let mut chunk_items = Vec::new();
         // TODO operate with batches
@@ -530,7 +525,6 @@ impl ChunkType for CssChunkType {
                 })
                 .try_join()
                 .await?,
-            referenced_output_assets,
         }
         .cell();
         Ok(Vc::upcast(CssChunk::new(*chunking_context, content)))

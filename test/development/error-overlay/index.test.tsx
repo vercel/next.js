@@ -14,7 +14,7 @@ describe('DevErrorOverlay', () => {
 
     const errorCode = await browser.elementByCss('[data-nextjs-error-code]')
     const code = await errorCode.getAttribute('data-nextjs-error-code')
-    expect(code).toBe('E127')
+    expect(code).toBe('E838')
   })
 
   it('sends feedback when clicking helpful button', async () => {
@@ -94,5 +94,29 @@ describe('DevErrorOverlay', () => {
     for (const request of woff2Requests) {
       expect(request.status).toBe(200)
     }
+  })
+
+  it('should load dev overlay styles successfully', async () => {
+    const browser = await next.browser('/hydration-error')
+
+    await assertHasRedbox(browser)
+    const redbox = browser.locateRedbox()
+
+    // check the data-nextjs-dialog-header="true" DOM element styles under redbox is applied
+    const dialogHeader = redbox.locator('[data-nextjs-dialog-header="true"]')
+    expect(await dialogHeader.isVisible()).toBe(true)
+    // get computed styles
+    const computedStyles = await dialogHeader.evaluate((element) => {
+      return window.getComputedStyle(element)
+    })
+    const styles = {
+      backgroundColor: computedStyles.backgroundColor,
+      color: computedStyles.color,
+    }
+
+    expect(styles).toEqual({
+      backgroundColor: 'rgba(0, 0, 0, 0)',
+      color: 'rgb(117, 117, 117)',
+    })
   })
 })

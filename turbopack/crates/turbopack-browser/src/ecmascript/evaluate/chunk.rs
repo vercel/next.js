@@ -271,9 +271,7 @@ impl OutputAsset for EcmascriptBrowserEvaluateChunk {
             references.push(ResolvedVc::upcast(self.source_map().to_resolved().await?));
         }
 
-        for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().copied());
-        }
+        references.extend(this.other_chunks.await?.iter().copied());
 
         Ok(Vc::cell(references))
     }

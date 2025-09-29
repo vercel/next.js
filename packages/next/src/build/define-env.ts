@@ -316,6 +316,7 @@ export function getDefineEnv({
     'process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL': JSON.stringify(
       config.experimental.browserDebugInfoInTerminal || false
     ),
+    'process.env.__NEXT_MCP_SERVER': !!config.experimental.mcpServer,
 
     // The devtools need to know whether or not to show an option to clear the
     // bundler cache. This option may be removed later once Turbopack's
@@ -330,9 +331,10 @@ export function getDefineEnv({
     // In the worst case we'll show an option to clear the cache, but it'll be a
     // no-op that just restarts the development server.
     'process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE':
-      !isTurbopack || (config.experimental.turbopackPersistentCaching ?? false),
-    'process.env.__NEXT_OPTIMIZE_ROUTER_SCROLL':
-      config.experimental.optimizeRouterScrolling ?? false,
+      !isTurbopack ||
+      (config.experimental.turbopackPersistentCachingForDev ?? false),
+    'process.env.__NEXT_REACT_DEBUG_CHANNEL':
+      config.experimental.reactDebugChannel ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

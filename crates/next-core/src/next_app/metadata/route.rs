@@ -288,10 +288,12 @@ async fn dynamic_sitemap_route_with_generate_source(
             }}
 
             export async function GET(_, ctx) {{
-                const {{ __metadata_id__: id, ...params }} = await ctx.params || {{}}
-                const hasXmlExtension = id ? id.endsWith('.xml') : false
+                const paramsPromise = ctx.params
+                const idPromise = paramsPromise.then(params => params?.__metadata_id__)
 
                 if (process.env.NODE_ENV !== 'production') {{
+                    const id = await idPromise
+                    const hasXmlExtension = id ? id.endsWith('.xml') : false
                     const sitemaps = await generateSitemaps()
                     let foundId
                     for (const item of sitemaps) {{
@@ -310,8 +312,11 @@ async fn dynamic_sitemap_route_with_generate_source(
                     }}
                 }}
                 
-                const targetId = id && hasXmlExtension ? id.slice(0, -4) : undefined
-                const data = await handler({{ id: targetId }})
+                const targetIdPromise = idPromise.then(id => {{
+                    const hasXmlExtension = id ? id.endsWith('.xml') : false
+                    return id && hasXmlExtension ? id.slice(0, -4) : undefined
+                }})
+                const data = await handler({{ id: targetIdPromise }})
                 const content = resolveRouteData(data, fileType)
 
                 return new NextResponse(content, {{
@@ -433,11 +438,17 @@ async fn dynamic_image_route_with_metadata_source(
             }}
 
             export async function GET(_, ctx) {{
-                const params = await ctx.params
-                const {{ __metadata_id__, ...rest }} = params || {{}}
-                const restParams = params ? rest : undefined
+                const paramsPromise = ctx.params
+                const idPromise = paramsPromise.then(params => params?.__metadata_id__)
+                const restParamsPromise = paramsPromise.then(params => {{
+                    if (!params) return undefined
+                    const {{ __metadata_id__, ...rest }} = params
+                    return rest
+                }})
                 
                 if (process.env.NODE_ENV !== 'production') {{
+                    const restParams = await restParamsPromise
+                    const __metadata_id__ = await idPromise
                     const imageMetadata = await generateImageMetadata({{ params: restParams }})
                     const id = imageMetadata.find((item) => {{
                         if (item?.id == null) {{
@@ -454,7 +465,7 @@ async fn dynamic_image_route_with_metadata_source(
                     }}
                 }}
 
-                return handler({{ params: restParams, id: __metadata_id__ }})
+                return handler({{ params: restParamsPromise, id: idPromise }})
             }}
 
             export * from {resource_path}
@@ -502,7 +513,7 @@ async fn dynamic_image_route_without_metadata_source(
             }}
 
             export async function GET(_, ctx) {{
-                return handler({{ params: await ctx.params }})
+                return handler({{ params: ctx.params }})
             }}
 
             export * from {resource_path}

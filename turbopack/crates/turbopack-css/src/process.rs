@@ -363,10 +363,10 @@ pub async fn parse_css(
     ty: CssModuleAssetType,
     environment: Option<ResolvedVc<Environment>>,
 ) -> Result<Vc<ParseCssResult>> {
-    let span = {
-        let name = source.ident().to_string().await?.to_string();
-        tracing::info_span!("parse css", name = name)
-    };
+    let span = tracing::info_span!(
+        "parse css",
+        name = display(source.ident().to_string().await?)
+    );
     async move {
         let content = source.content();
         let ident_str = &*source.ident().to_string().await?;

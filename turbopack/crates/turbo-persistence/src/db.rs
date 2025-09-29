@@ -377,6 +377,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
     }
 
     /// Reads and decompresses a blob file. This is not backed by any cache.
+    #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
     fn read_blob(&self, seq: u32) -> Result<ArcSlice<u8>> {
         let path = self.path.join(format!("{seq:08}.blob"));
         let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
