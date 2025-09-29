@@ -3,6 +3,9 @@ const path = require('path')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // output: 'standalone',
+
+  // TODO ideally, all of these manual includes wouldn't be necessary. Maybe we can improve that for
+  // Turbopack
   outputFileTracingIncludes: {
     '/': [
       path.relative(
