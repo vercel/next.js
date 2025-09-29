@@ -27,8 +27,8 @@ if (!(globalThis as any).isNextStart) {
 
     beforeAll(async () => {
       await next.patchFile(
-        'next.config.ts',
-        (await next.readFile('next.config.ts')).replace('// output', 'output')
+        'next.config.js',
+        (await next.readFile('next.config.js')).replace('// output', 'output')
       )
       await next.start()
     })

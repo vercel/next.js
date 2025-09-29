@@ -1,7 +1,7 @@
-import type { NextConfig } from 'next'
 const path = require('path')
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // output: 'standalone',
   outputFileTracingIncludes: {
     '/': [
