@@ -67,13 +67,13 @@ export async function tryNextDev({
       expect(await res.text()).toContain('Hello world!')
     } else {
       const responseText = await res.text()
-      // App Router uses page.tsx, Pages Router uses index.tsx
-      const hasAppRouterText = responseText.includes(
-        'To get started, edit the page.tsx file.'
-      )
-      const hasPagesRouterText = responseText.includes(
-        'To get started, edit the index.tsx file.'
-      )
+      // App Router uses page.tsx/page.js, Pages Router uses index.tsx/index.js
+      const hasAppRouterText =
+        responseText.includes('To get started, edit the page.tsx file.') ||
+        responseText.includes('To get started, edit the page.js file.')
+      const hasPagesRouterText =
+        responseText.includes('To get started, edit the index.tsx file.') ||
+        responseText.includes('To get started, edit the index.js file.')
       expect(hasAppRouterText || hasPagesRouterText).toBe(true)
     }
     expect(res.status).toBe(200)
