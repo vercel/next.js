@@ -1172,17 +1172,15 @@ There are two default `meta` tags that are always added even if a route doesn't 
 
 ### Streaming metadata
 
-Streaming metadata allows Next.js to render and send the initial UI to browser, without waiting for `generateMetadata` to complete.
+Streaming metadata allows Next.js to render and send the initial UI to the browser, without waiting for `generateMetadata` to complete.
 
-When `generateMetadata` resolves, the resulting metadata tags are appended to the `<body>` tag.
-
-Streaming metadata improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and can help lowering [LCP](https://developer.mozilla.org/docs/Glossary/Largest_contentful_paint) time.
+When `generateMetadata` resolves, the resulting metadata tags are appended to the `<body>` tag. We have verified that metadata is interpreted correctly by bots that execute JavaScript and inspect the full DOM (e.g. `Googlebot`).
 
 For **HTML-limited bots** that can’t execute JavaScript (e.g. `Twitterbot`, `Slackbot`, `Bingbot`), metadata continues to block page rendering. The resulting metadata will be available in the `<head>` tag.
 
 Next.js automatically detects **HTML-limited bots** by looking at the User Agent header. You can use the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) option in your Next.js config file to override the default [User Agent list](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/html-bots.ts).
 
-For example, to fully disable streaming metadata:
+To fully disable streaming metadata:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -1199,6 +1197,8 @@ module.exports = {
   htmlLimitedBots: /.*/,
 }
 ```
+
+Next.js streams metadata for bots that can execute JavaScript and inspect the full DOM (e.g. `Googlebot`). We have verified that these bots interpret the metadata correctly.
 
 Overriding `htmlLimitedBots` could lead to longer response times. Streaming metadata is an advanced feature, and the default should be sufficient for most cases.
 
