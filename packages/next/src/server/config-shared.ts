@@ -423,9 +423,14 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * Enable persistent caching for the turbopack dev server and build.
+   * Enable persistent caching for the turbopack dev server.
    */
-  turbopackPersistentCaching?: boolean
+  turbopackPersistentCachingForDev?: boolean
+
+  /**
+   * Enable persistent caching for the turbopack build.
+   */
+  turbopackPersistentCachingForBuild?: boolean
 
   /**
    * Enable source maps. Defaults to true.

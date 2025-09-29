@@ -354,9 +354,13 @@ function assignDefaultsAndValidate(
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.cacheComponents) {
       throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
-    } else if (result.experimental?.turbopackPersistentCaching) {
+    } else if (result.experimental?.turbopackPersistentCachingForDev) {
       throw new CanaryOnlyError({
-        feature: 'experimental.turbopackPersistentCaching',
+        feature: 'experimental.turbopackPersistentCachingForDev',
+      })
+    } else if (result.experimental?.turbopackPersistentCachingForBuild) {
+      throw new CanaryOnlyError({
+        feature: 'experimental.turbopackPersistentCachingForBuild',
       })
     }
   }
