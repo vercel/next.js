@@ -109,7 +109,7 @@ const renames = [
 module.exports = {
   commentHeading: 'Stats from current PR',
   commentReleaseHeading: 'Stats from current release',
-  appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next build --webpack',
+  appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next build',
   appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next start --port $PORT',
   appDevCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next --port $PORT',
   mainRepo: 'vercel/next.js',
