@@ -95,7 +95,7 @@ describe('adapter-config', () => {
       if (output.filePath.endsWith('.html')) {
         expect(output.pathname.endsWith('.html')).toBe(false)
       } else {
-        expect(output.pathname).toStartWith('/_next/static')
+        expect(output.pathname).toStartWith('/docs/_next/static')
       }
 
       const stats = await fs.promises.stat(output.filePath)
