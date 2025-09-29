@@ -66,9 +66,15 @@ export async function tryNextDev({
     if (isEmpty || isApi) {
       expect(await res.text()).toContain('Hello world!')
     } else {
-      expect(await res.text()).toContain(
+      const responseText = await res.text()
+      // App Router uses page.tsx, Pages Router uses index.tsx
+      const hasAppRouterText = responseText.includes(
         'To get started, edit the page.tsx file.'
       )
+      const hasPagesRouterText = responseText.includes(
+        'To get started, edit the index.tsx file.'
+      )
+      expect(hasAppRouterText || hasPagesRouterText).toBe(true)
     }
     expect(res.status).toBe(200)
 
