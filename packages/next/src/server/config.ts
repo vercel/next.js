@@ -664,6 +664,13 @@ function assignDefaultsAndValidate(
     configFileName,
     silent
   )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'reactCompiler',
+    'reactCompiler',
+    configFileName,
+    silent
+  )
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
