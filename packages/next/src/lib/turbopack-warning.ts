@@ -47,9 +47,11 @@ const unsupportedTurbopackNextConfigOptions = [
 ]
 
 // The following will need to be supported by `next build --turbopack`
-const unsupportedProductionSpecificTurbopackNextConfigOptions: string[] = []
+const unsupportedProductionSpecificTurbopackNextConfigOptions: string[] = [
+  // TODO: Support disabling sourcemaps, currently they're always enabled.
+  // 'productionBrowserSourceMaps',
+]
 
-/**  */
 export async function validateTurboNextConfig({
   dir,
   isDev,
@@ -69,7 +71,7 @@ export async function validateTurboNextConfig({
   let hasWebpackConfig = false
   let hasTurboConfig = false
 
-  const unsupportedConfig: string[] = []
+  let unsupportedConfig: string[] = []
   let rawNextConfig: NextConfig = {}
 
   const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD
@@ -122,7 +124,7 @@ export async function validateTurboNextConfig({
 
     const customKeys = flattenKeys(rawNextConfig)
 
-    const unsupportedKeys = isDev
+    let unsupportedKeys = isDev
       ? unsupportedTurbopackNextConfigOptions
       : [
           ...unsupportedTurbopackNextConfigOptions,
@@ -137,7 +139,7 @@ export async function validateTurboNextConfig({
         hasTurboConfig = true
       }
 
-      const isUnsupported =
+      let isUnsupported =
         unsupportedKeys.some(
           (unsupportedKey) =>
             // Either the key matches (or is a more specific subkey) of
@@ -160,26 +162,13 @@ export async function validateTurboNextConfig({
     Log.error('Unexpected error occurred while checking config', e)
   }
 
-  // If the build was defaulted to Turbopack, we want to warn about possibly ignored webpack
-  // configuration. Otherwise the user explicitly picked turbopack and thus we expect that
-  // they have configured it correctly.
-  if (process.env.TURBOPACK === 'auto' && hasWebpackConfig && !hasTurboConfig) {
-    const logMethod = isDev ? Log.warn : Log.error
-    // In a production build with auto-detected Turbopack, we want to fail the build.
-    logMethod(
-      `Webpack is configured while Turbopack is not. This may be a mistake.`
+  if (hasWebpackConfig && !hasTurboConfig) {
+    Log.warn(
+      `Webpack is configured while Turbopack is not, which may cause problems.`
     )
-    logMethod(
-      `To configure Turbopack, see:\n  https://nextjs.org/docs/app/api-reference/next-config-js/turbopack`
+    Log.warn(
+      `See instructions if you need to configure Turbopack:\n  https://nextjs.org/docs/app/api-reference/next-config-js/turbopack\n`
     )
-    logMethod(
-      `TIP: Silence this ${isDev ? 'warning' : 'error'} by passing the --turbopack or --webpack flag explicitly.`
-    )
-
-    // For production builds we want to simply fail to prevent accidental misconfiguration.
-    if (!isDev) {
-      process.exit(1)
-    }
   }
 
   if (unsupportedConfig.length) {
