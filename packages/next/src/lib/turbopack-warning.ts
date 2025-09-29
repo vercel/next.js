@@ -1,4 +1,4 @@
-import type { NextConfig } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import loadConfig from '../server/config'
 import * as Log from '../build/output/log'
 import {
@@ -70,7 +70,7 @@ export async function validateTurboNextConfig({
   let hasTurboConfig = false
 
   const unsupportedConfig: string[] = []
-  let rawNextConfig: NextConfig = {}
+  let rawNextConfig: NextConfigComplete = {} as NextConfigComplete
 
   const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD
   try {
@@ -78,7 +78,7 @@ export async function validateTurboNextConfig({
       await loadConfig(phase, dir, {
         rawConfig: true,
       })
-    ) as NextConfig
+    )
 
     if (typeof rawNextConfig === 'function') {
       rawNextConfig = (rawNextConfig as any)(phase, {
@@ -164,22 +164,20 @@ export async function validateTurboNextConfig({
   // configuration. Otherwise the user explicitly picked turbopack and thus we expect that
   // they have configured it correctly.
   if (process.env.TURBOPACK === 'auto' && hasWebpackConfig && !hasTurboConfig) {
-    const logMethod = isDev ? Log.warn : Log.error
-    // In a production build with auto-detected Turbopack, we want to fail the build.
-    logMethod(
-      `Webpack is configured while Turbopack is not. This may be a mistake.`
-    )
-    logMethod(
-      `To configure Turbopack, see:\n  https://nextjs.org/docs/app/api-reference/next-config-js/turbopack`
-    )
-    logMethod(
-      `TIP: Silence this ${isDev ? 'warning' : 'error'} by passing the --turbopack or --webpack flag explicitly.`
+    const configFile = rawNextConfig.configFileName ?? 'your Next config file'
+    Log.error(
+      `ERROR: This build is using Turbopack, with a \`webpack\` config and no \`turbopack\` config. This may be a mistake.
+
+  As of Next.js 16 turbopack is enabled by default and custom webpack configurations may need to be migrated to Turbopack.
+
+  NOTE: your \`webpack\` config may have been added by a configuration plugin.
+
+  To configure Turbopack, see https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+
+  TIP: Many applications work fine under Turbopack with no configuration, if that is the case for you, you can silence this error by passing the \`--turbopack\` or \`--webpack\` flag explicitly or simply setting an empty turbopack config in ${configFile} (e.g. \`turbopack: {}\`).`
     )
 
-    // For production builds we want to simply fail to prevent accidental misconfiguration.
-    if (!isDev) {
-      process.exit(1)
-    }
+    process.exit(1)
   }
 
   if (unsupportedConfig.length) {

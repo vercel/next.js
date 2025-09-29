@@ -540,7 +540,8 @@ function createServer(
     options &&
     (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
   ) {
-    process.env.TURBOPACK = '1'
+    // Configure TURBOPACK if it isn't already set
+    process.env.TURBOPACK ??= '1'
   }
   // The package is used as a TypeScript plugin.
   if (
