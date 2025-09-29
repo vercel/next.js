@@ -95,7 +95,7 @@ When streaming, a `200` status code will be returned to signal that the request 
 
 The server can still communicate errors or issues to the client within the streamed content itself, for example, when using [`redirect`](/docs/app/api-reference/functions/redirect) or [`notFound`](/docs/app/api-reference/functions/not-found). Because the response headers have already been sent to the client, the status code of the response cannot be updated.
 
-When a route resolves to a missing resource using [`notFound`](/docs/app/api-reference/functions/not-found), Next.js includes a `<meta name="robots" content="noindex">` tag in the streamed HTML. This prevents search engines from indexing that URL even if the HTTP status is 200. See Google’s guidance on the [`robots` meta tag](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag).
+For example, when a 404 page is streamed to the client, Next.js includes a `<meta name="robots" content="noindex">` tag in the streamed HTML. This prevents search engines from indexing that URL even if the HTTP status is 200. See Google’s guidance on the [`robots` meta tag](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag).
 
 Some crawlers may label these responses as “soft 404s”. In the streaming case, this does not lead to indexation because the page is explicitly marked `noindex` in the HTML.
 
