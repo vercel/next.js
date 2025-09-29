@@ -143,7 +143,7 @@ impl ExportUsage {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
     pub primary: SliceMap<RequestKey, ModuleResolveResultItem>,
     /// Affecting sources are other files that influence the resolve result.  For example,

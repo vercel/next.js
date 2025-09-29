@@ -22,7 +22,6 @@ use turbopack::{
     },
 };
 use turbopack_core::{
-    chunk::ChunkingType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -30,7 +29,7 @@ use turbopack_core::{
     ident::Layer,
     module::Module,
     output::OutputAsset,
-    reference::{all_assets_from_entries, primary_chunkable_referenced_modules},
+    reference::all_assets_from_entries,
     reference_type::ReferenceType,
     traced_asset::TracedAsset,
 };
@@ -234,27 +233,11 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
         .process(Vc::upcast(source), ReferenceType::Undefined)
         .module();
 
-    // We treat the entry as bundled code, so start with the references.
-    let assets = primary_chunkable_referenced_modules(module, true)
-        .await?
-        .iter()
-        .flat_map(|(ty, _, modules)| {
-            if *ty == ChunkingType::Traced {
-                Some(modules.into_iter())
-            } else {
-                None
-            }
-        })
-        .flatten()
-        .map(async |m| {
-            Ok(ResolvedVc::upcast(
-                TracedAsset::new(**m).to_resolved().await?,
-            ))
-        })
-        .try_join()
-        .await?;
-
-    let mut paths = to_list(assets).await?;
+    // We treat the entry as an external
+    let mut paths = to_list(vec![ResolvedVc::upcast(
+        TracedAsset::new(module).to_resolved().await?,
+    )])
+    .await?;
     paths.push(module.ident().path().await?.path.clone());
 
     Ok(Vc::cell(paths))
@@ -301,10 +284,7 @@ fn node_file_trace(input_path: &str) -> Result<()> {
                 .map(|s| s.to_string())
                 .collect::<FxIndexSet<_>>();
 
-            // println!(
-            //     "issues: {:#?}",
-            //     op.peek_issues_with_path().await?.get_plain_issues().await?
-            // );
+            // println!("issues: {:#?}", op.peek_issues().get_plain_issues().await?);
 
             let reference = std::fs::read_to_string(reference)?;
             // crude JS -> JSON conversion
@@ -315,7 +295,6 @@ fn node_file_trace(input_path: &str) -> Result<()> {
                 .replace('\'', "\"");
             let reference = serde_json::from_str::<Vec<String>>(&reference)?
                 .into_iter()
-                .filter(|m| m != "package.json")
                 .collect::<FxIndexSet<_>>();
 
             if reference == list {
