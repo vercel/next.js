@@ -392,24 +392,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next-codemod/transforms/__tests__/withamp-to-config.test.js": {
-    "passed": [
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-inline\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config-dupe\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config-var\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/hybrid-amp\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/hybrid-amp-with-config\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import-renamed\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import-single\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/build/analysis/get-page-static-info.test.ts": {
     "passed": [
       "get-page-static-infos getMiddlewareMatchers matches /:id and /:id.json",
