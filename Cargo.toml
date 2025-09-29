@@ -371,13 +371,13 @@ image = { version = "0.25.0", default-features = false }
 indexmap = "2.7.1"
 indoc = "2.0.0"
 itertools = "0.10.5"
-lightningcss = { version = "1.0.0-alpha.67", features = [
+lightningcss = { version = "1.0.0-alpha.68", features = [
   "serde",
   "visitor",
   "into_owned",
   "browserslist",
 ] }
-lightningcss-napi = { version = "0.4.4", default-features = false, features = [
+lightningcss-napi = { version = "0.4.5", default-features = false, features = [
   "visitor",
 ] }
 markdown = "1.0.0-alpha.18"
@@ -451,5 +451,3 @@ inventory = "0.3.21"
 [patch.crates-io]
 hyper = { git = "https://github.com/bgw/hyper-rs.git", branch = "v1.6.0-with-macos-intel-miscompilation-workaround" }
 mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }
-lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
-parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
