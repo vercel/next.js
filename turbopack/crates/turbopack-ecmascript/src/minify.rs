@@ -24,7 +24,7 @@ use swc_core::{
         },
     },
 };
-use tracing::{Level, instrument};
+use tracing::instrument;
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
@@ -32,7 +32,7 @@ use turbopack_core::{
 
 use crate::parse::generate_js_source_map;
 
-#[instrument(level = Level::INFO, skip_all)]
+#[instrument(level = "info", name = "minify ecmascript code", skip_all)]
 pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
     let source_maps = source_maps
         .then(|| code.generate_source_map_ref())

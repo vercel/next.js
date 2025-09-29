@@ -16,7 +16,10 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions?: NapiTurboEngineOptions
     ): Promise<Project>
-    startTurbopackTraceServer(traceFilePath: string): void
+    startTurbopackTraceServer(
+      traceFilePath: string,
+      port: number | undefined
+    ): void
 
     nextBuild?: any
   }

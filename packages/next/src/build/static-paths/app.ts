@@ -828,7 +828,6 @@ export async function buildAppStaticPaths({
       incrementalCache,
       cacheLifeProfiles,
       supportsDynamicResponse: true,
-      isRevalidate: false,
       experimental: {
         cacheComponents,
         authInterrupts,

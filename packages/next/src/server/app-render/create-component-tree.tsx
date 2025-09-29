@@ -371,7 +371,7 @@ async function createComponentTreeInternal(
    */
   let MaybeComponent = LayoutOrPage
 
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === 'development' || isStaticGeneration) {
     const { isValidElementType } =
       require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (

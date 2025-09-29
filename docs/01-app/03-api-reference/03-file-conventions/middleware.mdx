@@ -8,7 +8,7 @@ related:
     - app/api-reference/functions/next-response
 ---
 
-The `middleware.js|ts` file is used to write [Middleware](/docs/app/api-reference/file-conventions/middleware) and run code on the server before a request is completed. Then, based on the incoming request, you can modify the response by rewriting, redirecting, modifying the request or response headers, or responding directly.
+The `middleware.js|ts` file is used to write [Middleware](/docs/app/getting-started/route-handlers-and-middleware#middleware) and run code on the server before a request is completed. Then, based on the incoming request, you can modify the response by rewriting, redirecting, modifying the request or response headers, or responding directly.
 
 Middleware executes before routes are rendered. It's particularly useful for implementing custom server-side logic like authentication, logging, or handling redirects.
 
@@ -19,6 +19,8 @@ Middleware executes before routes are rendered. It's particularly useful for imp
 > To pass information from Middleware to your application, use [headers](#setting-headers), [cookies](#using-cookies), [rewrites](/docs/app/api-reference/functions/next-response#rewrite), [redirects](/docs/app/api-reference/functions/next-response#redirect), or the URL.
 
 Create a `middleware.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
+
+If you’ve customized [`pageExtensions`](/docs/app/api-reference/config/next-config-js/pageExtensions), for example to `.page.ts` or `.page.js`, name your file `middleware.page.ts` or `middleware.page.js` accordingly.
 
 ```tsx filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'

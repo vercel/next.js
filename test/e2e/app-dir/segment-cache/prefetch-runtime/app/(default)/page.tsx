@@ -17,6 +17,15 @@ export default async function Page() {
         </li>
 
         <li>
+          headers + dynamic content
+          <ul>
+            <li>
+              <DebugLinkAccordion href="/in-page/headers" />
+            </li>
+          </ul>
+        </li>
+
+        <li>
           search params + dynamic content
           <ul>
             <li>
@@ -57,6 +66,14 @@ export default async function Page() {
           <ul>
             <li>
               <DebugLinkAccordion href="/in-private-cache/cookies" />
+            </li>
+          </ul>
+        </li>
+        <li>
+          headers in private cache + dynamic content
+          <ul>
+            <li>
+              <DebugLinkAccordion href="/in-private-cache/headers" />
             </li>
           </ul>
         </li>
@@ -109,6 +126,14 @@ export default async function Page() {
           <ul>
             <li>
               <DebugLinkAccordion href="/passed-to-public-cache/cookies" />
+            </li>
+          </ul>
+        </li>
+        <li>
+          headers() promise passed to public cache + dynamic content
+          <ul>
+            <li>
+              <DebugLinkAccordion href="/passed-to-public-cache/headers" />
             </li>
           </ul>
         </li>

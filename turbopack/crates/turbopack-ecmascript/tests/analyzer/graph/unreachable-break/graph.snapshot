@@ -2,58 +2,31 @@
     (
         "A",
         Function(
-            4,
+            2,
             174,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "B",
         Function(
-            4,
+            2,
             304,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (
         "C",
         Function(
-            4,
+            2,
             416,
-            Alternatives {
-                total_nodes: 3,
-                values: [
-                    Constant(
-                        Undefined,
-                    ),
-                    FreeVar(
-                        "undefined",
-                    ),
-                ],
-                logical_property: None,
-            },
+            Constant(
+                Undefined,
+            ),
         ),
     ),
     (

@@ -9,6 +9,14 @@ autobenches = false
 [lib]
 bench = false
 
+[[bench]]
+name = "analyzer"
+harness = false
+
+[[bench]]
+name = "references"
+harness = false
+
 [lints]
 workspace = true
 
@@ -80,8 +88,3 @@ turbo-tasks-backend = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbopack-test-utils = { workspace = true }
-
-
-[[bench]]
-name = "mod"
-harness = false

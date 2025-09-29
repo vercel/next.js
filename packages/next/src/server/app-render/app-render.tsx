@@ -174,6 +174,7 @@ import {
   workUnitAsyncStorage,
   type PrerenderStore,
 } from './work-unit-async-storage.external'
+import { devLogsAsyncStorage } from './dev-logs-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -675,6 +676,7 @@ async function generateRuntimePrefetchResult(
     prerenderResumeDataCache,
     renderResumeDataCache,
     rootParams,
+    requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode
   )
@@ -685,6 +687,7 @@ async function generateRuntimePrefetchResult(
     prerenderResumeDataCache,
     renderResumeDataCache,
     rootParams,
+    requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode,
     onError
@@ -706,6 +709,7 @@ async function prospectiveRuntimeServerPrerender(
   prerenderResumeDataCache: PrerenderResumeDataCache | null,
   renderResumeDataCache: RenderResumeDataCache | null,
   rootParams: Params,
+  headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode']
 ) {
@@ -756,6 +760,7 @@ async function prospectiveRuntimeServerPrerender(
     // We only need task sequencing in the final prerender.
     runtimeStagePromise: null,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
+    headers,
     cookies,
     draftMode,
   }
@@ -841,6 +846,7 @@ async function finalRuntimeServerPrerender(
   prerenderResumeDataCache: PrerenderResumeDataCache | null,
   renderResumeDataCache: RenderResumeDataCache | null,
   rootParams: Params,
+  headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode'],
   onError: (err: unknown) => string | undefined
@@ -891,6 +897,7 @@ async function finalRuntimeServerPrerender(
     // Used to separate the "Static" stage from the "Runtime" stage.
     runtimeStagePromise,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
+    headers,
     cookies,
     draftMode,
   }
@@ -2302,7 +2309,9 @@ async function renderToStream(
         }
       )
 
-      spawnDynamicValidationInDev(
+      devLogsAsyncStorage.run(
+        { dim: true },
+        spawnDynamicValidationInDev,
         resolveValidation,
         tree,
         ctx,

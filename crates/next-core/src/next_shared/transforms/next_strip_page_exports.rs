@@ -12,33 +12,36 @@ use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, Transfor
 use super::module_rule_match_js_no_url;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
-pub async fn get_next_pages_transforms_rule(
+pub fn get_next_pages_transforms_rule(
     pages_dir: FileSystemPath,
     export_filter: ExportFilter,
     enable_mdx_rs: bool,
+    extra_conditions: Vec<RuleCondition>,
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
     let strip_transform =
         EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextJsStripPageExports {
             export_filter,
         }) as _));
-    Ok(ModuleRule::new(
+    let conditions = RuleCondition::all(vec![
         RuleCondition::all(vec![
-            RuleCondition::all(vec![
-                RuleCondition::ResourcePathInExactDirectory(pages_dir.clone()),
-                RuleCondition::not(RuleCondition::ResourcePathInExactDirectory(
-                    pages_dir.join("api")?,
-                )),
-                RuleCondition::not(RuleCondition::any(vec![
-                    // TODO(alexkirsz): Possibly ignore _app as well?
-                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.js")?),
-                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.jsx")?),
-                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.ts")?),
-                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.tsx")?),
-                ])),
-            ]),
-            module_rule_match_js_no_url(enable_mdx_rs),
+            RuleCondition::ResourcePathInExactDirectory(pages_dir.clone()),
+            RuleCondition::not(RuleCondition::ResourcePathInExactDirectory(
+                pages_dir.join("api")?,
+            )),
+            RuleCondition::not(RuleCondition::any(vec![
+                // TODO(alexkirsz): Possibly ignore _app as well?
+                RuleCondition::ResourcePathEquals(pages_dir.join("_document.js")?),
+                RuleCondition::ResourcePathEquals(pages_dir.join("_document.jsx")?),
+                RuleCondition::ResourcePathEquals(pages_dir.join("_document.ts")?),
+                RuleCondition::ResourcePathEquals(pages_dir.join("_document.tsx")?),
+            ])),
         ]),
+        module_rule_match_js_no_url(enable_mdx_rs),
+        RuleCondition::all(extra_conditions),
+    ]);
+    Ok(ModuleRule::new(
+        conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             preprocess: ResolvedVc::cell(vec![]),
             main: ResolvedVc::cell(vec![]),

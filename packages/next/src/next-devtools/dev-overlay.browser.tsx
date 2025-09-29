@@ -27,6 +27,7 @@ import {
   createContext,
   startTransition,
   useContext,
+  useEffect,
   useInsertionEffect,
   useLayoutEffect,
   type ActionDispatch,
@@ -41,9 +42,11 @@ import type { VersionInfo } from '../server/dev/parse-version-info'
 import {
   insertSegmentNode,
   removeSegmentNode,
+  getSegmentTrieRoot,
 } from './dev-overlay/segment-explorer-trie'
 import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
 import type { DevToolsConfig } from './dev-overlay/shared'
+import type { SegmentTrieData } from '../shared/lib/mcp-page-metadata-types'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -72,6 +75,42 @@ export interface Dispatcher {
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
 let maybeDispatch: Dispatch | null = null
 const queue: Array<(dispatch: Dispatch) => void> = []
+
+// Global state store for accessing current overlay state from outside React context
+type OverlayStateWithRouter = OverlayState & { routerType: 'pages' | 'app' }
+
+let currentOverlayState: OverlayStateWithRouter | null = null
+
+export function getSerializedOverlayState(): OverlayStateWithRouter | null {
+  // Serialize error objects properly since Error properties are non-enumerable
+  // This is used when sending state via HMR/JSON.stringify
+  if (!currentOverlayState) return null
+
+  return {
+    ...currentOverlayState,
+    errors: currentOverlayState.errors.map((errorEvent: any) => ({
+      ...errorEvent,
+      error: errorEvent.error
+        ? {
+            name: errorEvent.error.name,
+            message: errorEvent.error.message,
+            stack: errorEvent.error.stack,
+          }
+        : null,
+    })),
+  }
+}
+
+export function getSegmentTrieData(): SegmentTrieData | null {
+  if (!currentOverlayState) {
+    return null
+  }
+  const trieRoot = getSegmentTrieRoot()
+  return {
+    segmentTrie: trieRoot,
+    routerType: currentOverlayState.routerType,
+  }
+}
 
 // Events might be dispatched before we get a `dispatch` from React (e.g. console.error during module eval).
 // We need to queue them until we have a `dispatch` function available.
@@ -204,6 +243,10 @@ function DevOverlayRoot({
     isRecoverableError
   )
 
+  useEffect(() => {
+    currentOverlayState = { ...state, routerType }
+  }, [state, routerType])
+
   useLayoutEffect(() => {
     const portalNode = shadowRoot.host
     if (state.theme === 'dark') {
@@ -301,6 +344,9 @@ export function renderAppDevOverlay(
 
     const root = createRoot(container, {
       identifierPrefix: 'ndt-',
+      // We don't have design for a default Transition indicator for the NDT frontend.
+      // So we disable React's built-in one to not conflict with the one for the actual Next.js app.
+      onDefaultTransitionIndicator: () => () => {},
     })
 
     const shadowRoot = container.attachShadow({ mode: 'open' })

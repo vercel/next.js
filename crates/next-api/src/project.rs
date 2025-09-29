@@ -58,7 +58,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{
-        Issue, IssueDescriptionExt, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
         StyledString,
     },
     module::Module,
@@ -290,6 +290,11 @@ impl ProjectContainer {
 }
 
 #[turbo_tasks::function(operation)]
+fn project_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Project> {
+    project.project()
+}
+
+#[turbo_tasks::function(operation)]
 fn project_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
     project.project_fs()
 }
@@ -329,7 +334,7 @@ impl ProjectContainer {
         Ok(())
     }
 
-    #[tracing::instrument(level = "info", name = "update project", skip_all)]
+    #[tracing::instrument(level = "info", name = "update project options", skip_all)]
     pub async fn update(self: Vc<Self>, options: PartialProjectOptions) -> Result<()> {
         let PartialProjectOptions {
             root_path,
@@ -344,7 +349,8 @@ impl ProjectContainer {
             preview_props,
         } = options;
 
-        let this = self.await?;
+        let resolved_self = self.to_resolved().await?;
+        let this = resolved_self.await?;
 
         let mut new_options = this
             .options_state
@@ -386,7 +392,9 @@ impl ProjectContainer {
         // TODO: Handle mode switch, should prevent mode being switched.
         let watch = new_options.watch;
 
-        let project = self.project().to_resolved().await?;
+        let project = project_operation(resolved_self)
+            .resolve_strongly_consistent()
+            .await?;
         let prev_project_fs = project_fs_operation(project)
             .read_strongly_consistent()
             .await?;
@@ -395,7 +403,9 @@ impl ProjectContainer {
             .await?;
 
         this.options_state.set(Some(new_options));
-        let project = self.project().to_resolved().await?;
+        let project = project_operation(resolved_self)
+            .resolve_strongly_consistent()
+            .await?;
         let project_fs = project_fs_operation(project)
             .read_strongly_consistent()
             .await?;
@@ -805,9 +815,9 @@ impl Project {
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
                 self.project_root_path().owned().await?,
-                node_root.clone(),
+                node_root.join("build")?,
                 self.node_root_to_root_path().owned().await?,
-                node_root.clone(),
+                node_root.join("build")?,
                 node_root.join("build/chunks")?,
                 node_root.join("build/assets")?,
                 node_build_environment().to_resolved().await?,
@@ -838,12 +848,7 @@ impl Project {
         let mut endpoints = Vec::new();
 
         let entrypoints = self.entrypoints().await?;
-
-        // Always include these basic pages endpoints regardless of `app_dir_only`. The user's
-        // page routes themselves are excluded below.
-        endpoints.push(entrypoints.pages_error_endpoint);
-        endpoints.push(entrypoints.pages_app_endpoint);
-        endpoints.push(entrypoints.pages_document_endpoint);
+        let mut is_pages_entries_added = false;
 
         if let Some(middleware) = &entrypoints.middleware {
             endpoints.push(middleware.endpoint);
@@ -858,15 +863,31 @@ impl Project {
             match route {
                 Route::Page {
                     html_endpoint,
-                    data_endpoint: _,
+                    data_endpoint,
                 } => {
                     if !app_dir_only {
                         endpoints.push(*html_endpoint);
+                        if !is_pages_entries_added {
+                            endpoints.push(entrypoints.pages_error_endpoint);
+                            endpoints.push(entrypoints.pages_app_endpoint);
+                            endpoints.push(entrypoints.pages_document_endpoint);
+                            is_pages_entries_added = true;
+                        }
+                        // This only exists in development mode for HMR
+                        if let Some(data_endpoint) = data_endpoint {
+                            endpoints.push(*data_endpoint);
+                        }
                     }
                 }
                 Route::PageApi { endpoint } => {
                     if !app_dir_only {
                         endpoints.push(*endpoint);
+                        if !is_pages_entries_added {
+                            endpoints.push(entrypoints.pages_error_endpoint);
+                            endpoints.push(entrypoints.pages_app_endpoint);
+                            endpoints.push(entrypoints.pages_document_endpoint);
+                            is_pages_entries_added = true;
+                        }
                     }
                 }
                 Route::AppPage(page_routes) => {
@@ -960,7 +981,7 @@ impl Project {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
             let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
-            let _ = module_graphs_op.take_issues_with_path().await?;
+            let _ = module_graphs_op.take_issues();
 
             // At this point all modules have been computed and we can get rid of the node.js
             // process pools
@@ -981,7 +1002,7 @@ impl Project {
         let this = self.await?;
         Ok(get_server_compile_time_info(
             // `/ROOT` corresponds to `[project]/`, so we need exactly the `path` part.
-            format!("/ROOT/{}", self.project_path().await?.path).into(),
+            self.project_path(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
         ))
@@ -1401,6 +1422,8 @@ impl Project {
         Ok(find_context_file(
             self.project_path().owned().await?,
             middleware_files(self.next_config().page_extensions()),
+            // our callers do not care about affecting sources
+            false,
         ))
     }
 
@@ -1560,6 +1583,8 @@ impl Project {
         Ok(find_context_file(
             self.project_path().owned().await?,
             instrumentation_files(self.next_config().page_extensions()),
+            // our callers do not care about affecting sources
+            false,
         ))
     }
 
@@ -1838,17 +1863,15 @@ async fn any_output_changed(
                     && (!server || !asset_path.path.ends_with(".css"))
                     && asset_path.is_inside_ref(&path)
                 {
-                    anyhow::Ok(Some(content_changed(*ResolvedVc::upcast(m))))
+                    anyhow::Ok(Some(
+                        content_changed(*ResolvedVc::upcast(m))
+                            .to_resolved()
+                            .await?,
+                    ))
                 } else {
                     Ok(None)
                 }
             }
-        })
-        .map(|v| async move {
-            Ok(match v.await? {
-                Some(v) => Some(v.to_resolved().await?),
-                None => None,
-            })
         })
         .try_flat_join()
         .await?;

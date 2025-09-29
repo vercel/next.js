@@ -33,8 +33,13 @@ use turbo_tasks::{
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
-    ModuleAssetContext, emit_with_completion_operation,
-    module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
+    ModuleAssetContext,
+    ecmascript::AnalyzeMode,
+    emit_with_completion_operation,
+    module_options::{
+        CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
+        TypescriptTransformOptions,
+    },
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -346,7 +351,11 @@ async fn node_file_trace_operation(
 
     let source = FileSource::new(input);
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment::default().resolved_cell(),
+        NodeJsEnvironment {
+            cwd: ResolvedVc::cell(Some(input_dir.join("tests/node-file-trace/integration")?)),
+            ..Default::default()
+        }
+        .resolved_cell(),
     ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
@@ -357,6 +366,9 @@ async fn node_file_trace_operation(
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 enable_types: true,
                 ..Default::default()
             },
@@ -367,7 +379,7 @@ async fn node_file_trace_operation(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            is_tracing: true,
+            analyze_mode: AnalyzeMode::Tracing,
             ..Default::default()
         }
         .cell(),
@@ -375,6 +387,7 @@ async fn node_file_trace_operation(
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir.clone()),
             custom_conditions: vec![rcstr!("node")],
+            collect_affecting_sources: true,
             ..Default::default()
         }
         .cell(),

@@ -704,7 +704,7 @@ describe('config telemetry', () => {
           expect(event).toMatch(/"reactCompiler": true/)
           expect(event).toMatch(/"reactCompilerCompilationMode": "annotation"/)
           expect(event).toMatch(
-            /"reactCompilerPanicThreshold": "CRITICAL_ERRORS"/
+            /"reactCompilerPanicThreshold": "critical_errors"/
           )
         } catch (err) {
           require('console').error('failing stderr', stderr, err)
