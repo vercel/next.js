@@ -66,7 +66,9 @@ export async function tryNextDev({
     if (isEmpty || isApi) {
       expect(await res.text()).toContain('Hello world!')
     } else {
-      expect(await res.text()).toContain('Get started by editing')
+      expect(await res.text()).toContain(
+        'To get started, edit the page.tsx file.'
+      )
     }
     expect(res.status).toBe(200)
 
