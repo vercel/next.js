@@ -55,7 +55,7 @@ export function parseBundlerArgs(options: {
   if (process.env.NEXT_RSPACK) {
     setBundlerFlag(Bundler.Rspack, `NEXT_RSPACK=${process.env.NEXT_RSPACK}`)
   }
-  if (process.env.IS_RSPACK_TEST) {
+  if (process.env.NEXT_TEST_USE_RSPACK) {
     setBundlerFlag(
       Bundler.Rspack,
       `NEXT_TEST_USE_RSPACK=${process.env.NEXT_TEST_USE_RSPACK}`
