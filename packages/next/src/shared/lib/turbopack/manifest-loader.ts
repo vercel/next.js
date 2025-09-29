@@ -767,21 +767,6 @@ export class TurbopackManifestLoader {
       this.middlewareManifests.values()
     )
 
-    // Client middleware manifest
-    const matchers = middlewareManifest?.middleware['/']?.matchers || []
-
-    const clientMiddlewareManifestPath = join(
-      this.distDir,
-      'static',
-      this.buildId,
-      `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
-    )
-    deleteCache(clientMiddlewareManifestPath)
-    writeFileAtomic(
-      clientMiddlewareManifestPath,
-      JSON.stringify(matchers, null, 2)
-    )
-
     // Server middleware manifest
 
     // Normalize regexes as it uses path-to-regexp
@@ -806,6 +791,21 @@ export class TurbopackManifestLoader {
     writeFileAtomic(
       middlewareManifestPath,
       JSON.stringify(middlewareManifest, null, 2)
+    )
+
+    // Client middleware manifest
+    const matchers = middlewareManifest?.middleware['/']?.matchers || []
+
+    const clientMiddlewareManifestPath = join(
+      this.distDir,
+      'static',
+      this.buildId,
+      `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
+    )
+    deleteCache(clientMiddlewareManifestPath)
+    writeFileAtomic(
+      clientMiddlewareManifestPath,
+      JSON.stringify(matchers, null, 2)
     )
   }
 
