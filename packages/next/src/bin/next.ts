@@ -133,9 +133,8 @@ program
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
-  .option('--turbo', 'Builds using Turbopack.')
-  .option('--turbopack', 'Builds using Turbopack.')
-  .option('--webpack', 'Builds using webpack.')
+  .option('--turbo', 'Starts development mode using Turbopack.')
+  .option('--turbopack', 'Starts development mode using Turbopack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
@@ -174,7 +173,6 @@ program
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
-  .option('--webpack', 'Starts development mode using webpack.')
   .addOption(
     new Option(
       '-p, --port <port>',
