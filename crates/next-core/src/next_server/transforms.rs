@@ -174,14 +174,18 @@ pub async fn get_next_server_transforms_rules(
     }
 
     if let NextRuntime::Edge = next_runtime {
-        rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
+        let mode = *mode.await?;
+
+        if mode == NextMode::Development {
+            rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
+        }
 
         if !foreign_code {
             rules.push(next_edge_node_api_assert(
                 mdx_rs,
                 matches!(context_ty, ServerContextType::Middleware { .. })
-                    && matches!(*mode.await?, NextMode::Build),
-                matches!(*mode.await?, NextMode::Build),
+                    && mode == NextMode::Build,
+                mode == NextMode::Build,
             ));
         }
 
