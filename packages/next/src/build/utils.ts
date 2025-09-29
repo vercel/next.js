@@ -1134,11 +1134,7 @@ export async function copyTracedFiles(
 
     // we always copy the package.json to the standalone
     // folder to ensure any resolving logic is maintained
-    const packageJsonOutputPath = path.join(
-      outputPath,
-      path.relative(tracingRoot, dir),
-      'package.json'
-    )
+    const packageJsonOutputPath = path.join(outputPath, 'package.json')
     await fs.mkdir(path.dirname(packageJsonOutputPath), { recursive: true })
     await fs.writeFile(packageJsonOutputPath, packageJsonContent)
   } catch {}
@@ -1156,9 +1152,13 @@ export async function copyTracedFiles(
         await copySema.acquire()
 
         const tracedFilePath = path.join(traceFileDir, relativeFile)
+        const relativeFromTracingRoot = path.relative(tracingRoot, tracedFilePath)
+        // For standalone builds, ensure server.js goes directly to standalone root
         const fileOutputPath = path.join(
           outputPath,
-          path.relative(tracingRoot, tracedFilePath)
+          relativeFromTracingRoot.endsWith('/server.js') || relativeFromTracingRoot === 'server.js'
+            ? 'server.js'
+            : relativeFromTracingRoot
         )
 
         if (!copiedFiles.has(fileOutputPath)) {
@@ -1267,11 +1267,7 @@ export async function copyTracedFiles(
   }
 
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
-  const serverOutputPath = path.join(
-    outputPath,
-    path.relative(tracingRoot, dir),
-    'server.js'
-  )
+  const serverOutputPath = path.join(outputPath, 'server.js')
   await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
 
   await fs.writeFile(
