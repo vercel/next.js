@@ -94,19 +94,20 @@ pub async fn resolve_source_map_sources(
     let disk_fs = &disk_fs;
 
     let resolve_source =
-        async |original_source_url: &mut String,
-               original_content: Option<&mut Option<Box<RawValue>>>| {
+        async |source_url: &mut String, source_content: Option<&mut Option<Box<RawValue>>>| {
             // original_source should always be a URL (possibly a `file://` url). If it's a relative
             // URL, it should be relative to `origin` (the generated file that's being mapped).
-
-            let maybe_file_url = if original_source_url.starts_with("//") {
-                // looks like a scheme-relative URL
-                Cow::Owned(format!("file:/{original_source_url}"))
-            } else if original_source_url.starts_with('/') {
-                // looks like a server-relative URL
-                Cow::Owned(format!("file://{original_source_url}"))
+            // https://developer.mozilla.org/en-US/docs/Learn_web_development/Howto/Web_mechanics/What_is_a_URL#absolute_urls_vs._relative_urls
+            let maybe_file_url = if source_url.starts_with("//") {
+                // looks like a "scheme-relative" URL
+                // Rewrite '//scheme/relative' -> 'file:///scheme/relative' (three slashes)
+                Cow::Owned(format!("file:/{source_url}"))
+            } else if source_url.starts_with('/') {
+                // looks like a "domain-relative" (aka "server-relative") URL
+                // Rewrite '/domain/relative' -> 'file:///domain/relative' (three slashes)
+                Cow::Owned(format!("file://{source_url}"))
             } else {
-                Cow::Borrowed(original_source_url)
+                Cow::Borrowed(source_url)
             };
 
             let fs_path = if let Ok(original_source_url_obj) = Url::parse(&maybe_file_url) {
@@ -126,23 +127,25 @@ pub async fn resolve_source_map_sources(
                 // assume it's a relative URL, and just remove any percent encoding from path
                 // segments. Our internal path format is POSIX-like, without percent encoding.
                 origin.parent().try_join(
-                    &urlencoding::decode(original_source_url)
-                        .unwrap_or(Cow::Borrowed(original_source_url)),
+                    &urlencoding::decode(source_url).unwrap_or(Cow::Borrowed(source_url)),
                 )?
             };
 
             if let Some(fs_path) = fs_path {
+                // TODO: Encode `fs_str` and `fs_path_str` using `urlencoding`, so that these are
+                // valid URLs. However, `project_trace_source_operation` (and `uri_from_file`) need
+                // to handle percent encoding correctly first.
                 let fs_path_str = &fs_path.path;
-                *original_source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{fs_path_str}");
+                *source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{fs_path_str}");
 
-                if let Some(original_content) = original_content
-                    && original_content.is_none()
+                if let Some(source_content) = source_content
+                    && source_content.is_none()
                 {
                     if let FileContent::Content(file) = &*fs_path.read().await? {
                         let text = file.content().to_str()?;
-                        *original_content = Some(unencoded_str_to_raw_value(&text));
+                        *source_content = Some(unencoded_str_to_raw_value(&text));
                     } else {
-                        *original_content = Some(unencoded_str_to_raw_value(&format!(
+                        *source_content = Some(unencoded_str_to_raw_value(&format!(
                             "unable to read source {fs_str}/{fs_path_str}"
                         )));
                     }
@@ -150,22 +153,19 @@ pub async fn resolve_source_map_sources(
             } else {
                 // The URL was broken somehow, create a dummy `turbopack://` URL and content
                 let origin_str = &origin.path;
+                if let Some(source_content) = source_content
+                    && source_content.is_none()
+                {
+                    *source_content = Some(unencoded_str_to_raw_value(&format!(
+                        "unable to access {source_url} in {fs_str}/{origin_str} (it's leaving the \
+                         filesystem root)"
+                    )));
+                }
                 static INVALID_REGEX: Lazy<Regex> =
                     Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
                 let source = INVALID_REGEX
-                    .replace_all(original_source_url, |s: &regex::Captures<'_>| {
-                        s[0].replace('.', "_")
-                    });
-                *original_source_url =
-                    format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{origin_str}/{source}");
-                if let Some(original_content) = original_content
-                    && original_content.is_none()
-                {
-                    *original_content = Some(unencoded_str_to_raw_value(&format!(
-                        "unable to access {original_source_url} in {fs_str}/{origin_str} (it's \
-                         leaving the filesystem root)"
-                    )));
-                }
+                    .replace_all(source_url, |s: &regex::Captures<'_>| s[0].replace('.', "_"));
+                *source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{origin_str}/{source}");
             }
             anyhow::Ok(())
         };

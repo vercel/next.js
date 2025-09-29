@@ -496,7 +496,7 @@ impl DiskFileSystem {
         } else if let Some(relative_to) = relative_to {
             debug_assert_eq!(
                 relative_to.fs, vc_self,
-                "`relative_to.fs` must match current the current `ResolvedVc<DiskFileSystem>`"
+                "`relative_to.fs` must match the current `ResolvedVc<DiskFileSystem>`"
             );
             let mut joined_sys_path = PathBuf::from(unix_to_sys(&relative_to.path).into_owned());
             joined_sys_path.push(sys_path);
