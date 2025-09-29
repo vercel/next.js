@@ -294,8 +294,6 @@ describe('ReactRefreshLogBox', () => {
            |                                                   ^",
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
            ],
          },
          {
@@ -307,8 +305,6 @@ describe('ReactRefreshLogBox', () => {
            |                                                   ^",
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
            ],
          },
        ]
@@ -352,8 +348,6 @@ describe('ReactRefreshLogBox', () => {
              |                                                   ^",
            "stack": [
              "FunctionDefault FunctionDefault.js (1:51)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
            ],
          }
         `)
@@ -570,7 +564,6 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
@@ -583,8 +576,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
            "stack": [
              "ClickCount.render Child.js (4:11)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
            ],
          },
          {
@@ -596,8 +587,6 @@ describe('ReactRefreshLogBox', () => {
            |           ^",
            "stack": [
              "ClickCount.render Child.js (4:11)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
            ],
          },
        ]
@@ -630,23 +619,7 @@ describe('ReactRefreshLogBox', () => {
        ]
       `)
     } else {
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "Child.js (4:11) @ ClickCount.render
-         > 4 |     throw new Error()
-             |           ^",
-           "stack": [
-             "ClickCount.render Child.js (4:11)",
-             "<FIXME-file-protocol>",
-             "<FIXME-file-protocol>",
-           ],
-         }
-        `)
-      } else if (isRspack) {
+      if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
            "description": "",
