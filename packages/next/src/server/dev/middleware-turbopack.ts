@@ -482,7 +482,7 @@ export async function getOriginalStackFrames({
 }: {
   project: Project
   projectPath: string
-  frames: StackFrame[]
+  frames: readonly StackFrame[]
   isServer: boolean
   isEdgeServer: boolean
   isAppDirectory: boolean

@@ -1,0 +1,43 @@
+[package]
+name = "turbopack-nft"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[[bin]]
+name = "turbopack-nft"
+path = "src/main.rs"
+bench = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true, features = ["backtrace"] }
+clap = { workspace = true, features = ["derive", "env"] }
+console-subscriber = { workspace = true, optional = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+swc_core = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["json"] }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false, features = [
+    "custom_allocator"
+] }
+turbopack = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-resolve = { workspace = true }
+turbopack-trace-utils = { workspace = true }
+

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail};
 use bytes_str::BytesStr;
 use swc_core::{
+    atoms::atom,
     base::try_with_handler,
     common::{
         BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
@@ -23,7 +24,7 @@ use swc_core::{
         },
     },
 };
-use tracing::{Level, instrument};
+use tracing::instrument;
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
@@ -31,7 +32,7 @@ use turbopack_core::{
 
 use crate::parse::generate_js_source_map;
 
-#[instrument(level = Level::INFO, skip_all)]
+#[instrument(level = "info", name = "minify ecmascript code", skip_all)]
 pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
     let source_maps = source_maps
         .then(|| code.generate_source_map_ref())
@@ -89,7 +90,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                             ..Default::default()
                         }),
                         mangle: mangle.map(|mangle| {
-                            let reserved = vec!["AbortSignal".into()];
+                            let reserved = vec![atom!("AbortSignal")];
                             match mangle {
                                 MangleType::OptimalSize => MangleOptions {
                                     reserved,

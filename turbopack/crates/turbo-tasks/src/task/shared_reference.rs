@@ -110,13 +110,13 @@ impl Serialize for TypedSharedReference {
         let value_type = registry::get_value_type(*ty);
         if let Some(serializable) = value_type.any_as_serializable(arc) {
             let mut t = serializer.serialize_tuple(2)?;
-            t.serialize_element(registry::get_value_type_global_name(*ty))?;
+            t.serialize_element(ty)?;
             t.serialize_element(serializable)?;
             t.end()
         } else {
             Err(serde::ser::Error::custom(format!(
                 "{:?} is not serializable",
-                registry::get_value_type_global_name(*ty)
+                registry::get_value_type(*ty).global_name
             )))
         }
     }
@@ -156,29 +156,25 @@ impl<'de> Deserialize<'de> for TypedSharedReference {
             where
                 A: serde::de::SeqAccess<'de>,
             {
-                if let Some(global_name) = seq.next_element()? {
-                    if let Some(ty) = registry::get_value_type_id_by_global_name(global_name) {
-                        if let Some(seed) = registry::get_value_type(ty).get_any_deserialize_seed()
-                        {
-                            if let Some(value) = seq.next_element_seed(seed)? {
-                                let arc = triomphe::Arc::<dyn Any + Send + Sync>::from(value);
-                                Ok(TypedSharedReference {
-                                    type_id: ty,
-                                    reference: SharedReference(arc),
-                                })
-                            } else {
-                                Err(serde::de::Error::invalid_length(
-                                    1,
-                                    &"tuple with type and value",
-                                ))
-                            }
+                if let Some(type_id) = seq.next_element()? {
+                    let value_type = registry::get_value_type(type_id);
+                    if let Some(seed) = value_type.get_any_deserialize_seed() {
+                        if let Some(value) = seq.next_element_seed(seed)? {
+                            let arc = triomphe::Arc::<dyn Any + Send + Sync>::from(value);
+                            Ok(TypedSharedReference {
+                                type_id,
+                                reference: SharedReference(arc),
+                            })
                         } else {
-                            Err(serde::de::Error::custom(format!(
-                                "{ty} is not deserializable"
-                            )))
+                            Err(serde::de::Error::invalid_length(
+                                1,
+                                &"tuple with type and value",
+                            ))
                         }
                     } else {
-                        Err(serde::de::Error::unknown_variant(global_name, &[]))
+                        Err(serde::de::Error::custom(format!(
+                            "{value_type} is not deserializable"
+                        )))
                     }
                 } else {
                     Err(serde::de::Error::invalid_length(

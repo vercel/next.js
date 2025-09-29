@@ -1,0 +1,11 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/x.css [test] (css) */
+.x {
+  content: "1 2";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/y.css [test] (css) */
+.y {
+  content: "2 1";
+}
+
+/*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_cycle_input_7779f184._.css.map*/

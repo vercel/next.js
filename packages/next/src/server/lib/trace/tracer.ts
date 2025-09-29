@@ -56,6 +56,7 @@ const closeSpanWithError = (span: Span, error?: Error) => {
   } else {
     if (error) {
       span.recordException(error)
+      span.setAttribute('error.type', error.name)
     }
     span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   }
@@ -455,7 +456,7 @@ class NextTracerImpl implements NextTracer {
   public setRootSpanAttribute(key: AttributeNames, value: AttributeValue) {
     const spanId = context.active().getValue(rootSpanIdKey) as number
     const attributes = rootSpanAttributesStore.get(spanId)
-    if (attributes) {
+    if (attributes && !attributes.has(key)) {
       attributes.set(key, value)
     }
   }

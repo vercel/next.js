@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/component/index.js"],"sourcesContent":["export default function MyApp() {\n  return <div>App</div>\n}\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBAAO,0NAAC;kBAAI;;;;;;AACd"}},
+    {"offset": {"line": 23, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js"],"sourcesContent":["import MyApp from 'component'\nimport ThirdPartyComponent from 'third_party_component'\n\nconsole.log(MyApp, ThirdPartyComponent)\n"],"names":[],"mappings":";AAAA;AACA;;;AAEA,QAAQ,GAAG,CAAC,mPAAK,EAAE,mQAAmB"}},
+    {"offset": {"line": 33, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/react/jsx-dev-runtime.js"],"sourcesContent":["export function jsxDEV() {\n  return 'purposefully empty stub for react/jsx-dev-runtime.js'\n}\n"],"names":[],"mappings":";;;;AAAO,SAAS;IACd,OAAO;AACT","ignoreList":[0]}},
+    {"offset": {"line": 44, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/third_party_component/index.js"],"sourcesContent":["export default function ThirdPartyComponent() {\n  return <div>Should not be transformed</div>;\n}\n"],"names":[],"mappings":";;;;AAAe,SAAS;IACtB,QAAQ,IAAI,yBAAyB,EAAE;AACzC","ignoreList":[0]}}]
+}

@@ -7,12 +7,19 @@ const ASSET_PREFIX = "/";
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
-const REEXPORTED_OBJECTS = Symbol('reexported objects');
+const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
- */ function Context(module) {
+ */ function Context(module, exports) {
     this.m = module;
-    this.e = module.exports;
+    // We need to store this here instead of accessing it from the module object to:
+    // 1. Make it available to factories directly, since we rewrite `this` to
+    //    `__turbopack_context__.e` in CJS modules.
+    // 2. Support async modules which rewrite `module.exports` to a promise, so we
+    //    can still access the original exports object from functions like
+    //    `esmExport`
+    // Ideally we could find a new approach for async modules and drop this property altogether.
+    this.e = exports;
 }
 const contextPrototype = Context.prototype;
 const hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -36,55 +43,73 @@ function getOverwrittenModule(moduleCache, id) {
     return {
         exports: {},
         error: undefined,
-        loaded: false,
         id,
-        namespaceObject: undefined,
-        [REEXPORTED_OBJECTS]: undefined
+        namespaceObject: undefined
     };
 }
+const BindingTag_Value = 0;
 /**
  * Adds the getters to the exports object.
- */ function esm(exports, getters) {
+ */ function esm(exports, bindings) {
     defineProp(exports, '__esModule', {
         value: true
     });
     if (toStringTag) defineProp(exports, toStringTag, {
         value: 'Module'
     });
-    for(const key in getters){
-        const item = getters[key];
-        if (Array.isArray(item)) {
-            defineProp(exports, key, {
-                get: item[0],
-                set: item[1],
-                enumerable: true
-            });
+    let i = 0;
+    while(i < bindings.length){
+        const propName = bindings[i++];
+        const tagOrFunction = bindings[i++];
+        if (typeof tagOrFunction === 'number') {
+            if (tagOrFunction === BindingTag_Value) {
+                defineProp(exports, propName, {
+                    value: bindings[i++],
+                    enumerable: true,
+                    writable: false
+                });
+            } else {
+                throw new Error(`unexpected tag: ${tagOrFunction}`);
+            }
         } else {
-            defineProp(exports, key, {
-                get: item,
-                enumerable: true
-            });
+            const getterFn = tagOrFunction;
+            if (typeof bindings[i] === 'function') {
+                const setterFn = bindings[i++];
+                defineProp(exports, propName, {
+                    get: getterFn,
+                    set: setterFn,
+                    enumerable: true
+                });
+            } else {
+                defineProp(exports, propName, {
+                    get: getterFn,
+                    enumerable: true
+                });
+            }
         }
     }
     Object.seal(exports);
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(getters, id) {
-    let module = this.m;
-    let exports = this.e;
+ */ function esmExport(bindings, id) {
+    let module;
+    let exports;
     if (id != null) {
         module = getOverwrittenModule(this.c, id);
         exports = module.exports;
+    } else {
+        module = this.m;
+        exports = this.e;
     }
-    module.namespaceObject = module.exports;
-    esm(exports, getters);
+    module.namespaceObject = exports;
+    esm(exports, bindings);
 }
 contextPrototype.s = esmExport;
 function ensureDynamicExports(module, exports) {
-    let reexportedObjects = module[REEXPORTED_OBJECTS];
+    let reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {
-        reexportedObjects = module[REEXPORTED_OBJECTS] = [];
+        REEXPORTED_OBJECTS.set(module, reexportedObjects = []);
         module.exports = module.namespaceObject = new Proxy(exports, {
             get (target, prop) {
                 if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
@@ -107,34 +132,42 @@ function ensureDynamicExports(module, exports) {
             }
         });
     }
+    return reexportedObjects;
 }
 /**
  * Dynamically exports properties from an object
  */ function dynamicExport(object, id) {
-    let module = this.m;
-    let exports = this.e;
+    let module;
+    let exports;
     if (id != null) {
         module = getOverwrittenModule(this.c, id);
         exports = module.exports;
+    } else {
+        module = this.m;
+        exports = this.e;
     }
-    ensureDynamicExports(module, exports);
+    const reexportedObjects = ensureDynamicExports(module, exports);
     if (typeof object === 'object' && object !== null) {
-        module[REEXPORTED_OBJECTS].push(object);
+        reexportedObjects.push(object);
     }
 }
 contextPrototype.j = dynamicExport;
 function exportValue(value, id) {
-    let module = this.m;
+    let module;
     if (id != null) {
         module = getOverwrittenModule(this.c, id);
+    } else {
+        module = this.m;
     }
     module.exports = value;
 }
 contextPrototype.v = exportValue;
 function exportNamespace(namespace, id) {
-    let module = this.m;
+    let module;
     if (id != null) {
         module = getOverwrittenModule(this.c, id);
+    } else {
+        module = this.m;
     }
     module.exports = module.namespaceObject = namespace;
 }
@@ -158,18 +191,28 @@ function createGetter(obj, key) {
  *   * `false`: will have the raw module as default export
  *   * `true`: will have the default property as default export
  */ function interopEsm(raw, ns, allowExportDefault) {
-    const getters = Object.create(null);
+    const bindings = [];
+    let defaultLocation = -1;
     for(let current = raw; (typeof current === 'object' || typeof current === 'function') && !LEAF_PROTOTYPES.includes(current); current = getProto(current)){
         for (const key of Object.getOwnPropertyNames(current)){
-            getters[key] = createGetter(raw, key);
+            bindings.push(key, createGetter(raw, key));
+            if (defaultLocation === -1 && key === 'default') {
+                defaultLocation = bindings.length - 1;
+            }
         }
     }
     // this is not really correct
     // we should set the `default` getter if the imported module is a `.cjs file`
-    if (!(allowExportDefault && 'default' in getters)) {
-        getters['default'] = ()=>raw;
+    if (!(allowExportDefault && defaultLocation >= 0)) {
+        // Replace the binding with one for the namespace itself in order to preserve iteration order.
+        if (defaultLocation >= 0) {
+            // Replace the getter with the value
+            bindings.splice(defaultLocation, 1, BindingTag_Value, raw);
+        } else {
+            bindings.push('default', BindingTag_Value, raw);
+        }
     }
-    esm(ns, getters);
+    esm(ns, bindings);
     return ns;
 }
 function createNS(raw) {
@@ -183,7 +226,6 @@ function createNS(raw) {
 }
 function esmImport(id) {
     const module = getOrInstantiateModuleFromParent(id, this.m);
-    if (module.error) throw module.error;
     // any ES module has to have `module.namespaceObject` defined.
     if (module.namespaceObject) return module.namespaceObject;
     // only ESM can be an async module, so we don't need to worry about exports being a promise here.
@@ -193,7 +235,7 @@ function esmImport(id) {
 contextPrototype.i = esmImport;
 function asyncLoader(moduleId) {
     const loader = this.r(moduleId);
-    return loader(this.i.bind(this));
+    return loader(esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
 // Add a simple runtime require so that environments without one can still pass
@@ -204,9 +246,7 @@ typeof require === 'function' ? require : function require1() {
 };
 contextPrototype.t = runtimeRequire;
 function commonJsRequire(id) {
-    const module = getOrInstantiateModuleFromParent(id, this.m);
-    if (module.error) throw module.error;
-    return module.exports;
+    return getOrInstantiateModuleFromParent(id, this.m).exports;
 }
 contextPrototype.r = commonJsRequire;
 /**
@@ -260,6 +300,38 @@ function createPromise() {
         resolve: resolve,
         reject: reject
     };
+}
+// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
+// The CompressedModuleFactories format is
+// - 1 or more module ids
+// - a module factory function
+// So walking this is a little complex but the flat structure is also fast to
+// traverse, we can use `typeof` operators to distinguish the two cases.
+function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+    let i = offset;
+    while(i < chunkModules.length){
+        let moduleId = chunkModules[i];
+        let end = i + 1;
+        // Find our factory function
+        while(end < chunkModules.length && typeof chunkModules[end] !== 'function'){
+            end++;
+        }
+        if (end === chunkModules.length) {
+            throw new Error('malformed chunk format, expected a factory function');
+        }
+        // Each chunk item has a 'primary id' and optional additional ids. If the primary id is already
+        // present we know all the additional ids are also present, so we don't need to check.
+        if (!moduleFactories.has(moduleId)) {
+            const moduleFactoryFn = chunkModules[end];
+            applyModuleFactoryName(moduleFactoryFn);
+            newModuleId?.(moduleId);
+            for(; i < end; i++){
+                moduleId = chunkModules[i];
+                moduleFactories.set(moduleId, moduleFactoryFn);
+            }
+        }
+        i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
+    }
 }
 // everything below is adapted from webpack
 // https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
@@ -401,6 +473,14 @@ contextPrototype.U = relativeURL;
     throw new Error('dynamic usage of require is not supported');
 }
 contextPrototype.z = requireStub;
+// Make `globalThis` available to the module in a way that cannot be shadowed by a local variable.
+contextPrototype.g = globalThis;
+function applyModuleFactoryName(factory) {
+    // Give the module factory a nice name to improve stack traces.
+    Object.defineProperty(factory, 'name', {
+        value: '__TURBOPACK__module__evaluation__'
+    });
+}
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
@@ -501,20 +581,9 @@ var SourceType = /*#__PURE__*/ function(SourceType) {
     return SourceType;
 }(SourceType || {});
 process.env.TURBOPACK = '1';
-function stringifySourceInfo(sourceType, sourceData) {
-    switch(sourceType){
-        case 0:
-            return `runtime for chunk ${sourceData}`;
-        case 1:
-            return `parent module ${sourceData}`;
-        default:
-            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
-    }
-}
 const nodeContextPrototype = Context.prototype;
 const url = require('url');
-const fs = require('fs/promises');
-const moduleFactories = Object.create(null);
+const moduleFactories = new Map();
 nodeContextPrototype.M = moduleFactories;
 const moduleCache = Object.create(null);
 nodeContextPrototype.c = moduleCache;
@@ -557,19 +626,7 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
     try {
         const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
         const chunkModules = require(resolved);
-        for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
-            if (!moduleFactories[moduleId]) {
-                if (Array.isArray(moduleFactory)) {
-                    const [moduleFactoryFn, otherIds] = moduleFactory;
-                    moduleFactories[moduleId] = moduleFactoryFn;
-                    for (const otherModuleId of otherIds){
-                        moduleFactories[otherModuleId] = moduleFactoryFn;
-                    }
-                } else {
-                    moduleFactories[moduleId] = moduleFactory;
-                }
-            }
-        }
+        installCompressedModuleFactories(chunkModules, 0, moduleFactories);
         loadedChunks.add(chunkPath);
     } catch (e) {
         let errorMessage = `Failed to load chunk ${chunkPath}`;
@@ -579,26 +636,6 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
         throw new Error(errorMessage, {
             cause: e
         });
-    }
-}
-function loadChunkUncached(chunkPath) {
-    // resolve to an absolute path to simplify `require` handling
-    const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
-    // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
-    // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
-    const chunkModules = require(resolved);
-    for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
-        if (!moduleFactories[moduleId]) {
-            if (Array.isArray(moduleFactory)) {
-                const [moduleFactoryFn, otherIds] = moduleFactory;
-                moduleFactories[moduleId] = moduleFactoryFn;
-                for (const otherModuleId of otherIds){
-                    moduleFactories[otherModuleId] = moduleFactoryFn;
-                }
-            } else {
-                moduleFactories[moduleId] = moduleFactory;
-            }
-        }
     }
 }
 function loadChunkAsync(chunkData) {
@@ -611,8 +648,12 @@ function loadChunkAsync(chunkData) {
     let entry = chunkCache.get(chunkPath);
     if (entry === undefined) {
         try {
-            // Load the chunk synchronously
-            loadChunkUncached(chunkPath);
+            // resolve to an absolute path to simplify `require` handling
+            const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
+            // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
+            // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
+            const chunkModules = require(resolved);
+            installCompressedModuleFactories(chunkModules, 0, moduleFactories);
             entry = loadedChunk;
         } catch (e) {
             const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`;
@@ -647,7 +688,7 @@ function getWorkerBlobURL(_chunks) {
 }
 nodeContextPrototype.b = getWorkerBlobURL;
 function instantiateModule(id, sourceType, sourceData) {
-    const moduleFactory = moduleFactories[id];
+    const moduleFactory = moduleFactories.get(id);
     if (typeof moduleFactory !== 'function') {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
@@ -666,11 +707,12 @@ function instantiateModule(id, sourceType, sourceData) {
         throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available.`);
     }
     const module1 = createModuleObject(id);
+    const exports = module1.exports;
     moduleCache[id] = module1;
+    const context = new Context(module1, exports);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
-        const context = new Context(module1);
-        moduleFactory(context);
+        moduleFactory(context, module1, exports);
     } catch (error) {
         module1.error = error;
         throw error;
@@ -688,6 +730,9 @@ function instantiateModule(id, sourceType, sourceData) {
 function getOrInstantiateModuleFromParent(id, sourceModule) {
     const module1 = moduleCache[id];
     if (module1) {
+        if (module1.error) {
+            throw module1.error;
+        }
         return module1;
     }
     return instantiateModule(id, 1, sourceModule.id);

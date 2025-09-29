@@ -214,6 +214,7 @@ pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<J
         }
         "resolve-from" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom),
         "@grpc/proto-loader" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
+        "fs-extra" => JsValue::WellKnownObject(WellKnownObjectKind::FsExtraModule),
         _ => return None,
     })
 }
@@ -265,7 +266,11 @@ mod tests {
             Pattern::Constant(rcstr!("hello/world")),
             js_value_to_pattern(&JsValue::Concat(
                 1,
-                vec!["hello".into(), "\\".into(), "world".into()]
+                vec![
+                    rcstr!("hello").into(),
+                    rcstr!("\\").into(),
+                    rcstr!("world").into()
+                ]
             ))
         );
     }

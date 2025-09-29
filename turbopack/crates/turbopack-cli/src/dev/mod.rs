@@ -305,7 +305,7 @@ async fn source(
                 false,
             ),
             EntryRequest::Module(m, p) => Request::module(
-                m.clone(),
+                m.clone().into(),
                 p.clone().into(),
                 Default::default(),
                 Default::default(),
@@ -355,7 +355,6 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
 
     #[cfg(feature = "tokio_console")]
     console_subscriber::init();
-    crate::register();
 
     let NormalizedDirs {
         project_dir,

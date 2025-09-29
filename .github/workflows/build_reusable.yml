@@ -74,10 +74,15 @@ on:
         required: false
         type: string
         default: 'x86_64-unknown-linux-gnu'
+      overrideProxyAddress:
+        description: Override the proxy address to use for the test
+        required: false
+        type: string
+        default: ''
 
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.3.3
+  TURBO_VERSION: 2.5.5
   NODE_LTS_VERSION: 20.9.0
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided
@@ -95,12 +100,15 @@ env:
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'
-  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+  # Vercel KV Store for test timings
+  KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+  KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
   NEXT_TEST_JOB: 1
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   NEXT_TEST_PREFER_OFFLINE: 1
   NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
+  NEXT_TEST_PROXY_ADDRESS: ${{ inputs.overrideProxyAddress || '' }}
 
 jobs:
   build:
@@ -221,7 +229,7 @@ jobs:
 
       - name: Install node-file-trace test dependencies
         if: ${{ inputs.needsNextest == 'yes' }}
-        working-directory: turbopack/crates/turbopack/tests/node-file-trace
+        working-directory: turbopack/crates/turbopack-tracing/tests/node-file-trace
         run: pnpm install -r --side-effects-cache false
 
       - run: ANALYZE=1 pnpm build
@@ -253,6 +261,11 @@ jobs:
         # We must use a login shell: fnm installation may modify the `.profile`
         shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
+
+      # This file messes up the tests because it influences the build root autodetection.
+      - name: Clean up stray files
+        if: ${{ always() }}
+        run: rm -f /tmp/package-lock.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

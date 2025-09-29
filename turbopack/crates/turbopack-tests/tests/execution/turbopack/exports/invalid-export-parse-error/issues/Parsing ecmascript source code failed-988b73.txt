@@ -1,0 +1,14 @@
+error - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-parse-error/input/invalid-export/broken.js:2:16  Parsing ecmascript source code failed
+       1 | export const a = 42
+         +                 v
+       2 + export const b =
+         +                 ^
+       3 | 
+  
+  Expression expected
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-parse-error/input/invalid-export/broken.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-parse-error/input/invalid-export/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-parse-error/input/index.js

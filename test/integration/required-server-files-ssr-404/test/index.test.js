@@ -642,8 +642,6 @@ describe('Required Server Files', () => {
 
       it('should handle 404s properly', async () => {
         for (const pathname of [
-          '/_next/static/chunks/pages/index-abc123.js',
-          '/_next/static/some-file.js',
           '/static/some-file.js',
           '/non-existent',
           '/404',
@@ -656,6 +654,23 @@ describe('Required Server Files', () => {
           })
           expect(res.status).toBe(404)
           expect(await res.text()).toContain('custom 404')
+        }
+
+        for (const pathname of [
+          '/_next/static/chunks/pages/index-abc123.js',
+          '/_next/static/some-file.js',
+        ]) {
+          const res = await fetchViaHTTP(appPort, pathname, undefined, {
+            headers: {
+              'x-matched-path': '/404',
+              redirect: 'manual',
+            },
+          })
+          expect(res.status).toBe(404)
+          expect(res.headers.get('content-type')).toBe(
+            'text/plain; charset=utf-8'
+          )
+          expect(await res.text()).toBe('Not Found')
         }
       })
     }

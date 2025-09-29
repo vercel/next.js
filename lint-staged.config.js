@@ -6,5 +6,5 @@ module.exports = {
   '*.{json,md,css,html,yml,yaml,scss}': [
     'prettier --with-node-modules --ignore-path .prettierignore --write',
   ],
-  '*.rs': ['cargo fmt --'],
+  '*.rs': ['rustfmt --edition 2024 --'],
 }

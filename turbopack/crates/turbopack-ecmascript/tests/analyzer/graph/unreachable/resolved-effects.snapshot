@@ -24,40 +24,39 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 8 free var = FreeVar(c1)
+0 -> 8 free var = FreeVar(b3)
 
 0 -> 9 call = ???*0*()
+- *0* FreeVar(b3)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 10 free var = FreeVar(c1)
+
+0 -> 11 call = ???*0*()
 - *0* FreeVar(c1)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 10 unreachable = ???*0*
+0 -> 12 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 11 unreachable = ???*0*
+0 -> 13 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 12 free var = FreeVar(d1)
+0 -> 14 free var = FreeVar(c3)
 
-0 -> 13 call = ???*0*()
-- *0* FreeVar(d1)
+0 -> 15 call = ???*0*()
+- *0* FreeVar(c3)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 14 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
-
-0 -> 15 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
-
-0 -> 16 free var = FreeVar(e1)
+0 -> 16 free var = FreeVar(d1)
 
 0 -> 17 call = ???*0*()
-- *0* FreeVar(e1)
+- *0* FreeVar(d1)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -69,53 +68,89 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 20 free var = FreeVar(f1)
+0 -> 20 free var = FreeVar(d3)
 
 0 -> 21 call = ???*0*()
+- *0* FreeVar(d3)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 22 free var = FreeVar(e1)
+
+0 -> 23 call = ???*0*()
+- *0* FreeVar(e1)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 24 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 25 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 26 free var = FreeVar(e3)
+
+0 -> 27 call = ???*0*()
+- *0* FreeVar(e3)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 28 free var = FreeVar(f1)
+
+0 -> 29 call = ???*0*()
 - *0* FreeVar(f1)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 22 unreachable = ???*0*
+0 -> 30 unreachable = ???*0*
 - *0* unreachable
-  ⚠️  This value might have side effects
-
-0 -> 23 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
-
-0 -> 24 free var = FreeVar(g1)
-
-0 -> 25 call = ???*0*()
-- *0* FreeVar(g1)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-
-0 -> 26 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
-
-0 -> 27 free var = FreeVar(g3)
-
-0 -> 28 call = ???*0*()
-- *0* FreeVar(g3)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-
-0 -> 29 free var = FreeVar(h1)
-
-0 -> 30 call = ???*0*()
-- *0* FreeVar(h1)
-  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 0 -> 31 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 32 free var = FreeVar(h3)
+0 -> 32 free var = FreeVar(f3)
 
 0 -> 33 call = ???*0*()
+- *0* FreeVar(f3)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 34 free var = FreeVar(g1)
+
+0 -> 35 call = ???*0*()
+- *0* FreeVar(g1)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 36 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 37 free var = FreeVar(g3)
+
+0 -> 38 call = ???*0*()
+- *0* FreeVar(g3)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 39 free var = FreeVar(h1)
+
+0 -> 40 call = ???*0*()
+- *0* FreeVar(h1)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 41 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 42 free var = FreeVar(h3)
+
+0 -> 43 call = ???*0*()
 - *0* FreeVar(h3)
   ⚠️  unknown global
   ⚠️  This value might have side effects

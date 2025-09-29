@@ -38,8 +38,6 @@ export interface WorkStore {
    */
   readonly hasReadableErrorStacks?: boolean
 
-  readonly isRevalidate?: boolean
-
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']
 
@@ -85,12 +83,11 @@ export interface WorkStore {
   readonly refreshTagsByCacheKind: Map<string, LazyResult<void>>
 
   fetchMetrics?: FetchMetrics
+  shouldTrackFetchMetrics: boolean
 
   isDraftMode?: boolean
   isUnstableNoStore?: boolean
   isPrefetchRequest?: boolean
-
-  requestEndedState?: { ended?: boolean }
 
   buildId: string
 
@@ -98,6 +95,7 @@ export interface WorkStore {
     Record<string, { files: string[] }>
   >
   readonly assetPrefix?: string
+  readonly nonce?: string
 
   cacheComponentsEnabled: boolean
   dev: boolean

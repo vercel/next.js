@@ -7,7 +7,7 @@ import {
   type ReadyRuntimeError,
 } from '../../utils/get-error-by-type'
 
-export type RuntimeErrorProps = {
+type RuntimeErrorProps = {
   error: ReadyRuntimeError
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }

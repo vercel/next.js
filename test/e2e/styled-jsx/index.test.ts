@@ -41,4 +41,13 @@ describe('styled-jsx', () => {
     const html = await next.render('/amp')
     expect(html).toMatch(/color:.*?cyan/)
   })
+
+  it('should render styles inside TypeScript', async () => {
+    const browser = await next.browser('/typescript')
+    const color = await browser.eval(
+      `getComputedStyle(document.querySelector('button')).color`
+    )
+
+    expect(color).toMatch('255, 0, 0')
+  })
 })

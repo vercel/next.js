@@ -2,7 +2,6 @@
 const fs = require('fs')
 const path = require('path')
 const execa = require('execa')
-const resolveFrom = require('resolve-from')
 
 async function main() {
   const args = process.argv
@@ -24,15 +23,6 @@ async function main() {
     return
   }
 
-  const configStorePath = resolveFrom(
-    path.join(process.cwd(), 'node_modules/release'),
-    'configstore'
-  )
-  const ConfigStore = require(configStorePath)
-
-  const config = new ConfigStore('release')
-  config.set('token', githubToken)
-
   await execa(
     `git remote set-url origin https://nextjs-bot:${githubToken}@github.com/vercel/next.js.git`,
     { stdio: 'inherit', shell: true }
@@ -46,6 +36,10 @@ async function main() {
     shell: true,
   })
   await execa(`git checkout -b "${branchName}"`, {
+    stdio: 'inherit',
+    shell: true,
+  })
+  await execa(`git fetch origin ${tagName} --tags`, {
     stdio: 'inherit',
     shell: true,
   })
@@ -81,11 +75,18 @@ async function main() {
     'workflows',
     'build_and_test.yml'
   )
-  const buildAndTest = await fs.promises.readFile(buildAndTestPath, 'utf8')
-  await fs.promises.writeFile(
-    buildAndTestPath,
-    buildAndTest.replace(`['canary']`, `['${branchName}']`)
+  let buildAndTest = await fs.promises.readFile(buildAndTestPath, 'utf8')
+  buildAndTest = buildAndTest
+    .replace(`['canary']`, `['${branchName}']`)
+    .replace(/[\s]{1,}('test-new-tests-.+',)/g, '')
+
+  buildAndTest = buildAndTest.replace(
+    /(^[ \t]*)# test-new-tests-if\n(^[ \t]*)if:.*\n(^[ \t]*)# test-new-tests-end-if/gm,
+    (_, indent1, indent2, indent3) =>
+      `${indent1}# test-new-tests-if\n${indent2}if: false\n${indent3}# test-new-tests-end-if`
   )
+
+  await fs.promises.writeFile(buildAndTestPath, buildAndTest)
 
   await execa(`git add .`, {
     stdio: 'inherit',

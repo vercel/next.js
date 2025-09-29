@@ -20,7 +20,8 @@ export function io(expression: string, type: ApiType) {
   }
 
   switch (workUnitStore.type) {
-    case 'prerender': {
+    case 'prerender':
+    case 'prerender-runtime': {
       const prerenderSignal = workUnitStore.controller.signal
 
       if (prerenderSignal.aborted === false) {
@@ -29,13 +30,13 @@ export function io(expression: string, type: ApiType) {
         let message: string
         switch (type) {
           case 'time':
-            message = `Route "${workStore.route}" used ${expression} instead of using \`performance\` or without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
+            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
             break
           case 'random':
-            message = `Route "${workStore.route}" used ${expression} outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
+            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
             break
           case 'crypto':
-            message = `Route "${workStore.route}" used ${expression} outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
+            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
             break
           default:
             throw new InvariantError(

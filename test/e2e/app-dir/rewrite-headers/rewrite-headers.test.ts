@@ -10,7 +10,11 @@ const cases: {
   pathname: string
   only?: boolean
   debug?: true
-  headers?: Record<string, string>
+  headers?: {
+    rsc?: '1'
+    'next-router-prefetch'?: '0' | '1' | '2'
+    'next-router-segment-prefetch'?: string
+  }
   expected: Record<Target, string | null>
 }[] = [
   {
@@ -25,7 +29,7 @@ const cases: {
     name: 'static RSC',
     pathname: '/',
     headers: {
-      RSC: '1',
+      rsc: '1',
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -36,8 +40,13 @@ const cases: {
     name: 'static Prefetch RSC',
     pathname: '/',
     headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -56,7 +65,7 @@ const cases: {
     name: 'prerendered RSC',
     pathname: '/hello/world',
     headers: {
-      RSC: '1',
+      rsc: '1',
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -67,8 +76,13 @@ const cases: {
     name: 'prerendered Prefetch RSC',
     pathname: '/hello/world',
     headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -87,7 +101,7 @@ const cases: {
     name: 'middleware rewrite RSC',
     pathname: '/hello/wyatt',
     headers: {
-      RSC: '1',
+      rsc: '1',
     },
     expected: {
       'x-nextjs-rewritten-path': '/hello/admin',
@@ -98,8 +112,13 @@ const cases: {
     name: 'middleware rewrite Prefetch RSC',
     pathname: '/hello/wyatt',
     headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     // only: true,
     expected: {
@@ -119,7 +138,7 @@ const cases: {
     name: 'middleware rewrite dynamic RSC',
     pathname: '/hello/bob',
     headers: {
-      RSC: '1',
+      rsc: '1',
     },
     expected: {
       'x-nextjs-rewritten-path': '/hello/bobby',
@@ -130,8 +149,13 @@ const cases: {
     name: 'middleware rewrite dynamic Prefetch RSC',
     pathname: '/hello/bob',
     headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': '/hello/bobby',
@@ -150,7 +174,7 @@ const cases: {
     name: 'dynamic RSC',
     pathname: '/hello/mary',
     headers: {
-      RSC: '1',
+      rsc: '1',
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -161,8 +185,13 @@ const cases: {
     name: 'dynamic Prefetch RSC',
     pathname: '/hello/mary',
     headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -181,7 +210,7 @@ const cases: {
     name: 'dynamic RSC with query',
     pathname: '/hello/mary?key=value',
     headers: {
-      RSC: '1',
+      rsc: '1',
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -192,8 +221,13 @@ const cases: {
     name: 'dynamic Prefetch RSC with query',
     pathname: '/hello/mary?key=value',
     headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -212,7 +246,7 @@ const cases: {
     name: 'next.config.js rewrites RSC',
     pathname: '/hello/sam',
     headers: {
-      RSC: '1',
+      rsc: '1',
     },
     expected: {
       'x-nextjs-rewritten-path': '/hello/samantha',
@@ -223,8 +257,13 @@ const cases: {
     name: 'next.config.js rewrites Prefetch RSC',
     pathname: '/hello/sam',
     headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': '/hello/samantha',
@@ -243,7 +282,7 @@ const cases: {
     name: 'next.config.js rewrites static RSC',
     pathname: '/hello/other',
     headers: {
-      RSC: '1',
+      rsc: '1',
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',
@@ -254,8 +293,13 @@ const cases: {
     name: 'next.config.js rewrites static Prefetch RSC',
     pathname: '/hello/other',
     headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',
@@ -282,7 +326,7 @@ const cases: {
     name: 'middleware rewrite query RSC',
     pathname: '/hello/john',
     headers: {
-      RSC: '1',
+      rsc: '1',
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -293,8 +337,13 @@ const cases: {
     name: 'middleware rewrite query Prefetch RSC',
     pathname: '/hello/john',
     headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -316,7 +365,7 @@ const cases: {
   //   name: 'middleware rewrite external RSC',
   //   pathname: '/hello/vercel',
   //   headers: {
-  //     RSC: '1',
+  //     rsc: '1',
   //   },
   //   expected: {
   //     // Vercel matches `/` to `/home`
@@ -328,8 +377,8 @@ const cases: {
   //   name: 'middleware rewrite external Prefetch RSC',
   //   pathname: '/hello/vercel',
   //   headers: {
-  //     RSC: '1',
-  //     'Next-Router-Prefetch': '1',
+  //     rsc: '1',
+  //     'next-router-prefetch': '1',
   //   },
   //   expected: {
   //     // Vercel matches `/` to `/home`
@@ -349,7 +398,7 @@ const cases: {
     name: 'next.config.js rewrites with query RSC',
     pathname: '/hello/fred',
     headers: {
-      RSC: '1',
+      rsc: '1',
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',
@@ -360,8 +409,8 @@ const cases: {
     name: 'next.config.js rewrites with query Prefetch RSC',
     pathname: '/hello/fred',
     headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
+      rsc: '1',
+      'next-router-prefetch': '1',
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',
@@ -380,7 +429,7 @@ const cases: {
     name: 'next.config.js rewrites with path-matched query RSC',
     pathname: '/rewrites-to-query/andrew',
     headers: {
-      RSC: '1',
+      rsc: '1',
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',
@@ -391,8 +440,13 @@ const cases: {
     name: 'next.config.js rewrites with path-matched query Prefetch RSC',
     pathname: '/rewrites-to-query/andrew',
     headers: {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',
@@ -416,11 +470,11 @@ describe('rewrite-headers', () => {
         const url = new URL(pathname, 'http://localhost')
 
         // Add cache busting param for RSC requests
-        if (headers.RSC === '1') {
+        if (headers.rsc === '1') {
           const cacheBustingParam = computeCacheBustingSearchParam(
-            headers['Next-Router-Prefetch'] ? '1' : '0',
+            headers['next-router-prefetch'],
+            headers['next-router-segment-prefetch'],
             undefined,
-            headers['Next-Router-State-Tree'],
             undefined
           )
           if (cacheBustingParam) {

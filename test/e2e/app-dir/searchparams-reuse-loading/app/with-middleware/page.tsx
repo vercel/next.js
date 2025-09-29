@@ -5,7 +5,7 @@ export default function Page() {
     <ul>
       <li>
         <Link href="/with-middleware/search-params?id=1">
-          /search-params?id=1 (prefetch: true)
+          /search-params?id=1
         </Link>
       </li>
       <li>
@@ -14,12 +14,18 @@ export default function Page() {
         </Link>
       </li>
       <li>
-        <Link href="/with-middleware/search-params?id=3" prefetch>
+        <Link
+          href="/with-middleware/search-params?id=3"
+          prefetch="unstable_forceStale"
+        >
           /search-params?id=3 (prefetch: true)
         </Link>
       </li>
       <li>
-        <Link href="/with-middleware/search-params" prefetch>
+        <Link
+          href="/with-middleware/search-params"
+          prefetch="unstable_forceStale"
+        >
           /search-params (prefetch: true)
         </Link>
       </li>

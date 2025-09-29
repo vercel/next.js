@@ -874,11 +874,16 @@
       );
     }
     function getSuspenseContentFormatContext(resumableState, parentContext) {
+      resumableState = getSuspenseViewTransition(parentContext.viewTransition);
+      var subtreeScope = parentContext.tagScope | 16;
+      null !== resumableState &&
+        "none" !== resumableState.share &&
+        (subtreeScope |= 64);
       return createFormatContext(
         parentContext.insertionMode,
         parentContext.selectedValue,
-        parentContext.tagScope | 16,
-        getSuspenseViewTransition(parentContext.viewTransition)
+        subtreeScope,
+        resumableState
       );
     }
     function pushStyleAttribute(target, style) {
@@ -2674,6 +2679,9 @@
               ("t" !== srcSet[2] && "T" !== srcSet[2]) ||
               ("a" !== srcSet[3] && "A" !== srcSet[3]))
           ) {
+            null !== hoistableState &&
+              formatContext.tagScope & 64 &&
+              (hoistableState.suspenseyImages = !0);
             var sizes = "string" === typeof props.sizes ? props.sizes : void 0,
               key$jscomp$0 = srcSet ? srcSet + "\n" + (sizes || "") : src,
               promotablePreloads = renderState.preloads.images,
@@ -3268,7 +3276,7 @@
       destination.push(attributeName);
     }
     function createHoistableState() {
-      return { styles: new Set(), stylesheets: new Set() };
+      return { styles: new Set(), stylesheets: new Set(), suspenseyImages: !1 };
     }
     function preloadBootstrapScriptOrModule(
       resumableState,
@@ -3376,6 +3384,7 @@
     function hoistHoistables(parentState, childState) {
       childState.styles.forEach(hoistStyleQueueDependency, parentState);
       childState.stylesheets.forEach(hoistStylesheetDependency, parentState);
+      childState.suspenseyImages && (parentState.suspenseyImages = !0);
     }
     function createRenderState(resumableState, generateStaticMarkup) {
       var idPrefix = resumableState.idPrefix,
@@ -3978,6 +3987,11 @@
           queue.next = componentIdentity;
         }
     }
+    function throwOnUseEffectEventCall() {
+      throw Error(
+        "A function wrapped in useEffectEvent can't be called during rendering."
+      );
+    }
     function unsupportedStartTransition() {
       throw Error("startTransition cannot be called during server rendering.");
     }
@@ -4352,6 +4366,11 @@
           return describeBuiltInComponentFrame("Suspense");
       }
       return "";
+    }
+    function isEligibleForOutlining(request, boundary) {
+      return (
+        (500 < boundary.byteSize || !1) && null === boundary.contentPreamble
+      );
     }
     function defaultErrorHandler(error) {
       if (
@@ -4877,7 +4896,7 @@
           if (
             1 !== rowBoundary.pendingTasks ||
             rowBoundary.parentFlushed ||
-            500 < rowBoundary.byteSize
+            isEligibleForOutlining(request, rowBoundary)
           ) {
             allCompleteAndInlinable = !1;
             break;
@@ -5911,7 +5930,7 @@
                   ) {
                     if (
                       ((newBoundary.status = COMPLETED),
-                      !(500 < newBoundary.byteSize))
+                      !isEligibleForOutlining(request, newBoundary))
                     ) {
                       null !== prevRow$jscomp$0 &&
                         0 === --prevRow$jscomp$0.pendingTasks &&
@@ -6738,7 +6757,7 @@
               thrownValue === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue),
-            "object" === typeof node && null !== node)
+            12 !== request.status && "object" === typeof node && null !== node)
           ) {
             if ("function" === typeof node.then) {
               childIndex =
@@ -6794,7 +6813,7 @@
               thrownValue$3 === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue$3),
-            "object" === typeof node && null !== node)
+            12 !== request.status && "object" === typeof node && null !== node)
           ) {
             if ("function" === typeof node.then) {
               segment = node;
@@ -7116,7 +7135,7 @@
             (row = boundary$jscomp$0.row),
               null !== row &&
                 hoistHoistables(row.hoistables, boundary$jscomp$0.contentState),
-              500 < boundary$jscomp$0.byteSize ||
+              isEligibleForOutlining(request$jscomp$0, boundary$jscomp$0) ||
                 (boundary$jscomp$0.fallbackAbortableTasks.forEach(
                   abortTaskSoft,
                   request$jscomp$0
@@ -7479,6 +7498,7 @@
       switch (boundary.status) {
         case COMPLETED:
           hoistPreambleState(request.renderState, preamble);
+          request.byteSize += boundary.byteSize;
           segment = boundary.completedSegments[0];
           if (!segment)
             throw Error(
@@ -7511,17 +7531,17 @@
         null === request.completedPreambleSegments
       ) {
         var collectedPreambleSegments = [],
+          originalRequestByteSize = request.byteSize,
           hasPendingPreambles = preparePreambleFromSegment(
             request,
             request.completedRootSegment,
             collectedPreambleSegments
           ),
           preamble = request.renderState.preamble;
-        if (
-          !1 === hasPendingPreambles ||
-          (preamble.headChunks && preamble.bodyChunks)
-        )
-          request.completedPreambleSegments = collectedPreambleSegments;
+        !1 === hasPendingPreambles ||
+        (preamble.headChunks && preamble.bodyChunks)
+          ? (request.completedPreambleSegments = collectedPreambleSegments)
+          : (request.byteSize = originalRequestByteSize);
       }
     }
     function flushSubtree(request, destination, segment, hoistableState) {
@@ -7634,7 +7654,8 @@
           destination.push(endSuspenseBoundary)
         );
       if (
-        500 < boundary.byteSize &&
+        !flushingPartialBoundaries &&
+        isEligibleForOutlining(request, boundary) &&
         flushedByteSize + boundary.byteSize > request.progressiveChunkSize
       )
         return (
@@ -7652,7 +7673,7 @@
       hoistableState && hoistHoistables(hoistableState, boundary.contentState);
       segment = boundary.row;
       null !== segment &&
-        500 < boundary.byteSize &&
+        isEligibleForOutlining(request, boundary) &&
         0 === --segment.pendingTasks &&
         finishSuspenseListRow(request, segment);
       request.renderState.generateStaticMarkup ||
@@ -7699,7 +7720,7 @@
       completedSegments.length = 0;
       completedSegments = boundary.row;
       null !== completedSegments &&
-        500 < boundary.byteSize &&
+        isEligibleForOutlining(request, boundary) &&
         0 === --completedSegments.pendingTasks &&
         finishSuspenseListRow(request, completedSegments);
       writeHoistablesForBoundary(
@@ -8051,6 +8072,7 @@
               return;
             }
           completedBoundaries.splice(0, i);
+          flushingPartialBoundaries = !0;
           var partialBoundaries = request.partialBoundaries;
           for (i = 0; i < partialBoundaries.length; i++) {
             a: {
@@ -8103,6 +8125,7 @@
             }
           }
           partialBoundaries.splice(0, i);
+          flushingPartialBoundaries = !1;
           var largeBoundaries = request.completedBoundaries;
           for (i = 0; i < largeBoundaries.length; i++)
             if (
@@ -8116,22 +8139,23 @@
           largeBoundaries.splice(0, i);
         }
       } finally {
-        0 === request.allPendingTasks &&
-          0 === request.clientRenderedBoundaries.length &&
-          0 === request.completedBoundaries.length &&
-          ((request.flushScheduled = !1),
-          (i = request.resumableState),
-          i.hasBody &&
-            ((partialBoundaries = endChunkForTag("body")),
-            destination.push(partialBoundaries)),
-          i.hasHtml && ((i = endChunkForTag("html")), destination.push(i)),
-          0 !== request.abortableTasks.size &&
-            console.error(
-              "There was still abortable task at the root when we closed. This is a bug in React."
-            ),
-          (request.status = CLOSED),
-          destination.push(null),
-          (request.destination = null));
+        (flushingPartialBoundaries = !1),
+          0 === request.allPendingTasks &&
+            0 === request.clientRenderedBoundaries.length &&
+            0 === request.completedBoundaries.length &&
+            ((request.flushScheduled = !1),
+            (i = request.resumableState),
+            i.hasBody &&
+              ((partialBoundaries = endChunkForTag("body")),
+              destination.push(partialBoundaries)),
+            i.hasHtml && ((i = endChunkForTag("html")), destination.push(i)),
+            0 !== request.abortableTasks.size &&
+              console.error(
+                "There was still abortable task at the root when we closed. This is a bug in React."
+              ),
+            (request.status = CLOSED),
+            destination.push(null),
+            (request.destination = null));
       }
     }
     function startWork(request) {
@@ -8439,7 +8463,11 @@
         "aria-rowcount": 0,
         "aria-rowindex": 0,
         "aria-rowspan": 0,
-        "aria-setsize": 0
+        "aria-setsize": 0,
+        "aria-braillelabel": 0,
+        "aria-brailleroledescription": 0,
+        "aria-colindextext": 0,
+        "aria-rowindextext": 0
       },
       warnedProperties$1 = {},
       rARIA$1 = RegExp(
@@ -9425,7 +9453,7 @@
       completeSegmentScript2 = '","',
       completeSegmentScriptEnd = '")\x3c/script>',
       completeBoundaryScriptFunctionOnly =
-        '$RB=[];$RV=function(b){$RT=performance.now();for(var a=0;a<b.length;a+=2){var c=b[a],e=b[a+1];null!==e.parentNode&&e.parentNode.removeChild(e);var f=c.parentNode;if(f){var g=c.previousSibling,h=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===h)break;else h--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||h++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;e.firstChild;)f.insertBefore(e.firstChild,c);g.data="$";g._reactRetry&&g._reactRetry()}}b.length=0};\n$RC=function(b,a){if(a=document.getElementById(a))(b=document.getElementById(b))?(b.previousSibling.data="$~",$RB.push(b,a),2===$RB.length&&(b="number"!==typeof $RT?0:$RT,a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:b+300-a))):a.parentNode.removeChild(a)};',
+        '$RB=[];$RV=function(a){$RT=performance.now();for(var b=0;b<a.length;b+=2){var c=a[b],e=a[b+1];null!==e.parentNode&&e.parentNode.removeChild(e);var f=c.parentNode;if(f){var g=c.previousSibling,h=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===h)break;else h--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||h++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;e.firstChild;)f.insertBefore(e.firstChild,c);g.data="$";g._reactRetry&&requestAnimationFrame(g._reactRetry)}}a.length=0};\n$RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))?(a.previousSibling.data="$~",$RB.push(a,b),2===$RB.length&&("number"!==typeof $RT?requestAnimationFrame($RV.bind(null,$RB)):(a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:$RT+300-a)))):b.parentNode.removeChild(b)};',
       completeBoundaryScript1Partial = '$RC("',
       completeBoundaryWithStylesScript1FullPartial =
         '$RM=new Map;$RR=function(n,w,p){function u(q){this._p=null;q()}for(var r=new Map,t=document,h,b,e=t.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=e[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&$RM.set(b.getAttribute("href"),b),r.set(b.dataset.precedence,h=b));e=0;b=[];var l,a;for(k=!0;;){if(k){var f=p[e++];if(!f){k=!1;e=0;continue}var c=!1,m=0;var d=f[m++];if(a=$RM.get(d)){var g=a._p;c=!0}else{a=t.createElement("link");a.href=d;a.rel=\n"stylesheet";for(a.dataset.precedence=l=f[m++];g=f[m++];)a.setAttribute(g,f[m++]);g=a._p=new Promise(function(q,x){a.onload=u.bind(a,q);a.onerror=u.bind(a,x)});$RM.set(d,a)}d=a.getAttribute("media");!g||d&&!matchMedia(d).matches||b.push(g);if(c)continue}else{a=v[e++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=r.get(l)||h;c===h&&(h=a);r.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=t.head,c.insertBefore(a,c.firstChild))}if(p=document.getElementById(n))p.previousSibling.data=\n"$~";Promise.all(b).then($RC.bind(null,n,w),$RX.bind(null,n,"CSS failed to load"))};$RR("',
@@ -9633,6 +9661,9 @@
         },
         useCacheRefresh: function () {
           return unsupportedRefresh;
+        },
+        useEffectEvent: function () {
+          return throwOnUseEffectEventCall;
         }
       },
       currentResumableState = null,
@@ -9717,7 +9748,8 @@
       didWarnAboutReassigningProps = !1,
       didWarnAboutGenerators = !1,
       didWarnAboutMaps = !1,
-      flushedByteSize = 0;
+      flushedByteSize = 0,
+      flushingPartialBoundaries = !1;
     exports.renderToStaticMarkup = function (children, options) {
       return renderToStringImpl(
         children,
@@ -9734,5 +9766,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-canary-eaee5308-20250728";
+    exports.version = "19.2.0-canary-d15d7fd7-20250929";
   })();

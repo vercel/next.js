@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ValueDefault, ValueToString, Vc};
 
 use super::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
@@ -21,7 +21,7 @@ impl VirtualFileSystem {
     /// [`Vc<VirtualFileSystem>`].
     pub fn new() -> Vc<Self> {
         Self::cell(VirtualFileSystem {
-            name: "virtual file system".into(),
+            name: rcstr!("virtual file system"),
         })
     }
 

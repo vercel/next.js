@@ -293,6 +293,11 @@ impl AppPage {
         )
     }
 
+    /// Returns true if there is only one segment and it is a group.
+    pub fn is_first_layer_group_route(&self) -> bool {
+        self.0.len() == 1 && matches!(self.0.last(), Some(PageSegment::Group(_)))
+    }
+
     pub fn complete(&self, page_type: PageType) -> Result<Self> {
         self.clone_push(PageSegment::PageType(page_type))
     }

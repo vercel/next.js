@@ -1,9 +1,17 @@
 'use client'
 
-import Link from 'next/link'
+import Link, { LinkProps } from 'next/link'
 import { useState } from 'react'
 
-export function LinkAccordion({ href, children }) {
+export function LinkAccordion({
+  href,
+  children,
+  prefetch,
+}: {
+  href: string
+  children: React.ReactNode
+  prefetch?: LinkProps['prefetch']
+}) {
   const [isVisible, setIsVisible] = useState(false)
   return (
     <>
@@ -14,7 +22,9 @@ export function LinkAccordion({ href, children }) {
         data-link-accordion={href}
       />
       {isVisible ? (
-        <Link href={href}>{children}</Link>
+        <Link href={href} prefetch={prefetch}>
+          {children}
+        </Link>
       ) : (
         `${children} (link is hidden)`
       )}

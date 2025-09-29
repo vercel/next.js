@@ -60,5 +60,17 @@ impl OutputAssets {
 #[turbo_tasks::value(transparent)]
 pub struct OutputAssetsSet(FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
 
-// TODO All Vc::try_resolve_downcast::<Box<dyn OutputAsset>> calls should be
-// removed
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Copy)]
+pub struct OutputAssetsWithReferenced {
+    pub assets: ResolvedVc<OutputAssets>,
+    pub referenced_assets: ResolvedVc<OutputAssets>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsWithReferenced {
+    #[turbo_tasks::function]
+    pub fn all_assets(&self) -> Vc<OutputAssets> {
+        self.assets.concatenate(*self.referenced_assets)
+    }
+}

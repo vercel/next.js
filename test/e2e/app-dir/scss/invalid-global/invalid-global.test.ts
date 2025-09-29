@@ -21,6 +21,9 @@ describe('Invalid Global CSS', () => {
     expect(stderr).toMatch(
       /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
     )
-    expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
+    // Skip: Rspack loaders cannot access module issuer info for location details
+    if (!process.env.NEXT_RSPACK) {
+      expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
+    }
   })
 })

@@ -63,7 +63,6 @@ import loadJsConfig, {
   type ResolvedBaseUrl,
 } from './load-jsconfig'
 import { loadBindings } from './swc'
-import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
@@ -94,7 +93,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
-import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
+import { getRspackCore } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 import type { NextBuildContext } from './build-context'
@@ -178,7 +177,7 @@ const reactRefreshLoaderName =
 
 function getReactRefreshLoader() {
   return process.env.NEXT_RSPACK
-    ? getRspackReactRefresh().loader
+    ? 'builtin:react-refresh-loader'
     : require.resolve(reactRefreshLoaderName)
 }
 
@@ -389,7 +388,6 @@ export default async function getBaseWebpackConfig(
 
   const hasAppDir = !!appDir
   const disableOptimizedLoading = true
-  const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
   const bundledReactChannel = needsExperimentalReact(config)
     ? '-experimental'
     : ''
@@ -493,9 +491,9 @@ export default async function getBaseWebpackConfig(
     : getReactCompilerLoader(
         config.experimental?.reactCompiler,
         dir,
-        dev,
         isNodeOrEdgeCompilation,
-        codeCondition.exclude
+        codeCondition.exclude,
+        dev
       )
 
   let swcTraceProfilingInitialized = false
@@ -699,7 +697,9 @@ export default async function getBaseWebpackConfig(
   ]
 
   const reactRefreshEntry = isRspack
-    ? getRspackReactRefresh().entry
+    ? require.resolve(
+        `next/dist/compiled/@next/react-refresh-utils/dist/rspack-runtime`
+      )
     : require.resolve(
         `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
       )
@@ -913,6 +913,15 @@ export default async function getBaseWebpackConfig(
   const builtinModules = (require('module') as typeof import('module'))
     .builtinModules
 
+  const bunExternals = [
+    'bun:ffi',
+    'bun:jsc',
+    'bun:sqlite',
+    'bun:test',
+    'bun:wrap',
+    'bun',
+  ]
+
   const shouldEnableSlowModuleDetection =
     !!config.experimental.slowModuleDetection && dev
 
@@ -986,6 +995,7 @@ export default async function getBaseWebpackConfig(
           ]
         : [
             ...builtinModules,
+            ...bunExternals,
             ({
               context,
               request,
@@ -1179,7 +1189,7 @@ export default async function getBaseWebpackConfig(
           chunks: isRspack
             ? // using a function here causes noticable slowdown
               // in rspack
-              /(?!polyfills|main|pages\/_app)/
+              /^(?!(polyfills|main|pages\/_app)$).*$/
             : (chunk: any) =>
                 !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
 
@@ -1189,7 +1199,9 @@ export default async function getBaseWebpackConfig(
                   chunks: 'all' as const,
                   name: 'framework',
                   layer: RSPACK_DEFAULT_LAYERS_REGEX,
-                  test: /[/]node_modules[/](react|react-dom|next[/]dist[/]compiled[/](react|react-dom)(-experimental)?)[/]/,
+                  test: new RegExp(
+                    `^(${topLevelFrameworkPaths.map((p) => `(${escapeStringRegexp(p)})`).join('|')})`
+                  ),
                   priority: 40,
                   enforce: true,
                 },
@@ -1957,7 +1969,7 @@ export default async function getBaseWebpackConfig(
               '.shared-runtime'
             )
             const layer = resource.contextInfo.issuerLayer
-            let runtime
+            let runtime: string
 
             switch (layer) {
               case WEBPACK_LAYERS.serverSideRendering:
@@ -1979,11 +1991,7 @@ export default async function getBaseWebpackConfig(
         isClient &&
         (isRspack
           ? // eslint-disable-next-line
-            new (getRspackReactRefresh() as any)({
-              injectLoader: false,
-              injectEntry: false,
-              overlay: false,
-            })
+            new (require('next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshRspackPlugin').default)()
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -2036,7 +2044,6 @@ export default async function getBaseWebpackConfig(
             appDirEnabled: hasAppDir,
             traceIgnores: [],
             compilerType,
-            swcLoaderConfig: swcDefaultLoader,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
@@ -2120,7 +2127,6 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
       hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
@@ -2143,7 +2149,6 @@ export default async function getBaseWebpackConfig(
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          typedRoutes: enableTypedRoutes,
           cacheLifeConfig: config.experimental.cacheLife,
           originalRewrites,
           originalRedirects,
@@ -2237,6 +2242,15 @@ export default async function getBaseWebpackConfig(
         : undefined,
   }
 
+  if (isRspack) {
+    // @ts-ignore
+    // Disable Rspack's incremental buildChunkGraph due to Next.js compatibility issues
+    // TODO: Remove this workaround after Rspack 1.5.1 release
+    webpack5Config.experiments.incremental = {
+      buildChunkGraph: false,
+    }
+  }
+
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
@@ -2294,7 +2308,7 @@ export default async function getBaseWebpackConfig(
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
-    buildActivityPosition:
+    devIndicatorsPosition:
       config.devIndicators === false
         ? undefined
         : config.devIndicators.position,
@@ -2303,7 +2317,6 @@ export default async function getBaseWebpackConfig(
     optimizeCss: config.experimental.optimizeCss,
     nextScriptWorkers: config.experimental.nextScriptWorkers,
     scrollRestoration: config.experimental.scrollRestoration,
-    typedRoutes: config.experimental.typedRoutes,
     basePath: config.basePath,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
@@ -2447,7 +2460,7 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
-    future: config.future,
+    future: (config as any).future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
@@ -2624,8 +2637,8 @@ export default async function getBaseWebpackConfig(
   }
 
   // Backwards compat with webpack-dev-middleware options object
-  if (typeof config.webpackDevMiddleware === 'function') {
-    const options = config.webpackDevMiddleware({
+  if (typeof (config as any).webpackDevMiddleware === 'function') {
+    const options = (config as any).webpackDevMiddleware({
       watchOptions: webpackConfig.watchOptions,
     })
     if (options.watchOptions) {

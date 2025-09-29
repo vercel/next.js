@@ -445,7 +445,7 @@ impl<C: Comments> ServerActions<C> {
             new_params.push(Param {
                 span: DUMMY_SP,
                 decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+                pat: Pat::Ident(IdentName::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP).into()),
             });
         }
 
@@ -597,7 +597,7 @@ impl<C: Comments> ServerActions<C> {
             new_params.push(Param {
                 span: DUMMY_SP,
                 decorators: vec![],
-                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+                pat: Pat::Ident(IdentName::new(atom!("$$ACTION_CLOSURE_BOUND"), DUMMY_SP).into()),
             });
         }
 
@@ -1620,7 +1620,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     // export default function foo() {}
                                     self.exported_idents.push((
                                         ident.clone(),
-                                        "default".into(),
+                                        atom!("default"),
                                         ref_id,
                                     ));
                                 } else {
@@ -1638,7 +1638,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                     self.exported_idents.push((
                                         new_ident.clone(),
-                                        "default".into(),
+                                        atom!("default"),
                                         ref_id,
                                     ));
 
@@ -1694,7 +1694,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                     self.exported_idents.push((
                                         new_ident.clone(),
-                                        "default".into(),
+                                        atom!("default"),
                                         self.generate_server_reference_id(
                                             "default",
                                             is_cache,
@@ -1723,7 +1723,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 // export default foo
                                 self.exported_idents.push((
                                     ident.clone(),
-                                    "default".into(),
+                                    atom!("default"),
                                     self.generate_server_reference_id(
                                         "default",
                                         in_cache_file,
@@ -1741,7 +1741,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                 self.exported_idents.push((
                                     new_ident.clone(),
-                                    "default".into(),
+                                    atom!("default"),
                                     self.generate_server_reference_id(
                                         "default",
                                         in_cache_file,
@@ -1858,7 +1858,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: "private-next-rsc-action-client-wrapper".into(),
+                        value: atom!("private-next-rsc-action-client-wrapper"),
                         raw: None,
                     }),
                     type_only: false,
@@ -1990,7 +1990,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         })],
                         src: Box::new(Str {
                             span: DUMMY_SP,
-                            value: "private-next-rsc-action-validate".into(),
+                            value: atom!("private-next-rsc-action-validate"),
                             raw: None,
                         }),
                         type_only: false,
@@ -2040,7 +2040,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: "private-next-rsc-cache-wrapper".into(),
+                    value: atom!("private-next-rsc-cache-wrapper"),
                     raw: None,
                 }),
                 type_only: false,
@@ -2065,7 +2065,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 })],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: "private-next-rsc-server-reference".into(),
+                    value: atom!("private-next-rsc-server-reference"),
                     raw: None,
                 }),
                 type_only: false,
@@ -2094,7 +2094,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 ],
                 src: Box::new(Str {
                     span: DUMMY_SP,
-                    value: "private-next-rsc-action-encryption".into(),
+                    value: atom!("private-next-rsc-action-encryption"),
                     raw: None,
                 }),
                 type_only: false,
@@ -2142,7 +2142,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ServerActionsMode::Turbopack => {
                         new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                             expr: Box::new(Expr::Lit(Lit::Str(
-                                "use turbopack no side effects".into(),
+                                atom!("use turbopack no side effects").into(),
                             ))),
                             span: DUMMY_SP,
                         })));
@@ -2165,7 +2165,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             vec![
                                                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                                                     expr: Box::new(Expr::Lit(Lit::Str(
-                                                        "use turbopack no side effects".into(),
+                                                        atom!("use turbopack no side effects")
+                                                            .into(),
                                                     ))),
                                                     span: DUMMY_SP,
                                                 })),
@@ -2738,7 +2739,7 @@ impl DirectiveVisitor<'_> {
                     });
                 } else
                 // `use cache` or `use cache: foo`
-                if value == "use cache" || value.starts_with("use cache: ") {
+                if let Some(rest) = value.strip_prefix("use cache") {
                     // Increment telemetry counter tracking usage of "use cache" directives
 
                     if in_fn_body && !allow_inline {
@@ -2758,25 +2759,59 @@ impl DirectiveVisitor<'_> {
                             });
                         }
 
-                        if value == "use cache" {
+                        if rest.is_empty() {
                             self.directive = Some(Directive::UseCache {
                                 cache_kind: rcstr!("default"),
                             });
+
                             self.increment_cache_usage_counter("default");
-                        } else {
-                            // Slice the value after "use cache: "
-                            let cache_kind = RcStr::from(value.split_at("use cache: ".len()).1);
 
-                            if !self.config.cache_kinds.contains(&cache_kind) {
-                                emit_error(ServerActionsErrorKind::UnknownCacheKind {
-                                    span: *span,
-                                    cache_kind: cache_kind.clone(),
-                                });
-                            }
-
-                            self.increment_cache_usage_counter(&cache_kind);
-                            self.directive = Some(Directive::UseCache { cache_kind });
+                            return true;
                         }
+
+                        if rest.starts_with(": ") {
+                            let cache_kind = RcStr::from(rest.split_at(": ".len()).1);
+
+                            if !cache_kind.is_empty() {
+                                if !self.config.cache_kinds.contains(&cache_kind) {
+                                    emit_error(ServerActionsErrorKind::UnknownCacheKind {
+                                        span: *span,
+                                        cache_kind: cache_kind.clone(),
+                                    });
+                                }
+
+                                self.increment_cache_usage_counter(&cache_kind);
+                                self.directive = Some(Directive::UseCache { cache_kind });
+
+                                return true;
+                            }
+                        }
+
+                        // Emit helpful errors for variants like "use cache:<cache-kind>",
+                        // "use cache : <cache-kind>", and "use cache <cache-kind>" etc.
+                        let expected_directive = if let Some(colon_pos) = rest.find(':') {
+                            let kind = rest[colon_pos + 1..].trim();
+
+                            if kind.is_empty() {
+                                "use cache: <cache-kind>".to_string()
+                            } else {
+                                format!("use cache: {kind}")
+                            }
+                        } else {
+                            let kind = rest.trim();
+
+                            if kind.is_empty() {
+                                "use cache".to_string()
+                            } else {
+                                format!("use cache: {kind}")
+                            }
+                        };
+
+                        emit_error(ServerActionsErrorKind::MisspelledDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            expected_directive,
+                        });
 
                         return true;
                     } else {
@@ -3156,7 +3191,7 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             span,
             formatdoc! {
                 r#"
-                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
+                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the `experimental.cacheHandlers` object in your Next.js config.
                 "#
             },
         ),
@@ -3164,7 +3199,7 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             span,
             formatdoc! {
                 r#"
-                    To use "{directive}", please enable the experimental feature flag "useCache" in your Next.js config.
+                    To use "{directive}", please enable the feature flag `experimental.cacheComponents` in your Next.js config.
 
                     Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
                 "#

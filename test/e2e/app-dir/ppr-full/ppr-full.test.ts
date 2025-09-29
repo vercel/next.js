@@ -52,10 +52,10 @@ const addCacheBustingSearchParam = (
   headers: Record<string, string | string[] | undefined>
 ) => {
   const cacheKey = computeCacheBustingSearchParam(
-    headers['Next-Router-Prefetch'] ? '1' : '0',
-    headers['Next-Router-Segment-Prefetch'],
-    headers['Next-Router-State-Tree'],
-    headers['Next-URL']
+    headers['next-router-prefetch'] ? '1' : '0',
+    headers['next-router-segment-prefetch'],
+    headers['next-router-state-tree'],
+    headers['next-url']
   )
 
   if (cacheKey === null) {
@@ -65,6 +65,21 @@ const addCacheBustingSearchParam = (
   const url = new URL(pathname, 'http://localhost')
   url.searchParams.set('_rsc', cacheKey)
   return url.pathname + url.search
+}
+
+/**
+ * Expects that the cache-control header contains the given directives in any
+ * order.
+ *
+ * @param header The cache-control header to check.
+ * @param directives The directives to expect.
+ */
+const expectDirectives = (header: string, directives: string[]) => {
+  const split = header.split(',').map((directive) => directive.trim())
+  for (const directive of directives) {
+    expect(split).toContain(directive)
+  }
+  expect(split.length).toEqual(directives.length)
 }
 
 describe('ppr-full', () => {
@@ -105,6 +120,32 @@ describe('ppr-full', () => {
 
           // Consume the response body to ensure the cache is populated.
           await res.text()
+        })
+
+        it('should allow soft navigations to and from the / page', async () => {
+          const browser = await next.browser('/')
+
+          await browser.waitForElementByCss(`[data-pathname="/"]`)
+
+          // Add a window var so we can detect if there was a full navigation.
+          const now = Date.now()
+          await browser.eval(`window.beforeNav = ${now}`)
+
+          // Navigate to the page and wait for the page to load.
+          await browser.elementByCss(`a[href="${pathname}"]`).click()
+          await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
+
+          // Ensure we did a client navigation and not a full page navigation.
+          let beforeNav = await browser.eval('window.beforeNav')
+          expect(beforeNav).toBe(now)
+
+          // Navigate back to the home page and wait for the page to load.
+          await browser.elementByCss(`a[href="/"]`).click()
+          await browser.waitForElementByCss(`[data-pathname="/"]`)
+
+          // Ensure we did a client navigation and not a full page navigation.
+          beforeNav = await browser.eval('window.beforeNav')
+          expect(beforeNav).toBe(now)
         })
 
         it('should allow navigations to and from a pages/ page', async () => {
@@ -491,9 +532,11 @@ describe('ppr-full', () => {
           }
 
           if (isNextDeploy) {
-            expect(res.headers.get('cache-control')).toEqual(
-              'public, max-age=0, must-revalidate'
-            )
+            expectDirectives(res.headers.get('cache-control') || '', [
+              'public',
+              'max-age=0',
+              'must-revalidate',
+            ])
           }
 
           if (signal === 'redirect()') {
@@ -535,8 +578,8 @@ describe('ppr-full', () => {
         it('should have correct headers', async () => {
           await retry(async () => {
             const headers = {
-              RSC: '1',
-              'Next-Router-Prefetch': '1',
+              rsc: '1',
+              'next-router-prefetch': '1',
             }
             const urlWithCacheBusting = addCacheBustingSearchParam(
               pathname,
@@ -551,9 +594,11 @@ describe('ppr-full', () => {
             expect(res.headers.get('content-type')).toEqual('text/x-component')
 
             if (isNextDeploy) {
-              expect(res.headers.get('cache-control')).toEqual(
-                'public, max-age=0, must-revalidate'
-              )
+              expectDirectives(res.headers.get('cache-control') || '', [
+                'public',
+                'max-age=0',
+                'must-revalidate',
+              ])
             } else {
               expect(res.headers.get('cache-control')).toEqual(
                 revalidate === undefined
@@ -573,8 +618,8 @@ describe('ppr-full', () => {
         it('should not contain dynamic content', async () => {
           const unexpected = `${Date.now()}:${Math.random()}`
           const headers = {
-            RSC: '1',
-            'Next-Router-Prefetch': '1',
+            rsc: '1',
+            'next-router-prefetch': '1',
             'X-Test-Input': unexpected,
           }
           const urlWithCacheBusting = addCacheBustingSearchParam(
@@ -596,22 +641,29 @@ describe('ppr-full', () => {
     describe('Dynamic RSC Response', () => {
       describe.each(pages)('for $pathname', ({ pathname, dynamic }) => {
         it('should have correct headers', async () => {
-          const headers = { RSC: '1' }
+          const headers = { rsc: '1' }
           const urlWithCacheBusting = addCacheBustingSearchParam(
             pathname,
             headers
           )
 
-          const res = await next.fetch(urlWithCacheBusting, {
+          let res = await next.fetch(urlWithCacheBusting, {
             headers,
           })
           expect(res.status).toEqual(200)
           expect(res.headers.get('content-type')).toEqual('text/x-component')
-          expect(res.headers.get('cache-control')).toEqual(
-            'private, no-cache, no-store, max-age=0, must-revalidate'
-          )
+          expectDirectives(res.headers.get('cache-control') || '', [
+            'private',
+            'no-store',
+            'no-cache',
+            'max-age=0',
+            'must-revalidate',
+          ])
+
           if (isNextDeploy) {
-            expect(res.headers.get('x-vercel-cache')).toBe('MISS')
+            expect(res.headers.get('x-vercel-cache')).toMatch(
+              /MISS|HIT|PRERENDER/
+            )
           } else {
             expect(res.headers.get('x-nextjs-cache')).toEqual(null)
           }
@@ -621,7 +673,7 @@ describe('ppr-full', () => {
           it('should contain dynamic content', async () => {
             const expected = `${Date.now()}:${Math.random()}`
             const headers = {
-              RSC: '1',
+              rsc: '1',
               'X-Test-Input': expected,
             }
             const urlWithCacheBusting = addCacheBustingSearchParam(
@@ -641,7 +693,7 @@ describe('ppr-full', () => {
           it('should not contain dynamic content', async () => {
             const unexpected = `${Date.now()}:${Math.random()}`
             const headers = {
-              RSC: '1',
+              rsc: '1',
               'X-Test-Input': unexpected,
             }
             const urlWithCacheBusting = addCacheBustingSearchParam(

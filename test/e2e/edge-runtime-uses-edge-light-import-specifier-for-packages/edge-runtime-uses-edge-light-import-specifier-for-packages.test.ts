@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 
 describe('edge-runtime uses edge-light import specifier for packages', () => {
   const { next, skipped } = nextTestSetup({
@@ -7,7 +6,7 @@ describe('edge-runtime uses edge-light import specifier for packages', () => {
     packageJson: {
       scripts: {
         build: 'next build',
-        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
+        dev: 'next dev',
         start: 'next start',
       },
     },

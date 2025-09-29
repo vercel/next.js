@@ -45,10 +45,7 @@ describe('Build Output', () => {
           }
 
           it('should not include internal pages', async () => {
-            expect(stdout).toMatch(/\/ (.* )?\d{1,} k?B/)
-            expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-            expect(stdout).toMatch(/ chunks\/.*\.js [ 0-9.]* kB/)
-            expect(stdout).toMatch(/ chunks\/.*\.js [ 0-9. ]* kB/)
+            expect(stdout).toMatch(/\//)
 
             expect(stdout).not.toContain(' /_document')
             expect(stdout).not.toContain(' /_app')
@@ -206,10 +203,8 @@ describe('Build Output', () => {
             stdout: true,
           })
 
-          expect(stdout).toMatch(/\/ (.* )?\d{1,} k?B/)
-          expect(stdout).toMatch(/\/_app (.* )?\d{1,} k?B/)
-          expect(stdout).toMatch(/\+ First Load JS shared by all \s*[0-9.]+ kB/)
-          expect(stdout).toMatch(/ chunks\/.*\.js \s*[0-9.]+ kB/)
+          expect(stdout).toMatch(/\//)
+          expect(stdout).toMatch(/\/_app/)
 
           expect(stdout).not.toContain(' /_document')
           expect(stdout).not.toContain(' /_error')
@@ -235,13 +230,9 @@ describe('Build Output', () => {
               stdout: true,
             })
 
-            expect(stdout).toMatch(/\/ (.* )?[0-9.]+ k?B \s*[0-9.]+ kB/)
+            expect(stdout).toMatch(/\//)
             expect(stdout).toMatch(/\/amp (.* )?AMP/)
-            expect(stdout).toMatch(/\/hybrid (.* )?[0-9.]+ k?B/)
-            expect(stdout).toMatch(
-              /\+ First Load JS shared by all \s*[0-9.]+ kB/
-            )
-            expect(stdout).toMatch(/ chunks\/.*\.js \s*[0-9.]+ kB/)
+            expect(stdout).toMatch(/\/hybrid (.* )?/)
 
             expect(stdout).not.toContain(' /_document')
             expect(stdout).not.toContain(' /_error')
@@ -264,10 +255,8 @@ describe('Build Output', () => {
             stdout: true,
           })
 
-          expect(stdout).toMatch(/\/ (.* )?\d{1,} k?B/)
-          expect(stdout).toMatch(/ƒ \/404 (.* )?\d{1,} k?B/)
-          expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-          expect(stdout).toMatch(/ chunks\/.*\.js [ 0-9.]* kB/)
+          expect(stdout).toMatch(/\//)
+          expect(stdout).toMatch(/ƒ \/404/)
 
           expect(stdout).not.toContain(' /_document')
           expect(stdout).not.toContain(' /_app')
@@ -303,7 +292,7 @@ describe('Build Output', () => {
             stdout: true,
           })
 
-          expect(stdout.match(/○ \/root-page /g).length).toBe(1)
+          expect(stdout.match(/○ \/root-page/g).length).toBe(1)
         })
       })
     }

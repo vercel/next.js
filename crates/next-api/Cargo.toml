@@ -9,10 +9,6 @@ autobenches = false
 [lib]
 bench = false
 
-[[bench]]
-name = "hmr"
-harness = false
-
 [lints]
 workspace = true
 
@@ -33,6 +29,7 @@ turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true, features = ["non_operation_vc_strongly_consistent"] }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
+turbo-unix-path = { workspace = true }
 turbopack = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-core = { workspace = true }
@@ -43,13 +40,10 @@ turbopack-wasm = { workspace = true }
 
 [dev-dependencies]
 turbo-tasks-malloc = { workspace = true }
-divan = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 
-
 [build-dependencies]
 anyhow = { workspace = true }
-turbo-tasks-build = { workspace = true }
 vergen = { workspace = true }

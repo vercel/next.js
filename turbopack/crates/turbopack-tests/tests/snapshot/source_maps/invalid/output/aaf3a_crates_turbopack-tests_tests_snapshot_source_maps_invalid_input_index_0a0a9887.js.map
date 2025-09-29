@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/invalid/input/index.js"],"sourcesContent":["console.log('test')\n//# sourceMappingURL=index.js.map\n"],"names":[],"mappings":"AAAA,QAAQ,GAAG,CAAC,SACZ,iCAAiC"}}]
+}

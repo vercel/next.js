@@ -8,6 +8,8 @@ import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { getRequestMeta } from '../../server/request-meta'
 import { getTracer, type Span, SpanKind } from '../../server/lib/trace/tracer'
+import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
+import { createServerModuleMap } from '../../server/app-render/action-utils'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import {
@@ -119,6 +121,8 @@ export async function handler(
     isOnDemandRevalidate,
     revalidateOnlyGenerated,
     resolvedPathname,
+    clientReferenceManifest,
+    serverActionsManifest,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
@@ -158,7 +162,21 @@ export async function handler(
   // page and it is not being resumed from a postponed render and
   // it is not a dynamic RSC request then it is a revalidation
   // request.
-  const isRevalidate = isIsr && !supportsDynamicResponse
+  const isStaticGeneration = isIsr && !supportsDynamicResponse
+
+  // Before rendering (which initializes component tree modules), we have to
+  // set the reference manifests to our global store so Server Action's
+  // encryption util can access to them at the top level of the page module.
+  if (serverActionsManifest && clientReferenceManifest) {
+    setReferenceManifestsSingleton({
+      page: srcPage,
+      clientReferenceManifest,
+      serverActionsManifest,
+      serverModuleMap: createServerModuleMap({
+        serverActionsManifest,
+      }),
+    })
+  }
 
   const method = req.method || 'GET'
   const tracer = getTracer()
@@ -175,7 +193,6 @@ export async function handler(
       supportsDynamicResponse,
       incrementalCache: getRequestMeta(req, 'incrementalCache'),
       cacheLifeProfiles: nextConfig.experimental?.cacheLife,
-      isRevalidate,
       waitUntil: ctx.waitUntil,
       onClose: (cb) => {
         res.on('close', cb)
@@ -240,7 +257,7 @@ export async function handler(
           })
           span.updateName(name)
         } else {
-          span.updateName(`${method} ${req.url}`)
+          span.updateName(`${method} ${srcPage}`)
         }
       })
     }
@@ -340,7 +357,7 @@ export async function handler(
                 routePath: srcPage,
                 routeType: 'route',
                 revalidateReason: getRevalidateReason({
-                  isRevalidate,
+                  isStaticGeneration,
                   isOnDemandRevalidate,
                 }),
               },
@@ -419,6 +436,7 @@ export async function handler(
       await sendResponse(
         nodeNextReq,
         nodeNextRes,
+        // @ts-expect-error - Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'.
         new Response(cacheEntry.value.body, {
           headers,
           status: cacheEntry.value.status || 200,
@@ -436,7 +454,7 @@ export async function handler(
         tracer.trace(
           BaseServerSpan.handleRequest,
           {
-            spanName: `${method} ${req.url}`,
+            spanName: `${method} ${srcPage}`,
             kind: SpanKind.SERVER,
             attributes: {
               'http.method': method,
@@ -448,14 +466,13 @@ export async function handler(
       )
     }
   } catch (err) {
-    // if we aren't wrapped by base-server handle here
-    if (!activeSpan && !(err instanceof NoFallbackError)) {
+    if (!(err instanceof NoFallbackError)) {
       await routeModule.onRequestError(req, err, {
         routerKind: 'App Router',
         routePath: normalizedSrcPage,
         routeType: 'route',
         revalidateReason: getRevalidateReason({
-          isRevalidate,
+          isStaticGeneration,
           isOnDemandRevalidate,
         }),
       })

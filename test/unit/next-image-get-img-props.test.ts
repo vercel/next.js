@@ -61,6 +61,47 @@ describe('getImageProps()', () => {
     expect(props.srcSet).toBeString()
   })
 
+  it('should handle preload', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 100,
+      height: 200,
+      preload: true,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
+    ])
+  })
+
+  it('should error when both priority and preload are used', async () => {
+    expect(() =>
+      getImageProps({
+        alt: 'a nice desc',
+        id: 'my-image',
+        src: '/test.png',
+        width: 100,
+        height: 200,
+        preload: true,
+        priority: true,
+      })
+    ).toThrow(
+      'Image with src "/test.png" has both "preload" and "priority" properties. Only "preload" should be used.'
+    )
+  })
+
   it('should handle priority', async () => {
     const { props } = getImageProps({
       alt: 'a nice desc',
@@ -111,7 +152,7 @@ describe('getImageProps()', () => {
       ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
   })
-  it('should handle quality', async () => {
+  it('should handle quality coercion from 50 to 75', async () => {
     const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
@@ -121,7 +162,7 @@ describe('getImageProps()', () => {
       quality: 50,
     })
     expect(warningMessages).toStrictEqual([
-      'Image with src "/test.png" is using quality "50" which is not configured in images.qualities. This config will be required starting in Next.js 16.\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities',
+      'Image with src "/test.png" is using quality "50" which is not configured in images.qualities [75]. Please update your config to [50, 75].\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities',
     ])
     expect(Object.entries(props)).toStrictEqual([
       ['alt', 'a nice desc'],
@@ -133,9 +174,34 @@ describe('getImageProps()', () => {
       ['style', { color: 'transparent' }],
       [
         'srcSet',
-        '/_next/image?url=%2Ftest.png&w=128&q=50 1x, /_next/image?url=%2Ftest.png&w=256&q=50 2x',
+        '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
       ],
-      ['src', '/_next/image?url=%2Ftest.png&w=256&q=50'],
+      ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
+    ])
+  })
+  it('should handle quality exact match config and not warn', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 100,
+      height: 200,
+      quality: 75,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
   })
   it('should handle quality as a string and not warn', async () => {
@@ -401,7 +467,9 @@ describe('getImageProps()', () => {
       width: 100,
       height: 200,
     })
-    expect(warningMessages).toStrictEqual([])
+    expect(warningMessages).toStrictEqual([
+      'Image with src "/test.svg?v=1" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns',
+    ])
     expect(Object.entries(props)).toStrictEqual([
       ['alt', 'a nice desc'],
       ['loading', 'lazy'],

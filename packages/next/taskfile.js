@@ -661,6 +661,17 @@ export async function ncc_image_size(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['image-detector'] = 'next/dist/compiled/image-detector'
+export async function ncc_image_detector(task, opts) {
+  // NOTE: remove this special compile step if the upstream PR lands
+  // https://github.com/image-size/image-size/pull/451
+  await task
+    .source(relative(__dirname, require.resolve('image-size/dist/detector.js')))
+    .ncc({ packageName: 'image-size', externals })
+    .target('src/compiled/image-detector')
+}
+
+// eslint-disable-next-line camelcase
 externals['@hapi/accept'] = 'next/dist/compiled/@hapi/accept'
 export async function ncc_hapi_accept(task, opts) {
   await task
@@ -1057,6 +1068,9 @@ const babelCorePackages = {
 externals['next/dist/compiled/babel/code-frame'] =
   'next/dist/compiled/babel/code-frame'
 
+externals['next/dist/compiled/babel-code-frame'] =
+  'next/dist/compiled/babel-code-frame'
+
 Object.assign(externals, babelCorePackages)
 
 // eslint-disable-next-line camelcase
@@ -1076,6 +1090,22 @@ export async function ncc_babel_bundle(task, opts) {
       externals: bundleExternals,
     })
     .target('src/compiled/babel')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_babel_code_frame(task, opts) {
+  const bundleExternals = {
+    ...externals,
+    'next/dist/compiled/babel-packages': 'next/dist/compiled/babel-packages',
+  }
+  await task
+    .source('src/bundles/babel-code-frame/index.js')
+    .ncc({
+      packageName: '@babel/code-frame',
+      bundleName: 'babel-code-frame',
+      externals: bundleExternals,
+    })
+    .target('src/compiled/babel-code-frame')
 }
 
 // eslint-disable-next-line camelcase
@@ -2205,6 +2235,32 @@ export async function ncc_ws(task, opts) {
     .target('src/compiled/ws')
 }
 
+// eslint-disable-next-line camelcase
+export async function ncc_modelcontextprotocol_sdk(task, opts) {
+  await task
+    .source(
+      relative(
+        __dirname,
+        require.resolve('@modelcontextprotocol/sdk/server/mcp.js')
+      )
+    )
+    .ncc({
+      externals,
+    })
+    .target('src/compiled/@modelcontextprotocol/sdk/server')
+  await task
+    .source(
+      relative(
+        __dirname,
+        require.resolve('@modelcontextprotocol/sdk/server/streamableHttp.js')
+      )
+    )
+    .ncc({
+      externals,
+    })
+    .target('src/compiled/@modelcontextprotocol/sdk/server')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function ncc_path_to_regexp(task, opts) {
   await task
@@ -2281,6 +2337,7 @@ export async function ncc(task, opts) {
         'ncc_p_queue',
         'ncc_raw_body',
         'ncc_image_size',
+        'ncc_image_detector',
         'ncc_hapi_accept',
         'ncc_commander',
         'ncc_node_anser',
@@ -2314,6 +2371,7 @@ export async function ncc(task, opts) {
         'ncc_tty_browserify',
         'ncc_vm_browserify',
         'ncc_babel_bundle',
+        'ncc_babel_code_frame',
         'ncc_bytes',
         'ncc_ci_info',
         'ncc_cli_select',
@@ -2409,6 +2467,7 @@ export async function ncc(task, opts) {
       'ncc_busboy',
       'ncc_mswjs_interceptors',
       'ncc_rsc_poison_packages',
+      'ncc_modelcontextprotocol_sdk',
     ],
     opts
   )

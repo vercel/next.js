@@ -158,7 +158,7 @@ struct HmrEntryChunkItem {
 impl ChunkItem for HmrEntryChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(*self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -192,7 +192,6 @@ impl EcmascriptChunkItem for HmrEntryChunkItem {
             inner_code: code.build(),
             options: EcmascriptChunkItemOptions {
                 strict: true,
-                module: true,
                 ..Default::default()
             },
             ..Default::default()

@@ -2,7 +2,6 @@ use std::io::Write;
 
 use anyhow::{Result, bail};
 use either::Either;
-use indoc::writedoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, rope::RopeBuilder};
@@ -106,24 +105,24 @@ impl EcmascriptBrowserChunkContent {
         // When the runtime executes (see the `evaluate` module), it will pick up and
         // register all pending chunks, and replace the list of pending chunks
         // with itself so later chunks can register directly with it.
-        writedoc!(
+        write!(
             code,
-            r#"
-                (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([{script_or_path}, {{
-            "#
+            // `||=` would be better but we need to be es2020 compatible
+            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
+            "(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([{script_or_path},"
         )?;
 
         let content = this.content.await?;
         let chunk_items = content.chunk_item_code_and_ids().await?;
         for item in chunk_items {
             for (id, item_code) in item {
-                write!(code, "\n{}: ", StringifyJs(&id))?;
+                write!(code, "\n{}, ", StringifyJs(&id))?;
                 code.push_code(item_code);
                 write!(code, ",")?;
             }
         }
 
-        write!(code, "\n}}]);")?;
+        write!(code, "\n]);")?;
 
         let mut code = code.build();
 

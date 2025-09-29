@@ -106,17 +106,6 @@ impl ClientReferenceGraphResult {
     }
 }
 
-impl ClientReferenceGraphResult {
-    /// Merges multiple return values of client_reference_graph together.
-    pub fn extend(&mut self, other: &Self) {
-        self.client_references
-            .extend(other.client_references.iter().copied());
-        self.server_component_entries
-            .extend(other.server_component_entries.iter().copied());
-        self.server_utils.extend(other.server_utils.iter().copied());
-    }
-}
-
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ServerEntries {
@@ -277,13 +266,13 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                 tracing::info_span!("client reference")
             }
             FindServerEntriesNode::Internal(_, name) => {
-                tracing::info_span!("module", name = name.to_string())
+                tracing::info_span!("module", name = display(name))
             }
             FindServerEntriesNode::ServerUtilEntry(_, name) => {
-                tracing::info_span!("server util", name = name.to_string())
+                tracing::info_span!("server util", name = display(name))
             }
             FindServerEntriesNode::ServerComponentEntry(_, name) => {
-                tracing::info_span!("layout segment", name = name.to_string())
+                tracing::info_span!("layout segment", name = display(name))
             }
         }
     }

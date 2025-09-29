@@ -125,7 +125,7 @@ module.exports = ({ dev, ...rest }) => {
                 ),
               },
             },
-            'css-loader',
+            { loader: 'css-loader', options: { sourceMap: false } },
           ],
         },
       ],

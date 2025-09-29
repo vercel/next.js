@@ -25,8 +25,16 @@ describe('jsconfig.json', () => {
         })
         try {
           const res = await nextBuild(appDir, [], { stderr: true })
-          expect(res.stderr).toMatch(/Error: Failed to parse "/)
-          expect(res.stderr).toMatch(/JSON5: invalid end of input at 1:2/)
+          if (process.env.IS_TURBOPACK_TEST) {
+            expect(res.stderr).toMatch(/An issue occurred while parsing/)
+            expect(res.stderr).toMatch(/jsconfig.json:1:1/)
+            expect(res.stderr).toMatch(
+              /tsconfig is not parseable: invalid JSON: Unterminated object/
+            )
+          } else {
+            expect(res.stderr).toMatch(/Error: Failed to parse "/)
+            expect(res.stderr).toMatch(/JSON5: invalid end of input at 1:2/)
+          }
         } finally {
           await fs.writeFile(jsconfigPath, originalJsconfig, {
             encoding: 'utf-8',

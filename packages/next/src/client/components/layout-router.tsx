@@ -3,12 +3,12 @@
 import type {
   CacheNode,
   LazyCacheNode,
-  LoadingModuleData,
-} from '../../shared/lib/app-router-context.shared-runtime'
+} from '../../shared/lib/app-router-types'
+import type { LoadingModuleData } from '../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-} from '../../server/app-render/types'
+} from '../../shared/lib/app-router-types'
 import type { ErrorComponent } from './error-boundary'
 import {
   ACTION_SERVER_PATCH,
@@ -16,6 +16,7 @@ import {
 } from './router-reducer/router-reducer-types'
 
 import React, {
+  Activity,
   useContext,
   use,
   startTransition,
@@ -41,10 +42,6 @@ import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has
 import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-
-const Activity = process.env.__NEXT_ROUTER_BF_CACHE
-  ? (require('react') as typeof import('react')).unstable_Activity
-  : null!
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -488,10 +485,6 @@ function LoadingBoundary({
   return <>{children}</>
 }
 
-function RenderChildren({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
-}
-
 /**
  * OuterLayoutRouter handles the current segment as well as <Offscreen> rendering of other segments.
  * It can be rendered next to each other with a different `parallelRouterKey`, allowing for Parallel routes.
@@ -507,7 +500,6 @@ export default function OuterLayoutRouter({
   notFound,
   forbidden,
   unauthorized,
-  gracefullyDegrade,
   segmentViewBoundaries,
 }: {
   parallelRouterKey: string
@@ -520,7 +512,6 @@ export default function OuterLayoutRouter({
   notFound: React.ReactNode | undefined
   forbidden: React.ReactNode | undefined
   unauthorized: React.ReactNode | undefined
-  gracefullyDegrade?: boolean
   segmentViewBoundaries?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
@@ -612,16 +603,9 @@ export default function OuterLayoutRouter({
       - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
   */
 
-    const ErrorBoundaryComponent = gracefullyDegrade
-      ? RenderChildren
-      : ErrorBoundary
-
     let segmentBoundaryTriggerNode: React.ReactNode = null
     let segmentViewStateNode: React.ReactNode = null
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER
-    ) {
+    if (process.env.NODE_ENV !== 'production') {
       const { SegmentBoundaryTriggerNode, SegmentViewStateNode } =
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
 
@@ -651,7 +635,7 @@ export default function OuterLayoutRouter({
         key={stateKey}
         value={
           <ScrollAndFocusHandler segmentPath={segmentPath}>
-            <ErrorBoundaryComponent
+            <ErrorBoundary
               errorComponent={error}
               errorStyles={errorStyles}
               errorScripts={errorScripts}
@@ -673,7 +657,7 @@ export default function OuterLayoutRouter({
                   </RedirectBoundary>
                 </HTTPAccessFallbackBoundary>
               </LoadingBoundary>
-            </ErrorBoundaryComponent>
+            </ErrorBoundary>
             {segmentViewStateNode}
           </ScrollAndFocusHandler>
         }

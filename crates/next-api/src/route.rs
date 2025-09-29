@@ -34,7 +34,7 @@ pub struct AppPageRoute {
 pub enum Route {
     Page {
         html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
-        data_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+        data_endpoint: Option<ResolvedVc<Box<dyn Endpoint>>>,
     },
     PageApi {
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
@@ -46,9 +46,6 @@ pub enum Route {
     },
     Conflict,
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
 
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
@@ -68,8 +65,6 @@ pub trait Endpoint {
     fn additional_entries(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
         GraphEntries::empty()
     }
-    #[turbo_tasks::function]
-    fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs>;
 }
 
 #[turbo_tasks::value(transparent)]
@@ -152,7 +147,7 @@ pub struct EndpointOutput {
 pub enum EndpointOutputPaths {
     NodeJs {
         /// Relative to the root_path
-        server_entry_path: String,
+        server_entry_path: RcStr,
         server_paths: Vec<ServerPath>,
         client_paths: Vec<RcStr>,
     },

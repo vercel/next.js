@@ -3,7 +3,7 @@ use std::mem::take;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    atoms::atom,
+    atoms::{Atom, atom},
     base::SwcComments,
     common::{
         DUMMY_SP, Span, Spanned,
@@ -37,6 +37,9 @@ pub struct Unreachable {
     range: AstPathRange,
 }
 
+fn unreachable_atom() -> Atom {
+    atom!("TURBOPACK unreachable")
+}
 struct UnreachableModifier {
     comments: SwcComments,
 }
@@ -49,7 +52,7 @@ impl AstModifier for UnreachableModifier {
 
         *node = Expr::Lit(Lit::Str(Str {
             span,
-            value: atom!("TURBOPACK unreachable"),
+            value: unreachable_atom(),
             raw: None,
         }));
     }
@@ -64,7 +67,7 @@ impl AstModifier for UnreachableModifier {
             Comment {
                 kind: CommentKind::Line,
                 span: DUMMY_SP,
-                text: atom!("TURBOPACK unreachable"),
+                text: unreachable_atom(),
             },
         );
 
@@ -111,7 +114,7 @@ impl UnreachableRangeModifier {
                 Comment {
                     kind: CommentKind::Line,
                     span: DUMMY_SP,
-                    text: atom!("TURBOPACK unreachable"),
+                    text: unreachable_atom(),
                 },
             );
 

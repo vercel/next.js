@@ -92,7 +92,7 @@ describe('segment-explorer', () => {
       `"app/ [global-error.js]"`
     )
     // FIXME: handle preserve the url when hitting global-error
-    expect(await getSegmentExplorerRoute(browser)).toBe('')
+    expect(await getSegmentExplorerRoute(browser)).toBe('<empty>')
   })
 
   it('should show navigation boundaries of the segment', async () => {

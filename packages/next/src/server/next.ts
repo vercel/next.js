@@ -6,7 +6,7 @@ import type {
 import type { UrlWithParsedQuery } from 'url'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
-import type { NextUrlWithParsedQuery } from './request-meta'
+import type { NextUrlWithParsedQuery, RequestMeta } from './request-meta'
 
 import './require-hook'
 import './node-polyfill-crypto'
@@ -14,7 +14,7 @@ import './node-polyfill-crypto'
 import type { default as NextNodeServer } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import path, { resolve } from 'path'
+import path from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import {
   PHASE_DEVELOPMENT_SERVER,
@@ -148,6 +148,27 @@ export class NextServer implements NextWrapperServer {
     }
   }
 
+  /**
+   * @internal - this method is internal to Next.js and should not be used
+   * directly by end-users, only used in testing
+   */
+  getRequestHandlerWithMetadata(meta: RequestMeta): RequestHandler {
+    return async (
+      req: IncomingMessage,
+      res: ServerResponse,
+      parsedUrl?: UrlWithParsedQuery
+    ) => {
+      return getTracer().trace(
+        NextServerSpan.getRequestHandlerWithMetadata,
+        async () => {
+          const server = await this.getServer()
+          const handler = server.getRequestHandlerWithMetadata(meta)
+          return handler(req, res, parsedUrl)
+        }
+      )
+    }
+  }
+
   getUpgradeHandler(): UpgradeHandler {
     return async (req: IncomingMessage, socket: any, head: any) => {
       const server = await this.getServer()
@@ -247,7 +268,9 @@ export class NextServer implements NextWrapperServer {
   }
 
   private async [SYMBOL_LOAD_CONFIG]() {
-    const dir = resolve(this.options.dir || '.')
+    const dir = path.resolve(
+      /* turbopackIgnore: true */ this.options.dir || '.'
+    )
 
     const config = await loadConfig(
       this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
@@ -262,7 +285,12 @@ export class NextServer implements NextWrapperServer {
     if (!this.options.dev) {
       try {
         const serializedConfig = require(
-          path.join(dir, config.distDir, SERVER_FILES_MANIFEST)
+          /* turbopackIgnore: true */
+          path.join(
+            /* turbopackIgnore: true */ dir,
+            config.distDir,
+            SERVER_FILES_MANIFEST
+          )
         ).config
 
         config.experimental.isExperimentalCompile =
@@ -549,7 +577,7 @@ function createServer(
 
   // When the caller is a custom server (using next()).
   if (options.customServer !== false) {
-    const dir = resolve(options.dir || '.')
+    const dir = path.resolve(/* turbopackIgnore: true */ options.dir || '.')
 
     return new NextCustomServer({
       ...options,

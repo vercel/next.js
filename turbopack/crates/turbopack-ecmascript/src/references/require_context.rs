@@ -31,6 +31,7 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
+    reference_type::CommonJsReferenceSubType,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
@@ -196,9 +197,15 @@ impl RequireContextMap {
             let request = Request::parse(origin_relative.clone().into())
                 .to_resolved()
                 .await?;
-            let result = cjs_resolve(origin, *request, issue_source, is_optional)
-                .to_resolved()
-                .await?;
+            let result = cjs_resolve(
+                origin,
+                *request,
+                CommonJsReferenceSubType::Undefined,
+                issue_source,
+                is_optional,
+            )
+            .to_resolved()
+            .await?;
 
             map.insert(
                 context_relative.clone(),
@@ -324,7 +331,7 @@ impl RequireContextAssetReferenceCodeGen {
             .reference
             .await?
             .inner
-            .chunk_item_id(Vc::upcast(chunking_context))
+            .chunk_item_id(chunking_context)
             .await?;
 
         let mut visitors = Vec::new();
@@ -478,7 +485,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             let pm = PatternMapping::resolve_request(
                 *entry.request,
                 *self.origin,
-                *ResolvedVc::upcast(self.chunking_context),
+                *self.chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
             )
@@ -556,7 +563,7 @@ impl ChunkItem for RequireContextChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]

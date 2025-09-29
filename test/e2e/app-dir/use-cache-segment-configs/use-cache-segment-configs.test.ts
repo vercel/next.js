@@ -2,14 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { assertHasRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const isRspack = !!process.env.NEXT_RSPACK
-
 describe('use-cache-segment-configs', () => {
   const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     skipDeployment: true,
   })
+
+  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) {
     return
@@ -31,6 +31,26 @@ describe('use-cache-segment-configs', () => {
          Ecmascript file had an error
          > 1 | export const runtime = 'edge'
              |              ^^^^^^^",
+           "stack": [],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "  × Module build failed:",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "<FIXME-nextjs-internal-source>
+           × Module build failed:
+           ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+                 │    ,-[1:1]
+                 │  1 | export const runtime = 'edge'
+                 │    :              ^^^^^^^
+                 │  2 |
+                 │  3 | export default function Page() {
+                 │  4 |   return <div>This page uses \`export const runtime\`.</div>
+                 │    \`----
+                 │",
            "stack": [],
          }
         `)
@@ -95,7 +115,7 @@ describe('use-cache-segment-configs', () => {
          // TODO(veil): Fix broken import trace for Webpack loader resource.
 
 
-         > Build failed because of rspack errors
+         > Build failed because of Rspack errors
          "
         `)
       } else {

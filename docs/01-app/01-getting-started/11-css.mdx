@@ -1,23 +1,189 @@
 ---
 title: CSS
-description: Learn about the different ways to add CSS to your application, including CSS Modules, Global CSS, Tailwind CSS, and more.
+description: Learn about the different ways to add CSS to your application, including Tailwind CSS, CSS Modules, Global CSS, and more.
 related:
   title: Next Steps
   description: Learn more about the alternatives ways you can use CSS in your application.
   links:
-    - app/guides/tailwind-css
+    - app/guides/tailwind-v3-css
     - app/guides/sass
     - app/guides/css-in-js
 ---
 
 Next.js provides several ways to style your application using CSS, including:
 
+- [Tailwind CSS](#tailwind-css)
 - [CSS Modules](#css-modules)
 - [Global CSS](#global-css)
 - [External Stylesheets](#external-stylesheets)
-- [Tailwind CSS](/docs/app/guides/tailwind-css)
 - [Sass](/docs/app/guides/sass)
 - [CSS-in-JS](/docs/app/guides/css-in-js)
+
+## Tailwind CSS
+
+[Tailwind CSS](https://tailwindcss.com/) is a utility-first CSS framework that provides low-level utility classes to build custom designs.
+
+<AppOnly>
+
+Install Tailwind CSS:
+
+```bash package="pnpm"
+pnpm add -D tailwindcss @tailwindcss/postcss
+```
+
+```bash package="npm"
+npm install -D tailwindcss @tailwindcss/postcss
+```
+
+```bash package="yarn"
+yarn add -D tailwindcss @tailwindcss/postcss
+```
+
+```bash package="bun"
+bun add -D tailwindcss @tailwindcss/postcss
+```
+
+Add the PostCSS plugin to your `postcss.config.mjs` file:
+
+```js filename="postcss.config.mjs"
+export default {
+  plugins: {
+    '@tailwindcss/postcss': {},
+  },
+}
+```
+
+Import Tailwind in your global CSS file:
+
+```css filename="app/globals.css"
+@import 'tailwindcss';
+```
+
+Import the CSS file in your root layout:
+
+```tsx filename="app/layout.tsx" switcher
+import './globals.css'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import './globals.css'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+Now you can start using Tailwind's utility classes in your application:
+
+```tsx filename="app/page.tsx" switcher
+export default function Page() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <h1 className="text-4xl font-bold">Welcome to Next.js!</h1>
+    </main>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default function Page() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <h1 className="text-4xl font-bold">Welcome to Next.js!</h1>
+    </main>
+  )
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+Install Tailwind CSS:
+
+```bash package="pnpm"
+pnpm add -D tailwindcss @tailwindcss/postcss
+```
+
+```bash package="npm"
+npm install -D tailwindcss @tailwindcss/postcss
+```
+
+```bash package="yarn"
+yarn add -D tailwindcss @tailwindcss/postcss
+```
+
+```bash package="bun"
+bun add -D tailwindcss @tailwindcss/postcss
+```
+
+Add the PostCSS plugin to your `postcss.config.mjs` file:
+
+```js filename="postcss.config.mjs"
+export default {
+  plugins: {
+    '@tailwindcss/postcss': {},
+  },
+}
+```
+
+Import Tailwind in your global CSS file:
+
+```css filename="styles/globals.css"
+@import 'tailwindcss';
+```
+
+Import the CSS file in your `pages/_app.js` file:
+
+```jsx filename="pages/_app.js"
+import '@/styles/globals.css'
+
+export default function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+```
+
+Now you can start using Tailwind's utility classes in your application:
+
+```tsx filename="pages/index.tsx" switcher
+export default function Home() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <h1 className="text-4xl font-bold">Welcome to Next.js!</h1>
+    </main>
+  )
+}
+```
+
+```jsx filename="pages/index.js" switcher
+export default function Home() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <h1 className="text-4xl font-bold">Welcome to Next.js!</h1>
+    </main>
+  )
+}
+```
+
+</PagesOnly>
+
+> **Good to know:** If you need broader browser support for very old browsers, see the [Tailwind CSS v3 setup instructions](/docs/app/guides/tailwind-v3-css).
 
 ## CSS Modules
 
@@ -125,7 +291,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Good to know:** Global styles can be imported into any layout, page, or component inside the `app` directory. However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense, this currently does not remove stylesheets as you navigate between routes which can lead to conflicts. We recommend using global styles for _truly_ global CSS, and [CSS Modules](#css-modules) for scoped CSS.
+> **Good to know:** Global styles can be imported into any layout, page, or component inside the `app` directory. However, since Next.js uses React's built-in support for stylesheets to integrate with Suspense, this currently does not remove stylesheets as you navigate between routes which can lead to conflicts. We recommend using global styles for _truly_ global CSS (like Tailwind's base styles), [Tailwind CSS](#tailwind-css) for component styling, and [CSS Modules](#css-modules) for custom scoped CSS when needed.
 
 </AppOnly>
 
@@ -277,7 +443,8 @@ To keep CSS ordering predictable:
 
 - Try to contain CSS imports to a single JavaScript or TypeScript entry file
 - Import global styles and Tailwind stylesheets in the root of your application.
-- Use CSS Modules instead of global styles for nested components.
+- **Use Tailwind CSS** for most styling needs as it covers common design patterns with utility classes.
+- Use CSS Modules for component-specific styles when Tailwind utilities aren't sufficient.
 - Use a consistent naming convention for your CSS modules. For example, using `<name>.module.css` over `<name>.tsx`.
 - Extract shared styles into shared components to avoid duplicate imports.
 - Turn off linters or formatters that auto-sort imports like ESLint’s [`sort-imports`](https://eslint.org/docs/latest/rules/sort-imports).

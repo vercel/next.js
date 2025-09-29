@@ -42,7 +42,7 @@ describe('use-cache-without-experimental-flag', () => {
            3 | export default async function Page() {
            4 |   return <p>hello world</p>
 
-         To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
+         To use "use cache", please enable the feature flag \`experimental.cacheComponents\` in your Next.js config.
 
          Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
 
@@ -56,7 +56,7 @@ describe('use-cache-without-experimental-flag', () => {
          "
          ./app/page.tsx
            × Module build failed:
-           ╰─▶   × Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
+           ╰─▶   × Error:   x To use "use cache", please enable the feature flag \`experimental.cacheComponents\` in your Next.js config.
                  │   |
                  │   | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
                  │
@@ -73,14 +73,14 @@ describe('use-cache-without-experimental-flag', () => {
          ./app/page.tsx
 
 
-         > Build failed because of rspack errors
+         > Build failed because of Rspack errors
          "
         `)
       } else {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          ./app/page.tsx
-         Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
+         Error:   x To use "use cache", please enable the feature flag \`experimental.cacheComponents\` in your Next.js config.
            |
            | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
 
@@ -120,7 +120,7 @@ describe('use-cache-without-experimental-flag', () => {
         )
       } else {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"  x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config."`
+          `"  x To use "use cache", please enable the feature flag \`experimental.cacheComponents\` in your Next.js config."`
         )
       }
 
@@ -134,7 +134,7 @@ describe('use-cache-without-experimental-flag', () => {
              3 | export default async function Page() {
              4 |   return <p>hello world</p>
 
-           To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
+           To use "use cache", please enable the feature flag \`experimental.cacheComponents\` in your Next.js config.
 
            Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage"
           `)
@@ -142,7 +142,7 @@ describe('use-cache-without-experimental-flag', () => {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx
            × Module build failed:
-           ╰─▶   × Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
+           ╰─▶   × Error:   x To use "use cache", please enable the feature flag \`experimental.cacheComponents\` in your Next.js config.
                  │   |
                  │   | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
                  │
@@ -158,7 +158,7 @@ describe('use-cache-without-experimental-flag', () => {
       } else {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx
-         Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
+         Error:   x To use "use cache", please enable the feature flag \`experimental.cacheComponents\` in your Next.js config.
            |
            | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
 

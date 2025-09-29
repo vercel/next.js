@@ -130,14 +130,29 @@ async function main() {
 
   for (let i = 0; i < attempts; i++) {
     console.log(`\n\nRun ${i + 1}/${attempts} for ${testMode} tests (Webpack)`)
+
+    // We apply the external tests filter before the process.env so that if
+    // it's defined in the environment, it overrides the default filter.
+    // This is required for supporting the experimental tests setup.
+    const NEXT_EXTERNAL_TESTS_FILTERS = process.env.NEXT_EXTERNAL_TESTS_FILTERS
+      ? process.env.NEXT_EXTERNAL_TESTS_FILTERS
+      : testMode === 'deploy'
+        ? 'test/deploy-tests-manifest.json'
+        : undefined
+
+    if (NEXT_EXTERNAL_TESTS_FILTERS) {
+      console.log(
+        `Applying external tests filter: ${NEXT_EXTERNAL_TESTS_FILTERS}`
+      )
+    }
+
     await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
       ...EXECA_OPTS_STDIO,
       env: {
         ...process.env,
+        NEXT_EXTERNAL_TESTS_FILTERS,
         NEXT_TEST_MODE: testMode,
         NEXT_TEST_VERSION: nextTestVersion,
-        NEXT_EXTERNAL_TESTS_FILTERS:
-          testMode === 'deploy' ? 'test/deploy-tests-manifest.json' : undefined,
       },
     })
   }

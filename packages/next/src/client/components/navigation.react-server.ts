@@ -26,6 +26,12 @@ class ReadonlyURLSearchParams extends URLSearchParams {
   }
 }
 
+export function unstable_isUnrecognizedActionError(): boolean {
+  throw new Error(
+    '`unstable_isUnrecognizedActionError` can only be used on the client.'
+  )
+}
+
 export { redirect, permanentRedirect } from './redirect'
 export { RedirectType } from './redirect-error'
 export { notFound } from './not-found'

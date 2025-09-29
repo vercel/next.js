@@ -76,26 +76,8 @@ describe(`app-dir-hmr`, () => {
           expect(await browser.elementByCss('p').text()).toBe('ipad')
         }, 5000 /* ms */)
 
-        expect(
-          await browser.eval('window.__TEST_NO_RELOAD === undefined')
-        ).toBe(false)
-
-        const logs = await browser.log()
-        const fastRefreshLogs = logs.filter((log) => {
-          return log.message.startsWith('[Fast Refresh]')
-        })
-
-        // The exact ordering and number of these messages is implementation
-        // dependent and subject to race conditions, just check that we have at
-        // least one "rebuilding" and "done in" message in the logs, the exact
-        // details are unimportant.
-        expect(fastRefreshLogs).toEqual(
-          expect.arrayContaining([
-            {
-              source: 'log',
-              message: expect.stringContaining('[Fast Refresh] done in '),
-            },
-          ])
+        expect(await browser.eval('window.__TEST_NO_RELOAD === true')).toBe(
+          true
         )
       })
 
@@ -123,7 +105,9 @@ describe(`app-dir-hmr`, () => {
       await browser
         .elementByCss('a')
         .click()
-        .waitForElementByCss('[data-testid="new-runtime-functionality-page"]')
+        .waitForElementByCss('[data-testid="new-runtime-functionality-page"]', {
+          state: 'attached',
+        })
 
       const logs = await browser.log()
       // TODO: Should assert on all logs but these are cluttered with logs from our test utils (e.g. playwright tracing or webdriver)

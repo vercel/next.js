@@ -15,7 +15,10 @@ export interface RequestData {
     basePath?: string
     i18n?: I18NConfig | null
     trailingSlash?: boolean
-    experimental?: Pick<ExperimentalConfig, 'cacheLife' | 'authInterrupts'>
+    experimental?: Pick<
+      ExperimentalConfig,
+      'cacheLife' | 'authInterrupts' | 'clientParamParsingOrigins'
+    >
   }
   page?: {
     name?: string

@@ -1,4 +1,8 @@
-import type { FallbackRouteParams } from '../../server/request/fallback-params'
+import type {
+  OpaqueFallbackRouteParamEntries,
+  OpaqueFallbackRouteParams,
+} from '../../server/request/fallback-params'
+import { getDynamicParam } from '../../shared/lib/router/utils/get-dynamic-param'
 import type { Params } from '../request/params'
 import {
   createPrerenderResumeDataCache,
@@ -47,7 +51,10 @@ export type DynamicHTMLPostponedState = {
   /**
    * The postponed data used by React.
    */
-  readonly data: object
+  readonly data: [
+    preludeState: DynamicHTMLPreludeState,
+    postponed: ReactPostponed,
+  ]
 
   /**
    * The immutable resume data cache.
@@ -55,43 +62,61 @@ export type DynamicHTMLPostponedState = {
   readonly renderResumeDataCache: RenderResumeDataCache
 }
 
+export const enum DynamicHTMLPreludeState {
+  Empty = 0,
+  Full = 1,
+}
+
+type ReactPostponed = NonNullable<
+  import('react-dom/static').PrerenderResult['postponed']
+>
+
 export type PostponedState =
   | DynamicDataPostponedState
   | DynamicHTMLPostponedState
 
 export async function getDynamicHTMLPostponedState(
-  data: object,
-  fallbackRouteParams: FallbackRouteParams | null,
-  resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache
+  postponed: ReactPostponed,
+  preludeState: DynamicHTMLPreludeState,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache,
+  isCacheComponentsEnabled: boolean
 ): Promise<string> {
-  if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
-    const postponedString = JSON.stringify(data)
+  const data: DynamicHTMLPostponedState['data'] = [preludeState, postponed]
+  const dataString = JSON.stringify(data)
 
+  // If there are no fallback route params, we can just serialize the postponed
+  // state as is.
+  if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
     // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
-    return `${postponedString.length}:${postponedString}${await stringifyResumeDataCache(
-      createRenderResumeDataCache(resumeDataCache)
+    return `${dataString.length}:${dataString}${await stringifyResumeDataCache(
+      createRenderResumeDataCache(resumeDataCache),
+      isCacheComponentsEnabled
     )}`
   }
 
-  const replacements: Array<[string, string]> = Array.from(fallbackRouteParams)
+  const replacements: OpaqueFallbackRouteParamEntries = Array.from(
+    fallbackRouteParams.entries()
+  )
   const replacementsString = JSON.stringify(replacements)
-  const dataString = JSON.stringify(data)
 
   // Serialized as `<replacements.length><replacements><data>`
   const postponedString = `${replacementsString.length}${replacementsString}${dataString}`
 
   // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
-  return `${postponedString.length}:${postponedString}${await stringifyResumeDataCache(resumeDataCache)}`
+  return `${postponedString.length}:${postponedString}${await stringifyResumeDataCache(resumeDataCache, isCacheComponentsEnabled)}`
 }
 
 export async function getDynamicDataPostponedState(
-  resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache
+  resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache,
+  isCacheComponentsEnabled: boolean
 ): Promise<string> {
-  return `4:null${await stringifyResumeDataCache(createRenderResumeDataCache(resumeDataCache))}`
+  return `4:null${await stringifyResumeDataCache(createRenderResumeDataCache(resumeDataCache), isCacheComponentsEnabled)}`
 }
 
 export function parsePostponedState(
   state: string,
+  pagePath: string,
   params: Params | undefined
 ): PostponedState {
   try {
@@ -134,13 +159,27 @@ export function parsePostponedState(
             // We then go to the end of the string.
             match.length + length
           )
-        ) as ReadonlyArray<[string, string]>
+        ) as OpaqueFallbackRouteParamEntries
 
         let postponed = postponedString.slice(match.length + length)
-        for (const [key, searchValue] of replacements) {
-          const value = params?.[key] ?? ''
-          const replaceValue = Array.isArray(value) ? value.join('/') : value
-          postponed = postponed.replaceAll(searchValue, replaceValue)
+        for (const [key, [searchValue, dynamicParamType]] of replacements) {
+          const {
+            treeSegment: [
+              ,
+              // This is the same value that'll be used in the postponed state
+              // as it's part of the tree data. That's why we use it as the
+              // replacement value.
+              value,
+            ],
+          } = getDynamicParam(
+            params ?? {},
+            key,
+            dynamicParamType,
+            pagePath,
+            null
+          )
+
+          postponed = postponed.replaceAll(searchValue, value)
         }
 
         return {
@@ -168,10 +207,7 @@ export function parsePostponedState(
   }
 }
 
-export function getPostponedFromState(state: PostponedState): any {
-  if (state.type === DynamicState.DATA) {
-    return null
-  }
-
-  return state.data
+export function getPostponedFromState(state: DynamicHTMLPostponedState) {
+  const [preludeState, postponed] = state.data
+  return { preludeState, postponed }
 }

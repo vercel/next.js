@@ -6,7 +6,7 @@ use std::{future::Future, time::Duration};
 
 use anyhow::Result;
 use turbo_tasks::{TransientInstance, Vc};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
@@ -142,12 +142,12 @@ fn check_skip() -> bool {
     false
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn many_calls_to_many_children() {
     if check_skip() {
         return;
     }
-    run(&REGISTRATION, || {
+    run_once(&REGISTRATION, || {
         run_test(
             || calls_many_children(TransientInstance::new(()), None).strongly_consistent(),
             Duration::from_micros(100),
@@ -157,12 +157,12 @@ async fn many_calls_to_many_children() {
     .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn many_calls_to_uncached_many_children() {
     if check_skip() {
         return;
     }
-    run(&REGISTRATION, || {
+    run_once(&REGISTRATION, || {
         run_test(
             || {
                 calls_many_children(TransientInstance::new(()), Some(TransientInstance::new(())))
@@ -189,78 +189,78 @@ fn run_big_graph_test(counts: Vec<u32>) -> impl Future<Output = Result<()>> + Se
     )
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn many_calls_to_big_graph_1() {
     if check_skip() {
         return;
     }
-    run(&REGISTRATION, || run_big_graph_test(vec![5, 8, 10, 15, 20]))
+    run_once(&REGISTRATION, || run_big_graph_test(vec![5, 8, 10, 15, 20]))
         .await
         .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn many_calls_to_big_graph_2() {
     if check_skip() {
         return;
     }
-    run(&REGISTRATION, || {
+    run_once(&REGISTRATION, || {
         run_big_graph_test(vec![2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2])
     })
     .await
     .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn many_calls_to_big_graph_3() {
     if check_skip() {
         return;
     }
-    run(&REGISTRATION, || run_big_graph_test(vec![1000, 3, 3, 3, 3]))
+    run_once(&REGISTRATION, || run_big_graph_test(vec![1000, 3, 3, 3, 3]))
         .await
         .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn many_calls_to_big_graph_4() {
     if check_skip() {
         return;
     }
-    run(&REGISTRATION, || run_big_graph_test(vec![3, 3, 3, 3, 1000]))
+    run_once(&REGISTRATION, || run_big_graph_test(vec![3, 3, 3, 3, 1000]))
         .await
         .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn many_calls_to_big_graph_5() {
     if check_skip() {
         return;
     }
-    run(&REGISTRATION, || {
+    run_once(&REGISTRATION, || {
         run_big_graph_test(vec![10, 10, 10, 10, 10])
     })
     .await
     .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn many_calls_to_big_graph_6() {
     if check_skip() {
         return;
     }
-    run(&REGISTRATION, || {
+    run_once(&REGISTRATION, || {
         run_big_graph_test(vec![2, 2, 2, 1000, 2, 2, 2])
     })
     .await
     .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn many_calls_to_big_graph_7() {
     if check_skip() {
         return;
     }
-    run(&REGISTRATION, || {
+    run_once(&REGISTRATION, || {
         run_big_graph_test(vec![
             1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 3, 2, 1, 1, 1, 1, 5, 1, 1, 1, 200, 2, 1,
             1, 1, 1, 1, 1, 1, 1, 1,
@@ -270,24 +270,24 @@ async fn many_calls_to_big_graph_7() {
     .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn many_calls_to_big_graph_8() {
     if check_skip() {
         return;
     }
-    run(&REGISTRATION, || {
+    run_once(&REGISTRATION, || {
         run_big_graph_test(vec![200, 2, 2, 2, 2, 200])
     })
     .await
     .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn many_calls_to_big_graph_9() {
     if check_skip() {
         return;
     }
-    run(&REGISTRATION, || {
+    run_once(&REGISTRATION, || {
         run_big_graph_test(vec![10000, 1, 1, 2, 1, 1, 2, 2, 1, 1, 1, 1])
     })
     .await

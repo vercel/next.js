@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 use turbo_rcstr::RcStr;
 
-pub use crate::id::BackendJobId;
 use crate::{
     RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
     TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
@@ -128,7 +127,7 @@ mod ser {
                 None
             };
             let mut state = serializer.serialize_tuple(3)?;
-            state.serialize_element(registry::get_value_type_global_name(self.0))?;
+            state.serialize_element(&self.0)?;
             if let Some(serializable) = serializable {
                 state.serialize_element(&true)?;
                 state.serialize_element(serializable)?;
@@ -158,11 +157,9 @@ mod ser {
                 where
                     A: de::SeqAccess<'de>,
                 {
-                    let value_type = seq
+                    let value_type: ValueTypeId = seq
                         .next_element()?
                         .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-                    let value_type = registry::get_value_type_id_by_global_name(value_type)
-                        .ok_or_else(|| de::Error::custom("Unknown value type"))?;
                     let has_value: bool = seq
                         .next_element()?
                         .ok_or_else(|| de::Error::invalid_length(1, &self))?;
@@ -213,7 +210,7 @@ mod ser {
                 unreachable!();
             };
             let mut state = serializer.serialize_seq(Some(2))?;
-            state.serialize_element(native_fn.global_name())?;
+            state.serialize_element(&registry::get_function_id(native_fn))?;
             let arg = *arg;
             let arg = native_fn.arg_meta.as_serialize(arg);
             state.serialize_element(arg)?;
@@ -235,10 +232,10 @@ mod ser {
                 where
                     A: serde::de::SeqAccess<'de>,
                 {
-                    let fn_name = seq
+                    let fn_id = seq
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                    let native_fn = registry::get_function_by_global_name(fn_name);
+                    let native_fn = registry::get_native_function(fn_id);
                     let seed = native_fn.arg_meta.deserialization_seed();
                     let arg = seq
                         .next_element_seed(seed)?
@@ -533,29 +530,6 @@ pub trait Backend: Sync + Send {
 
     fn get_task_description(&self, task: TaskId) -> String;
 
-    /// Task-local state that stored inside of [`TurboTasksBackendApi`]. Constructed with
-    /// [`Self::new_task_state`].
-    ///
-    /// This value that can later be written to or read from using
-    /// [`crate::TurboTasksBackendApiExt::write_task_state`] or
-    /// [`crate::TurboTasksBackendApiExt::read_task_state`]
-    ///
-    /// This data may be shared across multiple threads (must be `Sync`) in order to support
-    /// detached futures ([`crate::TurboTasksApi::detached_for_testing`]) and [pseudo-tasks using
-    /// `local` execution][crate::function]. A [`RwLock`][std::sync::RwLock] is used to provide
-    /// concurrent access.
-    type TaskState: Send + Sync + 'static;
-
-    /// Constructs a new task-local [`Self::TaskState`] for the given `task_id`.
-    ///
-    /// If a task is re-executed (e.g. because it is invalidated), this function will be called
-    /// again with the same [`TaskId`].
-    ///
-    /// This value can be written to or read from using
-    /// [`crate::TurboTasksBackendApiExt::write_task_state`] and
-    /// [`crate::TurboTasksBackendApiExt::read_task_state`]
-    fn new_task_state(&self, task: TaskId) -> Self::TaskState;
-
     fn try_start_task_execution<'a>(
         &'a self,
         task: TaskId,
@@ -582,44 +556,31 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;
 
+    type BackendJob: Send + 'static;
+
     fn run_backend_job<'a>(
         &'a self,
-        id: BackendJobId,
+        job: Self::BackendJob,
         turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
+    /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
+    /// using it could break cache invalidation.
     fn try_read_task_output(
         &self,
         task: TaskId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
     /// using it could break cache invalidation.
-    fn try_read_task_output_untracked(
-        &self,
-        task: TaskId,
-        consistency: ReadConsistency,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<RawVc, EventListener>>;
-
     fn try_read_task_cell(
         &self,
         task: TaskId,
         index: CellId,
-        reader: TaskId,
-        options: ReadCellOptions,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>>;
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    fn try_read_task_cell_untracked(
-        &self,
-        task: TaskId,
-        index: CellId,
+        reader: Option<TaskId>,
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>>;
@@ -633,17 +594,19 @@ pub trait Backend: Sync + Send {
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
-        match self.try_read_task_cell_untracked(current_task, index, options, turbo_tasks)? {
+        match self.try_read_task_cell(current_task, index, None, options, turbo_tasks)? {
             Ok(content) => Ok(content),
             Err(_) => Ok(TypedCellContent(index.type_id, CellContent(None))),
         }
     }
 
+    /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
+    /// using it could break cache invalidation.
     fn read_task_collectibles(
         &self,
         task: TaskId,
         trait_id: TraitTypeId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskCollectiblesMap;
 
@@ -675,21 +638,21 @@ pub trait Backend: Sync + Send {
     fn get_or_create_persistent_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
     fn get_or_create_transient_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
     fn connect_task(
         &self,
         task: TaskId,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
@@ -727,4 +690,6 @@ pub trait Backend: Sync + Send {
     fn dispose_root_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
     fn task_statistics(&self) -> &TaskStatisticsApi;
+
+    fn is_tracking_dependencies(&self) -> bool;
 }

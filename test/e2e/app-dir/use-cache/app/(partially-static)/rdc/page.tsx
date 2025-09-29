@@ -1,3 +1,4 @@
+import { unstable_cacheLife } from 'next/cache'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
@@ -16,18 +17,35 @@ async function innermost(id: string) {
   return id
 }
 
+async function Short({ id }: { id: string }) {
+  'use cache'
+  unstable_cacheLife('seconds')
+  return id
+}
+
 async function Dynamic() {
   await connection()
   return null
 }
 
-export default async function Page() {
+async function CachedStuff() {
   await outermost('outer')
   await innermost('inner')
 
   return (
     <Suspense>
-      <Dynamic />
+      <Short id="short" />
     </Suspense>
+  )
+}
+
+export default function Page() {
+  return (
+    <div>
+      <CachedStuff />
+      <Suspense>
+        <Dynamic />
+      </Suspense>
+    </div>
   )
 }

@@ -14,7 +14,6 @@ import {
 import type { EntryKey } from './entry-key'
 import * as Log from '../../../build/output/log'
 import type { NextConfigComplete } from '../../../server/config-shared'
-import loadJsConfig from '../../../build/load-jsconfig'
 
 type IssueKey = `${Issue['severity']}-${Issue['filePath']}-${string}-${string}`
 export type IssuesMap = Map<IssueKey, Issue>
@@ -51,14 +50,6 @@ export function getIssueKey(issue: Issue): IssueKey {
   return `${issue.severity}-${issue.filePath}-${JSON.stringify(
     issue.title
   )}-${JSON.stringify(issue.description)}`
-}
-
-export async function getTurbopackJsConfig(
-  dir: string,
-  nextConfig: NextConfigComplete
-) {
-  const { jsConfig } = await loadJsConfig(dir, nextConfig)
-  return jsConfig ?? { compilerOptions: {} }
 }
 
 export function processIssues(
@@ -172,7 +163,7 @@ export function formatIssue(issue: Issue) {
       message +=
         "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
       message += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
-      message += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
+      message += '\nLearn more: https://nextjs.org/docs/messages/install-sass\n'
     } else {
       message += renderStyledStringToErrorAnsi(description) + '\n\n'
     }
@@ -185,44 +176,39 @@ export function formatIssue(issue: Issue) {
 
   if (importTraces?.length) {
     // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
-    message += formatImportTraces(importTraces)
+    // We end up with multiple traces when the file with the error is reachable from multiple
+    // different entry points (e.g. ssr, client)
+    message += `Import trace${importTraces.length > 1 ? 's' : ''}:\n`
+    const everyTraceHasADistinctRootLayer =
+      new Set(importTraces.map(leafLayerName).filter((l) => l != null)).size ===
+      importTraces.length
+    for (let i = 0; i < importTraces.length; i++) {
+      const trace = importTraces[i]
+      const layer = leafLayerName(trace)
+      let traceIndent = '    '
+      // If this is true, layer must be present
+      if (everyTraceHasADistinctRootLayer) {
+        message += `  ${layer}:\n`
+      } else {
+        if (importTraces.length > 1) {
+          // Otherwise use simple 1 based indices to disambiguate
+          message += `  #${i + 1}`
+          if (layer) {
+            message += ` [${layer}]`
+          }
+          message += ':\n'
+        } else if (layer) {
+          message += ` [${layer}]:\n`
+        } else {
+          // If there is a single trace and no layer name just don't indent it.
+          traceIndent = '  '
+        }
+      }
+      message += formatIssueTrace(trace, traceIndent, !identicalLayers(trace))
+    }
   }
   if (documentationLink) {
     message += documentationLink + '\n\n'
-  }
-  return message
-}
-
-export function formatImportTraces(importTraces: PlainTraceItem[][]) {
-  // We end up with multiple traces when the file with the error is reachable from multiple
-  // different entry points (e.g. ssr, client)
-  let message = `Import trace${importTraces.length > 1 ? 's' : ''}:\n`
-  const everyTraceHasADistinctRootLayer =
-    new Set(importTraces.map(leafLayerName).filter((l) => l != null)).size ===
-    importTraces.length
-  for (let i = 0; i < importTraces.length; i++) {
-    const trace = importTraces[i]
-    const layer = leafLayerName(trace)
-    let traceIndent = '    '
-    // If this is true, layer must be present
-    if (everyTraceHasADistinctRootLayer) {
-      message += `  ${layer}:\n`
-    } else {
-      if (importTraces.length > 1) {
-        // Otherwise use simple 1 based indices to disambiguate
-        message += `  #${i + 1}`
-        if (layer) {
-          message += ` [${layer}]`
-        }
-        message += ':\n'
-      } else if (layer) {
-        message += ` [${layer}]:\n`
-      } else {
-        // If there is a single trace and no layer name just don't indent it.
-        traceIndent = '  '
-      }
-    }
-    message += formatIssueTrace(trace, traceIndent, !identicalLayers(trace))
   }
   return message
 }
@@ -328,8 +314,14 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
   }
 }
 
-export function isPersistentCachingEnabled(
+export function isPersistentCachingEnabledForDev(
   config: NextConfigComplete
 ): boolean {
-  return config.experimental?.turbopackPersistentCaching || false
+  return config.experimental?.turbopackPersistentCachingForDev || false
+}
+
+export function isPersistentCachingEnabledForBuild(
+  config: NextConfigComplete
+): boolean {
+  return config.experimental?.turbopackPersistentCachingForBuild || false
 }

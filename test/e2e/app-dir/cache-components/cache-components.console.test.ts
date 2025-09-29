@@ -3,7 +3,7 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('cache-components', () => {
-  const { isNextDev, isTurbopack, next, skipped } = nextTestSetup({
+  const { isNextDev, next, skipped } = nextTestSetup({
     env: {
       FORCE_COLOR: '1',
     },
@@ -30,71 +30,88 @@ describe('cache-components', () => {
 
       expect(cliOutputFromPage).toMatchInlineSnapshot(`
        "/console: template(one: one, two: two)
-       /console: This is a console page
+       /console: This is a console page. Don't match the codeframe.
        /console: not a template { foo: [32m'just-some-object'[39m }
        Error: /console: test
-           at ConsolePage (app/console/page.tsx:5:17)
-       [0m [90m 3 |[39m   console[33m.[39mlog([32m'/console: This is a console page'[39m)
-        [90m 4 |[39m   console[33m.[39mwarn([32m'/console: not a template'[39m[33m,[39m { foo[33m:[39m [32m'just-some-object'[39m })
-       [31m[1m>[22m[39m[90m 5 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m'/console: test'[39m))
-        [90m   |[39m                 [31m[1m^[22m[39m
-        [90m 6 |[39m   console[33m.[39massert(
-        [90m 7 |[39m     [36mfalse[39m[33m,[39m
-        [90m 8 |[39m     [32m'/console: This is an assert message with a %s'[39m[33m,[39m[0m
+           at ConsolePage (app/console/page.tsx:26:17)
+       [0m [90m 24 |[39m   )
+        [90m 25 |[39m   console[33m.[39mwarn([32m'/console: not a template'[39m[33m,[39m { foo[33m:[39m [32m'just-some-object'[39m })
+       [31m[1m>[22m[39m[90m 26 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m'/console: test'[39m))
+        [90m    |[39m                 [31m[1m^[22m[39m
+        [90m 27 |[39m   console[33m.[39massert(
+        [90m 28 |[39m     [36mfalse[39m[33m,[39m
+        [90m 29 |[39m     [32m'/console: This is an assert message with a %s'[39m[33m,[39m[0m
        Assertion failed: /console: This is an assert message with a template
-       [2;38;2;124;124;124m/console: template(one: one, two: two)[0m
-       [2;38;2;124;124;124m/console: This is a console page[0m
-       [2;38;2;124;124;124m/console: not a template[0m { foo: [32m'just-some-object'[39m }
-       [2;38;2;124;124;124mError: /console: test
-           at ConsolePage (app/console/page.tsx:5:17)
-         3 |   console.log('/console: This is a console page')
-         4 |   console.warn('/console: not a template', { foo: 'just-some-object' })
-       > 5 |   console.error(new Error('/console: test'))
-           |                 ^
-         6 |   console.assert(
-         7 |     false,
-         8 |     '/console: This is an assert message with a %s',[0m
-       [2;38;2;124;124;124mAssertion failed: [2;38;2;124;124;124m/console: This is an assert message with a template[0m[0m
-       [2;38;2;124;124;124m/console: template(one: one, two: two)[0m
-       [2;38;2;124;124;124m/console: This is a console page[0m
-       [2;38;2;124;124;124m/console: not a template[0m { foo: [32m'just-some-object'[39m }
-       [2;38;2;124;124;124mError: /console: test
-           at ConsolePage (app/console/page.tsx:5:17)
-         3 |   console.log('/console: This is a console page')
-         4 |   console.warn('/console: not a template', { foo: 'just-some-object' })
-       > 5 |   console.error(new Error('/console: test'))
-           |                 ^
-         6 |   console.assert(
-         7 |     false,
-         8 |     '/console: This is an assert message with a %s',[0m
-       [2;38;2;124;124;124mAssertion failed: [2;38;2;124;124;124m/console: This is an assert message with a template[0m[0m"
+       /console: template(one: one, two: two)
+       /console: This is a console page. Don't match the codeframe.
+       /console: not a template { foo: [32m'just-some-object'[39m }
+       Assertion failed: /console: This is an assert message with a template
+       [0m[7m Cache [0m /console: template(one: one, two: two)
+       [0m[7m Cache [0m /console: This is a console page. Don't match the codeframe.
+       [0m[7m Cache [0m /console: not a template { foo: [32m'just-some-object'[39m }
+       Assertion failed: [0m[7m Cache [0m /console: This is an assert message with a template
+       [0m[7m Cache [0m Assertion failed: /console: This is an assert message with a template
+       [2m/console: template(one: one, two: two)[22m[2m[22m
+       [2m/console: This is a console page. Don't match the codeframe.[22m[2m[22m
+       [2m/console: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
+       [2mError: /console: test
+           at ConsolePage (app/console/page.tsx:26:17)
+       [0m [90m 24 |[39m   )
+        [90m 25 |[39m   console[33m.[39mwarn([32m'/console: not a template'[39m[33m,[39m { foo[33m:[39m [32m'just-some-object'[39m })
+       [31m[1m>[22m[39m[90m 26 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m'/console: test'[39m))
+        [90m    |[39m                 [31m[1m^[22m[39m
+        [90m 27 |[39m   console[33m.[39massert(
+        [90m 28 |[39m     [36mfalse[39m[33m,[39m
+        [90m 29 |[39m     [32m'/console: This is an assert message with a %s'[39m[33m,[39m[0m[22m[2m[22m
+       [2mAssertion failed: [2m/console: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
+       [2m[0m[7m Cache [0m [2m/console: template(one: one, two: two)[22m[2m[22m
+       [2m[0m[7m Cache [0m [2m/console: This is a console page. Don't match the codeframe.[22m[2m[22m
+       [2m[0m[7m Cache [0m [2m/console: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
+       [2mAssertion failed: [2m[0m[7m Cache [0m [2m/console: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
+       [2m[0m[7m Cache [0m [2mAssertion failed: /console: This is an assert message with a template[22m[2m[22m
+       [2m/console: template(one: one, two: two)[22m[2m[22m
+       [2m/console: This is a console page. Don't match the codeframe.[22m[2m[22m
+       [2m/console: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
+       [2mError: /console: test
+           at ConsolePage (app/console/page.tsx:26:17)
+       [0m [90m 24 |[39m   )
+        [90m 25 |[39m   console[33m.[39mwarn([32m'/console: not a template'[39m[33m,[39m { foo[33m:[39m [32m'just-some-object'[39m })
+       [31m[1m>[22m[39m[90m 26 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m'/console: test'[39m))
+        [90m    |[39m                 [31m[1m^[22m[39m
+        [90m 27 |[39m   console[33m.[39massert(
+        [90m 28 |[39m     [36mfalse[39m[33m,[39m
+        [90m 29 |[39m     [32m'/console: This is an assert message with a %s'[39m[33m,[39m[0m[22m[2m[22m
+       [2mAssertion failed: [2m/console: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
+       [2m[0m[7m Cache [0m [2m/console: template(one: one, two: two)[22m[2m[22m
+       [2m[0m[7m Cache [0m [2m/console: This is a console page. Don't match the codeframe.[22m[2m[22m
+       [2m[0m[7m Cache [0m [2m/console: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
+       [2mAssertion failed: [2m[0m[7m Cache [0m [2m/console: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
+       [2m[0m[7m Cache [0m [2mAssertion failed: /console: This is an assert message with a template[22m[2m[22m"
       `)
+
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "/console: test",
          "environmentLabel": "Prerender",
          "label": "Console Error",
-         "source": "app/console/page.tsx (5:17) @ ConsolePage
-       > 5 |   console.error(new Error('/console: test'))
-           |                 ^",
+         "source": "app/console/page.tsx (26:17) @ ConsolePage
+       > 26 |   console.error(new Error('/console: test'))
+            |                 ^",
          "stack": [
-           "ConsolePage app/console/page.tsx (5:17)",
+           "ConsolePage app/console/page.tsx (26:17)",
            "ConsolePage <anonymous>",
          ],
        }
       `)
     } else {
-      // prewarm + render
+      // prewarm + render + Cache replay
       // Neither is dimmed in production
       const pageInvocations = Array.from(
-        next.cliOutput.matchAll(/\/console: This is a console page/g)
+        next.cliOutput.matchAll(
+          /\/console: This is a console page\. Don't match the codeframe\./g
+        )
       )
-      expect(pageInvocations).toHaveLength(
-        isTurbopack
-          ? // TODO: Why?
-            4
-          : 2
-      )
+      expect(pageInvocations).toHaveLength(3)
     }
   })
 })

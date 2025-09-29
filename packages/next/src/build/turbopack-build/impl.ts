@@ -2,8 +2,7 @@ import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   formatIssue,
-  getTurbopackJsConfig,
-  isPersistentCachingEnabled,
+  isPersistentCachingEnabledForBuild,
   isRelevantWarning,
 } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
@@ -42,7 +41,6 @@ export async function turbopackBuild(): Promise<{
   const previewProps = NextBuildContext.previewProps!
   const hasRewrites = NextBuildContext.hasRewrites!
   const rewrites = NextBuildContext.rewrites!
-  const appDirOnly = NextBuildContext.appDirOnly!
   const noMangling = NextBuildContext.noMangling!
   const currentNodeJsVersion = process.versions.node
 
@@ -52,7 +50,7 @@ export async function turbopackBuild(): Promise<{
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
-  const persistentCaching = isPersistentCachingEnabled(config)
+  const persistentCaching = isPersistentCachingEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
   const project = await bindings.turbo.createProject(
     {
@@ -60,7 +58,6 @@ export async function turbopackBuild(): Promise<{
       projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
       distDir,
       nextConfig: config,
-      jsConfig: await getTurbopackJsConfig(dir, config),
       watch: {
         enable: false,
       },
@@ -91,6 +88,7 @@ export async function turbopackBuild(): Promise<{
       memoryLimit: config.experimental?.turbopackMemoryLimit,
       dependencyTracking: persistentCaching,
       isCi: isCI,
+      isShortSession: true,
     }
   )
   try {
@@ -105,17 +103,25 @@ export async function turbopackBuild(): Promise<{
     })
     await fs.writeFile(
       path.join(distDir, 'package.json'),
-      JSON.stringify(
-        {
-          type: 'commonjs',
-        },
-        null,
-        2
-      )
+      '{"type": "commonjs"}'
     )
 
+    let appDirOnly = NextBuildContext.appDirOnly!
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+
+    const hasPagesEntries = Array.from(entrypoints.routes.values()).some(
+      (route) => {
+        if (route.type === 'page' || route.type === 'page-api') {
+          return true
+        }
+        return false
+      }
+    )
+    // If there's no pages entries, then we are in app-dir-only mode
+    if (!hasPagesEntries) {
+      appDirOnly = true
+    }
 
     const manifestLoader = new TurbopackManifestLoader({
       buildId,
@@ -178,14 +184,19 @@ export async function turbopackBuild(): Promise<{
     await Promise.all(promises)
 
     await Promise.all([
-      manifestLoader.loadBuildManifest('_app'),
-      manifestLoader.loadPagesManifest('_app'),
-      manifestLoader.loadFontManifest('_app'),
-      manifestLoader.loadPagesManifest('_document'),
-      manifestLoader.loadClientBuildManifest('_error'),
-      manifestLoader.loadBuildManifest('_error'),
-      manifestLoader.loadPagesManifest('_error'),
-      manifestLoader.loadFontManifest('_error'),
+      // Only load pages router manifests if not app-only
+      ...(!appDirOnly
+        ? [
+            manifestLoader.loadBuildManifest('_app'),
+            manifestLoader.loadPagesManifest('_app'),
+            manifestLoader.loadFontManifest('_app'),
+            manifestLoader.loadPagesManifest('_document'),
+            manifestLoader.loadClientBuildManifest('_error'),
+            manifestLoader.loadBuildManifest('_error'),
+            manifestLoader.loadPagesManifest('_error'),
+            manifestLoader.loadFontManifest('_error'),
+          ]
+        : []),
       entrypoints.instrumentation &&
         manifestLoader.loadMiddlewareManifest(
           'instrumentation',
@@ -198,7 +209,7 @@ export async function turbopackBuild(): Promise<{
         )),
     ])
 
-    await manifestLoader.writeManifests({
+    manifestLoader.writeManifests({
       devRewrites: undefined,
       productionRewrites: rewrites,
       entrypoints: currentEntrypoints,

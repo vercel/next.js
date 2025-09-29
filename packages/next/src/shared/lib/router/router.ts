@@ -424,7 +424,7 @@ const manualScrollRestoration =
     try {
       let v = '__next'
       // eslint-disable-next-line no-sequences
-      return sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true
+      return (sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true)
     } catch (n) {}
   })()
 

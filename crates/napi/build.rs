@@ -89,8 +89,5 @@ fn main() -> anyhow::Result<()> {
     #[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
     println!("cargo:rustc-link-arg=-Wl,--warn-unresolved-symbols");
 
-    #[cfg(not(target_arch = "wasm32"))]
-    turbo_tasks_build::generate_register();
-
     Ok(())
 }
