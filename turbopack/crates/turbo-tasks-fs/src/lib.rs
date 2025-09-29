@@ -4,7 +4,6 @@
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
 #![feature(io_error_more)]
-#![feature(round_char_boundary)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::mutable_key_type)]
@@ -257,10 +256,11 @@ impl DiskFileSystemInner {
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
     fn register_read_invalidator(&self, path: &Path) -> Result<()> {
-        let invalidator = turbo_tasks::get_invalidator();
-        self.invalidator_map
-            .insert(path.to_owned(), invalidator, None);
-        self.watcher.ensure_watched_file(path, self.root_path())?;
+        if let Some(invalidator) = turbo_tasks::get_invalidator() {
+            self.invalidator_map
+                .insert(path.to_owned(), invalidator, None);
+            self.watcher.ensure_watched_file(path, self.root_path())?;
+        }
         Ok(())
     }
 
@@ -293,10 +293,11 @@ impl DiskFileSystemInner {
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
     fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
-        let invalidator = turbo_tasks::get_invalidator();
-        self.dir_invalidator_map
-            .insert(path.to_owned(), invalidator, None);
-        self.watcher.ensure_watched_dir(path, self.root_path())?;
+        if let Some(invalidator) = turbo_tasks::get_invalidator() {
+            self.dir_invalidator_map
+                .insert(path.to_owned(), invalidator, None);
+            self.watcher.ensure_watched_dir(path, self.root_path())?;
+        }
         Ok(())
     }
 
@@ -712,11 +713,16 @@ impl FileSystem for DiskFileSystem {
             let _lock = inner.lock_path(&full_path).await;
 
             // Track the file, so that we will rewrite it if it ever changes.
-            let old_invalidators = inner.register_write_invalidator(
-                &full_path,
-                invalidator,
-                WriteContent::File(content.clone()),
-            )?;
+            let old_invalidators = invalidator
+                .map(|invalidator| {
+                    inner.register_write_invalidator(
+                        &full_path,
+                        invalidator,
+                        WriteContent::File(content.clone()),
+                    )
+                })
+                .transpose()?
+                .unwrap_or_default();
 
             // We perform an untracked comparison here, so that this write is not dependent
             // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
@@ -846,11 +852,16 @@ impl FileSystem for DiskFileSystem {
 
             let _lock = inner.lock_path(&full_path).await;
 
-            let old_invalidators = inner.register_write_invalidator(
-                &full_path,
-                invalidator,
-                WriteContent::Link(content.clone()),
-            )?;
+            let old_invalidators = invalidator
+                .map(|invalidator| {
+                    inner.register_write_invalidator(
+                        &full_path,
+                        invalidator,
+                        WriteContent::Link(content.clone()),
+                    )
+                })
+                .transpose()?
+                .unwrap_or_default();
 
             // TODO(sokra) preform a untracked read here, register an invalidator and get
             // all existing invalidators
@@ -1483,18 +1494,13 @@ impl RealPathResultError {
     }
 }
 
-#[derive(Clone, Copy, Debug, DeterministicHash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, DeterministicHash, PartialOrd, Ord)]
 #[turbo_tasks::value(shared)]
 pub enum Permissions {
     Readable,
+    #[default]
     Writable,
     Executable,
-}
-
-impl Default for Permissions {
-    fn default() -> Self {
-        Self::Writable
-    }
 }
 
 // Only handle the permissions on unix platform for now

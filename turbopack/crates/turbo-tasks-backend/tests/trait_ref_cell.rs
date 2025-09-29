@@ -6,13 +6,13 @@ use std::{collections::HashSet, mem::take, sync::Mutex};
 
 use anyhow::Result;
 use turbo_tasks::{IntoTraitRef, Invalidator, TraitRef, Vc, get_invalidator};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn trait_ref() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let counter = Counter::cell(Counter {
             value: Mutex::new((0, Default::default())),
         });
@@ -90,7 +90,7 @@ impl CounterTrait for Counter {
     #[turbo_tasks::function]
     fn get_value(&self) -> Result<Vc<CounterValue>> {
         let mut lock = self.value.lock().unwrap();
-        lock.1.insert(get_invalidator());
+        lock.1.insert(get_invalidator().unwrap());
         Ok(Vc::cell(lock.0))
     }
 

@@ -63,7 +63,6 @@ import loadJsConfig, {
   type ResolvedBaseUrl,
 } from './load-jsconfig'
 import { loadBindings } from './swc'
-import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
@@ -492,9 +491,9 @@ export default async function getBaseWebpackConfig(
     : getReactCompilerLoader(
         config.experimental?.reactCompiler,
         dir,
-        dev,
         isNodeOrEdgeCompilation,
-        codeCondition.exclude
+        codeCondition.exclude,
+        dev
       )
 
   let swcTraceProfilingInitialized = false
@@ -1970,7 +1969,7 @@ export default async function getBaseWebpackConfig(
               '.shared-runtime'
             )
             const layer = resource.contextInfo.issuerLayer
-            let runtime
+            let runtime: string
 
             switch (layer) {
               case WEBPACK_LAYERS.serverSideRendering:
@@ -2128,7 +2127,6 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      hasAppDir && isClient && new AppBuildManifestPlugin(),
       hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
@@ -2462,7 +2460,7 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
-    future: config.future,
+    future: (config as any).future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
@@ -2639,8 +2637,8 @@ export default async function getBaseWebpackConfig(
   }
 
   // Backwards compat with webpack-dev-middleware options object
-  if (typeof config.webpackDevMiddleware === 'function') {
-    const options = config.webpackDevMiddleware({
+  if (typeof (config as any).webpackDevMiddleware === 'function') {
+    const options = (config as any).webpackDevMiddleware({
       watchOptions: webpackConfig.watchOptions,
     })
     if (options.watchOptions) {

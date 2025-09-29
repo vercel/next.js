@@ -127,7 +127,7 @@ async function exportAppImpl(
     )
   }
 
-  const customRoutes = ['rewrites', 'redirects', 'headers'].filter(
+  const customRoutes = (['rewrites', 'redirects', 'headers'] as const).filter(
     (config) => typeof nextConfig[config] === 'function'
   )
 

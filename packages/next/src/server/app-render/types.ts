@@ -99,7 +99,6 @@ export interface RenderOptsPartial {
     htmlRequestId: string,
     requestId: string
   ) => void
-  isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   onInstrumentationRequestError?: ServerOnInstrumentationRequestError

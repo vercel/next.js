@@ -54,7 +54,6 @@ export type WorkStoreContext = {
     | 'assetPrefix'
     | 'supportsDynamicResponse'
     | 'shouldWaitOnAllReady'
-    | 'isRevalidate'
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
@@ -125,7 +124,6 @@ export function createWorkStore({
       // so that it can access the fs cache without mocks
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
-    isRevalidate: renderOpts.isRevalidate,
     isBuildTimePrerendering: renderOpts.nextExport,
     hasReadableErrorStacks: renderOpts.hasReadableErrorStacks,
     fetchCache: renderOpts.fetchCache,

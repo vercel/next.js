@@ -79,14 +79,6 @@ describe('app dir - basic', () => {
   }
 
   if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
-    if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
-      it('should have correct size in build output', async () => {
-        expect(next.cliOutput).toMatch(
-          /\/dashboard\/another.*? *?[^0]\d{1,} [\w]{1,}B/
-        )
-      })
-    }
-
     it('should have correct preferredRegion values in manifest', async () => {
       const middlewareManifest = JSON.parse(
         await next.readFile('.next/server/middleware-manifest.json')

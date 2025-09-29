@@ -3510,7 +3510,7 @@ function chainGestureCancellation(root, scheduledGesture, prevCancel) {
       var runningTransition = scheduledGesture.running;
       if (null !== runningTransition) {
         var pendingLanesExcludingGestureLane = root.pendingLanes & -65;
-        0 !== (pendingLanesExcludingGestureLane & 124) ||
+        0 !== (pendingLanesExcludingGestureLane & 127) ||
         0 !== (pendingLanesExcludingGestureLane & 4194048)
           ? ((runningTransition = root.stoppingGestures),
             null !== runningTransition &&
@@ -5155,7 +5155,7 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
     );
     if (null === workInProgressRoot) throw Error(formatProdErrorMessage(349));
     isHydrating$jscomp$0 ||
-      0 !== (renderLanes & 124) ||
+      0 !== (renderLanes & 127) ||
       pushStoreConsistencyCheck(fiber, getSnapshot, getServerSnapshot);
   }
   return getServerSnapshot;
@@ -6077,7 +6077,7 @@ var HooksDispatcherOnMount = {
         getServerSnapshot = getSnapshot();
         if (null === workInProgressRoot)
           throw Error(formatProdErrorMessage(349));
-        0 !== (workInProgressRootRenderLanes & 124) ||
+        0 !== (workInProgressRootRenderLanes & 127) ||
           pushStoreConsistencyCheck(fiber, getSnapshot, getServerSnapshot);
       }
       hook.memoizedState = getServerSnapshot;
@@ -9512,7 +9512,7 @@ function pushViewTransitionCancelableScope() {
 }
 var viewTransitionHostInstanceIdx = 0;
 function applyViewTransitionToHostInstances(
-  child,
+  fiber,
   name,
   className,
   collectMeasurements,
@@ -9520,7 +9520,7 @@ function applyViewTransitionToHostInstances(
 ) {
   viewTransitionHostInstanceIdx = 0;
   return applyViewTransitionToHostInstancesRecursive(
-    child,
+    fiber.child,
     name,
     className,
     collectMeasurements,
@@ -9599,7 +9599,7 @@ function commitAppearingPairViewTransitions(placement) {
           props = getViewTransitionClassName(props.default, props.share);
           "none" !== props &&
             (applyViewTransitionToHostInstances(
-              placement.child,
+              placement,
               name,
               props,
               null,
@@ -9620,13 +9620,7 @@ function commitEnterViewTransitions(placement, gesture) {
         state.paired ? props.share : props.enter
       );
     "none" !== className
-      ? applyViewTransitionToHostInstances(
-          placement.child,
-          name,
-          className,
-          null,
-          !1
-        )
+      ? applyViewTransitionToHostInstances(placement, name, className, null, !1)
         ? (commitAppearingPairViewTransitions(placement),
           state.paired ||
             gesture ||
@@ -9660,7 +9654,7 @@ function commitDeletedPairViewTransitions(deletion) {
                 );
                 "none" !== className &&
                   (applyViewTransitionToHostInstances(
-                    deletion.child,
+                    deletion,
                     name,
                     className,
                     null,
@@ -9695,13 +9689,7 @@ function commitExitViewTransitions(deletion) {
         void 0 !== pair ? props.share : props.exit
       );
     "none" !== className &&
-      (applyViewTransitionToHostInstances(
-        deletion.child,
-        name,
-        className,
-        null,
-        !1
-      )
+      (applyViewTransitionToHostInstances(deletion, name, className, null, !1)
         ? void 0 !== pair
           ? ((className = deletion.stateNode),
             (pair.paired = className),
@@ -9728,7 +9716,7 @@ function commitNestedViewTransitions(changedParent) {
       changedParent.flags &= -5;
       "none" !== props &&
         applyViewTransitionToHostInstances(
-          changedParent.child,
+          changedParent,
           name,
           props,
           (changedParent.memoizedState = []),
@@ -10122,7 +10110,7 @@ function commitBeforeMutationEffects_complete(
           (flags = getViewTransitionClassName(flags.default, flags.update)),
           "none" !== flags &&
             applyViewTransitionToHostInstances(
-              current.child,
+              current,
               isViewTransitionEligible,
               flags,
               (current.memoizedState = []),
@@ -12869,7 +12857,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
   if (0 !== (executionContext & 6)) throw Error(formatProdErrorMessage(327));
   var shouldTimeSlice =
       (!forceSync &&
-        0 === (lanes & 124) &&
+        0 === (lanes & 127) &&
         0 === (lanes & root$jscomp$0.expiredLanes)) ||
       checkIfRootIsPrerendering(root$jscomp$0, lanes),
     exitStatus = shouldTimeSlice
@@ -12987,6 +12975,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
             !workInProgressRootDidSkipSuspendedSiblings
           );
           if (0 !== getNextLanes(shouldTimeSlice, 0, !0)) break a;
+          pendingEffectsLanes = lanes;
           shouldTimeSlice.timeoutHandle = scheduleTimeout(
             commitRootWhenReady.bind(
               null,
@@ -13001,7 +12990,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
               workInProgressSuspendedRetryLanes,
               workInProgressRootDidSkipSuspendedSiblings,
               renderWasConcurrent,
-              2,
+              "Throttled",
               -0,
               0
             ),
@@ -13021,7 +13010,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
           workInProgressSuspendedRetryLanes,
           workInProgressRootDidSkipSuspendedSiblings,
           renderWasConcurrent,
-          0,
+          null,
           -0,
           0
         );
@@ -13066,6 +13055,7 @@ function commitRootWhenReady(
         imgBytes: 0,
         suspenseyImages: [],
         waitingForImages: !0,
+        waitingForViewTransition: !1,
         unsuspend: noop$1
       }),
       (appearingViewTransitions = null),
@@ -13085,6 +13075,7 @@ function commitRootWhenReady(
         ).__reactViewTransition),
         null != isViewTransitionEligible &&
           (subtreeFlags.count++,
+          (subtreeFlags.waitingForViewTransition = !0),
           (subtreeFlags = onUnsuspend.bind(subtreeFlags)),
           isViewTransitionEligible.finished.then(subtreeFlags, subtreeFlags))),
       (subtreeFlags =
@@ -13099,6 +13090,7 @@ function commitRootWhenReady(
       )),
       null !== subtreeFlags)
     ) {
+      pendingEffectsLanes = lanes;
       root.cancelPendingCommit = subtreeFlags(
         commitRoot.bind(
           null,
@@ -13113,7 +13105,7 @@ function commitRootWhenReady(
           suspendedRetryLanes,
           exitStatus,
           suspendedCommitReason,
-          1,
+          null,
           completedRenderStartTime,
           completedRenderEndTime
         )
@@ -13219,6 +13211,7 @@ function prepareFreshStack(root, lanes) {
   timeoutHandle = root.cancelPendingCommit;
   null !== timeoutHandle &&
     ((root.cancelPendingCommit = null), timeoutHandle());
+  pendingEffectsLanes = 0;
   resetWorkInProgressStack();
   workInProgressRoot = root;
   workInProgress = timeoutHandle = createWorkInProgress(root.current, null);
@@ -13723,7 +13716,7 @@ function commitRoot(
         ? ((root.callbackNode = null),
           (root.callbackPriority = 0),
           scheduleCallback$1(NormalPriority$1, function () {
-            flushPassiveEffects(!0);
+            flushPassiveEffects();
             return null;
           }))
         : ((root.callbackNode = null), (root.callbackPriority = 0));
@@ -13758,7 +13751,9 @@ function commitRoot(
             flushAfterMutationEffects,
             flushSpawnedWork,
             flushPassiveEffects,
-            reportViewTransitionError
+            reportViewTransitionError,
+            null,
+            null
           ))
         : (flushMutationEffects(), flushLayoutEffects(), flushSpawnedWork());
     }
@@ -14197,7 +14192,8 @@ function commitGestureOnRoot(
       pendingTransitionTypes,
       flushGestureMutations,
       flushGestureAnimations,
-      reportViewTransitionError
+      reportViewTransitionError,
+      null
     );
   }
 }
@@ -14284,7 +14280,7 @@ function releaseRootPooledCache(root, remainingLanes) {
     null != remainingLanes &&
       ((root.pooledCache = null), releaseCache(remainingLanes)));
 }
-function flushPendingEffects(wasDelayedCommit) {
+function flushPendingEffects() {
   null !== pendingViewTransition &&
     (pendingViewTransition.skipTransition(), (pendingViewTransition = null));
   flushGestureMutations();
@@ -14292,7 +14288,7 @@ function flushPendingEffects(wasDelayedCommit) {
   flushMutationEffects();
   flushLayoutEffects();
   flushSpawnedWork();
-  return flushPassiveEffects(wasDelayedCommit);
+  return flushPassiveEffects();
 }
 function flushPassiveEffects() {
   if (5 !== pendingEffectsStatus) return !1;
@@ -14663,7 +14659,7 @@ function performWorkOnRootViaSchedulerTask(root, didTimeout) {
   if (0 !== pendingEffectsStatus && 5 !== pendingEffectsStatus)
     return (root.callbackNode = null), (root.callbackPriority = 0), null;
   var originalCallbackNode = root.callbackNode;
-  if (flushPendingEffects(!0) && root.callbackNode !== originalCallbackNode)
+  if (flushPendingEffects() && root.callbackNode !== originalCallbackNode)
     return null;
   var workInProgressRootRenderLanes$jscomp$0 = workInProgressRootRenderLanes;
   workInProgressRootRenderLanes$jscomp$0 = getNextLanes(
@@ -14834,20 +14830,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1828 = 0;
-  i$jscomp$inline_1828 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1828++
+  var i$jscomp$inline_1827 = 0;
+  i$jscomp$inline_1827 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1827++
 ) {
-  var eventName$jscomp$inline_1829 =
-      simpleEventPluginEvents[i$jscomp$inline_1828],
-    domEventName$jscomp$inline_1830 =
-      eventName$jscomp$inline_1829.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1831 =
-      eventName$jscomp$inline_1829[0].toUpperCase() +
-      eventName$jscomp$inline_1829.slice(1);
+  var eventName$jscomp$inline_1828 =
+      simpleEventPluginEvents[i$jscomp$inline_1827],
+    domEventName$jscomp$inline_1829 =
+      eventName$jscomp$inline_1828.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1830 =
+      eventName$jscomp$inline_1828[0].toUpperCase() +
+      eventName$jscomp$inline_1828.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1830,
-    "on" + capitalizedEvent$jscomp$inline_1831
+    domEventName$jscomp$inline_1829,
+    "on" + capitalizedEvent$jscomp$inline_1830
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -17091,16 +17087,16 @@ function startViewTransition(
           (forceLayout(ownerDocument),
           "loading" === ownerDocument.fonts.status &&
             blockingPromises.push(ownerDocument.fonts.ready));
-        if (null !== suspendedState) {
-          previousFontLoadingStatus = suspendedState.suspenseyImages;
+        previousFontLoadingStatus = blockingPromises.length;
+        if (null !== suspendedState)
           for (
-            var blockingIndexSnapshot = blockingPromises.length,
+            var suspenseyImages = suspendedState.suspenseyImages,
               imgBytes = 0,
               i = 0;
-            i < previousFontLoadingStatus.length;
+            i < suspenseyImages.length;
             i++
           ) {
-            var suspenseyImage = previousFontLoadingStatus[i];
+            var suspenseyImage = suspenseyImages[i];
             if (!suspenseyImage.complete) {
               var rect = suspenseyImage.getBoundingClientRect();
               if (
@@ -17111,7 +17107,7 @@ function startViewTransition(
               ) {
                 imgBytes += estimateImageBytes(suspenseyImage);
                 if (imgBytes > estimatedBytesWithinLimit) {
-                  blockingPromises.length = blockingIndexSnapshot;
+                  blockingPromises.length = previousFontLoadingStatus;
                   break;
                 }
                 suspenseyImage = new Promise(
@@ -17121,7 +17117,6 @@ function startViewTransition(
               }
             }
           }
-        }
         if (0 < blockingPromises.length)
           return (
             (ownerWindow = Promise.race([
@@ -19881,16 +19876,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2246 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2245 = React.version;
 if (
-  "19.2.0-experimental-5e0c951b-20250916" !==
-  isomorphicReactPackageVersion$jscomp$inline_2246
+  "19.2.0-experimental-df38ac9a-20250926" !==
+  isomorphicReactPackageVersion$jscomp$inline_2245
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2246,
-      "19.2.0-experimental-5e0c951b-20250916"
+      isomorphicReactPackageVersion$jscomp$inline_2245,
+      "19.2.0-experimental-df38ac9a-20250926"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19910,24 +19905,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2948 = {
+var internals$jscomp$inline_2947 = {
   bundleType: 0,
-  version: "19.2.0-experimental-5e0c951b-20250916",
+  version: "19.2.0-experimental-df38ac9a-20250926",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-5e0c951b-20250916"
+  reconcilerVersion: "19.2.0-experimental-df38ac9a-20250926"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2949 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2948 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2949.isDisabled &&
-    hook$jscomp$inline_2949.supportsFiber
+    !hook$jscomp$inline_2948.isDisabled &&
+    hook$jscomp$inline_2948.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2949.inject(
-        internals$jscomp$inline_2948
+      (rendererID = hook$jscomp$inline_2948.inject(
+        internals$jscomp$inline_2947
       )),
-        (injectedHook = hook$jscomp$inline_2949);
+        (injectedHook = hook$jscomp$inline_2948);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -20173,4 +20168,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.2.0-experimental-5e0c951b-20250916";
+exports.version = "19.2.0-experimental-df38ac9a-20250926";

@@ -108,46 +108,8 @@ impl TurboFn<'_> {
                         _ => &definition_context,
                     };
 
-                    match self_type.as_ref() {
-                        // we allow `&Self` but not `&mut Self`
-                        syn::Type::Reference(type_reference) => {
-                            if let Some(m) = type_reference.mutability {
-                                m.span()
-                                    .unwrap()
-                                    .error(format!(
-                                        "{} cannot take self by mutable reference, use &self or \
-                                         self: Vc<Self> instead",
-                                        definition_context.function_type(),
-                                    ))
-                                    .emit();
-                                return None;
-                            }
-
-                            match type_reference.elem.as_ref() {
-                                syn::Type::Path(TypePath { qself: None, path })
-                                    if path.is_ident("Self") => {}
-                                _ => {
-                                    self_type
-                                        .span()
-                                        .unwrap()
-                                        .error(
-                                            "Unexpected `self` type, use `&self` or `self: \
-                                             Vc<Self>",
-                                        )
-                                        .emit();
-                                    return None;
-                                }
-                            }
-                        }
-                        syn::Type::Path(_) => {}
-                        _ => {
-                            self_type
-                                .span()
-                                .unwrap()
-                                .error("Unexpected `self` type, use `&self` or `self: Vc<Self>")
-                                .emit();
-                            return None;
-                        }
+                    if get_receiver_style(self_type, definition_context) == ReceiverStyle::Error {
+                        return None;
                     }
                     // We don't validate that the user provided a valid `turbo_tasks::Vc<Self>`
                     // here. We'll rely on the compiler to emit an error if the user provided an
@@ -693,6 +655,62 @@ impl TurboFn<'_> {
     pub(crate) fn is_method(&self) -> bool {
         self.this.is_some()
     }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum ReceiverStyle {
+    // A reference like &self or self: &Self
+    Reference,
+    // A Vc<> type, this is optimistic
+    Vc,
+    Error,
+}
+
+pub(crate) fn get_receiver_style(
+    self_type: &Type,
+    definition_context: &DefinitionContext,
+) -> ReceiverStyle {
+    match self_type {
+        // we allow `&Self` but not `&mut Self`
+        syn::Type::Reference(type_reference) => {
+            if let Some(m) = type_reference.mutability {
+                m.span()
+                    .unwrap()
+                    .error(format!(
+                        "{} cannot take self by mutable reference, use &self or self: Vc<Self> \
+                         instead",
+                        definition_context.function_type(),
+                    ))
+                    .emit();
+                return ReceiverStyle::Error;
+            }
+
+            match type_reference.elem.as_ref() {
+                syn::Type::Path(TypePath { qself: None, path }) if path.is_ident("Self") => {}
+                _ => {
+                    self_type
+                        .span()
+                        .unwrap()
+                        .error("Unexpected `self` type, use `&self` or `self: Vc<Self>")
+                        .emit();
+                    return ReceiverStyle::Error;
+                }
+            }
+            return ReceiverStyle::Reference;
+        }
+        syn::Type::Path(_) => {}
+        _ => {
+            self_type
+                .span()
+                .unwrap()
+                .error("Unexpected `self` type, use `&self` or `self: Vc<Self>")
+                .emit();
+            return ReceiverStyle::Error;
+        }
+    }
+    // All other cases are assumed to be a VC, this is not guaranteed but we are happy to just have
+    // compiler errors when this assumption is wrong.
+    ReceiverStyle::Vc
 }
 
 /// An indication of what kind of IO this function does. Currently only used for

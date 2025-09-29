@@ -3191,7 +3191,7 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             span,
             formatdoc! {
                 r#"
-                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
+                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the `experimental.cacheHandlers` object in your Next.js config.
                 "#
             },
         ),
@@ -3199,7 +3199,7 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             span,
             formatdoc! {
                 r#"
-                    To use "{directive}", please enable the experimental feature flag "useCache" in your Next.js config.
+                    To use "{directive}", please enable the feature flag `experimental.cacheComponents` in your Next.js config.
 
                     Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
                 "#

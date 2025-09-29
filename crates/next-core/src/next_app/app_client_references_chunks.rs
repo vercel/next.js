@@ -3,10 +3,10 @@ use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{ChunkingContext, availability_info::AvailabilityInfo},
+    chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::OutputAssets,
+    output::{OutputAssets, OutputAssetsWithReferenced},
 };
 
 use crate::{
@@ -22,12 +22,10 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
-    pub client_component_client_chunks:
-        FxIndexMap<ClientReferenceType, (ResolvedVc<OutputAssets>, AvailabilityInfo)>,
-    pub client_component_ssr_chunks:
-        FxIndexMap<ClientReferenceType, (ResolvedVc<OutputAssets>, AvailabilityInfo)>,
+    pub client_component_client_chunks: FxIndexMap<ClientReferenceType, ChunkGroupResult>,
+    pub client_component_ssr_chunks: FxIndexMap<ClientReferenceType, ChunkGroupResult>,
     pub layout_segment_client_chunks:
-        FxIndexMap<ResolvedVc<NextServerComponentModule>, ResolvedVc<OutputAssets>>,
+        FxIndexMap<ResolvedVc<NextServerComponentModule>, OutputAssetsWithReferenced>,
 }
 
 /// Computes all client references chunks.
@@ -161,8 +159,10 @@ pub async fn get_app_client_references_chunks(
 
             let mut current_client_availability_info = client_availability_info;
             let mut current_client_chunks = OutputAssets::empty().to_resolved().await?;
+            let mut current_client_referenced_assets = OutputAssets::empty().to_resolved().await?;
             let mut current_ssr_availability_info = AvailabilityInfo::Root;
             let mut current_ssr_chunks = OutputAssets::empty().to_resolved().await?;
+            let mut current_ssr_referenced_assets = OutputAssets::empty().to_resolved().await?;
 
             let mut layout_segment_client_chunks = FxIndexMap::default();
             let mut client_component_ssr_chunks = FxIndexMap::default();
@@ -264,18 +264,34 @@ pub async fn get_app_client_references_chunks(
                 };
 
                 if let Some(client_chunk_group) = client_chunk_group {
-                    let client_chunk_group = client_chunk_group.await?;
+                    let ChunkGroupResult {
+                        assets,
+                        referenced_assets,
+                        availability_info,
+                    } = *client_chunk_group.await?;
 
-                    let client_chunks =
-                        current_client_chunks.concatenate(*client_chunk_group.assets);
-                    let client_chunks = client_chunks.to_resolved().await?;
+                    let client_chunks = current_client_chunks
+                        .concatenate(*assets)
+                        .to_resolved()
+                        .await?;
+                    let client_referenced_assets = current_client_referenced_assets
+                        .concatenate(*referenced_assets)
+                        .to_resolved()
+                        .await?;
 
                     if is_layout {
-                        current_client_availability_info = client_chunk_group.availability_info;
+                        current_client_availability_info = availability_info;
                         current_client_chunks = client_chunks;
+                        current_client_referenced_assets = client_referenced_assets;
                     }
 
-                    layout_segment_client_chunks.insert(server_component, client_chunks);
+                    layout_segment_client_chunks.insert(
+                        server_component,
+                        OutputAssetsWithReferenced {
+                            assets: client_chunks,
+                            referenced_assets: client_referenced_assets,
+                        },
+                    );
 
                     for &client_reference_ty in client_reference_types.iter() {
                         if let ClientReferenceType::EcmascriptClientReference(_) =
@@ -283,7 +299,11 @@ pub async fn get_app_client_references_chunks(
                         {
                             client_component_client_chunks.insert(
                                 client_reference_ty,
-                                (client_chunks, client_chunk_group.availability_info),
+                                ChunkGroupResult {
+                                    assets: client_chunks,
+                                    referenced_assets: client_referenced_assets,
+                                    availability_info,
+                                },
                             );
                         }
                     }
@@ -292,12 +312,19 @@ pub async fn get_app_client_references_chunks(
                 if let Some(ssr_chunk_group) = ssr_chunk_group {
                     let ssr_chunk_group = ssr_chunk_group.await?;
 
-                    let ssr_chunks = current_ssr_chunks.concatenate(*ssr_chunk_group.assets);
-                    let ssr_chunks = ssr_chunks.to_resolved().await?;
+                    let ssr_chunks = current_ssr_chunks
+                        .concatenate(*ssr_chunk_group.assets)
+                        .to_resolved()
+                        .await?;
+                    let ssr_referenced_assets = current_ssr_referenced_assets
+                        .concatenate(*ssr_chunk_group.referenced_assets)
+                        .to_resolved()
+                        .await?;
 
                     if is_layout {
                         current_ssr_availability_info = ssr_chunk_group.availability_info;
                         current_ssr_chunks = ssr_chunks;
+                        current_ssr_referenced_assets = ssr_referenced_assets;
                     }
 
                     for &client_reference_ty in client_reference_types.iter() {
@@ -306,7 +333,11 @@ pub async fn get_app_client_references_chunks(
                         {
                             client_component_ssr_chunks.insert(
                                 client_reference_ty,
-                                (ssr_chunks, ssr_chunk_group.availability_info),
+                                ChunkGroupResult {
+                                    assets: ssr_chunks,
+                                    referenced_assets: ssr_referenced_assets,
+                                    availability_info: ssr_chunk_group.availability_info,
+                                },
                             );
                         }
                     }

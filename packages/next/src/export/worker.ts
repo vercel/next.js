@@ -282,10 +282,6 @@ async function exportPageImpl(
     renderResumeDataCache,
   }
 
-  if (hasNextSupport) {
-    renderOpts.isRevalidate = true
-  }
-
   // Handle App Pages
   if (isAppDir) {
     const sharedContext: AppSharedContext = { buildId }

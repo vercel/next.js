@@ -16,7 +16,6 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
   NextConfig,
-  TurbopackLoaderItem,
 } from './config-shared'
 
 import { loadWebpackHook } from './config-utils'
@@ -77,8 +76,8 @@ export function warnOptionHasBeenDeprecated(
     let found = true
     const nestedPropertyKeys = nestedPropertyKey.split('.')
     for (const key of nestedPropertyKeys) {
-      if (current[key] !== undefined) {
-        current = current[key]
+      if ((current as any)[key] !== undefined) {
+        current = (current as any)[key]
       } else {
         found = false
         break
@@ -168,10 +167,12 @@ export function warnOptionHasBeenMovedOutOfExperimental(
     const newKeys = newKey.split('.')
     while (newKeys.length > 1) {
       const key = newKeys.shift()!
-      current[key] = current[key] || {}
-      current = current[key]
+      ;(current as any)[key] = (current as any)[key] || {}
+      current = (current as any)[key]
     }
-    current[newKeys.shift()!] = (config.experimental as any)[oldExperimentalKey]
+    ;(current as any)[newKeys.shift()!] = (config.experimental as any)[
+      oldExperimentalKey
+    ]
   }
 
   return config
@@ -193,7 +194,7 @@ function warnCustomizedOption(
     if (!(seg in current)) {
       return
     }
-    current = current[seg]
+    current = (current as any)[seg]
   }
 
   if (!silent && current !== defaultValue) {
@@ -215,19 +216,20 @@ function assignDefaultsAndValidate(
   dir: string,
   userConfig: NextConfig & { configFileName: string },
   silent: boolean,
-  configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
+  configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
+  phase: PHASE_TYPE
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
-  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+  if (typeof (userConfig as any).exportTrailingSlash !== 'undefined') {
     if (!silent) {
       Log.warn(
         `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
       )
     }
     if (typeof userConfig.trailingSlash === 'undefined') {
-      userConfig.trailingSlash = userConfig.exportTrailingSlash
+      userConfig.trailingSlash = (userConfig as any).exportTrailingSlash
     }
-    delete userConfig.exportTrailingSlash
+    delete (userConfig as any).exportTrailingSlash
   }
 
   // Handle migration of experimental.dynamicIO to experimental.cacheComponents
@@ -245,7 +247,7 @@ function assignDefaultsAndValidate(
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
-      const value = userConfig[key]
+      const value = (userConfig as any)[key]
 
       if (value === undefined || value === null) {
         return currentConfig
@@ -352,9 +354,13 @@ function assignDefaultsAndValidate(
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.cacheComponents) {
       throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
-    } else if (result.experimental?.turbopackPersistentCaching) {
+    } else if (result.experimental?.turbopackPersistentCachingForDev) {
       throw new CanaryOnlyError({
-        feature: 'experimental.turbopackPersistentCaching',
+        feature: 'experimental.turbopackPersistentCachingForDev',
+      })
+    } else if (result.experimental?.turbopackPersistentCachingForBuild) {
+      throw new CanaryOnlyError({
+        feature: 'experimental.turbopackPersistentCachingForBuild',
       })
     }
   }
@@ -1198,6 +1204,13 @@ function assignDefaultsAndValidate(
     )
   }
 
+  if (
+    phase === PHASE_DEVELOPMENT_SERVER &&
+    result.experimental?.isolatedDevBuild
+  ) {
+    result.distDir = join(result.distDir, 'dev')
+  }
+
   return result as NextConfigComplete
 }
 
@@ -1259,7 +1272,6 @@ function getCacheKey(
 
   return djb2Hash(keyData).toString(36)
 }
-
 export default async function loadConfig(
   phase: PHASE_TYPE,
   dir: string,
@@ -1362,8 +1374,9 @@ export default async function loadConfig(
           ...customConfig,
         },
         silent,
-        configuredExperimentalFeatures
-      ) as NextConfigComplete,
+        configuredExperimentalFeatures,
+        phase
+      ),
       phase,
       silent
     )
@@ -1449,7 +1462,7 @@ export default async function loadConfig(
       ) as (keyof ExperimentalConfig)[]) {
         const value = loadedConfig.experimental[name]
 
-        if (name === 'turbo' && !process.env.TURBOPACK) {
+        if (name.startsWith('turbopack') && !process.env.TURBOPACK) {
           // Ignore any Turbopack config if Turbopack is not enabled
           continue
         }
@@ -1473,7 +1486,7 @@ export default async function loadConfig(
       validateConfigSchema(userConfig, configFileName, curLog.warn)
     }
 
-    if (userConfig.target && userConfig.target !== 'server') {
+    if ((userConfig as any).target && (userConfig as any).target !== 'server') {
       throw new Error(
         `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
@@ -1491,47 +1504,6 @@ export default async function loadConfig(
 
     if (reactProductionProfiling) {
       userConfig.reactProductionProfiling = reactProductionProfiling
-    }
-
-    if (
-      userConfig.experimental?.turbo?.loaders &&
-      !userConfig.experimental?.turbo?.rules
-    ) {
-      curLog.warn(
-        'experimental.turbo.loaders is now deprecated. Please update next.config.js to use experimental.turbo.rules as soon as possible.\n' +
-          'The new option is similar, but the key should be a glob instead of an extension.\n' +
-          'Example: loaders: { ".mdx": ["mdx-loader"] } -> rules: { "*.mdx": ["mdx-loader"] }" }\n' +
-          'See more info here https://nextjs.org/docs/app/api-reference/next-config-js/turbo'
-      )
-
-      const rules: Record<string, TurbopackLoaderItem[]> = {}
-      for (const [ext, loaders] of Object.entries(
-        userConfig.experimental.turbo.loaders
-      )) {
-        rules['*' + ext] = loaders as TurbopackLoaderItem[]
-      }
-
-      userConfig.experimental.turbo.rules = rules
-    }
-
-    if (userConfig.experimental?.turbo) {
-      curLog.warn(
-        'The config property `experimental.turbo` is deprecated. Move this setting to `config.turbopack` or run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .`'
-      )
-
-      // Merge the two configs, preferring values in `config.turbopack`.
-      userConfig.turbopack = {
-        ...userConfig.experimental.turbo,
-        ...userConfig.turbopack,
-      }
-      userConfig.experimental.turbopackMemoryLimit ??=
-        userConfig.experimental.turbo.memoryLimit
-      userConfig.experimental.turbopackMinify ??=
-        userConfig.experimental.turbo.minify
-      userConfig.experimental.turbopackTreeShaking ??=
-        userConfig.experimental.turbo.treeShaking
-      userConfig.experimental.turbopackSourceMaps ??=
-        userConfig.experimental.turbo.sourceMaps
     }
 
     if (userConfig.experimental?.useLightningcss) {
@@ -1569,8 +1541,9 @@ export default async function loadConfig(
         ...userConfig,
       },
       silent,
-      configuredExperimentalFeatures
-    ) as NextConfigComplete
+      configuredExperimentalFeatures,
+      phase
+    )
 
     const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
 
@@ -1624,7 +1597,8 @@ export default async function loadConfig(
     dir,
     { ...clonedDefaultConfig, configFileName },
     silent,
-    configuredExperimentalFeatures
+    configuredExperimentalFeatures,
+    phase
   ) as NextConfigComplete
 
   setHttpClientAndAgentOptions(completeConfig)
@@ -1831,6 +1805,24 @@ function enforceExperimentalFeatures(
         'rdcForNavigations',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+      )
+    }
+  }
+
+  if (
+    process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.reactCompiler === undefined ||
+      (isDefaultConfig && !config.experimental.reactCompiler))
+  ) {
+    config.experimental.reactCompiler = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'reactCompiler',
+        true,
+        'enabled by `__NEXT_ENABLE_REACT_COMPILER`'
       )
     }
   }

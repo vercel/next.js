@@ -91,16 +91,25 @@ export class NextDeployInstance extends NextInstance {
     const additionalEnv: string[] = []
 
     for (const key of Object.keys(this.env || {})) {
-      additionalEnv.push('--build-env')
-      additionalEnv.push(`${key}=${this.env[key]}`)
-      additionalEnv.push('--env')
       additionalEnv.push(`${key}=${this.env[key]}`)
     }
 
-    additionalEnv.push('--build-env')
     additionalEnv.push(
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
+
+    // Add experimental feature flags
+    if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_PPR=${process.env.__NEXT_EXPERIMENTAL_PPR}`
+      )
+    }
+
+    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS}`
+      )
+    }
 
     const deployRes = await execa(
       'vercel',
@@ -112,7 +121,12 @@ export class NextDeployInstance extends NextInstance {
         'NEXT_TELEMETRY_DISABLED=1',
         '--build-env',
         'VERCEL_NEXT_BUNDLED_SERVER=1',
-        ...additionalEnv,
+        ...additionalEnv.flatMap((pair) => [
+          '--env',
+          pair,
+          '--build-env',
+          pair,
+        ]),
         '--force',
         ...vercelFlags,
       ],
