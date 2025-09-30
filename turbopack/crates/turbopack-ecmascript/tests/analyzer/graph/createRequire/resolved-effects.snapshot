@@ -7,39 +7,30 @@
 - *0* module: The Node.js `module` module: https://nodejs.org/api/module.html
 - *1* import.meta: The import.meta object
 
-0 -> 8 free var = FreeVar(req1)
+0 -> 8 call = require*0*("./file1")
+- *0* require: The require method from CommonJS
 
-0 -> 9 call = ???*0*("./some-file")
-- *0* FreeVar(req1)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-
-0 -> 13 member call = module*0*["createRequire"](import.meta*1*["url"])
+0 -> 12 member call = module*0*["createRequire"](import.meta*1*["url"])
 - *0* module: The Node.js `module` module: https://nodejs.org/api/module.html
 - *1* import.meta: The import.meta object
 
-0 -> 14 free var = FreeVar(req2)
+0 -> 13 call = require*0*("./file2")
+- *0* require: The require method from CommonJS
 
-0 -> 15 call = ???*0*("./some-other-file")
-- *0* FreeVar(req2)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+0 -> 15 free var = FreeVar(__filename)
 
-0 -> 17 free var = FreeVar(__filename)
-
-0 -> 18 member call = module*0*["createRequire"]("__filename")
+0 -> 16 member call = module*0*["createRequire"]("__filename")
 - *0* module: The Node.js `module` module: https://nodejs.org/api/module.html
 
-0 -> 19 free var = FreeVar(req2)
-
-0 -> 20 call = ???*0*("./some-other-file")
-- *0* FreeVar(req2)
-  ⚠️  unknown global
+0 -> 17 call = ???*0*("./file3")
+- *0* module.createRequire*1*("__filename")
+  ⚠️  createRequire() non constant
   ⚠️  This value might have side effects
+- *1* module.createRequire: The Node.js module.createRequire method: https://nodejs.org/api/module.html#modulecreaterequirefilename
 
-0 -> 23 free var = FreeVar(globalThis)
+0 -> 20 free var = FreeVar(globalThis)
 
-0 -> 24 member call = module*0*["createRequire"](???*1*)
+0 -> 21 member call = module*0*["createRequire"](???*1*)
 - *0* module: The Node.js `module` module: https://nodejs.org/api/module.html
 - *1* ???*2*["foo"]
   ⚠️  unknown object
@@ -48,9 +39,14 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 25 free var = FreeVar(req2)
-
-0 -> 26 call = ???*0*("./some-other-file")
-- *0* FreeVar(req2)
+0 -> 22 call = ???*0*("./file4")
+- *0* module.createRequire*1*(???*2*)
+  ⚠️  createRequire() non constant
+  ⚠️  This value might have side effects
+- *1* module.createRequire: The Node.js module.createRequire method: https://nodejs.org/api/module.html#modulecreaterequirefilename
+- *2* ???*3*["foo"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* FreeVar(globalThis)
   ⚠️  unknown global
   ⚠️  This value might have side effects

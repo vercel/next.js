@@ -368,51 +368,19 @@
         in_try: false,
         new: false,
     },
-    FreeVar {
-        var: "req1",
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    3,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 140..144,
-    },
     Call {
-        func: FreeVar(
-            "req1",
+        func: Variable(
+            (
+                "req_ok1",
+                #2,
+            ),
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Atom(
-                            "./some-file",
+                            "./file1",
                         ),
                     ),
                 ),
@@ -440,7 +408,7 @@
                 Call,
             ),
         ],
-        span: 140..159,
+        span: 140..158,
         in_try: false,
         new: false,
     },
@@ -497,7 +465,7 @@
                 Member,
             ),
         ],
-        span: 177..204,
+        span: 176..203,
     },
     Member {
         obj: WellKnownObject(
@@ -551,7 +519,7 @@
                 Member,
             ),
         ],
-        span: 205..220,
+        span: 204..219,
     },
     ImportMeta {
         ast_path: [
@@ -601,7 +569,7 @@
                 MetaProp,
             ),
         ],
-        span: 205..216,
+        span: 204..215,
     },
     MemberCall {
         obj: Variable(
@@ -664,55 +632,23 @@
                 Call,
             ),
         ],
-        span: 177..221,
+        span: 176..220,
         in_try: false,
         new: false,
     },
-    FreeVar {
-        var: "req2",
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    5,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 222..226,
-    },
     Call {
-        func: FreeVar(
-            "req2",
+        func: Variable(
+            (
+                "req_ok2",
+                #2,
+            ),
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Atom(
-                            "./some-other-file",
+                            "./file2",
                         ),
                     ),
                 ),
@@ -740,7 +676,7 @@
                 Call,
             ),
         ],
-        span: 222..247,
+        span: 221..239,
         in_try: false,
         new: false,
     },
@@ -797,7 +733,7 @@
                 Member,
             ),
         ],
-        span: 265..292,
+        span: 257..284,
     },
     FreeVar {
         var: "__filename",
@@ -842,7 +778,7 @@
                 Ident,
             ),
         ],
-        span: 293..303,
+        span: 285..295,
     },
     MemberCall {
         obj: Variable(
@@ -895,55 +831,23 @@
                 Call,
             ),
         ],
-        span: 265..304,
+        span: 257..296,
         in_try: false,
         new: false,
     },
-    FreeVar {
-        var: "req2",
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    7,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 305..309,
-    },
     Call {
-        func: FreeVar(
-            "req2",
+        func: Variable(
+            (
+                "req_ok3",
+                #2,
+            ),
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Atom(
-                            "./some-other-file",
+                            "./file3",
                         ),
                     ),
                 ),
@@ -971,7 +875,7 @@
                 Call,
             ),
         ],
-        span: 305..330,
+        span: 297..315,
         in_try: false,
         new: false,
     },
@@ -1028,7 +932,7 @@
                 Member,
             ),
         ],
-        span: 350..377,
+        span: 335..362,
     },
     Member {
         obj: FreeVar(
@@ -1082,7 +986,7 @@
                 Member,
             ),
         ],
-        span: 378..392,
+        span: 363..377,
     },
     FreeVar {
         var: "globalThis",
@@ -1133,7 +1037,7 @@
                 Ident,
             ),
         ],
-        span: 378..388,
+        span: 363..373,
     },
     MemberCall {
         obj: Variable(
@@ -1196,55 +1100,23 @@
                 Call,
             ),
         ],
-        span: 350..393,
+        span: 335..378,
         in_try: false,
         new: false,
     },
-    FreeVar {
-        var: "req2",
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    9,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 394..398,
-    },
     Call {
-        func: FreeVar(
-            "req2",
+        func: Variable(
+            (
+                "req_fail1",
+                #2,
+            ),
         ),
         args: [
             Value(
                 Constant(
                     Str(
                         Atom(
-                            "./some-other-file",
+                            "./file4",
                         ),
                     ),
                 ),
@@ -1272,7 +1144,7 @@
                 Call,
             ),
         ],
-        span: 394..419,
+        span: 379..399,
         in_try: false,
         new: false,
     },
