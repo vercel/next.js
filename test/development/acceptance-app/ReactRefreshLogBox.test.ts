@@ -1443,7 +1443,7 @@ describe('ReactRefreshLogBox app', () => {
          × Module not found: Can't resolve 'non-existing-module' in '<FIXME-project-root>/app'
           ╭────
         1 │ import "non-existing-module";
-          ·        ─────────────────────
+          · ─────────────────────────────
           ╰────
        Import trace for requested module:
        ./app/module.js
