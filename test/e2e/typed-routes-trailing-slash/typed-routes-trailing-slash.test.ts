@@ -62,7 +62,23 @@ describe('typedRoutes trailingSlash', () => {
 
   it('should allow navigation to typed routes with trailing slash', async () => {
     const browser = await next.browser('/')
-    await browser.waitForElementByCss('a[href="/dashboard/"]').click()
+
+    // ✅ Wait until the link is present in DOM
+    const link = await browser.waitForElementByCss('a[href="/dashboard/"]')
+
+    // ✅ Debug log in case href is mismatched
+    const href = await browser.eval(
+      'document.querySelector("a")?.getAttribute("href")'
+    )
+    console.log('Rendered href:', href)
+
+    // ✅ Click and wait for navigation (explicitly wait for URL to include trailing slash)
+    await link.click()
+    await browser.waitForCondition(
+      "window.location.pathname.includes('/dashboard/')"
+    )
+    await browser.waitForElementByCss('h1')
+
     expect(await browser.url()).toContain('/dashboard/')
     expect(await browser.elementByCss('h1').text()).toBe('Dashboard')
   })

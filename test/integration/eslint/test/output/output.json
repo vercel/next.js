@@ -1,0 +1,58 @@
+[
+  {
+    "filePath": "/run/media/praveen/GloriousPurposes/Contributions/vercel_contributions/newDir/next.js/test/integration/eslint/file-linting/pages/bar.js",
+    "messages": [
+      {
+        "ruleId": "jsx-a11y/alt-text",
+        "severity": 1,
+        "message": "img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.",
+        "line": 6,
+        "column": 9,
+        "nodeType": "JSXOpeningElement",
+        "endLine": 6,
+        "endColumn": 26
+      },
+      {
+        "ruleId": "@next/next/no-img-element",
+        "severity": 1,
+        "message": "Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+        "line": 6,
+        "column": 9,
+        "nodeType": "JSXOpeningElement",
+        "endLine": 6,
+        "endColumn": 26
+      }
+    ],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 2,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "source": "export default class Bar {\n  render() {\n    return (\n      <div>\n        <h1>Hello title</h1>\n        <img src=\"img\" />\n      </div>\n    )\n  }\n}\n",
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/run/media/praveen/GloriousPurposes/Contributions/vercel_contributions/newDir/next.js/test/integration/eslint/file-linting/pages/index.js",
+    "messages": [
+      {
+        "ruleId": "@next/next/no-sync-scripts",
+        "severity": 1,
+        "message": "Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts",
+        "line": 6,
+        "column": 9,
+        "nodeType": "JSXOpeningElement",
+        "endLine": 6,
+        "endColumn": 28
+      }
+    ],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 1,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "source": "export default class Home {\n  render() {\n    return (\n      <div>\n        <h1>Hello title</h1>\n        <script src=\"test\"></script>\n      </div>\n    )\n  }\n}\n",
+    "usedDeprecatedRules": []
+  }
+]
