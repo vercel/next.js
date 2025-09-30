@@ -657,7 +657,7 @@ importers:
         version: 9.12.0(jiti@2.5.1)
       eslint-config-next:
         specifier: canary
-        version: 15.6.0-canary.32(eslint-plugin-import-x@4.3.1(eslint@9.12.0(jiti@2.5.1))(typescript@5.9.2))(eslint@9.12.0(jiti@2.5.1))(typescript@5.9.2)
+        version: 15.6.0-canary.36(eslint-plugin-import-x@4.3.1(eslint@9.12.0(jiti@2.5.1))(typescript@5.9.2))(eslint@9.12.0(jiti@2.5.1))(typescript@5.9.2)
       tailwindcss:
         specifier: 4.1.13
         version: 4.1.13
@@ -1535,8 +1535,8 @@ importers:
         specifier: 2.5.0
         version: 2.5.0
       sass-loader:
-        specifier: 15.0.0
-        version: 15.0.0(@rspack/core@1.5.0(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9))
+        specifier: 16.0.5
+        version: 16.0.5(@rspack/core@1.5.0(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9))
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: schema-utils@2.7.1
@@ -4363,8 +4363,8 @@ packages:
   '@next/env@15.5.3':
     resolution: {integrity: sha512-RSEDTRqyihYXygx/OJXwvVupfr9m04+0vH8vyy0HfZ7keRto6VX9BbEk0J2PUk0VGy6YhklJUSrgForov5F9pw==}
 
-  '@next/eslint-plugin-next@15.6.0-canary.32':
-    resolution: {integrity: sha512-CCjoXb3dNT1Pq+GkcQOGncBlm6HCorbqiJ4nuhF/wKo505FXIf8vnpaUId54iN/WqwaC1Zf5wBk1shSXMuMKHA==}
+  '@next/eslint-plugin-next@15.6.0-canary.36':
+    resolution: {integrity: sha512-RznXP7eSDugL3fVYdwIyCXi4I5A2EQ4YBg0tANoPGfo1Eyn1KOTGfzBB8MLogN7TjBbUusw+gzpQ/mBvFc4RhA==}
 
   '@next/swc-darwin-arm64@15.5.3':
     resolution: {integrity: sha512-nzbHQo69+au9wJkGKTU9lP7PXv0d1J5ljFpvb+LnEomLtSbJkbZyEs6sbF3plQmiOB2l9OBtN2tNSvCH1nQ9Jg==}
@@ -9174,8 +9174,8 @@ packages:
     engines: {node: '>=6.0'}
     hasBin: true
 
-  eslint-config-next@15.6.0-canary.32:
-    resolution: {integrity: sha512-rDKclf6wFaplSqVr4uI223lKLBioD+1zrYM66sIMezN4BbiMbUSwJyvGabMYOO1X600svIddP8ODnC1nxhHgqg==}
+  eslint-config-next@15.6.0-canary.36:
+    resolution: {integrity: sha512-v7uPmVVRtO3RFjaFsXoXdI60TWzPIZXAWO3HifrEC/y4Pr4y16LeWH45uxSc9H78V6D3iTOisSZeBdVr87MwoQ==}
     peerDependencies:
       eslint: ^7.23.0 || ^8.0.0 || ^9.0.0
       typescript: '>=3.3.1'
@@ -15605,8 +15605,8 @@ packages:
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  sass-loader@15.0.0:
-    resolution: {integrity: sha512-mbXAL7sI/fgt3skXR6xHxtKkaGyxRrGf7zrU4hLLWxBDJEcAe0QsoNy92qKttCb3zfMniTkU2kD9yakUKtW7vQ==}
+  sass-loader@16.0.5:
+    resolution: {integrity: sha512-oL+CMBXrj6BZ/zOq4os+UECPL+bWqt6OAC6DWS8Ln8GZRcMDjlJ4JC3FBDuHJdYaFWIdKNIBYmtZtK2MaMkNIw==}
     engines: {node: '>= 18.12.0'}
     peerDependencies:
       '@rspack/core': 0.x || 1.x
@@ -16367,7 +16367,7 @@ packages:
   superagent@3.8.3:
     resolution: {integrity: sha512-GLQtLMCoEIK4eDv6OGtkOoSMt3D+oq0y3dsxMuYuDvaNUvuT8eFBuLmfR0iYYzHC1e8hpzC6ZsxbuP6DIalMFA==}
     engines: {node: '>= 4.0'}
-    deprecated: Please upgrade to superagent v10.2.2+, see release notes at https://github.com/forwardemail/superagent/releases/tag/v10.2.2 - maintenance is supported by Forward Email @ https://forwardemail.net
+    deprecated: Please upgrade to v9.0.0+ as we have fixed a public vulnerability with formidable dependency. Note that v9.0.0+ requires Node.js v14.18.0+. See https://github.com/ladjs/superagent/pull/1800 for insight. This project is supported and maintained by the team at Forward Email @ https://forwardemail.net
 
   superstruct@1.0.3:
     resolution: {integrity: sha512-8iTn3oSS8nRGn+C2pgXSKPI3jmpm6FExNazNpjvqS6ZUJQCej3PUXEKM8NjHBOs54ExM+LPW/FBRhymrdcCiSg==}
@@ -21087,7 +21087,7 @@ snapshots:
 
   '@next/env@15.5.3': {}
 
-  '@next/eslint-plugin-next@15.6.0-canary.32':
+  '@next/eslint-plugin-next@15.6.0-canary.36':
     dependencies:
       fast-glob: 3.3.1
 
@@ -26748,9 +26748,9 @@ snapshots:
     optionalDependencies:
       source-map: 0.6.1
 
-  eslint-config-next@15.6.0-canary.32(eslint-plugin-import-x@4.3.1(eslint@9.12.0(jiti@2.5.1))(typescript@5.9.2))(eslint@9.12.0(jiti@2.5.1))(typescript@5.9.2):
+  eslint-config-next@15.6.0-canary.36(eslint-plugin-import-x@4.3.1(eslint@9.12.0(jiti@2.5.1))(typescript@5.9.2))(eslint@9.12.0(jiti@2.5.1))(typescript@5.9.2):
     dependencies:
-      '@next/eslint-plugin-next': 15.6.0-canary.32
+      '@next/eslint-plugin-next': 15.6.0-canary.36
       '@rushstack/eslint-patch': 1.10.4
       '@typescript-eslint/eslint-plugin': 8.36.0(@typescript-eslint/parser@8.36.0(eslint@9.12.0(jiti@2.5.1))(typescript@5.9.2))(eslint@9.12.0(jiti@2.5.1))(typescript@5.9.2)
       '@typescript-eslint/parser': 8.36.0(eslint@9.12.0(jiti@2.5.1))(typescript@5.9.2)
@@ -35320,7 +35320,7 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  sass-loader@15.0.0(@rspack/core@1.5.0(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)):
+  sass-loader@16.0.5(@rspack/core@1.5.0(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)):
     dependencies:
       neo-async: 2.6.2
     optionalDependencies:
