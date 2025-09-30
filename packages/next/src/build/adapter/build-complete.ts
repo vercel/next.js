@@ -391,9 +391,11 @@ export async function handleBuildComplete({
       const exportFiles = await recursiveReadDir(configOutDir)
 
       for (const file of exportFiles) {
-        const pathname = (
+        let pathname = (
           file.endsWith('.html') ? file.replace(/\.html$/, '') : file
         ).replace(/\\/g, '/')
+
+        pathname = pathname.startsWith('/') ? pathname : `/${pathname}`
 
         outputs.staticFiles.push({
           id: file,
