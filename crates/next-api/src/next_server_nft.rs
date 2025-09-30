@@ -18,7 +18,7 @@ use turbopack_core::{
     file_source::FileSource,
     output::{OutputAsset, OutputAssets},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
-    resolve::{ExternalType, origin::PlainResolveOrigin, parse::Request},
+    resolve::{origin::PlainResolveOrigin, parse::Request},
     traced_asset::TracedAsset,
 };
 use turbopack_ecmascript::resolve::cjs_resolve;
@@ -169,7 +169,6 @@ impl ServerNftJsonAsset {
         let is_standalone = *self.project.next_config().is_standalone().await?;
 
         let asset_context = Vc::upcast(externals_tracing_module_context(
-            ExternalType::CommonJs,
             get_tracing_compile_time_info(),
         ));
 

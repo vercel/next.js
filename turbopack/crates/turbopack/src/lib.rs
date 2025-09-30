@@ -713,7 +713,6 @@ async fn process_default_internal(
 
 #[turbo_tasks::function]
 pub async fn externals_tracing_module_context(
-    ty: ExternalType,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleAssetContext>> {
     let resolve_options = ResolveOptionsContext {
@@ -721,11 +720,7 @@ pub async fn externals_tracing_module_context(
         emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
         collect_affecting_sources: true,
-        custom_conditions: match ty {
-            ExternalType::CommonJs => vec![rcstr!("require"), rcstr!("node")],
-            ExternalType::EcmaScriptModule => vec![rcstr!("import"), rcstr!("node")],
-            ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![rcstr!("node")],
-        },
+        custom_conditions: vec![rcstr!("node")],
         ..Default::default()
     };
 
@@ -869,16 +864,14 @@ impl AssetContext for ModuleAssetContext {
                                     // anyway.
 
                                     let options = options.await?;
+                                    let origin = PlainResolveOrigin::new(
+                                        Vc::upcast(externals_tracing_module_context(
+                                            *options.compile_time_info,
+                                        )),
+                                        options.tracing_root.join("_")?,
+                                    );
                                     CachedExternalTracingMode::Traced {
-                                        externals_context: ResolvedVc::upcast(
-                                            externals_tracing_module_context(
-                                                ty,
-                                                *options.compile_time_info,
-                                            )
-                                            .to_resolved()
-                                            .await?,
-                                        ),
-                                        root_origin: options.tracing_root.join("_")?,
+                                        origin: ResolvedVc::upcast(origin.to_resolved().await?),
                                     }
                                 } else {
                                     CachedExternalTracingMode::Untraced
