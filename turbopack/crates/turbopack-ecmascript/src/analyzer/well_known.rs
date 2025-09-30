@@ -743,7 +743,7 @@ fn module_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
         (.., Some("createRequire")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
         }
-        (WellKnownObjectKind::ModuleModuleDefault, Some("default")) => {
+        (WellKnownObjectKind::ModuleModule, Some("default")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::ModuleModuleDefault)
         }
         _ => JsValue::unknown(
