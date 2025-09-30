@@ -2,8 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('no-double-tailwind-execution', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
     dependencies: {
       '@tailwindcss/postcss': '^4',
       tailwindcss: '^4',
@@ -13,6 +14,10 @@ describe('no-double-tailwind-execution', () => {
       ...process.env,
     },
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should run tailwind only once initially and per change', async () => {
     const browser = await next.browser('/')
@@ -35,11 +40,14 @@ describe('no-double-tailwind-execution', () => {
           })
         }
       )
-
-      let tailwindProcessingCount = next.cliOutput
-        .matchAll(/\[@tailwindcss\/postcss\] app\/globals.css/g)
-        .reduce((acc) => acc + 1, 0)
-      expect(tailwindProcessingCount).toBe(3) // initial + hmr + hmr (revert)
+    }
+    let tailwindProcessingCount = next.cliOutput
+      .matchAll(/\[@tailwindcss\/postcss\] app\/globals.css/g)
+      .reduce((acc) => acc + 1, 0)
+    if (isNextDev) {
+      expect(tailwindProcessingCount).toBe(3) // dev: initial + hmr + hmr (revert)
+    } else {
+      expect(tailwindProcessingCount).toBe(1) // build
     }
   })
 })
