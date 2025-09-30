@@ -409,19 +409,15 @@ pub enum RequestMessage {
         request: RcStr,
     },
     #[serde(rename_all = "camelCase")]
-    ReadFile { file: RcStr },
+    TrackFileRead { file: RcStr },
 }
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum ResponseMessage {
-    Resolve {
-        path: RcStr,
-    },
-    ReadFile {
-        #[serde(with = "either::serde_untagged")]
-        content: Either<String, BytesBase64>,
-    },
+    Resolve { path: RcStr },
+    // Only used for tracking invalidations, no content is returned.
+    TrackFileRead {},
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, Debug, TraceRawVcs)]
@@ -616,22 +612,11 @@ impl EvaluateContext for WebpackLoaderContext {
                     );
                 }
             }
-            RequestMessage::ReadFile { file } => {
-                let FileContent::Content(content) = &*self.cwd.join(&file)?.read().await? else {
-                    bail!("ENOENT: no such file or directory");
-                };
-                let content = content.content();
-                if let Ok(content) = content.to_str() {
-                    Ok(ResponseMessage::ReadFile {
-                        content: Either::Left(content.into_owned()),
-                    })
-                } else {
-                    Ok(ResponseMessage::ReadFile {
-                        content: Either::Right(BytesBase64 {
-                            binary: content.to_bytes().to_vec(),
-                        }),
-                    })
-                }
+            RequestMessage::TrackFileRead { file } => {
+                // Ignore result, we read on the JS side again to prevent some IPC overhead. Still
+                // await the read though to cover at least one class of race conditions.
+                let _ = &*self.cwd.join(&file)?.read().await?;
+                Ok(ResponseMessage::TrackFileRead {})
             }
         }
     }

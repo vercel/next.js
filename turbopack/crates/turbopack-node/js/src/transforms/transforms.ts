@@ -38,7 +38,7 @@ export type IpcRequestMessage =
       request: string
     }
   | {
-      type: 'readFile'
+      type: 'trackFileRead'
       file: string
     }
 

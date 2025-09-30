@@ -15,6 +15,7 @@ import {
   toPath,
   type TransformIpc,
 } from './transforms'
+import fs from 'fs'
 
 export type IpcInfoMessage =
   | {
@@ -188,7 +189,7 @@ const transform = (
           fs: {
             readFile(p: string, encodingOrCb: any, maybeCb: any) {
               let encoding: BufferEncoding | undefined,
-                callback: (err?: Error, data?: string | Buffer) => void
+                callback: (err?: unknown, data?: string | Buffer) => void
               if (maybeCb == null) {
                 callback = encodingOrCb
                 encoding = undefined
@@ -201,42 +202,17 @@ const transform = (
 
               ipc
                 .sendRequest({
-                  type: 'readFile',
+                  type: 'trackFileRead',
                   file: relative(contextDir, pathResolve(p)),
                 })
-                .then((unknownResult) => {
-                  let result = unknownResult as {
-                    content: string | { binary: string }
-                  }
-                  if (result && result.content) {
-                    return result.content
-                  } else {
-                    throw Error(
-                      'Expected { content: ... } from readFile request'
-                    )
-                  }
-                })
                 .then(
-                  (content) => {
-                    if (
-                      typeof content === 'string' &&
-                      (encoding === 'utf8' || encoding === 'utf-8')
-                    ) {
-                      callback(undefined, content)
-                    } else {
-                      let buffer =
-                        typeof content === 'string'
-                          ? Buffer.from(content, 'utf-8')
-                          : Buffer.from(content.binary, 'base64')
-                      let result = encoding ? buffer.toString(encoding) : buffer
-                      callback(undefined, result)
-                    }
+                  () => {
+                    fs.readFile(p, encoding, callback)
                   },
-                  (err) => callback(err)
+                  (err) => {
+                    ipc.sendError(err)
+                  }
                 )
-                .catch((err) => {
-                  ipc.sendError(err)
-                })
             },
           },
           getResolve: (options: ResolveOptions) => {
