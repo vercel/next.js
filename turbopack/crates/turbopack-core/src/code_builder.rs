@@ -74,11 +74,11 @@ impl Code {
                 if let Some(debug_id) = &*debug_id {
                     // Test for `globalThis` first since it is available on all platforms released
                     // since 2018! so it will mostly work
-                    const GLOBALTHIS_EXPR: &str = r#""undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{{}}"#;
+                    const GLOBALTHIS_EXPR: &str = r#""undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{}"#;
                     const GLOBAL_VAR_NAME: &str = "_debugIds";
                     writeln!(
                         rope_builder,
-                        r#";!function(){{try {{ var e={GLOBALTHIS_EXPR},n=(new e.Error).stack;n&&((e.{GLOBAL_VAR_NAME}|| (e.{GLOBAL_VAR_NAME}={{}}))[n]="{debug_id}"}}catch(e){{}}}}();"#,
+                        r#";!function(){{try {{ var e={GLOBALTHIS_EXPR},n=(new e.Error).stack;n&&((e.{GLOBAL_VAR_NAME}|| (e.{GLOBAL_VAR_NAME}={{}}))[n]="{debug_id}")}}catch(e){{}}}}();"#,
                     )?;
                 }
 
