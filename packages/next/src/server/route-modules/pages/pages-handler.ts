@@ -400,7 +400,7 @@ export const getHandler = ({
                     })
                     span.updateName(name)
                   } else {
-                    span.updateName(`${method} ${req.url}`)
+                    span.updateName(`${method} ${srcPage}`)
                   }
                 })
             } catch (err: unknown) {
@@ -722,7 +722,7 @@ export const getHandler = ({
           tracer.trace(
             BaseServerSpan.handleRequest,
             {
-              spanName: `${method} ${req.url}`,
+              spanName: `${method} ${srcPage}`,
               kind: SpanKind.SERVER,
               attributes: {
                 'http.method': method,
