@@ -1719,15 +1719,12 @@ describe('app dir - basic', () => {
         expect(element.attribs.nonce).toBeTruthy()
       })
 
-      if (!isNextDev) {
-        const browser = await next.browser('/script-nonce')
-
-        await retry(async () => {
-          await browser.elementByCss('#get-order').click()
-          const order = JSON.parse(await browser.elementByCss('#order').text())
-          expect(order?.length).toBe(2)
-        })
-      }
+      const browser = await next.browser('/script-nonce')
+      await retry(async () => {
+        await browser.elementByCss('#get-order').click()
+        const order = JSON.parse(await browser.elementByCss('#order').text())
+        expect(order).toEqual([2, 1])
+      })
     })
 
     it('should pass manual `nonce`', async () => {
@@ -1745,15 +1742,12 @@ describe('app dir - basic', () => {
         expect(element.attribs.nonce).toBeTruthy()
       })
 
-      if (!isNextDev) {
-        const browser = await next.browser('/script-manual-nonce')
-
-        await retry(async () => {
-          await browser.elementByCss('#get-order').click()
-          const order = JSON.parse(await browser.elementByCss('#order').text())
-          expect(order?.length).toBe(2)
-        })
-      }
+      const browser = await next.browser('/script-manual-nonce')
+      await retry(async () => {
+        await browser.elementByCss('#get-order').click()
+        const order = JSON.parse(await browser.elementByCss('#order').text())
+        expect(order).toEqual([2, 1])
+      })
     })
 
     it('should pass manual `nonce` pages', async () => {
@@ -1771,14 +1765,12 @@ describe('app dir - basic', () => {
         expect(element.attribs.nonce).toBeTruthy()
       })
 
-      if (!isNextDev) {
-        await retry(async () => {
-          const browser = await next.browser('/pages-script-manual-nonce')
-          await browser.elementByCss('#get-order').click()
-          const order = JSON.parse(await browser.elementByCss('#order').text())
-          expect(order?.length).toBe(2)
-        })
-      }
+      const browser = await next.browser('/pages-script-manual-nonce')
+      await retry(async () => {
+        await browser.elementByCss('#get-order').click()
+        const order = JSON.parse(await browser.elementByCss('#order').text())
+        expect(order).toEqual([2, 1])
+      })
     })
 
     it('should pass nonce when using next/font', async () => {
