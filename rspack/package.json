@@ -27,7 +27,7 @@
     "build:debug": "pnpm run --filter @next/rspack-binding build:debug"
   },
   "dependencies": {
-    "@rspack/core": "1.5.7",
+    "@rspack/core": "1.5.8",
     "@next/rspack-binding": "workspace:*"
   }
 }
