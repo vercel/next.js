@@ -1,13 +1,10 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
-import { promisify } from 'util'
-import globOriginal from 'next/dist/compiled/glob'
+import { glob } from 'next/dist/compiled/glob'
 import { Sema } from 'next/dist/compiled/async-sema'
 import type { NextConfigComplete } from '../server/config-shared'
 import { getNextConfigEnv, getStaticEnv } from './static-env'
-
-const glob = promisify(globOriginal)
 
 export async function inlineStaticEnv({
   distDir,

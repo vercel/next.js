@@ -1,6 +1,6 @@
 const { relative, basename, resolve, join, dirname } = require('path')
 // eslint-disable-next-line import/no-extraneous-dependencies
-const glob = require('glob')
+const { globSync } = require('glob')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const fs = require('fs/promises')
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -41,7 +41,7 @@ export async function copy_styled_jsx_assets(task, opts) {
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
   // package is hoisted out of Next.js' node_modules or not
   const styledJsxPath = dirname(require.resolve('styled-jsx/package.json'))
-  const typeFiles = glob.sync('*.d.ts', { cwd: styledJsxPath })
+  const typeFiles = globSync('*.d.ts', { cwd: styledJsxPath })
   const outputDir = join(__dirname, 'dist/styled-jsx')
   // Separate type files into different folders to avoid conflicts between
   // dev dep `styled-jsx` and `next/dist/styled-jsx` for duplicated declare modules
@@ -139,7 +139,7 @@ externals['@babel/runtime'] = 'next/dist/compiled/@babel/runtime'
 export async function copy_babel_runtime(task, opts) {
   const runtimeDir = dirname(require.resolve('@babel/runtime/package.json'))
   const outputDir = join(__dirname, 'src/compiled/@babel/runtime')
-  const runtimeFiles = glob.sync('**/*', {
+  const runtimeFiles = globSync('**/*', {
     cwd: runtimeDir,
     ignore: ['node_modules/**/*'],
   })
@@ -461,7 +461,7 @@ export async function ncc_next_font(task, opts) {
   await rmrf(destDir)
   await fs.mkdir(destDir, { recursive: true })
 
-  const files = glob.sync('{dist,google,local}/**/*.{js,json,d.ts}', {
+  const files = globSync('{dist,google,local}/**/*.{js,json,d.ts}', {
     cwd: srcDir,
   })
 
@@ -562,7 +562,7 @@ export async function ncc_react_refresh_utils(task, opts) {
   await rmrf(destDir)
   await fs.mkdir(destDir, { recursive: true })
 
-  const files = glob.sync('**/*.{js,json,map}', { cwd: srcDir })
+  const files = globSync('**/*.{js,json,map}', { cwd: srcDir })
 
   for (const file of files) {
     if (file === 'tsconfig.json') continue

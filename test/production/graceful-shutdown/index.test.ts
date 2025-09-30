@@ -12,7 +12,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import fs from 'fs-extra'
-import glob from 'glob'
+import { globSync } from 'glob'
 import { LONG_RUNNING_MS } from './src/pages/api/long-running'
 import { once } from 'events'
 
@@ -58,7 +58,7 @@ describe('Graceful Shutdown', () => {
       'next.config.mjs': `export default { output: 'standalone' }`,
     }
 
-    for (const file of glob.sync('*', { cwd: appDir, dot: false })) {
+    for (const file of globSync('*', { cwd: appDir, dot: false })) {
       projectFiles[file] = new FileRef(join(appDir, file))
     }
 
@@ -82,7 +82,7 @@ describe('Graceful Shutdown', () => {
           await fs.remove(join(next.testDir, file))
         }
       }
-      const files = glob.sync('**/*', {
+      const files = globSync('**/*', {
         cwd: join(next.testDir, 'standalone/.next/server/pages'),
         dot: true,
       })

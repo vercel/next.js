@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import glob from 'glob'
+import { globSync } from 'glob'
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { isNextStart, NextInstance } from 'e2e-utils'
@@ -55,7 +55,7 @@ describe('Middleware Runtime', () => {
 
   if (isNextStart && !process.env.IS_TURBOPACK_TEST) {
     it('should match middleware of _next/static', async () => {
-      const cssChunks = glob.sync('*.css', {
+      const cssChunks = globSync('*.css', {
         cwd: join(next.testDir, '.next', 'static', 'css'),
       })
 

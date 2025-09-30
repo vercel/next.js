@@ -2,9 +2,7 @@
 
 const fs = require('fs')
 const path = require('path')
-const globOrig = require('glob')
-const { promisify } = require('util')
-const glob = promisify(globOrig)
+const { glob } = require('glob')
 
 function collectPaths(routes, paths = []) {
   for (const route of routes) {

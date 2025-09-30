@@ -1,9 +1,9 @@
 import { basename } from 'path'
-import glob from 'glob'
+import { globSync } from 'glob'
 import index from '@next/eslint-plugin-next'
 
 const getRuleNameFromRulePath = (path) => basename(path, '.js')
-const rulePaths = glob.sync('packages/eslint-plugin-next/dist/rules/*js', {
+const rulePaths = globSync('packages/eslint-plugin-next/dist/rules/*js', {
   absolute: true,
 })
 

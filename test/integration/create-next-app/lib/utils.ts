@@ -7,7 +7,7 @@
 import { execSync, spawn, SpawnOptions } from 'child_process'
 import { existsSync } from 'fs'
 import { join, resolve } from 'path'
-import glob from 'glob'
+import { globSync } from 'glob'
 import Conf from 'next/dist/compiled/conf'
 
 import {
@@ -86,7 +86,7 @@ export const projectFilesShouldExist = ({
     } catch (err) {
       require('console').error(
         `missing expected file ${file}`,
-        glob.sync('**/*', { cwd, ignore: '**/node_modules/**' }),
+        globSync('**/*', { cwd, ignore: '**/node_modules/**' }),
         files
       )
       throw err
@@ -106,7 +106,7 @@ export const projectFilesShouldNotExist = ({
     } catch (err) {
       require('console').error(
         `unexpected file present ${file}`,
-        glob.sync('**/*', { cwd, ignore: '**/node_modules/**' }),
+        globSync('**/*', { cwd, ignore: '**/node_modules/**' }),
         files
       )
       throw err

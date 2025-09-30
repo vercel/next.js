@@ -1,10 +1,9 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { promisify } from 'util'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import globOrig from 'glob'
+import { glob } from 'glob'
 import {
   assertHasRedbox,
   check,
@@ -19,8 +18,6 @@ import {
   startStaticServer,
   stopApp,
 } from 'next-test-utils'
-
-const glob = promisify(globOrig)
 export const appDir = join(__dirname, '..')
 export const distDir = join(appDir, '.next')
 export const exportDir = join(appDir, 'out')

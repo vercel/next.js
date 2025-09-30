@@ -1,6 +1,5 @@
 /* eslint-env jest */
-import globOrigig from 'glob'
-import { promisify } from 'util'
+import { glob } from 'glob'
 import { join } from 'path'
 import {
   killApp,
@@ -10,8 +9,6 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 import fs from 'fs-extra'
-
-const glob = promisify(globOrigig)
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort

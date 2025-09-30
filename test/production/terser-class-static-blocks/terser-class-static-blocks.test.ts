@@ -1,4 +1,4 @@
-import glob from 'glob'
+import { globSync } from 'glob'
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
@@ -16,7 +16,7 @@ describe('terser-class-static-blocks', () => {
   if (!isNextDeploy) {
     it('should have stripped away all comments', async () => {
       const chunksDir = path.join(next.testDir, '.next/static')
-      const chunks = glob.sync('**/*.js', {
+      const chunks = globSync('**/*.js', {
         cwd: chunksDir,
       })
 

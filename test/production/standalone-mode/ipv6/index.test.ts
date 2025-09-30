@@ -1,6 +1,6 @@
 import { NextInstance, createNext } from 'e2e-utils'
 import fs from 'fs-extra'
-import glob from 'glob'
+import { globSync } from 'glob'
 import {
   findPort,
   initNextServerScript,
@@ -32,7 +32,7 @@ describe('standalone mode: ipv6 hostname', () => {
         console.log('removed', file)
       }
     }
-    const files = glob.sync('**/*', {
+    const files = globSync('**/*', {
       cwd: join(next.testDir, 'standalone/.next/server/pages'),
       dot: true,
     })

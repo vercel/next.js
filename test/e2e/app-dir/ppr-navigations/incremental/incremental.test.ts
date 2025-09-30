@@ -1,14 +1,11 @@
 import { NextInstance, nextTestSetup } from 'e2e-utils'
 import { links, locales } from './components/page'
-import glob from 'glob'
-import { promisify } from 'node:util'
+import { glob } from 'glob'
 import { waitForHydration } from 'development-sandbox'
 import { setTimeout } from 'node:timers/promises'
 
-const globp = promisify(glob)
-
 async function getDotNextFiles(next: NextInstance): Promise<Array<string>> {
-  const files = await globp('**/.next/**/*', {
+  const files = await glob('**/.next/**/*', {
     cwd: next.testDir,
     absolute: true,
   })

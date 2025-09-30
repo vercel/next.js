@@ -1,6 +1,5 @@
-import globOrig from 'glob'
+import { glob } from 'glob'
 import cheerio from 'cheerio'
-import { promisify } from 'node:util'
 import { join } from 'node:path'
 import { nextTestSetup } from 'e2e-utils'
 import {
@@ -11,8 +10,6 @@ import {
   waitFor,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
-
-const glob = promisify(globOrig)
 
 describe('app-dir static/dynamic handling', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =

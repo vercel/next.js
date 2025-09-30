@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import url from 'url'
-import glob from 'glob'
+import { globSync } from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -58,7 +58,7 @@ export function runTests(ctx) {
   }
 
   it('should 404 for locale prefixed static assets correctly', async () => {
-    const assets = glob.sync('**/*.js', {
+    const assets = globSync('**/*.js', {
       cwd: join(ctx.appDir, '.next/static'),
     })
 

@@ -1,7 +1,7 @@
 //@ts-check
 
 const path = require('path')
-const _glob = require('glob')
+const { glob } = require('glob')
 const { existsSync } = require('fs')
 const fsp = require('fs/promises')
 const { createClient } = require('@vercel/kv')
@@ -9,7 +9,6 @@ const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
-const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')

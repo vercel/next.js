@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import glob from 'glob'
+import { globSync } from 'glob'
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -89,7 +89,7 @@ describe('Non-Standard NODE_ENV', () => {
           },
         })
 
-        const staticFiles = glob.sync('**/*.js', {
+        const staticFiles = globSync('**/*.js', {
           cwd: join(appDir, '.next/static'),
         })
         expect(staticFiles.length).toBeGreaterThan(0)

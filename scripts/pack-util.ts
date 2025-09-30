@@ -5,11 +5,8 @@ import {
   ExecSyncOptionsWithStringEncoding,
 } from 'child_process'
 import { existsSync } from 'fs'
-import globOrig from 'glob'
+import { glob } from 'glob'
 import { join } from 'path'
-import { promisify } from 'util'
-
-export const glob = promisify(globOrig)
 
 export const NEXT_DIR = join(__dirname, '..')
 

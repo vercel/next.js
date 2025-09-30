@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
 import fs, { existsSync } from 'fs-extra'
-import globOriginal from 'glob'
+import { glob } from 'glob'
 import {
   renderViaHTTP,
   waitFor,
@@ -20,10 +20,7 @@ import path, { join, sep } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import { promisify } from 'util'
 import { nextTestSetup } from 'e2e-utils'
-
-const glob = promisify(globOriginal)
 
 if (process.env.NEXT_TEST_WASM) {
   jest.setTimeout(120 * 1000)

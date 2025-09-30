@@ -1,4 +1,4 @@
-import glob from 'glob'
+import { globSync } from 'glob'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -61,7 +61,7 @@ describe('required server files app router', () => {
         console.log('removed', file)
       }
     }
-    const files = glob.sync('**/*', {
+    const files = globSync('**/*', {
       cwd: join(next.testDir, 'standalone/.next/server/pages'),
       dot: true,
     })

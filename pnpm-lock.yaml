@@ -174,9 +174,6 @@ importers:
       '@types/fs-extra':
         specifier: 8.1.0
         version: 8.1.0
-      '@types/glob':
-        specifier: 7.1.1
-        version: 7.1.1
       '@types/html-validator':
         specifier: 5.0.3
         version: 5.0.3
@@ -346,8 +343,8 @@ importers:
         specifier: 3.1.1
         version: 3.1.1
       glob:
-        specifier: 7.1.6
-        version: 7.1.6
+        specifier: 10.4.5
+        version: 10.4.5
       gzip-size:
         specifier: 5.1.1
         version: 5.1.1
@@ -1204,9 +1201,6 @@ importers:
       '@types/fresh':
         specifier: 0.5.0
         version: 0.5.0
-      '@types/glob':
-        specifier: 7.1.1
-        version: 7.1.1
       '@types/jsonwebtoken':
         specifier: 9.0.0
         version: 9.0.0
@@ -1391,8 +1385,8 @@ importers:
         specifier: 0.5.2
         version: 0.5.2
       glob:
-        specifier: 7.1.7
-        version: 7.1.7
+        specifier: 10.4.5
+        version: 10.4.5
       gzip-size:
         specifier: 5.1.1
         version: 5.1.1
@@ -5977,9 +5971,6 @@ packages:
   '@types/estree@1.0.7':
     resolution: {integrity: sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ==}
 
-  '@types/events@3.0.0':
-    resolution: {integrity: sha512-EaObqwIvayI5a8dCzhFrjKzVwKLxjoG9T6Ppd5CEo07LRKfQ8Yokw54r5+Wq7FaBQ+yXRvQAYPrHwya1/UFt9g==}
-
   '@types/express-serve-static-core@4.17.33':
     resolution: {integrity: sha512-TPBqmR/HRYI3eC2E5hmiivIzv+bidAfXofM+sbonAGvyDhySGw9/PQZFt2BLOrjUUR++4eJVpx6KnLQK1Fk9tA==}
 
@@ -6001,9 +5992,6 @@ packages:
 
   '@types/fs-extra@8.1.0':
     resolution: {integrity: sha512-UoOfVEzAUpeSPmjm7h1uk5MH6KZma2z2O7a75onTGjnNvAvMVrPzPL/vBbT65iIGHWj6rokwfmYcmxmlSf2uwg==}
-
-  '@types/glob@7.1.1':
-    resolution: {integrity: sha512-1Bh06cbWJUHMC97acuD6UMG29nMt0Aqz1vF3guLfG+kHHJhy3AyohZFFxYk2f7Q1SQIrNwvncxAE0N/9s70F2w==}
 
   '@types/graceful-fs@4.1.9':
     resolution: {integrity: sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ==}
@@ -7121,9 +7109,6 @@ packages:
 
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
-
-  balanced-match@1.0.0:
-    resolution: {integrity: sha512-9Y0g0Q8rmSt+H33DfKv7FOc3v+iRI+o1lbzt8jGcIosYW37IIW/2XVYq5NPdmaD5NQ59Nk26Kl/vZbwW9Fr8vg==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -10196,16 +10181,8 @@ packages:
     engines: {node: 20 || >=22}
     hasBin: true
 
-  glob@7.1.6:
-    resolution: {integrity: sha512-LwaxwyZ72Lk7vZINtNNrywX0ZuLyStrdDtabefZKAY5ZGJhVtgdznluResxNmPitE0SAO+O26sWTHeKSI2wMBA==}
-    deprecated: Glob versions prior to v9 are no longer supported
-
   glob@7.1.7:
     resolution: {integrity: sha512-OvD9ENzPLbegENnYP5UUfJIirTg4+XwMWGaQfQTY0JenxNvvIKP3U3/tAQSPIu/lHxXYSZmpXlUHeqAIdKzBLQ==}
-    deprecated: Glob versions prior to v9 are no longer supported
-
-  glob@7.2.3:
-    resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
     deprecated: Glob versions prior to v9 are no longer supported
 
   global-dirs@2.1.0:
@@ -12192,10 +12169,6 @@ packages:
 
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
-
-  lru-cache@11.1.0:
-    resolution: {integrity: sha512-QIXZUBJUx+2zHUdQujWejBkcD9+cs94tLn0+YL8UrCh+D5sCXZ4c7LaEH48pNwRY3MLDgqUFyhlCyjJPf1WP0A==}
-    engines: {node: 20 || >=22}
 
   lru-cache@11.2.1:
     resolution: {integrity: sha512-r8LA6i4LP4EeWOhqBaZZjDWwehd1xUJPCJd9Sv300H0ZmcUER4+JPh7bqqZeqs1o5pgtgvXm+d9UGrB5zZGDiQ==}
@@ -14761,6 +14734,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -22888,8 +22862,6 @@ snapshots:
 
   '@types/estree@1.0.7': {}
 
-  '@types/events@3.0.0': {}
-
   '@types/express-serve-static-core@4.17.33':
     dependencies:
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
@@ -22921,12 +22893,6 @@ snapshots:
 
   '@types/fs-extra@8.1.0':
     dependencies:
-      '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
-
-  '@types/glob@7.1.1':
-    dependencies:
-      '@types/events': 3.0.0
-      '@types/minimatch': 3.0.3
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
 
   '@types/graceful-fs@4.1.9':
@@ -24171,7 +24137,7 @@ snapshots:
 
   axios@1.9.0:
     dependencies:
-      follow-redirects: 1.15.9(debug@4.1.1)
+      follow-redirects: 1.15.9
       form-data: 4.0.0
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
@@ -24304,8 +24270,6 @@ snapshots:
   bail@1.0.4: {}
 
   bail@2.0.2: {}
-
-  balanced-match@1.0.0: {}
 
   balanced-match@1.0.2: {}
 
@@ -27858,6 +27822,8 @@ snapshots:
 
   fn-annotate@1.2.0: {}
 
+  follow-redirects@1.15.9: {}
+
   follow-redirects@1.15.9(debug@4.1.1):
     optionalDependencies:
       debug: 4.1.1
@@ -28344,30 +28310,12 @@ snapshots:
       package-json-from-dist: 1.0.0
       path-scurry: 2.0.0
 
-  glob@7.1.6:
-    dependencies:
-      fs.realpath: 1.0.0
-      inflight: 1.0.6
-      inherits: 2.0.4
-      minimatch: 3.1.2
-      once: 1.4.0
-      path-is-absolute: 1.0.1
-
   glob@7.1.7:
     dependencies:
       fs.realpath: 1.0.0
       inflight: 1.0.6
       inherits: 2.0.4
-      minimatch: 3.1.2
-      once: 1.4.0
-      path-is-absolute: 1.0.1
-
-  glob@7.2.3:
-    dependencies:
-      fs.realpath: 1.0.0
-      inflight: 1.0.6
-      inherits: 2.0.4
-      minimatch: 3.1.2
+      minimatch: 3.0.4
       once: 1.4.0
       path-is-absolute: 1.0.1
 
@@ -30806,8 +30754,6 @@ snapshots:
 
   lru-cache@10.4.3: {}
 
-  lru-cache@11.1.0: {}
-
   lru-cache@11.2.1: {}
 
   lru-cache@4.1.5:
@@ -33050,7 +32996,7 @@ snapshots:
 
   path-scurry@2.0.0:
     dependencies:
-      lru-cache: 11.1.0
+      lru-cache: 11.2.1
       minipass: 7.1.2
 
   path-to-regexp@0.1.12: {}
@@ -33787,7 +33733,7 @@ snapshots:
 
   postcss-selector-not@5.0.0(postcss@8.4.31):
     dependencies:
-      balanced-match: 1.0.0
+      balanced-match: 1.0.2
       postcss: 8.4.31
 
   postcss-selector-parser@3.1.1:
@@ -35067,7 +35013,7 @@ snapshots:
 
   rimraf@3.0.2:
     dependencies:
-      glob: 7.2.3
+      glob: 7.1.7
 
   rimraf@5.0.9:
     dependencies:
