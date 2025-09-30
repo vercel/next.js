@@ -83,7 +83,6 @@ import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../shared/lib/entry-constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { Bundler, finalizeBundlerFromConfig } from '../lib/bundler'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
@@ -902,7 +901,7 @@ export default async function build(
   runLint = true,
   noMangling = false,
   appDirOnly = false,
-  bundler = Bundler.Turbopack,
+  isTurbopack = false,
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined
 ): Promise<void> {
@@ -915,6 +914,7 @@ export default async function build(
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
+      isTurboBuild: String(isTurbopack),
       version: process.env.__NEXT_VERSION as string,
     })
 
@@ -949,10 +949,6 @@ export default async function build(
         )
       loadedConfig = config
 
-      // Reading the config can modify environment variables that influence the bundler selection.
-      bundler = finalizeBundlerFromConfig(bundler)
-      nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
-
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 
@@ -975,7 +971,7 @@ export default async function build(
       NextBuildContext.buildId = buildId
 
       if (experimentalBuildMode === 'generate-env') {
-        if (bundler === Bundler.Turbopack) {
+        if (isTurbopack) {
           Log.warn('generate-env is not needed with turbopack')
           process.exit(0)
         }
@@ -1402,7 +1398,7 @@ export default async function build(
         })
 
       // Turbopack already handles conflicting app and page routes.
-      if (bundler !== Bundler.Turbopack) {
+      if (!isTurbopack) {
         const numConflictingAppPaths = conflictingAppPagePaths.length
         if (mappedAppPages && numConflictingAppPaths > 0) {
           Log.error(
@@ -1685,7 +1681,7 @@ export default async function build(
 
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
-        if (bundler === Bundler.Turbopack) {
+        if (isTurbopack) {
           const {
             duration: compilerDuration,
             shutdownPromise: p,
@@ -1799,7 +1795,7 @@ export default async function build(
 
             telemetry.record(
               eventBuildCompleted(pagesPaths, {
-                bundler: getBundlerForTelemetry(bundler),
+                bundler: getBundlerForTelemetry(isTurbopack),
                 durationInSeconds,
                 totalAppPagesCount,
               })
@@ -1815,7 +1811,7 @@ export default async function build(
 
             telemetry.record(
               eventBuildCompleted(pagesPaths, {
-                bundler: getBundlerForTelemetry(bundler),
+                bundler: getBundlerForTelemetry(isTurbopack),
                 durationInSeconds: compilerDuration,
                 totalAppPagesCount,
               })
@@ -2433,10 +2429,7 @@ export default async function build(
         )
         // If there's edge routes, append the edge instrumentation hook
         // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
-        if (
-          bundler !== Bundler.Turbopack &&
-          (edgeRuntimeAppCount || edgeRuntimePagesCount)
-        ) {
+        if (!isTurbopack && (edgeRuntimeAppCount || edgeRuntimePagesCount)) {
           instrumentationHookEntryFiles.push(
             path.join(
               SERVER_DIRECTORY,
@@ -2489,7 +2482,7 @@ export default async function build(
               path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              ...(bundler !== Bundler.Turbopack
+              ...(!isTurbopack
                 ? [
                     path.join(
                       SERVER_DIRECTORY,
@@ -2524,7 +2517,7 @@ export default async function build(
                     ),
                   ]
                 : []),
-              ...(pagesDir && bundler !== Bundler.Turbopack
+              ...(pagesDir && !isTurbopack
                 ? [
                     DYNAMIC_CSS_MANIFEST + '.json',
                     path.join(SERVER_DIRECTORY, DYNAMIC_CSS_MANIFEST + '.js'),
@@ -2576,7 +2569,7 @@ export default async function build(
             ],
           }
 
-          if (bundler === Bundler.Turbopack) {
+          if (isTurbopack) {
             await writeManifest(
               path.join(
                 distDir,
@@ -2592,11 +2585,7 @@ export default async function build(
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
-      if (
-        bundler !== Bundler.Turbopack &&
-        !isGenerateMode &&
-        !buildTracesPromise
-      ) {
+      if (!isTurbopack && !isGenerateMode && !buildTracesPromise) {
         buildTracesPromise = nextBuildSpan
           .traceChild('collect-build-traces')
           .traceAsyncFn(() => {
@@ -2737,7 +2726,7 @@ export default async function build(
 
       // we don't need to inline for turbopack build as
       // it will handle it's own caching separate of compile
-      if (isGenerateMode && bundler !== Bundler.Turbopack) {
+      if (isGenerateMode && !isTurbopack) {
         Log.info('Inlining static env ...')
 
         await nextBuildSpan
@@ -4143,7 +4132,7 @@ export default async function build(
     if (telemetry) {
       telemetry.record(
         eventBuildFailed({
-          bundler: getBundlerForTelemetry(bundler),
+          bundler: getBundlerForTelemetry(isTurbopack),
           errorCode: getErrorCodeForTelemetry(e),
           durationInSeconds: Math.floor((Date.now() - buildStartTime) / 1000),
         })
@@ -4164,7 +4153,7 @@ export default async function build(
         mode: 'build',
         projectDir: dir,
         distDir: loadedConfig.distDir,
-        isTurboSession: bundler === Bundler.Turbopack,
+        isTurboSession: isTurbopack,
         sync: true,
       })
     }
@@ -4178,17 +4167,16 @@ function errorFromUnsupportedSegmentConfig(): never {
   process.exit(1)
 }
 
-function getBundlerForTelemetry(bundler: Bundler) {
-  switch (bundler) {
-    case Bundler.Turbopack:
-      return 'turbopack'
-    case Bundler.Rspack:
-      return 'rspack'
-    case Bundler.Webpack:
-      return 'webpack'
-    default:
-      throw new Error(`unknown bundler: ${bundler}`)
+function getBundlerForTelemetry(isTurbopack: boolean) {
+  if (isTurbopack) {
+    return 'turbopack'
   }
+
+  if (process.env.NEXT_RSPACK) {
+    return 'rspack'
+  }
+
+  return 'webpack'
 }
 
 function getErrorCodeForTelemetry(err: unknown) {

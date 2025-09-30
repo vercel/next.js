@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev-turbopack": "next dev --turbopack",
-    "dev-webpack": "next dev --webpack",
+    "dev-webpack": "next dev",
     "build-turbopack": "next build --turbopack",
-    "build-webpack": "next build --webpack",
+    "build-webpack": "next build",
     "start-turbopack": "next start",
     "start-webpack": "next start",
     "build-application": "next build",

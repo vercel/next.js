@@ -502,7 +502,6 @@ jobs:
 
         export NEXT_TEST_MODE=start
         export NEXT_TEST_WASM=true
-        export IS_WEBPACK_TEST=1
         node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
           test/e2e/streaming-ssr/index.test.ts
@@ -712,7 +711,7 @@ jobs:
 
     secrets: inherit
 
-  test-dev: # TODO: rename to include webpack
+  test-dev:
     name: test dev
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -729,7 +728,6 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
@@ -754,10 +752,8 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      # Should this be using turbopack? a variation?
       afterBuild: |
         export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
 
         node run-tests.js \
           test/e2e/app-dir/app/index.test.ts \
@@ -784,7 +780,6 @@ jobs:
     with:
       nodeVersion: 20.9.0
       afterBuild: |
-        export IS_WEBPACK_TEST=1
         node run-tests.js \
           --concurrency 4 \
           test/production/pages-dir/production/test/index.test.ts \
@@ -813,7 +808,6 @@ jobs:
     with:
       afterBuild: |
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
 
         node run-tests.js --type production \
           test/e2e/app-dir/app/index.test.ts \
@@ -842,7 +836,6 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
@@ -882,7 +875,6 @@ jobs:
     with:
       nodeVersion: 20.9.0
       afterBuild: |
-        export IS_WEBPACK_TEST=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         node run-tests.js \
@@ -904,7 +896,6 @@ jobs:
 
         # these all run without concurrency because they're heavier
         export TEST_CONCURRENCY=1
-        export IS_WEBPACK_TEST=1
 
         BROWSER_NAME=firefox node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts
@@ -932,7 +923,6 @@ jobs:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_PPR=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json"
-        export IS_WEBPACK_TEST=1
 
         node run-tests.js \
           --timings \
@@ -955,7 +945,6 @@ jobs:
         export __NEXT_EXPERIMENTAL_PPR=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json"
         export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
 
         node run-tests.js \
           --timings \
@@ -979,7 +968,6 @@ jobs:
         export __NEXT_EXPERIMENTAL_PPR=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json"
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
 
         node run-tests.js \
           --timings \
@@ -1002,7 +990,6 @@ jobs:
         export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
-        export IS_WEBPACK_TEST=1
 
         node run-tests.js \
           --timings \
@@ -1027,7 +1014,6 @@ jobs:
         export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export __NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD=true
-        export IS_WEBPACK_TEST=1
 
         node run-tests.js \
           --timings \
@@ -1052,7 +1038,6 @@ jobs:
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
 
         node run-tests.js \
           --timings \
