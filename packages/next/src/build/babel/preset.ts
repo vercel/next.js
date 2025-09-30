@@ -145,7 +145,7 @@ export default (
   const isStandalone = api.caller(
     // NOTE: `transformMode` may be undefined if the user configured `babel-loader` themselves. In
     // this case, we should assume we're in 'default' mode.
-    (caller: any) => caller.transformMode === 'standalone'
+    (caller: any) => !!caller && caller.transformMode === 'standalone'
   )
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
 

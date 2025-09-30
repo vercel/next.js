@@ -35,11 +35,13 @@
 import {
   dispatcher,
   getSerializedOverlayState,
+  getSegmentTrieData,
 } from 'next/dist/compiled/next-devtools'
 import { register } from '../../../../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from '../../../../shared/lib/format-webpack-messages'
+import type { McpPageMetadataResponse } from '../../../../shared/lib/mcp-page-metadata-types'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   HMR_MESSAGE_SENT_TO_SERVER,
@@ -409,6 +411,17 @@ function processMessage(message: HmrMessageSentToBrowser) {
       }
       sendMessage(JSON.stringify(response))
       break
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA: {
+      const segmentTrieData = getSegmentTrieData()
+      const response: McpPageMetadataResponse = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE,
+        requestId: message.requestId,
+        segmentTrieData,
+        url: window.location.href,
+      }
+      sendMessage(JSON.stringify(response))
+      return
     }
     default:
       message satisfies never

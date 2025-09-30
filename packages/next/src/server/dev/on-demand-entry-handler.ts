@@ -47,6 +47,7 @@ import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -1009,6 +1010,15 @@ export function onDemandEntryHandler({
             handleErrorStateResponse(
               parsedData.requestId,
               parsedData.errorState,
+              parsedData.url
+            )
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE
+          ) {
+            handlePageMetadataResponse(
+              parsedData.requestId,
+              parsedData.segmentTrieData,
               parsedData.url
             )
           }

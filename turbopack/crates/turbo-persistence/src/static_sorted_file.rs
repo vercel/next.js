@@ -330,6 +330,7 @@ impl StaticSortedFile {
     }
 
     /// Reads a block from the file.
+    #[tracing::instrument(level = "info", name = "reading database block", skip_all)]
     fn read_block(
         &self,
         block_index: u16,

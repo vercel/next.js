@@ -751,8 +751,7 @@ pub async fn compute_module_batches(
         // Create the batch groups by grouping batches with the same chunk groups
         let mut batch_groups: FxHashMap<_, Vec<_>> = FxHashMap::default();
         for (i, pre_batch) in pre_batches.batches.iter().enumerate() {
-            let key =
-                BuildHasherDefault::<FxHasher>::default().prehash(pre_batch.chunk_groups.clone());
+            let key = BuildHasherDefault::<FxHasher>::default().prehash(&pre_batch.chunk_groups);
             let batch = batches[i];
             batch_groups.entry(key).or_default().push(batch);
         }
@@ -761,7 +760,7 @@ pub async fn compute_module_batches(
                 .module_chunk_groups
                 .get(&module)
                 .context("all modules need to have chunk group info")?;
-            let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups.clone());
+            let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups);
             batch_groups
                 .entry(key)
                 .or_default()

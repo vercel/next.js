@@ -19,7 +19,10 @@ export default function isError(err: unknown): err is NextError {
   )
 }
 
-function safeStringify(obj: any) {
+/**
+ * This is a safe stringify function that handles circular references.
+ */
+export function safeStringify(obj: any) {
   const seen = new WeakSet()
 
   return JSON.stringify(obj, (_key, value) => {

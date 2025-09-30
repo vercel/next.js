@@ -9134,6 +9134,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "auto-hash-map",
+ "codspeed-criterion-compat",
  "concurrent-queue",
  "dashmap 6.1.0",
  "either",
@@ -9563,6 +9564,7 @@ dependencies = [
  "turbo-tasks-hash",
  "turbo-tasks-testing",
  "turbo-unix-path",
+ "url",
  "urlencoding",
 ]
 

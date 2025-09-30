@@ -15,23 +15,12 @@ import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
 } from '../../dev/hot-reloader-types'
-import { nanoid } from 'next/dist/compiled/nanoid'
-import type { OverlayStateWithUrl } from '../../../shared/lib/mcp-error-types'
 import { formatErrors } from './utils/format-errors'
-
-// These promises are created when the MCP endpoint is called but before the browser has responded
-// with its error state. They are resolved when the browser has responded with its error state
-// or when the timeout is reached.
-const pendingRequests = new Map<
-  string,
-  {
-    responses: OverlayStateWithUrl[]
-    expectedCount: number
-    resolve: (value: OverlayStateWithUrl[]) => void
-    reject: (reason?: any) => void
-    timeout: NodeJS.Timeout
-  }
->()
+import {
+  createBrowserRequest,
+  handleBrowserPageResponse,
+  DEFAULT_BROWSER_REQUEST_TIMEOUT_MS,
+} from './utils/browser-communication'
 
 export function registerGetErrorsTool(
   server: McpServer,
@@ -59,49 +48,17 @@ export function registerGetErrorsTool(
           }
         }
 
-        const requestId = `mcp-error-state-${nanoid()}`
-
-        // The promise will be resolved when all active browser sessions have responded
-        // with their respective error states. We will resolve the promise after 5 seconds
-        // with whatever responses we have received so far.
-        const responsePromise = new Promise<OverlayStateWithUrl[]>(
-          (resolve, reject) => {
-            const timeout = setTimeout(() => {
-              const pending = pendingRequests.get(requestId)
-              if (pending && pending.responses.length > 0) {
-                resolve(pending.responses)
-              } else {
-                reject(
-                  new Error(
-                    'Timeout waiting for error state from frontend. The browser may not be responding to HMR messages.'
-                  )
-                )
-              }
-              pendingRequests.delete(requestId)
-            }, 5000)
-            pendingRequests.set(requestId, {
-              responses: [],
-              expectedCount: connectionCount,
-              resolve,
-              reject,
-              timeout,
-            })
-          }
+        const responses = await createBrowserRequest<OverlayState>(
+          HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE,
+          sendHmrMessage,
+          getActiveConnectionCount,
+          DEFAULT_BROWSER_REQUEST_TIMEOUT_MS
         )
 
-        // When browser receives this HMR message, it will send back a response with
-        // its client-side error state, which will be handled by `handleErrorStateResponse`.
-        sendHmrMessage({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE,
-          requestId,
-        })
-
-        const clientStates = await responsePromise
-
         const errorsByUrl = new Map<string, OverlayState>()
-        for (const state of clientStates) {
-          if (state.errorState) {
-            errorsByUrl.set(state.url, state.errorState)
+        for (const response of responses) {
+          if (response.data) {
+            errorsByUrl.set(response.url, response.data)
           }
         }
 
@@ -115,9 +72,9 @@ export function registerGetErrorsTool(
               {
                 type: 'text',
                 text:
-                  clientStates.length === 0
+                  responses.length === 0
                     ? 'No browser sessions responded.'
-                    : `No errors detected in ${clientStates.length} browser session(s).`,
+                    : `No errors detected in ${responses.length} browser session(s).`,
               },
             ],
           }
@@ -155,19 +112,9 @@ export function handleErrorStateResponse(
   errorState: OverlayState | null,
   url: string | undefined
 ) {
-  if (!url) {
-    throw new Error(
-      'URL is required in MCP error state response. This is a bug in Next.js.'
-    )
-  }
-
-  const pending = pendingRequests.get(requestId)
-  if (pending) {
-    pending.responses.push({ url, errorState })
-    if (pending.responses.length >= pending.expectedCount) {
-      clearTimeout(pending.timeout)
-      pending.resolve(pending.responses)
-      pendingRequests.delete(requestId)
-    }
-  }
+  handleBrowserPageResponse<OverlayState | null>(
+    requestId,
+    errorState,
+    url || ''
+  )
 }

@@ -14,7 +14,7 @@ describe('DevErrorOverlay', () => {
 
     const errorCode = await browser.elementByCss('[data-nextjs-error-code]')
     const code = await errorCode.getAttribute('data-nextjs-error-code')
-    expect(code).toBe('E127')
+    expect(code).toBe('E838')
   })
 
   it('sends feedback when clicking helpful button', async () => {

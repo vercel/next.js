@@ -11,6 +11,7 @@ import {
 import {
   dispatcher,
   getSerializedOverlayState,
+  getSegmentTrieData,
 } from 'next/dist/compiled/next-devtools'
 import { ReplaySsrOnlyErrors } from '../../../../next-devtools/userspace/app/errors/replay-ssr-only-errors'
 import { AppDevOverlayErrorBoundary } from '../../../../next-devtools/userspace/app/app-dev-overlay-error-boundary'
@@ -26,6 +27,7 @@ import type {
   TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import type { McpErrorStateResponse } from '../../../../shared/lib/mcp-error-types'
+import type { McpPageMetadataResponse } from '../../../../shared/lib/mcp-page-metadata-types'
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
@@ -482,6 +484,17 @@ export function processMessage(
         event: HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE,
         requestId: message.requestId,
         errorState,
+        url: window.location.href,
+      }
+      sendMessage(JSON.stringify(response))
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA: {
+      const segmentTrieData = getSegmentTrieData()
+      const response: McpPageMetadataResponse = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE,
+        requestId: message.requestId,
+        segmentTrieData,
         url: window.location.href,
       }
       sendMessage(JSON.stringify(response))

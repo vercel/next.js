@@ -9,7 +9,7 @@ import {
 import stripAnsi from 'strip-ansi'
 
 const getExpectedErrorMessage = (route: string) =>
-  `Route ${route} used "searchParams" inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await "searchParams" outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+  `Route ${route} used \`searchParams\` inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \`searchParams\` outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
 
 describe('use-cache-search-params', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
