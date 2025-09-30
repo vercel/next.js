@@ -85,6 +85,12 @@ interface SharedRouteFields {
      * region preferences to the provider being used
      */
     preferredRegion?: string | string[]
+
+    /**
+     * env is the environment variables to expose, this is only
+     * populated for edge runtime currently
+     */
+    env?: Record<string, string>
   }
 }
 
@@ -385,9 +391,9 @@ export async function handleBuildComplete({
       const exportFiles = await recursiveReadDir(configOutDir)
 
       for (const file of exportFiles) {
-        const pathname = file.endsWith('.html')
-          ? file.replace(/\.html$/, '')
-          : file
+        const pathname = (
+          file.endsWith('.html') ? file.replace(/\.html$/, '') : file
+        ).replace(/\\/g, '/')
 
         outputs.staticFiles.push({
           id: file,
@@ -507,12 +513,14 @@ export async function handleBuildComplete({
           ),
           assets: {},
           wasmAssets: {},
-          config:
-            type === AdapterOutputType.MIDDLEWARE
+          config: {
+            ...(type === AdapterOutputType.MIDDLEWARE
               ? {
                   matchers: page.matchers,
                 }
-              : {},
+              : {}),
+            env: page.env,
+          },
         }
 
         function handleFile(file: string) {
