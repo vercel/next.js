@@ -109,6 +109,11 @@ impl StaticSortedFile {
         let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Random)?;
+        #[cfg(unix)]
+        {
+            let offset = meta.block_offsets_start(mmap.len());
+            mmap.advise_range(memmap2::Advice::WillNeed, offset, mmap.len() - offset)?;
+        }
         let file = Self { meta, mmap };
         Ok(file)
     }
@@ -397,6 +402,12 @@ impl StaticSortedFile {
                 self.meta.blocks_start()
             );
         }
+        #[cfg(unix)]
+        self.mmap.advise_range(
+            memmap2::Advice::WillNeed,
+            block_start,
+            block_end - block_start,
+        )?;
         let uncompressed_length = (&self.mmap[block_start..block_start + 4]).read_u32::<BE>()?;
         let block = &self.mmap[block_start + 4..block_end];
         Ok((uncompressed_length, block))
