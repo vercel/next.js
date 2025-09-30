@@ -7827,12 +7827,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-experimental-d15d7fd7-20250929" !== isomorphicReactPackageVersion)
+  if ("19.2.0-experimental-ef889445-20250930" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.2.0-experimental-d15d7fd7-20250929"
+        "19.2.0-experimental-ef889445-20250930"
       )
     );
 }
@@ -8087,4 +8087,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-d15d7fd7-20250929";
+exports.version = "19.2.0-experimental-ef889445-20250930";

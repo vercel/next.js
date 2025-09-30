@@ -1130,11 +1130,13 @@
             if ("string" === typeof value.command) return value.command;
             if (
               "object" === typeof value.request &&
+              null !== value.request &&
               "string" === typeof value.request.url
             )
               return value.request.url;
             if (
               "object" === typeof value.response &&
+              null !== value.response &&
               "string" === typeof value.response.url
             )
               return value.response.url;
@@ -1146,7 +1148,7 @@
               return String(value.id);
             if ("string" === typeof value.name) return value.name;
             var str = value.toString();
-            return str.startWith("[object ") ||
+            return str.startsWith("[object ") ||
               5 > str.length ||
               500 < str.length
               ? ""
@@ -4870,10 +4872,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-experimental-d15d7fd7-20250929",
+      version: "19.2.0-experimental-ef889445-20250930",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-experimental-d15d7fd7-20250929",
+      reconcilerVersion: "19.2.0-experimental-ef889445-20250930",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
