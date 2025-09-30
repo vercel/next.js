@@ -101,41 +101,16 @@ Some crawlers may label these responses as “soft 404s”. In the streaming cas
 
 If you need a 404 status, for compliance or analytics, ensure the resource exists before the response body is streamed, so that the server can set the HTTP status code.
 
+You can run this check in [`middleware`](/docs/app/api-reference/file-conventions/middleware) to rewrite missing slugs to a not-found route, or [produce a 404 response](/docs/app/api-reference/file-conventions/middleware#producing-a-response). Keep middleware checks fast, and avoid fetching full content there.
+
 <details>
 <summary>When is the response body streamed?</summary>
 
-The response body starts streaming when a Suspense fallback renders (for example, a `loading.tsx`) or when a Server Component suspends under a Suspense boundary. Place `notFound()` before those boundaries and before any `await` that may suspend.
+The response body starts streaming when a Suspense fallback renders (for example, a `loading.tsx`) or when a Server Component suspends under a `Suspense` boundary. Place `notFound()` before those boundaries and before any `await` that may suspend.
 
 To start streaming, the response headers must be set. This is why it is not possible to change the status code after streaming started.
 
 </details>
-
-Place a [`notFound`](/docs/app/api-reference/functions/not-found) guard as close to the top as possible in both [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and your page or layout component, and avoid being inside any Suspense boundary, for example a `loading.tsx`, when doing this check. This ensures a 404 can be set before streaming:
-
-```tsx filename="app/[slug]/page.tsx" switcher
-import { notFound } from 'next/navigation'
-import { getPost } from '@/lib/data'
-
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string }
-}) {
-  const post = await getPost(params.slug)
-  if (!post) notFound()
-  return { title: post.title }
-}
-
-export default async function Page({ params }: { params: { slug: string } }) {
-  const post = await getPost(params.slug)
-  if (!post) notFound()
-  return <article>{post.content}</article>
-}
-```
-
-In some cases, it’s not ideal to block on a full data fetch and you might still want to show a Suspense loading state. With a lightweight existence check (for example, a `HEAD` request or a minimal JSON like `{ exists: true }`), you can decide early whether to return a 404 status via [`notFound`](/docs/app/api-reference/functions/not-found) before any body bytes are sent, or proceed to stream the page and show the loading UI.
-
-You can run this check in [`middleware`](/docs/app/api-reference/file-conventions/middleware) to rewrite missing slugs to a not-found route, or [produce a 404 response](/docs/app/api-reference/file-conventions/middleware#producing-a-response). Keep middleware checks fast and cacheable, and avoid fetching full content there.
 
 ### Browser limits
 
