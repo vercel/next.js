@@ -354,9 +354,13 @@ function assignDefaultsAndValidate(
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.cacheComponents) {
       throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
-    } else if (result.experimental?.turbopackPersistentCaching) {
+    } else if (result.experimental?.turbopackPersistentCachingForDev) {
       throw new CanaryOnlyError({
-        feature: 'experimental.turbopackPersistentCaching',
+        feature: 'experimental.turbopackPersistentCachingForDev',
+      })
+    } else if (result.experimental?.turbopackPersistentCachingForBuild) {
+      throw new CanaryOnlyError({
+        feature: 'experimental.turbopackPersistentCachingForBuild',
       })
     }
   }
@@ -657,6 +661,13 @@ function assignDefaultsAndValidate(
     result,
     'outputFileTracingExcludes',
     'outputFileTracingExcludes',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'reactCompiler',
+    'reactCompiler',
     configFileName,
     silent
   )
@@ -1803,6 +1814,16 @@ function enforceExperimentalFeatures(
         'enabled by `__NEXT_EXPERIMENTAL_PPR`'
       )
     }
+  }
+
+  if (
+    process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.reactCompiler === undefined ||
+      (isDefaultConfig && !config.reactCompiler))
+  ) {
+    config.reactCompiler = true
+    // TODO: Report if we enable non-experimental features via env
   }
 
   if (

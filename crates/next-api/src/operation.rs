@@ -38,7 +38,7 @@ async fn entrypoints_without_collectibles_operation(
 ) -> Result<Vc<Entrypoints>> {
     let _ = entrypoints.resolve_strongly_consistent().await?;
     let _ = entrypoints.take_collectibles::<Box<dyn Diagnostic>>();
-    let _ = entrypoints.take_issues().await?;
+    let _ = entrypoints.take_issues();
     let _ = get_effects(entrypoints).await?;
     Ok(entrypoints.connect())
 }
@@ -166,7 +166,7 @@ async fn pick_endpoint(
         }
         EndpointSelector::RoutePageData(name) => {
             if let Some(Route::Page { data_endpoint, .. }) = endpoints.routes.get(&name) {
-                Some(*data_endpoint)
+                *data_endpoint
             } else {
                 None
             }

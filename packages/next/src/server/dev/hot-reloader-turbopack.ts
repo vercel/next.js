@@ -84,7 +84,7 @@ import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
-  isPersistentCachingEnabled,
+  isPersistentCachingEnabledForDev,
   isWellKnownError,
   processIssues,
   renderStyledStringToErrorAnsi,
@@ -97,7 +97,10 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../../build/utils'
-import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
+import {
+  receiveBrowserLogsTurbopack,
+  handleClientFileLogs,
+} from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
 import {
   devToolsConfigMiddleware,
@@ -114,7 +117,9 @@ import {
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import { getFileLogger } from './browser-logs/file-logger'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -211,6 +216,12 @@ export async function createHotReloaderTurbopack(
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
 
+  // Initialize log monitor for file logging
+  // Enable logging by default in development mode
+  const mcpServerEnabled = !!nextConfig.experimental.mcpServer
+  const fileLogger = getFileLogger()
+  fileLogger.initialize(distDir, mcpServerEnabled)
+
   const encryptionKey = await generateEncryptionKeyBase64({
     isBuild: false,
     distDir,
@@ -262,7 +273,7 @@ export async function createHotReloaderTurbopack(
       currentNodeJsVersion,
     },
     {
-      persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
+      persistentCaching: isPersistentCachingEnabledForDev(opts.nextConfig),
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
       isShortSession: false,
     }
@@ -740,6 +751,7 @@ export async function createHotReloaderTurbopack(
       ? [
           getMcpMiddleware(
             projectPath,
+            distDir,
             (message) => hotReloader.send(message),
             () => clients.size
           ),
@@ -938,11 +950,30 @@ export async function createHotReloaderTurbopack(
               }
               break
             }
+            case 'client-file-logs': {
+              // Always log to file regardless of terminal flag
+              await handleClientFileLogs(parsedData.logs)
+              break
+            }
+            case 'ping': {
+              // Handle ping events to keep WebSocket connections alive
+              // No-op - just acknowledge the ping
+              break
+            }
 
             case 'mcp-error-state-response': {
               handleErrorStateResponse(
                 parsedData.requestId,
                 parsedData.errorState,
+                parsedData.url
+              )
+              break
+            }
+
+            case 'mcp-page-metadata-response': {
+              handlePageMetadataResponse(
+                parsedData.requestId,
+                parsedData.segmentTrieData,
                 parsedData.url
               )
               break

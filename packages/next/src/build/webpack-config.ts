@@ -482,14 +482,14 @@ export default async function getBaseWebpackConfig(
     (appDir || pagesDir)!,
     dev,
     isClient,
-    config.experimental?.reactCompiler,
+    config.reactCompiler,
     codeCondition.exclude
   )
 
   const reactCompilerLoader = babelLoader
     ? undefined
     : getReactCompilerLoader(
-        config.experimental?.reactCompiler,
+        config.reactCompiler,
         dir,
         isNodeOrEdgeCompilation,
         codeCondition.exclude,

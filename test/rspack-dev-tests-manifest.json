@@ -307,9 +307,7 @@
     "passed": [
       "Undefined default export should error if layout component does not have default export",
       "Undefined default export should error if not-found component does not have default export when trigger not-found boundary",
-      "Undefined default export should error if page component does not have default export",
-      "Undefined default export should error when page component export is not valid",
-      "Undefined default export should error when page component export is not valid on initial load"
+      "Undefined default export should error if page component does not have default export"
     ],
     "failed": [],
     "pending": [],
@@ -1124,6 +1122,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/watch-config-file/index.test.ts": {
+    "passed": [
+      "app-dir watch-config-file should output config file change and restart server for app router"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-hmr/hmr-env.test.ts": {
     "passed": [
       "app-dir hmr-env should update server components pages when env files is changed (edge)",
@@ -1143,6 +1150,15 @@
       "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-hmr/server-restart.test.ts": {
+    "passed": [
+      "app-dir server restart should reload the page when the server restarts"
     ],
     "failed": [],
     "pending": [],
@@ -1177,10 +1193,10 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Skipped in Turbopack optimizePackageImports - mui should support MUI"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1918,6 +1934,51 @@
   "test/development/load-config-freq/load-config-freq.test.ts": {
     "passed": [
       "load-config-freq should only load next config once when start next dev server"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/mcp-server/mcp-server-get-errors.test.ts": {
+    "passed": [
+      "mcp-server get_errors tool should capture errors from multiple browser sessions",
+      "mcp-server get_errors tool should capture runtime errors with source-mapped stack frames",
+      "mcp-server get_errors tool should handle no browser sessions gracefully",
+      "mcp-server get_errors tool should return no errors for clean page"
+    ],
+    "failed": [
+      "mcp-server get_errors tool should capture build errors when directly visiting error page"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/mcp-server/mcp-server-get-logs.test.ts": {
+    "passed": [
+      "get-logs MCP tool should return log file path via MCP get_logs tool"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/mcp-server/mcp-server-get-page-metadata.test.ts": {
+    "passed": [
+      "mcp-server get_page_metadata tool app router should handle multiple browser sessions",
+      "mcp-server get_page_metadata tool app router should return metadata for basic page",
+      "mcp-server get_page_metadata tool app router should return metadata for parallel routes",
+      "mcp-server get_page_metadata tool pages router should return metadata showing pages router type",
+      "mcp-server get_page_metadata tool pages router should show pages router type for about page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/mcp-server/mcp-server-get-project-path.test.ts": {
+    "passed": [
+      "mcp-server get_project_path tool should return correct project path via get_project_path tool"
     ],
     "failed": [],
     "pending": [],
@@ -3070,10 +3131,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-middleware/app-middleware-in-src-dir.test.ts": {
+    "passed": [
+      "app dir - middleware with middleware in src dir works without crashing when using RequestStore"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-middleware/app-middleware-without-pages-dir.test.ts": {
+    "passed": ["app dir - middleware without pages dir Updates headers"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {
     "passed": [
-      "app dir - middleware with middleware in src dir works without crashing when using RequestStore",
-      "app dir - middleware without pages dir Updates headers",
       "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
       "app-dir with middleware Mutate request headers for Edge Functions Supports draft mode",
@@ -5341,6 +5416,17 @@
     "pending": [
       "Error test if the loader file export a named function in Build and Start build and start only should show the build error"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/log-file/log-file.test.ts": {
+    "passed": [
+      "log-file should capture RSC logging in log file",
+      "log-file should capture client logging in log file",
+      "log-file should capture logging in pages router"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -11439,11 +11525,18 @@
   },
   "test/e2e/persistent-caching/persistent-caching.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped (run 1)",
-      "persistent-caching should allow to change files while stopped (run 2)",
-      "persistent-caching should allow to change files while stopped (run 3)"
+      "persistent-caching should allow to change files while stopped (loader change)",
+      "persistent-caching should allow to change files while stopped (next config change)"
     ],
-    "failed": ["persistent-caching should persistent cache loaders"],
+    "failed": [
+      "persistent-caching should allow to change files while stopped (Pages change)",
+      "persistent-caching should allow to change files while stopped (RCC change)",
+      "persistent-caching should allow to change files while stopped (RSC change)",
+      "persistent-caching should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "persistent-caching should allow to change files while stopped (env var change)",
+      "persistent-caching should allow to change files while stopped (rename app page)",
+      "persistent-caching should persistent cache loaders"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11569,12 +11662,14 @@
   },
   "test/e2e/react-compiler/react-compiler.test.ts": {
     "passed": [
-      "react-compiler babelrc should render",
+      "react-compiler babelrc should memoize Components",
+      "react-compiler babelrc should name functions in dev",
       "react-compiler babelrc should show an experimental warning",
       "react-compiler babelrc should work with a library that uses the react-server condition",
       "react-compiler babelrc should work with a library using use client",
       "react-compiler babelrc throws if the React Compiler is used in a React Server environment",
-      "react-compiler default should render",
+      "react-compiler default should memoize Components",
+      "react-compiler default should name functions in dev",
       "react-compiler default should show an experimental warning",
       "react-compiler default should work with a library that uses the react-server condition",
       "react-compiler default should work with a library using use client",
@@ -12010,16 +12105,6 @@
     "passed": ["turbopack-loader-config should only run the test in turbopack"],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/turbopack-turbo-config-compatibility/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "turbopack-turbo-config-compatibility including both turbopack and deprecated experimental turbo config prefers turbopack config over deprecated experimental turbo config",
-      "turbopack-turbo-config-compatibility only including deprecated experimental turbo config still uses the deprecated experimental turbo config"
-    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -13122,8 +13207,10 @@
   "test/integration/config-mjs/test/index.test.ts": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
+      "Configuration renders public config on the server only",
+      "Configuration renders server config on the server only",
       "Configuration should disable X-Powered-By header support",
-      "Configuration should have env variables available on the client"
+      "Configuration should have config available on the client"
     ],
     "failed": [],
     "pending": [],
@@ -13198,8 +13285,10 @@
   "test/integration/config/test/index.test.js": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
+      "Configuration renders public config on the server only",
+      "Configuration renders server config on the server only",
       "Configuration should disable X-Powered-By header support",
-      "Configuration should have env variables available on the client"
+      "Configuration should have config available on the client"
     ],
     "failed": [],
     "pending": [],

@@ -219,9 +219,8 @@ async fn run(resource: PathBuf) -> Result<()> {
 async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
     let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
-    let captured_issues = out_op.peek_issues().await?;
 
-    let plain_issues = captured_issues.get_plain_issues().await?;
+    let plain_issues = out_op.peek_issues().get_plain_issues().await?;
 
     snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
         .await

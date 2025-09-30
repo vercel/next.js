@@ -157,9 +157,7 @@ impl TurbopackBuildBuilder {
                 // Await the result to propagate any errors.
                 build_result_op.read_strongly_consistent().await?;
 
-                apply_effects(build_result_op)
-                    .instrument(tracing::info_span!("apply effects"))
-                    .await?;
+                apply_effects(build_result_op).await?;
 
                 let issue_reporter: Vc<Box<dyn IssueReporter>> =
                     Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {

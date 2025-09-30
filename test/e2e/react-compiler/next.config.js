@@ -2,9 +2,7 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    reactCompiler: true,
-  },
+  reactCompiler: true,
   reactProductionProfiling: true,
 }
 
