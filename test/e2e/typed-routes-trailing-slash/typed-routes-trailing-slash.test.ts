@@ -72,7 +72,7 @@ describe('typedRoutes trailingSlash', () => {
     )
     console.log('Rendered href:', href)
 
-    // ✅ Click and wait for navigation (explicitly wait for URL to include trailing slash)
+    // ✅ Click and explicitly wait for URL to include trailing slash (dev mode race)
     await link.click()
     await browser.waitForCondition(
       "window.location.pathname.includes('/dashboard/')"
