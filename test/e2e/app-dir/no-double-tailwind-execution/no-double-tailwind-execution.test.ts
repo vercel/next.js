@@ -33,17 +33,19 @@ describe('no-double-tailwind-execution', () => {
         async () => {
           await retry(async () => {
             expect(await browser.elementByCss('p').text()).toBe('hello hmr')
-            let tailwindProcessingCount = getOutput()
-              .matchAll(/\[@tailwindcss\/postcss\] app\/globals.css/g)
-              .reduce((acc) => acc + 1, 0)
+            let tailwindProcessingCount = [
+              ...getOutput().matchAll(
+                /\[@tailwindcss\/postcss\] app\/globals.css/g
+              ),
+            ].length
             expect(tailwindProcessingCount).toBe(1)
           })
         }
       )
     }
-    let tailwindProcessingCount = next.cliOutput
-      .matchAll(/\[@tailwindcss\/postcss\] app\/globals.css/g)
-      .reduce((acc) => acc + 1, 0)
+    let tailwindProcessingCount = [
+      ...next.cliOutput.matchAll(/\[@tailwindcss\/postcss\] app\/globals.css/g),
+    ].length
     if (isNextDev) {
       expect(tailwindProcessingCount).toBe(3) // dev: initial + hmr + hmr (revert)
     } else {
