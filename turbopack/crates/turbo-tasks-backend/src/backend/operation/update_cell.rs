@@ -122,7 +122,7 @@ impl Operation for UpdateCellOperation {
                             true,
                             #[cfg(feature = "trace_task_dirty")]
                             TaskDirtyCause::CellChange {
-                                value_type: cell.type_id,
+                                value_type: cell_ref.cell.type_id,
                             },
                             queue,
                             ctx,
