@@ -13,26 +13,25 @@ import {
 const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 describe('app dir - basic', () => {
-  const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
-    nextTestSetup({
-      files: __dirname,
-      buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
-        ? 'pnpm compile-mode'
-        : undefined,
-      packageJson: {
-        scripts: {
-          'compile-mode': process.env.NEXT_EXPERIMENTAL_COMPILE
-            ? `next build --experimental-build-mode=compile && next build --experimental-build-mode=generate-env`
-            : undefined,
-        },
+  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
+    files: __dirname,
+    buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
+      ? 'pnpm compile-mode'
+      : undefined,
+    packageJson: {
+      scripts: {
+        'compile-mode': process.env.NEXT_EXPERIMENTAL_COMPILE
+          ? `next build --experimental-build-mode=compile && next build --experimental-build-mode=generate-env`
+          : undefined,
       },
-      dependencies: {
-        nanoid: '4.0.1',
-      },
-      env: {
-        NEXT_PUBLIC_TEST_ID: Date.now() + '',
-      },
-    })
+    },
+    dependencies: {
+      nanoid: '4.0.1',
+    },
+    env: {
+      NEXT_PUBLIC_TEST_ID: Date.now() + '',
+    },
+  })
 
   if (isNextStart) {
     it('should have correct cache-control for SSR routes', async () => {
@@ -169,32 +168,32 @@ describe('app dir - basic', () => {
     })
   }
 
-  // Turbopack has different chunking in dev/production which results in the entrypoint name not being included in the outputs.
-  if (!process.env.IS_TURBOPACK_TEST) {
-    it('should encode chunk path correctly', async () => {
-      await next.fetch('/dynamic-client/first/second')
-      const browser = await next.browser('/')
-      const requests = []
-      browser.on('request', (req) => {
-        requests.push(req.url())
-      })
-
-      await browser.eval(
-        'window.location.href = "/dynamic-client/first/second"'
-      )
-
-      await browser.waitForElementByCss('#id-page-params')
-
-      expect(
-        requests.some(
-          (req) =>
-            req.includes(
-              encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
-            ) && req.includes('.js')
-        )
-      ).toBe(true)
+  it('should encode chunk path correctly', async () => {
+    const requests = []
+    const browser = await next.browser('/dynamic-client/first/second', {
+      beforePageLoad(page) {
+        page.on('request', (req) => {
+          requests.push(req.url())
+        })
+      },
     })
-  }
+
+    await browser.waitForElementByCss('#id-page-params')
+
+    expect(requests).not.toEqual(
+      expect.arrayContaining([expect.stringContaining('[category]')])
+    )
+
+    // Turbopack doesn't recreate the original folder structure for the output chunks
+    if (!process.env.IS_TURBOPACK_TEST) {
+      expect(requests).toEqual(
+        // e.g. _next/static/chunks/app/dynamic-client/%5Bcategory%5D/%5Bid%5D/page-6e188d657a208f8e.js
+        expect.arrayContaining([
+          expect.stringMatching(/.*%5Bcategory%5D\/%5Bid%5D.*\.js$/),
+        ])
+      )
+    }
+  })
 
   it.each([
     { pathname: '/redirect-1' },
@@ -393,7 +392,7 @@ describe('app dir - basic', () => {
     it('should serve polyfills for browsers that do not support modules', async () => {
       const html = await next.render('/dashboard/index')
       expect(html).toMatch(
-        isTurbopack
+        process.env.IS_TURBOPACK_TEST
           ? /<script src="\/_next\/static\/chunks\/([\w-]*polyfill-nomodule|[0-9a-f]+)\.js" noModule="">/
           : /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
       )
