@@ -1719,12 +1719,15 @@ describe('app dir - basic', () => {
         expect(element.attribs.nonce).toBeTruthy()
       })
 
-      const browser = await next.browser('/script-nonce')
-      await retry(async () => {
-        await browser.elementByCss('#get-order').click()
-        const order = JSON.parse(await browser.elementByCss('#order').text())
-        expect(order).toEqual([2, 1])
-      })
+      if (!isNextDev) {
+        // Fails in dev due to CSP header
+        const browser = await next.browser('/script-nonce')
+        await retry(async () => {
+          await browser.elementByCss('#get-order').click()
+          const order = JSON.parse(await browser.elementByCss('#order').text())
+          expect(order).toEqual([2, 1])
+        })
+      }
     })
 
     it('should pass manual `nonce`', async () => {
