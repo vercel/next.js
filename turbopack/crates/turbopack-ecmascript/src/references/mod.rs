@@ -3058,7 +3058,7 @@ async fn value_visitor_inner(
             box JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire),
             ref args,
         ) => {
-            // Onl support `createRequire(import.meta.url)` for now
+            // Only support `createRequire(import.meta.url)` for now
             if let [
                 JsValue::Member(
                     _,
