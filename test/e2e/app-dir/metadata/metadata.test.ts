@@ -342,7 +342,7 @@ describe('app dir - metadata', () => {
       const url$ = await next.render$('/metadata-base/url-string')
 
       expect(url$('link[rel="canonical"]').attr('href')).toBe(
-        'https://example.com/metadata-base/url-string'
+        'https://example.com/case/metadata-base/url-string'
       )
     })
   })

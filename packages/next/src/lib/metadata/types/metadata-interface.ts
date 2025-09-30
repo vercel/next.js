@@ -564,10 +564,10 @@ interface Metadata extends DeprecatedMetadataFields {
 }
 
 /**
- * ResolvedMetadata represents the fully processed metadata after defaults are applied
- * and relative URLs are composed with `metadataBase`.
+ * ResolvedMetadataWithURLs represents the fully processed metadata after
+ * defaults are applied and relative URLs are composed with `metadataBase`.
  */
-interface ResolvedMetadata extends DeprecatedMetadataFields {
+interface ResolvedMetadataWithURLs extends DeprecatedMetadataFields {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
   metadataBase: string | null | URL
@@ -663,6 +663,18 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
         [name: string]: string | number | Array<string | number>
       } & DeprecatedMetadataFields)
 }
+
+export type WithStringifiedURLs<T> = T extends URL
+  ? string
+  : T extends object
+    ? { [K in keyof T]: WithStringifiedURLs<T[K]> }
+    : T
+
+/**
+ * ResolvedMetadata represents the fully processed metadata after defaults are
+ * applied and relative URLs are composed with `metadataBase`.
+ */
+type ResolvedMetadata = WithStringifiedURLs<ResolvedMetadataWithURLs>
 
 type RobotsFile = {
   // Apply rules for all
@@ -783,6 +795,7 @@ interface ResolvedViewport extends ViewportLayout {
 export type {
   Metadata,
   ResolvedMetadata,
+  ResolvedMetadataWithURLs,
   ResolvingMetadata,
   MetadataRoute,
   Viewport,

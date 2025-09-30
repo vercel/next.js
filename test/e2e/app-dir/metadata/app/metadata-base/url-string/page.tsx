@@ -11,11 +11,7 @@ export async function generateMetadata(
   const parentMetadata = await parent
 
   return {
-    // Always return a string, to verify that this is also supported.
-    metadataBase: (typeof parentMetadata.metadataBase === 'string'
-      ? parentMetadata.metadataBase
-      : parentMetadata.metadataBase?.href
-    )?.replace('base', ''),
+    metadataBase: parentMetadata.metadataBase?.replace('base', 'case'),
     alternates: { canonical: '/metadata-base/url-string' },
   }
 }
