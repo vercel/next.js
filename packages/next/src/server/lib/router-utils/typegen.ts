@@ -223,7 +223,9 @@ export function generateLinkTypesFile(
   for (const route of allRoutesSet) {
     const { isDynamic, routeType } = formatRouteToRouteType(route)
     if (isDynamic) {
-      dynamicRouteTypes.push(routeType)
+      dynamicRouteTypes.push(
+        config.trailingSlash && route !== '/' ? `${routeType}/` : routeType
+      )
     } else {
       staticRouteTypes.push(
         config.trailingSlash && route !== '/' ? `${routeType}/` : routeType
