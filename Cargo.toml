@@ -305,6 +305,7 @@ turbopack-swc-utils = { path = "turbopack/crates/turbopack-swc-utils" }
 turbopack-test-utils = { path = "turbopack/crates/turbopack-test-utils" }
 turbopack-trace-server = { path = "turbopack/crates/turbopack-trace-server" }
 turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
+turbopack-url = { path = "turbopack/crates/turbopack-url" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
@@ -398,6 +399,7 @@ owo-colors = "4.2.2"
 parcel_selectors = "0.28.2"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
+percent-encoding = "2.3.2"
 petgraph = "0.6.3"
 pin-project-lite = "0.2.9"
 postcard = "1.0.4"

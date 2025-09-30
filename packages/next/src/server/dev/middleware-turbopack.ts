@@ -43,10 +43,6 @@ async function batchedTraceSource(
   frame: TurbopackStackFrame
 ): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
   const file = frame.file
-    ? // TODO(veil): Why are the frames sent encoded?
-      decodeURIComponent(frame.file)
-    : undefined
-
   if (!file) return
 
   // For node internals they cannot traced the actual source code with project.traceSource,
@@ -65,9 +61,7 @@ async function batchedTraceSource(
     }
   }
 
-  const currentDirectoryFileUrl = pathToFileURL(process.cwd()).href
-
-  const sourceFrame = await project.traceSource(frame, currentDirectoryFileUrl)
+  const sourceFrame = await project.traceSource(frame)
   if (!sourceFrame) {
     return {
       frame: {

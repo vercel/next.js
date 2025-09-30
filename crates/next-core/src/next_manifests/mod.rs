@@ -1,7 +1,6 @@
 //! Type definitions for the Next.js manifest formats.
 
 pub mod client_reference_manifest;
-mod encode_uri_component;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

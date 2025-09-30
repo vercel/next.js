@@ -1,4 +1,4 @@
-use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
 use futures_util::TryFutureExt;
@@ -24,7 +24,6 @@ use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
     TRACING_NEXT_TURBOPACK_TARGETS,
 };
-use once_cell::sync::Lazy;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
@@ -38,17 +37,17 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
-use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, util::uri_from_file,
-};
-use turbo_unix_path::{get_relative_path_to, sys_to_unix};
+use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
+use turbo_unix_path::sys_to_unix;
 use turbopack_core::{
-    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
+    PROJECT_FILESYSTEM_NAME,
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
-    source_map::{OptionStringifiedSourceMap, SourceMap, Token},
+    source_map::{
+        OptionStringifiedSourceMap, SourceMap, Token, utils::turbopack_url_to_fs_relative_file_url,
+    },
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
@@ -78,9 +77,6 @@ use crate::{
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
-static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
-static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
-    Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -1479,10 +1475,10 @@ pub fn get_source_map_rope_operation(
 pub async fn project_trace_source_operation(
     container: ResolvedVc<ProjectContainer>,
     frame: StackFrame,
-    current_directory_file_url: RcStr,
 ) -> Result<Vc<OptionStackFrame>> {
     let Some(map) =
-        &*SourceMap::new_from_rope_cached(get_source_map_rope(*container, frame.file)).await?
+        &*SourceMap::new_from_rope_cached(get_source_map_rope(*container, frame.file.clone()))
+            .await?
     else {
         return Ok(Vc::cell(None));
     };
@@ -1496,69 +1492,48 @@ pub async fn project_trace_source_operation(
         frame.column.unwrap_or(1).saturating_sub(1),
     );
 
-    let (original_file, line, column, method_name) = match token {
+    let (original_url, line, column, method_name) = match token {
         Token::Original(token) => (
-            match urlencoding::decode(&token.original_file)? {
-                Cow::Borrowed(_) => token.original_file,
-                Cow::Owned(original_file) => RcStr::from(original_file),
-            },
+            token.original_file,
             // JS stack frames are 1-indexed, source map tokens are 0-indexed
             Some(token.original_line + 1),
             Some(token.original_column + 1),
             token.name,
         ),
         Token::Synthetic(token) => {
-            let Some(original_file) = token.guessed_original_file else {
+            let Some(original_url) = token.guessed_original_file else {
                 return Ok(Vc::cell(None));
             };
-            (original_file, None, None, None)
+            (original_url, None, None, None)
         }
     };
 
-    let project_root_uri =
-        uri_from_file(container.project().project_root_path().owned().await?, None).await? + "/";
-    let (file, original_file, is_internal) =
-        if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
-            // Client code uses file://
-            (
-                RcStr::from(
-                    get_relative_path_to(&current_directory_file_url, &original_file)
-                        // TODO(sokra) remove this to include a ./ here to make it a relative path
-                        .trim_start_matches("./"),
-                ),
-                Some(RcStr::from(source_file)),
-                false,
-            )
-        } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT) {
-            // Server code uses turbopack:///[project]
-            // TODO should this also be file://?
-            (
-                RcStr::from(
-                    get_relative_path_to(
-                        &current_directory_file_url,
-                        &format!("{project_root_uri}{source_file}"),
-                    )
-                    // TODO(sokra) remove this to include a ./ here to make it a relative path
-                    .trim_start_matches("./"),
-                ),
-                Some(RcStr::from(source_file)),
-                false,
-            )
-        } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX) {
-            // All other code like turbopack:///[turbopack] is internal code
-            // TODO(veil): Should the protocol be preserved?
-            (RcStr::from(source_file), None, true)
+    let url_schema = original_url.split_once(":").map(|(schema, _)| schema);
+    let (original_url, is_internal) = if let Some(url_schema) = url_schema
+        && url_schema.eq_ignore_ascii_case("turbopack")
+    {
+        if let Some(relative_url) =
+            turbopack_url_to_fs_relative_file_url(&original_url, PROJECT_FILESYSTEM_NAME)
+        {
+            // Server code uses `turbopack:///[project]` urls?
+            // this returns a relative URL, but should it be an absolute file:// url?
+            //
+            // If it's absolute, that conversion should happen outside of the turbo-task, as that
+            // is not safe to store in the persistent cache (not portable across machines)
+            (Some(RcStr::from(relative_url)), false)
         } else {
-            bail!(
-                "Original file ({}) outside project ({})",
-                original_file,
-                project_root_uri
-            )
-        };
+            // All other code like turbopack:///[turbopack] is internal code
+            (None, true)
+        }
+    } else {
+        // Any other URL... Likely a relative or absolute file:// url. Just pass it through.
+        // Client code uses `file://` urls?
+        (Some(RcStr::from(original_url)), false)
+    };
 
     Ok(Vc::cell(Some(StackFrame {
-        file,
-        original_file,
+        file: frame.file,
+        original_file: original_url,
         method_name,
         line,
         column,
@@ -1572,19 +1547,14 @@ pub async fn project_trace_source_operation(
 pub async fn project_trace_source(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     frame: StackFrame,
-    current_directory_file_url: String,
 ) -> napi::Result<Option<StackFrame>> {
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
         .run(async move {
-            let traced_frame = project_trace_source_operation(
-                container,
-                frame,
-                RcStr::from(current_directory_file_url),
-            )
-            .read_strongly_consistent()
-            .await?;
+            let traced_frame = project_trace_source_operation(container, frame)
+                .read_strongly_consistent()
+                .await?;
             Ok(ReadRef::into_owned(traced_frame))
         })
         // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the

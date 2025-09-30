@@ -1,44 +1,42 @@
-use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
+pub mod url_spec;
 
-/// An `AsciiSet` that matches the behavior of JavaScript's `encodeURIComponent`.
-/// - It leaves `A-Z a-z 0-9 - _ . ~` unescaped.
-/// - It percent-encodes all other ASCII characters (and of course non-ASCII).
-/// - The `CONTROLS` set covers `\0`-`\x1F` and `\x7F`.
-const ENCODE_URI_COMPONENT_SET: &AsciiSet = &CONTROLS
-    // Add everything else JS `encodeURIComponent` would encode:
-    .add(b' ')
-    // .add(b'!')
-    .add(b'"')
-    .add(b'#')
-    .add(b'$')
-    .add(b'%')
-    .add(b'&')
-    .add(b'\'')
-    // .add(b'(')
-    // .add(b')')
-    .add(b'*')
-    .add(b'+')
-    .add(b',')
-    .add(b'/')
-    .add(b':')
-    .add(b';')
-    .add(b'<')
-    .add(b'=')
-    .add(b'>')
-    .add(b'?')
-    .add(b'@')
-    .add(b'[')
-    .add(b'\\')
-    .add(b']')
-    .add(b'^')
-    .add(b'`')
-    .add(b'{')
-    .add(b'|')
-    // .add(b'~');
-    .add(b'}');
+use std::borrow::Cow;
 
-pub fn encode_uri_component(input: &str) -> String {
-    utf8_percent_encode(input, ENCODE_URI_COMPONENT_SET).to_string()
+use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
+pub use url_spec::*;
+
+/// An [`AsciiSet`] that matches the behavior of JavaScript's [`encodeURIComponent`][mdn].
+/// It escapes all characters except:
+///
+/// ```text
+/// A-Z a-z 0–9 - _ . ! ~ * ' ( )
+/// ```
+///
+/// [mdn]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent#description
+///
+/// Because this is designed to work with *any* URL component, it encodes more characters than the
+/// spec requires. For less-agressive encoding sets, see [`FRAGMENT`], [`PATH`], [`USERINFO`],
+/// [`PATH_SEGMENT`], [`SPECIAL_PATH_SEGMENT`], [`QUERY`], and [`SPECIAL_QUERY`].
+pub const ENCODE_URI_COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'_')
+    .remove(b'.')
+    .remove(b'!')
+    .remove(b'~')
+    .remove(b'*')
+    .remove(b'\'')
+    .remove(b'(')
+    .remove(b')');
+
+/// A convenience wrapper around [`percent_encoding::utf8_percent_encode`] that returns a
+/// [`Cow<'_, str>`] instead of a [`percent_encoding::PercentEncode`].
+///
+/// If you're just using the [`Display`][std::fmt::Display] trait on the return value, you should
+/// use the functions from [`percent_encoding`] directly, as the
+/// [`PercentEncode`][percent_encoding::PercentEncode] type can avoid creating an intermediate
+/// [`String`].
+pub fn percent_encode_str<'a>(input: &'a str, ascii_set: &'static AsciiSet) -> Cow<'a, str> {
+    Cow::from(utf8_percent_encode(input, ascii_set))
 }
 
 #[cfg(test)]
@@ -46,14 +44,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_percent_encode_str() {
+        assert!(matches!(
+            percent_encode_str("nowhitespace", NON_ALPHANUMERIC),
+            Cow::Borrowed(_),
+        ));
+        assert!(matches!(
+            percent_encode_str("has whitespace", NON_ALPHANUMERIC),
+            Cow::Owned(_),
+        ));
+    }
+
+    #[test]
     fn test_encode_uri_component() {
         // Each (input, expected_output)
-        let test_cases = vec![
+        let test_cases = [
             ("Hello", "Hello"),
             ("Hello World", "Hello%20World"),
             (
-                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~",
-                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~",
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~*'()",
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~*'()",
             ),
             ("This is 100% test!", "This%20is%20100%25%20test!"),
             ("你好", "%E4%BD%A0%E5%A5%BD"),
@@ -105,7 +115,7 @@ mod tests {
         ];
 
         for (input, expected) in test_cases {
-            let actual = encode_uri_component(input);
+            let actual = percent_encode_str(input, ENCODE_URI_COMPONENT);
             assert_eq!(
                 actual, expected,
                 "Failed on input='{input}': expected='{expected}', got='{actual}'",

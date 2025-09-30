@@ -2,6 +2,7 @@ use anyhow::Result;
 use either::Either;
 use indoc::formatdoc;
 use itertools::Itertools;
+use percent_encoding::utf8_percent_encode;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use tracing::Instrument;
@@ -19,13 +20,14 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
 use turbopack_ecmascript::utils::StringifyJs;
+use turbopack_url::ENCODE_URI_COMPONENT;
 
 use crate::{
     mode::NextMode,
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
     next_config::{CrossOriginConfig, NextConfig},
-    next_manifests::{ModuleId, encode_uri_component::encode_uri_component},
+    next_manifests::ModuleId,
     util::NextRuntime,
 };
 
@@ -290,7 +292,9 @@ async fn build_manifest(
                         format!(
                             "{}{}{}",
                             prefix_path,
-                            path.split('/').map(encode_uri_component).format("/"),
+                            path.split('/')
+                                .map(|segment| utf8_percent_encode(segment, ENCODE_URI_COMPONENT))
+                                .format("/"),
                             suffix_path
                         )
                     })

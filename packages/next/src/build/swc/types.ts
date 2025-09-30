@@ -241,8 +241,7 @@ export interface Project {
   getSourceMapSync(filePath: string): string | null
 
   traceSource(
-    stackFrame: TurbopackStackFrame,
-    currentDirectoryFileUrl: string
+    stackFrame: TurbopackStackFrame
   ): Promise<TurbopackStackFrame | null>
 
   updateInfoSubscribe(

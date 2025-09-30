@@ -37,6 +37,7 @@ jsonc-parser = { version = "0.26.3", features = ["serde"] }
 mime = { workspace = true }
 notify = { workspace = true }
 parking_lot = { workspace = true }
+percent-encoding = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
@@ -50,6 +51,7 @@ turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
+url = { workspace = true }
 urlencoding = { workspace = true }
 
 [dev-dependencies]

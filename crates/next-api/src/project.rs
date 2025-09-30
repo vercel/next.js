@@ -682,6 +682,7 @@ impl Project {
         DiskFileSystem::new(rcstr!("output"), self.root_path.clone())
     }
 
+    // TODO: This should not be a turbo-task function as it is not portable across machines.
     #[turbo_tasks::function]
     pub fn dist_dir_absolute(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(

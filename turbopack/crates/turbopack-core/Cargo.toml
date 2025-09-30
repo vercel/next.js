@@ -24,6 +24,7 @@ either = { workspace = true }
 indexmap = { workspace = true }
 once_cell = { workspace = true }
 patricia_tree = "0.5.5"
+percent-encoding = { workspace = true }
 petgraph = { workspace = true, features = ["serde-1"] }
 roaring = { workspace = true, features = ["serde"] }
 ref-cast = "1.0.20"
@@ -43,9 +44,9 @@ turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
+turbopack-url = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
-
 
 [dev-dependencies]
 rstest = { workspace = true }

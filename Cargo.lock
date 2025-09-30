@@ -4313,6 +4313,7 @@ dependencies = [
  "turbopack-nodejs",
  "turbopack-static",
  "turbopack-trace-utils",
+ "turbopack-url",
 ]
 
 [[package]]
@@ -4880,9 +4881,9 @@ dependencies = [
 
 [[package]]
 name = "percent-encoding"
-version = "2.3.1"
+version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
+checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "pest"
@@ -9284,6 +9285,7 @@ dependencies = [
  "mime",
  "notify",
  "parking_lot",
+ "percent-encoding",
  "regex",
  "rstest",
  "rustc-hash 2.1.1",
@@ -9302,6 +9304,7 @@ dependencies = [
  "turbo-tasks-hash",
  "turbo-tasks-testing",
  "turbo-unix-path",
+ "url",
  "urlencoding",
 ]
 
@@ -9541,6 +9544,7 @@ dependencies = [
  "indexmap 2.9.0",
  "once_cell",
  "patricia_tree",
+ "percent-encoding",
  "petgraph 0.6.3",
  "ref-cast",
  "regex",
@@ -9564,6 +9568,7 @@ dependencies = [
  "turbo-tasks-hash",
  "turbo-tasks-testing",
  "turbo-unix-path",
+ "turbopack-url",
  "url",
  "urlencoding",
 ]
@@ -10024,6 +10029,14 @@ dependencies = [
  "turbopack",
  "turbopack-core",
  "turbopack-resolve",
+]
+
+[[package]]
+name = "turbopack-url"
+version = "0.1.0"
+dependencies = [
+ "percent-encoding",
+ "url",
 ]
 
 [[package]]

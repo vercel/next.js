@@ -3,10 +3,7 @@ use std::{
     path::Path,
 };
 
-use anyhow::{Context, Result, anyhow};
-use turbo_tasks::ResolvedVc;
-
-use crate::{DiskFileSystem, FileSystemPath};
+use anyhow::{Result, anyhow};
 
 /// Converts a disk access Result<T> into a Result<Some<T>>, where a NotFound
 /// error results in a None value. This is purely to reduce boilerplate code
@@ -17,58 +14,4 @@ pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Optio
         Err(e) if matches!(e.kind(), ErrorKind::NotFound | ErrorKind::InvalidFilename) => Ok(None),
         Err(e) => Err(anyhow!(e).context(format!("reading file {}", path.display()))),
     }
-}
-
-#[cfg(not(target_os = "windows"))]
-pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
-    use turbo_unix_path::sys_to_unix;
-
-    let root_fs = root.fs;
-    let root_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(root_fs)
-        .context("Expected root to have a DiskFileSystem")?
-        .await?;
-
-    Ok(format!(
-        "file://{}",
-        &sys_to_unix(
-            &root_fs
-                .to_sys_path(match path {
-                    Some(path) => root.join(path)?,
-                    None => root,
-                })?
-                .to_string_lossy()
-        )
-        .split('/')
-        .map(|s| urlencoding::encode(s))
-        .collect::<Vec<_>>()
-        .join("/")
-    ))
-}
-
-#[cfg(target_os = "windows")]
-pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
-    let root_fs = root.fs;
-    let root_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(root_fs)
-        .context("Expected root to have a DiskFileSystem")?
-        .await?;
-
-    let sys_path = root_fs.to_sys_path(match path {
-        Some(path) => root.join(path.into())?,
-        None => root,
-    })?;
-
-    let raw_path = sys_path.to_string_lossy().to_string();
-    let normalized_path = raw_path.replace('\\', "/");
-
-    let mut segments = normalized_path.split('/');
-
-    let first = segments.next().unwrap_or_default(); // e.g., "C:"
-    let encoded_path = std::iter::once(first.to_string()) // keep "C:" intact
-        .chain(segments.map(|s| urlencoding::encode(s).into_owned()))
-        .collect::<Vec<_>>()
-        .join("/");
-
-    let uri = format!("file:///{}", encoded_path);
-
-    Ok(uri)
 }

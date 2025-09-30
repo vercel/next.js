@@ -33,7 +33,7 @@ rustc-hash = { workspace = true }
 react_remove_properties = { workspace = true }
 remove_console = { workspace = true }
 itertools = { workspace = true }
-percent-encoding = "2.3.1"
+percent-encoding = { workspace = true }
 serde_path_to_error = { workspace = true }
 swc_sourcemap = { workspace = true }
 
@@ -80,6 +80,7 @@ turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-trace-utils = { workspace = true }
+turbopack-url = { workspace = true }
 
 [features]
 next-font-local = []

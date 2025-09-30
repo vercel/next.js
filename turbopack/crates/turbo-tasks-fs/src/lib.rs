@@ -511,6 +511,10 @@ impl DiskFileSystem {
         })
     }
 
+    pub fn root_sys_path(&self) -> &Path {
+        self.inner.root_path()
+    }
+
     pub fn to_sys_path(&self, fs_path: FileSystemPath) -> Result<PathBuf> {
         let path = self.inner.root_path();
         Ok(if fs_path.path.is_empty() {

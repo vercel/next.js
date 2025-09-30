@@ -3,13 +3,13 @@ use std::{borrow::Cow, collections::HashSet, iter};
 use anyhow::{Context, Result};
 use const_format::concatcp;
 use once_cell::sync::Lazy;
+use percent_encoding::{percent_decode_str, utf8_percent_encode};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use turbo_tasks::{ResolvedVc, ValueToString};
-use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_file,
-};
+use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath, rope::Rope};
+use turbopack_url::{SPECIAL_PATH_SEGMENT, percent_encode_str};
 use url::Url;
 
 use crate::SOURCE_URL_PROTOCOL;
@@ -132,11 +132,17 @@ pub async fn resolve_source_map_sources(
             };
 
             if let Some(fs_path) = fs_path {
-                // TODO: Encode `fs_str` and `fs_path_str` using `urlencoding`, so that these are
-                // valid URLs. However, `project_trace_source_operation` (and `uri_from_file`) need
-                // to handle percent encoding correctly first.
                 let fs_path_str = &fs_path.path;
-                *source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{fs_path_str}");
+                *source_url = format!(
+                    "{}///{}/{}",
+                    SOURCE_URL_PROTOCOL,
+                    utf8_percent_encode(fs_str, SPECIAL_PATH_SEGMENT),
+                    fs_path_str
+                        .split('/')
+                        .map(|segment| percent_encode_str(segment, SPECIAL_PATH_SEGMENT))
+                        .collect::<Vec<_>>()
+                        .join("/"),
+                );
 
                 if let Some(source_content) = source_content
                     && source_content.is_none()
@@ -239,18 +245,40 @@ pub async fn fileify_source_map(
         return Ok(None);
     };
 
+    // read and unset `source_root`: we flatten URLs and should never emit `source_root`.
+    let source_root = map.source_root.take();
+
     let context_fs = context_path.fs;
     let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_fs)
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
-    let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL, context_fs.name());
+    let context_fs_name = context_fs.name();
+    let context_base_url = Url::from_directory_path(context_fs.root_sys_path()).ok();
+
+    debug_assert_ne!(
+        context_base_url, None,
+        "failed to convert context_fs root to URL"
+    );
 
     let transform_source = async |src: &mut Option<String>| {
-        if let Some(src) = src
-            && let Some(src_rest) = src.strip_prefix(&prefix)
-        {
-            *src = uri_from_file(context_path.clone(), Some(src_rest)).await?;
+        let Some(src) = src else { return Ok(()) };
+
+        if let Some(root) = &source_root {
+            // flatten, regardless of url format. We unset `map.source_root` above.
+            *src = format!("{root}{src}");
         }
+
+        let Some(context_base_url) = &context_base_url else {
+            return anyhow::Ok(());
+        };
+
+        let Some(file_url) =
+            turbopack_url_to_file_url(src, context_fs_name, context_base_url.as_str())
+        else {
+            return anyhow::Ok(());
+        };
+
+        *src = file_url;
         anyhow::Ok(())
     };
 
@@ -266,6 +294,61 @@ pub async fn fileify_source_map(
     let map = Rope::from(serde_json::to_vec(&map)?);
 
     Ok(Some(map))
+}
+
+/// Takes a `turbopack:///[fs_name]/` url and strips the prefix, leaving a percent-encoded relative
+/// path string that's valid as a suffix in `file://` URLs.
+pub fn turbopack_url_to_fs_relative_file_url<'a>(
+    turbopack_url: &'a str,
+    fs_name: &str,
+) -> Option<&'a str> {
+    let (scheme, remaining_url) = turbopack_url.split_once(":")?;
+    // URL schemes don't need percent decoding, just case insensitive equality is sufficient
+    if !scheme.eq_ignore_ascii_case(&SOURCE_URL_PROTOCOL[..SOURCE_URL_PROTOCOL.len() - 1]) {
+        return None;
+    }
+
+    if cfg!(debug_assertions) {
+        let url = Url::parse(turbopack_url).expect("turbopack:// urls should parse as valid URLs");
+        assert_eq!(
+            url.host_str(),
+            None,
+            "turbopack:// URLs should not have a host",
+        );
+    }
+
+    // Modify the URL using string manipulation, as we can make some assumptions about the
+    // format of `turbopack://` urls, so it's cheaper.
+    let remaining_url = remaining_url.strip_prefix("///")?;
+
+    let (decoded_fs_name, remaining_url) =
+        remaining_url.split_once("/").unwrap_or((remaining_url, ""));
+    let decoded_fs_name = percent_decode_str(decoded_fs_name).decode_utf8().ok()?;
+    let decoded_fs_name_suffix = decoded_fs_name
+        .strip_prefix("[")?
+        .strip_prefix(fs_name)?
+        .strip_prefix("]")?;
+
+    if !decoded_fs_name_suffix.is_empty() {
+        if cfg!(debug_assertions) {
+            panic!("{turbopack_url} has a malformed filesystem name ({decoded_fs_name})");
+        }
+        return None;
+    }
+
+    Some(remaining_url)
+}
+
+/// Return an absolute URL contructed from `turbopack_url`, assuming `fs_name` matches.
+///
+/// Use [`Url::from_directory_path`] to convert a [`DiskFileSystem::root_sys_path`] to a `base_url`.
+fn turbopack_url_to_file_url(turbopack_url: &str, fs_name: &str, base_url: &str) -> Option<String> {
+    // Both URL formats use the same percent encoding
+    Some(format!(
+        "{}{}",
+        base_url,
+        turbopack_url_to_fs_relative_file_url(turbopack_url, fs_name)?,
+    ))
 }
 
 #[cfg(test)]
