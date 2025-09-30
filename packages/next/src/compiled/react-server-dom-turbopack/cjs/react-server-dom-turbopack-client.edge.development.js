@@ -1175,6 +1175,24 @@
           100
         )));
     }
+    function moveDebugInfoFromChunkToInnerValue(chunk, value) {
+      value = resolveLazy(value);
+      "object" !== typeof value ||
+        null === value ||
+        (!isArrayImpl(value) &&
+          "function" !== typeof value[ASYNC_ITERATOR] &&
+          value.$$typeof !== REACT_ELEMENT_TYPE &&
+          value.$$typeof !== REACT_LAZY_TYPE) ||
+        ((chunk = chunk._debugInfo.splice(0)),
+        isArrayImpl(value._debugInfo)
+          ? value._debugInfo.unshift.apply(value._debugInfo, chunk)
+          : Object.defineProperty(value, "_debugInfo", {
+              configurable: !1,
+              enumerable: !1,
+              writable: !0,
+              value: chunk
+            }));
+    }
     function wakeChunk(listeners, value, chunk) {
       for (var i = 0; i < listeners.length; i++) {
         var listener = listeners[i];
@@ -1182,6 +1200,7 @@
           ? listener(value)
           : fulfillReference(listener, value, chunk);
       }
+      moveDebugInfoFromChunkToInnerValue(chunk, value);
     }
     function rejectChunk(listeners, error) {
       for (var i = 0; i < listeners.length; i++) {
@@ -1265,7 +1284,7 @@
           chunk.reason = null;
           initializingChunk = chunk;
           try {
-            initializeDebugChunk(response, chunk), (chunk._debugChunk = null);
+            initializeDebugChunk(response, chunk);
           } finally {
             (initializingHandler = prevHandler),
               (initializingChunk = prevChunk);
@@ -1395,14 +1414,20 @@
       chunk.reason = null;
       initializingChunk = chunk;
       initializeDebugChunk(response, chunk);
-      chunk._debugChunk = null;
       try {
         var value = JSON.parse(resolvedModel, response._fromJSON),
           resolveListeners = chunk.value;
-        null !== resolveListeners &&
-          ((chunk.value = null),
-          (chunk.reason = null),
-          wakeChunk(resolveListeners, value, chunk));
+        if (null !== resolveListeners)
+          for (
+            chunk.value = null, chunk.reason = null, resolvedModel = 0;
+            resolvedModel < resolveListeners.length;
+            resolvedModel++
+          ) {
+            var listener = resolveListeners[resolvedModel];
+            "function" === typeof listener
+              ? listener(value)
+              : fulfillReference(listener, value, chunk);
+          }
         if (null !== initializingHandler) {
           if (initializingHandler.errored) throw initializingHandler.reason;
           if (0 < initializingHandler.deps) {
@@ -1413,6 +1438,7 @@
         }
         chunk.status = "fulfilled";
         chunk.value = value;
+        moveDebugInfoFromChunkToInnerValue(chunk, value);
       } catch (error) {
         (chunk.status = "rejected"), (chunk.reason = error);
       } finally {
@@ -1464,7 +1490,7 @@
         return "<...>";
       }
     }
-    function initializeElement(response, element, lazyType) {
+    function initializeElement(response, element, lazyNode) {
       var stack = element._debugStack,
         owner = element._owner;
       null === owner && (element._owner = response._debugRootOwner);
@@ -1501,11 +1527,22 @@
           : (normalizedStackTrace = env.run(stack)));
       element._debugTask = normalizedStackTrace;
       null !== owner && initializeFakeStack(response, owner);
-      lazyType &&
-        lazyType._store &&
-        lazyType._store.validated &&
-        !element._store.validated &&
-        (element._store.validated = lazyType._store.validated);
+      null !== lazyNode &&
+        (lazyNode._store &&
+          lazyNode._store.validated &&
+          !element._store.validated &&
+          (element._store.validated = lazyNode._store.validated),
+        "fulfilled" === lazyNode._payload.status &&
+          lazyNode._debugInfo &&
+          ((response = lazyNode._debugInfo.splice(0)),
+          element._debugInfo
+            ? element._debugInfo.unshift.apply(element._debugInfo, response)
+            : Object.defineProperty(element, "_debugInfo", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: response
+              })));
       Object.freeze(element.props);
     }
     function createLazyChunkWrapper(chunk, validated) {
@@ -1620,11 +1657,7 @@
       )
         switch (((reference = handler.value), key)) {
           case "3":
-            transferReferencedDebugInfo(
-              handler.chunk,
-              fulfilledChunk,
-              response
-            );
+            transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
             reference.props = response;
             break;
           case "4":
@@ -1634,15 +1667,11 @@
             reference._debugStack = response;
             break;
           default:
-            transferReferencedDebugInfo(
-              handler.chunk,
-              fulfilledChunk,
-              response
-            );
+            transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
         }
       else
         reference.isDebug ||
-          transferReferencedDebugInfo(handler.chunk, fulfilledChunk, response);
+          transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
       handler.deps--;
       0 === handler.deps &&
         ((fulfilledChunk = handler.chunk),
@@ -1840,38 +1869,29 @@
       );
       return null;
     }
-    function transferReferencedDebugInfo(
-      parentChunk,
-      referencedChunk,
-      referencedValue
-    ) {
-      referencedChunk = referencedChunk._debugInfo;
-      if (
-        "object" === typeof referencedValue &&
-        null !== referencedValue &&
-        (isArrayImpl(referencedValue) ||
-          "function" === typeof referencedValue[ASYNC_ITERATOR] ||
-          referencedValue.$$typeof === REACT_ELEMENT_TYPE)
+    function resolveLazy(value) {
+      for (
+        ;
+        "object" === typeof value &&
+        null !== value &&
+        value.$$typeof === REACT_LAZY_TYPE;
+
       ) {
-        var existingDebugInfo = referencedValue._debugInfo;
-        null == existingDebugInfo
-          ? Object.defineProperty(referencedValue, "_debugInfo", {
-              configurable: !1,
-              enumerable: !1,
-              writable: !0,
-              value: referencedChunk.slice(0)
-            })
-          : existingDebugInfo.push.apply(existingDebugInfo, referencedChunk);
+        var payload = value._payload;
+        if ("fulfilled" === payload.status) value = payload.value;
+        else break;
       }
-      if (null !== parentChunk)
-        for (
-          parentChunk = parentChunk._debugInfo, referencedValue = 0;
-          referencedValue < referencedChunk.length;
-          ++referencedValue
-        )
-          (existingDebugInfo = referencedChunk[referencedValue]),
-            null == existingDebugInfo.name &&
-              parentChunk.push(existingDebugInfo);
+      return value;
+    }
+    function transferReferencedDebugInfo(parentChunk, referencedChunk) {
+      if (null !== parentChunk) {
+        referencedChunk = referencedChunk._debugInfo;
+        parentChunk = parentChunk._debugInfo;
+        for (var i = 0; i < referencedChunk.length; ++i) {
+          var debugInfoEntry = referencedChunk[i];
+          null == debugInfoEntry.name && parentChunk.push(debugInfoEntry);
+        }
+      }
     }
     function getOutlinedModel(response, reference, parentObject, key, map) {
       var path = reference.split(":");
@@ -1977,7 +1997,7 @@
           response = map(response, value, parentObject, key);
           (parentObject[0] !== REACT_ELEMENT_TYPE ||
             ("4" !== key && "5" !== key)) &&
-            transferReferencedDebugInfo(initializingChunk, reference, response);
+            transferReferencedDebugInfo(initializingChunk, reference);
           return response;
         case "pending":
         case "blocked":
@@ -2350,8 +2370,30 @@
       streamState._debugTargetChunkSize = MIN_CHUNK_SIZE;
       return streamState;
     }
+    function addDebugInfo(chunk, debugInfo) {
+      var value = resolveLazy(chunk.value);
+      "object" !== typeof value ||
+      null === value ||
+      (!isArrayImpl(value) &&
+        "function" !== typeof value[ASYNC_ITERATOR] &&
+        value.$$typeof !== REACT_ELEMENT_TYPE &&
+        value.$$typeof !== REACT_LAZY_TYPE)
+        ? chunk._debugInfo.push.apply(chunk._debugInfo, debugInfo)
+        : isArrayImpl(value._debugInfo)
+          ? value._debugInfo.push.apply(value._debugInfo, debugInfo)
+          : Object.defineProperty(value, "_debugInfo", {
+              configurable: !1,
+              enumerable: !1,
+              writable: !0,
+              value: debugInfo
+            });
+    }
     function resolveChunkDebugInfo(streamState, chunk) {
-      chunk._debugInfo.push({ awaited: streamState._debugInfo });
+      streamState = [{ awaited: streamState._debugInfo }];
+      "pending" === chunk.status || "blocked" === chunk.status
+        ? ((streamState = addDebugInfo.bind(null, chunk, streamState)),
+          chunk.then(streamState, streamState))
+        : addDebugInfo(chunk, streamState);
     }
     function resolveBuffer(response, id, buffer, streamState) {
       var chunks = response._chunks,
@@ -2426,7 +2468,6 @@
             try {
               if (
                 (initializeDebugChunk(response, chunk),
-                (chunk._debugChunk = null),
                 null !== initializingHandler &&
                   !initializingHandler.errored &&
                   0 < initializingHandler.deps)

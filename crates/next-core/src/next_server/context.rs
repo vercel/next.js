@@ -358,7 +358,7 @@ async fn next_server_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVa
 
 #[turbo_tasks::function]
 pub async fn get_server_compile_time_info(
-    cwd: RcStr,
+    cwd: Vc<FileSystemPath>,
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
 ) -> Result<Vc<CompileTimeInfo>> {
@@ -367,7 +367,7 @@ pub async fn get_server_compile_time_info(
             NodeJsEnvironment {
                 compile_target: CompileTarget::current().to_resolved().await?,
                 node_version,
-                cwd: ResolvedVc::cell(Some(cwd)),
+                cwd: ResolvedVc::cell(Some(cwd.owned().await?)),
             }
             .resolved_cell(),
         ))

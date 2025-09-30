@@ -1044,24 +1044,20 @@ impl EcmascriptModuleContent {
             ..
         } = &*input;
 
-        async {
-            let minify = chunking_context.minify_type().await?;
+        let minify = chunking_context.minify_type().await?;
 
-            let content = process_parse_result(
-                *parsed,
-                module.ident(),
-                *specified_module_type,
-                *generate_source_map,
-                *original_source_map,
-                *minify,
-                Some(&*input),
-                None,
-            )
-            .await?;
-            emit_content(content, Default::default()).await
-        }
-        .instrument(tracing::info_span!("gen content with code gens"))
-        .await
+        let content = process_parse_result(
+            *parsed,
+            module.ident(),
+            *specified_module_type,
+            *generate_source_map,
+            *original_source_map,
+            *minify,
+            Some(&*input),
+            None,
+        )
+        .await?;
+        emit_content(content, Default::default()).await
     }
 
     /// Creates a new [`Vc<EcmascriptModuleContent>`] without an analysis pass.
@@ -1204,11 +1200,11 @@ impl EcmascriptModuleContent {
                 .into();
 
             emit_content(content, additional_ids)
-                .instrument(tracing::info_span!("emit"))
+                .instrument(tracing::info_span!("emit code"))
                 .await
         }
         .instrument(tracing::info_span!(
-            "merged EcmascriptModuleContent",
+            "generate merged code",
             modules = module_options.len()
         ))
         .await

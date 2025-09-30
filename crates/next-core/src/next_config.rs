@@ -91,6 +91,7 @@ pub struct NextConfig {
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
     pub page_extensions: Vec<RcStr>,
+    pub react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     pub react_production_profiling: Option<bool>,
     pub react_strict_mode: Option<bool>,
     pub transpile_packages: Option<Vec<RcStr>>,
@@ -560,7 +561,6 @@ pub struct TurbopackConfig {
     pub rules: Option<FxIndexMap<RcStr, RuleConfigCollection>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
-    pub module_ids: Option<ModuleIds>,
 }
 
 #[derive(
@@ -817,7 +817,6 @@ pub struct ExperimentalConfig {
     web_vitals_attribution: Option<Vec<RcStr>>,
     server_actions: Option<ServerActionsOrLegacyBool>,
     sri: Option<SubResourceIntegrity>,
-    react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     root_params: Option<bool>,
@@ -881,6 +880,7 @@ pub struct ExperimentalConfig {
     worker_threads: Option<bool>,
 
     turbopack_minify: Option<bool>,
+    turbopack_module_ids: Option<ModuleIds>,
     turbopack_persistent_caching: Option<bool>,
     turbopack_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
@@ -1634,7 +1634,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn react_compiler_options(&self) -> Vc<OptionalReactCompilerOptions> {
-        let options = &self.experimental.react_compiler;
+        let options = &self.react_compiler;
 
         let options = match options {
             Some(ReactCompilerOptionsOrBoolean::Boolean(true)) => {
@@ -1807,9 +1807,8 @@ impl NextConfig {
             // Ignore configuration in development mode, HMR only works with `named`
             NextMode::Development => ModuleIds::Named.cell(),
             NextMode::Build => self
-                .turbopack
-                .as_ref()
-                .and_then(|t| t.module_ids)
+                .experimental
+                .turbopack_module_ids
                 .unwrap_or(ModuleIds::Deterministic)
                 .cell(),
         })

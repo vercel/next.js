@@ -394,14 +394,13 @@ describe('app dir - css', () => {
               'hello world!'
             )
 
-            // there should be only 1 preload link
             expect(
               await browser.eval(
                 `(() => {
                 const tags = document.querySelectorAll('link[rel="preload"][href^="/_next/static/css"]')
                 const counts = new Map();
                 for (const tag of tags) {
-                  counts.set(tag.href, (counts.get(tag.href) || 0) + 1)
+                  counts.set(tag.href + '|' + tag.as, (counts.get(tag.href) || 0) + 1)
                 }
                 return Math.max(...counts.values())
               })()`
@@ -483,7 +482,7 @@ describe('app dir - css', () => {
           if (process.env.IS_TURBOPACK_TEST) {
             expect(
               initialHtml.match(/app_css_css-duplicate-2_[\w]+\.css/g).length
-            ).toBe(5)
+            ).toBe(7)
           } else {
             // Even if it's deduped by Float, it should still only be included once in the payload.
 
@@ -499,18 +498,26 @@ describe('app dir - css', () => {
 
             // Heavy on testing React implementation details.
             // Assertions may change often but what needs to be checked on change is if styles are needlessly duplicated in Flight data
-            // There are 3 matches, one for the rendered <link> (HTML), one for Float preload (Flight) and one for the <link> inside Flight payload.
+            // There are 5 matches, one for the rendered <link> (HTML), one for Float preload (Flight), one for the <link> inside Flight payload and two preload instructions for those links.
             // And there is one match for the not found style
             expect(matches).toEqual([
               '/_next/static/css/app/css/css-duplicate-2/layout.css',
               '/_next/static/css/app/css/css-duplicate-2/layout.css',
               '/_next/static/css/app/css/css-duplicate-2/layout.css',
+              '/_next/static/css/app/css/css-duplicate-2/layout.css',
+              '/_next/static/css/app/css/css-duplicate-2/layout.css',
+              '/_next/static/css/app/css/layout.css',
+              '/_next/static/css/app/css/layout.css',
               '/_next/static/css/app/css/layout.css',
               '/_next/static/css/app/css/layout.css',
               '/_next/static/css/app/css/layout.css',
               '/_next/static/css/app/layout.css',
               '/_next/static/css/app/layout.css',
               '/_next/static/css/app/layout.css',
+              '/_next/static/css/app/layout.css',
+              '/_next/static/css/app/layout.css',
+              '/_next/static/css/app/not-found.css',
+              '/_next/static/css/app/not-found.css',
               '/_next/static/css/app/not-found.css',
             ])
           }

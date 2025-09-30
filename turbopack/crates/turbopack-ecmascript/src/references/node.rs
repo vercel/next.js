@@ -12,7 +12,6 @@ use turbopack_core::{
         ModuleResolveResult, RequestKey,
         pattern::{Pattern, PatternMatch, read_matches},
     },
-    source::Source,
 };
 
 #[turbo_tasks::value]
@@ -58,20 +57,20 @@ impl ValueToString for PackageJsonReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct DirAssetReference {
-    pub source: ResolvedVc<Box<dyn Source>>,
+    pub context_dir: FileSystemPath,
     pub path: ResolvedVc<Pattern>,
 }
 
 #[turbo_tasks::value_impl]
 impl DirAssetReference {
     #[turbo_tasks::function]
-    pub fn new(source: ResolvedVc<Box<dyn Source>>, path: ResolvedVc<Pattern>) -> Vc<Self> {
-        Self::cell(DirAssetReference { source, path })
+    pub fn new(context_dir: FileSystemPath, path: ResolvedVc<Pattern>) -> Vc<Self> {
+        Self::cell(DirAssetReference { context_dir, path })
     }
 }
 
 async fn resolve_reference_from_dir(
-    parent_path: FileSystemPath,
+    context_dir: FileSystemPath,
     path: Vc<Pattern>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let path_ref = path.await?;
@@ -83,7 +82,7 @@ async fn resolve_reference_from_dir(
     let abs_matches = if let Some(abs_path) = &abs_path {
         Some(
             read_matches(
-                parent_path.root().owned().await?,
+                context_dir.root().owned().await?,
                 rcstr!("/ROOT/"),
                 true,
                 Pattern::new(abs_path.or_any_nested_file()),
@@ -96,7 +95,7 @@ async fn resolve_reference_from_dir(
     let rel_matches = if let Some(rel_path) = &rel_path {
         Some(
             read_matches(
-                parent_path,
+                context_dir,
                 rcstr!(""),
                 true,
                 Pattern::new(rel_path.or_any_nested_file()),
@@ -149,12 +148,11 @@ async fn resolve_reference_from_dir(
 impl ModuleReference for DirAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let parent_path = self.source.ident().path().await?.parent();
         let span = tracing::info_span!(
             "trace directory",
             pattern = display(self.path.to_string().await?)
         );
-        resolve_reference_from_dir(parent_path, *self.path)
+        resolve_reference_from_dir(self.context_dir.clone(), *self.path)
             .instrument(span)
             .await
     }

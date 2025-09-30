@@ -168,13 +168,6 @@ export interface TurbopackOptions {
   rules?: Record<string, TurbopackRuleConfigCollection>
 
   /**
-   * The module ID strategy to use for Turbopack.
-   * If not set, the default is `'named'` for development and `'deterministic'`
-   * for production.
-   */
-  moduleIds?: 'named' | 'deterministic'
-
-  /**
    * This is the repo root usually and only files above this
    * directory can be resolved by turbopack.
    */
@@ -430,9 +423,14 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * Enable persistent caching for the turbopack dev server and build.
+   * Enable persistent caching for the turbopack dev server.
    */
-  turbopackPersistentCaching?: boolean
+  turbopackPersistentCachingForDev?: boolean
+
+  /**
+   * Enable persistent caching for the turbopack build.
+   */
+  turbopackPersistentCachingForBuild?: boolean
 
   /**
    * Enable source maps. Defaults to true.
@@ -478,10 +476,10 @@ export interface ExperimentalConfig {
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
    * configuration file is present. This option is enabled by default.
    *
-   * If this is set to `false`, but `experimental.reactCompiler` is `true`, the built-in Babel will
+   * If this is set to `false`, but `reactCompiler` is `true`, the built-in Babel will
    * still be configured, but any Babel configuration files on disk will be ignored. If you wish to
    * use React Compiler with a different manually-configured `babel-loader`, you should disable both
-   * this and `experimental.reactCompiler`.
+   * this and `reactCompiler`.
    */
   turbopackUseBuiltinBabel?: boolean
 
@@ -680,12 +678,6 @@ export interface ExperimentalConfig {
    *
    */
   serverComponentsExternalPackages?: string[]
-  /**
-   * Enable experimental React compiler optimization.
-   * Configuration accepts partial config object to the compiler, if provided
-   * compiler will be enabled.
-   */
-  reactCompiler?: boolean | ReactCompilerOptions
 
   /**
    * When enabled, in dev mode, Next.js will send React's debug info through the
@@ -804,6 +796,13 @@ export interface ExperimentalConfig {
    * @default false
    */
   mcpServer?: boolean
+
+  /**
+   * The module ID strategy to use for Turbopack.
+   * If not set, the default is `'named'` for development and `'deterministic'`
+   * for production.
+   */
+  turbopackModuleIds?: 'named' | 'deterministic'
 }
 
 export type ExportPathMap = {
@@ -1095,6 +1094,13 @@ export interface NextConfig {
   productionBrowserSourceMaps?: boolean
 
   /**
+   * Enable {@link https://nextjs.org/docs/app/api-reference/config/next-config-js/reactCompiler React Compiler in Next.js}.
+   * Configuration accepts partial config object of the Compiler.
+   * If provided, the Compiler will be enabled.
+   */
+  reactCompiler?: boolean | ReactCompilerOptions
+
+  /**
    * Enable react profiling in production
    *
    */
@@ -1369,6 +1375,7 @@ export const defaultConfig = Object.freeze({
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
+  reactCompiler: undefined,
   reactProductionProfiling: false,
   reactStrictMode: null,
   reactMaxHeadersLength: 6000,
@@ -1502,7 +1509,6 @@ export const defaultConfig = Object.freeze({
       static: 300,
     },
     allowDevelopmentBuild: undefined,
-    reactCompiler: undefined,
     reactDebugChannel: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
@@ -1516,6 +1522,7 @@ export const defaultConfig = Object.freeze({
     browserDebugInfoInTerminal: false,
     isolatedDevBuild:
       process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true',
+    mcpServer: !!process.env.__NEXT_EXPERIMENTAL_MCP_SERVER,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

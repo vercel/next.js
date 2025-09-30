@@ -1224,6 +1224,9 @@
         );
       return resolveDispatcher().useEffect(create, deps);
     };
+    exports.useEffectEvent = function (callback) {
+      return resolveDispatcher().useEffectEvent(callback);
+    };
     exports.useId = function () {
       return resolveDispatcher().useId();
     };
@@ -1273,7 +1276,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.2.0-canary-e2332183-20250924";
+    exports.version = "19.2.0-canary-d15d7fd7-20250929";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

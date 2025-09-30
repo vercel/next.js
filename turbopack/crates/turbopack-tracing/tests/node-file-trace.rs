@@ -351,7 +351,11 @@ async fn node_file_trace_operation(
 
     let source = FileSource::new(input);
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment::default().resolved_cell(),
+        NodeJsEnvironment {
+            cwd: ResolvedVc::cell(Some(input_dir.join("tests/node-file-trace/integration")?)),
+            ..Default::default()
+        }
+        .resolved_cell(),
     ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
