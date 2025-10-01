@@ -217,8 +217,8 @@ export class NextInstance {
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
-          '@types/react': '19.1.14',
-          '@types/react-dom': '19.1.7',
+          '@types/react': '19.1.16',
+          '@types/react-dom': '19.1.10',
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
