@@ -1857,7 +1857,7 @@ export async function ncc_sass_loader(task, opts) {
   await fs.writeFile(
     utilsPath,
     originalContent.replace(
-      /require\.resolve\(["'](sass|node-sass)["']\)/g,
+      /require\.resolve\(["'](sass|node-sass|sass-embedded)["']\)/g,
       'eval("require").resolve("$1")'
     )
   )
