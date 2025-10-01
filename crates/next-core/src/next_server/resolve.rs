@@ -206,6 +206,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let unable_to_externalize = |reason: Vec<StyledString>| {
             if must_be_external {
                 ExternalizeIssue {
+                    // TODO put lookup_path into message and use next.config path to always show
+                    // this warning even in node_modules? Or change the logic in
+                    // the js side
                     file_path: lookup_path.clone(),
                     package: package.clone(),
                     request_str: request_str.clone(),

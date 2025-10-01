@@ -1444,7 +1444,7 @@ async fn analyze_ecmascript_module_internal(
 
     analysis.set_successful(true);
 
-    collector.emit().await?;
+    collector.emit(false).await?;
 
     analysis
         .build(
