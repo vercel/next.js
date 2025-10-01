@@ -25,9 +25,9 @@ If you expect a route to be static and the indicator has marked it as dynamic, i
 You can confirm if a route is [static](/docs/app/getting-started/partial-prerendering#static-rendering) or [dynamic](/docs/app/getting-started/partial-prerendering#dynamic-rendering) by building your application using `next build --debug`, and checking the output in your terminal. Static (or prerendered) routes will display a `○` symbol, whereas dynamic routes will display a `ƒ` symbol. For example:
 
 ```bash filename="Build Output"
-Route (app)                              Size     First Load JS
-┌ ○ /_not-found                          0 B               0 kB
-└ ƒ /products/[id]                       0 B               0 kB
+Route (app)
+┌ ○ /_not-found
+└ ƒ /products/[id]
 
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand

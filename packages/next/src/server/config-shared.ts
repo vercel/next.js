@@ -369,12 +369,6 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  /** @deprecated built-in amp support will be removed in Next 16 */
-  amp?: {
-    optimizer?: any
-    validator?: string
-    skipValidation?: boolean
-  }
   disableOptimizedLoading?: boolean
 
   /** @deprecated A no-op as of Next 16, size metrics were removed from the build output. */
@@ -1069,14 +1063,6 @@ export interface NextConfig {
   }
 
   /**
-   * @deprecated built-in amp support will be removed in Next 16
-   * @see [`next/amp`](https://nextjs.org/docs/api-reference/next/amp)
-   */
-  amp?: {
-    canonicalBase?: string
-  }
-
-  /**
    * A unique identifier for a deployment that will be included in each request's query string or header.
    */
   deploymentId?: string
@@ -1372,9 +1358,6 @@ export const defaultConfig = Object.freeze({
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 5,
   },
-  amp: {
-    canonicalBase: '',
-  },
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
@@ -1495,7 +1478,6 @@ export const defaultConfig = Object.freeze({
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
-    amp: undefined,
     urlImports: undefined,
     typedEnv: false,
     clientTraceMetadata: undefined,

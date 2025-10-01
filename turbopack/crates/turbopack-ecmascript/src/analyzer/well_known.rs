@@ -603,6 +603,9 @@ async fn well_known_object_member(
         WellKnownObjectKind::FsExtraModule | WellKnownObjectKind::FsExtraModuleDefault => {
             fs_extra_module_member(kind, prop)
         }
+        WellKnownObjectKind::ModuleModule | WellKnownObjectKind::ModuleModuleDefault => {
+            module_module_member(kind, prop)
+        }
         WellKnownObjectKind::UrlModule | WellKnownObjectKind::UrlModuleDefault => {
             url_module_member(kind, prop)
         }
@@ -733,6 +736,25 @@ fn fs_extra_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
         true,
         "unsupported property on fs-extra module",
     )
+}
+
+fn module_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+    match (kind, prop.as_str()) {
+        (.., Some("createRequire")) => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
+        }
+        (WellKnownObjectKind::ModuleModule, Some("default")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::ModuleModuleDefault)
+        }
+        _ => JsValue::unknown(
+            JsValue::member(
+                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::ModuleModule)),
+                Box::new(prop),
+            ),
+            true,
+            "unsupported property on Node.js `module` module",
+        ),
+    }
 }
 
 fn url_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {

@@ -135,8 +135,6 @@ pub struct NextConfig {
 
     pub optimize_fonts: Option<bool>,
 
-    // unsupported
-    amp: AmpConfig,
     clean_dist_dir: bool,
     compress: bool,
     eslint: EslintConfig,
@@ -165,22 +163,6 @@ pub struct NextConfig {
 pub enum CrossOriginConfig {
     Anonymous,
     UseCredentials,
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-)]
-#[serde(rename_all = "camelCase")]
-struct AmpConfig {
-    canonical_base: Option<String>,
 }
 
 #[derive(
@@ -827,7 +809,6 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks: Option<bool>,
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
-    amp: Option<serde_json::Value>,
     app_document_preloading: Option<bool>,
     cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
     cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,

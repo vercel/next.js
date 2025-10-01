@@ -1,7 +1,7 @@
 import type { NextConfigComplete } from '../server/config-shared'
 import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
-import type { PageConfig, ServerRuntime } from '../types'
+import type { ServerRuntime } from '../types'
 import type { BuildManifest } from '../server/get-page-files'
 import type {
   Redirect,
@@ -56,7 +56,6 @@ import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'
-import { isClientReference } from '../lib/client-and-server-references'
 import { RouteKind } from '../server/route-kind'
 import type { PageExtensions } from './page-extensions-type'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
@@ -137,7 +136,6 @@ const filterAndSortList = (
 
 export interface PageInfo {
   originalAppPath: string | undefined
-  isHybridAmp?: boolean
   isStatic: boolean
   isSSG: boolean
   /**
@@ -182,7 +180,6 @@ export async function printTreeView(
   {
     pagesDir,
     pageExtensions,
-    buildManifest,
     middlewareManifest,
     useStaticPages404,
   }: {
@@ -270,9 +267,6 @@ export async function printTreeView(
             : '├'
 
       const pageInfo = pageInfos.get(item)
-      const ampLabel = buildManifest.ampFirstPages.includes(item)
-        ? ` ${cyan('AMP')}`
-        : ''
       const totalDuration =
         (pageInfo?.pageDuration || 0) +
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
@@ -309,7 +303,7 @@ export async function printTreeView(
       usedSymbols.add(symbol)
 
       messages.push([
-        `${border} ${symbol} ${item}${ampLabel}${
+        `${border} ${symbol} ${item}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -549,8 +543,6 @@ export function printCustomRoutes({
 type PageIsStaticResult = {
   isRoutePPREnabled?: boolean
   isStatic?: boolean
-  isAmpOnly?: boolean
-  isHybridAmp?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderedRoutes: PrerenderedRoute[] | undefined
@@ -620,8 +612,6 @@ export async function isPageStatic({
     return {
       isStatic: true,
       isRoutePPREnabled: false,
-      isHybridAmp: false,
-      isAmpOnly: false,
       prerenderFallbackMode: undefined,
       prerenderedRoutes: undefined,
       rootParamKeys: undefined,
@@ -656,7 +646,6 @@ export async function isPageStatic({
       let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
-      let isClientComponent: boolean = false
       const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
 
       if (pathIsEdgeRuntime) {
@@ -680,7 +669,6 @@ export async function isPageStatic({
         // This is not needed during require.
         const buildManifest = {} as BuildManifest
 
-        isClientComponent = isClientReference(mod)
         componentsResult = {
           Component: mod.default,
           Document: mod.Document,
@@ -714,8 +702,6 @@ export async function isPageStatic({
 
       if (pageType === 'app') {
         const ComponentMod: AppPageModule = componentsResult.ComponentMod
-
-        isClientComponent = isClientReference(componentsResult.ComponentMod)
 
         let segments: AppSegment[]
         try {
@@ -834,9 +820,6 @@ export async function isPageStatic({
       }
 
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
-      const config: PageConfig = isClientComponent
-        ? {}
-        : componentsResult.pageConfig
 
       let isStatic = false
       if (!hasStaticProps && !hasGetInitialProps && !hasServerProps) {
@@ -852,8 +835,6 @@ export async function isPageStatic({
       return {
         isStatic,
         isRoutePPREnabled,
-        isHybridAmp: config.amp === 'hybrid',
-        isAmpOnly: config.amp === true,
         prerenderFallbackMode,
         prerenderedRoutes,
         rootParamKeys,

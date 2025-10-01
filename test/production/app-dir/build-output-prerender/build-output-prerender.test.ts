@@ -26,8 +26,8 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (Turbopack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
-                  ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)"
@@ -37,8 +37,8 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
-                  ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)"
@@ -61,8 +61,8 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
-                  ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)"
@@ -74,6 +74,8 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (Turbopack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`experimental.cacheComponents\`)
                   ✓ rdcForNavigations (enabled by \`experimental.ppr\`)"
@@ -83,6 +85,8 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (Rspack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`experimental.cacheComponents\`)
                   ✓ rdcForNavigations (enabled by \`experimental.ppr\`)"
@@ -92,6 +96,8 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`experimental.cacheComponents\`)
                   ✓ rdcForNavigations (enabled by \`experimental.ppr\`)"
@@ -149,8 +155,8 @@ describe('build-output-prerender', () => {
                 ▲ Next.js x.y.z (Turbopack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
-                  ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -164,8 +170,8 @@ describe('build-output-prerender', () => {
                 ▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
-                  ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -196,8 +202,8 @@ describe('build-output-prerender', () => {
                 ▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
-                  ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -213,6 +219,8 @@ describe('build-output-prerender', () => {
                 ▲ Next.js x.y.z (Turbopack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`experimental.cacheComponents\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -226,6 +234,8 @@ describe('build-output-prerender', () => {
                 ▲ Next.js x.y.z (Rspack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`experimental.cacheComponents\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -239,6 +249,8 @@ describe('build-output-prerender', () => {
                 ▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`experimental.cacheComponents\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -297,8 +309,8 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (Turbopack)
                 - Experiments (use with caution):
                   ✓ cacheComponents (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)"
@@ -308,8 +320,8 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)"
@@ -370,8 +382,8 @@ describe('build-output-prerender', () => {
                 ▲ Next.js x.y.z (Turbopack)
                 - Experiments (use with caution):
                   ✓ cacheComponents (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -385,8 +397,8 @@ describe('build-output-prerender', () => {
                 ▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
+                  ✓ clientParamParsing (enabled by \`experimental.cacheComponents\`)
+                  ✓ clientSegmentCache (enabled by \`experimental.cacheComponents\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)

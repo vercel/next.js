@@ -359,7 +359,6 @@ export function getJestSWCOptions({
       type: esm && !useCjsModules ? 'es6' : 'commonjs',
     },
     disableNextSsg: true,
-    disablePageConfig: true,
     pagesDir,
   }
 }
@@ -488,7 +487,6 @@ export function getLoaderSWCOptions({
       ...moduleResolutionConfig,
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
-      disablePageConfig: true,
       isDevelopment: development,
       isServerCompiler: isServer,
       pagesDir,
@@ -530,7 +528,6 @@ export function getLoaderSWCOptions({
   // Only keep server actions transform to discover server actions from client components.
   if (isAppBrowserLayer && isNodeModules) {
     options.disableNextSsg = true
-    options.disablePageConfig = true
     options.isPageFile = false
     options.optimizeServerReact = undefined
     options.cjsRequireOptimizer = undefined

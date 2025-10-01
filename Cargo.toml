@@ -308,7 +308,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "36.0.1", features = [
+swc_core = { version = "42.0.3", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
@@ -319,13 +319,13 @@ testing = "15.0.0"
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"
 mdxjs = "1.0.3"
-modularize_imports = "0.94.0"
-styled_components = "0.122.0"
-styled_jsx = "0.98.0"
-swc_emotion = "0.98.0"
-swc_relay = "0.68.0"
-react_remove_properties = "0.48.0"
-remove_console = "0.49.0"
+modularize_imports = "0.97.0"
+styled_components = "0.125.0"
+styled_jsx = "0.101.0"
+swc_emotion = "0.101.0"
+swc_relay = "0.71.0"
+react_remove_properties = "0.51.0"
+remove_console = "0.52.0"
 preset_env_base = "5.0.0"
 
 
@@ -371,13 +371,13 @@ image = { version = "0.25.0", default-features = false }
 indexmap = "2.7.1"
 indoc = "2.0.0"
 itertools = "0.10.5"
-lightningcss = { version = "1.0.0-alpha.67", features = [
+lightningcss = { version = "1.0.0-alpha.68", features = [
   "serde",
   "visitor",
   "into_owned",
   "browserslist",
 ] }
-lightningcss-napi = { version = "0.4.4", default-features = false, features = [
+lightningcss-napi = { version = "0.4.5", default-features = false, features = [
   "visitor",
 ] }
 markdown = "1.0.0-alpha.18"
@@ -452,5 +452,3 @@ inventory = "0.3.21"
 [patch.crates-io]
 hyper = { git = "https://github.com/bgw/hyper-rs.git", branch = "v1.6.0-with-macos-intel-miscompilation-workaround" }
 mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }
-lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
-parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }

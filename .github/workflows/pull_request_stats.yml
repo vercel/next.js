@@ -60,7 +60,3 @@ jobs:
 
       - uses: ./.github/actions/next-stats-action
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        env:
-          # This uses the webpack bundle analyzer and for consistent results we need to use webpack.
-          # Once there is an equivalent analyzer for turbopack, we can remove this.
-          IS_WEBPACK_TEST: 1
