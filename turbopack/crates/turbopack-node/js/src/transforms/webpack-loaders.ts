@@ -187,19 +187,7 @@ const transform = (
               : {}
           },
           fs: {
-            readFile(p: string, encodingOrCb: any, maybeCb: any) {
-              let encoding: BufferEncoding | undefined,
-                callback: (err?: unknown, data?: string | Buffer) => void
-              if (maybeCb == null) {
-                callback = encodingOrCb
-                encoding = undefined
-              } else {
-                callback = maybeCb
-                encoding = encodingOrCb
-                  ? encodingOrCb.toLowerCase()
-                  : encodingOrCb
-              }
-
+            readFile(p: string, optionsOrCb: any, maybeCb: any) {
               ipc
                 .sendRequest({
                   type: 'trackFileRead',
@@ -207,10 +195,11 @@ const transform = (
                 })
                 .then(
                   () => {
-                    fs.readFile(p, encoding, callback)
+                    fs.readFile(p, optionsOrCb, maybeCb)
                   },
                   (err) => {
                     ipc.sendError(err)
+                    // sendError is going to stop the process, no need to call callback
                   }
                 )
             },
