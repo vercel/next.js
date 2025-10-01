@@ -3053,6 +3053,26 @@ async fn value_visitor_inner(
                 "require.context() static analysis is currently limited",
             )
         }
+        JsValue::Call(
+            _,
+            box JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire),
+            ref args,
+        ) => {
+            // Only support `createRequire(import.meta.url)` for now
+            if let [
+                JsValue::Member(
+                    _,
+                    box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                    box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
+                ),
+            ] = &args[..]
+                && prop.as_str() == "url"
+            {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
+            } else {
+                v.into_unknown(true, "createRequire() non constant")
+            }
+        }
         JsValue::New(
             _,
             box JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
@@ -3068,10 +3088,9 @@ async fn value_visitor_inner(
             ] = &args[..]
             {
                 if prop.as_str() == "url" {
-                    // TODO avoid clone
                     JsValue::Url(url.clone(), JsValueUrlKind::Relative)
                 } else {
-                    v.into_unknown(true, "new non constant")
+                    v.into_unknown(true, "new URL() non constant")
                 }
             } else {
                 v.into_unknown(true, "new non constant")

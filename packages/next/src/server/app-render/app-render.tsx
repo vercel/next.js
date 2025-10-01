@@ -2479,7 +2479,7 @@ async function renderToStream(
      *
      *    2.) If dynamic HTML support is requested, we must honor that request
      *        or throw an error. It is the sole responsibility of the caller to
-     *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+     *        ensure they aren't e.g. requesting dynamic HTML for a static page.
      *
      *   3.) If `shouldWaitOnAllReady` is true, which indicates we need to
      *       resolve all suspenses and generate a full HTML. e.g. when it's a
@@ -2628,7 +2628,7 @@ async function renderToStream(
        *
        *    2.) If dynamic HTML support is requested, we must honor that request
        *        or throw an error. It is the sole responsibility of the caller to
-       *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+       *        ensure they aren't e.g. requesting dynamic HTML for a static page.
        *    3.) If `shouldWaitOnAllReady` is true, which indicates we need to
        *        resolve all suspenses and generate a full HTML. e.g. when it's a
        *        html limited bot requests, we produce the full HTML content.
