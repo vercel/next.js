@@ -187,9 +187,9 @@ describe('app dir - basic', () => {
     // Turbopack doesn't recreate the original folder structure for the output chunks
     if (!process.env.IS_TURBOPACK_TEST) {
       expect(requests).toEqual(
-        // e.g. _next/static/chunks/app/dynamic-client/%5Bcategory%5D/%5Bid%5D/page-6e188d657a208f8e.js
+        // e.g. _next/static/chunks/app/dynamic-client/%5Bcategory%5D/%5Bid%5D/page-6e188d657a208f8e.js?dpl=...
         expect.arrayContaining([
-          expect.stringMatching(/.*%5Bcategory%5D\/%5Bid%5D.*\.js$/),
+          expect.stringMatching(/.*%5Bcategory%5D\/%5Bid%5D.*\.js/),
         ])
       )
     }
