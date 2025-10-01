@@ -22,6 +22,7 @@ import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
+import type { TurbopackResult, RawEntrypoints } from '../swc/types'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -107,27 +108,7 @@ export async function turbopackBuild(): Promise<{
     )
 
     let appDirOnly = NextBuildContext.appDirOnly!
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
-
-    const hasPagesEntries = Array.from(entrypoints.routes.values()).some(
-      (route) => {
-        if (route.type === 'page' || route.type === 'page-api') {
-          return true
-        }
-        return false
-      }
-    )
-    // If there's no pages entries, then we are in app-dir-only mode
-    if (!hasPagesEntries) {
-      appDirOnly = true
-    }
-
-    const manifestLoader = new TurbopackManifestLoader({
-      buildId,
-      distDir,
-      encryptionKey,
-    })
 
     const topLevelErrors = []
     const topLevelWarnings = []
@@ -159,15 +140,31 @@ export async function turbopackBuild(): Promise<{
       )
     }
 
-    if (!('routes' in entrypoints)) {
+    if (!entrypoints.routes) {
       // This should never ever happen, there should be an error issue, or the bindings call should
       // have thrown.
       throw new Error(`Turbopack build failed`)
     }
 
-    const currentEntrypoints = await rawEntrypointsToEntrypoints(entrypoints)
+    const hasPagesEntries = Array.from(entrypoints.routes.values()).some(
+      (route) => route.type === 'page' || route.type === 'page-api'
+    )
+    // If there's no pages entries, then we are in app-dir-only mode
+    if (!hasPagesEntries) {
+      appDirOnly = true
+    }
 
-    const promises: Promise<any>[] = []
+    const manifestLoader = new TurbopackManifestLoader({
+      buildId,
+      distDir,
+      encryptionKey,
+    })
+
+    const currentEntrypoints = await rawEntrypointsToEntrypoints(
+      entrypoints as TurbopackResult<RawEntrypoints>
+    )
+
+    const promises: Promise<void>[] = []
 
     if (!appDirOnly) {
       for (const [page, route] of currentEntrypoints.page) {
