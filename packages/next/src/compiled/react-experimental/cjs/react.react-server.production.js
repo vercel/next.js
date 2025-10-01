@@ -563,4 +563,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.2.0-experimental-1bd1f01f-20251001";
+exports.version = "19.2.0-experimental-86181134-20251001";
