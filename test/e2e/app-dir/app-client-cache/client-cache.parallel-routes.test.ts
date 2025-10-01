@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
-import { browserConfigWithFixedTime, fastForwardTo } from './test-utils'
 import path from 'path'
 import { Playwright } from 'next-webdriver'
+import type { Page as PlaywrightPage } from 'playwright'
 
 describe('app dir client cache with parallel routes', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -29,13 +29,14 @@ describe('app dir client cache with parallel routes', () => {
 
   describe('prefetch={true}', () => {
     it('should prefetch the full page', async () => {
-      let act: ReturnType<typeof createRouterAct>
+      let page: PlaywrightPage
       const browser = await next.browser('/', {
-        beforePageLoad(page) {
-          browserConfigWithFixedTime.beforePageLoad(page)
-          act = createRouterAct(page)
+        async beforePageLoad(p) {
+          page = p
+          await page.clock.install()
         },
       })
+      const act = createRouterAct(page)
 
       // Reveal the link to trigger prefetch and wait for it to complete
       const link = await act(
@@ -53,13 +54,14 @@ describe('app dir client cache with parallel routes', () => {
     })
 
     it('should re-use the cache for the full page, only for 5 mins', async () => {
-      let act: ReturnType<typeof createRouterAct>
+      let page: PlaywrightPage
       const browser = await next.browser('/', {
-        beforePageLoad(page) {
-          browserConfigWithFixedTime.beforePageLoad(page)
-          act = createRouterAct(page)
+        async beforePageLoad(p) {
+          page = p
+          await page.clock.install()
         },
       })
+      const act = createRouterAct(page)
 
       // Toggle the link, assert on the prefetch content
       const link = await act(
@@ -109,7 +111,7 @@ describe('app dir client cache with parallel routes', () => {
       }, 'no-requests')
 
       // Fast forward 5 minutes
-      await browser.eval(fastForwardTo, 5 * 60 * 1000)
+      await page.clock.fastForward(5 * 60 * 1000)
 
       // Toggle the link to the other page again, assert on prefetch content
       const linkAfterExpiry = await act(
