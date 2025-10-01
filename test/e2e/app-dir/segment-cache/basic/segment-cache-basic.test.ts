@@ -93,11 +93,7 @@ describe('segment cache (basic tests)', () => {
     )
   })
 
-  // TODO(client-param-parsing): With `clientParamParsing` enabled, this test is outdated, because
-  // we no longer put the param values in the prefetched RSC response. You'd have to opt into runtime
-  // prefetching for this test to pass until we ship the optimization that would mark this as fully static
-  // if you don't reference any dynamic params in the server components.
-  it.skip('navigate to page with lazily-generated (not at build time) static param', async () => {
+  it('navigate to page with lazily-generated (not at build time) static param', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/lazily-generated-params', {
       beforePageLoad(page) {
