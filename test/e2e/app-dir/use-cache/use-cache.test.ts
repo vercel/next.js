@@ -1102,7 +1102,7 @@ describe('use-cache', () => {
     it('can resume a cached generateMetadata function', async () => {
       // First load the page with JavaScript disabled, to ensure that the
       // generateMetadata result was included in the prerendered shell.
-      let browser = await next.browser('/generate-metadata-resume', {
+      let browser = await next.browser('/generate-metadata-resume/nested', {
         disableJavaScript: true,
       })
 
@@ -1115,7 +1115,7 @@ describe('use-cache', () => {
       await browser.close()
 
       // Load the page again, now with JavaScript enabled.
-      browser = await next.browser('/generate-metadata-resume')
+      browser = await next.browser('/generate-metadata-resume/nested')
 
       // If there was no cache hit from the RDC during the resume, we'd observe
       // a different title.
@@ -1169,9 +1169,7 @@ describe('use-cache', () => {
     })
 
     it('can serialize parent metadata as generateMetadata argument', async () => {
-      const browser = await next.browser(
-        '/generate-metadata-resume/params-unused/foo'
-      )
+      const browser = await next.browser('/generate-metadata-resume/nested')
 
       const canonicalUrl = await browser
         .elementByCss('link[rel="canonical"]')
