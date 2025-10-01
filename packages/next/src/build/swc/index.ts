@@ -658,14 +658,16 @@ function bindingToApi(
 
     async writeAllEntrypointsToDisk(
       appDirOnly: boolean
-    ): Promise<TurbopackResult<RawEntrypoints | {}>> {
+    ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
       const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
         this._nativeProject,
         appDirOnly
-      )) as TurbopackResult<NapiEntrypoints | {}>
+      )) as TurbopackResult<Partial<NapiEntrypoints>>
 
       if ('routes' in napiEndpoints) {
-        return napiEntrypointsToRawEntrypoints(napiEndpoints)
+        return napiEntrypointsToRawEntrypoints(
+          napiEndpoints as TurbopackResult<NapiEntrypoints>
+        )
       } else {
         return {
           issues: napiEndpoints.issues,
@@ -773,7 +775,7 @@ function bindingToApi(
       )) as TurbopackResult<WrittenEndpoint>
     }
 
-    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>> {
       const clientSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -785,7 +787,7 @@ function bindingToApi(
 
     async serverChanged(
       includeIssues: boolean
-    ): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+    ): Promise<AsyncIterableIterator<TurbopackResult>> {
       const serverSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -1030,12 +1032,13 @@ function bindingToApi(
             type: 'conflict',
           }
           break
-        default:
+        default: {
           const _exhaustiveCheck: never = routeType
           invariant(
             nativeRoute,
             () => `Unknown route type: ${_exhaustiveCheck}`
           )
+        }
       }
       routes.set(pathname, route)
     }
