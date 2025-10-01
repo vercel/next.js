@@ -1332,11 +1332,13 @@
             if ("string" === typeof value.command) return value.command;
             if (
               "object" === typeof value.request &&
+              null !== value.request &&
               "string" === typeof value.request.url
             )
               return value.request.url;
             if (
               "object" === typeof value.response &&
+              null !== value.response &&
               "string" === typeof value.response.url
             )
               return value.response.url;
@@ -1348,7 +1350,7 @@
               return String(value.id);
             if ("string" === typeof value.name) return value.name;
             var str = value.toString();
-            return str.startWith("[object ") ||
+            return str.startsWith("[object ") ||
               5 > str.length ||
               500 < str.length
               ? ""

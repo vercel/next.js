@@ -402,9 +402,7 @@ function isSubpath(parentLayoutPath: string, potentialChildLayoutPath: string) {
   )
 }
 
-function createServerDefinitions(
-  rootParams: { param: string; optional: boolean }[]
-) {
+function createServerDefinitions() {
   return `
   declare module 'next/server' {
 
@@ -423,13 +421,6 @@ function createServerDefinitions(
     export type { ImageResponseOptions } from 'next/dist/compiled/@vercel/og/types'
     export { after } from 'next/dist/server/after'
     export { connection } from 'next/dist/server/request/connection'
-    export function unstable_rootParams(): Promise<{ ${rootParams
-      .map(
-        ({ param, optional }) =>
-          // ensure params with dashes are valid keys
-          `${param.includes('-') ? `'${param}'` : param}${optional ? '?' : ''}: string`
-      )
-      .join(', ')} }>
   }
   `
 }
@@ -814,7 +805,7 @@ export class NextTypesPlugin {
             compilation.emitAsset(
               serverTypesPath,
               new sources.RawSource(
-                createServerDefinitions(rootParams)
+                createServerDefinitions()
               ) as unknown as webpack.sources.RawSource
             )
           }

@@ -41,7 +41,7 @@ if (process.env.NEXT_RSPACK) {
 function getRspackCore() {
   try {
     // eslint-disable-next-line import/no-extraneous-dependencies
-    return require('@rspack/core')
+    return require('next-rspack/rspack-core')
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
