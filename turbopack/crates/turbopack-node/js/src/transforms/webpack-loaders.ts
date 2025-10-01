@@ -3,7 +3,7 @@ declare const __turbopack_external_require__: {
 } & ((id: string, thunk: () => any, esm?: boolean) => any)
 
 import type { Ipc } from '../ipc/evaluate'
-import { dirname, resolve as pathResolve } from 'path'
+import { dirname, resolve as pathResolve, relative } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
@@ -15,6 +15,7 @@ import {
   toPath,
   type TransformIpc,
 } from './transforms'
+import fs from 'fs'
 
 export type IpcInfoMessage =
   | {
@@ -184,6 +185,24 @@ const transform = (
             return entry.options && typeof entry.options === 'object'
               ? entry.options
               : {}
+          },
+          fs: {
+            readFile(p: string, optionsOrCb: any, maybeCb: any) {
+              ipc
+                .sendRequest({
+                  type: 'trackFileRead',
+                  file: relative(contextDir, pathResolve(p)),
+                })
+                .then(
+                  () => {
+                    fs.readFile(p, optionsOrCb, maybeCb)
+                  },
+                  (err) => {
+                    ipc.sendError(err)
+                    // sendError is going to stop the process, no need to call callback
+                  }
+                )
+            },
           },
           getResolve: (options: ResolveOptions) => {
             const rustOptions = {
