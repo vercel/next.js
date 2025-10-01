@@ -4,8 +4,10 @@ module.exports = function withRspack(config) {
   if (process.env.TURBOPACK === 'auto') {
     // If next has defaulted to turbopack, override it.
     delete process.env.TURBOPACK
-  } else if (process.env.TURBOPACK) {
-    console.error('Cannot call withRspack and pass the --turbopack flag.')
+  } else {
+    console.error(
+      `Cannot call withRspack and pass the ${process.env.TURBOPACK ? '--turbopack' : '--webpack'} flag.`
+    )
     console.error('Please configure only one bundler.')
     process.exit(1)
   }
