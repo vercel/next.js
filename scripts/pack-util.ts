@@ -8,6 +8,7 @@ import { existsSync } from 'fs'
 import { glob } from 'glob'
 import { join } from 'path'
 
+export { glob }
 export const NEXT_DIR = join(__dirname, '..')
 
 /**
