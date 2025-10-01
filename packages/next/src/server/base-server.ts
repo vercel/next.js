@@ -2570,6 +2570,9 @@ export default abstract class Server<
         typeof invokeOutput === 'string' &&
         isDynamicRoute(invokeOutput || '') &&
         invokeOutput !== existingMatch?.definition.pathname) ||
+      // Parallel routes are matched in `existingMatch` but since currently
+      // there can be multiple matches it's not guaranteed to be the right match
+      // therefor we need to opt-out of the fast path for parallel routes.
       existingMatch?.definition.page.includes('/@')
     ) {
       fastPath = false
