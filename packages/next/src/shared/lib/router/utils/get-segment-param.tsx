@@ -43,3 +43,13 @@ export function getSegmentParam(segment: string): {
 
   return null
 }
+
+export function isCatchAll(
+  type: DynamicParamTypes
+): type is 'catchall' | 'catchall-intercepted' | 'optional-catchall' {
+  return (
+    type === 'catchall' ||
+    type === 'catchall-intercepted' ||
+    type === 'optional-catchall'
+  )
+}

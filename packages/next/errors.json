@@ -865,5 +865,7 @@
   "864": "Missing value for segment key: \"%s\" with dynamic param type: %s",
   "865": "`experimental.rdcForNavigations` is enabled, but `experimental.cacheComponents` is not.",
   "866": "Both \"%s\" and \"%s\" files are detected. Please use \"%s\" instead.",
-  "867": "The %s \"%s\" must export a %s or a \\`default\\` function"
+  "867": "The %s \"%s\" must export a %s or a \\`default\\` function",
+  "868": "No reference found for param: %s in reference: %s",
+  "869": "No reference found for segment: %s with reference: %s"
 }
