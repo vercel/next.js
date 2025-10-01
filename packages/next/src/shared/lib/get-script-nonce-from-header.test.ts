@@ -1,4 +1,4 @@
-import { getScriptNonceFromHeader } from '../get-script-nonce-from-header'
+import { getScriptNonceFromHeader } from '../../server/app-render/get-script-nonce-from-header'
 
 describe('getScriptNonceFromHeader', () => {
   it('extracts nonce from script-src', () => {
