@@ -78,7 +78,7 @@ jobs:
       matrix:
         group: [1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 7/8, 8/8]
     with:
-      afterBuild: npm i -g vercel@latest && NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=deploy NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || 'canary' }}" VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+      afterBuild: npm i -g vercel@latest && NEXT_TEST_CONTINUE_ON_ERROR=true NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=deploy NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || 'canary' }}" VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-${{ matrix.group }}'

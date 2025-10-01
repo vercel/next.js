@@ -153,6 +153,7 @@ async function main() {
         NEXT_EXTERNAL_TESTS_FILTERS,
         NEXT_TEST_MODE: testMode,
         NEXT_TEST_VERSION: nextTestVersion,
+        IS_WEBPACK_TEST: '1',
       },
     })
   }
@@ -170,6 +171,7 @@ async function main() {
           NEXT_TEST_VERSION: nextTestVersion,
           IS_TURBOPACK_TEST: '1',
           TURBOPACK_BUILD: testMode === 'start' ? '1' : undefined,
+          TURBOPACK_DEV: testMode === 'dev' ? '1' : undefined,
         },
       })
     }
