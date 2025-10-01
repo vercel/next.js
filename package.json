@@ -192,7 +192,7 @@
     "fs-extra": "9.0.0",
     "get-port": "5.1.1",
     "get-port-please": "3.1.1",
-    "glob": "10.4.5",
+    "glob": "11.0.3",
     "gzip-size": "5.1.1",
     "html-validator": "5.1.18",
     "http-proxy": "1.18.1",

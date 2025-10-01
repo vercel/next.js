@@ -343,8 +343,8 @@ importers:
         specifier: 3.1.1
         version: 3.1.1
       glob:
-        specifier: 10.4.5
-        version: 10.4.5
+        specifier: 11.0.3
+        version: 11.0.3
       gzip-size:
         specifier: 5.1.1
         version: 5.1.1
@@ -1385,8 +1385,8 @@ importers:
         specifier: 0.5.2
         version: 0.5.2
       glob:
-        specifier: 10.4.5
-        version: 10.4.5
+        specifier: 11.0.3
+        version: 11.0.3
       gzip-size:
         specifier: 5.1.1
         version: 5.1.1
@@ -24137,7 +24137,7 @@ snapshots:
 
   axios@1.9.0:
     dependencies:
-      follow-redirects: 1.15.9
+      follow-redirects: 1.15.9(debug@4.1.1)
       form-data: 4.0.0
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
@@ -27821,8 +27821,6 @@ snapshots:
   flow-parser@0.131.0: {}
 
   fn-annotate@1.2.0: {}
-
-  follow-redirects@1.15.9: {}
 
   follow-redirects@1.15.9(debug@4.1.1):
     optionalDependencies:

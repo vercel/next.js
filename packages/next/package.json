@@ -261,7 +261,7 @@
     "events": "3.3.0",
     "find-up": "4.1.0",
     "fresh": "0.5.2",
-    "glob": "10.4.5",
+    "glob": "11.0.3",
     "gzip-size": "5.1.1",
     "http-proxy": "1.18.1",
     "http-proxy-agent": "5.0.0",
