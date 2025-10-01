@@ -35,7 +35,7 @@ const extensionRegexCache = new Map<string, string>()
 
 // Match the file extension with the dynamic multi-routes extensions
 // e.g. ([xml, js], null) -> can match `/sitemap.xml/route`, `sitemap.js/route`
-// e.g. ([png], [ts]) -> can match `/opengrapg-image.png`, `/opengraph-image.ts`
+// e.g. ([png], [ts]) -> can match `/opengraph-image.png`, `/opengraph-image.ts`
 export const getExtensionRegexString = (
   staticExtensions: readonly string[],
   dynamicExtensions: readonly string[] | null
@@ -140,7 +140,7 @@ function getCompiledRegexes(
     new RegExp(
       `^[\\\\/]manifest${getExtensionRegexString(manifestExts, null)}${trailingMatcher}`
     ),
-    FAVICON_REGEX, // Reuse pre-compiled regex
+    // FAVICON_REGEX removed - already handled in fastPathCheck
     new RegExp(
       `[\\\\/]sitemap${getExtensionRegexString(['xml'], pageExtensions)}${trailingMatcher}`
     ),
