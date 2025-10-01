@@ -5,6 +5,7 @@ import type {
   ResolvingMetadata,
   ResolvingViewport,
   Viewport,
+  WithStringifiedURLs,
 } from './types/metadata-interface'
 import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
@@ -56,6 +57,7 @@ import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 import { createServerParamsForMetadata } from '../../server/request/params'
+import type { MetadataBaseURL } from './resolvers/resolve-url'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
@@ -105,7 +107,36 @@ function isFavicon(icon: IconDescriptor | undefined): boolean {
   )
 }
 
+function convertUrlsToStrings<T>(input: T): WithStringifiedURLs<T> {
+  if (input instanceof URL) {
+    return input.toString() as unknown as WithStringifiedURLs<T>
+  } else if (Array.isArray(input)) {
+    return input.map((item) =>
+      convertUrlsToStrings(item)
+    ) as WithStringifiedURLs<T>
+  } else if (input && typeof input === 'object') {
+    const result: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(input)) {
+      result[key] = convertUrlsToStrings(value)
+    }
+    return result as WithStringifiedURLs<T>
+  }
+  return input as WithStringifiedURLs<T>
+}
+
+function normalizeMetadataBase(metadataBase: string | URL | null): URL | null {
+  if (typeof metadataBase === 'string') {
+    try {
+      metadataBase = new URL(metadataBase)
+    } catch {
+      throw new Error(`metadataBase is not a valid URL: ${metadataBase}`)
+    }
+  }
+  return metadataBase
+}
+
 async function mergeStaticMetadata(
+  metadataBase: MetadataBaseURL,
   source: Metadata | null,
   target: ResolvedMetadata,
   staticFilesMetadata: StaticMetadata,
@@ -130,23 +161,23 @@ async function mergeStaticMetadata(
   if (twitter && !source?.twitter?.hasOwnProperty('images')) {
     const resolvedTwitter = resolveTwitter(
       { ...target.twitter, images: twitter } as Twitter,
-      target.metadataBase,
+      metadataBase,
       { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.twitter
     )
-    target.twitter = resolvedTwitter
+    target.twitter = convertUrlsToStrings(resolvedTwitter)
   }
 
   // file based metadata is specified and current level metadata openGraph.images is not specified
   if (openGraph && !source?.openGraph?.hasOwnProperty('images')) {
     const resolvedOpenGraph = await resolveOpenGraph(
       { ...target.openGraph, images: openGraph } as OpenGraph,
-      target.metadataBase,
+      metadataBase,
       pathname,
       { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.openGraph
     )
-    target.openGraph = resolvedOpenGraph
+    target.openGraph = convertUrlsToStrings(resolvedOpenGraph)
   }
   if (manifest) {
     target.manifest = manifest
@@ -155,21 +186,23 @@ async function mergeStaticMetadata(
   return target
 }
 
-// Merge the source metadata into the resolved target metadata.
+/**
+ * Merges the given metadata with the resolved metadata. Returns a new object.
+ */
 async function mergeMetadata(
   route: string,
   pathname: Promise<string>,
   {
-    source,
-    target,
+    metadata,
+    resolvedMetadata,
     staticFilesMetadata,
     titleTemplates,
     metadataContext,
     buildState,
     leafSegmentStaticIcons,
   }: {
-    source: Metadata | null
-    target: ResolvedMetadata
+    metadata: Metadata | null
+    resolvedMetadata: ResolvedMetadata
     staticFilesMetadata: StaticMetadata
     titleTemplates: TitleTemplates
     metadataContext: MetadataContext
@@ -177,82 +210,104 @@ async function mergeMetadata(
     leafSegmentStaticIcons: StaticIcons
   }
 ): Promise<ResolvedMetadata> {
-  // If there's override metadata, prefer it otherwise fallback to the default metadata.
-  const metadataBase =
-    typeof source?.metadataBase !== 'undefined'
-      ? source.metadataBase
-      : target.metadataBase
-  for (const key_ in source) {
+  const newResolvedMetadata = structuredClone(resolvedMetadata)
+
+  const metadataBase = normalizeMetadataBase(
+    metadata?.metadataBase !== undefined
+      ? metadata.metadataBase
+      : resolvedMetadata.metadataBase
+  )
+
+  for (const key_ in metadata) {
     const key = key_ as keyof Metadata
 
     switch (key) {
       case 'title': {
-        target.title = resolveTitle(source.title, titleTemplates.title)
+        newResolvedMetadata.title = resolveTitle(
+          metadata.title,
+          titleTemplates.title
+        )
         break
       }
       case 'alternates': {
-        target.alternates = await resolveAlternates(
-          source.alternates,
-          metadataBase,
-          pathname,
-          metadataContext
+        newResolvedMetadata.alternates = convertUrlsToStrings(
+          await resolveAlternates(
+            metadata.alternates,
+            metadataBase,
+            pathname,
+            metadataContext
+          )
         )
         break
       }
       case 'openGraph': {
-        target.openGraph = await resolveOpenGraph(
-          source.openGraph,
-          metadataBase,
-          pathname,
-          metadataContext,
-          titleTemplates.openGraph
+        newResolvedMetadata.openGraph = convertUrlsToStrings(
+          await resolveOpenGraph(
+            metadata.openGraph,
+            metadataBase,
+            pathname,
+            metadataContext,
+            titleTemplates.openGraph
+          )
         )
         break
       }
       case 'twitter': {
-        target.twitter = resolveTwitter(
-          source.twitter,
-          metadataBase,
-          metadataContext,
-          titleTemplates.twitter
+        newResolvedMetadata.twitter = convertUrlsToStrings(
+          resolveTwitter(
+            metadata.twitter,
+            metadataBase,
+            metadataContext,
+            titleTemplates.twitter
+          )
         )
         break
       }
       case 'facebook':
-        target.facebook = resolveFacebook(source.facebook)
+        newResolvedMetadata.facebook = resolveFacebook(metadata.facebook)
         break
       case 'verification':
-        target.verification = resolveVerification(source.verification)
+        newResolvedMetadata.verification = resolveVerification(
+          metadata.verification
+        )
         break
 
       case 'icons': {
-        target.icons = resolveIcons(source.icons)
+        newResolvedMetadata.icons = convertUrlsToStrings(
+          resolveIcons(metadata.icons)
+        )
         break
       }
       case 'appleWebApp':
-        target.appleWebApp = resolveAppleWebApp(source.appleWebApp)
+        newResolvedMetadata.appleWebApp = resolveAppleWebApp(
+          metadata.appleWebApp
+        )
         break
       case 'appLinks':
-        target.appLinks = resolveAppLinks(source.appLinks)
+        newResolvedMetadata.appLinks = convertUrlsToStrings(
+          resolveAppLinks(metadata.appLinks)
+        )
         break
       case 'robots': {
-        target.robots = resolveRobots(source.robots)
+        newResolvedMetadata.robots = resolveRobots(metadata.robots)
         break
       }
       case 'archives':
       case 'assets':
       case 'bookmarks':
       case 'keywords': {
-        target[key] = resolveAsArrayOrUndefined(source[key])
+        newResolvedMetadata[key] = resolveAsArrayOrUndefined(metadata[key])
         break
       }
       case 'authors': {
-        target[key] = resolveAsArrayOrUndefined(source.authors)
+        newResolvedMetadata[key] = convertUrlsToStrings(
+          resolveAsArrayOrUndefined(metadata.authors)
+        )
         break
       }
       case 'itunes': {
-        target[key] = await resolveItunes(
-          source.itunes,
+        newResolvedMetadata[key] = await resolveItunes(
+          metadata.itunes,
           metadataBase,
           pathname,
           metadataContext
@@ -260,8 +315,8 @@ async function mergeMetadata(
         break
       }
       case 'pagination': {
-        target.pagination = await resolvePagination(
-          source.pagination,
+        newResolvedMetadata.pagination = await resolvePagination(
+          metadata.pagination,
           metadataBase,
           pathname,
           metadataContext
@@ -270,25 +325,52 @@ async function mergeMetadata(
       }
       // directly assign fields that fallback to null
       case 'abstract':
+        newResolvedMetadata[key] = metadata[key] ?? null
+        break
       case 'applicationName':
+        newResolvedMetadata[key] = metadata[key] ?? null
+        break
       case 'description':
+        newResolvedMetadata[key] = metadata[key] ?? null
+        break
       case 'generator':
+        newResolvedMetadata[key] = metadata[key] ?? null
+        break
       case 'creator':
+        newResolvedMetadata[key] = metadata[key] ?? null
+        break
       case 'publisher':
+        newResolvedMetadata[key] = metadata[key] ?? null
+        break
       case 'category':
+        newResolvedMetadata[key] = metadata[key] ?? null
+        break
       case 'classification':
+        newResolvedMetadata[key] = metadata[key] ?? null
+        break
       case 'referrer':
+        newResolvedMetadata[key] = metadata[key] ?? null
+        break
       case 'formatDetection':
+        newResolvedMetadata[key] = metadata[key] ?? null
+        break
       case 'manifest':
+        newResolvedMetadata[key] = convertUrlsToStrings(metadata[key]) ?? null
+        break
       case 'pinterest':
-        // @ts-ignore TODO: support inferring
-        target[key] = source[key] || null
+        newResolvedMetadata[key] = convertUrlsToStrings(metadata[key]) ?? null
         break
       case 'other':
-        target.other = Object.assign({}, target.other, source.other)
+        newResolvedMetadata.other = Object.assign(
+          {},
+          newResolvedMetadata.other,
+          metadata.other
+        )
         break
       case 'metadataBase':
-        target.metadataBase = metadataBase
+        newResolvedMetadata.metadataBase = metadataBase
+          ? metadataBase.toString()
+          : null
         break
 
       case 'apple-touch-fullscreen': {
@@ -306,7 +388,7 @@ async function mergeMetadata(
       case 'themeColor':
       case 'colorScheme':
       case 'viewport':
-        if (source[key] != null) {
+        if (metadata[key] != null) {
           buildState.warnings.add(
             `Unsupported metadata ${key} is configured in metadata export in ${route}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
           )
@@ -317,9 +399,11 @@ async function mergeMetadata(
       }
     }
   }
+
   return mergeStaticMetadata(
-    source,
-    target,
+    metadataBase,
+    metadata,
+    newResolvedMetadata,
     staticFilesMetadata,
     metadataContext,
     titleTemplates,
@@ -328,41 +412,51 @@ async function mergeMetadata(
   )
 }
 
+/**
+ * Merges the given viewport with the resolved viewport. Returns a new object.
+ */
 function mergeViewport({
-  target,
-  source,
+  resolvedViewport,
+  viewport,
 }: {
-  target: ResolvedViewport
-  source: Viewport | null
-}): void {
-  if (!source) return
-  for (const key_ in source) {
-    const key = key_ as keyof Viewport
+  resolvedViewport: ResolvedViewport
+  viewport: Viewport | null
+}): ResolvedViewport {
+  const newResolvedViewport = structuredClone(resolvedViewport)
 
-    switch (key) {
-      case 'themeColor': {
-        target.themeColor = resolveThemeColor(source.themeColor)
-        break
+  if (viewport) {
+    for (const key_ in viewport) {
+      const key = key_ as keyof Viewport
+
+      switch (key) {
+        case 'themeColor': {
+          newResolvedViewport.themeColor = resolveThemeColor(
+            viewport.themeColor
+          )
+          break
+        }
+        case 'colorScheme':
+          newResolvedViewport.colorScheme = viewport.colorScheme || null
+          break
+        case 'width':
+        case 'height':
+        case 'initialScale':
+        case 'minimumScale':
+        case 'maximumScale':
+        case 'userScalable':
+        case 'viewportFit':
+        case 'interactiveWidget':
+          // always override the target with the source
+          // @ts-ignore viewport properties
+          newResolvedViewport[key] = viewport[key]
+          break
+        default:
+          key satisfies never
       }
-      case 'colorScheme':
-        target.colorScheme = source.colorScheme || null
-        break
-      case 'width':
-      case 'height':
-      case 'initialScale':
-      case 'minimumScale':
-      case 'maximumScale':
-      case 'userScalable':
-      case 'viewportFit':
-      case 'interactiveWidget':
-        // always override the target with the source
-        // @ts-ignore viewport properties
-        target[key] = source[key]
-        break
-      default:
-        key satisfies never
     }
   }
+
+  return newResolvedViewport
 }
 
 function getDefinedViewport(
@@ -821,7 +915,7 @@ function postProcessMetadata(
     if (Object.keys(autoFillProps).length > 0) {
       const partialTwitter = resolveTwitter(
         autoFillProps,
-        metadata.metadataBase,
+        normalizeMetadataBase(metadata.metadataBase),
         metadataContext,
         titleTemplates.twitter
       )
@@ -834,7 +928,7 @@ function postProcessMetadata(
           ...(!hasTwImages && { images: partialTwitter?.images }),
         })
       } else {
-        metadata.twitter = partialTwitter
+        metadata.twitter = convertUrlsToStrings(partialTwitter)
       }
     }
   }
@@ -917,27 +1011,14 @@ function getResult<T extends Metadata | Viewport>(
   }
 }
 
-function resolvePendingResult<
-  ResolvedType extends ResolvedMetadata | ResolvedViewport,
->(
-  parentResult: ResolvedType,
-  resolveParentResult: (value: ResolvedType) => void
-): void {
-  // In dev we clone and freeze to prevent relying on mutating resolvedMetadata directly.
-  // In prod we just pass resolvedMetadata through without any copying.
+function freezeInDev<T extends object>(obj: T): T {
   if (process.env.NODE_ENV === 'development') {
-    // @ts-expect-error -- DeepReadonly<T> is by definition not assignable to T
-    // Instead, we should only accept DeepReadonly<ResolvedType>
-    parentResult = (
+    return (
       require('../../shared/lib/deep-freeze') as typeof import('../../shared/lib/deep-freeze')
-    ).deepFreeze(
-      (
-        require('./clone-metadata') as typeof import('./clone-metadata')
-      ).cloneMetadata(parentResult)
-    )
+    ).deepFreeze(obj) as T
   }
 
-  resolveParentResult(parentResult)
+  return obj
 }
 
 export async function accumulateMetadata(
@@ -989,7 +1070,7 @@ export async function accumulateMetadata(
       // was a resolver
       pendingMetadata = resolversAndResults[resultIndex++] as Result<Metadata>
 
-      resolvePendingResult(resolvedMetadata, resolveParentMetadata)
+      resolveParentMetadata(freezeInDev(resolvedMetadata))
     }
     // Otherwise the item was either null or a static export
 
@@ -1001,8 +1082,8 @@ export async function accumulateMetadata(
     }
 
     resolvedMetadata = await mergeMetadata(route, pathname, {
-      target: resolvedMetadata,
-      source: metadata,
+      resolvedMetadata,
+      metadata,
       metadataContext,
       staticFilesMetadata,
       titleTemplates,
@@ -1057,7 +1138,7 @@ export async function accumulateMetadata(
 export async function accumulateViewport(
   viewportItems: ViewportItems
 ): Promise<ResolvedViewport> {
-  const resolvedViewport: ResolvedViewport = createDefaultViewport()
+  let resolvedViewport: ResolvedViewport = createDefaultViewport()
 
   const resolversAndResults = prerenderViewport(viewportItems)
   let i = 0
@@ -1073,7 +1154,7 @@ export async function accumulateViewport(
       // was a resolver
       pendingViewport = resolversAndResults[i++] as Result<Viewport>
 
-      resolvePendingResult(resolvedViewport, resolveParentViewport)
+      resolveParentViewport(freezeInDev(resolvedViewport))
     }
     // Otherwise the item was either null or a static export
 
@@ -1084,11 +1165,9 @@ export async function accumulateViewport(
       viewport = pendingViewport
     }
 
-    mergeViewport({
-      target: resolvedViewport,
-      source: viewport,
-    })
+    resolvedViewport = mergeViewport({ resolvedViewport, viewport })
   }
+
   return resolvedViewport
 }
 

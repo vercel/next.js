@@ -112,7 +112,7 @@ export type PinterestRichPin = {
 }
 
 export type ResolvedPinterest = {
-  richPin?: string
+  richPin?: string | boolean
 }
 
 // Format Detection
