@@ -1,10 +1,10 @@
 a = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 b = ???*0*
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 c = (...) => [`${a}${b}`, a]
 

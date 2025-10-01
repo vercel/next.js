@@ -676,6 +676,7 @@ async function generateRuntimePrefetchResult(
     prerenderResumeDataCache,
     renderResumeDataCache,
     rootParams,
+    requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode
   )
@@ -686,6 +687,7 @@ async function generateRuntimePrefetchResult(
     prerenderResumeDataCache,
     renderResumeDataCache,
     rootParams,
+    requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode,
     onError
@@ -707,6 +709,7 @@ async function prospectiveRuntimeServerPrerender(
   prerenderResumeDataCache: PrerenderResumeDataCache | null,
   renderResumeDataCache: RenderResumeDataCache | null,
   rootParams: Params,
+  headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode']
 ) {
@@ -757,6 +760,7 @@ async function prospectiveRuntimeServerPrerender(
     // We only need task sequencing in the final prerender.
     runtimeStagePromise: null,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
+    headers,
     cookies,
     draftMode,
   }
@@ -842,6 +846,7 @@ async function finalRuntimeServerPrerender(
   prerenderResumeDataCache: PrerenderResumeDataCache | null,
   renderResumeDataCache: RenderResumeDataCache | null,
   rootParams: Params,
+  headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode'],
   onError: (err: unknown) => string | undefined
@@ -892,6 +897,7 @@ async function finalRuntimeServerPrerender(
     // Used to separate the "Static" stage from the "Runtime" stage.
     runtimeStagePromise,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
+    headers,
     cookies,
     draftMode,
   }
@@ -2473,7 +2479,7 @@ async function renderToStream(
      *
      *    2.) If dynamic HTML support is requested, we must honor that request
      *        or throw an error. It is the sole responsibility of the caller to
-     *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+     *        ensure they aren't e.g. requesting dynamic HTML for a static page.
      *
      *   3.) If `shouldWaitOnAllReady` is true, which indicates we need to
      *       resolve all suspenses and generate a full HTML. e.g. when it's a
@@ -2622,7 +2628,7 @@ async function renderToStream(
        *
        *    2.) If dynamic HTML support is requested, we must honor that request
        *        or throw an error. It is the sole responsibility of the caller to
-       *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+       *        ensure they aren't e.g. requesting dynamic HTML for a static page.
        *    3.) If `shouldWaitOnAllReady` is true, which indicates we need to
        *        resolve all suspenses and generate a full HTML. e.g. when it's a
        *        html limited bot requests, we produce the full HTML content.

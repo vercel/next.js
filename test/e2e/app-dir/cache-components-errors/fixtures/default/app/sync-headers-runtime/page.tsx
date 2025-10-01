@@ -1,4 +1,4 @@
-import { headers, type UnsafeUnwrappedHeaders } from 'next/headers'
+import { headers } from 'next/headers'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
@@ -20,10 +20,8 @@ export default async function Page() {
 async function HeadersReadingComponent() {
   // Await a connection to test the subsequent sync headers access at runtime.
   await connection()
-
-  const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-    'user-agent'
-  )
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+  const userAgent = (headers() as any).get('user-agent')
   return (
     <div>
       this component reads the `user-agent` header synchronously: {userAgent}

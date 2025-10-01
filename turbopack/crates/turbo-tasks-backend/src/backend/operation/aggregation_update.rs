@@ -1285,7 +1285,7 @@ impl AggregationUpdateQueue {
         let _span = trace_span!("lost follower (n uppers)", uppers = upper_ids.len()).entered();
 
         // see documentation of `retry_loop` for more information why this is needed
-        let result = retry_loop(|| {
+        let result = retry_loop(retry, || {
             let mut follower = ctx.task(
                 lost_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
@@ -1419,8 +1419,14 @@ impl AggregationUpdateQueue {
             if retry > MAX_RETRIES {
                 panic!(
                     "inner_of_uppers_lost_follower is not able to remove follower \
-                     {lost_follower_id:?} from {upper_ids:?} as they don't exist as upper or \
-                     follower edges"
+                     {lost_follower_id} ({}) from {} as they don't exist as upper or follower \
+                     edges",
+                    ctx.get_task_description(lost_follower_id),
+                    upper_ids
+                        .iter()
+                        .map(|id| format!("{} ({})", id, ctx.get_task_description(*id)))
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 );
             }
             self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
@@ -1446,7 +1452,7 @@ impl AggregationUpdateQueue {
         .entered();
 
         // see documentation of `retry_loop` for more information why this is needed
-        let result = retry_loop(|| {
+        let result = retry_loop(retry, || {
             swap_retain(&mut lost_follower_ids, |&mut lost_follower_id| {
                 let mut follower = ctx.task(
                     lost_follower_id,
@@ -1571,9 +1577,14 @@ impl AggregationUpdateQueue {
             retry += 1;
             if retry > MAX_RETRIES {
                 panic!(
-                    "inner_of_upper_lost_followers is not able to remove followers \
-                     {lost_follower_ids:?} from {upper_id:?} as they don't exist as upper or \
-                     follower edges"
+                    "inner_of_upper_lost_followers is not able to remove followers {} from \
+                     {upper_id} ({}) as they don't exist as upper or follower edges",
+                    lost_follower_ids
+                        .iter()
+                        .map(|id| format!("{} ({})", id, ctx.get_task_description(*id)))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    ctx.get_task_description(upper_id),
                 )
             }
             self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
@@ -2465,7 +2476,7 @@ impl Operation for AggregationUpdateQueue {
 struct RetryTimeout;
 
 const MAX_YIELD_DURATION: Duration = Duration::from_millis(1);
-const MAX_RETRIES: u16 = 10000;
+const MAX_RETRIES: u16 = 60000;
 
 /// Retry the passed function for a few milliseconds, while yielding to other threads.
 /// Returns an error if the function was not able to complete and the timeout was reached.
@@ -2481,13 +2492,17 @@ const MAX_RETRIES: u16 = 10000;
 /// successful, the update is added to the end of the queue again. This is important as the "add"
 /// update might even be in the current thread and in the same queue. If that's the case yielding
 /// won't help and the update need to be requeued.
-fn retry_loop(mut f: impl FnMut() -> ControlFlow<()>) -> Result<(), RetryTimeout> {
+fn retry_loop(mut retry: u16, mut f: impl FnMut() -> ControlFlow<()>) -> Result<(), RetryTimeout> {
     let mut time: Option<Instant> = None;
     loop {
         match f() {
             ControlFlow::Continue(()) => {}
             ControlFlow::Break(()) => return Ok(()),
         }
+        if retry == 0 {
+            return Err(RetryTimeout);
+        }
+        retry -= 1;
         yield_now();
         if let Some(t) = time {
             if t.elapsed() > MAX_YIELD_DURATION {

@@ -120,7 +120,7 @@ use crate::{
     merged_module::MergedEcmascriptModule,
     parse::generate_js_source_map,
     references::{
-        analyse_ecmascript_module,
+        analyze_ecmascript_module,
         async_module::OptionAsyncModule,
         esm::{base::EsmAssetReferences, export},
     },
@@ -173,6 +173,48 @@ pub enum TreeShakingMode {
     ReexportsOnly,
 }
 
+#[derive(
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
+)]
+pub enum AnalyzeMode {
+    /// For bundling only, no tracing of referenced files.
+    #[default]
+    CodeGeneration,
+    /// For bundling and tracing of referenced files.
+    CodeGenerationAndTracing,
+    /// For tracing of referenced files only, no bundling (i.e. no codegen).
+    Tracing,
+}
+
+impl AnalyzeMode {
+    pub fn is_tracing(self) -> bool {
+        match self {
+            AnalyzeMode::Tracing | AnalyzeMode::CodeGenerationAndTracing => true,
+            AnalyzeMode::CodeGeneration => false,
+        }
+    }
+
+    pub fn is_code_gen(self) -> bool {
+        match self {
+            AnalyzeMode::CodeGeneration | AnalyzeMode::CodeGenerationAndTracing => true,
+            AnalyzeMode::Tracing => false,
+        }
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
@@ -222,7 +264,7 @@ pub struct EcmascriptOptions {
     pub keep_last_successful_parse: bool,
     /// Whether the modules in this context are never chunked/codegen-ed, but only used for
     /// tracing.
-    pub is_tracing: bool,
+    pub analyze_mode: AnalyzeMode,
     // TODO this should just be handled via CompileTimeInfo FreeVarReferences, but then it
     // (currently) wouldn't be possible to have different replacement values in user code vs
     // node_modules.
@@ -478,7 +520,7 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
 impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(self, None)
+        analyze_ecmascript_module(self, None)
     }
 
     /// Generates module contents without an analysis pass. This is useful for
@@ -540,7 +582,7 @@ async fn determine_module_type_for_directory(
     context_path: FileSystemPath,
 ) -> Result<Vc<ModuleTypeResult>> {
     let find_package_json =
-        find_context_file(context_path, package_json().resolve().await?).await?;
+        find_context_file(context_path, package_json().resolve().await?, false).await?;
     let FindContextFileResult::Found(package_json, _) = &*find_package_json else {
         return Ok(ModuleTypeResult::new(SpecifiedModuleType::Automatic));
     };
@@ -629,7 +671,7 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(self, None)
+        analyze_ecmascript_module(self, None)
     }
 
     #[turbo_tasks::function]
@@ -849,7 +891,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let span = tracing::info_span!(
             "code generation",
-            name = self.asset_ident().to_string().await?.to_string()
+            name = display(self.asset_ident().to_string().await?)
         );
         async {
             let this = self.await?;
@@ -1002,24 +1044,20 @@ impl EcmascriptModuleContent {
             ..
         } = &*input;
 
-        async {
-            let minify = chunking_context.minify_type().await?;
+        let minify = chunking_context.minify_type().await?;
 
-            let content = process_parse_result(
-                *parsed,
-                module.ident(),
-                *specified_module_type,
-                *generate_source_map,
-                *original_source_map,
-                *minify,
-                Some(&*input),
-                None,
-            )
-            .await?;
-            emit_content(content, Default::default()).await
-        }
-        .instrument(tracing::info_span!("gen content with code gens"))
-        .await
+        let content = process_parse_result(
+            *parsed,
+            module.ident(),
+            *specified_module_type,
+            *generate_source_map,
+            *original_source_map,
+            *minify,
+            Some(&*input),
+            None,
+        )
+        .await?;
+        emit_content(content, Default::default()).await
     }
 
     /// Creates a new [`Vc<EcmascriptModuleContent>`] without an analysis pass.
@@ -1162,11 +1200,11 @@ impl EcmascriptModuleContent {
                 .into();
 
             emit_content(content, additional_ids)
-                .instrument(tracing::info_span!("emit"))
+                .instrument(tracing::info_span!("emit code"))
                 .await
         }
         .instrument(tracing::info_span!(
-            "merged EcmascriptModuleContent",
+            "generate merged code",
             modules = module_options.len()
         ))
         .await

@@ -30,9 +30,18 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   ISR_MANIFEST = 'isrManifest',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
+  REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
+  REQUEST_PAGE_METADATA = 'requestPageMetadata',
 
   // Binary messages:
   REACT_DEBUG_CHUNK = 0,
+}
+
+export const enum HMR_MESSAGE_SENT_TO_SERVER {
+  // JSON messages:
+  MCP_ERROR_STATE_RESPONSE = 'mcp-error-state-response',
+  MCP_PAGE_METADATA_RESPONSE = 'mcp-page-metadata-response',
+  PING = 'ping',
 }
 
 export interface ServerErrorMessage {
@@ -143,6 +152,16 @@ export interface ReactDebugChunkMessage {
   chunk: Uint8Array | null
 }
 
+export interface RequestCurrentErrorStateMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE
+  requestId: string
+}
+
+export interface RequestPageMetadataMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA
+  requestId: string
+}
+
 export type HmrMessageSentToBrowser =
   | TurbopackMessage
   | TurbopackConnectedMessage
@@ -161,6 +180,8 @@ export type HmrMessageSentToBrowser =
   | AppIsrManifestMessage
   | DevToolsConfigMessage
   | ReactDebugChunkMessage
+  | RequestCurrentErrorStateMessage
+  | RequestPageMetadataMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,

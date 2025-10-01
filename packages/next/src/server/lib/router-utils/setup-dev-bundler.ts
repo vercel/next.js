@@ -66,11 +66,10 @@ import {
   isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
-import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
-  isPersistentCachingEnabled,
+  isPersistentCachingEnabledForDev,
   ModuleBuildError,
 } from '../../../shared/lib/turbopack/utils'
 import { getDefineEnv } from '../../../build/define-env'
@@ -1080,6 +1079,9 @@ async function startWatcher(
               true
             )
 
+            const createEnvDefinitions = (
+              require('../experimental/create-env-definitions') as typeof import('../experimental/create-env-definitions')
+            ).createEnvDefinitions
             await createEnvDefinitions({
               distDir,
               loadedEnvFiles: [
@@ -1237,7 +1239,9 @@ export async function setupDevBundler(opts: SetupOpts) {
     eventName: EVENT_BUILD_FEATURE_USAGE,
     payload: {
       featureName: 'turbopackPersistentCaching',
-      invocationCount: isPersistentCachingEnabled(opts.nextConfig) ? 1 : 0,
+      invocationCount: isPersistentCachingEnabledForDev(opts.nextConfig)
+        ? 1
+        : 0,
     },
   })
 

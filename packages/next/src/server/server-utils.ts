@@ -220,10 +220,13 @@ export function getServerUtils({
 
   function handleRewrites(
     req: BaseNextRequest | IncomingMessage,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: DeepReadonly<UrlWithParsedQuery>
   ) {
+    // Here we deep clone the parsedUrl to avoid mutating the original. We also
+    // cast this to a mutable type so we can mutate it within this scope.
+    const rewrittenParsedUrl = structuredClone(parsedUrl) as UrlWithParsedQuery
     const rewriteParams: Record<string, string> = {}
-    let fsPathname = parsedUrl.pathname
+    let fsPathname = rewrittenParsedUrl.pathname
 
     const matchesPage = () => {
       const fsPathnameNoSlash = removeTrailingSlash(fsPathname || '')
@@ -243,14 +246,14 @@ export function getServerUtils({
         }
       )
 
-      if (!parsedUrl.pathname) return false
+      if (!rewrittenParsedUrl.pathname) return false
 
-      let params = matcher(parsedUrl.pathname)
+      let params = matcher(rewrittenParsedUrl.pathname)
 
       if ((rewrite.has || rewrite.missing) && params) {
         const hasParams = matchHas(
           req,
-          parsedUrl.query,
+          rewrittenParsedUrl.query,
           rewrite.has as Rewrite['has'],
           rewrite.missing as Rewrite['missing']
         )
@@ -288,7 +291,7 @@ export function getServerUtils({
           appendParamsToQuery: true,
           destination: rewrite.destination,
           params: params,
-          query: parsedUrl.query,
+          query: rewrittenParsedUrl.query,
         })
 
         // if the rewrite destination is external break rewrite chain
@@ -297,26 +300,26 @@ export function getServerUtils({
         }
 
         Object.assign(rewriteParams, destQuery, params)
-        Object.assign(parsedUrl.query, parsedDestination.query)
+        Object.assign(rewrittenParsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
 
-        // for each property in parsedUrl.query, if the value is parametrized (eg :foo), look up the value
+        // for each property in rewrittenParsedUrl.query, if the value is parametrized (eg :foo), look up the value
         // in rewriteParams and replace the parametrized value with the actual value
         // this is used when the rewrite destination does not contain the original source param
         // and so the value is still parametrized and needs to be replaced with the actual rewrite param
-        Object.entries(parsedUrl.query).forEach(([key, value]) => {
+        Object.entries(rewrittenParsedUrl.query).forEach(([key, value]) => {
           if (value && typeof value === 'string' && value.startsWith(':')) {
             const paramName = value.slice(1)
             const actualValue = rewriteParams[paramName]
             if (actualValue) {
-              parsedUrl.query[key] = actualValue
+              rewrittenParsedUrl.query[key] = actualValue
             }
           }
         })
 
-        Object.assign(parsedUrl, parsedDestination)
+        Object.assign(rewrittenParsedUrl, parsedDestination)
 
-        fsPathname = parsedUrl.pathname
+        fsPathname = rewrittenParsedUrl.pathname
         if (!fsPathname) return false
 
         if (basePath) {
@@ -326,7 +329,7 @@ export function getServerUtils({
         if (i18n) {
           const result = normalizeLocalePath(fsPathname, i18n.locales)
           fsPathname = result.pathname
-          parsedUrl.query.nextInternalLocale =
+          rewrittenParsedUrl.query.nextInternalLocale =
             result.detectedLocale || params.nextInternalLocale
         }
 
@@ -337,14 +340,15 @@ export function getServerUtils({
         if (pageIsDynamic && dynamicRouteMatcher) {
           const dynamicParams = dynamicRouteMatcher(fsPathname)
           if (dynamicParams) {
-            parsedUrl.query = {
-              ...parsedUrl.query,
+            rewrittenParsedUrl.query = {
+              ...rewrittenParsedUrl.query,
               ...dynamicParams,
             }
             return true
           }
         }
       }
+
       return false
     }
 
@@ -367,7 +371,8 @@ export function getServerUtils({
         }
       }
     }
-    return rewriteParams
+
+    return { rewriteParams, rewrittenParsedUrl }
   }
 
   function getParamsFromRouteMatches(routeMatchesHeader: string) {

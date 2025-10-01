@@ -43,9 +43,6 @@
     "maxInactiveAge": 60000,
     "pagesBufferLength": 5
   },
-  "amp": {
-    "canonicalBase": ""
-  },
   "basePath": "",
   "sassOptions": {},
   "trailingSlash": false,

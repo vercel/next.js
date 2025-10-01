@@ -22,7 +22,7 @@ use swc_core::{
         visit::{Visit, VisitMutWith, VisitWith, noop_visit_type},
     },
 };
-use tracing::{Instrument, Level, instrument};
+use tracing::{Instrument, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc, util::WrapFuture};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
@@ -81,7 +81,7 @@ impl PartialEq for ParseResult {
 
 /// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
 /// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
-#[instrument(level = Level::INFO, skip_all)]
+#[instrument(level = "info", name = "generate source map", skip_all)]
 pub fn generate_js_source_map<'a>(
     files_map: &impl Files,
     mappings: Vec<(BytePos, LineCol)>,
@@ -174,8 +174,11 @@ pub async fn parse(
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
-    let name = source.ident().to_string().await?.to_string();
-    let span = tracing::info_span!("parse ecmascript", name = name, ty = display(&ty));
+    let span = tracing::info_span!(
+        "parse ecmascript",
+        name = display(source.ident().to_string().await?),
+        ty = display(&ty)
+    );
 
     match parse_internal(source, ty, transforms)
         .instrument(span)

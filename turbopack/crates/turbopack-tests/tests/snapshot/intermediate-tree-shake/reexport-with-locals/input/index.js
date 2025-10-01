@@ -1,6 +1,3 @@
-import { local, namedFunction, default as defaultFunction } from 'lib'
+import { local } from 'lib'
 
 local()
-namedFunction()
-
-defaultFunction()

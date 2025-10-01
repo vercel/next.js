@@ -402,7 +402,7 @@ pub async fn expand_star_exports(
                     if key == "default" {
                         continue;
                     }
-                    esm_exports.entry(key.clone()).or_insert(asset);
+                    esm_exports.entry(key.clone()).or_insert_with(|| asset);
                 }
                 for esm_ref in exports.star_exports.iter() {
                     if let ReferencedAsset::Some(asset) =
@@ -502,7 +502,7 @@ pub struct EsmExports {
 #[derive(Hash, Debug)]
 pub struct ExpandedExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
-    /// Modules we couldn't analyse all exports of.
+    /// Modules we couldn't analyze all exports of.
     pub dynamic_exports: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 

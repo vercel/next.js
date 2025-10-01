@@ -16,7 +16,6 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
   NextConfig,
-  TurbopackLoaderItem,
 } from './config-shared'
 
 import { loadWebpackHook } from './config-utils'
@@ -77,8 +76,8 @@ export function warnOptionHasBeenDeprecated(
     let found = true
     const nestedPropertyKeys = nestedPropertyKey.split('.')
     for (const key of nestedPropertyKeys) {
-      if (current[key] !== undefined) {
-        current = current[key]
+      if ((current as any)[key] !== undefined) {
+        current = (current as any)[key]
       } else {
         found = false
         break
@@ -98,20 +97,6 @@ function checkDeprecations(
   silent: boolean,
   dir: string
 ) {
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'amp',
-    `Built-in amp support is deprecated and the \`amp\` configuration option will be removed in Next.js 16.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'experimental.amp',
-    `Built-in amp support is deprecated and the \`experimental.amp\` configuration option will be removed in Next.js 16.`,
-    silent
-  )
-
   if (userConfig.experimental?.dynamicIO !== undefined) {
     warnOptionHasBeenDeprecated(
       userConfig,
@@ -168,10 +153,12 @@ export function warnOptionHasBeenMovedOutOfExperimental(
     const newKeys = newKey.split('.')
     while (newKeys.length > 1) {
       const key = newKeys.shift()!
-      current[key] = current[key] || {}
-      current = current[key]
+      ;(current as any)[key] = (current as any)[key] || {}
+      current = (current as any)[key]
     }
-    current[newKeys.shift()!] = (config.experimental as any)[oldExperimentalKey]
+    ;(current as any)[newKeys.shift()!] = (config.experimental as any)[
+      oldExperimentalKey
+    ]
   }
 
   return config
@@ -193,7 +180,7 @@ function warnCustomizedOption(
     if (!(seg in current)) {
       return
     }
-    current = current[seg]
+    current = (current as any)[seg]
   }
 
   if (!silent && current !== defaultValue) {
@@ -219,16 +206,16 @@ function assignDefaultsAndValidate(
   phase: PHASE_TYPE
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
-  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+  if (typeof (userConfig as any).exportTrailingSlash !== 'undefined') {
     if (!silent) {
       Log.warn(
         `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
       )
     }
     if (typeof userConfig.trailingSlash === 'undefined') {
-      userConfig.trailingSlash = userConfig.exportTrailingSlash
+      userConfig.trailingSlash = (userConfig as any).exportTrailingSlash
     }
-    delete userConfig.exportTrailingSlash
+    delete (userConfig as any).exportTrailingSlash
   }
 
   // Handle migration of experimental.dynamicIO to experimental.cacheComponents
@@ -246,7 +233,7 @@ function assignDefaultsAndValidate(
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
-      const value = userConfig[key]
+      const value = (userConfig as any)[key]
 
       if (value === undefined || value === null) {
         return currentConfig
@@ -353,9 +340,9 @@ function assignDefaultsAndValidate(
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.cacheComponents) {
       throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
-    } else if (result.experimental?.turbopackPersistentCaching) {
+    } else if (result.experimental?.turbopackPersistentCachingForBuild) {
       throw new CanaryOnlyError({
-        feature: 'experimental.turbopackPersistentCaching',
+        feature: 'experimental.turbopackPersistentCachingForBuild',
       })
     }
   }
@@ -420,10 +407,6 @@ function assignDefaultsAndValidate(
 
       if (result.assetPrefix === '') {
         result.assetPrefix = result.basePath
-      }
-
-      if (result.amp?.canonicalBase === '') {
-        result.amp.canonicalBase = result.basePath
       }
     }
   }
@@ -656,6 +639,13 @@ function assignDefaultsAndValidate(
     result,
     'outputFileTracingExcludes',
     'outputFileTracingExcludes',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'reactCompiler',
+    'reactCompiler',
     configFileName,
     silent
   )
@@ -1267,7 +1257,6 @@ function getCacheKey(
 
   return djb2Hash(keyData).toString(36)
 }
-
 export default async function loadConfig(
   phase: PHASE_TYPE,
   dir: string,
@@ -1372,7 +1361,7 @@ export default async function loadConfig(
         silent,
         configuredExperimentalFeatures,
         phase
-      ) as NextConfigComplete,
+      ),
       phase,
       silent
     )
@@ -1458,7 +1447,7 @@ export default async function loadConfig(
       ) as (keyof ExperimentalConfig)[]) {
         const value = loadedConfig.experimental[name]
 
-        if (name === 'turbo' && !process.env.TURBOPACK) {
+        if (name.startsWith('turbopack') && !process.env.TURBOPACK) {
           // Ignore any Turbopack config if Turbopack is not enabled
           continue
         }
@@ -1482,65 +1471,15 @@ export default async function loadConfig(
       validateConfigSchema(userConfig, configFileName, curLog.warn)
     }
 
-    if (userConfig.target && userConfig.target !== 'server') {
+    if ((userConfig as any).target && (userConfig as any).target !== 'server') {
       throw new Error(
         `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
     }
 
-    if (userConfig.amp?.canonicalBase) {
-      const { canonicalBase } = userConfig.amp || ({} as any)
-      userConfig.amp = userConfig.amp || {}
-      userConfig.amp.canonicalBase =
-        (canonicalBase?.endsWith('/')
-          ? canonicalBase.slice(0, -1)
-          : canonicalBase) || ''
-    }
-
     if (reactProductionProfiling) {
       userConfig.reactProductionProfiling = reactProductionProfiling
-    }
-
-    if (
-      userConfig.experimental?.turbo?.loaders &&
-      !userConfig.experimental?.turbo?.rules
-    ) {
-      curLog.warn(
-        'experimental.turbo.loaders is now deprecated. Please update next.config.js to use experimental.turbo.rules as soon as possible.\n' +
-          'The new option is similar, but the key should be a glob instead of an extension.\n' +
-          'Example: loaders: { ".mdx": ["mdx-loader"] } -> rules: { "*.mdx": ["mdx-loader"] }" }\n' +
-          'See more info here https://nextjs.org/docs/app/api-reference/next-config-js/turbo'
-      )
-
-      const rules: Record<string, TurbopackLoaderItem[]> = {}
-      for (const [ext, loaders] of Object.entries(
-        userConfig.experimental.turbo.loaders
-      )) {
-        rules['*' + ext] = loaders as TurbopackLoaderItem[]
-      }
-
-      userConfig.experimental.turbo.rules = rules
-    }
-
-    if (userConfig.experimental?.turbo) {
-      curLog.warn(
-        'The config property `experimental.turbo` is deprecated. Move this setting to `config.turbopack` or run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .`'
-      )
-
-      // Merge the two configs, preferring values in `config.turbopack`.
-      userConfig.turbopack = {
-        ...userConfig.experimental.turbo,
-        ...userConfig.turbopack,
-      }
-      userConfig.experimental.turbopackMemoryLimit ??=
-        userConfig.experimental.turbo.memoryLimit
-      userConfig.experimental.turbopackMinify ??=
-        userConfig.experimental.turbo.minify
-      userConfig.experimental.turbopackTreeShaking ??=
-        userConfig.experimental.turbo.treeShaking
-      userConfig.experimental.turbopackSourceMaps ??=
-        userConfig.experimental.turbo.sourceMaps
     }
 
     if (userConfig.experimental?.useLightningcss) {
@@ -1580,7 +1519,7 @@ export default async function loadConfig(
       silent,
       configuredExperimentalFeatures,
       phase
-    ) as NextConfigComplete
+    )
 
     const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
 
@@ -1751,44 +1690,6 @@ function enforceExperimentalFeatures(
     }
   }
 
-  // TODO: Remove this once we've made Client Segment Cache the default.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.clientSegmentCache === undefined ||
-      (isDefaultConfig && !config.experimental.clientSegmentCache))
-  ) {
-    config.experimental.clientSegmentCache = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'clientSegmentCache',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
-      )
-    }
-  }
-
-  // TODO: Remove this once we've made Client Param Parsing the default.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.clientParamParsing === undefined ||
-      (isDefaultConfig && !config.experimental.clientParamParsing))
-  ) {
-    config.experimental.clientParamParsing = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'clientParamParsing',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
-      )
-    }
-  }
-
   // TODO: Remove this once we've made Cache Components the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
@@ -1808,6 +1709,53 @@ function enforceExperimentalFeatures(
     }
   }
 
+  const enabledByPprEnv = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+  const enabledByCacheComponents = config.experimental.cacheComponents === true
+
+  // TODO: Remove this once we've made Client Segment Cache the default.
+  if (
+    (enabledByPprEnv || enabledByCacheComponents) &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.clientSegmentCache === undefined ||
+      (isDefaultConfig && !config.experimental.clientSegmentCache))
+  ) {
+    config.experimental.clientSegmentCache = true
+    const reason = enabledByCacheComponents
+      ? 'enabled by `experimental.cacheComponents`'
+      : 'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'clientSegmentCache',
+        true,
+        reason
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Client Param Parsing the default.
+  if (
+    (enabledByPprEnv || enabledByCacheComponents) &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.clientParamParsing === undefined ||
+      (isDefaultConfig && !config.experimental.clientParamParsing))
+  ) {
+    config.experimental.clientParamParsing = true
+    const reason = enabledByCacheComponents
+      ? 'enabled by `experimental.cacheComponents`'
+      : 'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'clientParamParsing',
+        true,
+        reason
+      )
+    }
+  }
+
   // TODO: Remove this once we've made RDC for Navigations the default for PPR.
   if (
     process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
@@ -1844,6 +1792,16 @@ function enforceExperimentalFeatures(
         'enabled by `__NEXT_EXPERIMENTAL_PPR`'
       )
     }
+  }
+
+  if (
+    process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.reactCompiler === undefined ||
+      (isDefaultConfig && !config.reactCompiler))
+  ) {
+    config.reactCompiler = true
+    // TODO: Report if we enable non-experimental features via env
   }
 
   if (

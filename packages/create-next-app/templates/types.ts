@@ -33,4 +33,5 @@ export interface InstallTemplateArgs {
   skipInstall: boolean;
   turbopack: boolean;
   rspack: boolean;
+  reactCompiler: boolean;
 }

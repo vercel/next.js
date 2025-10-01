@@ -121,8 +121,8 @@ async fn get_written_endpoint_with_issues_operation(
     .cell())
 }
 
+#[tracing::instrument(level = "info", name = "write endpoint to disk", skip_all)]
 #[napi]
-#[tracing::instrument(skip_all)]
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
@@ -155,6 +155,7 @@ pub async fn endpoint_write_to_disk(
     })
 }
 
+#[tracing::instrument(level = "info", name = "get server-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_server_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
@@ -245,6 +246,7 @@ async fn subscribe_issues_and_diags_operation(
     }
 }
 
+#[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_client_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,

@@ -49,11 +49,11 @@
 - *1* unsupported expression
   ⚠️  This value might have side effects
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 24 call = (...) => (found ? `"${literalEscape(found)}"` : "end of input")(???*0*)
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 25 unreachable = ???*0*
 - *0* unreachable
@@ -63,7 +63,7 @@
 - *0* ???*1*["text"]
   ⚠️  unknown object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 28 unreachable = ???*0*
 - *0* unreachable
@@ -79,7 +79,7 @@
 - *2* ???*3*["parts"]
   ⚠️  unknown object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 41 call = (...) => ...[...](..., ...)["replace"](/\^/g, "\\^")["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)(???*0*)
 - *0* ???*1*[1]
@@ -89,7 +89,7 @@
 - *2* ???*3*["parts"]
   ⚠️  unknown object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 44 call = (...) => ...[...](..., ...)["replace"](/\^/g, "\\^")["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)(???*0*)
 - *0* ???*1*[i]
@@ -97,13 +97,13 @@
 - *1* ???*2*["parts"]
   ⚠️  unknown object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 46 conditional = ???*0*
 - *0* ???*1*["inverted"]
   ⚠️  unknown object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 47 unreachable = ???*0*
 - *0* unreachable
@@ -123,13 +123,13 @@
 
 0 -> 55 member call = ???*0*["charCodeAt"](0)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 56 member call = ???*0*["toString"](16)
 - *0* ???*1*["charCodeAt"](0)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 57 member call = ???*0*["toUpperCase"]()
 - *0* ???*1*["toString"](16)
@@ -137,7 +137,7 @@
 - *1* ???*2*["charCodeAt"](0)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 58 unreachable = ???*0*
 - *0* unreachable
@@ -145,13 +145,13 @@
 
 0 -> 67 member call = ???*0*["replace"](/\\/g, "\\\\")
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 68 member call = ???*0*["replace"](/"/g, "\\\"")
 - *0* ???*1*["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 69 member call = ???*0*["replace"](/\0/g, "\\0")
 - *0* ???*1*["replace"](/"/g, "\\\"")
@@ -159,7 +159,7 @@
 - *1* ???*2*["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 70 member call = ???*0*["replace"](/\t/g, "\\t")
 - *0* ???*1*["replace"](/\0/g, "\\0")
@@ -169,7 +169,7 @@
 - *2* ???*3*["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 71 member call = ???*0*["replace"](/\n/g, "\\n")
 - *0* ???*1*["replace"](/\t/g, "\\t")
@@ -181,7 +181,7 @@
 - *3* ???*4*["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 72 member call = ???*0*["replace"](/\r/g, "\\r")
 - *0* ???*1*["replace"](/\n/g, "\\n")
@@ -209,7 +209,7 @@
 
 73 -> 74 call = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()(???*0*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 73 -> 75 unreachable = ???*0*
 - *0* unreachable
@@ -229,7 +229,7 @@
 
 76 -> 77 call = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()(???*0*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 76 -> 78 unreachable = ???*0*
 - *0* unreachable
@@ -241,13 +241,13 @@
 
 0 -> 90 member call = ???*0*["replace"](/\\/g, "\\\\")
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 91 member call = ???*0*["replace"](/\]/g, "\\]")
 - *0* ???*1*["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 92 member call = ???*0*["replace"](/\^/g, "\\^")
 - *0* ???*1*["replace"](/\]/g, "\\]")
@@ -255,7 +255,7 @@
 - *1* ???*2*["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 93 member call = ???*0*["replace"](/-/g, "\\-")
 - *0* ???*1*["replace"](/\^/g, "\\^")
@@ -265,7 +265,7 @@
 - *2* ???*3*["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 94 member call = ???*0*["replace"](/\0/g, "\\0")
 - *0* ???*1*["replace"](/-/g, "\\-")
@@ -277,7 +277,7 @@
 - *3* ???*4*["replace"](/\\/g, "\\\\")
   ⚠️  unknown callee object
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 95 member call = ???*0*["replace"](/\t/g, "\\t")
 - *0* ???*1*["replace"](/\0/g, "\\0")
@@ -329,7 +329,7 @@
 
 98 -> 99 call = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()(???*0*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 98 -> 100 unreachable = ???*0*
 - *0* unreachable
@@ -349,7 +349,7 @@
 
 101 -> 102 call = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()(???*0*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 101 -> 103 unreachable = ???*0*
 - *0* unreachable
@@ -369,9 +369,9 @@
 - *0* ???*1*["type"]
   ⚠️  unknown object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 108 unreachable = ???*0*
 - *0* unreachable
@@ -386,13 +386,13 @@
 - *1* ???*2*["length"]
   ⚠️  unknown object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 115 call = (...) => DESCRIBE_EXPECTATION_FNS[expectation["type"]](expectation)(???*0*)
 - *0* ???*1*[i]
   ⚠️  unknown object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 117 member call = new ???*0*(???*1*)["sort"]()
 - *0* FreeVar(Array)
@@ -401,7 +401,7 @@
 - *1* ???*2*["length"]
   ⚠️  unknown object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 122 conditional = (???*0* !== ???*6*)
 - *0* ???*1*[???*5*]
@@ -415,7 +415,7 @@
 - *3* ???*4*["length"]
   ⚠️  unknown object
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* unsupported expression
   ⚠️  This value might have side effects
 - *6* ???*7*[(???*11* | 0 | ???*12* | 1)]
@@ -429,7 +429,7 @@
 - *9* ???*10*["length"]
   ⚠️  unknown object
 - *10* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *11* i
   ⚠️  pattern without value
 - *12* updated with update expression
@@ -450,7 +450,7 @@
 - *1* ???*2*["length"]
   ⚠️  unknown object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* unsupported expression
   ⚠️  This value might have side effects
 
@@ -468,7 +468,7 @@
 - *4* ???*5*["length"]
   ⚠️  unknown object
 - *5* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *6* unsupported expression
   ⚠️  This value might have side effects
 
@@ -478,11 +478,11 @@
 
 0 -> 139 conditional = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 139 -> 140 call = (...) => s["replace"](/\\/g, "\\\\")["replace"](/"/g, "\\\"")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)(???*0*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 141 unreachable = ???*0*
 - *0* unreachable
@@ -495,7 +495,7 @@
 - *1* ???*2*["startRule"]
   ⚠️  unknown object
 - *2* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 144 conditional = ((???*0* !== {}) | (???*1* === ???*2*))
 - *0* max number of linking steps reached
@@ -505,7 +505,7 @@
 - *2* ???*3*["length"]
   ⚠️  unknown object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 144 -> 146 conditional = ((???*0* !== {}) | ???*1*)
 - *0* max number of linking steps reached
@@ -519,7 +519,7 @@
 
 144 -> 151 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -547,7 +547,7 @@
 - *1* ???*2*["charAt"](peg$maxFailPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -557,7 +557,7 @@
 
 0 -> 157 conditional = ((???*0* | ???*1*) !== undefined)
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* (???*2* ? ???*4* : {})
   ⚠️  nested operation
 - *2* (???*3* !== undefined)
@@ -667,7 +667,7 @@
 
 0 -> 186 conditional = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 187 unreachable = ???*0*
 - *0* unreachable
@@ -707,7 +707,7 @@
 
 0 -> 199 conditional = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 199 -> 200 free var = FreeVar(parseInt)
 
@@ -720,7 +720,7 @@
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 199 -> 203 free var = FreeVar(parseFloat)
 
@@ -733,7 +733,7 @@
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 206 unreachable = ???*0*
 - *0* unreachable
@@ -743,7 +743,7 @@
 
 0 -> 209 member call = ???*0*["join"]("")
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 210 unreachable = ???*0*
 - *0* unreachable
@@ -839,7 +839,7 @@
 
 0 -> 248 member call = ???*0*["join"]("")
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 249 unreachable = ???*0*
 - *0* unreachable
@@ -918,7 +918,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 277 member call = ???*0*["fromCharCode"](???*1*)
 - *0* FreeVar(String)
@@ -974,9 +974,9 @@
     ???*1*
 )
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 290 unreachable = ???*0*
 - *0* unreachable
@@ -998,9 +998,9 @@
 
 0 -> 296 call = (...) => tail["reduce"](*arrow function 169161*, head)(???*0*, ???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 297 unreachable = ???*0*
 - *0* unreachable
@@ -1064,9 +1064,9 @@
     ???*1*
 )
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 320 unreachable = ???*0*
 - *0* unreachable
@@ -1091,7 +1091,7 @@
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 326 unreachable = ???*0*
 - *0* unreachable
@@ -1099,7 +1099,7 @@
 
 0 -> 327 conditional = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 328 unreachable = ???*0*
 - *0* unreachable
@@ -1122,11 +1122,11 @@
 - *1* ???*2*["startRule"]
   ⚠️  unknown object
 - *2* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 338 member call = ???*0*["substring"](???*1*, ???*2*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 - *2* max number of linking steps reached
@@ -1164,11 +1164,11 @@
 
 0 -> 344 call = (...) => {"type": "other", "description": description}(???*0*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 346 member call = ???*0*["substring"](???*1*, ???*2*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 - *2* max number of linking steps reached
@@ -1176,11 +1176,11 @@
 
 0 -> 347 call = (...) => new peg$SyntaxError(peg$SyntaxError["buildMessage"](expected, found), expected, found, location)([{"type": "other", "description": ???*0*}], ???*1*, ???*3*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1199,7 +1199,7 @@
 
 0 -> 350 call = (...) => new peg$SyntaxError(message, null, null, location)(???*0*, ???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1227,7 +1227,7 @@
 - *0* [][???*1*]
   ⚠️  unknown array prototype methods or values
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *2* ???*3*["line"]
   ⚠️  unknown object
 - *3* details
@@ -1243,7 +1243,7 @@
 
 357 -> 364 member call = ???*0*["charCodeAt"]((???*1* | ???*2* | ???*3*))
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* p
   ⚠️  pattern without value
 - *2* unsupported expression
@@ -1255,7 +1255,7 @@
 - *0* ???*1*["charCodeAt"](p)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 357 -> 370 unreachable = ???*0*
 - *0* unreachable
@@ -1267,11 +1267,11 @@
 
 0 -> 372 call = (...) => details(???*0*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 373 call = (...) => details(???*0*)
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 378 unreachable = ???*0*
 - *0* unreachable
@@ -1283,13 +1283,13 @@
 
 0 -> 381 member call = []["push"](???*0*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 382 call = new (...) => undefined(???*0*, null, null, ???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 383 unreachable = ???*0*
 - *0* unreachable
@@ -1297,21 +1297,21 @@
 
 0 -> 385 member call = (...) => undefined["buildMessage"](???*0*, ???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 386 call = new (...) => undefined((...) => undefined["buildMessage"](???*0*, ???*1*), ???*2*, ???*3*, ???*4*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *4* arguments[2]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 387 unreachable = ???*0*
 - *0* unreachable
@@ -1544,7 +1544,7 @@
 
 0 -> 449 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1552,7 +1552,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 450 -> 451 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -1626,7 +1626,7 @@
 
 471 -> 473 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1634,7 +1634,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 474 -> 475 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -1680,7 +1680,7 @@
 
 486 -> 488 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1688,7 +1688,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 489 -> 490 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -1958,7 +1958,7 @@
 
 565 -> 567 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -1966,7 +1966,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 568 -> 569 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2012,7 +2012,7 @@
 
 580 -> 582 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2020,7 +2020,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 583 -> 584 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2126,7 +2126,7 @@
 
 610 -> 612 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2134,7 +2134,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 613 -> 614 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2168,7 +2168,7 @@
 
 622 -> 624 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2176,7 +2176,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 625 -> 626 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2210,7 +2210,7 @@
 
 634 -> 636 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2218,7 +2218,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 637 -> 638 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2256,7 +2256,7 @@
 
 646 -> 648 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2264,7 +2264,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 649 -> 650 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2298,7 +2298,7 @@
 
 658 -> 660 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2306,7 +2306,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 661 -> 662 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2332,7 +2332,7 @@
 
 0 -> 668 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2340,7 +2340,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 669 -> 670 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2374,7 +2374,7 @@
 
 678 -> 680 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2382,7 +2382,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 681 -> 682 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2428,7 +2428,7 @@
 
 693 -> 695 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2436,7 +2436,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 696 -> 697 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2480,7 +2480,7 @@
 
 707 -> 709 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2488,7 +2488,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 710 -> 711 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2516,7 +2516,7 @@
 
 0 -> 717 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2524,7 +2524,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 718 -> 719 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2558,7 +2558,7 @@
 
 727 -> 729 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2566,7 +2566,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 730 -> 731 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2632,7 +2632,7 @@
 
 0 -> 751 member call = ???*0*["substr"](???*1*, 9)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2640,7 +2640,7 @@
 - *0* ???*1*["substr"](peg$currPos, 9)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 752 -> 753 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2698,7 +2698,7 @@
 
 0 -> 771 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2706,7 +2706,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 772 -> 773 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2738,7 +2738,7 @@
 
 775 -> 777 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2746,7 +2746,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 778 -> 779 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2762,7 +2762,7 @@
 
 781 -> 784 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2770,17 +2770,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 781 -> 786 conditional = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 786 -> 788 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2804,7 +2804,7 @@
 
 791 -> 796 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2812,17 +2812,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 791 -> 798 conditional = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 798 -> 800 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2840,7 +2840,7 @@
 
 803 -> 805 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2848,7 +2848,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 806 -> 807 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -2868,7 +2868,7 @@
 
 809 -> 812 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2876,17 +2876,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 809 -> 814 conditional = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 814 -> 816 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2904,7 +2904,7 @@
 - *1* ???*2*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 819 -> 821 member call = (???*0* | [] | {})["push"]((???*1* | ???*2* | {}))
 - *0* s6
@@ -2914,11 +2914,11 @@
 - *2* ???*3*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 819 -> 824 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2926,17 +2926,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 819 -> 826 conditional = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 826 -> 828 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2965,7 +2965,7 @@
 
 0 -> 835 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -2973,7 +2973,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 836 -> 837 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3017,7 +3017,7 @@
 
 844 -> 846 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3025,7 +3025,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 847 -> 848 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3049,7 +3049,7 @@
 
 852 -> 854 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3057,7 +3057,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 855 -> 856 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3101,7 +3101,7 @@
 
 863 -> 865 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3109,7 +3109,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 866 -> 867 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3133,7 +3133,7 @@
 
 0 -> 873 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3141,7 +3141,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 874 -> 875 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3175,7 +3175,7 @@
 
 883 -> 885 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3183,7 +3183,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 886 -> 887 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3229,7 +3229,7 @@
 
 898 -> 900 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3237,7 +3237,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 901 -> 902 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3281,7 +3281,7 @@
 
 912 -> 914 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3289,7 +3289,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 915 -> 916 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3317,7 +3317,7 @@
 
 0 -> 922 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3325,7 +3325,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 923 -> 924 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3359,7 +3359,7 @@
 
 932 -> 934 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3367,7 +3367,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 935 -> 936 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3413,7 +3413,7 @@
 
 947 -> 949 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3421,7 +3421,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 950 -> 951 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3465,7 +3465,7 @@
 
 961 -> 963 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3473,7 +3473,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 964 -> 965 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3527,7 +3527,7 @@
 
 0 -> 981 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3535,17 +3535,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 983 conditional = /^[ \t\n\r]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 983 -> 985 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3563,7 +3563,7 @@
 
 0 -> 990 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3571,7 +3571,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 991 -> 992 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -3591,7 +3591,7 @@
 
 994 -> 997 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3599,17 +3599,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 994 -> 999 conditional = /^[\n\r]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 999 -> 1001 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3635,7 +3635,7 @@
 
 994 -> 1010 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3643,17 +3643,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 994 -> 1012 conditional = /^[\n\r]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1012 -> 1014 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3677,7 +3677,7 @@
 
 0 -> 1022 member call = ???*0*["substr"](???*1*, 6)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3685,7 +3685,7 @@
 - *0* ???*1*["substr"](peg$currPos, 6)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1024 conditional = (???*0* === "select")
 - *0* ???*1*()
@@ -3695,11 +3695,11 @@
 - *2* ???*3*["substr"](peg$currPos, 6)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1024 -> 1026 member call = ???*0*["substr"](???*1*, 6)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3723,7 +3723,7 @@
 
 0 -> 1034 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3731,7 +3731,7 @@
 - *0* ???*1*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1036 conditional = (???*0* === "top")
 - *0* ???*1*()
@@ -3741,11 +3741,11 @@
 - *2* ???*3*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1036 -> 1038 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3769,7 +3769,7 @@
 
 0 -> 1046 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3777,7 +3777,7 @@
 - *0* ???*1*["substr"](peg$currPos, 4)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1048 conditional = (???*0* === "from")
 - *0* ???*1*()
@@ -3787,11 +3787,11 @@
 - *2* ???*3*["substr"](peg$currPos, 4)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1048 -> 1050 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3815,7 +3815,7 @@
 
 0 -> 1058 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3823,7 +3823,7 @@
 - *0* ???*1*["substr"](peg$currPos, 5)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1060 conditional = (???*0* === "where")
 - *0* ???*1*()
@@ -3833,11 +3833,11 @@
 - *2* ???*3*["substr"](peg$currPos, 5)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1060 -> 1062 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3861,7 +3861,7 @@
 
 0 -> 1070 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3869,7 +3869,7 @@
 - *0* ???*1*["substr"](peg$currPos, 5)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1072 conditional = (???*0* === "order")
 - *0* ???*1*()
@@ -3879,11 +3879,11 @@
 - *2* ???*3*["substr"](peg$currPos, 5)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1072 -> 1074 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3907,7 +3907,7 @@
 
 0 -> 1082 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3915,7 +3915,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1084 conditional = (???*0* === "by")
 - *0* ???*1*()
@@ -3925,11 +3925,11 @@
 - *2* ???*3*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1084 -> 1086 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3953,7 +3953,7 @@
 
 0 -> 1094 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3961,7 +3961,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1096 conditional = (???*0* === "as")
 - *0* ???*1*()
@@ -3971,11 +3971,11 @@
 - *2* ???*3*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1096 -> 1098 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -3999,7 +3999,7 @@
 
 0 -> 1106 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4007,7 +4007,7 @@
 - *0* ???*1*["substr"](peg$currPos, 4)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1108 conditional = (???*0* === "join")
 - *0* ???*1*()
@@ -4017,11 +4017,11 @@
 - *2* ???*3*["substr"](peg$currPos, 4)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1108 -> 1110 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4045,7 +4045,7 @@
 
 0 -> 1118 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4053,7 +4053,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1120 conditional = (???*0* === "in")
 - *0* ???*1*()
@@ -4063,11 +4063,11 @@
 - *2* ???*3*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1120 -> 1122 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4091,7 +4091,7 @@
 
 0 -> 1130 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4099,7 +4099,7 @@
 - *0* ???*1*["substr"](peg$currPos, 5)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1132 conditional = (???*0* === "value")
 - *0* ???*1*()
@@ -4109,11 +4109,11 @@
 - *2* ???*3*["substr"](peg$currPos, 5)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1132 -> 1134 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4137,7 +4137,7 @@
 
 0 -> 1142 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4145,7 +4145,7 @@
 - *0* ???*1*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1144 conditional = (???*0* === "asc")
 - *0* ???*1*()
@@ -4155,11 +4155,11 @@
 - *2* ???*3*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1144 -> 1146 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4177,7 +4177,7 @@
 - *1* ???*2*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1149 -> 1150 call = (...) => s0()
 
@@ -4193,7 +4193,7 @@
 
 0 -> 1156 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4201,7 +4201,7 @@
 - *0* ???*1*["substr"](peg$currPos, 4)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1158 conditional = (???*0* === "desc")
 - *0* ???*1*()
@@ -4211,11 +4211,11 @@
 - *2* ???*3*["substr"](peg$currPos, 4)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1158 -> 1160 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4233,7 +4233,7 @@
 - *1* ???*2*["substr"](peg$currPos, 4)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1163 -> 1164 call = (...) => s0()
 
@@ -4249,7 +4249,7 @@
 
 0 -> 1170 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4257,7 +4257,7 @@
 - *0* ???*1*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1172 conditional = (???*0* === "and")
 - *0* ???*1*()
@@ -4267,11 +4267,11 @@
 - *2* ???*3*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1172 -> 1174 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4289,7 +4289,7 @@
 - *1* ???*2*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1177 -> 1178 call = (...) => s0()
 
@@ -4305,7 +4305,7 @@
 
 0 -> 1184 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4313,7 +4313,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1186 conditional = (???*0* === "or")
 - *0* ???*1*()
@@ -4323,11 +4323,11 @@
 - *2* ???*3*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1186 -> 1188 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4345,7 +4345,7 @@
 - *1* ???*2*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1191 -> 1192 call = (...) => s0()
 
@@ -4361,7 +4361,7 @@
 
 0 -> 1198 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4369,7 +4369,7 @@
 - *0* ???*1*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1200 conditional = (???*0* === "not")
 - *0* ???*1*()
@@ -4379,11 +4379,11 @@
 - *2* ???*3*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1200 -> 1202 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4401,7 +4401,7 @@
 - *1* ???*2*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1205 -> 1206 call = (...) => s0()
 
@@ -4417,7 +4417,7 @@
 
 0 -> 1212 member call = ???*0*["substr"](???*1*, 7)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4425,7 +4425,7 @@
 - *0* ???*1*["substr"](peg$currPos, 7)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1214 conditional = (???*0* === "between")
 - *0* ???*1*()
@@ -4435,11 +4435,11 @@
 - *2* ???*3*["substr"](peg$currPos, 7)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1214 -> 1216 member call = ???*0*["substr"](???*1*, 7)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4463,7 +4463,7 @@
 
 0 -> 1224 member call = ???*0*["substr"](???*1*, 6)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4471,7 +4471,7 @@
 - *0* ???*1*["substr"](peg$currPos, 6)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1226 conditional = (???*0* === "exists")
 - *0* ???*1*()
@@ -4481,11 +4481,11 @@
 - *2* ???*3*["substr"](peg$currPos, 6)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1226 -> 1228 member call = ???*0*["substr"](???*1*, 6)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4509,7 +4509,7 @@
 
 0 -> 1236 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4517,7 +4517,7 @@
 - *0* ???*1*["substr"](peg$currPos, 5)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1238 conditional = (???*0* === "array")
 - *0* ???*1*()
@@ -4527,11 +4527,11 @@
 - *2* ???*3*["substr"](peg$currPos, 5)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1238 -> 1240 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4555,7 +4555,7 @@
 
 0 -> 1247 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4563,7 +4563,7 @@
 - *0* ???*1*["substr"](peg$currPos, 4)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1248 -> 1249 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -4585,7 +4585,7 @@
 
 0 -> 1255 member call = ???*0*["substr"](???*1*, 4)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4593,7 +4593,7 @@
 - *0* ???*1*["substr"](peg$currPos, 4)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1256 -> 1257 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -4615,7 +4615,7 @@
 
 0 -> 1263 member call = ???*0*["substr"](???*1*, 5)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4623,7 +4623,7 @@
 - *0* ???*1*["substr"](peg$currPos, 5)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1264 -> 1265 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -4645,7 +4645,7 @@
 
 0 -> 1271 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4653,7 +4653,7 @@
 - *0* ???*1*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1272 -> 1273 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -4827,7 +4827,7 @@
 
 0 -> 1330 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4835,17 +4835,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1332 conditional = /^[a-zA-Z_]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1332 -> 1334 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4869,7 +4869,7 @@
 - *1* ???*2*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* (???*4* + (???*5* | ???*7*))
   ⚠️  nested operation
 - *4* s1
@@ -4885,7 +4885,7 @@
 
 1339 -> 1342 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4893,17 +4893,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1339 -> 1344 conditional = /^[a-zA-Z0-9_]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1344 -> 1346 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4928,11 +4928,11 @@
 - *2* ???*3*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1339 -> 1353 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4940,17 +4940,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1339 -> 1355 conditional = /^[a-zA-Z0-9_]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1355 -> 1357 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -4980,7 +4980,7 @@
 - *1* ???*2*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* s1
   ⚠️  circular variable reference
 - *4* ???*5*["join"]("")
@@ -5000,7 +5000,7 @@
 
 0 -> 1364 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5008,7 +5008,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1365 -> 1366 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5024,7 +5024,7 @@
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1368 -> 1369 call = (...) => s0()
 
@@ -5040,7 +5040,7 @@
 
 0 -> 1374 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5048,7 +5048,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1375 -> 1376 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5064,7 +5064,7 @@
 
 1378 -> 1380 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5072,7 +5072,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1381 -> 1382 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5088,7 +5088,7 @@
 
 1384 -> 1386 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5096,7 +5096,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1387 -> 1388 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5118,7 +5118,7 @@
 
 0 -> 1394 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5126,7 +5126,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1395 -> 1396 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5142,7 +5142,7 @@
 
 1398 -> 1400 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5150,7 +5150,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1401 -> 1402 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5178,7 +5178,7 @@
 
 1408 -> 1410 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5186,7 +5186,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1411 -> 1412 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5216,7 +5216,7 @@
 
 0 -> 1420 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5224,7 +5224,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1421 -> 1422 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5240,7 +5240,7 @@
 
 1424 -> 1426 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5248,7 +5248,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1427 -> 1428 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5276,7 +5276,7 @@
 
 1434 -> 1436 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5284,7 +5284,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1437 -> 1438 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5314,7 +5314,7 @@
 
 0 -> 1447 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5354,7 +5354,7 @@
 
 0 -> 1460 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5362,7 +5362,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1461 -> 1462 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5378,7 +5378,7 @@
 
 1464 -> 1466 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5386,7 +5386,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1467 -> 1468 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5402,7 +5402,7 @@
 
 1470 -> 1472 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5410,7 +5410,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1473 -> 1474 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5426,7 +5426,7 @@
 
 1476 -> 1478 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5434,7 +5434,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1479 -> 1480 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5456,7 +5456,7 @@
 
 1484 -> 1486 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5464,7 +5464,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1487 -> 1488 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5486,7 +5486,7 @@
 
 1492 -> 1494 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5494,7 +5494,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1495 -> 1496 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5516,7 +5516,7 @@
 
 1500 -> 1502 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5524,7 +5524,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1503 -> 1504 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5546,7 +5546,7 @@
 
 1508 -> 1510 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5554,7 +5554,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1511 -> 1512 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5600,7 +5600,7 @@
 
 1524 -> 1526 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5608,7 +5608,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1527 -> 1528 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5624,7 +5624,7 @@
 
 0 -> 1532 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5632,7 +5632,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1533 -> 1534 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5659,7 +5659,7 @@
 - *1* ???*2*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *3* s4
   ⚠️  circular variable reference
 - *4* s5
@@ -5667,19 +5667,19 @@
 - *5* ???*6*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *6* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *7* s6
   ⚠️  pattern without value
 - *8* ???*9*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *9* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *10* s7
   ⚠️  pattern without value
 - *11* ???*12*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *12* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1538 -> 1539 call = (...) => s0()
 
@@ -5689,7 +5689,7 @@
 - *1* ???*2*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1540 -> 1541 call = (...) => s0()
 
@@ -5699,7 +5699,7 @@
 - *1* ???*2*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1542 -> 1543 call = (...) => s0()
 
@@ -5709,7 +5709,7 @@
 
 1544 -> 1546 member call = ???*0*["substring"](???*1*, ???*2*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 - *2* max number of linking steps reached
@@ -5729,7 +5729,7 @@
 
 0 -> 1552 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5737,17 +5737,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 1554 conditional = /^[0-9a-f]/i["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1554 -> 1556 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5851,7 +5851,7 @@
 
 1585 -> 1587 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5859,7 +5859,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1588 -> 1589 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -5893,7 +5893,7 @@
 
 1597 -> 1599 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -5901,7 +5901,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1600 -> 1601 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6021,7 +6021,7 @@
 
 1635 -> 1637 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6029,7 +6029,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1638 -> 1639 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6079,7 +6079,7 @@
 
 1651 -> 1653 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6087,7 +6087,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1654 -> 1655 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6133,7 +6133,7 @@
 
 1667 -> 1669 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6141,7 +6141,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1670 -> 1671 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6175,7 +6175,7 @@
 
 1678 -> 1680 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6183,7 +6183,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1681 -> 1682 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6233,7 +6233,7 @@
 
 1694 -> 1696 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6241,7 +6241,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1697 -> 1698 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6287,7 +6287,7 @@
 
 1710 -> 1712 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6295,7 +6295,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1713 -> 1714 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6383,7 +6383,7 @@
 
 1736 -> 1738 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6391,7 +6391,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1739 -> 1740 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6425,7 +6425,7 @@
 
 1748 -> 1750 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6433,7 +6433,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1751 -> 1752 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6502,7 +6502,7 @@
 
 1768 -> 1770 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6510,7 +6510,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1771 -> 1772 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6552,7 +6552,7 @@
 
 1783 -> 1785 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6560,7 +6560,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1786 -> 1787 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6676,7 +6676,7 @@
 
 1820 -> 1822 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6684,7 +6684,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1823 -> 1824 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6700,7 +6700,7 @@
 
 1826 -> 1828 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6708,7 +6708,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1829 -> 1830 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6724,7 +6724,7 @@
 
 1832 -> 1834 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6732,7 +6732,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1835 -> 1836 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6768,7 +6768,7 @@
 
 1845 -> 1847 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6776,7 +6776,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1848 -> 1849 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6792,7 +6792,7 @@
 
 1851 -> 1853 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6800,7 +6800,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1854 -> 1855 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6816,7 +6816,7 @@
 
 1857 -> 1859 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6824,7 +6824,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1860 -> 1861 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6874,7 +6874,7 @@
 
 1873 -> 1875 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6882,7 +6882,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1876 -> 1877 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6898,7 +6898,7 @@
 
 1879 -> 1881 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6906,7 +6906,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1882 -> 1883 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6922,7 +6922,7 @@
 
 1885 -> 1887 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6930,7 +6930,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1888 -> 1889 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6946,7 +6946,7 @@
 
 1891 -> 1893 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6954,7 +6954,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1894 -> 1895 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -6990,7 +6990,7 @@
 
 1904 -> 1906 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -6998,7 +6998,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1907 -> 1908 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7014,7 +7014,7 @@
 
 1910 -> 1912 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7022,7 +7022,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1913 -> 1914 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7038,7 +7038,7 @@
 
 1916 -> 1918 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7046,7 +7046,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1919 -> 1920 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7062,7 +7062,7 @@
 
 1922 -> 1924 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7070,7 +7070,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1925 -> 1926 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7132,7 +7132,7 @@
 
 1942 -> 1944 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7140,7 +7140,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1945 -> 1946 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7174,7 +7174,7 @@
 
 1954 -> 1956 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7182,7 +7182,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1957 -> 1958 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7298,7 +7298,7 @@
 
 1990 -> 1992 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7306,7 +7306,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 1993 -> 1994 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7342,7 +7342,7 @@
 
 2003 -> 2005 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7350,7 +7350,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2006 -> 2007 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7400,7 +7400,7 @@
 
 2019 -> 2021 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7408,7 +7408,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2022 -> 2023 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7444,7 +7444,7 @@
 
 2032 -> 2034 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7452,7 +7452,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2035 -> 2036 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7502,7 +7502,7 @@
 
 2048 -> 2050 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7510,7 +7510,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2051 -> 2052 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7546,7 +7546,7 @@
 
 2061 -> 2063 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7554,7 +7554,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2064 -> 2065 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7604,7 +7604,7 @@
 
 2077 -> 2079 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7612,7 +7612,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2080 -> 2081 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7628,7 +7628,7 @@
 
 2083 -> 2085 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7636,7 +7636,7 @@
 - *0* ???*1*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2086 -> 2087 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7652,7 +7652,7 @@
 
 2089 -> 2091 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7660,7 +7660,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2092 -> 2093 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7696,7 +7696,7 @@
 
 2102 -> 2104 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7704,7 +7704,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2105 -> 2106 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7720,7 +7720,7 @@
 
 2108 -> 2110 member call = ???*0*["substr"](???*1*, 3)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7728,7 +7728,7 @@
 - *0* ???*1*["substr"](peg$currPos, 3)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2111 -> 2112 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7744,7 +7744,7 @@
 
 2114 -> 2116 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7752,7 +7752,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2117 -> 2118 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7802,7 +7802,7 @@
 
 2130 -> 2132 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7810,7 +7810,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2133 -> 2134 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7826,7 +7826,7 @@
 
 2136 -> 2138 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7834,7 +7834,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2139 -> 2140 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7850,7 +7850,7 @@
 
 2142 -> 2144 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7858,7 +7858,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2145 -> 2146 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7894,7 +7894,7 @@
 
 2155 -> 2157 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7902,7 +7902,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2158 -> 2159 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7918,7 +7918,7 @@
 
 2161 -> 2163 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7926,7 +7926,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2164 -> 2165 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -7942,7 +7942,7 @@
 
 2167 -> 2169 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -7950,7 +7950,7 @@
 - *0* ???*1*["substr"](peg$currPos, 2)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2170 -> 2171 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8000,7 +8000,7 @@
 
 2183 -> 2185 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8008,7 +8008,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2186 -> 2187 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8024,7 +8024,7 @@
 
 2189 -> 2191 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8032,7 +8032,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2192 -> 2193 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8048,7 +8048,7 @@
 
 2195 -> 2197 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8056,7 +8056,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2198 -> 2199 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8092,7 +8092,7 @@
 
 2208 -> 2210 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8100,7 +8100,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2211 -> 2212 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8116,7 +8116,7 @@
 
 2214 -> 2216 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8124,7 +8124,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2217 -> 2218 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8140,7 +8140,7 @@
 
 2220 -> 2222 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8148,7 +8148,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2223 -> 2224 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8204,7 +8204,7 @@
 
 2238 -> 2240 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8212,7 +8212,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2241 -> 2242 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8268,7 +8268,7 @@
 
 2256 -> 2258 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8276,7 +8276,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2259 -> 2260 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8340,7 +8340,7 @@
 
 2276 -> 2278 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8348,7 +8348,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2279 -> 2280 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8398,7 +8398,7 @@
 
 2292 -> 2294 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8406,7 +8406,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2295 -> 2296 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8452,7 +8452,7 @@
 
 2308 -> 2310 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8460,7 +8460,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2311 -> 2312 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8498,7 +8498,7 @@
 
 2320 -> 2322 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8506,7 +8506,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2323 -> 2324 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8556,7 +8556,7 @@
 
 2336 -> 2338 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8564,7 +8564,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2339 -> 2340 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8610,7 +8610,7 @@
 
 2352 -> 2354 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8618,7 +8618,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2355 -> 2356 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8688,7 +8688,7 @@
 
 0 -> 2375 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8696,17 +8696,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 2377 conditional = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2377 -> 2379 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8724,7 +8724,7 @@
 - *1* ???*2*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2382 -> 2384 member call = (???*0* | [] | {} | {"type": "number_constant", "value": ???*1*})["push"]((???*3* | ???*4* | {}))
 - *0* s1
@@ -8740,11 +8740,11 @@
 - *4* ???*5*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *5* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2382 -> 2387 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8752,17 +8752,17 @@
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2382 -> 2389 conditional = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2389 -> 2391 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8804,7 +8804,7 @@
 
 2400 -> 2402 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8812,7 +8812,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2403 -> 2404 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8858,7 +8858,7 @@
 
 2415 -> 2417 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8866,7 +8866,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2418 -> 2419 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8916,7 +8916,7 @@
 
 0 -> 2431 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8924,7 +8924,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2432 -> 2433 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8958,7 +8958,7 @@
 
 2441 -> 2443 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -8966,7 +8966,7 @@
 - *0* ???*1*["charCodeAt"](peg$currPos)
   ⚠️  unknown callee object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 2444 -> 2445 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
@@ -8993,9 +8993,9 @@
     ???*1*
 )
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 2452 unreachable = ???*0*
 - *0* unreachable

@@ -135,7 +135,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   loaderFile: '',
   domains: [],
   disableStaticImages: false,
-  minimumCacheTTL: 60,
+  minimumCacheTTL: 14400, // 4 hours
   formats: ['image/webp'],
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,

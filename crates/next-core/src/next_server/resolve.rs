@@ -182,7 +182,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // for .js extension in cjs context, we need to check the actual module type via
                     // package.json
                     let FindContextFileResult::Found(package_json, _) =
-                        &*find_context_file(fs_path.parent(), package_json()).await?
+                        &*find_context_file(fs_path.parent(), package_json(), false).await?
                     else {
                         // can't find package.json
                         return Ok(FileType::CommonJs);
@@ -283,10 +283,11 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         if result_from_original_location != result {
             let package_json_file =
-                find_context_file(result.ident().path().await?.parent(), package_json());
+                find_context_file(result.ident().path().await?.parent(), package_json(), false);
             let package_json_from_original_location = find_context_file(
                 result_from_original_location.ident().path().await?.parent(),
                 package_json(),
+                false,
             );
             let FindContextFileResult::Found(package_json_file, _) = &*package_json_file.await?
             else {

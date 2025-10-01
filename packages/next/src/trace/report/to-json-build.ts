@@ -81,8 +81,12 @@ const allowlistedEvents = new Set([
   'run-typescript',
   'run-eslint',
   'static-check',
+  'collect-build-traces',
   'static-generation',
   'output-export-full-static-export',
+  'adapter-handle-build-complete',
+  'output-standalone',
+  'telemetry-flush',
 ])
 
 function reportToJsonBuild(event: TraceEvent) {
