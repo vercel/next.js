@@ -54,8 +54,6 @@ export async function proxyRequest(
         res.removeListener('close', abortUpstream)
       })
     }
-
-    res.on('close', () => proxyReq.destroy())
   })
 
   proxy.on('proxyRes', (proxyRes) => {
