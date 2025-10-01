@@ -4137,6 +4137,116 @@ function createPrerenderRequest(
   };
   return children;
 }
+function resumeRequest(
+  children,
+  postponedState,
+  renderState,
+  onError,
+  onAllReady,
+  onShellReady,
+  onShellError,
+  onFatalError,
+  onPostpone
+) {
+  renderState = new RequestInstance(
+    postponedState.resumableState,
+    renderState,
+    postponedState.rootFormatContext,
+    postponedState.progressiveChunkSize,
+    onError,
+    onAllReady,
+    onShellReady,
+    onShellError,
+    onFatalError,
+    onPostpone,
+    null
+  );
+  renderState.nextSegmentId = postponedState.nextSegmentId;
+  if ("number" === typeof postponedState.replaySlots)
+    return (
+      (onError = createPendingSegment(
+        renderState,
+        0,
+        null,
+        postponedState.rootFormatContext,
+        !1,
+        !1
+      )),
+      (onError.parentFlushed = !0),
+      (children = createRenderTask(
+        renderState,
+        null,
+        children,
+        -1,
+        null,
+        onError,
+        null,
+        null,
+        renderState.abortableTasks,
+        null,
+        postponedState.rootFormatContext,
+        null,
+        emptyTreeContext,
+        null,
+        null
+      )),
+      pushComponentStack(children),
+      renderState.pingedTasks.push(children),
+      renderState
+    );
+  children = createReplayTask(
+    renderState,
+    null,
+    {
+      nodes: postponedState.replayNodes,
+      slots: postponedState.replaySlots,
+      pendingTasks: 0
+    },
+    children,
+    -1,
+    null,
+    null,
+    renderState.abortableTasks,
+    null,
+    postponedState.rootFormatContext,
+    null,
+    emptyTreeContext,
+    null,
+    null
+  );
+  pushComponentStack(children);
+  renderState.pingedTasks.push(children);
+  return renderState;
+}
+function resumeAndPrerenderRequest(
+  children,
+  postponedState,
+  renderState,
+  onError,
+  onAllReady,
+  onShellReady,
+  onShellError,
+  onFatalError,
+  onPostpone
+) {
+  children = resumeRequest(
+    children,
+    postponedState,
+    renderState,
+    onError,
+    onAllReady,
+    onShellReady,
+    onShellError,
+    onFatalError,
+    onPostpone
+  );
+  children.trackedPostpones = {
+    workingMap: new Map(),
+    rootNodes: [],
+    rootSlots: null
+  };
+  return children;
+}
 var currentRequest = null;
 function resolveRequest() {
   if (currentRequest) return currentRequest;
@@ -4590,9 +4700,9 @@ function renderElement(request, task, keyPath, type, props, ref) {
       var defaultProps = type.defaultProps;
       if (defaultProps) {
         newProps === props && (newProps = assign({}, newProps, props));
-        for (var propName$43 in defaultProps)
-          void 0 === newProps[propName$43] &&
-            (newProps[propName$43] = defaultProps[propName$43]);
+        for (var propName$44 in defaultProps)
+          void 0 === newProps[propName$44] &&
+            (newProps[propName$44] = defaultProps[propName$44]);
       }
       props = newProps;
       newProps = emptyContextObject;
@@ -4652,16 +4762,16 @@ function renderElement(request, task, keyPath, type, props, ref) {
             defaultProps = ref ? type[0] : newProps.state;
             initialState = !0;
             for (ref = ref ? 1 : 0; ref < type.length; ref++)
-              (propName$43 = type[ref]),
-                (propName$43 =
-                  "function" === typeof propName$43
-                    ? propName$43.call(newProps, defaultProps, props, void 0)
-                    : propName$43),
-                null != propName$43 &&
+              (propName$44 = type[ref]),
+                (propName$44 =
+                  "function" === typeof propName$44
+                    ? propName$44.call(newProps, defaultProps, props, void 0)
+                    : propName$44),
+                null != propName$44 &&
                   (initialState
                     ? ((initialState = !1),
-                      (defaultProps = assign({}, defaultProps, propName$43)))
-                    : assign(defaultProps, propName$43));
+                      (defaultProps = assign({}, defaultProps, propName$44)))
+                    : assign(defaultProps, propName$44));
             newProps.state = defaultProps;
           }
         else defaultProps.queue = null;
@@ -4881,7 +4991,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
           type = task.keyPath;
           ref = task.formatContext;
           var prevRow = task.row;
-          propName$43 = task.blockedBoundary;
+          propName$44 = task.blockedBoundary;
           propName = task.blockedPreamble;
           var parentHoistableState = task.hoistableState,
             parentSegment = task.blockedSegment,
@@ -4947,7 +5057,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
                   boundarySegment.textEmbedded &&
                   boundarySegment.chunks.push(textSeparator),
                 (boundarySegment.status = 1),
-                finishedSegment(request, propName$43, boundarySegment);
+                finishedSegment(request, propName$44, boundarySegment);
             } catch (thrownValue) {
               throw (
                 ((boundarySegment.status = 12 === request.status ? 3 : 4),
@@ -5020,13 +5130,13 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 null !== prevRow &&
                   prevRow.together &&
                   tryToResolveTogetherRow(request, prevRow);
-            } catch (thrownValue$30) {
+            } catch (thrownValue$31) {
               (newBoundary.status = 4),
                 12 === request.status
                   ? ((contentRootSegment.status = 3),
                     (newProps = request.fatalError))
                   : ((contentRootSegment.status = 4),
-                    (newProps = thrownValue$30)),
+                    (newProps = thrownValue$31)),
                 (defaultProps = getThrownInfo(task.componentStack)),
                 (initialState = logRecoverableError(
                   request,
@@ -5036,7 +5146,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 (newBoundary.errorDigest = initialState),
                 untrackBoundary(request, newBoundary);
             } finally {
-              (task.blockedBoundary = propName$43),
+              (task.blockedBoundary = propName$44),
                 (task.blockedPreamble = propName),
                 (task.hoistableState = parentHoistableState),
                 (task.blockedSegment = parentSegment),
@@ -5049,7 +5159,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
               null,
               fallback,
               -1,
-              propName$43,
+              propName$44,
               boundarySegment,
               newBoundary.fallbackPreamble,
               newBoundary.fallbackState,
@@ -5537,6 +5647,105 @@ function renderChildrenArray(request, task, children, childIndex) {
   task.treeContext = replay;
   task.keyPath = prevKeyPath;
 }
+function trackPostponedBoundary(request, trackedPostpones, boundary) {
+  boundary.status = 5;
+  boundary.rootSegmentID = request.nextSegmentId++;
+  request = boundary.trackedContentKeyPath;
+  if (null === request)
+    throw Error(
+      "It should not be possible to postpone at the root. This is a bug in React."
+    );
+  var fallbackReplayNode = boundary.trackedFallbackNode,
+    children = [],
+    boundaryNode = trackedPostpones.workingMap.get(request);
+  if (void 0 === boundaryNode)
+    return (
+      (boundary = [
+        request[1],
+        request[2],
+        children,
+        null,
+        fallbackReplayNode,
+        boundary.rootSegmentID
+      ]),
+      trackedPostpones.workingMap.set(request, boundary),
+      addToReplayParent(boundary, request[0], trackedPostpones),
+      boundary
+    );
+  boundaryNode[4] = fallbackReplayNode;
+  boundaryNode[5] = boundary.rootSegmentID;
+  return boundaryNode;
+}
+function trackPostpone(request, trackedPostpones, task, segment) {
+  segment.status = 5;
+  var keyPath = task.keyPath,
+    boundary = task.blockedBoundary;
+  if (null === boundary)
+    (segment.id = request.nextSegmentId++),
+      (trackedPostpones.rootSlots = segment.id),
+      null !== request.completedRootSegment &&
+        (request.completedRootSegment.status = 5);
+  else {
+    if (null !== boundary && 0 === boundary.status) {
+      var boundaryNode = trackPostponedBoundary(
+        request,
+        trackedPostpones,
+        boundary
+      );
+      if (
+        boundary.trackedContentKeyPath === keyPath &&
+        -1 === task.childIndex
+      ) {
+        -1 === segment.id &&
+          (segment.id = segment.parentFlushed
+            ? boundary.rootSegmentID
+            : request.nextSegmentId++);
+        boundaryNode[3] = segment.id;
+        return;
+      }
+    }
+    -1 === segment.id &&
+      (segment.id =
+        segment.parentFlushed && null !== boundary
+          ? boundary.rootSegmentID
+          : request.nextSegmentId++);
+    if (-1 === task.childIndex)
+      null === keyPath
+        ? (trackedPostpones.rootSlots = segment.id)
+        : ((task = trackedPostpones.workingMap.get(keyPath)),
+          void 0 === task
+            ? ((task = [keyPath[1], keyPath[2], [], segment.id]),
+              addToReplayParent(task, keyPath[0], trackedPostpones))
+            : (task[3] = segment.id));
+    else {
+      if (null === keyPath)
+        if (((request = trackedPostpones.rootSlots), null === request))
+          request = trackedPostpones.rootSlots = {};
+        else {
+          if ("number" === typeof request)
+            throw Error(
+              "It should not be possible to postpone both at the root of an element as well as a slot below. This is a bug in React."
+            );
+        }
+      else if (
+        ((boundary = trackedPostpones.workingMap),
+        (boundaryNode = boundary.get(keyPath)),
+        void 0 === boundaryNode)
+      )
+        (request = {}),
+          (boundaryNode = [keyPath[1], keyPath[2], [], request]),
+          boundary.set(keyPath, boundaryNode),
+          addToReplayParent(boundaryNode, keyPath[0], trackedPostpones);
+      else if (((request = boundaryNode[3]), null === request))
+        request = boundaryNode[3] = {};
+      else if ("number" === typeof request)
+        throw Error(
+          "It should not be possible to postpone both at the root of an element as well as a slot below. This is a bug in React."
+        );
+      request[task.childIndex] = segment.id;
+    }
+  }
+}
 function untrackBoundary(request, boundary) {
   request = request.trackedPostpones;
   null !== request &&
@@ -5653,21 +5862,21 @@ function renderNode(request, task, node, childIndex) {
       chunkLength = segment.chunks.length;
     try {
       return renderNodeDestructive(request, task, node, childIndex);
-    } catch (thrownValue$60) {
+    } catch (thrownValue$63) {
       if (
         (resetHooksState(),
         (segment.children.length = childrenLength),
         (segment.chunks.length = chunkLength),
         (node =
-          thrownValue$60 === SuspenseException
+          thrownValue$63 === SuspenseException
             ? getSuspendedThenable()
-            : thrownValue$60),
+            : thrownValue$63),
         12 !== request.status && "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
           segment = node;
           node =
-            thrownValue$60 === SuspenseException
+            thrownValue$63 === SuspenseException
               ? getThenableStateAfterSuspending()
               : null;
           request = spawnNewSuspendedRenderTask(request, task, node).ping;
@@ -5682,7 +5891,7 @@ function renderNode(request, task, node, childIndex) {
         }
         if ("Maximum call stack size exceeded" === node.message) {
           segment =
-            thrownValue$60 === SuspenseException
+            thrownValue$63 === SuspenseException
               ? getThenableStateAfterSuspending()
               : null;
           segment = spawnNewSuspendedRenderTask(request, task, segment);
@@ -5770,19 +5979,24 @@ function abortTask(task, request, error) {
     if (6 === segment.status) return;
     segment.status = 3;
   }
-  segment = getThrownInfo(task.componentStack);
+  var errorInfo = getThrownInfo(task.componentStack);
   if (null === boundary) {
     if (13 !== request.status && 14 !== request.status) {
       boundary = task.replay;
       if (null === boundary) {
-        logRecoverableError(request, error, segment);
-        fatalError(request, error);
+        null !== request.trackedPostpones && null !== segment
+          ? ((boundary = request.trackedPostpones),
+            logRecoverableError(request, error, errorInfo),
+            trackPostpone(request, boundary, task, segment),
+            finishedTask(request, null, task.row, segment))
+          : (logRecoverableError(request, error, errorInfo),
+            fatalError(request, error));
         return;
       }
       boundary.pendingTasks--;
       0 === boundary.pendingTasks &&
         0 < boundary.nodes.length &&
-        ((segment = logRecoverableError(request, error, segment)),
+        ((segment = logRecoverableError(request, error, errorInfo)),
         abortRemainingReplayNodes(
           request,
           null,
@@ -5794,24 +6008,36 @@ function abortTask(task, request, error) {
       request.pendingRootTasks--;
       0 === request.pendingRootTasks && completeShell(request);
     }
-  } else
-    4 !== boundary.status &&
-      ((boundary.status = 4),
-      (segment = logRecoverableError(request, error, segment)),
-      (boundary.status = 4),
-      (boundary.errorDigest = segment),
-      untrackBoundary(request, boundary),
-      boundary.parentFlushed &&
-        request.clientRenderedBoundaries.push(boundary)),
-      boundary.pendingTasks--,
-      (segment = boundary.row),
-      null !== segment &&
-        0 === --segment.pendingTasks &&
-        finishSuspenseListRow(request, segment),
-      boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
-        return abortTask(fallbackTask, request, error);
-      }),
-      boundary.fallbackAbortableTasks.clear();
+  } else {
+    var trackedPostpones$64 = request.trackedPostpones;
+    if (4 !== boundary.status) {
+      if (null !== trackedPostpones$64 && null !== segment)
+        return (
+          logRecoverableError(request, error, errorInfo),
+          trackPostpone(request, trackedPostpones$64, task, segment),
+          boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
+            return abortTask(fallbackTask, request, error);
+          }),
+          boundary.fallbackAbortableTasks.clear(),
+          finishedTask(request, boundary, task.row, segment)
+        );
+      boundary.status = 4;
+      segment = logRecoverableError(request, error, errorInfo);
+      boundary.status = 4;
+      boundary.errorDigest = segment;
+      untrackBoundary(request, boundary);
+      boundary.parentFlushed && request.clientRenderedBoundaries.push(boundary);
+    }
+    boundary.pendingTasks--;
+    segment = boundary.row;
+    null !== segment &&
+      0 === --segment.pendingTasks &&
+      finishSuspenseListRow(request, segment);
+    boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
+      return abortTask(fallbackTask, request, error);
+    });
+    boundary.fallbackAbortableTasks.clear();
+  }
   task = task.row;
   null !== task &&
     0 === --task.pendingTasks &&
@@ -5925,22 +6151,22 @@ function finishedSegment(request, boundary, segment) {
       : (boundary.byteSize += segmentByteSize);
   }
 }
-function finishedTask(request$jscomp$0, boundary, row, segment) {
+function finishedTask(request, boundary, row, segment) {
   null !== row &&
     (0 === --row.pendingTasks
-      ? finishSuspenseListRow(request$jscomp$0, row)
-      : row.together && tryToResolveTogetherRow(request$jscomp$0, row));
-  request$jscomp$0.allPendingTasks--;
+      ? finishSuspenseListRow(request, row)
+      : row.together && tryToResolveTogetherRow(request, row));
+  request.allPendingTasks--;
   if (null === boundary) {
     if (null !== segment && segment.parentFlushed) {
-      if (null !== request$jscomp$0.completedRootSegment)
+      if (null !== request.completedRootSegment)
         throw Error(
           "There can only be one root segment. This is a bug in React."
         );
-      request$jscomp$0.completedRootSegment = segment;
+      request.completedRootSegment = segment;
     }
-    request$jscomp$0.pendingRootTasks--;
-    0 === request$jscomp$0.pendingRootTasks && completeShell(request$jscomp$0);
+    request.pendingRootTasks--;
+    0 === request.pendingRootTasks && completeShell(request);
   } else if ((boundary.pendingTasks--, 4 !== boundary.status))
     if (0 === boundary.pendingTasks)
       if (
@@ -5949,33 +6175,29 @@ function finishedTask(request$jscomp$0, boundary, row, segment) {
           segment.parentFlushed &&
           (1 === segment.status || 3 === segment.status) &&
           queueCompletedSegment(boundary, segment),
-        boundary.parentFlushed &&
-          request$jscomp$0.completedBoundaries.push(boundary),
+        boundary.parentFlushed && request.completedBoundaries.push(boundary),
         1 === boundary.status)
       )
         (row = boundary.row),
           null !== row &&
             hoistHoistables(row.hoistables, boundary.contentState),
-          isEligibleForOutlining(request$jscomp$0, boundary) ||
-            (boundary.fallbackAbortableTasks.forEach(
-              abortTaskSoft,
-              request$jscomp$0
-            ),
+          isEligibleForOutlining(request, boundary) ||
+            (boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request),
             boundary.fallbackAbortableTasks.clear(),
             null !== row &&
               0 === --row.pendingTasks &&
-              finishSuspenseListRow(request$jscomp$0, row)),
-          0 === request$jscomp$0.pendingRootTasks &&
-            null === request$jscomp$0.trackedPostpones &&
+              finishSuspenseListRow(request, row)),
+          0 === request.pendingRootTasks &&
+            null === request.trackedPostpones &&
             null !== boundary.contentPreamble &&
-            preparePreamble(request$jscomp$0);
+            preparePreamble(request);
       else {
         if (
           5 === boundary.status &&
           ((boundary = boundary.row), null !== boundary)
         ) {
-          if (null !== request$jscomp$0.trackedPostpones) {
-            row = request$jscomp$0.trackedPostpones;
+          if (null !== request.trackedPostpones) {
+            row = request.trackedPostpones;
             var postponedRow = boundary.next;
             if (
               null !== postponedRow &&
@@ -5987,43 +6209,12 @@ function finishedTask(request$jscomp$0, boundary, row, segment) {
                 postponedRow++
               ) {
                 var postponedBoundary = segment[postponedRow];
-                var request = request$jscomp$0,
-                  trackedPostpones = row;
-                postponedBoundary.status = 5;
-                postponedBoundary.rootSegmentID = request.nextSegmentId++;
-                request = postponedBoundary.trackedContentKeyPath;
-                if (null === request)
-                  throw Error(
-                    "It should not be possible to postpone at the root. This is a bug in React."
-                  );
-                var fallbackReplayNode = postponedBoundary.trackedFallbackNode,
-                  children = [],
-                  boundaryNode = trackedPostpones.workingMap.get(request);
-                void 0 === boundaryNode
-                  ? ((fallbackReplayNode = [
-                      request[1],
-                      request[2],
-                      children,
-                      null,
-                      fallbackReplayNode,
-                      postponedBoundary.rootSegmentID
-                    ]),
-                    trackedPostpones.workingMap.set(
-                      request,
-                      fallbackReplayNode
-                    ),
-                    addToReplayParent(
-                      fallbackReplayNode,
-                      request[0],
-                      trackedPostpones
-                    ))
-                  : ((boundaryNode[4] = fallbackReplayNode),
-                    (boundaryNode[5] = postponedBoundary.rootSegmentID));
-                finishedTask(request$jscomp$0, postponedBoundary, null, null);
+                trackPostponedBoundary(request, row, postponedBoundary);
+                finishedTask(request, postponedBoundary, null, null);
               }
           }
           0 === --boundary.pendingTasks &&
-            finishSuspenseListRow(request$jscomp$0, boundary);
+            finishSuspenseListRow(request, boundary);
         }
       }
     else
@@ -6033,12 +6224,12 @@ function finishedTask(request$jscomp$0, boundary, row, segment) {
         (queueCompletedSegment(boundary, segment),
         1 === boundary.completedSegments.length &&
           boundary.parentFlushed &&
-          request$jscomp$0.partialBoundaries.push(boundary)),
+          request.partialBoundaries.push(boundary)),
         (boundary = boundary.row),
         null !== boundary &&
           boundary.together &&
-          tryToResolveTogetherRow(request$jscomp$0, boundary);
-  0 === request$jscomp$0.allPendingTasks && completeAll(request$jscomp$0);
+          tryToResolveTogetherRow(request, boundary);
+  0 === request.allPendingTasks && completeAll(request);
 }
 function performWork(request$jscomp$2) {
   if (14 !== request$jscomp$2.status && 13 !== request$jscomp$2.status) {
@@ -6173,7 +6364,19 @@ function performWork(request$jscomp$2) {
                 : 12 === request.status
                   ? request.fatalError
                   : thrownValue;
-            if (
+            if (12 === request.status && null !== request.trackedPostpones) {
+              var trackedPostpones = request.trackedPostpones,
+                thrownInfo = getThrownInfo(task.componentStack);
+              task.abortSet.delete(task);
+              logRecoverableError(request, x$jscomp$0, thrownInfo);
+              trackPostpone(request, trackedPostpones, task, request$jscomp$1);
+              finishedTask(
+                request,
+                task.blockedBoundary,
+                task.row,
+                request$jscomp$1
+              );
+            } else if (
               "object" === typeof x$jscomp$0 &&
               null !== x$jscomp$0 &&
               "function" === typeof x$jscomp$0.then
@@ -6734,12 +6937,12 @@ function flushCompletedQueues(request, destination) {
       flushingPartialBoundaries = destinationHasCapacity$1 = !0;
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$66 = partialBoundaries[i];
+        var boundary$70 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          flushedByteSize = boundary$66.byteSize;
-          var completedSegments = boundary$66.completedSegments;
+          flushedByteSize = boundary$70.byteSize;
+          var completedSegments = boundary$70.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -6749,7 +6952,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$66,
+                boundary$70,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -6759,10 +6962,10 @@ function flushCompletedQueues(request, destination) {
               break a;
             }
           completedSegments.splice(0, JSCompiler_inline_result);
-          var row = boundary$66.row;
+          var row = boundary$70.row;
           null !== row &&
             row.together &&
-            1 === boundary$66.pendingTasks &&
+            1 === boundary$70.pendingTasks &&
             (1 === row.pendingTasks
               ? unblockSuspenseListRow(
                   clientRenderedBoundaries,
@@ -6772,7 +6975,7 @@ function flushCompletedQueues(request, destination) {
               : row.pendingTasks--);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$66.contentState,
+            boundary$70.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -6875,8 +7078,8 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$68) {
-    logRecoverableError(request, error$68, {}), fatalError(request, error$68);
+  } catch (error$72) {
+    logRecoverableError(request, error$72, {}), fatalError(request, error$72);
   }
 }
 function addToReplayParent(node, parentKeyPath, trackedPostpones) {
@@ -6891,13 +7094,59 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
     parentNode[2].push(node);
   }
 }
+function getPostponedState(request) {
+  var trackedPostpones = request.trackedPostpones;
+  if (
+    null === trackedPostpones ||
+    (0 === trackedPostpones.rootNodes.length &&
+      null === trackedPostpones.rootSlots)
+  )
+    return (request.trackedPostpones = null);
+  if (
+    null === request.completedRootSegment ||
+    (5 !== request.completedRootSegment.status &&
+      null !== request.completedPreambleSegments)
+  ) {
+    var nextSegmentId = request.nextSegmentId;
+    var replaySlots = trackedPostpones.rootSlots;
+    var resumableState = request.resumableState;
+    resumableState.bootstrapScriptContent = void 0;
+    resumableState.bootstrapScripts = void 0;
+    resumableState.bootstrapModules = void 0;
+  } else {
+    nextSegmentId = 0;
+    replaySlots = -1;
+    resumableState = request.resumableState;
+    var renderState = request.renderState;
+    resumableState.nextFormID = 0;
+    resumableState.hasBody = !1;
+    resumableState.hasHtml = !1;
+    resumableState.unknownResources = { font: renderState.resets.font };
+    resumableState.dnsResources = renderState.resets.dns;
+    resumableState.connectResources = renderState.resets.connect;
+    resumableState.imageResources = renderState.resets.image;
+    resumableState.styleResources = renderState.resets.style;
+    resumableState.scriptResources = {};
+    resumableState.moduleUnknownResources = {};
+    resumableState.moduleScriptResources = {};
+    resumableState.instructions = 0;
+  }
+  return {
+    nextSegmentId: nextSegmentId,
+    rootFormatContext: request.rootFormatContext,
+    progressiveChunkSize: request.progressiveChunkSize,
+    resumableState: request.resumableState,
+    replayNodes: trackedPostpones.rootNodes,
+    replaySlots: replaySlots
+  };
+}
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-548235db-20251001" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-1bd1f01f-20251001" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-canary-548235db-20251001\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-canary-1bd1f01f-20251001\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6958,6 +7207,26 @@ function createFakeWritableFromReadableStreamController$1(controller) {
         : controller.close();
     }
   };
+}
+function resumeRequestImpl(children, postponedState, options) {
+  return resumeRequest(
+    children,
+    postponedState,
+    createRenderState(
+      postponedState.resumableState,
+      options ? options.nonce : void 0,
+      void 0,
+      void 0,
+      void 0,
+      void 0
+    ),
+    options ? options.onError : void 0,
+    options ? options.onAllReady : void 0,
+    options ? options.onShellReady : void 0,
+    options ? options.onShellError : void 0,
+    void 0,
+    options ? options.onPostpone : void 0
+  );
 }
 ensureCorrectIsomorphicReactVersion();
 function createFakeWritableFromReadableStreamController(controller) {
@@ -7021,28 +7290,25 @@ exports.prerender = function (children, options) {
         options ? options.onError : void 0,
         function () {
           var writable,
-            result = {
-              prelude: new ReadableStream(
-                {
-                  type: "bytes",
-                  start: function (controller) {
-                    writable =
-                      createFakeWritableFromReadableStreamController(
-                        controller
-                      );
-                  },
-                  pull: function () {
-                    startFlowing(request, writable);
-                  },
-                  cancel: function (reason) {
-                    request.destination = null;
-                    abort(request, reason);
-                  }
+            stream = new ReadableStream(
+              {
+                type: "bytes",
+                start: function (controller) {
+                  writable =
+                    createFakeWritableFromReadableStreamController(controller);
                 },
-                { highWaterMark: 0 }
-              )
-            };
-          resolve(result);
+                pull: function () {
+                  startFlowing(request, writable);
+                },
+                cancel: function (reason) {
+                  request.destination = null;
+                  abort(request, reason);
+                }
+              },
+              { highWaterMark: 0 }
+            );
+          stream = { postponed: getPostponedState(request), prelude: stream };
+          resolve(stream);
         },
         void 0,
         void 0,
@@ -7093,7 +7359,11 @@ exports.prerenderToNodeStream = function (children, options) {
               }
             }),
             writable = createFakeWritableFromReadable(readable);
-          resolve({ prelude: readable });
+          readable = {
+            postponed: getPostponedState(request),
+            prelude: readable
+          };
+          resolve(readable);
         },
         void 0,
         void 0,
@@ -7235,4 +7505,203 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-548235db-20251001";
+exports.resume = function (children, postponedState, options) {
+  return new Promise(function (resolve, reject) {
+    var onFatalError,
+      onAllReady,
+      allReady = new Promise(function (res, rej) {
+        onAllReady = res;
+        onFatalError = rej;
+      }),
+      request = resumeRequest(
+        children,
+        postponedState,
+        createRenderState(
+          postponedState.resumableState,
+          options ? options.nonce : void 0,
+          void 0,
+          void 0,
+          void 0,
+          void 0
+        ),
+        options ? options.onError : void 0,
+        onAllReady,
+        function () {
+          var writable,
+            stream = new ReadableStream(
+              {
+                type: "bytes",
+                start: function (controller) {
+                  writable =
+                    createFakeWritableFromReadableStreamController$1(
+                      controller
+                    );
+                },
+                pull: function () {
+                  startFlowing(request, writable);
+                },
+                cancel: function (reason) {
+                  request.destination = null;
+                  abort(request, reason);
+                }
+              },
+              { highWaterMark: 0 }
+            );
+          stream.allReady = allReady;
+          resolve(stream);
+        },
+        function (error) {
+          allReady.catch(function () {});
+          reject(error);
+        },
+        onFatalError,
+        options ? options.onPostpone : void 0
+      );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
+};
+exports.resumeAndPrerender = function (children, postponedState, options) {
+  return new Promise(function (resolve, reject) {
+    var request = resumeAndPrerenderRequest(
+      children,
+      postponedState,
+      createRenderState(
+        postponedState.resumableState,
+        void 0,
+        void 0,
+        void 0,
+        void 0,
+        void 0
+      ),
+      options ? options.onError : void 0,
+      function () {
+        var writable,
+          stream = new ReadableStream(
+            {
+              type: "bytes",
+              start: function (controller) {
+                writable =
+                  createFakeWritableFromReadableStreamController(controller);
+              },
+              pull: function () {
+                startFlowing(request, writable);
+              },
+              cancel: function (reason) {
+                request.destination = null;
+                abort(request, reason);
+              }
+            },
+            { highWaterMark: 0 }
+          );
+        stream = { postponed: getPostponedState(request), prelude: stream };
+        resolve(stream);
+      },
+      void 0,
+      void 0,
+      reject,
+      options ? options.onPostpone : void 0
+    );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
+};
+exports.resumeAndPrerenderToNodeStream = function (
+  children,
+  postponedState,
+  options
+) {
+  return new Promise(function (resolve, reject) {
+    var request = resumeAndPrerenderRequest(
+      children,
+      postponedState,
+      createRenderState(
+        postponedState.resumableState,
+        void 0,
+        void 0,
+        void 0,
+        void 0,
+        void 0
+      ),
+      options ? options.onError : void 0,
+      function () {
+        var readable = new stream.Readable({
+            read: function () {
+              startFlowing(request, writable);
+            }
+          }),
+          writable = createFakeWritableFromReadable(readable);
+        readable = { postponed: getPostponedState(request), prelude: readable };
+        resolve(readable);
+      },
+      void 0,
+      void 0,
+      reject,
+      options ? options.onPostpone : void 0
+    );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
+};
+exports.resumeToPipeableStream = function (children, postponedState, options) {
+  var request = resumeRequestImpl(children, postponedState, options),
+    hasStartedFlowing = !1;
+  startWork(request);
+  return {
+    pipe: function (destination) {
+      if (hasStartedFlowing)
+        throw Error(
+          "React currently only supports piping to one writable stream."
+        );
+      hasStartedFlowing = !0;
+      startFlowing(request, destination);
+      destination.on("drain", createDrainHandler(destination, request));
+      destination.on(
+        "error",
+        createCancelHandler(
+          request,
+          "The destination stream errored while writing data."
+        )
+      );
+      destination.on(
+        "close",
+        createCancelHandler(request, "The destination stream closed early.")
+      );
+      return destination;
+    },
+    abort: function (reason) {
+      abort(request, reason);
+    }
+  };
+};
+exports.version = "19.2.0-canary-1bd1f01f-20251001";

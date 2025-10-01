@@ -1248,9 +1248,11 @@
           if (request.status === ABORTING)
             return (
               request.abortableTasks.delete(newTask),
-              (task = request.fatalError),
-              abortTask(newTask),
-              finishAbortedTask(newTask, request, task),
+              21 === request.type
+                ? (haltTask(newTask), finishHaltedTask(newTask, request))
+                : ((task = request.fatalError),
+                  abortTask(newTask),
+                  finishAbortedTask(newTask, request, task)),
               newTask.id
             );
           "string" !== typeof thenable.status &&
@@ -1322,8 +1324,11 @@
           var signal = request.cacheController.signal;
           signal.removeEventListener("abort", abortStream);
           signal = signal.reason;
-          erroredTask(request, streamTask, signal);
-          enqueueFlush(request);
+          21 === request.type
+            ? (request.abortableTasks.delete(streamTask),
+              haltTask(streamTask),
+              finishHaltedTask(streamTask, request))
+            : (erroredTask(request, streamTask, signal), enqueueFlush(request));
           reader.cancel(signal).then(error, error);
         }
       }
@@ -1409,8 +1414,12 @@
           var signal = request.cacheController.signal;
           signal.removeEventListener("abort", abortIterable);
           var reason = signal.reason;
-          erroredTask(request, streamTask, signal.reason);
-          enqueueFlush(request);
+          21 === request.type
+            ? (request.abortableTasks.delete(streamTask),
+              haltTask(streamTask),
+              finishHaltedTask(streamTask, request))
+            : (erroredTask(request, streamTask, signal.reason),
+              enqueueFlush(request));
           "function" === typeof iterator.throw &&
             iterator.throw(reason).then(error, error);
         }
@@ -2266,8 +2275,11 @@
           var signal = request.cacheController.signal;
           signal.removeEventListener("abort", abortBlob);
           signal = signal.reason;
-          erroredTask(request, newTask, signal);
-          enqueueFlush(request);
+          21 === request.type
+            ? (request.abortableTasks.delete(newTask),
+              haltTask(newTask),
+              finishHaltedTask(newTask, request))
+            : (erroredTask(request, newTask, signal), enqueueFlush(request));
           reader.cancel(signal).then(error, error);
         }
       }
@@ -2302,12 +2314,19 @@
           null !== parent &&
           (parent.$$typeof === REACT_ELEMENT_TYPE ||
             parent.$$typeof === REACT_LAZY_TYPE);
-        if (request.status === ABORTING)
-          return (
-            (task.status = 3),
-            (task = request.fatalError),
-            parent ? serializeLazyID(task) : serializeByValueID(task)
-          );
+        if (request.status === ABORTING) {
+          task.status = 3;
+          if (21 === request.type)
+            return (
+              (task = request.nextChunkId++),
+              (task = parent
+                ? serializeLazyID(task)
+                : serializeByValueID(task)),
+              task
+            );
+          task = request.fatalError;
+          return parent ? serializeLazyID(task) : serializeByValueID(task);
+        }
         key =
           thrownValue === SuspenseException
             ? getSuspendedThenable()
@@ -3389,6 +3408,13 @@
       (thenable = thenable._debugInfo) &&
         forwardDebugInfo(request, task, thenable);
     }
+    function forwardDebugInfoFromAbortedTask(request, task) {
+      var model = task.model;
+      "object" === typeof model &&
+        null !== model &&
+        (model = model._debugInfo) &&
+        forwardDebugInfo(request, task, model);
+    }
     function emitTimingChunk(request, id, timestamp) {
       request.pendingChunks++;
       var json = '{"time":' + (timestamp - request.timeOrigin) + "}";
@@ -3500,13 +3526,19 @@
           request.abortableTasks.delete(task);
           callOnAllReadyIfReady(request);
         } catch (thrownValue) {
-          if (request.status === ABORTING) {
-            request.abortableTasks.delete(task);
-            task.status = 0;
-            var errorId = request.fatalError;
-            abortTask(task);
-            finishAbortedTask(task, request, errorId);
-          } else {
+          if (request.status === ABORTING)
+            if (
+              (request.abortableTasks.delete(task),
+              (task.status = 0),
+              21 === request.type)
+            )
+              haltTask(task), finishHaltedTask(task, request);
+            else {
+              var errorId = request.fatalError;
+              abortTask(task);
+              finishAbortedTask(task, request, errorId);
+            }
+          else {
             var x =
               thrownValue === SuspenseException
                 ? getSuspendedThenable()
@@ -3562,17 +3594,20 @@
       0 === task.status && (task.status = 3);
     }
     function finishAbortedTask(task, request, errorId) {
-      if (3 === task.status) {
-        var model = task.model;
-        "object" === typeof model &&
-          null !== model &&
-          (model = model._debugInfo) &&
-          forwardDebugInfo(request, task, model);
-        task.timed && markOperationEndTime(request, task, request.abortTime);
-        errorId = serializeByValueID(errorId);
-        task = encodeReferenceChunk(request, task.id, errorId);
-        request.completedErrorChunks.push(task);
-      }
+      3 === task.status &&
+        (forwardDebugInfoFromAbortedTask(request, task),
+        task.timed && markOperationEndTime(request, task, request.abortTime),
+        (errorId = serializeByValueID(errorId)),
+        (task = encodeReferenceChunk(request, task.id, errorId)),
+        request.completedErrorChunks.push(task));
+    }
+    function haltTask(task) {
+      0 === task.status && (task.status = 3);
+    }
+    function finishHaltedTask(task, request) {
+      3 === task.status &&
+        (forwardDebugInfoFromAbortedTask(request, task),
+        request.pendingChunks--);
     }
     function flushCompletedChunks(request) {
       if (null !== request.debugDestination) {
@@ -3742,6 +3777,18 @@
         }
       }
     }
+    function finishHalt(request, abortedTasks) {
+      try {
+        abortedTasks.forEach(function (task) {
+          return finishHaltedTask(task, request);
+        });
+        var onAllReady = request.onAllReady;
+        onAllReady();
+        flushCompletedChunks(request);
+      } catch (error) {
+        logRecoverableError(request, error, null), fatalError(request, error);
+      }
+    }
     function finishAbort(request, abortedTasks, errorId) {
       try {
         abortedTasks.forEach(function (task) {
@@ -3761,31 +3808,40 @@
           request.abortTime = performance.now();
           request.cacheController.abort(reason);
           var abortableTasks = request.abortableTasks;
-          if (0 < abortableTasks.size) {
-            var error =
-                void 0 === reason
-                  ? Error(
-                      "The render was aborted by the server without a reason."
-                    )
-                  : "object" === typeof reason &&
-                      null !== reason &&
-                      "function" === typeof reason.then
+          if (0 < abortableTasks.size)
+            if (21 === request.type)
+              abortableTasks.forEach(function (task) {
+                return haltTask(task, request);
+              }),
+                setTimeout(function () {
+                  return finishHalt(request, abortableTasks);
+                }, 0);
+            else {
+              var error =
+                  void 0 === reason
                     ? Error(
-                        "The render was aborted by the server with a promise."
+                        "The render was aborted by the server without a reason."
                       )
-                    : reason,
-              digest = logRecoverableError(request, error, null),
-              _errorId2 = request.nextChunkId++;
-            request.fatalError = _errorId2;
-            request.pendingChunks++;
-            emitErrorChunk(request, _errorId2, digest, error, !1, null);
-            abortableTasks.forEach(function (task) {
-              return abortTask(task, request, _errorId2);
-            });
-            setTimeout(function () {
-              return finishAbort(request, abortableTasks, _errorId2);
-            }, 0);
-          } else {
+                    : "object" === typeof reason &&
+                        null !== reason &&
+                        "function" === typeof reason.then
+                      ? Error(
+                          "The render was aborted by the server with a promise."
+                        )
+                      : reason,
+                digest = logRecoverableError(request, error, null),
+                _errorId2 = request.nextChunkId++;
+              request.fatalError = _errorId2;
+              request.pendingChunks++;
+              emitErrorChunk(request, _errorId2, digest, error, !1, null);
+              abortableTasks.forEach(function (task) {
+                return abortTask(task, request, _errorId2);
+              });
+              setTimeout(function () {
+                return finishAbort(request, abortableTasks, _errorId2);
+              }, 0);
+            }
+          else {
             var onAllReady = request.onAllReady;
             onAllReady();
             flushCompletedChunks(request);
@@ -5195,6 +5251,50 @@
       iterator.next().then(progress, error);
       return getChunk(response$jscomp$0, 0);
     };
+    exports.prerender = function (model, webpackMap, options) {
+      return new Promise(function (resolve, reject) {
+        var request = createPrerenderRequest(
+          model,
+          webpackMap,
+          function () {
+            var stream = new ReadableStream(
+              {
+                type: "bytes",
+                pull: function (controller) {
+                  startFlowing(request, controller);
+                },
+                cancel: function (reason) {
+                  request.destination = null;
+                  abort(request, reason);
+                }
+              },
+              { highWaterMark: 0 }
+            );
+            resolve({ prelude: stream });
+          },
+          reject,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0,
+          !1
+        );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
+    };
     exports.registerClientReference = function (
       proxyImplementation,
       id,
@@ -5294,49 +5394,5 @@
         },
         { highWaterMark: 0 }
       );
-    };
-    exports.unstable_prerender = function (model, webpackMap, options) {
-      return new Promise(function (resolve, reject) {
-        var request = createPrerenderRequest(
-          model,
-          webpackMap,
-          function () {
-            var stream = new ReadableStream(
-              {
-                type: "bytes",
-                pull: function (controller) {
-                  startFlowing(request, controller);
-                },
-                cancel: function (reason) {
-                  request.destination = null;
-                  abort(request, reason);
-                }
-              },
-              { highWaterMark: 0 }
-            );
-            resolve({ prelude: stream });
-          },
-          reject,
-          options ? options.onError : void 0,
-          options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
-          options ? options.temporaryReferences : void 0,
-          options ? options.environmentName : void 0,
-          options ? options.filterStackFrame : void 0,
-          !1
-        );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
-        startWork(request);
-      });
     };
   })();

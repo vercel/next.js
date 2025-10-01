@@ -6043,6 +6043,94 @@
       });
       return getChunk(response, 0);
     };
+    exports.prerender = function (model, turbopackMap, options) {
+      return new Promise(function (resolve, reject) {
+        var request = createPrerenderRequest(
+          model,
+          turbopackMap,
+          function () {
+            var writable,
+              stream = new ReadableStream(
+                {
+                  type: "bytes",
+                  start: function (controller) {
+                    writable =
+                      createFakeWritableFromReadableStreamController(
+                        controller
+                      );
+                  },
+                  pull: function () {
+                    startFlowing(request, writable);
+                  },
+                  cancel: function (reason) {
+                    request.destination = null;
+                    abort(request, reason);
+                  }
+                },
+                { highWaterMark: 0 }
+              );
+            resolve({ prelude: stream });
+          },
+          reject,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0,
+          !1
+        );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
+    };
+    exports.prerenderToNodeStream = function (model, turbopackMap, options) {
+      return new Promise(function (resolve, reject) {
+        var request = createPrerenderRequest(
+          model,
+          turbopackMap,
+          function () {
+            var readable = new stream.Readable({
+                read: function () {
+                  startFlowing(request, writable);
+                }
+              }),
+              writable = createFakeWritableFromNodeReadable(readable);
+            resolve({ prelude: readable });
+          },
+          reject,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0,
+          !1
+        );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
+    };
     exports.registerClientReference = function (
       proxyImplementation,
       id,
@@ -6201,97 +6289,5 @@
         },
         { highWaterMark: 0 }
       );
-    };
-    exports.unstable_prerender = function (model, turbopackMap, options) {
-      return new Promise(function (resolve, reject) {
-        var request = createPrerenderRequest(
-          model,
-          turbopackMap,
-          function () {
-            var writable,
-              stream = new ReadableStream(
-                {
-                  type: "bytes",
-                  start: function (controller) {
-                    writable =
-                      createFakeWritableFromReadableStreamController(
-                        controller
-                      );
-                  },
-                  pull: function () {
-                    startFlowing(request, writable);
-                  },
-                  cancel: function (reason) {
-                    request.destination = null;
-                    abort(request, reason);
-                  }
-                },
-                { highWaterMark: 0 }
-              );
-            resolve({ prelude: stream });
-          },
-          reject,
-          options ? options.onError : void 0,
-          options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
-          options ? options.temporaryReferences : void 0,
-          options ? options.environmentName : void 0,
-          options ? options.filterStackFrame : void 0,
-          !1
-        );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
-        startWork(request);
-      });
-    };
-    exports.unstable_prerenderToNodeStream = function (
-      model,
-      turbopackMap,
-      options
-    ) {
-      return new Promise(function (resolve, reject) {
-        var request = createPrerenderRequest(
-          model,
-          turbopackMap,
-          function () {
-            var readable = new stream.Readable({
-                read: function () {
-                  startFlowing(request, writable);
-                }
-              }),
-              writable = createFakeWritableFromNodeReadable(readable);
-            resolve({ prelude: readable });
-          },
-          reject,
-          options ? options.onError : void 0,
-          options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
-          options ? options.temporaryReferences : void 0,
-          options ? options.environmentName : void 0,
-          options ? options.filterStackFrame : void 0,
-          !1
-        );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
-        startWork(request);
-      });
     };
   })();
