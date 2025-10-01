@@ -2566,10 +2566,11 @@ export default abstract class Server<
     const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
 
     if (
-      !this.minimalMode &&
-      typeof invokeOutput === 'string' &&
-      isDynamicRoute(invokeOutput || '') &&
-      invokeOutput !== existingMatch?.definition.pathname
+      (!this.minimalMode &&
+        typeof invokeOutput === 'string' &&
+        isDynamicRoute(invokeOutput || '') &&
+        invokeOutput !== existingMatch?.definition.pathname) ||
+      existingMatch?.definition.page.includes('/@')
     ) {
       fastPath = false
     }
