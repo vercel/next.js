@@ -113,9 +113,9 @@ export async function verifyTypeScriptSetup({
 
     const typescriptVersion = typescriptPackageJson.version
 
-    if (semver.lt(typescriptVersion, '5.0.0')) {
+    if (semver.lt(typescriptVersion, '5.1.0')) {
       log.warn(
-        `Minimum recommended TypeScript version is v5.0.0, older versions can potentially be incompatible with Next.js. Detected: ${typescriptVersion}`
+        `Minimum recommended TypeScript version is v5.1.0, older versions can potentially be incompatible with Next.js. Detected: ${typescriptVersion}`
       )
     }
 
