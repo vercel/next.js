@@ -1,10 +1,9 @@
 // Keep in sync with the `.js` file.
 declare const MODERN_BROWSERSLIST_TARGET: [
-  'chrome 64',
-  'edge 79',
-  'firefox 67',
-  'opera 51',
-  'safari 12',
+  'chrome 111',
+  'edge 111',
+  'firefox 111',
+  'safari 16.4',
 ]
 
 export default MODERN_BROWSERSLIST_TARGET
