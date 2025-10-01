@@ -126,8 +126,7 @@ pub async fn get_next_client_import_map(
     match &ty {
         ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
-            let react_flavor = if *next_config.enable_ppr().await?
-                || *next_config.enable_taint().await?
+            let react_flavor = if *next_config.enable_taint().await?
                 || *next_config.enable_view_transition().await?
             {
                 "-experimental"
@@ -830,10 +829,9 @@ async fn apply_vendored_react_aliases_server(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
     let view_transition = *next_config.enable_view_transition().await?;
-    let react_channel = if ppr || taint || view_transition {
+    let react_channel = if taint || view_transition {
         "-experimental"
     } else {
         ""

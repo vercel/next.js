@@ -839,9 +839,9 @@ pub struct ExperimentalConfig {
     /// Automatically apply the "modularize_imports" optimization to imports of
     /// the specified packages.
     optimize_package_imports: Option<Vec<RcStr>>,
+    ppr: Option<ExperimentalPartialPrerendering>,
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
-    ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
     #[serde(rename = "routerBFCache")]
     router_bfcache: Option<bool>,
@@ -1675,22 +1675,6 @@ impl NextConfig {
             Some(deployment_id) => Ok(Vc::cell(Some(format!("?dpl={deployment_id}").into()))),
             None => Ok(Vc::cell(None)),
         }
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_ppr(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .ppr
-                .as_ref()
-                .map(|ppr| match ppr {
-                    ExperimentalPartialPrerendering::Incremental(
-                        ExperimentalPartialPrerenderingIncrementalValue::Incremental,
-                    ) => true,
-                    ExperimentalPartialPrerendering::Boolean(b) => *b,
-                })
-                .unwrap_or(false),
-        )
     }
 
     #[turbo_tasks::function]
