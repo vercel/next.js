@@ -392,7 +392,7 @@ class NextCustomServer implements NextWrapperServer {
       quiet: this.options.quiet,
     })
     this.init = initResult
-    this.setupWebSocketHandler(this.options.httpServer ?? initResult.server)
+    this.setupWebSocketHandler(this.options.httpServer)
   }
 
   private setupWebSocketHandler(customServer?: import('http').Server) {
