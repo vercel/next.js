@@ -60,8 +60,8 @@ import * as Log from '../../build/output/log'
 import { createServerParamsForMetadata } from '../../server/request/params'
 import type { MetadataBaseURL } from './resolvers/resolve-url'
 import {
+  getUseCacheFunctionInfo,
   isUseCacheFunction,
-  isUseCacheFunctionWithUsedArg,
 } from '../client-and-server-references'
 import type {
   UseCacheLayoutProps,
@@ -1018,6 +1018,8 @@ function prerenderViewport(viewportItems: ViewportItems) {
   return resolversAndResults
 }
 
+const noop = () => {}
+
 function getResult<TData extends object>(
   resolversAndResults: Array<
     ((value: Resolved<TData>) => void) | Result<TData>
@@ -1025,10 +1027,6 @@ function getResult<TData extends object>(
   exportForResult: null | TData | InstrumentedResolver<TData>
 ) {
   if (typeof exportForResult === 'function') {
-    const promise = new Promise<Resolved<TData>>((resolve) =>
-      resolversAndResults.push(resolve)
-    )
-
     // If the function is a 'use cache' function that uses the parent data as
     // the second argument, we don't want to eagerly execute it during
     // metadata/viewport pre-rendering, as the parent data might also be
@@ -1038,12 +1036,31 @@ function getResult<TData extends object>(
     // they must be called sequentially. This can be accomplished by wrapping
     // the call in a lazy promise, so that the original function is only called
     // when the result is actually awaited.
-    if (isUseCacheFunctionWithUsedArg(exportForResult.$$original, 1)) {
+    const useCacheFunctionInfo = getUseCacheFunctionInfo(
+      exportForResult.$$original
+    )
+    if (useCacheFunctionInfo && useCacheFunctionInfo.usedArgs[1]) {
+      const promise = new Promise<Resolved<TData>>((resolve) =>
+        resolversAndResults.push(resolve)
+      )
       resolversAndResults.push(
         createLazyResult(async () => exportForResult(promise))
       )
     } else {
-      const result = exportForResult(promise)
+      let result: TData | Promise<TData>
+      if (useCacheFunctionInfo) {
+        resolversAndResults.push(noop)
+        // @ts-expect-error We intentionally omit the parent argument, because
+        // we know from the check above that the 'use cache' function does not
+        // use it.
+        result = exportForResult()
+      } else {
+        result = exportForResult(
+          new Promise<Resolved<TData>>((resolve) =>
+            resolversAndResults.push(resolve)
+          )
+        )
+      }
       resolversAndResults.push(result)
       if (result instanceof Promise) {
         // since we eager execute generateMetadata and
