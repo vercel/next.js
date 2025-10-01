@@ -10,7 +10,6 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
-import { parseBundlerArgs } from '../lib/bundler'
 
 export type NextBuildOptions = {
   debug?: boolean
@@ -20,7 +19,6 @@ export type NextBuildOptions = {
   mangling: boolean
   turbo?: boolean
   turbopack?: boolean
-  webpack?: boolean
   experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
@@ -84,7 +82,12 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  const bundler = parseBundlerArgs(options)
+  const isTurbopack = Boolean(
+    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
+  )
+  if (isTurbopack) {
+    process.env.TURBOPACK = '1'
+  }
 
   return build(
     dir,
@@ -94,7 +97,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     lint,
     !mangling,
     experimentalAppOnly,
-    bundler,
+    isTurbopack,
     experimentalBuildMode,
     traceUploadUrl
   )

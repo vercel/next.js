@@ -1,4 +1,4 @@
-import type { NextConfigComplete } from '../server/config-shared'
+import type { NextConfig } from '../server/config-shared'
 import loadConfig from '../server/config'
 import * as Log from '../build/output/log'
 import {
@@ -43,9 +43,11 @@ const unsupportedTurbopackNextConfigOptions = [
 ]
 
 // The following will need to be supported by `next build --turbopack`
-const unsupportedProductionSpecificTurbopackNextConfigOptions: string[] = []
+const unsupportedProductionSpecificTurbopackNextConfigOptions: string[] = [
+  // TODO: Support disabling sourcemaps, currently they're always enabled.
+  // 'productionBrowserSourceMaps',
+]
 
-/**  */
 export async function validateTurboNextConfig({
   dir,
   isDev,
@@ -65,8 +67,8 @@ export async function validateTurboNextConfig({
   let hasWebpackConfig = false
   let hasTurboConfig = false
 
-  const unsupportedConfig: string[] = []
-  let rawNextConfig: NextConfigComplete = {} as NextConfigComplete
+  let unsupportedConfig: string[] = []
+  let rawNextConfig: NextConfig = {}
 
   const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD
   try {
@@ -74,7 +76,7 @@ export async function validateTurboNextConfig({
       await loadConfig(phase, dir, {
         rawConfig: true,
       })
-    )
+    ) as NextConfig
 
     if (typeof rawNextConfig === 'function') {
       rawNextConfig = (rawNextConfig as any)(phase, {
@@ -118,7 +120,7 @@ export async function validateTurboNextConfig({
 
     const customKeys = flattenKeys(rawNextConfig)
 
-    const unsupportedKeys = isDev
+    let unsupportedKeys = isDev
       ? unsupportedTurbopackNextConfigOptions
       : [
           ...unsupportedTurbopackNextConfigOptions,
@@ -133,7 +135,7 @@ export async function validateTurboNextConfig({
         hasTurboConfig = true
       }
 
-      const isUnsupported =
+      let isUnsupported =
         unsupportedKeys.some(
           (unsupportedKey) =>
             // Either the key matches (or is a more specific subkey) of
@@ -156,24 +158,13 @@ export async function validateTurboNextConfig({
     Log.error('Unexpected error occurred while checking config', e)
   }
 
-  // If the build was defaulted to Turbopack, we want to warn about possibly ignored webpack
-  // configuration. Otherwise the user explicitly picked turbopack and thus we expect that
-  // they have configured it correctly.
-  if (process.env.TURBOPACK === 'auto' && hasWebpackConfig && !hasTurboConfig) {
-    const configFile = rawNextConfig.configFileName ?? 'your Next config file'
-    Log.error(
-      `ERROR: This build is using Turbopack, with a \`webpack\` config and no \`turbopack\` config. This may be a mistake.
-
-  As of Next.js 16 turbopack is enabled by default and custom webpack configurations may need to be migrated to Turbopack.
-
-  NOTE: your \`webpack\` config may have been added by a configuration plugin.
-
-  To configure Turbopack, see https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
-
-  TIP: Many applications work fine under Turbopack with no configuration, if that is the case for you, you can silence this error by passing the \`--turbopack\` or \`--webpack\` flag explicitly or simply setting an empty turbopack config in ${configFile} (e.g. \`turbopack: {}\`).`
+  if (hasWebpackConfig && !hasTurboConfig) {
+    Log.warn(
+      `Webpack is configured while Turbopack is not, which may cause problems.`
     )
-
-    process.exit(1)
+    Log.warn(
+      `See instructions if you need to configure Turbopack:\n  https://nextjs.org/docs/app/api-reference/next-config-js/turbopack\n`
+    )
   }
 
   if (unsupportedConfig.length) {
