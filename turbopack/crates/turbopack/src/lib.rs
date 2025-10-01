@@ -92,6 +92,12 @@ async fn apply_module_type(
             postprocess,
             options,
         }
+        | ModuleType::EcmascriptExtensionless {
+            preprocess,
+            main,
+            postprocess,
+            options,
+        }
         | ModuleType::Typescript {
             preprocess,
             main,
@@ -134,6 +140,9 @@ async fn apply_module_type(
             match module_type {
                 ModuleType::Ecmascript { .. } => {
                     builder = builder.with_type(EcmascriptModuleAssetType::Ecmascript)
+                }
+                ModuleType::EcmascriptExtensionless { .. } => {
+                    builder = builder.with_type(EcmascriptModuleAssetType::EcmascriptExtensionless)
                 }
                 ModuleType::Typescript {
                     tsx, analyze_types, ..

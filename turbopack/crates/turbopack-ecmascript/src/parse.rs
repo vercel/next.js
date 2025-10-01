@@ -181,9 +181,14 @@ pub async fn parse(
         ty = display(&ty)
     );
 
-    match parse_internal(source, ty, transforms, warn_instead_of_error)
-        .instrument(span)
-        .await
+    match parse_internal(
+        source,
+        ty,
+        transforms,
+        is_external_tracing && matches!(ty, EcmascriptModuleAssetType::EcmascriptExtensionless),
+    )
+    .instrument(span)
+    .await
     {
         Ok(result) => Ok(result),
         Err(error) => Err(error.context(format!(
@@ -325,7 +330,9 @@ async fn parse_file_content(
             let mut parsed_program = {
                 let lexer = Lexer::new(
                     match ty {
-                        EcmascriptModuleAssetType::Ecmascript => Syntax::Es(EsSyntax {
+                        EcmascriptModuleAssetType::Ecmascript
+                        | EcmascriptModuleAssetType::EcmascriptExtensionless
+                        => Syntax::Es(EsSyntax {
                             jsx: true,
                             fn_bind: true,
                             decorators: true,

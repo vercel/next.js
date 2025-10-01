@@ -277,6 +277,8 @@ pub struct EcmascriptOptions {
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
+    /// Module with (presumed) EcmaScript code, but it was extensionless
+    EcmascriptExtensionless,
     /// Module with TypeScript code without types
     Typescript {
         // parse JSX syntax.
@@ -292,6 +294,9 @@ impl Display for EcmascriptModuleAssetType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             EcmascriptModuleAssetType::Ecmascript => write!(f, "ecmascript"),
+            EcmascriptModuleAssetType::EcmascriptExtensionless => {
+                write!(f, "ecmascript extensionless")
+            }
             EcmascriptModuleAssetType::Typescript { tsx, analyze_types } => {
                 write!(f, "typescript")?;
                 if *tsx {
