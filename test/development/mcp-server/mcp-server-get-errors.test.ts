@@ -106,6 +106,8 @@ describe('mcp-server get_errors tool', () => {
 
     const isTurbopack = process.env.IS_TURBOPACK_TEST === '1'
 
+    const isRspack = !!process.env.NEXT_RSPACK
+
     // Normalize paths in turbopack output to remove temp directory prefix
     if (isTurbopack) {
       strippedErrors = strippedErrors.replace(/\.\/test\/tmp\/[^/]+\//g, './')
@@ -155,8 +157,44 @@ describe('mcp-server get_errors tool', () => {
 
        ---"
       `)
-    } else {
+    } else if (isRspack) {
       // Webpack output
+      expect(strippedErrors).toMatchInlineSnapshot(`
+       "# Found errors in 1 browser session(s)
+
+       ## Session: /build-error
+
+       **1 error(s) found**
+
+       ### Build Error
+
+       \`\`\`
+       ./app/build-error/page.tsx
+         × Module build failed:
+         ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+               │    ,-[4:1]
+               │  1 | export default function BuildErrorPage() {
+               │  2 |   // Syntax error - missing closing brace
+               │  3 |   return <div>Page
+               │  4 | }
+               │    : ^
+               │    \`----
+               │   x Expected '</', got '<eof>'
+               │    ,-[4:1]
+               │  1 | export default function BuildErrorPage() {
+               │  2 |   // Syntax error - missing closing brace
+               │  3 |   return <div>Page
+               │  4 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       \`\`\`
+
+       ---"
+      `)
+    } else {
       expect(strippedErrors).toMatchInlineSnapshot(`
        "# Found errors in 1 browser session(s)
 

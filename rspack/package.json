@@ -1,6 +1,6 @@
 {
   "name": "@next/rspack-core",
-  "version": "0.0.1-canary.2",
+  "version": "1.0.0",
   "homepage": "https://nextjs.org",
   "bugs": {
     "url": "https://github.com/vercel/next.js/issues"
@@ -24,10 +24,11 @@
   ],
   "scripts": {
     "build": "pnpm run --filter @next/rspack-binding build",
-    "build:debug": "pnpm run --filter @next/rspack-binding build:debug"
+    "build:debug": "pnpm run --filter @next/rspack-binding build:debug",
+    "change-npm-name": "node ./change-npm-name.js"
   },
   "dependencies": {
-    "@rspack/core": "1.4.10",
+    "@rspack/core": "1.5.0",
     "@next/rspack-binding": "workspace:*"
   }
 }
