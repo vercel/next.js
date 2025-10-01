@@ -408,8 +408,15 @@ class NextCustomServer implements NextWrapperServer {
     if (!server) {
       return
     }
-    // Already attached to this server.
-    if (this.didWebSocketSetup && this.attachedUpgradeServer === server) {
+    
+    // Already set up websocket handling
+    if (this.didWebSocketSetup) {
+      // Warn if a different server is being used
+      if (this.attachedUpgradeServer !== server) {
+        log.warn(
+          'Detected multiple HTTP servers. WebSocket upgrades are only attached to the first server encountered.'
+        )
+      }
       return
     }
 
