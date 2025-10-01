@@ -27,6 +27,19 @@ export function isUseCacheFunction<T>(
   return type === 'use-cache'
 }
 
+export function isUseCacheFunctionWithUsedArg<T>(
+  value: T & Partial<ServerReference>,
+  argIndex: number
+): value is T & ServerFunction {
+  if (!isServerReference(value)) {
+    return false
+  }
+
+  const { type, usedArgs } = extractInfoFromServerReferenceId(value.$$id)
+
+  return type === 'use-cache' && usedArgs[argIndex]
+}
+
 export function isClientReference(mod: any): boolean {
   const defaultExport = mod?.default || mod
   return defaultExport?.$$typeof === Symbol.for('react.client.reference')

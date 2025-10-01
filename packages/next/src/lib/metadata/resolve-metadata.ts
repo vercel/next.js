@@ -59,20 +59,31 @@ import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 import { createServerParamsForMetadata } from '../../server/request/params'
 import type { MetadataBaseURL } from './resolvers/resolve-url'
-import { isUseCacheFunction } from '../client-and-server-references'
+import {
+  isUseCacheFunction,
+  isUseCacheFunctionWithUsedArg,
+} from '../client-and-server-references'
 import type {
   UseCacheLayoutProps,
   UseCachePageProps,
 } from '../../server/use-cache/use-cache-wrapper'
+import { createLazyResult } from '../../server/lib/lazy-result'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
-type MetadataResolver = (
-  parent: ResolvingMetadata
-) => Metadata | Promise<Metadata>
-type ViewportResolver = (
-  parent: ResolvingViewport
-) => Viewport | Promise<Viewport>
+type Resolved<T> = T extends Metadata ? ResolvedMetadata : ResolvedViewport
+
+type InstrumentedResolver<TData> = ((
+  parent: Promise<Resolved<TData>>
+) => TData | Promise<TData>) & {
+  $$original: (
+    props: unknown,
+    parent: Promise<Resolved<TData>>
+  ) => TData | Promise<TData>
+}
+
+type MetadataResolver = InstrumentedResolver<Metadata>
+type ViewportResolver = InstrumentedResolver<Viewport>
 
 export type MetadataErrorType = 'not-found' | 'forbidden' | 'unauthorized'
 
@@ -478,17 +489,20 @@ function getDefinedViewport(
     const { route } = tracingProps
     const segmentProps = createSegmentProps(mod.generateViewport, props)
 
-    return (parent: ResolvingViewport) =>
-      getTracer().trace(
-        ResolveMetadataSpan.generateViewport,
-        {
-          spanName: `generateViewport ${route}`,
-          attributes: {
-            'next.page': route,
+    return Object.assign(
+      (parent: ResolvingViewport) =>
+        getTracer().trace(
+          ResolveMetadataSpan.generateViewport,
+          {
+            spanName: `generateViewport ${route}`,
+            attributes: {
+              'next.page': route,
+            },
           },
-        },
-        () => mod.generateViewport(segmentProps, parent)
-      )
+          () => mod.generateViewport(segmentProps, parent)
+        ),
+      { $$original: mod.generateViewport }
+    )
   }
   return mod.viewport || null
 }
@@ -502,17 +516,20 @@ function getDefinedMetadata(
     const { route } = tracingProps
     const segmentProps = createSegmentProps(mod.generateMetadata, props)
 
-    return (parent: ResolvingMetadata) =>
-      getTracer().trace(
-        ResolveMetadataSpan.generateMetadata,
-        {
-          spanName: `generateMetadata ${route}`,
-          attributes: {
-            'next.page': route,
+    return Object.assign(
+      (parent: ResolvingMetadata) =>
+        getTracer().trace(
+          ResolveMetadataSpan.generateMetadata,
+          {
+            spanName: `generateMetadata ${route}`,
+            attributes: {
+              'next.page': route,
+            },
           },
-        },
-        () => mod.generateMetadata(segmentProps, parent)
-      )
+          () => mod.generateMetadata(segmentProps, parent)
+        ),
+      { $$original: mod.generateMetadata }
+    )
   }
   return mod.metadata || null
 }
@@ -982,7 +999,7 @@ function prerenderMetadata(metadataItems: MetadataItems) {
   > = []
   for (let i = 0; i < metadataItems.length; i++) {
     const metadataExport = metadataItems[i][0]
-    getResult(resolversAndResults, metadataExport)
+    getResult<Metadata>(resolversAndResults, metadataExport)
   }
   return resolversAndResults
 }
@@ -996,32 +1013,49 @@ function prerenderViewport(viewportItems: ViewportItems) {
   > = []
   for (let i = 0; i < viewportItems.length; i++) {
     const viewportExport = viewportItems[i]
-    getResult(resolversAndResults, viewportExport)
+    getResult<Viewport>(resolversAndResults, viewportExport)
   }
   return resolversAndResults
 }
 
-type Resolved<T> = T extends Metadata ? ResolvedMetadata : ResolvedViewport
-
-function getResult<T extends Metadata | Viewport>(
-  resolversAndResults: Array<((value: Resolved<T>) => void) | Result<T>>,
-  exportForResult: null | T | ((parent: Promise<Resolved<T>>) => Result<T>)
+function getResult<TData extends object>(
+  resolversAndResults: Array<
+    ((value: Resolved<TData>) => void) | Result<TData>
+  >,
+  exportForResult: null | TData | InstrumentedResolver<TData>
 ) {
   if (typeof exportForResult === 'function') {
-    const result = exportForResult(
-      new Promise<Resolved<T>>((resolve) => resolversAndResults.push(resolve))
+    const promise = new Promise<Resolved<TData>>((resolve) =>
+      resolversAndResults.push(resolve)
     )
-    resolversAndResults.push(result)
-    if (result instanceof Promise) {
-      // since we eager execute generateMetadata and
-      // they can reject at anytime we need to ensure
-      // we attach the catch handler right away to
-      // prevent unhandled rejections crashing the process
-      result.catch((err) => {
-        return {
-          __nextError: err,
-        }
-      })
+
+    // If the function is a 'use cache' function that uses the parent data as
+    // the second argument, we don't want to eagerly execute it during
+    // metadata/viewport pre-rendering, as the parent data might also be
+    // computed from another 'use cache' function. To ensure that the hanging
+    // input abort signal handling works in this case (i.e. the depending
+    // function waits for the cached input to resolve while encoding its args),
+    // they must be called sequentially. This can be accomplished by wrapping
+    // the call in a lazy promise, so that the original function is only called
+    // when the result is actually awaited.
+    if (isUseCacheFunctionWithUsedArg(exportForResult.$$original, 1)) {
+      resolversAndResults.push(
+        createLazyResult(async () => exportForResult(promise))
+      )
+    } else {
+      const result = exportForResult(promise)
+      resolversAndResults.push(result)
+      if (result instanceof Promise) {
+        // since we eager execute generateMetadata and
+        // they can reject at anytime we need to ensure
+        // we attach the catch handler right away to
+        // prevent unhandled rejections crashing the process
+        result.catch((err) => {
+          return {
+            __nextError: err,
+          }
+        })
+      }
     }
   } else if (typeof exportForResult === 'object') {
     resolversAndResults.push(exportForResult)
