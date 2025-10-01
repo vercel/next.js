@@ -1,12 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('standalone mode - tracing', () => {
+describe('standalone mode - tracing-static-files', () => {
   const dependencies = require('./package.json').dependencies
 
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     dependencies,
     skipDeployment: true,
+    skipStart: true,
   })
 
   if (skipped) {
@@ -14,6 +15,9 @@ describe('standalone mode - tracing', () => {
   }
 
   it('should trace process.cwd calls in node_modules', async () => {
+    let { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
+
     let trace = await next.readJSON('.next/server/app/page.js.nft.json')
 
     // should trace process.cwd and relative calls relative to the root
@@ -31,7 +35,7 @@ describe('standalone mode - tracing', () => {
     if (process.env.IS_TURBOPACK_TEST) {
       // Webpack doesn't trace these relative reference
       expect(trace.files).toContainEqual(
-        expect.stringMatching(/.*\/node_modules\/foo\/foo.txt/)
+        expect.stringMatching(/.*\/node_modules\/foo\/foo\.txt$/)
       )
     }
 
