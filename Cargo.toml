@@ -254,6 +254,10 @@ inherits = "release"
 debug-assertions = true
 overflow-checks = true
 
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+
 [workspace.dependencies]
 # Workspace crates
 next-api = { path = "crates/next-api" }
