@@ -217,8 +217,8 @@ export class NextInstance {
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
-          '@types/react': '19.1.14',
-          '@types/react-dom': '19.1.7',
+          '@types/react': '19.1.16',
+          '@types/react-dom': '19.1.10',
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
@@ -408,6 +408,9 @@ export class NextInstance {
           }
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
             process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
+          }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CLIENT_SEGMENT_CACHE) {
+            process.env.__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE = process.env.NEXT_PRIVATE_EXPERIMENTAL_CLIENT_SEGMENT_CACHE
           }
         `
           )

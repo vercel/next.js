@@ -847,5 +847,6 @@
   "846": "Route %s used \\`cookies()\\` inside a function cached with \\`unstable_cache()\\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \\`cookies()\\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
   "847": "Route %s with \\`dynamic = \"error\"\\` couldn't be rendered statically because it used \\`connection()\\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
   "848": "%sused %s. \\`searchParams\\` is a Promise and must be unwrapped with \\`await\\` or \\`React.use()\\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-  "849": "Route %s with \\`dynamic = \"error\"\\` couldn't be rendered statically because it used \\`cookies()\\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"
+  "849": "Route %s with \\`dynamic = \"error\"\\` couldn't be rendered statically because it used \\`cookies()\\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+  "850": "metadataBase is not a valid URL: %s"
 }

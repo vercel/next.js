@@ -277,6 +277,8 @@ pub struct EcmascriptOptions {
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
+    /// Module with (presumed) EcmaScript code, but it was extensionless
+    EcmascriptExtensionless,
     /// Module with TypeScript code without types
     Typescript {
         // parse JSX syntax.
@@ -292,6 +294,9 @@ impl Display for EcmascriptModuleAssetType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             EcmascriptModuleAssetType::Ecmascript => write!(f, "ecmascript"),
+            EcmascriptModuleAssetType::EcmascriptExtensionless => {
+                write!(f, "ecmascript extensionless")
+            }
             EcmascriptModuleAssetType::Typescript { tsx, analyze_types } => {
                 write!(f, "typescript")?;
                 if *tsx {
@@ -489,7 +494,7 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
         let this = self.await?;
-        let real_result = this.parse();
+        let real_result = this.parse().await?;
         if this.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
             let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
@@ -532,7 +537,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
 
-        let parsed = this.parse();
+        let parsed = this.parse().await?;
 
         Ok(EcmascriptModuleContent::new_without_analysis(
             parsed,
@@ -548,7 +553,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
-        let parsed = self.await?.parse().to_resolved().await?;
+        let parsed = self.await?.parse().await?.to_resolved().await?;
 
         let analyze = self.analyze();
         let analyze_ref = analyze.await?;
@@ -681,8 +686,13 @@ impl EcmascriptModuleAsset {
 }
 
 impl EcmascriptModuleAsset {
-    pub fn parse(&self) -> Vc<ParseResult> {
-        parse(*self.source, self.ty, *self.transforms)
+    pub async fn parse(&self) -> Result<Vc<ParseResult>> {
+        Ok(parse(
+            *self.source,
+            self.ty,
+            *self.transforms,
+            self.options.await?.analyze_mode == AnalyzeMode::Tracing,
+        ))
     }
 
     #[tracing::instrument(level = "trace", skip_all)]

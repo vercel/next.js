@@ -190,7 +190,13 @@ pub async fn webpack_runtime(
     source: Vc<Box<dyn Source>>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<WebpackRuntime>> {
-    let parsed = parse(source, EcmascriptModuleAssetType::Ecmascript, transforms).await?;
+    let parsed = parse(
+        source,
+        EcmascriptModuleAssetType::Ecmascript,
+        transforms,
+        false,
+    )
+    .await?;
     match &*parsed {
         ParseResult::Ok {
             program,

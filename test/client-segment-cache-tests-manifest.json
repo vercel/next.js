@@ -1,0 +1,133 @@
+{
+  "version": 2,
+  "suites": {
+    "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
+      "failed": [
+        "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
+        "app-dir action handling should reset the form state when the action redirects to itself"
+      ]
+    },
+    "test/e2e/app-dir/actions/app-action.test.ts": {
+      "failed": [
+        "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
+        "app-dir action handling should reset the form state when the action redirects to itself"
+      ]
+    },
+    "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts": {
+      "failed": [
+        "app dir client cache semantics (experimental staleTimes) static: 180 prefetch={true} should use the custom static override time (3 minutes)"
+      ]
+    },
+    "test/e2e/app-dir/app-prefetch/prefetching.stale-times.test.ts": {
+      "failed": [
+        "app dir - prefetching (custom staleTime) should fetch again when a static page was prefetched when navigating to it after the stale time has passed",
+        "app dir - prefetching (custom staleTime) should fetch again when the initially visited static page is visited after the stale time has passed",
+        "app dir - prefetching (custom staleTime) should not fetch again when a static page was prefetched when navigating to it twice",
+        "app dir - prefetching (custom staleTime) should renew the stale time after refetching expired RSC data"
+      ]
+    },
+    "test/e2e/app-dir/app-prefetch/prefetching.test.ts": {
+      "failed": [
+        "app dir - prefetching fetch priority should have an auto priority for all other fetch operations",
+        "app dir - prefetching fetch priority should prefetch with high priority when navigating to a page without a prefetch entry",
+        "app dir - prefetching prefetch cache seeding should not re-fetch the initial dynamic page if the same page is prefetched with prefetch={true}",
+        "app dir - prefetching prefetch cache seeding should not re-fetch the initial static page if the same page is prefetched with prefetch={true}",
+        "app dir - prefetching should calculate `_rsc` query based on `Next-Url`",
+        "app dir - prefetching should immediately render the loading state for a dynamic segment when fetched from higher up in the tree",
+        "app dir - prefetching should not fetch again when a static page was prefetched",
+        "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params"
+      ]
+    },
+    "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
+      "failed": [
+        "app-dir static/dynamic handling should output HTML/RSC files for static paths"
+      ]
+    },
+    "test/e2e/app-dir/app-static/app-static.test.ts": {
+      "failed": [
+        "app-dir static/dynamic handling should output HTML/RSC files for static paths"
+      ]
+    },
+    "test/e2e/app-dir/navigation/navigation.test.ts": {
+      "failed": [
+        "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response"
+      ]
+    },
+    "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
+      "failed": [
+        "parallel-routes-and-interception route intercepting should support intercepting local dynamic sibling routes"
+      ]
+    },
+    "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts": {
+      "failed": [
+        "parallel-routes-revalidation router.refresh (dynamic) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (dynamic) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (dynamic) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
+        "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
+        "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active",
+        "parallel-routes-revalidation server action revalidation should not trigger a refresh for the page that is being redirected to"
+      ]
+    },
+    "test/e2e/app-dir/ppr-navigations/loading-tsx-no-partial-rendering/loading-tsx-no-partial-rendering.test.ts": {
+      "failed": [
+        "loading-tsx-no-partial-rendering when PPR is enabled, loading.tsx boundaries do not cause a partial prefetch"
+      ]
+    },
+    "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
+      "failed": [
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-full route",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-less route",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-less URL when navigating to param-full route"
+      ]
+    },
+    "test/e2e/next-form/default/next-form-prefetch.test.ts": {
+      "failed": [
+        "app dir - form prefetching should prefetch a loading state for the form's target"
+      ]
+    },
+    "test/integration/app-dir-export/test/config.test.ts": {
+      "failed": [
+        "app dir - with output export (next dev / next build) production mode should correctly emit exported assets to config.distDir"
+      ]
+    },
+    "test/integration/app-dir-export/test/dynamicapiroute-prod.test.ts": {
+      "failed": [
+        "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicApiRoute 'error'",
+        "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicApiRoute 'force-static'"
+      ]
+    },
+    "test/integration/app-dir-export/test/dynamicpage-prod.test.ts": {
+      "failed": [
+        "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'error'",
+        "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'force-static'",
+        "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage undefined"
+      ]
+    },
+    "test/integration/app-dir-export/test/trailing-slash-start.test.ts": {
+      "failed": [
+        "app dir - with output export - trailing slash prod production mode should work in prod with trailingSlash 'false'",
+        "app dir - with output export - trailing slash prod production mode should work in prod with trailingSlash 'true'"
+      ]
+    },
+    "test/production/app-dir/build-output-prerender/build-output-prerender.test.ts": {
+      "failed": [
+        "build-output-prerender with a next config file with --debug-prerender prints a warning and the customized experimental flags",
+        "build-output-prerender with a next config file without --debug-prerender prints only the user-selected experimental flags (and the ones enabled via env variable)",
+        "build-output-prerender without a next config file with --debug-prerender prints a warning and the customized experimental flags",
+        "build-output-prerender without a next config file without --debug-prerender prints no experimental flags (unless enabled via env variable)"
+      ]
+    }
+  },
+  "rules": {
+    "include": [
+      "test/e2e/**/*.test.{t,j}s{,x}",
+      "test/integration/app-*/**/*.test.{t,j}s{,x}",
+      "test/production/app-*/**/*.test.{t,j}s{,x}",
+      "test/development/app-*/**/*.test.{t,j}s{,x}",
+      "test/development/acceptance-app/**/*.test.{t,j}s{,x}"
+    ],
+    "exclude": []
+  }
+}

@@ -2558,11 +2558,30 @@ export default abstract class Server<
       i18n: this.i18nProvider?.fromRequest(req, pathname),
     }
 
+    const existingMatch = getRequestMeta(ctx.req, 'match')
+
+    let fastPath = true
+    // when a specific invoke-output is meant to be matched
+    // ensure a prior dynamic route/page doesn't take priority
+    const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
+
+    if (
+      (!this.minimalMode &&
+        typeof invokeOutput === 'string' &&
+        isDynamicRoute(invokeOutput || '') &&
+        invokeOutput !== existingMatch?.definition.pathname) ||
+      // Parallel routes are matched in `existingMatch` but since currently
+      // there can be multiple matches it's not guaranteed to be the right match
+      // therefor we need to opt-out of the fast path for parallel routes.
+      existingMatch?.definition.page.includes('/@')
+    ) {
+      fastPath = false
+    }
+
     try {
-      for await (const match of this.matchers.matchAll(pathname, options)) {
-        // when a specific invoke-output is meant to be matched
-        // ensure a prior dynamic route/page doesn't take priority
-        const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
+      for await (const match of fastPath && existingMatch
+        ? [existingMatch]
+        : this.matchers.matchAll(pathname, options)) {
         if (
           !this.minimalMode &&
           typeof invokeOutput === 'string' &&
