@@ -87,30 +87,6 @@
         "app dir - form prefetching should prefetch a loading state for the form's target"
       ]
     },
-    "test/integration/app-dir-export/test/config.test.ts": {
-      "failed": [
-        "app dir - with output export (next dev / next build) production mode should correctly emit exported assets to config.distDir"
-      ]
-    },
-    "test/integration/app-dir-export/test/dynamicapiroute-prod.test.ts": {
-      "failed": [
-        "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicApiRoute 'error'",
-        "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicApiRoute 'force-static'"
-      ]
-    },
-    "test/integration/app-dir-export/test/dynamicpage-prod.test.ts": {
-      "failed": [
-        "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'error'",
-        "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage 'force-static'",
-        "app dir - with output export - dynamic api route prod production mode should work in prod with dynamicPage undefined"
-      ]
-    },
-    "test/integration/app-dir-export/test/trailing-slash-start.test.ts": {
-      "failed": [
-        "app dir - with output export - trailing slash prod production mode should work in prod with trailingSlash 'false'",
-        "app dir - with output export - trailing slash prod production mode should work in prod with trailingSlash 'true'"
-      ]
-    },
     "test/production/app-dir/build-output-prerender/build-output-prerender.test.ts": {
       "failed": [
         "build-output-prerender with a next config file with --debug-prerender prints a warning and the customized experimental flags",
