@@ -47,7 +47,7 @@ import type {
   RouteHas,
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
-import { recursiveDelete } from '../lib/recursive-delete'
+import { recursiveDeleteSyncWithAsyncRetries } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import {
   BUILD_ID_FILE,
@@ -1123,7 +1123,7 @@ export default async function build(
       }
 
       if (config.cleanDistDir && !isGenerateMode) {
-        await recursiveDelete(distDir, /^(cache|dev)/)
+        await recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev)/)
       }
 
       if (appDir && 'exportPathMap' in config) {

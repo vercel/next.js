@@ -1,6 +1,6 @@
-import type { Dirent } from 'fs'
-import { promises } from 'fs'
-import { join, isAbsolute, dirname } from 'path'
+import type { Dirent } from 'node:fs'
+import * as fs from 'node:fs'
+import { join, isAbsolute, dirname } from 'node:path'
 import isError from './is-error'
 import { wait } from './wait'
 
@@ -23,16 +23,16 @@ export function calcBackoffMs(attempt: number): number {
   return Math.min(INITIAL_RETRY_MS * Math.pow(2, attempt), MAX_RETRY_MS)
 }
 
-const unlinkPath = async (
+function unlinkPath(
   p: string,
   isDir = false,
   attempt = 0
-): Promise<void> => {
+): Promise<void> | void {
   try {
     if (isDir) {
-      await promises.rmdir(p)
+      fs.rmdirSync(p)
     } else {
-      await promises.unlink(p)
+      fs.unlinkSync(p)
     }
   } catch (e) {
     const code = isError(e) && e.code
@@ -44,9 +44,11 @@ const unlinkPath = async (
       attempt < MAX_RETRIES
     ) {
       // retrying is unlikely to succeed on POSIX platforms, but Windows can
-      // fail due to temporarily-open files or due to
-      await wait(calcBackoffMs(attempt))
-      return unlinkPath(p, isDir, attempt + 1)
+      // fail due to temporarily-open files
+      return (async () => {
+        await wait(calcBackoffMs(attempt))
+        return unlinkPath(p, isDir, attempt + 1)
+      })()
     }
 
     if (code === 'ENOENT') {
@@ -58,9 +60,16 @@ const unlinkPath = async (
 }
 
 /**
- * Recursively delete directory contents
+ * Recursively delete directory contents.
+ *
+ * This is used when cleaning the `distDir`, and is part of the critical path
+ * for starting the server, so we use synchronous file IO, as we're always
+ * blocked on it anyways.
+ *
+ * Despite using async IO, the function signature is still `async` because we
+ * asynchronously perform retries.
  */
-export async function recursiveDelete(
+export async function recursiveDeleteSyncWithAsyncRetries(
   /** Directory to delete the contents of */
   dir: string,
   /** Exclude based on relative file path */
@@ -70,7 +79,7 @@ export async function recursiveDelete(
 ): Promise<void> {
   let result
   try {
-    result = await promises.readdir(dir, { withFileTypes: true })
+    result = fs.readdirSync(dir, { withFileTypes: true })
   } catch (e) {
     if (isError(e) && e.code === 'ENOENT') {
       return
@@ -88,10 +97,10 @@ export async function recursiveDelete(
       const isSymlink = part.isSymbolicLink()
 
       if (isSymlink) {
-        const linkPath = await promises.readlink(absolutePath)
+        const linkPath = fs.readlinkSync(absolutePath)
 
         try {
-          const stats = await promises.stat(
+          const stats = fs.statSync(
             isAbsolute(linkPath)
               ? linkPath
               : join(dirname(absolutePath), linkPath)
@@ -105,7 +114,7 @@ export async function recursiveDelete(
 
       if (isNotExcluded) {
         if (!isSymlink && isDirectory) {
-          await recursiveDelete(absolutePath, exclude, pp)
+          await recursiveDeleteSyncWithAsyncRetries(absolutePath, exclude, pp)
         }
         return unlinkPath(absolutePath, !isSymlink && isDirectory)
       }

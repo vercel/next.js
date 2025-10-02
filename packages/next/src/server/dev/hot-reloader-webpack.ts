@@ -32,7 +32,7 @@ import getBaseWebpackConfig, {
   loadProjectInfo,
 } from '../../build/webpack-config'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
-import { recursiveDelete } from '../../lib/recursive-delete'
+import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -634,7 +634,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     return span
       .traceChild('clean')
       .traceAsyncFn(() =>
-        recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
+        recursiveDeleteSyncWithAsyncRetries(
+          join(this.dir, this.config.distDir),
+          /^cache/
+        )
       )
   }
 
