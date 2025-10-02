@@ -38,16 +38,6 @@
         "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params"
       ]
     },
-    "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
-      "failed": [
-        "app-dir static/dynamic handling should output HTML/RSC files for static paths"
-      ]
-    },
-    "test/e2e/app-dir/app-static/app-static.test.ts": {
-      "failed": [
-        "app-dir static/dynamic handling should output HTML/RSC files for static paths"
-      ]
-    },
     "test/e2e/app-dir/navigation/navigation.test.ts": {
       "failed": [
         "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response"
