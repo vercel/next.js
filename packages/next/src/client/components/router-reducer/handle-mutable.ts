@@ -14,7 +14,7 @@ export function handleMutable(
   mutable: Mutable
 ): ReducerState {
   // shouldScroll is true by default, can override to false.
-  const shouldScroll = mutable.shouldScroll ?? true
+  const shouldScroll = mutable.shouldScroll ?? state.focusAndScrollRef.apply === false ? false : true
 
   let nextUrl = state.nextUrl
 
