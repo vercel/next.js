@@ -4,7 +4,30 @@ import { join, isAbsolute, dirname } from 'path'
 import isError from './is-error'
 import { wait } from './wait'
 
-const unlinkPath = async (p: string, isDir = false, t = 1): Promise<void> => {
+// We use an exponential backoff. See the unit test for example values.
+//
+// - Node's `fs` module uses a linear backoff, starting with 100ms.
+// - Rust tries 64 times with only a `thread::yield_now` in between.
+//
+// We want something more aggressive, as `recursiveDelete` is in the critical
+// path of `next dev` and `next build` startup.
+const INITIAL_RETRY_MS = 8
+const MAX_RETRY_MS = 64
+const MAX_RETRIES = 6
+
+/**
+ * Used in unit test.
+ * @ignore
+ */
+export function calcBackoffMs(attempt: number): number {
+  return Math.min(INITIAL_RETRY_MS * Math.pow(2, attempt), MAX_RETRY_MS)
+}
+
+const unlinkPath = async (
+  p: string,
+  isDir = false,
+  attempt = 0
+): Promise<void> => {
   try {
     if (isDir) {
       await promises.rmdir(p)
@@ -18,10 +41,12 @@ const unlinkPath = async (p: string, isDir = false, t = 1): Promise<void> => {
         code === 'ENOTEMPTY' ||
         code === 'EPERM' ||
         code === 'EMFILE') &&
-      t < 3
+      attempt < MAX_RETRIES
     ) {
-      await wait(t * 100)
-      return unlinkPath(p, isDir, t++)
+      // retrying is unlikely to succeed on POSIX platforms, but Windows can
+      // fail due to temporarily-open files or due to
+      await wait(calcBackoffMs(attempt))
+      return unlinkPath(p, isDir, attempt + 1)
     }
 
     if (code === 'ENOENT') {
