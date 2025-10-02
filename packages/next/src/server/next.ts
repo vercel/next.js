@@ -52,6 +52,15 @@ export type NextServerOptions = Omit<
 > &
   Partial<Pick<ServerOptions | DevServerOptions, 'conf'>>
 
+export type NextBundlerOptions = {
+  /** @deprecated Use `turbopack` instead */
+  turbo?: boolean
+  /** Selects Turbopack as the bundler */
+  turbopack?: boolean
+  /** Selects Webpack as the bundler */
+  webpack?: boolean
+}
+
 export type RequestHandler = (
   req: IncomingMessage,
   res: ServerResponse,
@@ -531,14 +540,11 @@ class NextCustomServer implements NextWrapperServer {
 
 // This file is used for when users run `require('next')`
 function createServer(
-  options: NextServerOptions & {
-    turbo?: boolean
-    turbopack?: boolean
-    webpack?: boolean
-  }
+  options: NextServerOptions & NextBundlerOptions
 ): NextWrapperServer {
   // next sets customServer to false when calling this function, in that case we don't want to modify the environment variables
-  if (options?.customServer !== false) {
+  const isCustomServer = options?.customServer ?? true
+  if (isCustomServer) {
     const selectTurbopack =
       options &&
       (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
