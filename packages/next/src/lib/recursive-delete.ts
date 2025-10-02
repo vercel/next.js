@@ -46,7 +46,7 @@ const unlinkPath = async (
       // retrying is unlikely to succeed on POSIX platforms, but Windows can
       // fail due to temporarily-open files or due to
       await wait(calcBackoffMs(attempt))
-      return unlinkPath(p, isDir, attempt++)
+      return unlinkPath(p, isDir, attempt + 1)
     }
 
     if (code === 'ENOENT') {
