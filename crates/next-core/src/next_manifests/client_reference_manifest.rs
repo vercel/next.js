@@ -175,11 +175,7 @@ async fn build_manifest(
         // TODO: Add `suffix` to the manifest for React to use.
         // entry_manifest.module_loading.prefix = prefix_path;
 
-        entry_manifest.module_loading.cross_origin = next_config
-            .await?
-            .cross_origin
-            .as_ref()
-            .map(|p| p.to_owned());
+        entry_manifest.module_loading.cross_origin = next_config.cross_origin().owned().await?;
         let ClientReferencesChunks {
             client_component_client_chunks,
             layout_segment_client_chunks,

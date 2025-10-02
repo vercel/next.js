@@ -105,7 +105,7 @@ pub struct NextConfig {
     pub skip_middleware_url_normalize: Option<bool>,
     pub skip_trailing_slash_redirect: Option<bool>,
     pub i18n: Option<I18NConfig>,
-    pub cross_origin: Option<CrossOriginConfig>,
+    cross_origin: Option<CrossOriginConfig>,
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
     pub turbopack: Option<TurbopackConfig>,
@@ -157,13 +157,16 @@ pub struct NextConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum CrossOriginConfig {
     Anonymous,
     UseCredentials,
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionCrossOriginConfig(Option<CrossOriginConfig>);
 
 #[derive(
     Clone,
@@ -1855,6 +1858,11 @@ impl NextConfig {
                 .as_ref()
                 .map(|path| path.to_owned().into()),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub fn cross_origin(&self) -> Vc<OptionCrossOriginConfig> {
+        Vc::cell(self.cross_origin.clone())
     }
 
     #[turbo_tasks::function]
