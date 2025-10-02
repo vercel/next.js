@@ -1123,7 +1123,11 @@ export default async function build(
       }
 
       if (config.cleanDistDir && !isGenerateMode) {
-        await recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev)/)
+        await nextBuildSpan
+          .traceChild('clean')
+          .traceAsyncFn(() =>
+            recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev)/)
+          )
       }
 
       if (appDir && 'exportPathMap' in config) {
