@@ -125,8 +125,8 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn chunk_suffix_path(mut self, chunk_suffix_path: Option<RcStr>) -> Self {
-        self.chunking_context.chunk_suffix_path = chunk_suffix_path;
+    pub fn chunk_suffix_path(mut self, chunk_suffix_path: ResolvedVc<Option<RcStr>>) -> Self {
+        self.chunking_context.chunk_suffix_path = Some(chunk_suffix_path);
         self
     }
 
@@ -222,7 +222,7 @@ pub struct BrowserChunkingContext {
     chunk_base_path: Option<RcStr>,
     /// Suffix path that will be appended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
-    chunk_suffix_path: Option<RcStr>,
+    chunk_suffix_path: Option<ResolvedVc<Option<RcStr>>>,
     /// URL prefix that will be prepended to all static asset URLs when loading
     /// them.
     asset_base_path: Option<RcStr>,
@@ -381,7 +381,11 @@ impl BrowserChunkingContext {
     /// Returns the asset suffix path.
     #[turbo_tasks::function]
     pub fn chunk_suffix_path(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.chunk_suffix_path.clone())
+        if let Some(chunk_suffix_path) = self.chunk_suffix_path {
+            *chunk_suffix_path
+        } else {
+            Vc::cell(None)
+        }
     }
 
     /// Returns the source map type.

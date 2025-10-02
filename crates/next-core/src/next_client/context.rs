@@ -447,7 +447,7 @@ pub async fn get_client_chunking_context(
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
-    let chunk_suffix_path = chunk_suffix_path.owned().await?;
+    let chunk_suffix_path = chunk_suffix_path.to_resolved().await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         client_root.clone(),
