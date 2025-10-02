@@ -23,6 +23,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type { Params } from '../../server/request/params'
+import type { SearchParams } from '../../server/request/search-params'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import 'server-only'
@@ -58,15 +59,31 @@ import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 import { createServerParamsForMetadata } from '../../server/request/params'
 import type { MetadataBaseURL } from './resolvers/resolve-url'
+import {
+  getUseCacheFunctionInfo,
+  isUseCacheFunction,
+} from '../client-and-server-references'
+import type {
+  UseCacheLayoutProps,
+  UseCachePageProps,
+} from '../../server/use-cache/use-cache-wrapper'
+import { createLazyResult } from '../../server/lib/lazy-result'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
-type MetadataResolver = (
-  parent: ResolvingMetadata
-) => Metadata | Promise<Metadata>
-type ViewportResolver = (
-  parent: ResolvingViewport
-) => Viewport | Promise<Viewport>
+type Resolved<T> = T extends Metadata ? ResolvedMetadata : ResolvedViewport
+
+type InstrumentedResolver<TData> = ((
+  parent: Promise<Resolved<TData>>
+) => TData | Promise<TData>) & {
+  $$original: (
+    props: unknown,
+    parent: Promise<Resolved<TData>>
+  ) => TData | Promise<TData>
+}
+
+type MetadataResolver = InstrumentedResolver<Metadata>
+type ViewportResolver = InstrumentedResolver<Viewport>
 
 export type MetadataErrorType = 'not-found' | 'forbidden' | 'unauthorized'
 
@@ -87,12 +104,16 @@ type BuildState = {
 }
 
 type LayoutProps = {
-  params: { [key: string]: any }
+  params: Promise<Params>
 }
+
 type PageProps = {
-  params: { [key: string]: any }
-  searchParams: { [key: string]: any }
+  params: Promise<Params>
+  searchParams: Promise<SearchParams>
 }
+
+type SegmentProps = LayoutProps | PageProps
+type UseCacheSegmentProps = UseCacheLayoutProps | UseCachePageProps
 
 function isFavicon(icon: IconDescriptor | undefined): boolean {
   if (!icon) {
@@ -461,51 +482,77 @@ function mergeViewport({
 
 function getDefinedViewport(
   mod: any,
-  props: any,
+  props: SegmentProps,
   tracingProps: { route: string }
 ): Viewport | ViewportResolver | null {
   if (typeof mod.generateViewport === 'function') {
     const { route } = tracingProps
-    return (parent: ResolvingViewport) =>
-      getTracer().trace(
-        ResolveMetadataSpan.generateViewport,
-        {
-          spanName: `generateViewport ${route}`,
-          attributes: {
-            'next.page': route,
+    const segmentProps = createSegmentProps(mod.generateViewport, props)
+
+    return Object.assign(
+      (parent: ResolvingViewport) =>
+        getTracer().trace(
+          ResolveMetadataSpan.generateViewport,
+          {
+            spanName: `generateViewport ${route}`,
+            attributes: {
+              'next.page': route,
+            },
           },
-        },
-        () => mod.generateViewport(props, parent)
-      )
+          () => mod.generateViewport(segmentProps, parent)
+        ),
+      { $$original: mod.generateViewport }
+    )
   }
   return mod.viewport || null
 }
 
 function getDefinedMetadata(
   mod: any,
-  props: any,
+  props: SegmentProps,
   tracingProps: { route: string }
 ): Metadata | MetadataResolver | null {
   if (typeof mod.generateMetadata === 'function') {
     const { route } = tracingProps
-    return (parent: ResolvingMetadata) =>
-      getTracer().trace(
-        ResolveMetadataSpan.generateMetadata,
-        {
-          spanName: `generateMetadata ${route}`,
-          attributes: {
-            'next.page': route,
+    const segmentProps = createSegmentProps(mod.generateMetadata, props)
+
+    return Object.assign(
+      (parent: ResolvingMetadata) =>
+        getTracer().trace(
+          ResolveMetadataSpan.generateMetadata,
+          {
+            spanName: `generateMetadata ${route}`,
+            attributes: {
+              'next.page': route,
+            },
           },
-        },
-        () => mod.generateMetadata(props, parent)
-      )
+          () => mod.generateMetadata(segmentProps, parent)
+        ),
+      { $$original: mod.generateMetadata }
+    )
   }
   return mod.metadata || null
 }
 
+/**
+ * If `fn` is a `'use cache'` function, we add special markers to the props,
+ * that the cache wrapper reads and removes, before passing the props to the
+ * user function.
+ */
+function createSegmentProps(
+  fn: Function,
+  props: SegmentProps
+): SegmentProps | UseCacheSegmentProps {
+  return isUseCacheFunction(fn)
+    ? 'searchParams' in props
+      ? { ...props, $$isPage: true }
+      : { ...props, $$isLayout: true }
+    : props
+}
+
 async function collectStaticImagesFiles(
   metadata: AppDirModules['metadata'],
-  props: any,
+  props: SegmentProps,
   type: keyof NonNullable<AppDirModules['metadata']>
 ) {
   if (!metadata?.[type]) return undefined
@@ -522,7 +569,7 @@ async function collectStaticImagesFiles(
 
 async function resolveStaticMetadata(
   modules: AppDirModules,
-  props: any
+  props: SegmentProps
 ): Promise<StaticMetadata> {
   const { metadata } = modules
   if (!metadata) return null
@@ -557,7 +604,7 @@ async function collectMetadata({
   tree: LoaderTree
   metadataItems: MetadataItems
   errorMetadataItem: MetadataItems[number]
-  props: any
+  props: SegmentProps
   route: string
   errorConvention?: MetadataErrorType
 }) {
@@ -608,7 +655,7 @@ async function collectViewport({
   tree: LoaderTree
   viewportItems: ViewportItems
   errorViewportItemRef: ErrorViewportItemRef
-  props: any
+  props: SegmentProps
   route: string
   errorConvention?: MetadataErrorType
 }) {
@@ -700,25 +747,14 @@ async function resolveMetadataItemsImpl(
   }
 
   const params = createServerParamsForMetadata(currentParams, workStore)
-
-  let layerProps: LayoutProps | PageProps
-  if (isPage) {
-    layerProps = {
-      params,
-      searchParams,
-    }
-  } else {
-    layerProps = {
-      params,
-    }
-  }
+  const props: SegmentProps = isPage ? { params, searchParams } : { params }
 
   await collectMetadata({
     tree,
     metadataItems,
     errorMetadataItem,
     errorConvention,
-    props: layerProps,
+    props,
     route: currentTreePrefix
       // __PAGE__ shouldn't be shown in a route
       .filter((s) => s !== PAGE_SEGMENT_KEY)
@@ -963,7 +999,7 @@ function prerenderMetadata(metadataItems: MetadataItems) {
   > = []
   for (let i = 0; i < metadataItems.length; i++) {
     const metadataExport = metadataItems[i][0]
-    getResult(resolversAndResults, metadataExport)
+    getResult<Metadata>(resolversAndResults, metadataExport)
   }
   return resolversAndResults
 }
@@ -977,32 +1013,66 @@ function prerenderViewport(viewportItems: ViewportItems) {
   > = []
   for (let i = 0; i < viewportItems.length; i++) {
     const viewportExport = viewportItems[i]
-    getResult(resolversAndResults, viewportExport)
+    getResult<Viewport>(resolversAndResults, viewportExport)
   }
   return resolversAndResults
 }
 
-type Resolved<T> = T extends Metadata ? ResolvedMetadata : ResolvedViewport
+const noop = () => {}
 
-function getResult<T extends Metadata | Viewport>(
-  resolversAndResults: Array<((value: Resolved<T>) => void) | Result<T>>,
-  exportForResult: null | T | ((parent: Promise<Resolved<T>>) => Result<T>)
+function getResult<TData extends object>(
+  resolversAndResults: Array<
+    ((value: Resolved<TData>) => void) | Result<TData>
+  >,
+  exportForResult: null | TData | InstrumentedResolver<TData>
 ) {
   if (typeof exportForResult === 'function') {
-    const result = exportForResult(
-      new Promise<Resolved<T>>((resolve) => resolversAndResults.push(resolve))
+    // If the function is a 'use cache' function that uses the parent data as
+    // the second argument, we don't want to eagerly execute it during
+    // metadata/viewport pre-rendering, as the parent data might also be
+    // computed from another 'use cache' function. To ensure that the hanging
+    // input abort signal handling works in this case (i.e. the depending
+    // function waits for the cached input to resolve while encoding its args),
+    // they must be called sequentially. This can be accomplished by wrapping
+    // the call in a lazy promise, so that the original function is only called
+    // when the result is actually awaited.
+    const useCacheFunctionInfo = getUseCacheFunctionInfo(
+      exportForResult.$$original
     )
-    resolversAndResults.push(result)
-    if (result instanceof Promise) {
-      // since we eager execute generateMetadata and
-      // they can reject at anytime we need to ensure
-      // we attach the catch handler right away to
-      // prevent unhandled rejections crashing the process
-      result.catch((err) => {
-        return {
-          __nextError: err,
-        }
-      })
+    if (useCacheFunctionInfo && useCacheFunctionInfo.usedArgs[1]) {
+      const promise = new Promise<Resolved<TData>>((resolve) =>
+        resolversAndResults.push(resolve)
+      )
+      resolversAndResults.push(
+        createLazyResult(async () => exportForResult(promise))
+      )
+    } else {
+      let result: TData | Promise<TData>
+      if (useCacheFunctionInfo) {
+        resolversAndResults.push(noop)
+        // @ts-expect-error We intentionally omit the parent argument, because
+        // we know from the check above that the 'use cache' function does not
+        // use it.
+        result = exportForResult()
+      } else {
+        result = exportForResult(
+          new Promise<Resolved<TData>>((resolve) =>
+            resolversAndResults.push(resolve)
+          )
+        )
+      }
+      resolversAndResults.push(result)
+      if (result instanceof Promise) {
+        // since we eager execute generateMetadata and
+        // they can reject at anytime we need to ensure
+        // we attach the catch handler right away to
+        // prevent unhandled rejections crashing the process
+        result.catch((err) => {
+          return {
+            __nextError: err,
+          }
+        })
+      }
     }
   } else if (typeof exportForResult === 'object') {
     resolversAndResults.push(exportForResult)

@@ -785,12 +785,12 @@ interface Viewport extends ViewportLayout {
   colorScheme?: null | ColorSchemeEnum | undefined
 }
 
-type ResolvingViewport = Promise<Viewport>
-
 interface ResolvedViewport extends ViewportLayout {
   themeColor: null | ThemeColorDescriptor[]
   colorScheme: null | ColorSchemeEnum
 }
+
+type ResolvingViewport = Promise<ResolvedViewport>
 
 export type {
   Metadata,

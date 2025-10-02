@@ -111,6 +111,12 @@ export class NextDeployInstance extends NextInstance {
       )
     }
 
+    if (process.env.__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_CLIENT_SEGMENT_CACHE=${process.env.__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE}`
+      )
+    }
+
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
     }
