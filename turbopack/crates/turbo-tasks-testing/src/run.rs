@@ -124,6 +124,11 @@ where
         let start = std::time::Instant::now();
         tt.stop_and_wait().await;
         println!("Stopping TurboTasks took {:?}", start.elapsed());
+        assert!(Arc::strong_count(&tt) == 1);
+        let start = std::time::Instant::now();
+        drop(tt);
+        println!("Dropping TurboTasks took {:?}", start.elapsed());
+
         if !single_run {
             for _ in 10..20 {
                 let tt = registration.create_turbo_tasks(&name, false);
@@ -135,6 +140,10 @@ where
                 let start = std::time::Instant::now();
                 tt.stop_and_wait().await;
                 println!("Stopping TurboTasks took {:?}", start.elapsed());
+                assert!(Arc::strong_count(&tt) == 1);
+                let start = std::time::Instant::now();
+                drop(tt);
+                println!("Dropping TurboTasks took {:?}", start.elapsed());
                 assert_eq!(first, third);
             }
         }
