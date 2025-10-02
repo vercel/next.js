@@ -1171,11 +1171,41 @@ describe('use-cache', () => {
     it('can serialize parent metadata as generateMetadata argument', async () => {
       const browser = await next.browser('/generate-metadata-resume/nested')
 
+      // The metadata must be in the head if it was prerendered.
       const canonicalUrl = await browser
-        .elementByCss('link[rel="canonical"]')
+        .elementByCss('head link[rel="canonical"]', { state: 'attached' })
         .getAttribute('href')
 
       expect(canonicalUrl).toBe('https://example.com/baz/qux')
+
+      // There should be no timeout error.
+      await assertNoErrorToast(browser)
+    })
+
+    it('makes a cached generateMetadata function that implicitly depends on params dynamic during prerendering', async () => {
+      // First load the page with JavaScript disabled, to ensure that no
+      // generateMetadata result was included in the prerendered shell.
+      let browser = await next.browser(
+        '/generate-metadata-resume/canonical/foo',
+        { disableJavaScript: true }
+      )
+
+      // The metadata would be in the head if it was prerendered.
+      expect(
+        await browser
+          .elementByCss('head', { state: 'attached' })
+          .hasElementByCss('link[rel="canonical"]')
+      ).toBe(false)
+
+      // However, it should have been added to the body during the resume.
+      expect(
+        await browser.elementByCss('link[rel="canonical"]').getAttribute('href')
+      ).toBe('https://example.com/baz/qux')
+
+      await browser.close()
+
+      // Load the page again, now with JavaScript enabled.
+      browser = await next.browser('/generate-metadata-resume/canonical/foo')
 
       // There should be no timeout error.
       await assertNoErrorToast(browser)
