@@ -17209,6 +17209,8 @@ function startViewTransition(
         spawnedWorkCallback();
       },
       function (error) {
+        ownerDocument.__reactViewTransition === transition &&
+          (ownerDocument.__reactViewTransition = null);
         try {
           (error = customizeViewTransitionError(error, !1)),
             null !== error && errorCallback(error);
@@ -17450,6 +17452,8 @@ function startGestureTransition(
             }
           : readyCallback;
     transition.ready.then(readyForAnimations, function (error) {
+      ownerDocument.__reactViewTransition === transition &&
+        (ownerDocument.__reactViewTransition = null);
       try {
         (error = customizeViewTransitionError(error, !0)),
           null !== error && errorCallback(error);
@@ -19882,14 +19886,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2246 = React.version;
 if (
-  "19.2.0-experimental-86181134-20251001" !==
+  "19.3.0-experimental-a757cb76-20251002" !==
   isomorphicReactPackageVersion$jscomp$inline_2246
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2246,
-      "19.2.0-experimental-86181134-20251001"
+      "19.3.0-experimental-a757cb76-20251002"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19911,10 +19915,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2948 = {
   bundleType: 0,
-  version: "19.2.0-experimental-86181134-20251001",
+  version: "19.3.0-experimental-a757cb76-20251002",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-86181134-20251001"
+  reconcilerVersion: "19.3.0-experimental-a757cb76-20251002"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2949 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -20172,4 +20176,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.2.0-experimental-86181134-20251001";
+exports.version = "19.3.0-experimental-a757cb76-20251002";

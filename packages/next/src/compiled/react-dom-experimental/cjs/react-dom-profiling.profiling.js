@@ -18962,11 +18962,16 @@ function startViewTransition(
         spawnedWorkCallback();
       },
       function (error) {
+        ownerDocument.__reactViewTransition === transition &&
+          (ownerDocument.__reactViewTransition = null);
         try {
           (error = customizeViewTransitionError(error, !1)),
             null !== error && errorCallback(error);
         } finally {
-          mutationCallback(), layoutCallback(), spawnedWorkCallback();
+          mutationCallback(),
+            layoutCallback(),
+            spawnedWorkCallback(),
+            finishedAnimation();
         }
       }
     );
@@ -19211,11 +19216,13 @@ function startGestureTransition(
             }
           : readyCallback;
     transition.ready.then(readyForAnimations, function (error) {
+      ownerDocument.__reactViewTransition === transition &&
+        (ownerDocument.__reactViewTransition = null);
       try {
         (error = customizeViewTransitionError(error, !0)),
           null !== error && errorCallback(error);
       } finally {
-        mutationCallback(), animateCallback();
+        mutationCallback(), animateCallback(), finishedAnimation();
       }
     });
     transition.finished.finally(function () {
@@ -21617,14 +21624,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2513 = React.version;
 if (
-  "19.2.0-experimental-86181134-20251001" !==
+  "19.3.0-experimental-a757cb76-20251002" !==
   isomorphicReactPackageVersion$jscomp$inline_2513
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2513,
-      "19.2.0-experimental-86181134-20251001"
+      "19.3.0-experimental-a757cb76-20251002"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -21646,10 +21653,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_3223 = {
   bundleType: 0,
-  version: "19.2.0-experimental-86181134-20251001",
+  version: "19.3.0-experimental-a757cb76-20251002",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-86181134-20251001"
+  reconcilerVersion: "19.3.0-experimental-a757cb76-20251002"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_3224 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -21917,7 +21924,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-experimental-86181134-20251001";
+exports.version = "19.3.0-experimental-a757cb76-20251002";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
