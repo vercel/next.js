@@ -66,7 +66,7 @@ function unlinkPath(
  * for starting the server, so we use synchronous file IO, as we're always
  * blocked on it anyways.
  *
- * Despite using async IO, the function signature is still `async` because we
+ * Despite using sync IO, the function signature is still `async` because we
  * asynchronously perform retries.
  */
 export async function recursiveDeleteSyncWithAsyncRetries(
