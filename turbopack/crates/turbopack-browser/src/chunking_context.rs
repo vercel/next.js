@@ -399,6 +399,17 @@ impl BrowserChunkingContext {
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
     }
+
+    /// Returns the minify type.
+    #[turbo_tasks::function]
+    fn chunk_path_info(&self) -> Vc<ChunkPathInfo> {
+        ChunkPathInfo {
+            root_path: self.root_path.clone(),
+            chunk_root_path: self.chunk_root_path.clone(),
+            content_hashing: self.content_hashing,
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -439,7 +450,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn chunk_path(
-        &self,
+        self: Vc<Self>,
         asset: Option<Vc<Box<dyn Asset>>>,
         ident: Vc<AssetIdent>,
         prefix: Option<RcStr>,
@@ -449,11 +460,15 @@ impl ChunkingContext for BrowserChunkingContext {
             extension.starts_with("."),
             "`extension` should include the leading '.', got '{extension}'"
         );
-        let root_path = self.chunk_root_path.clone();
-        let name = match self.content_hashing {
+        let ChunkPathInfo {
+            chunk_root_path,
+            content_hashing,
+            root_path,
+        } = &*self.chunk_path_info().await?;
+        let name = match *content_hashing {
             None => {
                 ident
-                    .output_name(self.root_path.clone(), prefix, extension)
+                    .output_name(root_path.clone(), prefix, extension)
                     .owned()
                     .await?
             }
@@ -478,7 +493,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 }
             }
         };
-        Ok(root_path.join(&name)?.cell())
+        Ok(chunk_root_path.join(&name)?.cell())
     }
 
     #[turbo_tasks::function]
@@ -797,4 +812,11 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn debug_ids_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.await?.debug_ids))
     }
+}
+
+#[turbo_tasks::value]
+struct ChunkPathInfo {
+    root_path: FileSystemPath,
+    chunk_root_path: FileSystemPath,
+    content_hashing: Option<ContentHashing>,
 }
