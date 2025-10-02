@@ -30,9 +30,6 @@ export const STATIC_METADATA_IMAGES = {
 // TODO-METADATA: support more metadata routes with more extensions
 export const DEFAULT_METADATA_ROUTE_EXTENSIONS = ['js', 'jsx', 'ts', 'tsx']
 
-// Cache for extension regex strings to avoid recreation
-const extensionRegexCache = new Map<string, string>()
-
 // Match the file extension with the dynamic multi-routes extensions
 // e.g. ([xml, js], null) -> can match `/sitemap.xml/route`, `sitemap.js/route`
 // e.g. ([png], [ts]) -> can match `/opengraph-image.png`, `/opengraph-image.ts`
@@ -40,14 +37,6 @@ export const getExtensionRegexString = (
   staticExtensions: readonly string[],
   dynamicExtensions: readonly string[] | null
 ) => {
-  // Create cache key for memoization
-  const cacheKey = `${staticExtensions.join(',')}|${dynamicExtensions?.join(',') || 'null'}`
-
-  const cached = extensionRegexCache.get(cacheKey)
-  if (cached !== undefined) {
-    return cached
-  }
-
   let result: string
   // If there's no possible multi dynamic routes, will not match any <name>[].<ext> files
   if (!dynamicExtensions || dynamicExtensions.length === 0) {
@@ -55,8 +44,6 @@ export const getExtensionRegexString = (
   } else {
     result = `(?:\\.(${staticExtensions.join('|')})|(\\.(${dynamicExtensions.join('|')})))`
   }
-
-  extensionRegexCache.set(cacheKey, result)
   return result
 }
 
