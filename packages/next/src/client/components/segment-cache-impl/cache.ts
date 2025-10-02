@@ -568,11 +568,11 @@ export function waitForSegmentCacheEntry(
  */
 export function readOrCreateRouteCacheEntry(
   now: number,
-  task: PrefetchTask
+  task: PrefetchTask,
+  key: RouteCacheKey
 ): RouteCacheEntry {
   attachInvalidationListener(task)
 
-  const key = task.key
   const existingEntry = readRouteCacheEntry(now, key)
   if (existingEntry !== null) {
     return existingEntry
@@ -1288,13 +1288,13 @@ export function convertRouteTreeToFlightRouterState(
 
 export async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
-  task: PrefetchTask
+  task: PrefetchTask,
+  key: RouteCacheKey
 ): Promise<PrefetchSubtaskResult<null> | null> {
   // This function is allowed to use async/await because it contains the actual
   // fetch that gets issued on a cache miss. Notice it writes the result to the
   // cache entry directly, rather than return data that is then written by
   // the caller.
-  const key = task.key
   const href = key.href
   const nextUrl = key.nextUrl
   const segmentPath = '/_tree' as SegmentRequestKey
