@@ -6,7 +6,7 @@ title: '`next/image` Un-configured Host'
 
 One of your pages that leverages the `next/image` component, passed a `src` value that uses a hostname in the URL that isn't defined in the `images.remotePatterns` in `next.config.js`.
 
-Each part of the `src` value is strictly matched against your `images.remotePatterns` definitions. Matching is exact and case-sensitive, a mismatch in any single part will fail the check.
+Each part of the `src` value is strictly matched against your `images.remotePatterns` definitions. Matching is exact and case-sensitive, meaning a mismatch in any single part will fail the check.
 
 For a URL like `https://example.org/images/example?v=1234`, the following parts must match the pattern you configured:
 
