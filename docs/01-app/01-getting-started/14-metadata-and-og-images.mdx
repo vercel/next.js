@@ -13,6 +13,7 @@ related:
     - app/api-reference/file-conventions/metadata/opengraph-image
     - app/api-reference/file-conventions/metadata/robots
     - app/api-reference/file-conventions/metadata/sitemap
+    - app/api-reference/config/next-config-js/htmlLimitedBots
 ---
 
 The Metadata APIs can be used to define your application metadata for improved SEO and web shareability and include:
@@ -117,9 +118,15 @@ export default function Page({ params, searchParams }) {}
 
 ### Streaming metadata
 
-For dynamically rendered pages, if resolving `generateMetadata` might block rendering, Next.js streams the resolved metadata separately and injects it into the HTML as soon as it's ready.
+For dynamically rendered pages, Next.js streams metadata separately, injecting it into the HTML once `generateMetadata` resolves, without blocking UI rendering.
 
-Statically rendered pages don’t use this behavior since metadata is resolved at build time.
+Streaming metadata improves perceived performance by allowing visual content to stream first.
+
+Streaming metadata is **disabled for bots and crawlers** that expect metadata to be in the `<head>` tag (e.g. `Twitterbot`, `Slackbot`, `Bingbot`). These are detected by using the User Agent header from the incoming request.
+
+You can customize or **disable** streaming metadata completely, with the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots#disabling) option in your Next.js config file.
+
+Statically rendered pages don’t use streaming since metadata is resolved at build time.
 
 Learn more about [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata).
 
