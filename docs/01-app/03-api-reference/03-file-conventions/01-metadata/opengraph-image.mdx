@@ -220,16 +220,22 @@ The default export function receives the following props:
 
 #### `params` (optional)
 
-An object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `opengraph-image` or `twitter-image` is colocated in.
+A promise that resolves to an object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `opengraph-image` or `twitter-image` is colocated in.
 
 ```tsx filename="app/shop/[slug]/opengraph-image.tsx" switcher
-export default function Image({ params }: { params: { slug: string } }) {
+export default async function Image({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
   // ...
 }
 ```
 
 ```jsx filename="app/shop/[slug]/opengraph-image.js" switcher
-export default function Image({ params }) {
+export default async function Image({ params }) {
+  const { slug } = await params
   // ...
 }
 ```
@@ -334,8 +340,13 @@ export const size = {
 }
 export const contentType = 'image/png'
 
-export default async function Image({ params }: { params: { slug: string } }) {
-  const post = await fetch(`https://.../posts/${params.slug}`).then((res) =>
+export default async function Image({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const post = await fetch(`https://.../posts/${slug}`).then((res) =>
     res.json()
   )
 
@@ -373,7 +384,8 @@ export const size = {
 export const contentType = 'image/png'
 
 export default async function Image({ params }) {
-  const post = await fetch(`https://.../posts/${params.slug}`).then((res) =>
+  const { slug } = await params
+  const post = await fetch(`https://.../posts/${slug}`).then((res) =>
     res.json()
   )
 
@@ -509,6 +521,7 @@ export default async function Image() {
 
 ## Version History
 
-| Version   | Changes                                           |
-| --------- | ------------------------------------------------- |
-| `v13.3.0` | `opengraph-image` and `twitter-image` introduced. |
+| Version   | Changes                                                                       |
+| --------- | ----------------------------------------------------------------------------- |
+| `v13.3.0` | `opengraph-image` and `twitter-image` introduced.                             |
+| `v16.0.0` | `params` prop changed from an object to a promise that resolves to an object. |
