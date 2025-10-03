@@ -16,10 +16,7 @@ import {
 } from './create-flight-router-state-from-loader-tree'
 import type { AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import {
-  DEFAULT_SEGMENT_KEY,
-  addSearchParamsIfPageSegment,
-} from '../../shared/lib/segment'
+import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
 import { getSegmentParam } from './get-segment-param'
 
@@ -218,6 +215,7 @@ export async function walkTreeWithFlightRouterState({
       getDynamicParamFromSegment,
       query
     )
+
     // Create component tree using the slice of the loaderTree
     const seedData = await createComponentTree(
       // This ensures flightRouterPath is valid and filters down the tree
@@ -298,17 +296,6 @@ export async function walkTreeWithFlightRouterState({
     })
 
     for (const subPath of subPaths) {
-      // we don't need to send over default routes in the flight data
-      // because they are always ignored by the client, unless it's a refetch
-      if (
-        subPath[0] === DEFAULT_SEGMENT_KEY &&
-        flightRouterState &&
-        !!flightRouterState[1][parallelRouteKey][0] &&
-        flightRouterState[1][parallelRouteKey][3] !== 'refetch'
-      ) {
-        continue
-      }
-
       paths.push([actualSegment, parallelRouteKey, ...subPath])
     }
   }

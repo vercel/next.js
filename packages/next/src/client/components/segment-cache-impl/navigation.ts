@@ -26,12 +26,8 @@ import {
   type FulfilledRouteCacheEntry,
 } from './cache'
 import { createCacheKey } from './cache-key'
-import {
-  addSearchParamsIfPageSegment,
-  DEFAULT_SEGMENT_KEY,
-} from '../../../shared/lib/segment'
+import { addSearchParamsIfPageSegment } from '../../../shared/lib/segment'
 import { NavigationResultTag } from '../segment-cache'
-import { matchSegment } from '../match-segments'
 
 type MPANavigationResult = {
   tag: NavigationResultTag.MPA
@@ -498,7 +494,10 @@ function simulatePrefetchTreeUsingDynamicTreePatch(
   // Takes the current FlightRouterState and applies the router state patch
   // received from the server, to create a full FlightRouterState tree that we
   // can pretend was returned by a prefetch.
-
+  //
+  // (It sounds similar to what applyRouterStatePatch does, but it doesn't need
+  // to handle stuff like interception routes or diffing since that will be
+  // handled later.)
   let baseTree = currentTree
   for (const { segmentPath, tree: treePatch } of flightData) {
     // If the server sends us multiple tree patches, we only need to clone the
@@ -510,7 +509,6 @@ function simulatePrefetchTreeUsingDynamicTreePatch(
       treePatch,
       segmentPath,
       canMutateInPlace,
-      flightData,
       0
     )
   }
@@ -523,7 +521,6 @@ function simulatePrefetchTreeUsingDynamicTreePatchImpl(
   patch: FlightRouterState,
   segmentPath: FlightSegmentPath,
   canMutateInPlace: boolean,
-  allFlightData: Array<NormalizedFlightData>,
   index: number
 ) {
   if (index === segmentPath.length) {
@@ -547,28 +544,6 @@ function simulatePrefetchTreeUsingDynamicTreePatchImpl(
 
   const baseChildren = baseRouterState[1]
   const newChildren: { [parallelRouteKey: string]: FlightRouterState } = {}
-
-  // Build a set of parallel routes being updated at this level by any patch.
-  const parallelRoutesBeingUpdated = new Set<string>()
-  for (const flightData of allFlightData) {
-    // This patch doesn't reach this far down the tree.
-    if (flightData.segmentPath.length <= index) continue
-
-    // Check if this patch's segment path matches our current position
-    let matches = true
-    for (let i = 0; i < index; i++) {
-      if (!matchSegment(flightData.segmentPath[i], segmentPath[i])) {
-        matches = false
-        break
-      }
-    }
-
-    if (matches) {
-      // This patch updates a parallel route at this level
-      parallelRoutesBeingUpdated.add(flightData.segmentPath[index])
-    }
-  }
-
   for (const parallelRouteKey in baseChildren) {
     if (parallelRouteKey === updatedParallelRouteKey) {
       const childBaseRouterState = baseChildren[parallelRouteKey]
@@ -578,29 +553,13 @@ function simulatePrefetchTreeUsingDynamicTreePatchImpl(
           patch,
           segmentPath,
           canMutateInPlace,
-          allFlightData,
           // Advance the index by two and keep cloning until we reach
           // the end of the segment path.
           index + 2
         )
     } else {
-      // This parallel route is not in the current segment path being patched.
-      const childRouterState = baseChildren[parallelRouteKey]
-      const childSegment = childRouterState[0]
-
-      // Mark this parallel route as __DEFAULT__ if:
-      // 1. It's already __DEFAULT__ (preserve inactive state), OR
-      // 2. It's not being updated by any patch at this level (no data coming for it)
-      const shouldReplaceWithDefault =
-        childSegment === DEFAULT_SEGMENT_KEY ||
-        !parallelRoutesBeingUpdated.has(parallelRouteKey)
-
-      if (shouldReplaceWithDefault) {
-        newChildren[parallelRouteKey] = [DEFAULT_SEGMENT_KEY, {}]
-      } else {
-        // This child is not being patched. Copy it over as-is.
-        newChildren[parallelRouteKey] = childRouterState
-      }
+      // This child is not being patched. Copy it over as-is.
+      newChildren[parallelRouteKey] = baseChildren[parallelRouteKey]
     }
   }
 
