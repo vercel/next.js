@@ -541,7 +541,7 @@ function pingRoute(now: number, task: PrefetchTask): PrefetchTaskExitStatus {
       case EntryStatus.Rejected: {
         // Either the route tree is already cached, or there's already a
         // request in progress. Since we don't need to fetch any segment data
-        // for this route, here's nothing left to do.
+        // for this route, there's nothing left to do.
         break
       }
       default:
