@@ -34,6 +34,7 @@ const hookPropertyMap = new Map(
     'eslint-plugin-import',
     'eslint-plugin-react',
     'eslint-plugin-jsx-a11y',
+    'eslint-plugin-react-hooks',
   ].map((request) => [
     request,
     require.resolve(request, { paths: sortedPaths }),
