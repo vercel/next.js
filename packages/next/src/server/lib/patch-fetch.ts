@@ -27,7 +27,6 @@ import {
   type ServerComponentsHmrCache,
   type SetIncrementalFetchCacheContext,
 } from '../response-cache'
-import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
 
@@ -900,30 +899,6 @@ export function createPatchedFetcher(
                   tags,
                   softTags: implicitTags?.tags,
                 })
-
-            if (hasNoExplicitCacheConfig && workUnitStore) {
-              switch (workUnitStore.type) {
-                case 'prerender':
-                case 'prerender-client':
-                case 'prerender-runtime':
-                  // We sometimes use the cache to dedupe fetches that do not
-                  // specify a cache configuration. In these cases we want to
-                  // make sure we still exclude them from prerenders if
-                  // cacheComponents is on so we introduce an artificial task boundary
-                  // here.
-                  await waitAtLeastOneReactRenderTask()
-                  break
-                case 'prerender-ppr':
-                case 'prerender-legacy':
-                case 'request':
-                case 'cache':
-                case 'private-cache':
-                case 'unstable-cache':
-                  break
-                default:
-                  workUnitStore satisfies never
-              }
-            }
 
             if (entry) {
               await handleUnlock()
