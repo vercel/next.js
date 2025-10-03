@@ -6582,6 +6582,7 @@ function flushSegment(request, destination, segment, hoistableState) {
   var boundary = segment.boundary;
   if (null === boundary)
     return flushSubtree(request, destination, segment, hoistableState);
+  segment.boundary = null;
   boundary.parentFlushed = !0;
   if (4 === boundary.status) {
     var row = boundary.row;
@@ -7147,12 +7148,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-a757cb76-20251002" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-85c427d8-20251003" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.3.0-canary-a757cb76-20251002"
+        "19.3.0-canary-85c427d8-20251003"
       )
     );
 }
@@ -7407,4 +7408,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-canary-a757cb76-20251002";
+exports.version = "19.3.0-canary-85c427d8-20251003";

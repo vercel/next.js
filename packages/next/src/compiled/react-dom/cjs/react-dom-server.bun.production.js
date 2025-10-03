@@ -6130,6 +6130,7 @@ function flushSegment(request, destination, segment, hoistableState) {
   var boundary = segment.boundary;
   if (null === boundary)
     return flushSubtree(request, destination, segment, hoistableState);
+  segment.boundary = null;
   boundary.parentFlushed = !0;
   if (4 === boundary.status) {
     var row = boundary.row;
@@ -6645,13 +6646,13 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_821 = React.version;
 if (
-  "19.3.0-canary-a757cb76-20251002" !==
+  "19.3.0-canary-85c427d8-20251003" !==
   isomorphicReactPackageVersion$jscomp$inline_821
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_821 +
-        "\n  - react-dom:  19.3.0-canary-a757cb76-20251002\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.3.0-canary-85c427d8-20251003\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6742,4 +6743,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-canary-a757cb76-20251002";
+exports.version = "19.3.0-canary-85c427d8-20251003";

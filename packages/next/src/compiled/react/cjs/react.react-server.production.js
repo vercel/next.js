@@ -36,6 +36,7 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
+  REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -257,7 +258,7 @@ function createCacheRoot() {
 function createCacheNode() {
   return { s: 0, v: void 0, o: null, p: null };
 }
-exports.Children = {
+var Children = {
   map: mapChildren,
   forEach: function (children, forEachFunc, forEachContext) {
     mapChildren(
@@ -287,6 +288,8 @@ exports.Children = {
     return children;
   }
 };
+exports.Activity = REACT_ACTIVITY_TYPE;
+exports.Children = Children;
 exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.Profiler = REACT_PROFILER_TYPE;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
@@ -420,4 +423,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.3.0-canary-a757cb76-20251002";
+exports.version = "19.3.0-canary-85c427d8-20251003";
