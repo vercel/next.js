@@ -3,19 +3,12 @@
   "suites": {
     "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
       "failed": [
-        "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
         "app-dir action handling should reset the form state when the action redirects to itself"
       ]
     },
     "test/e2e/app-dir/actions/app-action.test.ts": {
       "failed": [
-        "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
         "app-dir action handling should reset the form state when the action redirects to itself"
-      ]
-    },
-    "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts": {
-      "failed": [
-        "app dir client cache semantics (experimental staleTimes) static: 180 prefetch={true} should use the custom static override time (3 minutes)"
       ]
     },
     "test/e2e/app-dir/app-prefetch/prefetching.stale-times.test.ts": {
