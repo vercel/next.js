@@ -75,40 +75,40 @@ impl Default for CacheKinds {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct NextConfig {
-    // TODO all fields should be private and access should be wrapped within a turbo-tasks function
-    // Otherwise changing NextConfig will lead to invalidating all tasks accessing it.
-    pub config_file: Option<RcStr>,
-    pub config_file_name: RcStr,
+    // IMPORTANT: all fields should be private and access should be wrapped within a turbo-tasks
+    // function. Otherwise changing NextConfig will lead to invalidating all tasks accessing it.
+    config_file: Option<RcStr>,
+    config_file_name: RcStr,
 
     /// In-memory cache size in bytes.
     ///
     /// If `cache_max_memory_size: 0` disables in-memory caching.
-    pub cache_max_memory_size: Option<f64>,
+    cache_max_memory_size: Option<f64>,
     /// custom path to a cache handler to use
-    pub cache_handler: Option<RcStr>,
+    cache_handler: Option<RcStr>,
 
-    pub env: FxIndexMap<String, JsonValue>,
-    pub experimental: ExperimentalConfig,
-    pub images: ImageConfig,
-    pub page_extensions: Vec<RcStr>,
-    pub react_compiler: Option<ReactCompilerOptionsOrBoolean>,
-    pub react_production_profiling: Option<bool>,
-    pub react_strict_mode: Option<bool>,
-    pub transpile_packages: Option<Vec<RcStr>>,
-    pub modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
-    pub dist_dir: Option<RcStr>,
-    pub deployment_id: Option<RcStr>,
+    env: FxIndexMap<String, JsonValue>,
+    experimental: ExperimentalConfig,
+    images: ImageConfig,
+    page_extensions: Vec<RcStr>,
+    react_compiler: Option<ReactCompilerOptionsOrBoolean>,
+    react_production_profiling: Option<bool>,
+    react_strict_mode: Option<bool>,
+    transpile_packages: Option<Vec<RcStr>>,
+    modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
+    dist_dir: Option<RcStr>,
+    deployment_id: Option<RcStr>,
     sass_options: Option<serde_json::Value>,
-    pub trailing_slash: Option<bool>,
-    pub asset_prefix: Option<RcStr>,
-    pub base_path: Option<RcStr>,
-    pub skip_middleware_url_normalize: Option<bool>,
-    pub skip_trailing_slash_redirect: Option<bool>,
-    pub i18n: Option<I18NConfig>,
-    pub cross_origin: Option<CrossOriginConfig>,
-    pub dev_indicators: Option<DevIndicatorsConfig>,
-    pub output: Option<OutputType>,
-    pub turbopack: Option<TurbopackConfig>,
+    trailing_slash: Option<bool>,
+    asset_prefix: Option<RcStr>,
+    base_path: Option<RcStr>,
+    skip_middleware_url_normalize: Option<bool>,
+    skip_trailing_slash_redirect: Option<bool>,
+    i18n: Option<I18NConfig>,
+    cross_origin: Option<CrossOriginConfig>,
+    dev_indicators: Option<DevIndicatorsConfig>,
+    output: Option<OutputType>,
+    turbopack: Option<TurbopackConfig>,
     production_browser_source_maps: bool,
     output_file_tracing_includes: Option<serde_json::Value>,
     output_file_tracing_excludes: Option<serde_json::Value>,
@@ -119,21 +119,21 @@ pub struct NextConfig {
     /// server-side bundles.
     ///
     /// [API Reference](https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies)
-    pub bundle_pages_router_dependencies: Option<bool>,
+    bundle_pages_router_dependencies: Option<bool>,
 
     /// A list of packages that should be treated as external on the server
     /// build.
     ///
     /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
-    pub server_external_packages: Option<Vec<RcStr>>,
+    server_external_packages: Option<Vec<RcStr>>,
 
     #[serde(rename = "_originalRedirects")]
-    pub original_redirects: Option<Vec<Redirect>>,
+    original_redirects: Option<Vec<Redirect>>,
 
     // Partially supported
-    pub compiler: Option<CompilerConfig>,
+    compiler: Option<CompilerConfig>,
 
-    pub optimize_fonts: Option<bool>,
+    optimize_fonts: Option<bool>,
 
     clean_dist_dir: bool,
     compress: bool,
@@ -157,13 +157,16 @@ pub struct NextConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum CrossOriginConfig {
     Anonymous,
     UseCredentials,
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionCrossOriginConfig(Option<CrossOriginConfig>);
 
 #[derive(
     Clone,
@@ -262,7 +265,7 @@ struct HttpAgentConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DomainLocale {
@@ -273,7 +276,7 @@ pub struct DomainLocale {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct I18NConfig {
@@ -283,14 +286,20 @@ pub struct I18NConfig {
     pub locales: Vec<String>,
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionI18NConfig(Option<I18NConfig>);
+
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum OutputType {
     Standalone,
     Export,
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionOutputType(Option<OutputType>);
 
 #[derive(
     Debug,
@@ -1331,6 +1340,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn base_path(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.base_path.clone())
+    }
+
+    #[turbo_tasks::function]
     pub fn cache_handler(&self, project_path: FileSystemPath) -> Result<Vc<OptionFileSystemPath>> {
         if let Some(handler) = &self.cache_handler {
             Ok(Vc::cell(Some(project_path.join(handler)?)))
@@ -1532,6 +1546,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn inline_css(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.inline_css.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
     pub fn mdx_rs(&self) -> Vc<OptionalMdxTransformOptions> {
         let options = &self.experimental.mdx_rs;
 
@@ -1564,6 +1583,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn modularize_imports(&self) -> Vc<ModularizeImports> {
         Vc::cell(self.modularize_imports.clone().unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn dist_dir(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.dist_dir.clone())
     }
 
     #[turbo_tasks::function]
@@ -1855,6 +1879,21 @@ impl NextConfig {
                 .as_ref()
                 .map(|path| path.to_owned().into()),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub fn cross_origin(&self) -> Vc<OptionCrossOriginConfig> {
+        Vc::cell(self.cross_origin.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn i18n(&self) -> Vc<OptionI18NConfig> {
+        Vc::cell(self.i18n.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn output(&self) -> Vc<OptionOutputType> {
+        Vc::cell(self.output.clone())
     }
 
     #[turbo_tasks::function]

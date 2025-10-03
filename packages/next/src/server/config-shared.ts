@@ -1512,7 +1512,6 @@ export const defaultConfig = Object.freeze({
     browserDebugInfoInTerminal: false,
     isolatedDevBuild:
       process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true',
-    mcpServer: !!process.env.__NEXT_EXPERIMENTAL_MCP_SERVER,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

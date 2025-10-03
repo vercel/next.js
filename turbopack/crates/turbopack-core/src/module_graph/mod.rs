@@ -1702,7 +1702,8 @@ impl SingleModuleGraphBuilderNode {
         Ok(Self::Module {
             module,
             ident: if emit_spans {
-                Some(ident.to_string().await?)
+                // INVALIDATION: we don't need to invalidate when the span name changes
+                Some(ident.to_string().untracked().await?)
             } else {
                 None
             },
@@ -1718,13 +1719,15 @@ impl SingleModuleGraphBuilderNode {
             ref_data,
             source,
             source_ident: if emit_spans {
-                Some(source.ident().to_string().await?)
+                // INVALIDATION: we don't need to invalidate when the span name changes
+                Some(source.ident_string().untracked().await?)
             } else {
                 None
             },
             target,
             target_ident: if emit_spans {
-                Some(target.ident().to_string().await?)
+                // INVALIDATION: we don't need to invalidate when the span name changes
+                Some(target.ident_string().untracked().await?)
             } else {
                 None
             },

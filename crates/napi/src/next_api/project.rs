@@ -455,9 +455,10 @@ pub fn project_new(
             }
 
             let options: ProjectOptions = options.into();
+            let is_dev = options.dev;
             let container = turbo_tasks
                 .run(async move {
-                    let project = ProjectContainer::new(rcstr!("next.js"), options.dev);
+                    let project = ProjectContainer::new(rcstr!("next.js"), is_dev);
                     let project = project.to_resolved().await?;
                     project.initialize(options).await?;
                     Ok(project)
@@ -465,24 +466,29 @@ pub fn project_new(
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
 
-            Handle::current().spawn({
-                let tt = turbo_tasks.clone();
-                async move {
-                    let result = tt
-                        .clone()
-                        .run(async move {
-                            benchmark_file_io(tt, container.project().node_root().owned().await?)
+            if is_dev {
+                Handle::current().spawn({
+                    let tt = turbo_tasks.clone();
+                    async move {
+                        let result = tt
+                            .clone()
+                            .run(async move {
+                                benchmark_file_io(
+                                    tt,
+                                    container.project().node_root().owned().await?,
+                                )
                                 .await
-                        })
-                        .await;
-                    if let Err(err) = result {
-                        // TODO Not ideal to print directly to stdout.
-                        // We should use a compilation event instead to report async errors.
-                        println!("Failed to benchmark file I/O: {err}");
+                            })
+                            .await;
+                        if let Err(err) = result {
+                            // TODO Not ideal to print directly to stdout.
+                            // We should use a compilation event instead to report async errors.
+                            println!("Failed to benchmark file I/O: {err}");
+                        }
                     }
-                }
-                .instrument(tracing::info_span!("benchmark file I/O"))
-            });
+                    .instrument(tracing::info_span!("benchmark file I/O"))
+                });
+            }
 
             Ok(External::new(ProjectInstance {
                 turbopack_ctx,
