@@ -222,6 +222,8 @@ The default export function receives the following props:
 
 A promise that resolves to an object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `opengraph-image` or `twitter-image` is colocated in.
 
+> **Good to know**: If you use [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata), the function will also receive an `id` prop that is a promise resolving to the `id` value from one of the items returned by `generateImageMetadata`.
+
 ```tsx filename="app/shop/[slug]/opengraph-image.tsx" switcher
 export default async function Image({
   params,
