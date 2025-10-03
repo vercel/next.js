@@ -50,6 +50,7 @@ import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
+import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
 
 const envConfig =
   require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
@@ -220,6 +221,27 @@ async function exportPageImpl(
   } else if (path === '/') {
     // If the path is the root, just use index.html
     htmlFilename = 'index.html'
+  }
+
+  // For metadata routes, preserve the file extension to ensure proper MIME type serving
+  // by static file servers like GitHub Pages
+  if (isAppDir && isAppRouteRoute(page)) {
+    const routePath = normalizeAppPath(page) + '/route'
+    const isPageMetadataRoute = isMetadataRoute(routePath)
+    
+    if (isPageMetadataRoute) {
+      // Extract the original file extension from the page path
+      const actualPageExt = extname(page)
+      if (actualPageExt) {
+        // For metadata routes, we want to preserve the file extension
+        // so static file servers can serve them with correct MIME types
+        // This fixes the issue where opengraph-image.png was served as /opengraph-image
+        // instead of /opengraph-image.png, causing static file servers to serve
+        // the file as application/octet-stream instead of the proper image MIME type
+        const basePath = path.replace(/\.html$/, '')
+        htmlFilename = subFolders ? `${basePath}${sep}index${actualPageExt}` : `${basePath}${actualPageExt}`
+      }
+    }
   }
 
   const baseDir = join(outDir, dirname(htmlFilename))
