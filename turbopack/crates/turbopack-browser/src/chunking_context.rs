@@ -400,7 +400,7 @@ impl BrowserChunkingContext {
         self.minify_type.cell()
     }
 
-    /// Returns the minify type.
+    /// Returns the chunk path information.
     #[turbo_tasks::function]
     fn chunk_path_info(&self) -> Vc<ChunkPathInfo> {
         ChunkPathInfo {
