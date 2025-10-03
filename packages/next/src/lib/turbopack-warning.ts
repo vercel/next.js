@@ -42,9 +42,6 @@ const unsupportedTurbopackNextConfigOptions = [
   'experimental.slowModuleDetection',
 ]
 
-// The following will need to be supported by `next build --turbopack`
-const unsupportedProductionSpecificTurbopackNextConfigOptions: string[] = []
-
 /**  */
 export async function validateTurboNextConfig({
   dir,
@@ -81,23 +78,26 @@ export async function validateTurboNextConfig({
         defaultConfig,
       })
     }
+    hasWebpackConfig = Boolean(rawNextConfig.webpack)
+    hasTurboConfig = Boolean(rawNextConfig.turbopack)
 
     const flattenKeys = (obj: any, prefix: string = ''): string[] => {
       let keys: string[] = []
 
       for (const key in obj) {
-        if (typeof obj?.[key] === 'undefined') {
+        const value = obj?.[key]
+        if (typeof value === 'undefined') {
           continue
         }
 
         const pre = prefix.length ? `${prefix}.` : ''
 
         if (
-          typeof obj[key] === 'object' &&
-          !Array.isArray(obj[key]) &&
-          obj[key] !== null
+          typeof value === 'object' &&
+          !Array.isArray(value) &&
+          value !== null
         ) {
-          keys = keys.concat(flattenKeys(obj[key], pre + key))
+          keys = keys.concat(flattenKeys(value, pre + key))
         } else {
           keys.push(pre + key)
         }
@@ -118,23 +118,13 @@ export async function validateTurboNextConfig({
 
     const customKeys = flattenKeys(rawNextConfig)
 
-    const unsupportedKeys = isDev
-      ? unsupportedTurbopackNextConfigOptions
-      : [
-          ...unsupportedTurbopackNextConfigOptions,
-          ...unsupportedProductionSpecificTurbopackNextConfigOptions,
-        ]
-
     for (const key of customKeys) {
-      if (key.startsWith('webpack') && rawNextConfig.webpack) {
-        hasWebpackConfig = true
-      }
-      if (key.startsWith('turbopack') || key.startsWith('experimental.turbo')) {
+      if (key.startsWith('experimental.turbo')) {
         hasTurboConfig = true
       }
 
       const isUnsupported =
-        unsupportedKeys.some(
+        unsupportedTurbopackNextConfigOptions.some(
           (unsupportedKey) =>
             // Either the key matches (or is a more specific subkey) of
             // unsupportedKey, or the key is the path to a specific subkey.
