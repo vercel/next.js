@@ -452,10 +452,9 @@ async function run(): Promise<void> {
         })
         opts.turbopack = Boolean(turbopack)
         preferences.turbopack = Boolean(turbopack)
-        if (!turbopack) {
-          opts.webpack = true
-        }
       }
+      // If Turbopack is not selected, default to Webpack
+      opts.webpack = !opts.turbopack
     }
 
     const importAliasPattern = /^[^*"]+\/\*\s*$/
