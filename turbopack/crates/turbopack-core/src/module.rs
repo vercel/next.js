@@ -1,4 +1,3 @@
-use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 
@@ -23,8 +22,8 @@ pub trait Module: Asset {
     /// The identifier of the [Module] as string. It's expected to be unique and capture
     /// all properties of the [Module].
     #[turbo_tasks::function]
-    async fn ident_string(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(self.ident().resolve().await?.to_string())
+    fn ident_string(self: Vc<Self>) -> Vc<RcStr> {
+        self.ident().to_string()
     }
 
     /// Other [Module]s or [OutputAsset]s referenced from this [Module].
