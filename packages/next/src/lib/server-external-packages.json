@@ -17,6 +17,8 @@
   "@sparticuz/chromium",
   "@sparticuz/chromium-min",
   "@swc/core",
+  "@tursodatabase/database-wasm",
+  "@tursodatabase/sync-wasm",
   "@xenova/transformers",
   "argon2",
   "autoprefixer",
