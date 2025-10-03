@@ -19,6 +19,8 @@ describe('parallel-route-navigations', () => {
     files: __dirname,
   })
 
+  // We're skipping this in development because there's no prefetching
+  // during development.
   if (isNextDev) {
     it.skip('skipping in dev', async () => {
       await Promise.resolve()
