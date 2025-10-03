@@ -89,11 +89,7 @@ export default function Page() {
             'next.config.js': `
             module.exports = {
               turbopack: {
-                rules: {
-                  '*.foo': {
-                    loaders: ['foo-loader']
-                  }
-                }
+               
               },
               webpack: (config) => {
                 return config
