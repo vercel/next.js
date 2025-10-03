@@ -43,11 +43,6 @@
         "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response"
       ]
     },
-    "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
-      "failed": [
-        "parallel-routes-and-interception route intercepting should support intercepting local dynamic sibling routes"
-      ]
-    },
     "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts": {
       "failed": [
         "parallel-routes-revalidation router.refresh (dynamic) - searchParams: false should correctly refresh data for previously intercepted modal and active page slot",
