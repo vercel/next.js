@@ -159,16 +159,12 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     .optional(),
   resolveExtensions: z.array(z.string()).optional(),
   root: z.string().optional(),
+  debugIds: z.boolean().optional(),
 })
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
     allowedDevOrigins: z.array(z.string()).optional(),
-    amp: z
-      .object({
-        canonicalBase: z.string().optional(),
-      })
-      .optional(),
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
     bundlePagesRouterDependencies: z.boolean().optional(),
@@ -300,14 +296,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         appNavFailHandling: z.boolean().optional(),
         preloadEntriesOnStart: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
-        amp: z
-          .object({
-            // AMP optimizer option is unknown, use z.any() here
-            optimizer: z.any().optional(),
-            skipValidation: z.boolean().optional(),
-            validator: z.string().optional(),
-          })
-          .optional(),
         staleTimes: z
           .object({
             dynamic: z.number().optional(),
@@ -436,7 +424,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         webpackMemoryOptimizations: z.boolean().optional(),
         turbopackMemoryLimit: z.number().optional(),
         turbopackMinify: z.boolean().optional(),
-        turbopackPersistentCaching: z.boolean().optional(),
+        turbopackPersistentCachingForDev: z.boolean().optional(),
+        turbopackPersistentCachingForBuild: z.boolean().optional(),
         turbopackSourceMaps: z.boolean().optional(),
         turbopackTreeShaking: z.boolean().optional(),
         turbopackRemoveUnusedExports: z.boolean().optional(),
@@ -457,19 +446,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         testProxy: z.boolean().optional(),
         defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
         allowDevelopmentBuild: z.literal(true).optional(),
-        reactCompiler: z.union([
-          z.boolean(),
-          z
-            .object({
-              compilationMode: z
-                .enum(['infer', 'annotation', 'all'])
-                .optional(),
-              panicThreshold: z
-                .enum(['none', 'critical_errors', 'all_errors'])
-                .optional(),
-            })
-            .optional(),
-        ]),
+
         reactDebugChannel: z.boolean().optional(),
         staticGenerationRetryCount: z.number().int().optional(),
         staticGenerationMaxConcurrency: z.number().int().optional(),
@@ -654,6 +631,17 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
+    reactCompiler: z.union([
+      z.boolean(),
+      z
+        .object({
+          compilationMode: z.enum(['infer', 'annotation', 'all']).optional(),
+          panicThreshold: z
+            .enum(['none', 'critical_errors', 'all_errors'])
+            .optional(),
+        })
+        .optional(),
+    ]),
     reactProductionProfiling: z.boolean().optional(),
     reactStrictMode: z.boolean().nullable().optional(),
     reactMaxHeadersLength: z.number().nonnegative().int().optional(),

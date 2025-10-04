@@ -8,7 +8,7 @@ export {
 } from 'react-server-dom-webpack/server'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-export { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
+export { prerender } from 'react-server-dom-webpack/static'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 export { captureOwnerStack } from 'react'

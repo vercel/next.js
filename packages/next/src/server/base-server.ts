@@ -532,10 +532,8 @@ export default abstract class Server<
       trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.deploymentId,
       poweredByHeader: this.nextConfig.poweredByHeader,
-      canonicalBase: this.nextConfig.amp.canonicalBase || '',
       generateEtags,
       previewProps: this.getPrerenderManifest().preview,
-      ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
@@ -2271,10 +2269,6 @@ export default abstract class Server<
       }
     }
 
-    // Ensure that if the `amp` query parameter is falsy that we remove it from
-    // the query object. This ensures it won't be found by the `in` operator.
-    if ('amp' in query && !query.amp) delete query.amp
-
     if (opts.supportsDynamicResponse === true) {
       const ua = req.headers['user-agent'] || ''
       const isBotRequest = isBot(ua)
@@ -2289,7 +2283,7 @@ export default abstract class Server<
       // be static so we can collect revalidate and populate the
       // cache if there are no dynamic data requirements
       opts.supportsDynamicResponse =
-        !isSSG && !isBotRequest && !query.amp && isSupportedDocument
+        !isSSG && !isBotRequest && isSupportedDocument
     }
 
     // In development, we always want to generate dynamic HTML.
@@ -2402,7 +2396,6 @@ export default abstract class Server<
     addRequestMeta(request, 'distDir', this.distDir)
     addRequestMeta(request, 'query', query)
     addRequestMeta(request, 'params', opts.params)
-    addRequestMeta(request, 'ampValidator', this.renderOpts.ampValidator)
     addRequestMeta(request, 'minimalMode', this.minimalMode)
 
     if (opts.err) {
@@ -2565,11 +2558,30 @@ export default abstract class Server<
       i18n: this.i18nProvider?.fromRequest(req, pathname),
     }
 
+    const existingMatch = getRequestMeta(ctx.req, 'match')
+
+    let fastPath = true
+    // when a specific invoke-output is meant to be matched
+    // ensure a prior dynamic route/page doesn't take priority
+    const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
+
+    if (
+      (!this.minimalMode &&
+        typeof invokeOutput === 'string' &&
+        isDynamicRoute(invokeOutput || '') &&
+        invokeOutput !== existingMatch?.definition.pathname) ||
+      // Parallel routes are matched in `existingMatch` but since currently
+      // there can be multiple matches it's not guaranteed to be the right match
+      // therefor we need to opt-out of the fast path for parallel routes.
+      existingMatch?.definition.page.includes('/@')
+    ) {
+      fastPath = false
+    }
+
     try {
-      for await (const match of this.matchers.matchAll(pathname, options)) {
-        // when a specific invoke-output is meant to be matched
-        // ensure a prior dynamic route/page doesn't take priority
-        const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
+      for await (const match of fastPath && existingMatch
+        ? [existingMatch]
+        : this.matchers.matchAll(pathname, options)) {
         if (
           !this.minimalMode &&
           typeof invokeOutput === 'string' &&

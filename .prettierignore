@@ -48,13 +48,10 @@ bench/nested-deps/components/**/*
 
 **/convex/_generated/**
 **/.tina/__generated__/**
-test/lib/amp-validator-wasm.js
-test/production/pages-dir/production/fixture/amp-validator-wasm.js
 test/e2e/app-dir/server-source-maps/fixtures/default/app/bad-sourcemap/page.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/ignored.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js
 test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js
-test/e2e/async-modules/amp-validator-wasm.js
 test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx
 
 # turbopack crates, disable for some tests and precompiled dependencies.

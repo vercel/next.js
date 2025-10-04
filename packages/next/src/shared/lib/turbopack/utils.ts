@@ -314,8 +314,14 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
   }
 }
 
-export function isPersistentCachingEnabled(
+export function isPersistentCachingEnabledForDev(
   config: NextConfigComplete
 ): boolean {
-  return config.experimental?.turbopackPersistentCaching || false
+  return config.experimental?.turbopackPersistentCachingForDev || false
+}
+
+export function isPersistentCachingEnabledForBuild(
+  config: NextConfigComplete
+): boolean {
+  return config.experimental?.turbopackPersistentCachingForBuild || false
 }

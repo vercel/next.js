@@ -172,6 +172,14 @@ export interface TurbopackOptions {
    * directory can be resolved by turbopack.
    */
   root?: string
+
+  /**
+   * Enables generation of debug IDs in JavaScript bundles and source maps.
+   * These debug IDs help with debugging and error tracking by providing stable identifiers.
+   *
+   * @see https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md TC39 Debug ID Proposal
+   */
+  debugIds?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -361,12 +369,6 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  /** @deprecated built-in amp support will be removed in Next 16 */
-  amp?: {
-    optimizer?: any
-    validator?: string
-    skipValidation?: boolean
-  }
   disableOptimizedLoading?: boolean
 
   /** @deprecated A no-op as of Next 16, size metrics were removed from the build output. */
@@ -423,9 +425,14 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * Enable persistent caching for the turbopack dev server and build.
+   * Enable persistent caching for the turbopack dev server.
    */
-  turbopackPersistentCaching?: boolean
+  turbopackPersistentCachingForDev?: boolean
+
+  /**
+   * Enable persistent caching for the turbopack build.
+   */
+  turbopackPersistentCachingForBuild?: boolean
 
   /**
    * Enable source maps. Defaults to true.
@@ -471,10 +478,10 @@ export interface ExperimentalConfig {
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
    * configuration file is present. This option is enabled by default.
    *
-   * If this is set to `false`, but `experimental.reactCompiler` is `true`, the built-in Babel will
+   * If this is set to `false`, but `reactCompiler` is `true`, the built-in Babel will
    * still be configured, but any Babel configuration files on disk will be ignored. If you wish to
    * use React Compiler with a different manually-configured `babel-loader`, you should disable both
-   * this and `experimental.reactCompiler`.
+   * this and `reactCompiler`.
    */
   turbopackUseBuiltinBabel?: boolean
 
@@ -673,12 +680,6 @@ export interface ExperimentalConfig {
    *
    */
   serverComponentsExternalPackages?: string[]
-  /**
-   * Enable experimental React compiler optimization.
-   * Configuration accepts partial config object to the compiler, if provided
-   * compiler will be enabled.
-   */
-  reactCompiler?: boolean | ReactCompilerOptions
 
   /**
    * When enabled, in dev mode, Next.js will send React's debug info through the
@@ -1062,14 +1063,6 @@ export interface NextConfig {
   }
 
   /**
-   * @deprecated built-in amp support will be removed in Next 16
-   * @see [`next/amp`](https://nextjs.org/docs/api-reference/next/amp)
-   */
-  amp?: {
-    canonicalBase?: string
-  }
-
-  /**
    * A unique identifier for a deployment that will be included in each request's query string or header.
    */
   deploymentId?: string
@@ -1093,6 +1086,13 @@ export interface NextConfig {
    * @see [Source Maps](https://nextjs.org/docs/advanced-features/source-maps)
    */
   productionBrowserSourceMaps?: boolean
+
+  /**
+   * Enable {@link https://nextjs.org/docs/app/api-reference/config/next-config-js/reactCompiler React Compiler in Next.js}.
+   * Configuration accepts partial config object of the Compiler.
+   * If provided, the Compiler will be enabled.
+   */
+  reactCompiler?: boolean | ReactCompilerOptions
 
   /**
    * Enable react profiling in production
@@ -1358,9 +1358,6 @@ export const defaultConfig = Object.freeze({
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 5,
   },
-  amp: {
-    canonicalBase: '',
-  },
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
@@ -1369,6 +1366,7 @@ export const defaultConfig = Object.freeze({
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
+  reactCompiler: undefined,
   reactProductionProfiling: false,
   reactStrictMode: null,
   reactMaxHeadersLength: 6000,
@@ -1480,7 +1478,6 @@ export const defaultConfig = Object.freeze({
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
-    amp: undefined,
     urlImports: undefined,
     typedEnv: false,
     clientTraceMetadata: undefined,
@@ -1502,7 +1499,6 @@ export const defaultConfig = Object.freeze({
       static: 300,
     },
     allowDevelopmentBuild: undefined,
-    reactCompiler: undefined,
     reactDebugChannel: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,

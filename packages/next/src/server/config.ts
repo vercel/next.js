@@ -97,20 +97,6 @@ function checkDeprecations(
   silent: boolean,
   dir: string
 ) {
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'amp',
-    `Built-in amp support is deprecated and the \`amp\` configuration option will be removed in Next.js 16.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'experimental.amp',
-    `Built-in amp support is deprecated and the \`experimental.amp\` configuration option will be removed in Next.js 16.`,
-    silent
-  )
-
   if (userConfig.experimental?.dynamicIO !== undefined) {
     warnOptionHasBeenDeprecated(
       userConfig,
@@ -354,9 +340,9 @@ function assignDefaultsAndValidate(
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.cacheComponents) {
       throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
-    } else if (result.experimental?.turbopackPersistentCaching) {
+    } else if (result.experimental?.turbopackPersistentCachingForBuild) {
       throw new CanaryOnlyError({
-        feature: 'experimental.turbopackPersistentCaching',
+        feature: 'experimental.turbopackPersistentCachingForBuild',
       })
     }
   }
@@ -421,10 +407,6 @@ function assignDefaultsAndValidate(
 
       if (result.assetPrefix === '') {
         result.assetPrefix = result.basePath
-      }
-
-      if (result.amp?.canonicalBase === '') {
-        result.amp.canonicalBase = result.basePath
       }
     }
   }
@@ -657,6 +639,13 @@ function assignDefaultsAndValidate(
     result,
     'outputFileTracingExcludes',
     'outputFileTracingExcludes',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'reactCompiler',
+    'reactCompiler',
     configFileName,
     silent
   )
@@ -1127,6 +1116,13 @@ function assignDefaultsAndValidate(
     result.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
+  if (
+    typeof result.experimental.mcpServer === 'undefined' &&
+    process.env.__NEXT_EXPERIMENTAL_MCP_SERVER === 'true'
+  ) {
+    result.experimental.mcpServer = true
+  }
+
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
   // we transfer the value for cacheComponents to the explicit useCache flag to ensure
   // backwards compatibility.
@@ -1489,15 +1485,6 @@ export default async function loadConfig(
       )
     }
 
-    if (userConfig.amp?.canonicalBase) {
-      const { canonicalBase } = userConfig.amp || ({} as any)
-      userConfig.amp = userConfig.amp || {}
-      userConfig.amp.canonicalBase =
-        (canonicalBase?.endsWith('/')
-          ? canonicalBase.slice(0, -1)
-          : canonicalBase) || ''
-    }
-
     if (reactProductionProfiling) {
       userConfig.reactProductionProfiling = reactProductionProfiling
     }
@@ -1729,6 +1716,25 @@ function enforceExperimentalFeatures(
     }
   }
 
+  // TODO: Remove this once we've made Client Segment Cache the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.clientSegmentCache === undefined ||
+      (isDefaultConfig && !config.experimental.clientSegmentCache))
+  ) {
+    config.experimental.clientSegmentCache = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'clientSegmentCache',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE`'
+      )
+    }
+  }
+
   // TODO: Remove this once we've made Client Param Parsing the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
@@ -1808,19 +1814,11 @@ function enforceExperimentalFeatures(
   if (
     process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.experimental.reactCompiler === undefined ||
-      (isDefaultConfig && !config.experimental.reactCompiler))
+    (config.reactCompiler === undefined ||
+      (isDefaultConfig && !config.reactCompiler))
   ) {
-    config.experimental.reactCompiler = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'reactCompiler',
-        true,
-        'enabled by `__NEXT_ENABLE_REACT_COMPILER`'
-      )
-    }
+    config.reactCompiler = true
+    // TODO: Report if we enable non-experimental features via env
   }
 
   if (

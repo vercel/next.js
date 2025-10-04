@@ -174,7 +174,7 @@ import {
   workUnitAsyncStorage,
   type PrerenderStore,
 } from './work-unit-async-storage.external'
-import { devLogsAsyncStorage } from './dev-logs-async-storage.external'
+import { consoleAsyncStorage } from './console-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -2309,7 +2309,7 @@ async function renderToStream(
         }
       )
 
-      devLogsAsyncStorage.run(
+      consoleAsyncStorage.run(
         { dim: true },
         spawnDynamicValidationInDev,
         resolveValidation,
@@ -2479,7 +2479,7 @@ async function renderToStream(
      *
      *    2.) If dynamic HTML support is requested, we must honor that request
      *        or throw an error. It is the sole responsibility of the caller to
-     *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+     *        ensure they aren't e.g. requesting dynamic HTML for a static page.
      *
      *   3.) If `shouldWaitOnAllReady` is true, which indicates we need to
      *       resolve all suspenses and generate a full HTML. e.g. when it's a
@@ -2628,7 +2628,7 @@ async function renderToStream(
        *
        *    2.) If dynamic HTML support is requested, we must honor that request
        *        or throw an error. It is the sole responsibility of the caller to
-       *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+       *        ensure they aren't e.g. requesting dynamic HTML for a static page.
        *    3.) If `shouldWaitOnAllReady` is true, which indicates we need to
        *        resolve all suspenses and generate a full HTML. e.g. when it's a
        *        html limited bot requests, we produce the full HTML content.
@@ -4833,7 +4833,8 @@ async function collectSegmentData(
     serverModuleMap: getServerModuleMap(),
   }
 
-  const staleTime = prerenderStore.stale
+  const selectStaleTime = createSelectStaleTime(renderOpts.experimental)
+  const staleTime = selectStaleTime(prerenderStore.stale)
   return await ComponentMod.collectSegmentData(
     renderOpts.experimental.clientParamParsing,
     fullPageDataBuffer,

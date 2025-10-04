@@ -125,8 +125,8 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn chunk_suffix_path(mut self, chunk_suffix_path: Option<RcStr>) -> Self {
-        self.chunking_context.chunk_suffix_path = chunk_suffix_path;
+    pub fn chunk_suffix_path(mut self, chunk_suffix_path: ResolvedVc<Option<RcStr>>) -> Self {
+        self.chunking_context.chunk_suffix_path = Some(chunk_suffix_path);
         self
     }
 
@@ -165,6 +165,11 @@ impl BrowserChunkingContextBuilder {
 
     pub fn export_usage(mut self, export_usage: Option<ResolvedVc<ExportUsageInfo>>) -> Self {
         self.chunking_context.export_usage = export_usage;
+        self
+    }
+
+    pub fn debug_ids(mut self, debug_ids: bool) -> Self {
+        self.chunking_context.debug_ids = debug_ids;
         self
     }
 
@@ -217,7 +222,7 @@ pub struct BrowserChunkingContext {
     chunk_base_path: Option<RcStr>,
     /// Suffix path that will be appended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
-    chunk_suffix_path: Option<RcStr>,
+    chunk_suffix_path: Option<ResolvedVc<Option<RcStr>>>,
     /// URL prefix that will be prepended to all static asset URLs when loading
     /// them.
     asset_base_path: Option<RcStr>,
@@ -229,6 +234,8 @@ pub struct BrowserChunkingContext {
     enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
     enable_dynamic_chunk_content_loading: bool,
+    /// Enable debug IDs for chunks and source maps.
+    debug_ids: bool,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -279,6 +286,7 @@ impl BrowserChunkingContext {
                 enable_tracing: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
+                debug_ids: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -373,7 +381,11 @@ impl BrowserChunkingContext {
     /// Returns the asset suffix path.
     #[turbo_tasks::function]
     pub fn chunk_suffix_path(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.chunk_suffix_path.clone())
+        if let Some(chunk_suffix_path) = self.chunk_suffix_path {
+            *chunk_suffix_path
+        } else {
+            Vc::cell(None)
+        }
     }
 
     /// Returns the source map type.
@@ -386,6 +398,17 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
+    }
+
+    /// Returns the chunk path information.
+    #[turbo_tasks::function]
+    fn chunk_path_info(&self) -> Vc<ChunkPathInfo> {
+        ChunkPathInfo {
+            root_path: self.root_path.clone(),
+            chunk_root_path: self.chunk_root_path.clone(),
+            content_hashing: self.content_hashing,
+        }
+        .cell()
     }
 }
 
@@ -427,7 +450,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn chunk_path(
-        &self,
+        self: Vc<Self>,
         asset: Option<Vc<Box<dyn Asset>>>,
         ident: Vc<AssetIdent>,
         prefix: Option<RcStr>,
@@ -437,11 +460,15 @@ impl ChunkingContext for BrowserChunkingContext {
             extension.starts_with("."),
             "`extension` should include the leading '.', got '{extension}'"
         );
-        let root_path = self.chunk_root_path.clone();
-        let name = match self.content_hashing {
+        let ChunkPathInfo {
+            chunk_root_path,
+            content_hashing,
+            root_path,
+        } = &*self.chunk_path_info().await?;
+        let name = match *content_hashing {
             None => {
                 ident
-                    .output_name(self.root_path.clone(), prefix, extension)
+                    .output_name(root_path.clone(), prefix, extension)
                     .owned()
                     .await?
             }
@@ -466,7 +493,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 }
             }
         };
-        Ok(root_path.join(&name)?.cell())
+        Ok(chunk_root_path.join(&name)?.cell())
     }
 
     #[turbo_tasks::function]
@@ -780,4 +807,16 @@ impl ChunkingContext for BrowserChunkingContext {
             Ok(ModuleExportUsage::all())
         }
     }
+
+    #[turbo_tasks::function]
+    async fn debug_ids_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.debug_ids))
+    }
+}
+
+#[turbo_tasks::value]
+struct ChunkPathInfo {
+    root_path: FileSystemPath,
+    chunk_root_path: FileSystemPath,
+    content_hashing: Option<ContentHashing>,
 }

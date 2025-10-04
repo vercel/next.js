@@ -3,6 +3,7 @@ import { registerGetProjectPathTool } from './tools/get-project-path'
 import { registerGetErrorsTool } from './tools/get-errors'
 import { registerGetPageMetadataTool } from './tools/get-page-metadata'
 import { registerGetLogsTool } from './tools/get-logs'
+import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 
 let mcpServer: McpServer | undefined
@@ -30,6 +31,7 @@ export const getOrCreateMcpServer = (
     getActiveConnectionCount
   )
   registerGetLogsTool(mcpServer, distDir)
+  registerGetActionByIdTool(mcpServer, distDir)
 
   return mcpServer
 }

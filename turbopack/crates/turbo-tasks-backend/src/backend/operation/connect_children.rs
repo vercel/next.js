@@ -20,7 +20,7 @@ pub fn connect_children(
     parent_task_id: TaskId,
     mut parent_task: impl TaskGuard,
     new_children: FxHashSet<TaskId>,
-    has_active_count: bool,
+    parent_has_active_count: bool,
     should_track_activeness: bool,
 ) {
     debug_assert!(!new_children.is_empty());
@@ -46,7 +46,7 @@ pub fn connect_children(
         new_follower_ids: SmallVec<[TaskId; 4]>,
         upper_ids: Option<SmallVec<[TaskId; 4]>>,
         parent_task_id: TaskId,
-        has_active_count: bool,
+        parent_has_active_count: bool,
         should_track_activeness: bool,
     ) {
         debug_assert!(!new_follower_ids.is_empty());
@@ -62,7 +62,7 @@ pub fn connect_children(
             // active count was temporarily increased during connect_child. We need to
             // increase the active count when the parent has active count, because it's
             // added as follower.
-            let decrease_active_count = should_track_activeness && !has_active_count;
+            let decrease_active_count = should_track_activeness && !parent_has_active_count;
 
             // We special case the situation when we need to do both operations to avoid
             // cloning the new follower ids unnecessarily.
@@ -116,6 +116,14 @@ pub fn connect_children(
         }
     }
 
+    // Connecting a child varies a lot, but it's in the range of 10-30µs.
+    // Usually many tasks run in parallel and so it this operation.
+    // But sometimes there is only one task running and everybody waits on it.
+    // In this case we want to avoid a long single threaded operation.
+    // Where there are more than 10k children we parallelize the operation.
+    // This avoids long pauses of more than 30µs * 10k = 300ms.
+    // We don't want to parallelize too eagerly as spawning tasks and the temporary allocations have
+    // a cost as well.
     const MIN_CHILDREN_FOR_PARALLEL: usize = 10000;
 
     let len = new_follower_ids.len();
@@ -134,7 +142,7 @@ pub fn connect_children(
                         new_follower_ids,
                         upper_ids.clone(),
                         parent_task_id,
-                        has_active_count,
+                        parent_has_active_count,
                         should_track_activeness,
                     );
                 });
@@ -146,7 +154,7 @@ pub fn connect_children(
             new_follower_ids,
             upper_ids,
             parent_task_id,
-            has_active_count,
+            parent_has_active_count,
             should_track_activeness,
         );
     }

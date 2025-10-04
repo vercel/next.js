@@ -18,7 +18,10 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    turbopackPersistentCaching: true,
+    // Enable persistent caching for `next dev`
+    turbopackPersistentCachingForDev: true,
+    // Enable persistent caching for `next build`
+    turbopackPersistentCachingForBuild: true,
   },
 }
 
@@ -29,7 +32,10 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    turbopackPersistentCaching: true,
+    // Enable persistent caching for `next dev`
+    turbopackPersistentCachingForDev: true,
+    // Enable persistent caching for `next build`
+    turbopackPersistentCachingForBuild: true,
   },
 }
 
@@ -40,4 +46,5 @@ module.exports = nextConfig
 
 | Version   | Changes                                     |
 | --------- | ------------------------------------------- |
+| `v16.0.0` | Separate flags for build and dev.           |
 | `v15.5.0` | Persistent caching released as experimental |

@@ -44,12 +44,13 @@ module.exports = nextConfig
 
 The following options are available for the `turbopack` configuration:
 
-| Option              | Description                                                             |
-| ------------------- | ----------------------------------------------------------------------- |
-| `root`              | Sets the application root directory. Should be an absolute path.        |
-| `rules`             | List of supported webpack loaders to apply when running with Turbopack. |
-| `resolveAlias`      | Map aliased imports to modules to load in their place.                  |
-| `resolveExtensions` | List of extensions to resolve when importing files.                     |
+| Option              | Description                                                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `root`              | Sets the application root directory. Should be an absolute path.                                                                         |
+| `rules`             | List of supported webpack loaders to apply when running with Turbopack.                                                                  |
+| `resolveAlias`      | Map aliased imports to modules to load in their place.                                                                                   |
+| `resolveExtensions` | List of extensions to resolve when importing files.                                                                                      |
+| `debugIds`          | Enable generation of [debug IDs](https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md) in JavaScript bundles and source maps. |
 
 ### Supported loaders
 
@@ -254,10 +255,27 @@ This overwrites the original resolve extensions with the provided list. Make sur
 
 For more information and guidance for how to migrate your app to Turbopack from webpack, see [Turbopack's documentation on webpack compatibility](https://turbo.build/pack/docs/migrating-from-webpack).
 
+### Debug IDs
+
+Turbopack can be configured to generate [debug IDs](https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md) in JavaScript bundles and source maps.
+
+To configure debug IDs, use the `debugIds` field in `next.config.js`:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    debugIds: true,
+  },
+}
+```
+
+The option automatically adds a polyfill for debug IDs to the JavaScript bundle to ensure compatibility. The debug IDs are available in the `globalThis._debugIds` global variable.
+
 ## Version History
 
 | Version  | Changes                                         |
 | -------- | ----------------------------------------------- |
+| `16.0.0` | `turbopack.debugIds` was added.                 |
 | `16.0.0` | `turbopack.rules.*.condition` was added.        |
 | `15.3.0` | `experimental.turbo` is changed to `turbopack`. |
 | `13.0.0` | `experimental.turbo` introduced.                |

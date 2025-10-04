@@ -296,9 +296,11 @@ mod tests {
                 scope.spawn(move || i);
             }
         });
-        results.enumerate().for_each(|(i, result)| {
+        let results = results.collect::<Vec<_>>();
+        results.iter().enumerate().for_each(|(i, &result)| {
             assert_eq!(result, i);
         });
+        assert_eq!(results.len(), 1000);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

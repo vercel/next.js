@@ -299,6 +299,10 @@ pub trait ChunkingContext {
         self: Vc<Self>,
         module: Vc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>>;
+
+    /// Returns whether debug IDs are enabled for this chunking context.
+    #[turbo_tasks::function]
+    fn debug_ids_enabled(self: Vc<Self>) -> Vc<bool>;
 }
 
 pub trait ChunkingContextExt {

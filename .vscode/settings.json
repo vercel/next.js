@@ -62,7 +62,7 @@
     "packages/next/src/server/app-render/dynamic-access-async-storage-instance.ts",
     "packages/next/src/server/app-render/work-async-storage-instance.ts",
     "packages/next/src/server/app-render/work-unit-async-storage-instance.ts",
-    "packages/next/src/server/app-render/dev-logs-async-storage-instance.ts",
+    "packages/next/src/server/app-render/console-async-storage-instance.ts",
     "packages/next/src/client/components/segment-cache-impl/*"
   ],
   // Disable TypeScript surveys.

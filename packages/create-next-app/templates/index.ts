@@ -47,6 +47,7 @@ export const installTemplate = async ({
   skipInstall,
   turbopack,
   rspack,
+  reactCompiler,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -94,6 +95,28 @@ export const installTemplate = async ({
           "export default withRspack(nextConfig);",
         ),
     );
+  }
+
+  if (reactCompiler) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    if (mode === "ts") {
+      configContent = configContent.replace(
+        "const nextConfig: NextConfig = {\n  /* config options here */\n};",
+        `const nextConfig: NextConfig = {\n  reactCompiler: true,\n};`,
+      );
+    } else {
+      configContent = configContent.replace(
+        "const nextConfig = {};",
+        `const nextConfig = {\n  reactCompiler: true,\n};`,
+      );
+    }
+
+    await fs.writeFile(nextConfigFile, configContent);
   }
 
   const tsconfigFile = path.join(
@@ -221,6 +244,11 @@ export const installTemplate = async ({
     } else {
       packageJson.dependencies["next-rspack"] = version;
     }
+  }
+
+  if (reactCompiler) {
+    // TODO: Use "^19" when React Compiler is stable
+    packageJson.devDependencies["babel-plugin-react-compiler"] = "19.1.0-rc.3";
   }
 
   /**

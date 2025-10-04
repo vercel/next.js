@@ -1792,6 +1792,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let Some(in_progress) = get_mut!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
+        if matches!(in_progress, InProgressState::Canceled) {
+            return Some(TaskExecutionCompletePrepareResult {
+                new_children: Default::default(),
+                removed_data: Default::default(),
+                is_now_immutable: false,
+            });
+        }
         let &mut InProgressState::InProgress(box InProgressStateInner {
             stale,
             ref mut done,
@@ -2013,6 +2020,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let Some(in_progress) = get!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
+        if matches!(in_progress, InProgressState::Canceled) {
+            // Task was canceled in the meantime, so we don't connect the children
+            return false;
+        }
         let InProgressState::InProgress(box InProgressStateInner {
             #[cfg(not(feature = "no_fast_stale"))]
             stale,
@@ -2074,6 +2085,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let Some(in_progress) = remove!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
+        if matches!(in_progress, InProgressState::Canceled) {
+            // Task was canceled in the meantime, so we don't finish it
+            return false;
+        }
         let InProgressState::InProgress(box InProgressStateInner {
             done_event,
             once_task: _,

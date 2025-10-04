@@ -191,7 +191,7 @@ impl EcmascriptInputTransform {
                     debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
                     debug_assert_eq!(TURBOPACK_MODULE.full, "__turbopack_context__.m");
                     let stmt = quote!(
-                        // AMP / No-JS mode does not inject these helpers
+                        // No-JS mode does not inject these helpers
                         "if (typeof globalThis.$RefreshHelpers$ === 'object' && \
                          globalThis.$RefreshHelpers !== null) { \
                          __turbopack_context__.k.registerExports(__turbopack_context__.m, \

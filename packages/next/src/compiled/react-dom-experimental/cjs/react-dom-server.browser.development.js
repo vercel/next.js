@@ -8688,6 +8688,7 @@
       var boundary = segment.boundary;
       if (null === boundary)
         return flushSubtree(request, destination, segment, hoistableState);
+      segment.boundary = null;
       boundary.parentFlushed = !0;
       if (boundary.status === CLIENT_RENDERED) {
         var row = boundary.row;
@@ -9536,11 +9537,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-b0c1dc01-20250925" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-85c427d8-20251003" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-b0c1dc01-20250925\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-85c427d8-20251003\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -11321,7 +11322,7 @@
           postponedState,
           createRenderState(
             postponedState.resumableState,
-            options ? options.nonce : void 0,
+            void 0,
             void 0,
             void 0,
             void 0,
@@ -11364,5 +11365,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-experimental-b0c1dc01-20250925";
+    exports.version = "19.3.0-experimental-85c427d8-20251003";
   })();

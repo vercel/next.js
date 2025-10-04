@@ -331,7 +331,8 @@ export function getDefineEnv({
     // In the worst case we'll show an option to clear the cache, but it'll be a
     // no-op that just restarts the development server.
     'process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE':
-      !isTurbopack || (config.experimental.turbopackPersistentCaching ?? false),
+      !isTurbopack ||
+      (config.experimental.turbopackPersistentCachingForDev ?? false),
     'process.env.__NEXT_REACT_DEBUG_CHANNEL':
       config.experimental.reactDebugChannel ?? false,
   }

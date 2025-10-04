@@ -157,14 +157,14 @@ impl MiddlewareEndpoint {
             parse_segment_config_from_source(*self.await?.source, ParseSegmentMode::Base).await?;
         let runtime = config.runtime.unwrap_or(NextRuntime::Edge);
 
-        let next_config = this.project.next_config().await?;
-        let has_i18n = next_config.i18n.is_some();
-        let has_i18n_locales = next_config
-            .i18n
+        let next_config = this.project.next_config();
+        let i18n = next_config.i18n().await?;
+        let has_i18n = i18n.is_some();
+        let has_i18n_locales = i18n
             .as_ref()
             .map(|i18n| i18n.locales.len() > 1)
             .unwrap_or(false);
-        let base_path = next_config.base_path.as_ref();
+        let base_path = next_config.base_path().await?;
 
         let matchers = if let Some(matchers) = config.middleware_matcher.as_ref() {
             matchers
@@ -202,7 +202,7 @@ impl MiddlewareEndpoint {
 
                     source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
 
-                    if let Some(base_path) = base_path {
+                    if let Some(base_path) = base_path.as_ref() {
                         source.insert_str(0, base_path);
                     }
 
