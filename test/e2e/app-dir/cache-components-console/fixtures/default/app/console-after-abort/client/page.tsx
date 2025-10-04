@@ -9,7 +9,9 @@ export default async function ConsolePage() {
 
   const outBadge = `:::${i}:out:::`
   const errBadge = `:::${i++}:err:::`
-  console.log(`${outBadge} logging before prerender abort`)
+  console.log(
+    `${outBadge} /console-after-abort/client: logging before prerender abort`
+  )
 
   return (
     <ClientConsolePage data={data} outBadge={outBadge} errBadge={errBadge} />

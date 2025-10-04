@@ -817,6 +817,14 @@ export interface ExperimentalConfig {
    * @default true
    */
   lockDistDir?: boolean
+
+  /**
+   * Hide logs that occur after a render has already aborted.
+   * This can help reduce noise in the console when dealing with aborted renders.
+   *
+   * @default false
+   */
+  hideLogsAfterAbort?: boolean
 }
 
 export type ExportPathMap = {
@@ -1499,6 +1507,7 @@ export const defaultConfig = Object.freeze({
     lockDistDir: true,
     isolatedDevBuild: true,
     middlewareClientMaxBodySize: 10_485_760, // 10MB
+    hideLogsAfterAbort: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
