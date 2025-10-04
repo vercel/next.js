@@ -73,7 +73,6 @@ describe('Validations for <Link legacyBehavior>', () => {
             endContent: '   at',
           })
 
-          // TODO: Need to exclude "at q" for webpack, "at "
           expect(output).toMatchInlineSnapshot(`
            "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.
             ⨯ Error: \`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag."
