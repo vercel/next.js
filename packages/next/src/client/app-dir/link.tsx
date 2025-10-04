@@ -111,6 +111,21 @@ type InternalLinkProps = {
   shallow?: boolean
 
   /**
+   * Forces `Link` to pass its `href` to the child component. Useful if the child is a custom
+   * component that wraps an `<a>` tag, or if you're using certain styling libraries.
+   *
+   * @defaultValue `false`
+   *
+   * @example
+   * ```tsx
+   * <Link href="/dashboard" passHref legacyBehavior>
+   *   <MyStyledAnchor>Dashboard</MyStyledAnchor>
+   * </Link>
+   * ```
+   */
+  passHref?: boolean
+
+  /**
    * Prefetch the page in the background.
    * Any `<Link />` that is in the viewport (initially or through scroll) will be prefetched.
    * Prefetch can be disabled by passing `prefetch={false}`.
@@ -168,7 +183,7 @@ type InternalLinkProps = {
   locale?: string | false
 
   /**
-   * Enable legacy link behavior.
+   * aaa legacy link behavior.
    *
    * @deprecated This will be removed in a future version
    * @defaultValue `false`
@@ -312,6 +327,7 @@ export default function LinkComponent(
     as: asProp,
     children: childrenProp,
     prefetch: prefetchProp = null,
+    passHref,
     replace,
     shallow,
     scroll,
@@ -390,6 +406,7 @@ export default function LinkComponent(
       replace: true,
       scroll: true,
       shallow: true,
+      passHref: true,
       prefetch: true,
       unstable_dynamicOnHover: true,
       onClick: true,
@@ -429,6 +446,7 @@ export default function LinkComponent(
         key === 'replace' ||
         key === 'scroll' ||
         key === 'shallow' ||
+        key === 'passHref' ||
         key === 'legacyBehavior' ||
         key === 'unstable_dynamicOnHover'
       ) {
@@ -502,6 +520,12 @@ export default function LinkComponent(
   // This will return the first child, if multiple are provided it will throw an error
   let child: any
   if (legacyBehavior) {
+    if ((children as any)?.$$typeof === Symbol.for('react.lazy')) {
+      throw new Error(
+        `\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.`
+      )
+    }
+
     if (process.env.NODE_ENV === 'development') {
       if (onClick) {
         console.warn(
@@ -667,6 +691,7 @@ export default function LinkComponent(
     childProps.href = as
   } else if (
     !legacyBehavior ||
+    passHref ||
     (child.type === 'a' && !('href' in child.props))
   ) {
     childProps.href = addBasePath(as)
@@ -684,6 +709,8 @@ export default function LinkComponent(
     //       'Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components'
     //   )
     // }
+    // console.log('hi')
+    // console.log(child)
     link = React.cloneElement(child, childProps)
   } else {
     link = (

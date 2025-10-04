@@ -61,6 +61,12 @@ type InternalLinkProps = {
    */
   shallow?: boolean
   /**
+   * Forces `Link` to send the `href` property to its child.
+   *
+   * @defaultValue `false`
+   */
+  passHref?: boolean
+  /**
    * Prefetch the page in the background.
    * Any `<Link />` that is in the viewport (initially or through scroll) will be prefetched.
    * Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
@@ -83,7 +89,7 @@ type InternalLinkProps = {
    */
   locale?: string | false
   /**
-   * Enable legacy link behavior.
+   * bbbEnable legacy link behavior.
    *
    * @deprecated This will be removed in a future version
    * @defaultValue `false`
@@ -286,6 +292,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       as: asProp,
       children: childrenProp,
       prefetch: prefetchProp = null,
+      passHref,
       replace,
       shallow,
       scroll,
@@ -358,6 +365,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         replace: true,
         scroll: true,
         shallow: true,
+        passHref: true,
         prefetch: true,
         locale: true,
         onClick: true,
@@ -405,6 +413,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           key === 'replace' ||
           key === 'scroll' ||
           key === 'shallow' ||
+          key === 'passHref' ||
           key === 'legacyBehavior'
         ) {
           if (props[key] != null && valType !== 'boolean') {
@@ -645,6 +654,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       childProps.href = as
     } else if (
       !legacyBehavior ||
+      passHref ||
       (child.type === 'a' && !('href' in child.props))
     ) {
       const curLocale = typeof locale !== 'undefined' ? locale : router?.locale

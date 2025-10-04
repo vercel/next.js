@@ -857,5 +857,13 @@
   "856": "`lockfileTryAcquireSync` is not supported by the wasm bindings.",
   "857": "`lockfileUnlock` is not supported by the wasm bindings.",
   "858": "`lockfileUnlockSync` is not supported by the wasm bindings.",
-  "859": "An IO error occurred while attempting to create and acquire the lockfile"
+  "859": "An IO error occurred while attempting to create and acquire the lockfile",
+  "860": "<Link legacyBehavior> received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child of <Link> a Client Component.",
+  "861": "<Link legacyBehavior> received children that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child of <Link> a Client Component.",
+  "862": "<Link legacyBehavior> received children that is either a Server Component, or JSX that wasloaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child of <Link> a Client Component.",
+  "863": "<Link legacyBehavior> received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \\`<a>\\` tag.",
+  "864": "\\`<Link legacyBehavior>\\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \\`<a>\\` tag.",
+  "865": "You're passing either a Server Component or a Lazy Component into a <Link> that has legacyBehavior enabled. This is not supported. Either remove legacyBehavior, or make the direct child of <Link> a Client Component.",
+  "866": "You're passing a Lazy Component into a <Link> that has legacyBehavior enabled. This is not supported. Either remove legacyBehavior, or make the direct child of <Link> a Client Component.",
+  "867": "asdf"
 }

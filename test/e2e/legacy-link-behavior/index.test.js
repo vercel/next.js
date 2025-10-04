@@ -1,11 +1,11 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
-describe('legacyBehavior', () => {
+describe('Link with legacyBehavior', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
-  describe('with a child <a> element', () => {
+  describe('if the child is an <a> tag', () => {
     it('forwards the href attribute', async () => {
       const $ = await next.render$('/')
       const $a = $('a')
@@ -41,30 +41,45 @@ describe('legacyBehavior', () => {
     })
   })
 
-  describe('React.Lazy as children', () => {
-    // Validation 1. RSC only. Verify it's a client reference. If it's a string it's fine. If it's not a string, verify client reference. That's fine. Otherwise, error (don't throw) but show error that its incompatible to use legacyBeahvior when rendering server component children into next/link.
-    /*
-     */
+  describe('validations from server components', () => {
+    // rendering <Link> in RSC
+    it.only('warns if the child is synchronous server component', async () => {
+      const browser = await next.browser('/rsc/synchronous')
+      const logs = await browser.log()
 
-    // Validation 2. (second line of defense)
-    // if the children of the link is lazy in the client link, then warn about
-    /*
-      You've passed a lazy element to the link. In a next.js app this is often because you are passing a Server Component as a direct child of Link. This is not supported if you're using legacyMode. Remove legacyMode, or make the direct child of Link a client component.
-    */
+      const errors = logs.filter(
+        (log) =>
+          log.source === 'error' &&
+          log.message.includes(
+            `You're passing either a Server Component or a Lazy Component into a <Link> that has legacyBehavior enabled`
+          )
+      )
 
-    it.todo('warns if children is a single lazy component')
-    it.todo('warns if children is multiple lazy compnenet')
+      expect(errors.length).toBe(isNextDev ? 1 : 0)
+    })
+    it.todo(
+      'warns and throws an error if the child is asynchronous server component'
+    )
+    it.todo('does not warn or throw if you pass a client component')
+    it.todo(
+      'does not warn or throw if you pass a server component into a client component into Link'
+    )
 
-    it.todo('warns if children is a single lazy element')
-    it.todo('warns if children is a multiple lazy elements')
+    // rendering a <ClientComponent> that renders <Link>
+    it.todo('doesnt warn if the child is synchronous server component')
+    it.todo('throws an error if the child is asynchronous server component')
+    it.todo('does not warn or throw if you pass a client component 2')
+    it.todo(
+      'does not warn or throw if you pass a server component into a client component into Link 2'
+    )
   })
 
-  describe('RSC as child', () => {
-    it.todo('warns if the child is an RSC', () => {
-      // how to tell? lazy, but could be React.lazy
-      // could also be an RSC thats not lazy
-    })
-    it.todo('warns if the child is lazy')
-    //
+  // For prod tests:
+  // https://github.com/vercel/next.js/blob/canary/test/e2e/app-dir/cache-components/cache-components.console.test.ts
+  // add -u to update snapshots
+
+  describe('validations from client components', () => {
+    it.todo('does not warn or throw if you pass a child component')
+    it.todo('warns and throws an error if the child is lazy JSX')
   })
 })
