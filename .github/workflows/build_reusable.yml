@@ -110,6 +110,9 @@ env:
   NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
   NEXT_TEST_PROXY_ADDRESS: ${{ inputs.overrideProxyAddress || '' }}
 
+  # defaults to 256, but we run a lot of tests in parallel, so the limit should be lower
+  NEXT_TURBOPACK_IO_CONCURRENCY: 64
+
 jobs:
   build:
     timeout-minutes: ${{ inputs.timeout_minutes }}
