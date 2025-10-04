@@ -448,11 +448,8 @@ async function generateDynamicRSCPayload(
         userland: { loaderTree },
       },
       createMetadataComponents,
-      MetadataBoundary,
-      ViewportBoundary,
     },
     getDynamicParamFromSegment,
-    appUsingSizeAdjustment,
     query,
     requestId,
     flightRouterState,
@@ -465,22 +462,13 @@ async function generateDynamicRSCPayload(
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
 
-    const {
-      ViewportTree,
-      MetadataTree,
-      getViewportReady,
-      getMetadataReady,
-      StreamingMetadataOutlet,
-    } = createMetadataComponents({
+    const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
       tree: loaderTree,
       parsedQuery: query,
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
       getDynamicParamFromSegment,
-      appUsingSizeAdjustment,
       workStore,
-      MetadataBoundary,
-      ViewportBoundary,
       serveStreamingMetadata,
     })
 
@@ -500,18 +488,16 @@ async function generateDynamicRSCPayload(
               isPossibleServerAction={ctx.isPossibleServerAction}
             />
             {/* Adding requestId as react key to make metadata remount for each render */}
-            <ViewportTree key={getFlightViewportKey(requestId)} />
-            <MetadataTree key={getFlightMetadataKey(requestId)} />
+            <Viewport key={getFlightViewportKey(requestId)} />
+            <Metadata key={getFlightMetadataKey(requestId)} />
           </React.Fragment>
         ),
         injectedCSS: new Set(),
         injectedJS: new Set(),
         injectedFontPreloadTags: new Set(),
         rootLayoutIncluded: false,
-        getViewportReady,
-        getMetadataReady,
         preloadCallbacks,
-        StreamingMetadataOutlet,
+        MetadataOutlet,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -1119,11 +1105,7 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
-    componentMod: {
-      createMetadataComponents,
-      MetadataBoundary,
-      ViewportBoundary,
-    },
+    componentMod: { createMetadataComponents },
     url,
     workStore,
   } = ctx
@@ -1136,13 +1118,7 @@ async function getRSCPayload(
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
 
-  const {
-    ViewportTree,
-    MetadataTree,
-    getViewportReady,
-    getMetadataReady,
-    StreamingMetadataOutlet,
-  } = createMetadataComponents({
+  const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
     tree,
     // When it's using global-not-found, metadata errorType is undefined, which will retrieve the
     // metadata from the page.
@@ -1154,10 +1130,7 @@ async function getRSCPayload(
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     getDynamicParamFromSegment,
-    appUsingSizeAdjustment,
     workStore,
-    MetadataBoundary,
-    ViewportBoundary,
     serveStreamingMetadata,
   })
 
@@ -1171,12 +1144,10 @@ async function getRSCPayload(
     injectedJS,
     injectedFontPreloadTags,
     rootLayoutIncluded: false,
-    getViewportReady,
-    getMetadataReady,
     missingSlots,
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
-    StreamingMetadataOutlet,
+    MetadataOutlet,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -1193,8 +1164,12 @@ async function getRSCPayload(
         statusCode={ctx.res.statusCode}
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
-      <ViewportTree />
-      <MetadataTree />
+      <Viewport />
+      <Metadata />
+      {/* This meta tag is for next/font which is still required to be blocking. */}
+      {appUsingSizeAdjustment ? (
+        <meta name="next-size-adjust" content="" />
+      ) : null}
     </React.Fragment>
   )
 
@@ -1255,28 +1230,20 @@ async function getErrorRSCPayload(
   const {
     getDynamicParamFromSegment,
     query,
-    appUsingSizeAdjustment,
-    componentMod: {
-      createMetadataComponents,
-      MetadataBoundary,
-      ViewportBoundary,
-    },
+    componentMod: { createMetadataComponents },
     url,
     workStore,
   } = ctx
 
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
-  const { MetadataTree, ViewportTree } = createMetadataComponents({
+  const { Viewport, Metadata } = createMetadataComponents({
     tree,
     parsedQuery: query,
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     errorType,
     getDynamicParamFromSegment,
-    appUsingSizeAdjustment,
     workStore,
-    MetadataBoundary,
-    ViewportBoundary,
     serveStreamingMetadata: serveStreamingMetadata,
   })
 
@@ -1287,11 +1254,11 @@ async function getErrorRSCPayload(
         statusCode={ctx.res.statusCode}
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
-      <ViewportTree />
+      <Viewport />
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
-      <MetadataTree />
+      <Metadata />
     </React.Fragment>
   )
 

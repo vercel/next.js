@@ -170,7 +170,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                          'next.clientComponentLoadCount': isNextDev ? 7 : 6,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -578,7 +578,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 11 : 8,
+                          'next.clientComponentLoadCount': isNextDev ? 10 : 8,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -1063,6 +1063,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
 
   afterEach(async () => {
     await collector.shutdown()
+    await new Promise((r) => setTimeout(r, 1000))
   })
   ;(process.env.__NEXT_EXPERIMENTAL_PPR ? describe.skip : describe)(
     'root context',
