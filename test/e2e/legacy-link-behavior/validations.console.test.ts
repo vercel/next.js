@@ -113,6 +113,8 @@ describe('Validations for <Link legacyBehavior>', () => {
           ).toMatchInlineSnapshot(`""`)
         }
       })
+
+      it.todo('warns if the child is a lazy component')
     })
 
     describe('Rendering a Client Component that renders <Link>', () => {

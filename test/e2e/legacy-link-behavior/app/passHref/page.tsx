@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import CustomComponent from './_client'
 
 export default function Page() {
   return (
@@ -8,8 +9,4 @@ export default function Page() {
       </Link>
     </>
   )
-}
-
-function CustomComponent(props: any) {
-  return <a {...props} />
 }
