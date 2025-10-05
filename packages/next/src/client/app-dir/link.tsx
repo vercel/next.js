@@ -700,17 +700,6 @@ export default function LinkComponent(
   let link: React.ReactNode
 
   if (legacyBehavior) {
-    // TODO: Only warn if both legacyBehavior and passHref are true
-    // if (process.env.NODE_ENV === 'development') {
-    //   errorOnce(
-    //     '`legacyBehavior` is deprecated and will be removed in a future ' +
-    //       'release. A codemod is available to upgrade your components:\n\n' +
-    //       'npx @next/codemod@latest new-link .\n\n' +
-    //       'Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components'
-    //   )
-    // }
-    // console.log('hi')
-    // console.log(child)
     link = React.cloneElement(child, childProps)
   } else {
     link = (
