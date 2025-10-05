@@ -287,8 +287,7 @@ describe('ReactRefreshRegression', () => {
          "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "pages/index.js (1:36) @
-       {default export}
+         "source": "pages/index.js (1:36) @ {default export}
        > 1 | export default function () { throw new Error('boom'); }
            |                                    ^",
          "stack": [

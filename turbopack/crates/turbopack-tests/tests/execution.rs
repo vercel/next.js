@@ -5,24 +5,25 @@
 
 mod util;
 
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
-    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, TurboTasks, Vc, apply_effects,
+    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
-    json::parse_json_with_source_context, util::sys_to_unix,
+    json::parse_json_with_source_context,
 };
+use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
     css::chunk::CssChunkType,
@@ -30,26 +31,29 @@ use turbopack::{
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
 };
 use turbopack_core::{
-    chunk::ChunkingConfig,
+    chunk::{ChunkingConfig, MangleType, MinifyType},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
-    issue::{Issue, IssueDescriptionExt},
+    ident::Layer,
+    issue::CollectibleIssuesExt,
+    module_graph::{
+        ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
+    },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
         options::{ImportMap, ImportMapping},
     },
-    source::Source,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{debug::should_debug, evaluate::evaluate};
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
-use turbopack_test_utils::jest::JestRunResult;
+use turbopack_test_utils::{jest::JestRunResult, snapshot::UPDATE};
 use turbopack_trace_utils::{
     filter_layer::FilterLayer, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
     tracing_presets::TRACING_TURBO_TASKS_TARGETS,
@@ -60,7 +64,7 @@ use crate::util::REPO_ROOT;
 #[turbo_tasks::value]
 struct RunTestResult {
     js_result: ResolvedVc<JsResult>,
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
 }
 
 #[turbo_tasks::value]
@@ -74,22 +78,10 @@ struct JsResult {
 }
 
 #[turbo_tasks::value]
-#[derive(Copy, Clone, Debug, Hash)]
+#[derive(Copy, Clone, Debug, Hash, TaskInput)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
-}
-
-fn register() {
-    turbo_tasks::register();
-    turbo_tasks_env::register();
-    turbo_tasks_fs::register();
-    turbopack::register();
-    turbopack_nodejs::register();
-    turbopack_env::register();
-    turbopack_ecmascript_plugins::register();
-    turbopack_resolve::register();
-    include!(concat!(env!("OUT_DIR"), "/register_test_execution.rs"));
 }
 
 // To minimize test path length and consistency with snapshot tests,
@@ -98,8 +90,12 @@ fn register() {
 //
 // "Skip" directories named `__skipped__`, which include test directories to
 // skip.
-#[testing::fixture("tests/execution/*/*/*", exclude("node_modules|__skipped__"))]
+#[testing::fixture(
+    "tests/execution/*/*/*/input/index.js",
+    exclude("node_modules|__skipped__")
+)]
 fn test(resource: PathBuf) {
+    let resource = resource.parent().unwrap().parent().unwrap().to_path_buf();
     let messages = get_messages(run(resource, IssueSnapshotMode::Snapshots).unwrap());
     if !messages.is_empty() {
         panic!(
@@ -109,10 +105,10 @@ fn test(resource: PathBuf) {
     }
 }
 
-#[testing::fixture("tests/execution/*/*/__skipped__/*/input")]
+#[testing::fixture("tests/execution/*/*/__skipped__/*/input/index.js")]
 #[should_panic]
 fn test_skipped_fails(resource: PathBuf) {
-    let resource = resource.parent().unwrap().to_path_buf();
+    let resource = resource.parent().unwrap().parent().unwrap().to_path_buf();
 
     let JsResult {
         // Ignore uncaught exceptions for skipped tests.
@@ -138,7 +134,7 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
     let mut messages = vec![];
 
     if js_results.jest_result.test_results.is_empty() {
-        messages.push("No tests were run.".into());
+        messages.push("No tests were run.".to_string());
     }
 
     for test_result in js_results.jest_result.test_results {
@@ -165,10 +161,8 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
     messages
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsResult> {
-    register();
-
     // Clean up old output files.
     let output_path = resource.join("output");
     if output_path.exists() {
@@ -183,45 +177,55 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     std::fs::create_dir_all(&output_path)
         .context("Unable to create output directory")
         .unwrap();
-    let trace_file = output_path.join("trace-turbopack");
-    let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-    let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
-    let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
-    subscriber.init();
+    // Set up a `tracing_subscriber` for debugging -- We can only do this when using nextest, as
+    // `cargo test` runs all execution test cases in the same process.
+    //
+    // Configuring `tracing_subscriber` requires process-global side-effects. We can't use a
+    // thread-local subscriber because we're not fully single-threaded, even with the
+    // `current_thread` tokio executor.
+    //
+    // https://nexte.st/docs/configuration/env-vars/#environment-variables-nextest-sets
+    let _trace_writer_guard = if env::var_os("NEXTEST").is_some() {
+        let trace_file = output_path.join("trace-turbopack");
+        let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+        let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
+        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+        subscriber.init();
+
+        Some(trace_writer_guard)
+    } else {
+        None
+    };
 
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,
-            dependency_tracking: false,
+            dependency_tracking: *UPDATE,
             ..Default::default()
         },
         noop_backing_storage(),
     ));
-    let result = tt
-        .run_once(async move {
-            let emit_op =
-                run_inner_operation(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
-            let result = emit_op.read_strongly_consistent().owned().await?;
-            apply_effects(emit_op).await?;
 
-            Ok(result)
-        })
-        .await;
+    tt.run_once(async move {
+        let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
+        let result = emit_op.read_strongly_consistent().owned().await?;
+        apply_effects(emit_op).await?;
 
-    drop(trace_writer_guard);
-
-    result
+        Ok(result)
+    })
+    .await
 }
 
 #[turbo_tasks::function(operation)]
 async fn run_inner_operation(
     resource: RcStr,
-    snapshot_mode: Value<IssueSnapshotMode>,
+    snapshot_mode: IssueSnapshotMode,
 ) -> Result<Vc<JsResult>> {
     let prepared_test = prepare_test(resource).to_resolved().await?;
     let run_result_op = run_test_operation(prepared_test);
-    if *snapshot_mode == IssueSnapshotMode::Snapshots {
+    if snapshot_mode == IssueSnapshotMode::Snapshots {
         snapshot_issues(*prepared_test, run_result_op).await?;
     }
 
@@ -229,27 +233,39 @@ async fn run_inner_operation(
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Debug,
-    Default,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
+    PartialEq, Eq, Debug, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue,
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
+    #[serde(default = "default_tree_shaking_mode")]
     tree_shaking_mode: Option<TreeShakingMode>,
+    remove_unused_exports: Option<bool>,
+    scope_hoisting: Option<bool>,
+    #[serde(default)]
+    minify: bool,
+}
+
+fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
+    Some(TreeShakingMode::ReexportsOnly)
+}
+
+impl Default for TestOptions {
+    fn default() -> Self {
+        Self {
+            tree_shaking_mode: default_tree_shaking_mode(),
+            remove_unused_exports: None,
+            scope_hoisting: None,
+            minify: false,
+        }
+    }
 }
 
 #[turbo_tasks::value]
 struct PreparedTest {
-    path: ResolvedVc<FileSystemPath>,
-    project_path: ResolvedVc<FileSystemPath>,
-    tests_path: ResolvedVc<FileSystemPath>,
-    project_root: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
+    project_path: FileSystemPath,
+    tests_path: FileSystemPath,
+    project_root: FileSystemPath,
     options: TestOptions,
 }
 
@@ -263,36 +279,37 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         resource_path.to_str().unwrap()
     );
 
-    let root_fs = DiskFileSystem::new("workspace".into(), REPO_ROOT.clone(), vec![]);
-    let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
-    let project_root = project_fs.root().to_resolved().await?;
+    let root_fs = DiskFileSystem::new(rcstr!("workspace"), REPO_ROOT.clone());
+    let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone());
+    let project_root = project_fs.root().owned().await?;
 
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
         "stripping repo root {:?} from resource path {:?}",
         &*REPO_ROOT,
         resource_path.display()
     ))?;
-    let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
-    let path = root_fs.root().join(relative_path.clone());
-    let project_path = project_root.join(relative_path.clone());
+    let relative_path = RcStr::from(sys_to_unix(relative_path.to_str().unwrap()));
+    let path = root_fs.root().await?.join(&relative_path)?;
+    let project_path = project_root.join(&relative_path)?;
     let tests_path = project_fs
         .root()
-        .join("turbopack/crates/turbopack-tests".into());
+        .await?
+        .join("turbopack/crates/turbopack-tests")?;
 
-    let options_file = path.join("options.json".into());
+    let options_file = path.join("options.json")?;
 
     let mut options = TestOptions::default();
-    if matches!(*options_file.get_type().await?, FileSystemEntryType::File) {
-        if let FileContent::Content(content) = &*options_file.read().await? {
-            options =
-                serde_json::from_reader(content.read()).context("Unable to parse options.json")?;
-        }
+    if matches!(*options_file.get_type().await?, FileSystemEntryType::File)
+        && let FileContent::Content(content) = &*options_file.read().await?
+    {
+        options =
+            serde_json::from_reader(content.read()).context("Unable to parse options.json")?;
     }
 
     Ok(PreparedTest {
-        path: path.to_resolved().await?,
-        project_path: project_path.to_resolved().await?,
-        tests_path: tests_path.to_resolved().await?,
+        path: path.clone(),
+        project_path: project_path.clone(),
+        tests_path: tests_path.clone(),
         project_root,
         options,
     }
@@ -306,24 +323,23 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         project_path,
         tests_path,
         project_root,
-        ref options,
-    } = *prepared_test.await?;
+        options,
+    } = &*prepared_test.await?;
 
-    let jest_entry_path = tests_path.join("js/jest-entry.ts".into());
-    let test_path = project_path.join("input/index.js".into());
+    let jest_entry_path = tests_path.join("js/jest-entry.ts")?;
+    let test_path = project_path.join("input/index.js")?;
 
-    let chunk_root_path = path.join("output".into()).to_resolved().await?;
-    let static_root_path = path.join("static".into()).to_resolved().await?;
+    let chunk_root_path = path.join("output")?;
+    let static_root_path = path.join("static")?;
 
     let chunk_root_path_in_root_path_offset = project_path
-        .join("output".into())
-        .await?
-        .get_relative_path_to(&*project_root.await?)
+        .join("output")?
+        .get_relative_path_to(project_root)
         .context("Project path is in root path")?;
 
-    let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
+    let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
-    )))
+    ))
     .to_resolved()
     .await?;
 
@@ -341,16 +357,16 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
-        "esm-external/",
+        rcstr!("esm-external/"),
         ImportMapping::External(
-            Some("*".into()),
+            Some(rcstr!("*")),
             ExternalType::EcmaScriptModule,
             ExternalTraced::Untraced,
         )
         .resolved_cell(),
     );
     import_map.insert_exact_alias(
-        "jest-circus",
+        rcstr!("jest-circus"),
         ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
             .resolved_cell(),
     );
@@ -359,6 +375,24 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
             .resolved_cell(),
     );
+    import_map.insert_exact_alias(
+        rcstr!("testGlobalExternalValue"),
+        ImportMapping::External(None, ExternalType::Global, ExternalTraced::Untraced)
+            .resolved_cell(),
+    );
+
+    let mut fallback_import_map = ImportMap::empty();
+    fallback_import_map.insert_exact_alias(
+        rcstr!("fallback"),
+        ImportMapping::External(
+            None,
+            ExternalType::EcmaScriptModule,
+            ExternalTraced::Untraced,
+        )
+        .resolved_cell(),
+    );
+
+    let remove_unused_exports = options.remove_unused_exports.unwrap_or(true);
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Default::default(),
@@ -371,7 +405,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 import_externals: true,
                 ..Default::default()
             },
-            preset_env_versions: Some(env),
+            environment: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
@@ -386,13 +420,13 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .into(),
         ResolveOptionsContext {
             enable_typescript: true,
-            enable_node_modules: Some(project_root),
-            custom_conditions: vec!["development".into()],
+            enable_node_modules: Some(project_root.clone()),
+            custom_conditions: vec![rcstr!("development")],
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ResolveOptionsContext {
-                    enable_node_modules: Some(project_root),
-                    custom_conditions: vec!["development".into()],
+                    enable_node_modules: Some(project_root.clone()),
+                    custom_conditions: vec![rcstr!("development")],
                     browser: true,
                     ..Default::default()
                 }
@@ -401,17 +435,47 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             browser: true,
             module: true,
             import_map: Some(import_map.resolved_cell()),
+            fallback_import_map: Some(fallback_import_map.resolved_cell()),
             ..Default::default()
         }
         .cell(),
-        Vc::cell("test".into()),
+        Layer::new(rcstr!("test")),
     ));
 
+    let jest_entry_source = FileSource::new(jest_entry_path);
+    let test_source = FileSource::new(test_path);
+
+    let test_asset = asset_context
+        .process(
+            Vc::upcast(test_source),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+        )
+        .module()
+        .to_resolved()
+        .await?;
+
+    let jest_entry_asset = asset_context
+        .process(
+            Vc::upcast(jest_entry_source),
+            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+                rcstr!("TESTS") => test_asset,
+            })),
+        )
+        .module();
+
+    // Keep this in sync with what `evaluate` does internally
+    let module_graph = ModuleGraph::from_modules(
+        Vc::cell(vec![ChunkGroupEntry::Entry(vec![
+            jest_entry_asset.to_resolved().await?,
+        ])]),
+        false,
+    );
+
     let chunking_context = NodeJsChunkingContext::builder(
-        project_root,
-        chunk_root_path,
-        ResolvedVc::cell(chunk_root_path_in_root_path_offset),
-        static_root_path,
+        project_root.clone(),
+        chunk_root_path.clone(),
+        chunk_root_path_in_root_path_offset,
+        static_root_path.clone(),
         chunk_root_path,
         static_root_path,
         env,
@@ -431,36 +495,30 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             ..Default::default()
         },
     )
+    .module_merging(options.scope_hoisting.unwrap_or(true))
+    .minify_type(if options.minify {
+        MinifyType::Minify {
+            mangle: Some(MangleType::OptimalSize),
+        }
+    } else {
+        MinifyType::NoMinify
+    })
+    .export_usage(if remove_unused_exports {
+        Some(
+            compute_export_usage_info(module_graph.to_resolved().await?)
+                .resolve_strongly_consistent()
+                .await?,
+        )
+    } else {
+        None
+    })
     .build();
-
-    let jest_entry_source = FileSource::new(jest_entry_path);
-    let test_source = FileSource::new(test_path);
-
-    let test_asset = asset_context
-        .process(
-            Vc::upcast(test_source),
-            Value::new(ReferenceType::Internal(
-                InnerAssets::empty().to_resolved().await?,
-            )),
-        )
-        .module()
-        .to_resolved()
-        .await?;
-
-    let jest_entry_asset = asset_context
-        .process(
-            Vc::upcast(jest_entry_source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                "TESTS".into() => test_asset,
-            }))),
-        )
-        .module();
 
     let res = evaluate(
         jest_entry_asset,
-        *path,
+        path.clone(),
         Vc::upcast(CommandLineProcessEnv::new()),
-        test_source.ident(),
+        Vc::upcast(test_source),
         asset_context,
         Vc::upcast(chunking_context),
         None,
@@ -485,14 +543,14 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 },
             }
             .resolved_cell(),
-            path,
+            path: path.clone(),
         }
         .cell());
     };
 
     Ok(RunTestResult {
         js_result: JsResult::resolved_cell(parse_json_with_source_context(bytes.to_str()?)?),
-        path,
+        path: path.clone(),
     }
     .cell())
 }
@@ -502,24 +560,14 @@ async fn snapshot_issues(
     prepared_test: Vc<PreparedTest>,
     run_result_op: OperationVc<RunTestResult>,
 ) -> Result<Vc<()>> {
-    let PreparedTest { path, .. } = *prepared_test.await?;
+    let PreparedTest { path, .. } = &*prepared_test.await?;
     let _ = run_result_op.resolve_strongly_consistent().await;
 
-    let captured_issues = run_result_op.peek_issues_with_path().await?;
+    let plain_issues = run_result_op.peek_issues().get_plain_issues().await?;
 
-    let plain_issues = captured_issues
-        .iter_with_shortest_path()
-        .map(|(issue_vc, path)| async move { issue_vc.into_plain(path).await })
-        .try_join()
-        .await?;
-
-    turbopack_test_utils::snapshot::snapshot_issues(
-        plain_issues,
-        path.join("issues".into()),
-        &REPO_ROOT,
-    )
-    .await
-    .context("Unable to handle issues")?;
+    turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)
+        .await
+        .context("Unable to handle issues")?;
 
     Ok(Default::default())
 }

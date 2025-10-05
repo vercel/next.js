@@ -7,7 +7,7 @@ const path = require('node:path')
 async function main() {
   const [
     githubSha,
-    githubWorkflowSha,
+    githubHeadSha,
     tarballDirectory = path.join(os.tmpdir(), 'vercel-nextjs-preview-tarballs'),
   ] = process.argv.slice(2)
   const repoRoot = path.resolve(__dirname, '..')
@@ -103,13 +103,13 @@ async function main() {
   for (const packageInfo of packages) {
     packagesByVersion.set(
       packageInfo.name,
-      `https://vercel-packages.vercel.app/next/commits/${githubWorkflowSha}/${packageInfo.name}`
+      `https://vercel-packages.vercel.app/next/commits/${githubHeadSha}/${packageInfo.name}`
     )
   }
   for (const nextSwcPackageName of nextSwcPackageNames) {
     packagesByVersion.set(
       nextSwcPackageName,
-      `https://vercel-packages.vercel.app/next/commits/${githubWorkflowSha}/${nextSwcPackageName}`
+      `https://vercel-packages.vercel.app/next/commits/${githubHeadSha}/${nextSwcPackageName}`
     )
   }
 

@@ -20,6 +20,7 @@ import type { NextLintOptions } from '../cli/next-lint.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
+import type { NextTypegenOptions } from '../cli/next-typegen.js'
 
 if (process.env.NEXT_RSPACK) {
   // silent rspack's schema check
@@ -124,13 +125,17 @@ program
     )}`
   )
   .option('-d, --debug', 'Enables a more verbose build output.')
-
+  .option(
+    '--debug-prerender',
+    'Enables debug mode for prerendering. Not for production use!'
+  )
   .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
-  .option('--turbo', 'Starts development mode using Turbopack.')
-  .option('--turbopack', 'Starts development mode using Turbopack.')
+  .option('--turbo', 'Builds using Turbopack.')
+  .option('--turbopack', 'Builds using Turbopack.')
+  .option('--webpack', 'Builds using webpack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
@@ -169,6 +174,7 @@ program
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
+  .option('--webpack', 'Starts development mode using webpack.')
   .addOption(
     new Option(
       '-p, --port <port>',
@@ -380,6 +386,26 @@ program
   )
 
 program
+  .command('typegen')
+  .description(
+    'Generate TypeScript definitions for routes, pages, and layouts without running a full build.'
+  )
+  .argument(
+    '[directory]',
+    `A directory on which to generate types. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .action((directory: string, options: NextTypegenOptions) =>
+    // ensure process exits after typegen completes so open handles/connections
+    // don't cause process to hang
+    import('../cli/next-typegen.js').then((mod) =>
+      mod.nextTypegen(options, directory).then(() => process.exit(0))
+    )
+  )
+  .usage('[directory] [options]')
+
+program
   .command('experimental-test')
   .description(
     `Execute \`next/experimental/testmode\` tests using a specified test runner. The test runner defaults to 'playwright' if the \`experimental.defaultTestRunner\` configuration option or the \`--test-runner\` option are not set.`
@@ -421,10 +447,15 @@ const internal = program
 internal
   .command('trace')
   .alias('turbo-trace-server')
-  .argument('[file]', 'Trace file to serve.')
-  .action((file: string) => {
+  .argument('file', 'Trace file to serve.')
+  .addOption(
+    new Option('-p, --port <port>', 'Override the port.').argParser(
+      parseValidPositiveInteger
+    )
+  )
+  .action((file: string, options: { port: number | undefined }) => {
     return import('../cli/internal/turbo-trace-server.js').then((mod) =>
-      mod.startTurboTraceServerCli(file)
+      mod.startTurboTraceServerCli(file, options.port)
     )
   })
 

@@ -43,12 +43,10 @@ bench/heavy-npm-deps/**
 packages/next-bundle-analyzer/index.d.ts
 examples/with-typescript-graphql/lib/gql/
 test/development/basic/hmr/components/parse-error.js
+test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx
 packages/next-swc/docs/assets/**/*
-test/lib/amp-validator-wasm.js
-test/production/pages-dir/production/fixture/amp-validator-wasm.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js
 test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js
-test/e2e/async-modules/amp-validator-wasm.js
 test/development/next-lint-eslint-formatter-compact/**/*.js
 test/e2e/app-dir/app-external/app/mixed/import/mixed-mod.mjs
 

@@ -9,9 +9,3 @@
 
 declare var DEV_BACKEND: DevRuntimeBackend
 declare var _eval: (code: EcmascriptModuleEntry) => any
-/**
- * Adds additional properties to the `TurbopackDevBaseContext` interface.
- */
-declare var augmentContext: (
-  context: TurbopackDevBaseContext
-) => TurbopackDevContext

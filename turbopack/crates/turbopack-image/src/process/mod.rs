@@ -17,12 +17,16 @@ use image::{
 use mime::Mime;
 use serde::{Deserialize, Serialize};
 use serde_with::{DisplayFromStr, serde_as};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
-    ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
+    },
+    source::Source,
 };
 
 use self::svg::calculate;
@@ -101,16 +105,16 @@ fn extension_to_image_format(extension: &str) -> Option<ImageFormat> {
     })
 }
 
-fn result_to_issue<T>(path: ResolvedVc<FileSystemPath>, result: Result<T>) -> Option<T> {
+fn result_to_issue<T>(source: ResolvedVc<Box<dyn Source>>, result: Result<T>) -> Option<T> {
     match result {
         Ok(r) => Some(r),
         Err(err) => {
             ImageProcessingIssue {
-                path,
                 message: StyledString::Text(format!("{}", PrettyPrintError(&err)).into())
                     .resolved_cell(),
                 issue_severity: None,
                 title: None,
+                source: IssueSource::from_source_only(source),
             }
             .resolved_cell()
             .emit();
@@ -120,9 +124,9 @@ fn result_to_issue<T>(path: ResolvedVc<FileSystemPath>, result: Result<T>) -> Op
 }
 
 fn load_image(
-    path: ResolvedVc<FileSystemPath>,
+    path: ResolvedVc<Box<dyn Source>>,
     bytes: &[u8],
-    extension: Option<&str>,
+    extension: &str,
 ) -> Option<(ImageBuffer, Option<ImageFormat>)> {
     result_to_issue(path, load_image_internal(path, bytes, extension))
 }
@@ -135,22 +139,20 @@ enum ImageBuffer {
 }
 
 fn load_image_internal(
-    path: ResolvedVc<FileSystemPath>,
+    image: ResolvedVc<Box<dyn Source>>,
     bytes: &[u8],
-    extension: Option<&str>,
+    extension: &str,
 ) -> Result<(ImageBuffer, Option<ImageFormat>)> {
     let reader = image::io::Reader::new(Cursor::new(&bytes));
     let mut reader = reader
         .with_guessed_format()
         .context("unable to determine image format from file content")?;
     let mut format = reader.format();
-    if format.is_none() {
-        if let Some(extension) = extension {
-            if let Some(new_format) = extension_to_image_format(extension) {
-                format = Some(new_format);
-                reader.set_format(new_format);
-            }
-        }
+    if format.is_none()
+        && let Some(new_format) = extension_to_image_format(extension)
+    {
+        format = Some(new_format);
+        reader.set_format(new_format);
     }
 
     // [NOTE]
@@ -164,15 +166,14 @@ fn load_image_internal(
     #[cfg(not(feature = "avif"))]
     if matches!(format, Some(ImageFormat::Avif)) {
         ImageProcessingIssue {
-            path,
-            message: StyledString::Text(
+            source: IssueSource::from_source_only(image),
+            message: StyledString::Text(rcstr!(
                 "This version of Turbopack does not support AVIF images, will emit without \
                  optimization or encoding"
-                    .into(),
-            )
+            ))
             .resolved_cell(),
-            title: Some(StyledString::Text("AVIF image not supported".into()).resolved_cell()),
-            issue_severity: Some(IssueSeverity::Warning.resolved_cell()),
+            title: Some(StyledString::Text(rcstr!("AVIF image not supported")).resolved_cell()),
+            issue_severity: Some(IssueSeverity::Warning),
         }
         .resolved_cell()
         .emit();
@@ -182,15 +183,14 @@ fn load_image_internal(
     #[cfg(not(feature = "webp"))]
     if matches!(format, Some(ImageFormat::WebP)) {
         ImageProcessingIssue {
-            path,
-            message: StyledString::Text(
+            source: IssueSource::from_source_only(image),
+            message: StyledString::Text(rcstr!(
                 "This version of Turbopack does not support WEBP images, will emit without \
                  optimization or encoding"
-                    .into(),
-            )
+            ))
             .resolved_cell(),
-            title: Some(StyledString::Text("WEBP image not supported".into()).resolved_cell()),
-            issue_severity: Some(IssueSeverity::Warning.resolved_cell()),
+            title: Some(StyledString::Text(rcstr!("WEBP image not supported")).resolved_cell()),
+            issue_severity: Some(IssueSeverity::Warning),
         }
         .resolved_cell()
         .emit();
@@ -202,7 +202,7 @@ fn load_image_internal(
 }
 
 fn compute_blur_data(
-    path: ResolvedVc<FileSystemPath>,
+    path: ResolvedVc<Box<dyn Source>>,
     image: image::DynamicImage,
     format: ImageFormat,
     options: &BlurPlaceholderOptions,
@@ -213,7 +213,7 @@ fn compute_blur_data(
         Ok(r) => Some(r),
         Err(err) => {
             ImageProcessingIssue {
-                path,
+                source: IssueSource::from_source_only(path),
                 message: StyledString::Text(format!("{}", PrettyPrintError(&err)).into())
                     .resolved_cell(),
                 issue_severity: None,
@@ -340,27 +340,27 @@ fn image_format_to_mime_type(format: ImageFormat) -> Result<Option<Mime>> {
 /// Optionally computes a blur placeholder.
 #[turbo_tasks::function]
 pub async fn get_meta_data(
-    ident: Vc<AssetIdent>,
+    image: ResolvedVc<Box<dyn Source>>,
     content: Vc<FileContent>,
     blur_placeholder: Option<Vc<BlurPlaceholderOptions>>,
 ) -> Result<Vc<ImageMetaData>> {
     let FileContent::Content(content) = &*content.await? else {
         bail!("Input image not found");
     };
-    let bytes = content.content().to_bytes()?;
-    let path_resolved = ident.path().to_resolved().await?;
-    let path = path_resolved.await?;
-    let extension = path.extension_ref();
-    if extension == Some("svg") {
+    let bytes = content.content().to_bytes();
+    let path = image.ident().path().await?;
+    let extension = path.extension();
+
+    if extension == "svg" {
         let content = result_to_issue(
-            path_resolved,
+            image,
             std::str::from_utf8(&bytes).context("Input image is not valid utf-8"),
         );
         let Some(content) = content else {
             return Ok(ImageMetaData::fallback_value(Some(mime::IMAGE_SVG)).cell());
         };
         let info = result_to_issue(
-            path_resolved,
+            image,
             calculate(content).context("Failed to parse svg source code for image dimensions"),
         );
         let Some((width, height)) = info else {
@@ -374,14 +374,14 @@ pub async fn get_meta_data(
         }
         .cell());
     }
-    let Some((image, format)) = load_image(path_resolved, &bytes, extension) else {
+    let Some((image_buffer, format)) = load_image(image, &bytes, extension) else {
         return Ok(ImageMetaData::fallback_value(None).cell());
     };
 
-    match image {
+    match image_buffer {
         ImageBuffer::Raw(..) => Ok(ImageMetaData::fallback_value(None).cell()),
-        ImageBuffer::Decoded(image) => {
-            let (width, height) = image.dimensions();
+        ImageBuffer::Decoded(image_data) => {
+            let (width, height) = image_data.dimensions();
             let blur_placeholder = if let Some(blur_placeholder) = blur_placeholder {
                 if matches!(
                     format,
@@ -392,8 +392,8 @@ pub async fn get_meta_data(
                         | Some(ImageFormat::Avif)
                 ) {
                     compute_blur_data(
-                        path_resolved,
                         image,
+                        image_data,
                         format.unwrap(),
                         &*blur_placeholder.await?,
                     )
@@ -421,7 +421,7 @@ pub async fn get_meta_data(
 
 #[turbo_tasks::function]
 pub async fn optimize(
-    ident: Vc<AssetIdent>,
+    source: ResolvedVc<Box<dyn Source>>,
     content: Vc<FileContent>,
     max_width: u32,
     max_height: u32,
@@ -430,11 +430,11 @@ pub async fn optimize(
     let FileContent::Content(content) = &*content.await? else {
         return Ok(FileContent::NotFound.cell());
     };
-    let bytes = content.content().to_bytes()?;
-    let path = ident.path().to_resolved().await?;
+    let bytes = content.content().to_bytes();
+    let path = source.ident().path().await?;
+    let extension = path.extension();
 
-    let Some((image, format)) = load_image(path, &bytes, ident.path().await?.extension_ref())
-    else {
+    let Some((image, format)) = load_image(source, &bytes, extension) else {
         return Ok(FileContent::NotFound.cell());
     };
     match image {
@@ -486,24 +486,21 @@ pub async fn optimize(
 
 #[turbo_tasks::value]
 struct ImageProcessingIssue {
-    path: ResolvedVc<FileSystemPath>,
     message: ResolvedVc<StyledString>,
     title: Option<ResolvedVc<StyledString>>,
-    issue_severity: Option<ResolvedVc<IssueSeverity>>,
+    issue_severity: Option<IssueSeverity>,
+    source: IssueSource,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for ImageProcessingIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        self.issue_severity
-            .map(|s| *s)
-            .unwrap_or(IssueSeverity::Error.into())
+    fn severity(&self) -> IssueSeverity {
+        self.issue_severity.unwrap_or(IssueSeverity::Error)
     }
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
@@ -515,11 +512,16 @@ impl Issue for ImageProcessingIssue {
     fn title(&self) -> Vc<StyledString> {
         *self
             .title
-            .unwrap_or(StyledString::Text("Processing image failed".into()).resolved_cell())
+            .unwrap_or(StyledString::Text(rcstr!("Processing image failed")).resolved_cell())
     }
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(self.message))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }

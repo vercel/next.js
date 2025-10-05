@@ -3,10 +3,7 @@ use std::future::IntoFuture;
 use anyhow::Result;
 use either::Either;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
-use turbopack_core::{
-    chunk::{ChunkItem, ChunkItems, batch_info},
-    output::OutputAsset,
-};
+use turbopack_core::chunk::{ChunkItem, ChunkItems, batch_info};
 
 use crate::chunk::{
     CodeAndIds,
@@ -18,7 +15,6 @@ use crate::chunk::{
 pub struct EcmascriptChunkContent {
     pub chunk_items: Vec<EcmascriptChunkItemOrBatchWithAsyncInfo>,
     pub batch_groups: Vec<ResolvedVc<EcmascriptChunkItemBatchGroup>>,
-    pub referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
 #[turbo_tasks::value_impl]

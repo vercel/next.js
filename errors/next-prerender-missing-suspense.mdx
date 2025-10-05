@@ -4,7 +4,7 @@ title: Cannot access data, headers, params, searchParams, or a short-lived cache
 
 ## Why This Error Occurred
 
-When the experimental flag `dynamicIO` is enabled, Next.js expects a parent `Suspense` boundary around any component that awaits data that should be accessed on every user request. The purpose of this requirement is so that Next.js can provide a useful fallback while this data is accessed and rendered.
+When the experimental flag `cacheComponents` is enabled, Next.js expects a parent `Suspense` boundary around any component that awaits data that should be accessed on every user request. The purpose of this requirement is so that Next.js can provide a useful fallback while this data is accessed and rendered.
 
 While some data is inherently only available when a user request is being handled, such as request headers, Next.js assumes that by default any asynchronous data is expected to be accessed each time a user request is being handled unless you specifically cache it using `"use cache"`.
 

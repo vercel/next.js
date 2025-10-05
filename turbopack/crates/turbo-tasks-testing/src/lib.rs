@@ -4,10 +4,10 @@ pub mod retry;
 mod run;
 
 use std::{
-    borrow::Cow,
     future::Future,
     mem::replace,
     panic::AssertUnwindSafe,
+    pin::Pin,
     sync::{Arc, Mutex, Weak},
 };
 
@@ -21,12 +21,13 @@ use turbo_tasks::{
     backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
     event::{Event, EventListener},
     message_queue::CompilationEvent,
-    registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
 };
 
-pub use crate::run::{Registration, run, run_with_tt, run_without_cache_check};
+pub use crate::run::{
+    Registration, run, run_once, run_once_without_cache_check, run_with_tt, run_without_cache_check,
+};
 
 enum Task {
     Spawned(Event),
@@ -43,18 +44,18 @@ pub struct VcStorage {
 impl VcStorage {
     fn dynamic_call(
         &self,
-        func: turbo_tasks::FunctionId,
+        func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this_arg: Option<RawVc>,
         arg: Box<dyn MagicAny>,
     ) -> RawVc {
         let this = self.this.upgrade().unwrap();
         let handle = tokio::runtime::Handle::current();
-        let future = registry::get_function(func).execute(this_arg, &*arg);
+        let future = func.execute(this_arg, &*arg);
         let i = {
             let mut tasks = self.tasks.lock().unwrap();
             let i = tasks.len();
             tasks.push(Task::Spawned(Event::new(move || {
-                format!("Task({i})::event")
+                move || format!("Task({i})::event")
             })));
             i
         };
@@ -92,7 +93,7 @@ impl VcStorage {
 impl TurboTasksCallApi for VcStorage {
     fn dynamic_call(
         &self,
-        func: turbo_tasks::FunctionId,
+        func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -101,7 +102,7 @@ impl TurboTasksCallApi for VcStorage {
     }
     fn native_call(
         &self,
-        _func: turbo_tasks::FunctionId,
+        _func: &'static turbo_tasks::macro_helpers::NativeFunction,
         _this: Option<RawVc>,
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -111,8 +112,7 @@ impl TurboTasksCallApi for VcStorage {
 
     fn trait_call(
         &self,
-        _trait_type: turbo_tasks::TraitTypeId,
-        _trait_fn_name: Cow<'static, str>,
+        _trait_type: &'static turbo_tasks::TraitMethod,
         _this: RawVc,
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -120,10 +120,21 @@ impl TurboTasksCallApi for VcStorage {
         unreachable!()
     }
 
+    fn run(
+        &self,
+        _future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> Pin<
+        Box<dyn Future<Output = Result<(), turbo_tasks::backend::TurboTasksExecutionError>> + Send>,
+    > {
+        unreachable!()
+    }
+
     fn run_once(
         &self,
         _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
+    ) -> Pin<
+        Box<dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static>,
+    > {
         unreachable!()
     }
 
@@ -131,23 +142,21 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         _reason: StaticOrArc<dyn InvalidationReason>,
         _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
+    ) -> Pin<
+        Box<dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static>,
+    > {
         unreachable!()
     }
 
-    fn run_once_process(
+    fn start_once_process(
         &self,
-        _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
+        _future: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+    ) {
         unreachable!()
     }
 }
 
 impl TurboTasksApi for VcStorage {
-    fn pin(&self) -> Arc<dyn TurboTasksApi> {
-        self.this.upgrade().unwrap()
-    }
-
     fn invalidate(&self, _task: TaskId) {
         unreachable!()
     }
@@ -161,10 +170,6 @@ impl TurboTasksApi for VcStorage {
     }
 
     fn invalidate_serialization(&self, _task: TaskId) {
-        // ingore
-    }
-
-    fn notify_scheduled_tasks(&self) {
         // ignore
     }
 
@@ -330,6 +335,10 @@ impl TurboTasksApi for VcStorage {
     /// structs with access to a `MessageQueue` like `TurboTasks`.
     fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
         unimplemented!()
+    }
+
+    fn is_tracking_dependencies(&self) -> bool {
+        false
     }
 }
 

@@ -42,6 +42,11 @@ on:
         required: false
         description: 'if nextest rust dep is needed'
         type: string
+      rustBuildProfile:
+        required: false
+        description: 'The profile to use for the build, default is `release-with-assertions`, also supports `` for debug and `release` for normal release'
+        type: string
+        default: 'release-with-assertions'
       uploadSwcArtifact:
         required: false
         description: 'if swc artifact needs uploading'
@@ -69,10 +74,15 @@ on:
         required: false
         type: string
         default: 'x86_64-unknown-linux-gnu'
+      overrideProxyAddress:
+        description: Override the proxy address to use for the test
+        required: false
+        type: string
+        default: ''
 
 env:
-  NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 2.3.3
+  NAPI_CLI_VERSION: 2.18.4
+  TURBO_VERSION: 2.5.5
   NODE_LTS_VERSION: 20.9.0
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided
@@ -90,12 +100,15 @@ env:
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'
-  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+  # Vercel KV Store for test timings
+  KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+  KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
   NEXT_TEST_JOB: 1
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   NEXT_TEST_PREFER_OFFLINE: 1
   NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
+  NEXT_TEST_PROXY_ADDRESS: ${{ inputs.overrideProxyAddress || '' }}
 
 jobs:
   build:
@@ -174,12 +187,12 @@ jobs:
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.8
+        uses: ijjk/rust-cache@turbo-cache-v1.0.9
         if: ${{ inputs.rustCacheKey }}
         with:
           cache-provider: 'turbo'
           save-if: ${{ github.ref_name == 'canary' }}
-          shared-key: ${{ inputs.rustCacheKey }}-${{ inputs.buildNativeTarget }}-build-${{ hashFiles('.cargo/config.toml') }}
+          shared-key: ${{ inputs.rustCacheKey }}-${{ inputs.buildNativeTarget }}-build-${{ inputs.rustBuildProfile }}-${{ hashFiles('.cargo/config.toml') }}
 
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
@@ -197,7 +210,7 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-release -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
+      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-${{ inputs.rustBuildProfile }} -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
         if: ${{ inputs.skipNativeBuild != 'yes' }}
 
       - name: Upload next-swc artifact
@@ -216,7 +229,7 @@ jobs:
 
       - name: Install node-file-trace test dependencies
         if: ${{ inputs.needsNextest == 'yes' }}
-        working-directory: turbopack/crates/turbopack/tests/node-file-trace
+        working-directory: turbopack/crates/turbopack-tracing/tests/node-file-trace
         run: pnpm install -r --side-effects-cache false
 
       - run: ANALYZE=1 pnpm build
@@ -248,6 +261,11 @@ jobs:
         # We must use a login shell: fnm installation may modify the `.profile`
         shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
+
+      # This file messes up the tests because it influences the build root autodetection.
+      - name: Clean up stray files
+        if: ${{ always() }}
+        run: rm -f /tmp/package-lock.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

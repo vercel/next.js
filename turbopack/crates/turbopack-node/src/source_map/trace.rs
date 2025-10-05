@@ -1,6 +1,5 @@
 use std::{borrow::Cow, fmt::Display};
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbopack_core::source_map::{SourceMap, Token};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
@@ -91,18 +90,16 @@ pub enum TraceResult {
 /// memory hog, it'd be so much faster if we could just directly access
 /// the individual sections of the JS file's map without the
 /// serialization.
-pub async fn trace_source_map(
+pub fn trace_source_map(
     map: &SourceMap,
     line: u32,
     column: u32,
     name: Option<&str>,
-) -> Result<TraceResult> {
-    let token = map
-        .lookup_token(line.saturating_sub(1), column.saturating_sub(1))
-        .await?;
-    let result = match token {
+) -> TraceResult {
+    let token = map.lookup_token(line.saturating_sub(1), column.saturating_sub(1));
+    match token {
         Token::Original(t) => TraceResult::Found(StackFrame {
-            file: t.original_file.clone().into(),
+            file: Cow::Owned(t.original_file.into_owned()),
             line: Some(t.original_line.saturating_add(1)),
             column: Some(t.original_column.saturating_add(1)),
             name: t
@@ -113,7 +110,5 @@ pub async fn trace_source_map(
                 .map(Cow::Owned),
         }),
         _ => TraceResult::NotFound,
-    };
-
-    Ok(result)
+    }
 }

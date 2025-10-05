@@ -2,7 +2,6 @@ import type { RenderOptsPartial as AppRenderOptsPartial } from '../server/app-re
 import type { RenderOptsPartial as PagesRenderOptsPartial } from '../server/render'
 import type { LoadComponentsReturnType } from '../server/load-components'
 import type { OutgoingHttpHeaders } from 'http'
-import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { CacheControl } from '../server/lib/cache-control'
 import type { NextEnabledDirectories } from '../server/base-server'
@@ -12,21 +11,15 @@ import type {
 } from '../build/turborepo-access-trace'
 import type { FetchMetrics } from '../server/base-http'
 import type { RouteMetadata } from './routes/types'
+import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 
-export interface AmpValidation {
-  page: string
-  result: {
-    errors: AmpHtmlValidator.ValidationError[]
-    warnings: AmpHtmlValidator.ValidationError[]
-  }
+export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
+  path: string
 }
-
-type PathMap = ExportPathMap[keyof ExportPathMap]
 
 export interface ExportPagesInput {
   buildId: string
-  paths: string[]
-  exportPathMap: ExportPathMap
+  exportPaths: ExportPathEntry[]
   parentSpanId: number
   dir: string
   distDir: string
@@ -39,17 +32,16 @@ export interface ExportPagesInput {
   cacheHandler: string | undefined
   fetchCacheKeyPrefix: string | undefined
   options: ExportAppOptions
+  renderResumeDataCachesByPage: Record<string, string> | undefined
 }
 
 export interface ExportPageInput {
   buildId: string
-  path: string
-  pathMap: PathMap
+  exportPath: ExportPathEntry
   distDir: string
   outDir: string
   pagesDataDir: string
   renderOpts: WorkerRenderOptsPartial
-  ampValidatorPath?: string
   trailingSlash?: boolean
   buildExport?: boolean
   serverRuntimeConfig: { [key: string]: any }
@@ -62,17 +54,18 @@ export interface ExportPageInput {
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
   sriEnabled: boolean
+  renderResumeDataCache: RenderResumeDataCache | undefined
 }
 
 export type ExportRouteResult =
   | {
-      ampValidations?: AmpValidation[]
       cacheControl: CacheControl
       metadata?: Partial<RouteMetadata>
       ssgNotFound?: boolean
       hasEmptyStaticShell?: boolean
       hasPostponed?: boolean
       fetchMetrics?: FetchMetrics
+      renderResumeDataCache?: string
     }
   | {
       error: boolean
@@ -86,6 +79,7 @@ export type ExportPageResult = ExportRouteResult & {
 export type ExportPagesResult = {
   result: ExportPageResult | undefined
   path: string
+  page: string
   pageKey: string
 }[]
 
@@ -100,12 +94,14 @@ export interface ExportAppOptions {
   enabledDirectories: NextEnabledDirectories
   silent?: boolean
   debugOutput?: boolean
+  debugPrerender?: boolean
   pages?: string[]
   buildExport: boolean
   statusMessage?: string
   nextConfig?: NextConfigComplete
   hasOutdirFromCli?: boolean
   numWorkers: number
+  appDirOnly: boolean
 }
 
 export type ExportPageMetadata = {

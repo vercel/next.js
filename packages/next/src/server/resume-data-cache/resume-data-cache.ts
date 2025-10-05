@@ -100,7 +100,8 @@ type ResumeStoreSerialized = {
  * 'null' if empty
  */
 export async function stringifyResumeDataCache(
-  resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache
+  resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache,
+  isCacheComponentsEnabled: boolean
 ): Promise<string> {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
@@ -116,7 +117,10 @@ export async function stringifyResumeDataCache(
         fetch: Object.fromEntries(Array.from(resumeDataCache.fetch.entries())),
         cache: Object.fromEntries(
           (
-            await serializeUseCacheCacheStore(resumeDataCache.cache.entries())
+            await serializeUseCacheCacheStore(
+              resumeDataCache.cache.entries(),
+              isCacheComponentsEnabled
+            )
           ).filter(
             (entry): entry is [string, UseCacheCacheStoreSerialized] =>
               entry !== null
@@ -157,10 +161,14 @@ export function createPrerenderResumeDataCache(): PrerenderResumeDataCache {
  * 1. An existing prerender cache instance
  * 2. A serialized cache string
  *
+ * @param renderResumeDataCache - A RenderResumeDataCache instance to be used directly
  * @param prerenderResumeDataCache - A PrerenderResumeDataCache instance to convert to immutable
  * @param persistedCache - A serialized cache string to parse
  * @returns An immutable RenderResumeDataCache instance
  */
+export function createRenderResumeDataCache(
+  renderResumeDataCache: RenderResumeDataCache
+): RenderResumeDataCache
 export function createRenderResumeDataCache(
   prerenderResumeDataCache: PrerenderResumeDataCache
 ): RenderResumeDataCache
@@ -168,20 +176,23 @@ export function createRenderResumeDataCache(
   persistedCache: string
 ): RenderResumeDataCache
 export function createRenderResumeDataCache(
-  prerenderResumeDataCacheOrPersistedCache: PrerenderResumeDataCache | string
+  resumeDataCacheOrPersistedCache:
+    | RenderResumeDataCache
+    | PrerenderResumeDataCache
+    | string
 ): RenderResumeDataCache {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
       '`createRenderResumeDataCache` should not be called in edge runtime.'
     )
   } else {
-    if (typeof prerenderResumeDataCacheOrPersistedCache !== 'string') {
-      // If the cache is already a prerender cache, we can return it directly,
-      // we're just performing a type change.
-      return prerenderResumeDataCacheOrPersistedCache
+    if (typeof resumeDataCacheOrPersistedCache !== 'string') {
+      // If the cache is already a prerender or render cache, we can return it
+      // directly. For the former, we're just performing a type change.
+      return resumeDataCacheOrPersistedCache
     }
 
-    if (prerenderResumeDataCacheOrPersistedCache === 'null') {
+    if (resumeDataCacheOrPersistedCache === 'null') {
       return {
         cache: new Map(),
         fetch: new Map(),
@@ -197,7 +208,7 @@ export function createRenderResumeDataCache(
 
     const json: ResumeStoreSerialized = JSON.parse(
       inflateSync(
-        Buffer.from(prerenderResumeDataCacheOrPersistedCache, 'base64')
+        Buffer.from(resumeDataCacheOrPersistedCache, 'base64')
       ).toString('utf-8')
     )
 

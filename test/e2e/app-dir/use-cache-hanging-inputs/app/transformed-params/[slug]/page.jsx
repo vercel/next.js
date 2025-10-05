@@ -20,6 +20,5 @@ export default async function Page({ params }) {
   return <LastModified params={transformParams(params)} />
 }
 
-export async function generateStaticParams() {
-  return [{ slug: 'foo' }]
-}
+// Explicitly not defining `generateStaticParams` here. Otherwise, no timeout
+// error would be triggered.

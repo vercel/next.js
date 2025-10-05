@@ -31,8 +31,7 @@
       { "type": "user", "pattern": "valorkin" },
       { "type": "user", "pattern": "xc2" },
       { "type": "user", "pattern": "zackarychapple" },
-      { "type": "user", "pattern": "zoolsher" },
-      "packages/next/src/build/**"
+      { "type": "user", "pattern": "zoolsher" }
     ],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "atcastle" },
@@ -45,7 +44,7 @@
     ],
     "CI approved": [
       { "type": "user", "pattern": "SukkaW" },
-      { "type": "user", "pattern": "vercel-release-bot" },
+      { "type": "user", "pattern": "nextjs-bot" },
       { "type": "user", "pattern": "raunofreiberg" }
     ],
     "created-by: Next.js team": [
@@ -59,6 +58,8 @@
       { "type": "user", "pattern": "ijjk" },
       { "type": "user", "pattern": "lazarv" },
       { "type": "user", "pattern": "lubieowoce" },
+      { "type": "user", "pattern": "bgub" },
+      { "type": "user", "pattern": "RobPruzan" },
       { "type": "user", "pattern": "samcx" },
       { "type": "user", "pattern": "sebmarkbage" },
       { "type": "user", "pattern": "shuding" },

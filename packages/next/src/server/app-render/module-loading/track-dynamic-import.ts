@@ -3,7 +3,7 @@ import { isThenable } from '../../../shared/lib/is-thenable'
 import { trackPendingImport } from './track-module-loading.external'
 
 /**
- * in DynamicIO, `import(...)` will be transformed into `trackDynamicImport(import(...))`.
+ * in CacheComponents, `import(...)` will be transformed into `trackDynamicImport(import(...))`.
  * A dynamic import is essentially a cached async function, except it's cached by the module system.
  *
  * The promises are tracked globally regardless of if the `import()` happens inside a render or outside of it.
@@ -14,7 +14,7 @@ export function trackDynamicImport<TExports extends Record<string, any>>(
 ): Promise<TExports> {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
-      "Dynamic imports should not be instrumented in the edge runtime, because `dynamicIO` doesn't support it"
+      "Dynamic imports should not be instrumented in the edge runtime, because `cacheComponents` doesn't support it"
     )
   }
 

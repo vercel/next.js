@@ -1,9 +1,6 @@
 use std::{
     any::{Any, type_name},
-    borrow::Cow,
-    fmt::{
-        Debug, Display, Formatter, {self},
-    },
+    fmt::{self, Debug, Display, Formatter},
     hash::Hash,
     sync::Arc,
 };
@@ -14,11 +11,11 @@ use tracing::Span;
 
 use crate::{
     RawVc, VcValueType,
-    id::{FunctionId, TraitTypeId},
-    magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
-    registry::{register_trait_type, register_value_type},
+    id::TraitTypeId,
+    macro_helpers::NativeFunction,
+    magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed},
+    registry,
     task::shared_reference::TypedSharedReference,
-    trace::TraceRawVcs,
     vc::VcCellMode,
 };
 
@@ -37,11 +34,13 @@ type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
 /// Contains a list of traits and trait methods that are available on that type.
 pub struct ValueType {
     /// A readable name of the type
-    pub name: String,
-    /// List of traits available
-    pub traits: AutoSet<TraitTypeId>,
+    pub name: &'static str,
+    /// The fully qualitifed global name of the type.
+    pub global_name: &'static str,
+    /// Set of traits available
+    traits: AutoSet<TraitTypeId>,
     /// List of trait methods available
-    pub trait_methods: AutoMap<(TraitTypeId, Cow<'static, str>), FunctionId>,
+    trait_methods: AutoMap<&'static TraitMethod, &'static NativeFunction>,
 
     /// Functors for serialization
     magic_serialization: Option<(MagicSerializationFn, MagicAnyDeserializeSeed)>,
@@ -77,8 +76,12 @@ impl Debug for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("ValueType");
         d.field("name", &self.name);
-        for ((_trait_type, name), _value) in self.trait_methods.iter() {
-            d.field(name, &"(trait fn)");
+        for trait_id in self.traits.iter() {
+            for (name, m) in &registry::get_trait(*trait_id).methods {
+                if self.trait_methods.contains_key(&m) {
+                    d.field(name, &"(trait fn)");
+                }
+            }
         }
         d.finish()
     }
@@ -86,7 +89,7 @@ impl Debug for ValueType {
 
 impl Display for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.name)
+        f.write_str(self.name)
     }
 }
 
@@ -104,9 +107,10 @@ pub fn any_as_serialize<T: Any + Serialize + Send + Sync + 'static>(
 
 impl ValueType {
     /// This is internally used by `#[turbo_tasks::value]`
-    pub fn new<T: VcValueType>() -> Self {
+    pub fn new<T: VcValueType>(global_name: &'static str) -> Self {
         Self {
-            name: std::any::type_name::<T>().to_string(),
+            name: std::any::type_name::<T>(),
+            global_name,
             traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
@@ -116,28 +120,14 @@ impl ValueType {
     }
 
     /// This is internally used by `#[turbo_tasks::value]`
-    pub fn new_with_magic_serialization<
-        T: VcValueType + Debug + Eq + Hash + Serialize + for<'de> Deserialize<'de> + TraceRawVcs,
-    >() -> Self {
-        Self {
-            name: std::any::type_name::<T>().to_string(),
-            traits: AutoSet::new(),
-            trait_methods: AutoMap::new(),
-            magic_serialization: Some((
-                <dyn MagicAny>::as_serialize::<T>,
-                MagicAnyDeserializeSeed::new::<T>(),
-            )),
-            any_serialization: Some((any_as_serialize::<T>, AnyDeserializeSeed::new::<T>())),
-            raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
-        }
-    }
-
-    /// This is internally used by `#[turbo_tasks::value]`
     pub fn new_with_any_serialization<
         T: VcValueType + Any + Serialize + for<'de> Deserialize<'de>,
-    >() -> Self {
+    >(
+        global_name: &'static str,
+    ) -> Self {
         Self {
-            name: std::any::type_name::<T>().to_string(),
+            name: std::any::type_name::<T>(),
+            global_name,
             traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
@@ -181,25 +171,25 @@ impl ValueType {
         self.any_serialization.map(|s| s.1)
     }
 
-    /// This is internally used by `#[turbo_tasks::value_impl]`
-    pub fn register_trait_method(
+    pub(crate) fn register_trait_method(
         &mut self,
-        trait_type: TraitTypeId,
-        name: Cow<'static, str>,
-        native_fn: FunctionId,
+        trait_method: &'static TraitMethod,
+        native_fn: &'static NativeFunction,
     ) {
-        self.trait_methods.insert((trait_type, name), native_fn);
+        self.trait_methods.insert(trait_method, native_fn);
     }
 
     pub fn get_trait_method(
         &self,
-        trait_method_key: &(TraitTypeId, Cow<'static, str>),
-    ) -> Option<&FunctionId> {
-        self.trait_methods.get(trait_method_key)
+        trait_method: &'static TraitMethod,
+    ) -> Option<&'static NativeFunction> {
+        match self.trait_methods.get(trait_method) {
+            Some(f) => Some(*f),
+            None => trait_method.default_method,
+        }
     }
 
-    /// This is internally used by `#[turbo_tasks::value_impl]`
-    pub fn register_trait(&mut self, trait_type: TraitTypeId) {
+    pub(crate) fn register_trait(&mut self, trait_type: TraitTypeId) {
         self.traits.insert(trait_type);
     }
 
@@ -208,32 +198,56 @@ impl ValueType {
     }
 
     pub fn traits_iter(&self) -> impl Iterator<Item = TraitTypeId> + '_ {
-        self.traits.iter().copied()
-    }
-
-    pub fn register(&'static self, global_name: &'static str) {
-        register_value_type(global_name, self)
+        self.traits.iter().cloned()
     }
 }
+
+// A collectable struct for value types
+pub struct CollectableValueType(pub &'static once_cell::sync::Lazy<ValueType>);
+
+inventory::collect! {CollectableValueType}
 
 pub struct TraitMethod {
-    pub default_method: Option<FunctionId>,
-    pub arg_serializer: MagicAnySerializeSeed,
-    pub arg_deserializer: MagicAnyDeserializeSeed,
+    pub(crate) trait_name: &'static str,
+    pub(crate) method_name: &'static str,
+    pub(crate) default_method: Option<&'static NativeFunction>,
+}
+impl Hash for TraitMethod {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        (self as *const TraitMethod).hash(state);
+    }
 }
 
+impl Eq for TraitMethod {}
+
+impl PartialEq for TraitMethod {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
 impl Debug for TraitMethod {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("TraitMethod")
+            .field("trait_name", &self.trait_name)
+            .field("name", &self.method_name)
             .field("default_method", &self.default_method)
             .finish()
+    }
+}
+impl TraitMethod {
+    pub(crate) fn resolve_span(&self) -> Span {
+        tracing::trace_span!(
+            "turbo_tasks::resolve_trait_call",
+            name = format_args!("{}::{}", &self.trait_name, &self.method_name),
+        )
     }
 }
 
 #[derive(Debug)]
 pub struct TraitType {
-    pub name: String,
-    pub(crate) methods: AutoMap<Cow<'static, str>, TraitMethod>,
+    pub name: &'static str,
+    pub global_name: &'static str,
+    pub(crate) methods: AutoMap<&'static str, TraitMethod>,
 }
 
 impl Hash for TraitType {
@@ -257,68 +271,38 @@ impl PartialEq for TraitType {
 }
 
 impl TraitType {
-    pub fn new(name: String) -> Self {
+    pub fn new(
+        name: &'static str,
+        global_name: &'static str,
+        trait_methods: Vec<(&'static str, Option<&'static NativeFunction>)>,
+    ) -> Self {
+        let mut methods = AutoMap::new();
+        for (method_name, default_method) in trait_methods {
+            let prev = methods.insert(
+                method_name,
+                TraitMethod {
+                    trait_name: name,
+                    method_name,
+                    default_method,
+                },
+            );
+            debug_assert!(
+                prev.is_none(),
+                "duplicate methods {method_name} registered on {global_name}"
+            );
+        }
         Self {
             name,
-            methods: AutoMap::new(),
+            global_name,
+            methods,
         }
     }
 
-    pub fn register_trait_method<T>(&mut self, name: Cow<'static, str>)
-    where
-        T: Serialize
-            + for<'de> Deserialize<'de>
-            + Debug
-            + Eq
-            + Hash
-            + Send
-            + Sync
-            + TraceRawVcs
-            + 'static,
-    {
-        self.methods.insert(
-            name,
-            TraitMethod {
-                default_method: None,
-                arg_serializer: MagicAnySerializeSeed::new::<T>(),
-                arg_deserializer: MagicAnyDeserializeSeed::new::<T>(),
-            },
-        );
-    }
-
-    pub fn register_default_trait_method<T>(
-        &mut self,
-        name: Cow<'static, str>,
-        native_fn: FunctionId,
-    ) where
-        T: Serialize
-            + for<'de> Deserialize<'de>
-            + Debug
-            + Eq
-            + Hash
-            + Send
-            + Sync
-            + TraceRawVcs
-            + 'static,
-    {
-        self.methods.insert(
-            name,
-            TraitMethod {
-                default_method: Some(native_fn),
-                arg_serializer: MagicAnySerializeSeed::new::<T>(),
-                arg_deserializer: MagicAnyDeserializeSeed::new::<T>(),
-            },
-        );
-    }
-
-    pub fn register(&'static self, global_name: &'static str) {
-        register_trait_type(global_name, self);
-    }
-
-    pub fn resolve_span(&'static self, name: &str) -> Span {
-        tracing::trace_span!(
-            "turbo_tasks::resolve_trait_call",
-            name = format_args!("{}::{name}", &self.name),
-        )
+    pub fn get(&self, name: &str) -> &TraitMethod {
+        self.methods.get(name).unwrap()
     }
 }
+
+pub struct CollectableTrait(pub &'static once_cell::sync::Lazy<TraitType>);
+
+inventory::collect! {CollectableTrait}

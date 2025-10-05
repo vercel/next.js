@@ -2,63 +2,24 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{ToTokens, quote};
 use syn::{
-    Attribute, Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
+    Error, Expr, ExprLit, Generics, ImplItem, ImplItemFn, ItemImpl, Lit, LitStr, Meta,
     MetaNameValue, Path, Token, Type,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
     spanned::Spanned,
 };
 use turbo_tasks_macros_shared::{
-    get_inherent_impl_function_id_ident, get_inherent_impl_function_ident, get_path_ident,
-    get_register_trait_methods_ident, get_trait_impl_function_id_ident,
+    get_cast_to_fat_pointer_ident, get_inherent_impl_function_ident, get_path_ident,
     get_trait_impl_function_ident, get_type_ident, is_self_used,
 };
 
-use crate::func::{
-    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
-    parse_with_optional_parens,
+use crate::{
+    func::{
+        DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+        split_function_attributes,
+    },
+    global_name::global_name,
 };
-
-fn is_attribute(attr: &Attribute, name: &str) -> bool {
-    let path = &attr.path();
-    if path.leading_colon.is_some() {
-        return false;
-    }
-    let mut iter = path.segments.iter();
-    match iter.next() {
-        Some(seg) if seg.arguments.is_empty() && seg.ident == "turbo_tasks" => match iter.next() {
-            Some(seg) if seg.arguments.is_empty() && seg.ident == name => iter.next().is_none(),
-            _ => false,
-        },
-        _ => false,
-    }
-}
-
-fn split_function_attributes<'a>(
-    item: &'a ImplItem,
-    attrs: &'a [Attribute],
-) -> (syn::Result<FunctionArguments>, Vec<&'a Attribute>) {
-    let (func_attrs_vec, attrs): (Vec<_>, Vec<_>) = attrs
-        .iter()
-        // TODO(alexkirsz) Replace this with function
-        .partition(|attr| is_attribute(attr, "function"));
-    let func_args = if let Some(func_attr) = func_attrs_vec.first() {
-        if func_attrs_vec.len() == 1 {
-            parse_with_optional_parens::<FunctionArguments>(func_attr)
-        } else {
-            Err(syn::Error::new(
-                func_attr.span(),
-                "Only one #[turbo_tasks::function] attribute is allowed per method",
-            ))
-        }
-    } else {
-        Err(syn::Error::new(
-            item.span(),
-            "#[turbo_tasks::function] attribute missing",
-        ))
-    };
-    (func_args, attrs)
-}
 
 struct ValueImplArguments {
     ident: Option<LitStr>,
@@ -120,10 +81,21 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             }) = item
             {
                 let ident = &sig.ident;
-                let (func_args, attrs) = split_function_attributes(item, attrs);
-                let func_args = func_args
-                    .inspect_err(|err| errors.push(err.to_compile_error()))
-                    .unwrap_or_default();
+                let (func_args, attrs) = split_function_attributes(attrs);
+                let func_args = match func_args {
+                    Ok(None) => {
+                        item.span()
+                            .unwrap()
+                            .error("#[turbo_tasks::function] attribute missing")
+                            .emit();
+                        FunctionArguments::default()
+                    }
+                    Ok(Some(func_args)) => func_args,
+                    Err(error) => {
+                        errors.push(error.to_compile_error());
+                        FunctionArguments::default()
+                    }
+                };
                 let local = func_args.local.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
@@ -139,9 +111,10 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let (inline_signature, inline_block) =
                     turbo_fn.inline_signature_and_block(block, is_self_used);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
-
+                let function_path_string = format!("{ty}::{ident}", ty = ty.to_token_stream());
                 let native_fn = NativeFn {
-                    function_path_string: format!("{ty}::{ident}", ty = ty.to_token_stream()),
+                    function_global_name: global_name(&function_path_string),
+                    function_path_string,
                     function_path: parse_quote! { <#ty>::#inline_function_ident },
                     is_method: turbo_fn.is_method(),
                     is_self_used,
@@ -153,13 +126,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let native_function_ty = native_fn.ty();
                 let native_function_def = native_fn.definition();
 
-                let native_function_id_ident = get_inherent_impl_function_id_ident(ty_ident, ident);
-                let native_function_id_ty = native_fn.id_ty();
-                let native_function_id_def =
-                    native_fn.id_definition(&native_function_ident.clone().into());
-
                 let turbo_signature = turbo_fn.signature();
-                let turbo_block = turbo_fn.static_block(&native_function_id_ident);
+                let turbo_block = turbo_fn.static_block(&native_function_ident);
                 exposed_impl_items.push(quote! {
                     #(#attrs)*
                     #vis #turbo_signature #turbo_block
@@ -177,14 +145,14 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         pub(self) #inline_signature #inline_block
                     }
 
-                    #[doc(hidden)]
-                    pub(crate) static #native_function_ident:
+                    static #native_function_ident:
                         turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                             turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
-                    #[doc(hidden)]
-                    pub(crate) static #native_function_id_ident:
-                        turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
+
+                    // Register the function for deserialization
+                    turbo_tasks::macro_helpers::inventory_submit! {
+                        turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
+                    }
                 })
             }
         }
@@ -210,10 +178,12 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let register = get_register_trait_methods_ident(&trait_ident, ty_ident);
+        let cast_to_fat_pointer_ident: Ident =
+            get_cast_to_fat_pointer_ident(&trait_ident, ty_ident);
 
-        let mut trait_registers = Vec::new();
+        let mut trait_methods = Vec::new();
         let mut trait_functions = Vec::with_capacity(items.len());
+        let mut trait_items = Vec::new();
         let mut all_definitions = Vec::with_capacity(items.len());
         let mut errors = Vec::new();
 
@@ -224,10 +194,20 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             {
                 let ident = &sig.ident;
 
-                let (func_args, attrs) = split_function_attributes(item, attrs);
-                let func_args = func_args
-                    .inspect_err(|err| errors.push(err.to_compile_error()))
-                    .unwrap_or_default();
+                let (func_args, attrs) = split_function_attributes(attrs);
+                let func_args = match func_args {
+                    Ok(None) => {
+                        // Missing annotations are allowed if a turbo tasks trait has a trait item
+                        // that is not a turbo tasks function.
+                        trait_items.push(item);
+                        continue;
+                    }
+                    Ok(Some(func_args)) => func_args,
+                    Err(error) => {
+                        errors.push(error.to_compile_error());
+                        continue;
+                    }
+                };
                 let local = func_args.local.is_some();
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
 
@@ -247,8 +227,13 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let (inline_signature, inline_block) =
                     turbo_fn.inline_signature_and_block(block, is_self_used);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
-
                 let native_fn = NativeFn {
+                    // This global name breaks the pattern.  It isn't clear if it is intentional
+                    function_global_name: global_name(format!(
+                        "{ty}::{trait_path}::{ident}",
+                        ty = ty.to_token_stream(),
+                        trait_path = trait_path.to_token_stream()
+                    )),
                     function_path_string: format!(
                         "<{ty} as {trait_path}>::{ident}",
                         ty = ty.to_token_stream(),
@@ -268,14 +253,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let native_function_ty = native_fn.ty();
                 let native_function_def = native_fn.definition();
 
-                let native_function_id_ident =
-                    get_trait_impl_function_id_ident(ty_ident, &trait_ident, ident);
-                let native_function_id_ty = native_fn.id_ty();
-                let native_function_id_def =
-                    native_fn.id_definition(&native_function_ident.clone().into());
-
                 let turbo_signature = turbo_fn.signature();
-                let turbo_block = turbo_fn.static_block(&native_function_id_ident);
+                let turbo_block = turbo_fn.static_block(&native_function_ident);
 
                 trait_functions.push(quote! {
                     #(#attrs)*
@@ -299,36 +278,61 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         #inline_signature #inline_block
                     }
 
-                    #[doc(hidden)]
-                    pub(crate) static #native_function_ident:
+                    static #native_function_ident:
                         turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                             turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
-                    #[doc(hidden)]
-                    pub(crate) static #native_function_id_ident:
-                        turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
+
+                    // Register the function for deserialization
+                    turbo_tasks::macro_helpers::inventory_submit! {
+                        turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
+                    }
                 });
 
-                trait_registers.push(quote! {
-                    value.register_trait_method(<Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(), stringify!(#ident).into(), *#native_function_id_ident);
+                trait_methods.push(quote! {
+                    (stringify!(#ident), &#native_function_ident),
                 });
             }
         }
-
+        let value_name = global_name(quote! {stringify!(#ty_ident)});
         quote! {
-            #[doc(hidden)]
+            // Register all the function impls so the ValueType can find them
+            // This means objects resolve as
+            // 1 NativeFunctions
+            // 2 TraitTypes (requires functions)
+            // 3 ValueTypes (requires functions and TraitTypeIds)
+            // 4.VTableRegistries (requires ValueTypeIds)
+            turbo_tasks::macro_helpers::inventory_submit!{
+                turbo_tasks::macro_helpers::CollectableTraitMethods(
+                    #value_name,
+                    || (<::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
+                        vec![#(#trait_methods)*])
+                )
+            }
+
+            // These can execute later so they can reference trait_types during registration
+
+            turbo_tasks::macro_helpers::inventory_submit!{
+                turbo_tasks::macro_helpers::CollectableTraitCastFunctions(
+                    <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id,
+                    <#ty as turbo_tasks::VcValueType>::get_value_type_id,
+                    #cast_to_fat_pointer_ident as *const ()
+                )
+            }
+
             #[allow(non_snake_case)]
-            pub(crate) fn #register(value: &mut turbo_tasks::ValueType) {
-                value.register_trait(<Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id());
-                #(#trait_registers)*
+            fn #cast_to_fat_pointer_ident(raw: * const ()) -> *const dyn #trait_path {
+                let typed = raw as *const #ty;
+                typed as *const dyn #trait_path
             }
 
             // NOTE(alexkirsz) We can't have a general `turbo_tasks::Upcast<Box<dyn Trait>> for T where T: Trait` because
             // rustc complains: error[E0210]: type parameter `T` must be covered by another type when it appears before
             // the first local type (`dyn Trait`).
-            unsafe impl #impl_generics turbo_tasks::Upcast<Box<dyn #trait_path>> for #ty #where_clause {}
+            unsafe impl #impl_generics turbo_tasks::Upcast<::std::boxed::Box<dyn #trait_path>> for #ty #where_clause {}
+            unsafe impl #impl_generics turbo_tasks::UpcastStrict<::std::boxed::Box<dyn #trait_path>> for #ty #where_clause {}
 
             impl #impl_generics #trait_path for #ty #where_clause {
+                #(#trait_items)*
                 #(#trait_functions)*
             }
 

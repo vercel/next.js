@@ -15,8 +15,8 @@ use crate::dynamic_imports::DynamicImportedChunks;
 #[turbo_tasks::function]
 pub async fn create_react_loadable_manifest(
     dynamic_import_entries: Vc<DynamicImportedChunks>,
-    client_relative_path: Vc<FileSystemPath>,
-    output_path: Vc<FileSystemPath>,
+    client_relative_path: FileSystemPath,
+    output_path: FileSystemPath,
     runtime: NextRuntime,
 ) -> Result<Vc<OutputAssets>> {
     let dynamic_import_entries = &*dynamic_import_entries.await?;
@@ -28,7 +28,7 @@ pub async fn create_react_loadable_manifest(
 
         let id = &*module_id.await?;
 
-        let client_relative_path_value = client_relative_path.await?;
+        let client_relative_path_value = client_relative_path.clone();
         let files = chunk_output
             .iter()
             .map(move |&file| {
@@ -55,7 +55,7 @@ pub async fn create_react_loadable_manifest(
     Ok(Vc::cell(match runtime {
         NextRuntime::NodeJs => vec![ResolvedVc::upcast(
             VirtualOutputAsset::new(
-                output_path.with_extension("json".into()),
+                output_path.with_extension("json"),
                 AssetContent::file(FileContent::Content(File::from(manifest_json)).cell()),
             )
             .to_resolved()
@@ -64,7 +64,7 @@ pub async fn create_react_loadable_manifest(
         NextRuntime::Edge => vec![
             ResolvedVc::upcast(
                 VirtualOutputAsset::new(
-                    output_path.with_extension("js".into()),
+                    output_path.with_extension("js"),
                     AssetContent::file(
                         FileContent::Content(File::from(format!(
                             "self.__REACT_LOADABLE_MANIFEST={};",
@@ -78,7 +78,7 @@ pub async fn create_react_loadable_manifest(
             ),
             ResolvedVc::upcast(
                 VirtualOutputAsset::new(
-                    output_path.with_extension("json".into()),
+                    output_path.with_extension("json"),
                     AssetContent::file(FileContent::Content(File::from(manifest_json)).cell()),
                 )
                 .to_resolved()

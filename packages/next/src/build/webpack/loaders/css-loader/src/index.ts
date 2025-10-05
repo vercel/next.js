@@ -169,9 +169,10 @@ export default async function loader(
         getModulesPlugins,
         normalizeSourceMap,
         sort,
-      } = require('./utils')
+      } = require('./utils') as typeof import('./utils')
 
-      const { icssParser, importParser, urlParser } = require('./plugins')
+      const { icssParser, importParser, urlParser } =
+        require('./plugins') as typeof import('./plugins')
 
       const replacements: any[] = []
       // if it's a font loader next-font-loader will have exports that should be exported as is

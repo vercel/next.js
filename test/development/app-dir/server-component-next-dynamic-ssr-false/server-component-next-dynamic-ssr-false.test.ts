@@ -23,18 +23,37 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
         `"Ecmascript file had an error"`
       )
       expect(redbox.source).toMatchInlineSnapshot(`
-         "./app/page.js (3:23)
-         Ecmascript file had an error
-           1 | import dynamic from 'next/dynamic'
-           2 |
-         > 3 | const DynamicClient = dynamic(() => import('./client'), { ssr: false })
-             |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-           4 |
-           5 | export default function Page() {
-           6 |   return <DynamicClient />
+       "./app/page.js (3:23)
+       Ecmascript file had an error
+         1 | import dynamic from 'next/dynamic'
+         2 |
+       > 3 | const DynamicClient = dynamic(() => import('./client'), { ssr: false })
+           |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         4 |
+         5 | export default function Page() {
+         6 |   return <DynamicClient />
 
-         \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a Client Component."
-        `)
+       \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a Client Component."
+      `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(redbox.description).toMatchInlineSnapshot(
+        `"  × Module build failed:"`
+      )
+      expect(redbox.source).toMatchInlineSnapshot(`
+       "./app/page.js
+         × Module build failed:
+         ╰─▶   × Error:   x \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a Client Component.
+               │    ,-[3:1]
+               │  1 | import dynamic from 'next/dynamic'
+               │  2 |
+               │  3 | const DynamicClient = dynamic(() => import('./client'), { ssr: false })
+               │    :                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               │  4 |
+               │  5 | export default function Page() {
+               │  6 |   return <DynamicClient />
+               │    \`----
+               │"
+      `)
     } else {
       expect(redbox.description).toMatchInlineSnapshot(
         `"  x \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a Client Component."`

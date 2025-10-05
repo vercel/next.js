@@ -33,9 +33,11 @@ export async function rawEntrypointsToEntrypoints(
         app.set(route.originalName, route)
         break
       }
-      default:
+      case 'conflict':
         Log.info(`skipping ${pathname} (${route.type})`)
         break
+      default:
+        route satisfies never
     }
   }
 
@@ -67,6 +69,7 @@ export async function handleRouteType({
     case 'page': {
       const serverKey = getEntryKey('pages', 'server', page)
 
+      await manifestLoader.loadClientBuildManifest(page)
       await manifestLoader.loadBuildManifest(page)
       await manifestLoader.loadPagesManifest(page)
 
@@ -106,14 +109,13 @@ export async function handleRouteType({
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
-      await manifestLoader.loadAppBuildManifest(page)
-      await manifestLoader.loadBuildManifest(page, 'app')
-      await manifestLoader.loadAppPathsManifest(page)
-      await manifestLoader.loadActionManifest(page)
-      await manifestLoader.loadFontManifest(page, 'app')
+      manifestLoader.loadBuildManifest(page, 'app')
+      manifestLoader.loadAppPathsManifest(page)
+      manifestLoader.loadActionManifest(page)
+      manifestLoader.loadFontManifest(page, 'app')
 
       if (shouldCreateWebpackStats) {
-        await manifestLoader.loadWebpackStats(page, 'app')
+        manifestLoader.loadWebpackStats(page, 'app')
       }
 
       break
@@ -121,10 +123,12 @@ export async function handleRouteType({
     case 'app-route': {
       const key = getEntryKey('app', 'server', page)
 
-      await manifestLoader.loadAppPathsManifest(page)
+      manifestLoader.loadAppPathsManifest(page)
 
-      const middlewareManifestWritten =
-        await manifestLoader.loadMiddlewareManifest(page, 'app')
+      const middlewareManifestWritten = manifestLoader.loadMiddlewareManifest(
+        page,
+        'app'
+      )
 
       if (!middlewareManifestWritten) {
         manifestLoader.deleteMiddlewareManifest(key)

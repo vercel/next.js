@@ -187,6 +187,16 @@ export type ResponseGenerator = (state: {
   hasResolved: boolean
   previousCacheEntry?: IncrementalResponseCacheEntry | null
   isRevalidating?: boolean
+  span?: any
+
+  /**
+   * When true, this indicates that the response generator is being called in a
+   * context where the response must be generated statically.
+   *
+   * CRITICAL: This should only currently be used when revalidating due to a
+   * dynamic RSC request.
+   */
+  forceStaticRender?: boolean
 }) => Promise<ResponseCacheEntry | null>
 
 export const enum IncrementalCacheKind {
@@ -218,6 +228,11 @@ export interface GetIncrementalResponseCacheContext {
    * True if this is a fallback request.
    */
   isFallback: boolean
+
+  /**
+   * True if stale data is allowed to be returned.
+   */
+  allowStale?: boolean
 }
 
 export interface SetIncrementalFetchCacheContext {
@@ -225,6 +240,7 @@ export interface SetIncrementalFetchCacheContext {
   fetchUrl?: string
   fetchIdx?: number
   tags?: string[]
+  isImplicitBuildTimeCache?: boolean
 }
 
 export interface SetIncrementalResponseCacheContext {

@@ -1,7 +1,4 @@
-'use client'
-
 import React, {
-  use,
   useEffect,
   useMemo,
   startTransition,
@@ -13,7 +10,10 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type { CacheNode } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  CacheNode,
+  FlightRouterState,
+} from '../../shared/lib/app-router-types'
 import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
 import type { AppRouterState } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
@@ -23,12 +23,6 @@ import {
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
-import { ErrorBoundary } from './error-boundary'
-import DefaultGlobalError, {
-  type GlobalErrorComponent,
-} from '../../client/components/global-error'
-import { isBot } from '../../shared/lib/router/utils/is-bot'
-import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
@@ -36,62 +30,24 @@ import { unresolvedThenable } from './unresolved-thenable'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
-import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
   publicAppRouterInstance,
   type AppRouterActionQueue,
+  type GlobalErrorState,
 } from './app-router-instance'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
 import { pingVisibleLinks } from './links'
-import GracefulDegradeBoundary from './errors/graceful-degrade-boundary'
+import RootErrorBoundary from './errors/root-error-boundary'
+import DefaultGlobalError from './builtin/global-error'
+import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
+import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 
 const globalMutable: {
   pendingMpaPath?: string
 } = {}
-
-export function isExternalURL(url: URL) {
-  return url.origin !== window.location.origin
-}
-
-/**
- * Given a link href, constructs the URL that should be prefetched. Returns null
- * in cases where prefetching should be disabled, like external URLs, or
- * during development.
- * @param href The href passed to <Link>, router.prefetch(), or similar
- * @returns A URL object to prefetch, or null if prefetching should be disabled
- */
-export function createPrefetchURL(href: string): URL | null {
-  // Don't prefetch for bots as they don't navigate.
-  if (isBot(window.navigator.userAgent)) {
-    return null
-  }
-
-  let url: URL
-  try {
-    url = new URL(addBasePath(href), window.location.href)
-  } catch (_) {
-    // TODO: Does this need to throw or can we just console.error instead? Does
-    // anyone rely on this throwing? (Seems unlikely.)
-    throw new Error(
-      `Cannot prefetch '${href}' because it cannot be converted to a URL.`
-    )
-  }
-
-  // Don't prefetch during development (improves compilation performance)
-  if (process.env.NODE_ENV === 'development') {
-    return null
-  }
-
-  // External urls can't be prefetched in the same way.
-  if (isExternalURL(url)) {
-    return null
-  }
-
-  return url
-}
 
 function HistoryUpdater({
   appRouterState,
@@ -196,14 +152,14 @@ function Head({
  */
 function Router({
   actionQueue,
-  assetPrefix,
   globalError,
-  gracefullyDegrade,
+  webSocket,
+  staticIndicatorState,
 }: {
   actionQueue: AppRouterActionQueue
-  assetPrefix: string
-  globalError: [GlobalErrorComponent, React.ReactNode]
-  gracefullyDegrade: boolean
+  globalError: GlobalErrorState
+  webSocket: WebSocket | undefined
+  staticIndicatorState: StaticIndicatorState | undefined
 }) {
   const state = useActionQueue(actionQueue)
   const { canonicalUrl } = state
@@ -329,7 +285,10 @@ function Router({
     // TODO-APP: Should we listen to navigateerror here to catch failed
     // navigations somehow? And should we call window.stop() if a SPA navigation
     // should interrupt an MPA one?
-    use(unresolvedThenable)
+    // NOTE: This is intentionally using `throw` instead of `use` because we're
+    // inside an externally mutable condition (pushRef.mpaNavigation), which
+    // violates the rules of hooks.
+    throw unresolvedThenable
   }
 
   useEffect(() => {
@@ -475,8 +434,17 @@ function Router({
     //
     // The `key` is used to remount the component whenever the head moves to
     // a different segment.
-    const [headCacheNode, headKey] = matchingHead
-    head = <Head key={headKey} headCacheNode={headCacheNode} />
+    const [headCacheNode, headKey, headKeyWithoutSearchParams] = matchingHead
+
+    head = (
+      <Head
+        key={
+          // Necessary for PPR: omit search params from the key to match prerendered keys
+          typeof window === 'undefined' ? headKeyWithoutSearchParams : headKey
+        }
+        headCacheNode={headCacheNode}
+      />
+    )
   } else {
     head = null
   }
@@ -484,7 +452,10 @@ function Router({
   let content = (
     <RedirectBoundary>
       {head}
-      {cache.rsc}
+      {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
+          When users wrap their layout in <Suspense>, this creates the component stack pattern
+          "Suspense -> RootLayoutBoundary" which dynamic-rendering.ts uses to allow dynamic rendering. */}
+      <RootLayoutBoundary>{cache.rsc}</RootLayoutBoundary>
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )
@@ -505,29 +476,29 @@ function Router({
         </DevRootHTTPAccessFallbackBoundary>
       )
     }
-    const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
-      require('./react-dev-overlay/app/hot-reloader-client').default
+    const HotReloader: typeof import('../dev/hot-reloader/app/hot-reloader-app').default =
+      (
+        require('../dev/hot-reloader/app/hot-reloader-app') as typeof import('../dev/hot-reloader/app/hot-reloader-app')
+      ).default
 
     content = (
-      <HotReloader assetPrefix={assetPrefix} globalError={globalError}>
+      <HotReloader
+        globalError={globalError}
+        webSocket={webSocket}
+        staticIndicatorState={staticIndicatorState}
+      >
         {content}
       </HotReloader>
     )
   } else {
-    // If gracefully degrading is applied in production,
-    // leave the app as it is rather than caught by GlobalError boundary.
-    if (gracefullyDegrade) {
-      content = <GracefulDegradeBoundary>{content}</GracefulDegradeBoundary>
-    } else {
-      content = (
-        <ErrorBoundary
-          errorComponent={globalError[0]}
-          errorStyles={globalError[1]}
-        >
-          {content}
-        </ErrorBoundary>
-      )
-    }
+    content = (
+      <RootErrorBoundary
+        errorComponent={globalError[0]}
+        errorStyles={globalError[1]}
+      >
+        {content}
+      </RootErrorBoundary>
+    )
   }
 
   return (
@@ -560,39 +531,33 @@ function Router({
 
 export default function AppRouter({
   actionQueue,
-  globalErrorComponentAndStyles: [globalErrorComponent, globalErrorStyles],
-  assetPrefix,
-  gracefullyDegrade,
+  globalErrorState,
+  webSocket,
+  staticIndicatorState,
 }: {
   actionQueue: AppRouterActionQueue
-  globalErrorComponentAndStyles: [GlobalErrorComponent, React.ReactNode]
-  assetPrefix: string
-  gracefullyDegrade: boolean
+  globalErrorState: GlobalErrorState
+  webSocket?: WebSocket
+  staticIndicatorState?: StaticIndicatorState
 }) {
   useNavFailureHandler()
 
   const router = (
     <Router
       actionQueue={actionQueue}
-      assetPrefix={assetPrefix}
-      globalError={[globalErrorComponent, globalErrorStyles]}
-      gracefullyDegrade={gracefullyDegrade}
+      globalError={globalErrorState}
+      webSocket={webSocket}
+      staticIndicatorState={staticIndicatorState}
     />
   )
 
-  if (gracefullyDegrade) {
-    return router
-  } else {
-    return (
-      <ErrorBoundary
-        // At the very top level, use the default GlobalError component as the final fallback.
-        // When the app router itself fails, which means the framework itself fails, we show the default error.
-        errorComponent={DefaultGlobalError}
-      >
-        {router}
-      </ErrorBoundary>
-    )
-  }
+  // At the very top level, use the default GlobalError component as the final fallback.
+  // When the app router itself fails, which means the framework itself fails, we show the default error.
+  return (
+    <RootErrorBoundary errorComponent={DefaultGlobalError}>
+      {router}
+    </RootErrorBoundary>
+  )
 }
 
 const runtimeStyles = new Set<string>()

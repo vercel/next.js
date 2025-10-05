@@ -13,7 +13,7 @@ import { join } from 'path'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
-// TODO: Implement warning for Turbopack
+// Importing module CSS in _document is allowed in Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Invalid CSS in _document',
   () => {
@@ -36,41 +36,45 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           expect(stderr).toMatch(
             /CSS.*cannot.*be imported within.*pages[\\/]_document\.js/
           )
-          expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
+          // Skip: Rspack loaders cannot access module issuer info for location details
+          if (!process.env.NEXT_RSPACK) {
+            expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
+          }
         })
       }
     )
   }
 )
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-  'Invalid Global CSS',
-  () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        const appDir = join(fixturesDir, 'invalid-global')
 
-        beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+describe('Invalid Global CSS', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      const appDir = join(fixturesDir, 'invalid-global')
+
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+
+      // eslint-disable-next-line jest/no-identical-title
+      it('should fail to build', async () => {
+        const { code, stderr } = await nextBuild(appDir, [], {
+          stderr: true,
         })
-
-        // eslint-disable-next-line jest/no-identical-title
-        it('should fail to build', async () => {
-          const { code, stderr } = await nextBuild(appDir, [], {
-            stderr: true,
-          })
-          expect(code).not.toBe(0)
-          expect(stderr).toContain('Failed to compile')
-          expect(stderr).toContain('styles/global.css')
-          expect(stderr).toMatch(
-            /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
-          )
+        expect(code).not.toBe(0)
+        expect(stderr).toContain('Failed to compile')
+        expect(stderr).toContain('styles/global.css')
+        expect(stderr).toMatch(
+          /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
+        )
+        // Skip: Rspack loaders cannot access module issuer info for location details
+        if (!process.env.NEXT_RSPACK) {
           expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
-        })
-      }
-    )
-  }
-)
+        }
+      })
+    }
+  )
+})
 
 describe('Valid Global CSS from npm', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -108,74 +112,68 @@ describe('Valid Global CSS from npm', () => {
           .replace(/\/\*.*?\*\//g, '')
           .trim()
 
-        if (process.env.IS_TURBOPACK_TEST) {
-          expect(cssContent).toMatchInlineSnapshot(`".red-text{color:"red"}"`)
-        } else {
-          expect(cssContent).toMatchInlineSnapshot(`".red-text{color:"red"}"`)
+        expect(cssContent).toMatchInlineSnapshot(`".red-text{color:"red"}"`)
+      })
+    }
+  )
+})
+
+describe('Invalid Global CSS with Custom App', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      const appDir = join(fixturesDir, 'invalid-global-with-app')
+
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+
+      // eslint-disable-next-line jest/no-identical-title
+      it('should fail to build', async () => {
+        const { code, stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+        })
+        expect(code).not.toBe(0)
+        expect(stderr).toContain('Failed to compile')
+        expect(stderr).toContain('styles/global.css')
+        expect(stderr).toMatch(
+          /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
+        )
+        // Skip: Rspack loaders cannot access module issuer info for location details
+        if (!process.env.NEXT_RSPACK) {
+          expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
         }
       })
     }
   )
 })
 
-// TODO: Implement warning for Turbopack
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-  'Invalid Global CSS with Custom App',
-  () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        const appDir = join(fixturesDir, 'invalid-global-with-app')
+describe('Valid and Invalid Global CSS with Custom App', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      const appDir = join(fixturesDir, 'valid-and-invalid-global')
 
-        beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+
+      // eslint-disable-next-line jest/no-identical-title
+      it('should fail to build', async () => {
+        const { code, stderr } = await nextBuild(appDir, [], {
+          stderr: true,
         })
-
-        // eslint-disable-next-line jest/no-identical-title
-        it('should fail to build', async () => {
-          const { code, stderr } = await nextBuild(appDir, [], {
-            stderr: true,
-          })
-          expect(code).not.toBe(0)
-          expect(stderr).toContain('Failed to compile')
-          expect(stderr).toContain('styles/global.css')
-          expect(stderr).toMatch(
-            /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
-          )
+        expect(code).not.toBe(0)
+        expect(stderr).toContain('Failed to compile')
+        expect(stderr).toContain('styles/global.css')
+        expect(stderr).toContain(
+          'Please move all first-party global CSS imports'
+        )
+        // Skip: Rspack loaders cannot access module issuer info for location details
+        if (!process.env.NEXT_RSPACK) {
           expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
-        })
-      }
-    )
-  }
-)
-
-// TODO: Implement warning for Turbopack
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-  'Valid and Invalid Global CSS with Custom App',
-  () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        const appDir = join(fixturesDir, 'valid-and-invalid-global')
-
-        beforeAll(async () => {
-          await remove(join(appDir, '.next'))
-        })
-
-        // eslint-disable-next-line jest/no-identical-title
-        it('should fail to build', async () => {
-          const { code, stderr } = await nextBuild(appDir, [], {
-            stderr: true,
-          })
-          expect(code).not.toBe(0)
-          expect(stderr).toContain('Failed to compile')
-          expect(stderr).toContain('styles/global.css')
-          expect(stderr).toContain(
-            'Please move all first-party global CSS imports'
-          )
-          expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
-        })
-      }
-    )
-  }
-)
+        }
+      })
+    }
+  )
+})

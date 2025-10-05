@@ -1,10 +1,10 @@
-use std::ops::Deref;
+use std::{ops::Deref, sync::LazyLock};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::next_app::{AppPage, PageSegment, PageType};
@@ -42,11 +42,15 @@ pub struct MetadataFileMatch<'a> {
 }
 
 fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
-    let (_whole, stem, number) = lazy_regex::regex_captures!(
-        "^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$",
-        stem
-    )?;
-
+    static NUMBERED_METADATA_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new("^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$").unwrap()
+    });
+    let captures = NUMBERED_METADATA_RE.captures(stem)?;
+    // these captures must be defined if `captures` is `Some(...)`.
+    let (stem, number) = (
+        captures.get(1).unwrap().as_str(),
+        captures.get(2).unwrap().as_str(),
+    );
     Some((stem, number))
 }
 
@@ -83,12 +87,11 @@ fn match_metadata_file<'a>(
     })
 }
 
-pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String> {
-    let stem = &*path.file_stem().await?;
-    let ext = &*path.extension().await?;
+pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
+    let stem = path.file_stem();
+    let mut ext = path.extension();
 
-    let name = stem.as_deref().unwrap_or_default();
-    let mut ext = ext.as_str();
+    let name = stem.unwrap_or_default();
     if ext == "jpg" {
         ext = "jpeg"
     }
@@ -276,7 +279,12 @@ fn format_radix(mut x: u32, radix: u32) -> String {
     }
 
     result.reverse();
-    result[..6].iter().collect()
+
+    // We only need the first 6 characters of the hash but sometimes the hash is too short.
+    // In JavaScript, we use `toString(36).slice(0, 6)` to get the first 6 characters of the hash,
+    // but it will automatically take the minimum of the length of the hash and 6. Rust will panic.
+    let len = result.len().min(6);
+    result[..len].iter().collect()
 }
 
 /// If there's special convention like (...) or @ in the page path,
@@ -294,7 +302,7 @@ fn format_radix(mut x: u32, radix: u32) -> String {
 /// /(post)/sitemap -> /sitemap
 fn get_metadata_route_suffix(page: &str) -> Option<String> {
     // skip sitemap
-    if page.ends_with("/sitemap") {
+    if page.ends_with("/sitemap") || page.ends_with("/sitemap.xml") {
         return None;
     }
 
@@ -360,7 +368,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
 
 #[cfg(test)]
 mod test {
-    use super::normalize_metadata_route;
+    use super::{djb2_hash, format_radix, normalize_metadata_route};
     use crate::next_app::AppPage;
 
     #[test]
@@ -384,5 +392,11 @@ mod test {
 
             assert_eq!(&normalized.to_string(), expected);
         }
+    }
+
+    #[test]
+    fn test_format_radix_doesnt_panic_with_result_less_than_6_characters() {
+        let hash = format_radix(djb2_hash("/lookup/[domain]/(dns)"), 36);
+        assert!(hash.len() < 6);
     }
 }

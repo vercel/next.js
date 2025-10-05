@@ -35,10 +35,6 @@ export function runTests(
       delete packageJson.dependencies['react']
       delete packageJson.dependencies['react-dom']
 
-      if (process.env.NEXT_RSPACK) {
-        packageJson.dependencies['@rspack/core'] = 'latest'
-      }
-
       next = await createNext({
         files: srcFiles.reduce(
           (prev, file) => {

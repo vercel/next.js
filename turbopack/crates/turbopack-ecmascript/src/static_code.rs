@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
@@ -27,13 +27,13 @@ impl StaticEcmascriptCode {
     #[turbo_tasks::function]
     pub async fn new(
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-        asset_path: ResolvedVc<FileSystemPath>,
+        asset_path: FileSystemPath,
         generate_source_map: bool,
     ) -> Result<Vc<Self>> {
         let module = asset_context
             .process(
-                Vc::upcast(FileSource::new(*asset_path)),
-                Value::new(ReferenceType::Runtime),
+                Vc::upcast(FileSource::new(asset_path.clone())),
+                ReferenceType::Runtime,
             )
             .module()
             .to_resolved()

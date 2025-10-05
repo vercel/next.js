@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
     cacheHandlers: {
       default: require.resolve('./handler.js'),
       legacy: require.resolve('./legacy-handler.js'),

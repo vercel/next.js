@@ -8,6 +8,13 @@ import { createGunzip } from 'zlib'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 
+// Redirects that happen in the proxy layer, rather than in Next.js itself. This
+// is used to test that the client is still able to fully prefetch the
+// target page.
+const proxyRedirects = {
+  '/redirect-to-target-page': '/target-page',
+}
+
 async function spawnNext(port) {
   const child = spawn('pnpm', ['next', 'start', '-p', port, dir], {
     env: process.env,
@@ -48,6 +55,17 @@ async function createFakeCDN(destPort) {
 
   const proxy = httpProxy.createProxyServer()
   const cdnServer = createServer(async (req, res) => {
+    const pathname = new URL(req.url, `http://localhost`).pathname
+    const redirectUrl = proxyRedirects[pathname]
+    if (redirectUrl) {
+      console.log('Redirecting to:', redirectUrl)
+      res.writeHead(307, {
+        Location: redirectUrl,
+      })
+      res.end()
+      return
+    }
+
     if (isCacheableRequest(req)) {
       // Serve from our fake CDN if there's a matching entry.
       const entry = await fakeCDNCache.get(req.url)

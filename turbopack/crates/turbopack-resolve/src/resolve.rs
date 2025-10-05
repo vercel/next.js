@@ -1,5 +1,7 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use next_taskless::{BUN_EXTERNALS, EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::resolve::{
     AliasMap, AliasPattern, ExternalTraced, ExternalType, FindContextFileResult, find_context_file,
@@ -14,123 +16,55 @@ use crate::{
     typescript::{apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options},
 };
 
-const NODE_EXTERNALS: [&str; 63] = [
-    "assert",
-    "async_hooks",
-    "buffer",
-    "child_process",
-    "cluster",
-    "console",
-    "constants",
-    "crypto",
-    "dgram",
-    "diagnostics_channel",
-    "dns",
-    "dns/promises",
-    "domain",
-    "events",
-    "fs",
-    "fs/promises",
-    "http",
-    "http2",
-    "https",
-    "inspector",
-    "module",
-    "net",
-    "os",
-    "path",
-    "path/posix",
-    "path/win32",
-    "perf_hooks",
-    "process",
-    "punycode",
-    "querystring",
-    "readline",
-    "repl",
-    "stream",
-    "stream/promises",
-    "stream/web",
-    "string_decoder",
-    "sys",
-    "timers",
-    "timers/promises",
-    "tls",
-    "trace_events",
-    "tty",
-    "url",
-    "util",
-    "util/types",
-    "v8",
-    "vm",
-    "wasi",
-    "worker_threads",
-    "zlib",
-    "pnpapi",
-    "_http_agent",
-    "_http_client",
-    "_http_common",
-    "_http_incoming",
-    "_http_outgoing",
-    "_http_server",
-    "_stream_duplex",
-    "_stream_passthrough",
-    "_stream_readable",
-    "_stream_transform",
-    "_stream_wrap",
-    "_stream_writable",
-];
-
-const EDGE_NODE_EXTERNALS: [&str; 5] = ["buffer", "events", "assert", "util", "async_hooks"];
-
 #[turbo_tasks::function]
 async fn base_resolve_options(
-    resolve_path: Vc<FileSystemPath>,
+    fs: ResolvedVc<Box<dyn FileSystem>>,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
-    let parent = resolve_path.parent().resolve().await?;
-    if parent != resolve_path {
-        return Ok(base_resolve_options(parent, options_context));
-    }
-    let resolve_path_value = resolve_path.await?;
     let opt = options_context.await?;
     let emulating = opt.emulate_environment;
-    let root = resolve_path_value.fs.root();
+    let root = fs.root().owned().await?;
     let mut direct_mappings = AliasMap::new();
     let node_externals = if let Some(environment) = emulating {
         environment.node_externals().owned().await?
     } else {
         opt.enable_node_externals
     };
-    if node_externals {
-        for req in NODE_EXTERNALS {
-            direct_mappings.insert(
-                AliasPattern::exact(req),
-                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
-                    .resolved_cell(),
-            );
-            direct_mappings.insert(
-                AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
-                    .resolved_cell(),
-            );
-        }
+    let untraced_external_cell =
+        ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+            .resolved_cell();
+
+    for req in BUN_EXTERNALS {
+        direct_mappings.insert(AliasPattern::exact(req), untraced_external_cell);
     }
-    if opt.enable_edge_node_externals {
-        for req in EDGE_NODE_EXTERNALS {
-            direct_mappings.insert(
-                AliasPattern::exact(req),
-                ImportMapping::External(
-                    Some(format!("node:{req}").into()),
-                    ExternalType::CommonJs,
-                    ExternalTraced::Untraced,
-                )
-                .resolved_cell(),
-            );
-            direct_mappings.insert(
-                AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+
+    if node_externals || opt.enable_edge_node_externals {
+        if node_externals {
+            for req in NODE_EXTERNALS {
+                direct_mappings.insert(AliasPattern::exact(req), untraced_external_cell);
+                direct_mappings.insert(
+                    AliasPattern::exact(format!("node:{req}")),
+                    untraced_external_cell,
+                );
+            }
+        }
+
+        if opt.enable_edge_node_externals {
+            for req in EDGE_NODE_EXTERNALS {
+                direct_mappings.insert(
+                    AliasPattern::exact(req),
+                    ImportMapping::External(
+                        Some(format!("node:{req}").into()),
+                        ExternalType::CommonJs,
+                        ExternalTraced::Untraced,
+                    )
                     .resolved_cell(),
-            );
+                );
+                direct_mappings.insert(
+                    AliasPattern::exact(format!("node:{req}")),
+                    untraced_external_cell,
+                );
+            }
         }
     }
 
@@ -143,16 +77,16 @@ async fn base_resolve_options(
 
     let conditions = {
         let mut conditions: ResolutionConditions = [
-            ("import".into(), ConditionValue::Unknown),
-            ("require".into(), ConditionValue::Unknown),
+            (rcstr!("import"), ConditionValue::Unknown),
+            (rcstr!("require"), ConditionValue::Unknown),
         ]
         .into_iter()
         .collect();
         if opt.browser {
-            conditions.insert("browser".into(), ConditionValue::Set);
+            conditions.insert(rcstr!("browser"), ConditionValue::Set);
         }
         if opt.module {
-            conditions.insert("module".into(), ConditionValue::Set);
+            conditions.insert(rcstr!("module"), ConditionValue::Set);
         }
         if let Some(environment) = emulating {
             for condition in environment.resolve_conditions().await?.iter() {
@@ -167,7 +101,7 @@ async fn base_resolve_options(
         let prod = conditions.get("production").cloned();
         if prod.is_none() {
             conditions.insert(
-                "production".into(),
+                rcstr!("production"),
                 if matches!(dev, Some(ConditionValue::Set)) {
                     ConditionValue::Unset
                 } else {
@@ -177,7 +111,7 @@ async fn base_resolve_options(
         }
         if dev.is_none() {
             conditions.insert(
-                "development".into(),
+                rcstr!("development"),
                 if matches!(prod, Some(ConditionValue::Set)) {
                     ConditionValue::Unset
                 } else {
@@ -195,22 +129,22 @@ async fn base_resolve_options(
     } else {
         let mut ext = Vec::new();
         if opt.enable_typescript && opt.enable_react {
-            ext.push(".tsx".into());
+            ext.push(rcstr!(".tsx"));
         }
         if opt.enable_typescript {
-            ext.push(".ts".into());
+            ext.push(rcstr!(".ts"));
         }
         if opt.enable_react {
-            ext.push(".jsx".into());
+            ext.push(rcstr!(".jsx"));
         }
-        ext.push(".js".into());
+        ext.push(rcstr!(".js"));
         if opt.enable_mjs_extension {
-            ext.push(".mjs".into());
+            ext.push(rcstr!(".mjs"));
         }
         if opt.enable_node_native_modules {
-            ext.push(".node".into());
+            ext.push(rcstr!(".node"));
         }
-        ext.push(".json".into());
+        ext.push(rcstr!(".json"));
         ext
     };
     Ok(ResolveOptions {
@@ -218,16 +152,19 @@ async fn base_resolve_options(
         modules: if let Some(environment) = emulating {
             if *environment.resolve_node_modules().await? {
                 vec![ResolveModules::Nested(
-                    root.to_resolved().await?,
-                    vec!["node_modules".into()],
+                    root.clone(),
+                    vec![rcstr!("node_modules")],
                 )]
             } else {
                 Vec::new()
             }
         } else {
             let mut mods = Vec::new();
-            if let Some(dir) = opt.enable_node_modules {
-                mods.push(ResolveModules::Nested(dir, vec!["node_modules".into()]));
+            if let Some(dir) = &opt.enable_node_modules {
+                mods.push(ResolveModules::Nested(
+                    dir.clone(),
+                    vec![rcstr!("node_modules")],
+                ));
             }
             mods
         },
@@ -238,16 +175,16 @@ async fn base_resolve_options(
             }];
             if opt.browser {
                 resolve_into.push(ResolveIntoPackage::MainField {
-                    field: "browser".into(),
+                    field: rcstr!("browser"),
                 });
             }
             if opt.module {
                 resolve_into.push(ResolveIntoPackage::MainField {
-                    field: "module".into(),
+                    field: rcstr!("module"),
                 });
             }
             resolve_into.push(ResolveIntoPackage::MainField {
-                field: "main".into(),
+                field: rcstr!("main"),
             });
             resolve_into
         },
@@ -257,16 +194,17 @@ async fn base_resolve_options(
                 unspecified_conditions: ConditionValue::Unset,
             }];
             if opt.browser {
-                resolve_in.push(ResolveInPackage::AliasField("browser".into()));
+                resolve_in.push(ResolveInPackage::AliasField(rcstr!("browser")));
             }
             resolve_in
         },
-        default_files: vec!["index".into()],
+        default_files: vec![rcstr!("index")],
         import_map: Some(import_map),
         resolved_map: opt.resolved_map,
         after_resolve_plugins: opt.after_resolve_plugins.clone(),
         before_resolve_plugins: opt.before_resolve_plugins.clone(),
         loose_errors: opt.loose_errors,
+        collect_affecting_sources: opt.collect_affecting_sources,
         ..Default::default()
     }
     .into())
@@ -274,42 +212,47 @@ async fn base_resolve_options(
 
 #[turbo_tasks::function]
 pub async fn resolve_options(
-    resolve_path: Vc<FileSystemPath>,
+    resolve_path: FileSystemPath,
     options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveOptions>> {
     let options_context_value = options_context.await?;
     if !options_context_value.rules.is_empty() {
-        let context_value = &*resolve_path.await?;
         for (condition, new_options_context) in options_context_value.rules.iter() {
-            if condition.matches(context_value).await? {
+            if condition.matches(&resolve_path) {
                 return Ok(resolve_options(resolve_path, **new_options_context));
             }
         }
     }
 
-    let resolve_options = base_resolve_options(resolve_path, options_context);
+    let resolve_options = base_resolve_options(*resolve_path.fs, options_context);
 
     let resolve_options = if options_context_value.enable_typescript {
         let find_tsconfig = async || {
             // Otherwise, attempt to find a tsconfig up the file tree
-            let tsconfig = find_context_file(resolve_path, tsconfig()).await?;
-            anyhow::Ok::<Vc<ResolveOptions>>(match *tsconfig {
-                FindContextFileResult::Found(path, _) => {
-                    apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(*path))
-                }
+            let tsconfig = find_context_file(
+                resolve_path.clone(),
+                tsconfig(),
+                options_context_value.collect_affecting_sources,
+            )
+            .await?;
+            anyhow::Ok::<Vc<ResolveOptions>>(match &*tsconfig {
+                FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(
+                    resolve_options,
+                    tsconfig_resolve_options(path.clone()),
+                ),
                 FindContextFileResult::NotFound(_) => resolve_options,
             })
         };
 
         // Use a specified tsconfig path if provided. In Next.js, this is always provided by the
         // default config, at the very least.
-        if let Some(tsconfig_path) = options_context_value.tsconfig_path {
+        if let Some(tsconfig_path) = &options_context_value.tsconfig_path {
             let meta = tsconfig_path.metadata().await;
             if meta.is_ok() {
                 // If the file exists, use it.
                 apply_tsconfig_resolve_options(
                     resolve_options,
-                    tsconfig_resolve_options(*tsconfig_path),
+                    tsconfig_resolve_options(tsconfig_path.clone()),
                 )
             } else {
                 // Otherwise, try and find one.

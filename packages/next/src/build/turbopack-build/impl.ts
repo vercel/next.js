@@ -2,8 +2,7 @@ import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   formatIssue,
-  getTurbopackJsConfig,
-  isPersistentCachingEnabled,
+  isPersistentCachingEnabledForBuild,
   isRelevantWarning,
 } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
@@ -19,8 +18,10 @@ import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
-import * as Log from '../output/log'
 import { isCI } from '../../server/ci-info'
+import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
+import { getSupportedBrowsers } from '../utils'
+import { normalizePath } from '../../lib/normalize-path'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -40,26 +41,23 @@ export async function turbopackBuild(): Promise<{
   const previewProps = NextBuildContext.previewProps!
   const hasRewrites = NextBuildContext.hasRewrites!
   const rewrites = NextBuildContext.rewrites!
-  const appDirOnly = NextBuildContext.appDirOnly!
   const noMangling = NextBuildContext.noMangling!
+  const currentNodeJsVersion = process.versions.node
 
   const startTime = process.hrtime()
   const bindings = await loadBindings(config?.experimental?.useWasmBinary)
   const dev = false
 
-  // const supportedBrowsers = await getSupportedBrowsers(dir, dev)
-  const supportedBrowsers = [
-    'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
-  ]
+  const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
-  const persistentCaching = isPersistentCachingEnabled(config)
+  const persistentCaching = isPersistentCachingEnabledForBuild(config)
+  const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
   const project = await bindings.turbo.createProject(
     {
-      projectPath: dir,
       rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
+      projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
       distDir,
       nextConfig: config,
-      jsConfig: await getTurbopackJsConfig(dir, config),
       watch: {
         enable: false,
       },
@@ -76,47 +74,25 @@ export async function turbopackBuild(): Promise<{
         hasRewrites,
         // Implemented separately in Turbopack, doesn't have to be passed here.
         middlewareMatchers: undefined,
+        rewrites,
       }),
       buildId,
       encryptionKey,
       previewProps,
       browserslistQuery: supportedBrowsers.join(', '),
       noMangling,
+      currentNodeJsVersion,
     },
     {
       persistentCaching,
       memoryLimit: config.experimental?.turbopackMemoryLimit,
       dependencyTracking: persistentCaching,
       isCi: isCI,
+      isShortSession: true,
     }
   )
   try {
-    ;(async function logCompilationEvents() {
-      for await (const event of project.compilationEventsSubscribe()) {
-        switch (event.severity) {
-          case 'EVENT':
-            Log.event(event.message)
-            break
-          case 'TRACE':
-            Log.trace(event.message)
-            break
-          case 'INFO':
-            Log.info(event.message)
-            break
-          case 'WARNING':
-            Log.warn(event.message)
-            break
-          case 'ERROR':
-            Log.error(event.message)
-            break
-          case 'FATAL':
-            Log.error(event.message)
-            break
-          default:
-            break
-        }
-      }
-    })()
+    backgroundLogCompilationEvents(project)
 
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
@@ -127,17 +103,25 @@ export async function turbopackBuild(): Promise<{
     })
     await fs.writeFile(
       path.join(distDir, 'package.json'),
-      JSON.stringify(
-        {
-          type: 'commonjs',
-        },
-        null,
-        2
-      )
+      '{"type": "commonjs"}'
     )
 
+    let appDirOnly = NextBuildContext.appDirOnly!
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+
+    const hasPagesEntries = Array.from(entrypoints.routes.values()).some(
+      (route) => {
+        if (route.type === 'page' || route.type === 'page-api') {
+          return true
+        }
+        return false
+      }
+    )
+    // If there's no pages entries, then we are in app-dir-only mode
+    if (!hasPagesEntries) {
+      appDirOnly = true
+    }
 
     const manifestLoader = new TurbopackManifestLoader({
       buildId,
@@ -200,13 +184,19 @@ export async function turbopackBuild(): Promise<{
     await Promise.all(promises)
 
     await Promise.all([
-      manifestLoader.loadBuildManifest('_app'),
-      manifestLoader.loadPagesManifest('_app'),
-      manifestLoader.loadFontManifest('_app'),
-      manifestLoader.loadPagesManifest('_document'),
-      manifestLoader.loadBuildManifest('_error'),
-      manifestLoader.loadPagesManifest('_error'),
-      manifestLoader.loadFontManifest('_error'),
+      // Only load pages router manifests if not app-only
+      ...(!appDirOnly
+        ? [
+            manifestLoader.loadBuildManifest('_app'),
+            manifestLoader.loadPagesManifest('_app'),
+            manifestLoader.loadFontManifest('_app'),
+            manifestLoader.loadPagesManifest('_document'),
+            manifestLoader.loadClientBuildManifest('_error'),
+            manifestLoader.loadBuildManifest('_error'),
+            manifestLoader.loadPagesManifest('_error'),
+            manifestLoader.loadFontManifest('_error'),
+          ]
+        : []),
       entrypoints.instrumentation &&
         manifestLoader.loadMiddlewareManifest(
           'instrumentation',
@@ -219,7 +209,7 @@ export async function turbopackBuild(): Promise<{
         )),
     ])
 
-    await manifestLoader.writeManifests({
+    manifestLoader.writeManifests({
       devRewrites: undefined,
       productionRewrites: rewrites,
       entrypoints: currentEntrypoints,
@@ -249,7 +239,8 @@ export async function workerMain(workerData: {
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
-    NextBuildContext.dir!
+    NextBuildContext.dir!,
+    { debugPrerender: NextBuildContext.debugPrerender }
   )
 
   // Matches handling in build/index.ts

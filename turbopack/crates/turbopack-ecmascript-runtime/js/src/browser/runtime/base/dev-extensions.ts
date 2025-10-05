@@ -67,5 +67,7 @@ interface Hot {
 // Used through reference comments
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface HotModule extends ModuleWithDirection {
+  // In development, ModuleId is always a string
+  id: string
   hot: Hot
 }

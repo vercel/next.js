@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::asset::Asset;
@@ -13,13 +14,23 @@ pub struct OptionOutputAsset(Option<ResolvedVc<Box<dyn OutputAsset>>>);
 pub trait OutputAsset: Asset {
     /// The identifier of the [OutputAsset]. It's expected to be unique and
     /// capture all properties of the [OutputAsset].
+    #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath>;
 
+    /// The identifier of the [OutputAsset] as string. It's expected to be unique and
+    /// capture all properties of the [OutputAsset].
+    #[turbo_tasks::function]
+    async fn path_string(self: Vc<Self>) -> Result<Vc<RcStr>> {
+        Ok(self.path().resolve().await?.to_string())
+    }
+
     /// Other references [OutputAsset]s from this [OutputAsset].
+    #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {
         OutputAssets::empty()
     }
 
+    #[turbo_tasks::function]
     fn size_bytes(self: Vc<Self>) -> Vc<Option<u64>> {
         Vc::cell(None)
     }
@@ -57,5 +68,17 @@ impl OutputAssets {
 #[turbo_tasks::value(transparent)]
 pub struct OutputAssetsSet(FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
 
-// TODO All Vc::try_resolve_downcast::<Box<dyn OutputAsset>> calls should be
-// removed
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Copy)]
+pub struct OutputAssetsWithReferenced {
+    pub assets: ResolvedVc<OutputAssets>,
+    pub referenced_assets: ResolvedVc<OutputAssets>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsWithReferenced {
+    #[turbo_tasks::function]
+    pub fn all_assets(&self) -> Vc<OutputAssets> {
+        self.assets.concatenate(*self.referenced_assets)
+    }
+}

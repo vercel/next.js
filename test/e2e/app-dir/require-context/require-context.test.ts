@@ -18,6 +18,7 @@ describe('require-context', () => {
   })
 
   // TODO: This test is already scaffolded and just needs to be turned on when turbopack supports it.
+  // eslint-disable-next-line jest/no-commented-out-tests
   // it('should get correct require context when using no regex', async () => {
   //   const $ = await next.render$('/require-context-with-no-regex')
   //   expect($('pre').text()).toBe(

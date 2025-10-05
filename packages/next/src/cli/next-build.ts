@@ -10,14 +10,17 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
+import { parseBundlerArgs } from '../lib/bundler'
 
 export type NextBuildOptions = {
   debug?: boolean
+  debugPrerender?: boolean
   profile?: boolean
   lint: boolean
   mangling: boolean
   turbo?: boolean
   turbopack?: boolean
+  webpack?: boolean
   experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
@@ -31,6 +34,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
 
   const {
     debug,
+    debugPrerender,
     experimentalDebugMemoryUsage,
     profile,
     lint,
@@ -51,13 +55,21 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
 
   if (!mangling) {
     warn(
-      'Mangling is disabled. Note: This may affect performance and should only be used for debugging purposes.'
+      `Mangling is disabled. ${italic('Note: This may affect performance and should only be used for debugging purposes.')}`
     )
   }
 
   if (profile) {
     warn(
       `Profiling is enabled. ${italic('Note: This may affect performance.')}`
+    )
+  }
+
+  if (debugPrerender) {
+    warn(
+      `Prerendering is running in debug mode. ${italic(
+        'Note: This may affect performance and should not be used for production.'
+      )}`
     )
   }
 
@@ -72,21 +84,17 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  const isTurbopack = Boolean(
-    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
-  )
-  if (isTurbopack) {
-    process.env.TURBOPACK = '1'
-  }
+  const bundler = parseBundlerArgs(options)
 
   return build(
     dir,
     profile,
     debug || Boolean(process.env.NEXT_DEBUG_BUILD),
+    debugPrerender,
     lint,
     !mangling,
     experimentalAppOnly,
-    isTurbopack,
+    bundler,
     experimentalBuildMode,
     traceUploadUrl
   )

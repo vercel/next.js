@@ -184,7 +184,12 @@ describe('Error overlay - RSC build errors', () => {
          4 |   return 'client-only-lib'
 
        You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-       Learn more: https://nextjs.org/docs/app/building-your-application/rendering"
+       Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+
+       Import trace:
+         Server Component:
+           ./app/server-with-errors/client-only-in-server/client-only-lib.js
+           ./app/server-with-errors/client-only-in-server/page.js"
       `)
     } else {
       expect(await session.getRedboxSource()).toInclude(
@@ -305,6 +310,78 @@ describe('Error overlay - RSC build errors', () => {
       )
       const { session } = sandbox
       await session.assertNoRedbox()
+    })
+  })
+
+  describe('next/root-params', () => {
+    const isCacheComponentsEnabled =
+      process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+    it("importing 'next/root-params' when experimental.rootParams is not enabled", async () => {
+      await using sandbox = await createSandbox(
+        next,
+        undefined,
+        `/server-with-errors/next-root-params/without-flag`
+      )
+      const { session } = sandbox
+      await session.assertHasRedbox()
+      if (!isCacheComponentsEnabled) {
+        expect(await session.getRedboxSource()).toInclude(
+          `'next/root-params' can only be imported when \`experimental.rootParams\` is enabled.`
+        )
+      } else {
+        // in cacheComponents we auto-enable 'next/root-params', so we should get an error about using a non-existent getter instead.
+        expect(await session.getRedboxSource()).toInclude(
+          isTurbopack
+            ? `Export whatever doesn't exist in target module`
+            : `Attempted import error: 'whatever' is not exported from 'next/root-params' (imported as 'whatever').`
+        )
+      }
+    })
+
+    it("importing 'next/root-params' in a client component", async () => {
+      await using sandbox = await createSandbox(
+        next,
+        // if cacheComponents is not enabled, the import is guarded behind an experimental flag
+        isCacheComponentsEnabled
+          ? new Map()
+          : new Map([
+              [
+                'next.config.js',
+                outdent`
+                  module.exports = { experimental: { rootParams: true } }
+                `,
+              ],
+            ]),
+        `/server-with-errors/next-root-params/in-client`
+      )
+      const { session } = sandbox
+      await session.assertHasRedbox()
+      expect(await session.getRedboxSource()).toInclude(
+        `You're importing a component that needs "next/root-params". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+      )
+    })
+
+    it("importing 'next/root-params' in a client component in a way that bypasses import analysis", async () => {
+      await using sandbox = await createSandbox(
+        next,
+        // if cacheComponents is not enabled, the import is guarded behind an experimental flag
+        isCacheComponentsEnabled
+          ? new Map()
+          : new Map([
+              [
+                'next.config.js',
+                outdent`
+                  module.exports = { experimental: { rootParams: true } }
+                `,
+              ],
+            ]),
+        `/server-with-errors/next-root-params/in-client-await-import`
+      )
+      const { session } = sandbox
+      await session.assertHasRedbox()
+      expect(await session.getRedboxSource()).toInclude(
+        `'next/root-params' cannot be imported from a Client Component module. It should only be used from a Server Component.`
+      )
     })
   })
 

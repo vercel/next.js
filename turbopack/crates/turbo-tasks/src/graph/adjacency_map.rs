@@ -120,7 +120,7 @@ where
 
     /// Returns an iterator over the nodes in postorder topological order,
     /// starting from the roots.
-    pub fn postorder_topological(&self) -> PostorderTopologicalIter<T> {
+    pub fn postorder_topological(&self) -> PostorderTopologicalIter<'_, T> {
         PostorderTopologicalIter {
             adjacency_map: &self.adjacency_map,
             stack: self

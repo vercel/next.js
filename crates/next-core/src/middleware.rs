@@ -1,6 +1,6 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc, fxindexmap};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{context::AssetContext, module::Module, reference_type::ReferenceType};
 
@@ -24,7 +24,7 @@ pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<
 #[turbo_tasks::function]
 pub async fn get_middleware_module(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     userland_module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_MIDDLEWARE_MODULE";
@@ -33,23 +33,23 @@ pub async fn get_middleware_module(
     let source = load_next_js_template(
         "middleware.js",
         project_root,
-        fxindexmap! {
-            "VAR_USERLAND" => INNER.into(),
-            "VAR_DEFINITION_PAGE" => "/middleware".into(),
-        },
-        FxIndexMap::default(),
-        FxIndexMap::default(),
+        &[
+            ("VAR_USERLAND", INNER),
+            ("VAR_DEFINITION_PAGE", "/middleware"),
+        ],
+        &[],
+        &[],
     )
     .await?;
 
     let inner_assets = fxindexmap! {
-        INNER.into() => userland_module
+        rcstr!(INNER) => userland_module
     };
 
     let module = asset_context
         .process(
             source,
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
 

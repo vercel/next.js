@@ -15,6 +15,7 @@
     // Don't generate types for internal files.
     "./**/*.test.ts",
     "./**/*.test.tsx",
-    "./**/*.stories.tsx"
+    "./**/*.stories.tsx",
+    "./**/storybook/**/*"
   ]
 }

@@ -38,7 +38,7 @@ where
     }
 
     /// Merges module content by appending the content of imported modules. This
-    /// is recursive, so a single call is enoguh.
+    /// is recursive, so a single call is enough.
     pub fn merge_recursively(&mut self, entry: Module) -> Result<Module, Error> {
         let mut content = vec![];
         let mut extra_body = vec![];

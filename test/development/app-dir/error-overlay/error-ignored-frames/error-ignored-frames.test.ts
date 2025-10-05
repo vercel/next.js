@@ -54,7 +54,7 @@ describe('error-ignored-frames', () => {
     if (isTurbopack) {
       expect(defaultStack).toMatchInlineSnapshot(`
        "at <unknown> (app/interleaved/page.tsx (7:11))
-       at Page (app/interleaved/page.tsx (6:35))"
+       at Page (app/interleaved/page.tsx (6:36))"
       `)
     } else {
       expect(defaultStack).toMatchInlineSnapshot(`

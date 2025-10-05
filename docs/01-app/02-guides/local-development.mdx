@@ -16,9 +16,37 @@ The development process with `next dev` is different than `next build` and `next
 
 ### 1. Check your computer's antivirus
 
-Antivirus software can slow down file access.
+Antivirus software can slow down file access. While this is more common on Windows machines, this can be an issue for any system with an antivirus tool installed.
 
-Try adding your project folder to the antivirus exclusion list. While this is more common on Windows machines, we recommend this for any system with an antivirus tool installed.
+On Windows, you can add your project to the [Microsoft Defender Antivirus exclusion list](https://support.microsoft.com/en-us/windows/virus-and-threat-protection-in-the-windows-security-app-1362f4cd-d71a-b52a-0b66-c2820032b65e#bkmk_threat-protection-settings).
+
+1. Open the **"Windows Security"** application and then select **"Virus & threat protection"** &rarr; **"Manage settings"** &rarr; **"Add or remove exclusions"**.
+2. Add a **"Folder"** exclusion. Select your project folder.
+
+On macOS, you can disable [Gatekeeper](https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web) inside of your terminal.
+
+1. Run `sudo spctl developer-mode enable-terminal` in your terminal.
+2. Open the **"System Settings"** app and then select **"Privacy & Security"** &rarr; **"Developer Tools"**.
+3. Ensure your terminal is listed and enabled. If you're using a third-party terminal like iTerm or Ghostty, add that to the list.
+4. Restart your terminal.
+
+<Image
+  alt="Screenshot of macOS System Settings showing the Privacy & Security pane"
+  srcLight="/docs/light/macos-gatekeeper-privacy-and-security.png"
+  srcDark="/docs/dark/macos-gatekeeper-privacy-and-security.png"
+  width="723"
+  height="250"
+/>
+
+<Image
+  alt="Screenshot of macOS System Settings showing the Developer Tools options"
+  srcLight="/docs/light/macos-gatekeeper-developer-tools.png"
+  srcDark="/docs/dark/macos-gatekeeper-developer-tools.png"
+  width="723"
+  height="250"
+/>
+
+If you or your employer have configured any other Antivirus solutions on your system, you should inspect the relevant settings for those products.
 
 ### 2. Update Next.js and enable Turbopack
 
@@ -37,18 +65,19 @@ npm run dev --turbopack
 
 The way you import code can greatly affect compilation and bundling time. Learn more about [optimizing package bundling](/docs/app/guides/package-bundling) and explore tools like [Dependency Cruiser](https://github.com/sverweij/dependency-cruiser) or [Madge](https://github.com/pahen/madge).
 
-### Icon libraries
+#### Icon libraries
 
-Libraries like `@material-ui/icons` or `react-icons` can import thousands of icons, even if you only use a few. Try to import only the icons you need:
+Libraries like `@material-ui/icons`, `@phosphor-icons/react`, or `react-icons` can import thousands of icons, even if you only use a few. Try to import only the icons you need:
 
 ```jsx
 // Instead of this:
-import { Icon1, Icon2 } from 'react-icons/md'
+import { TriangleIcon } from '@phosphor-icons/react'
 
 // Do this:
-import Icon1 from 'react-icons/md/Icon1'
-import Icon2 from 'react-icons/md/Icon2'
+import { TriangleIcon } from '@phosphor-icons/react/dist/csr/Triangle'
 ```
+
+You can often find what import pattern to use in the documentation for the icon library you're using. This example follows [`@phosphor-icons/react`](https://www.npmjs.com/package/@phosphor-icons/react#import-performance-optimization) recommendation.
 
 Libraries like `react-icons` includes many different icon sets. Choose one set and stick with that set.
 
@@ -61,13 +90,13 @@ For example, if your application uses `react-icons` and imports all of these:
 
 Combined they will be tens of thousands of modules that the compiler has to handle, even if you only use a single import from each.
 
-### Barrel files
+#### Barrel files
 
 "Barrel files" are files that export many items from other files. They can slow down builds because the compiler has to parse them to find if there are side-effects in the module scope by using the import.
 
 Try to import directly from specific files when possible. [Learn more about barrel files](https://vercel.com/blog/how-we-optimized-package-imports-in-next-js) and the built-in optimizations in Next.js.
 
-### Optimize package imports
+#### Optimize package imports
 
 Next.js can automatically optimize imports for certain packages. If you are using packages that utilize barrel files, add them to your `next.config.js`:
 
@@ -133,6 +162,20 @@ The experimental `serverComponentsHmrCache` option allows you to cache `fetch` r
 
 [Learn more about the experimental option](/docs/app/api-reference/config/next-config-js/serverComponentsHmrCache).
 
+### 8. Consider local development over Docker
+
+If you're using Docker for development on Mac or Windows, you may experience significantly slower performance compared to running Next.js locally.
+
+Docker's filesystem access on Mac and Windows can cause Hot Module Replacement (HMR) to take seconds or even minutes, while the same application runs with fast HMR when developed locally.
+
+This performance difference is due to how Docker handles filesystem operations outside of Linux environments. For the best development experience:
+
+- Use local development (`npm run dev` or `pnpm dev`) instead of Docker during development
+- Reserve Docker for production deployments and testing production builds
+- If you must use Docker for development, consider using Docker on a Linux machine or VM
+
+[Learn more about Docker deployment](/docs/app/getting-started/deploying#docker) for production use.
+
 ## Tools for finding problems
 
 ### Detailed fetch logging
@@ -166,16 +209,16 @@ It provides detailed information about the time taken for each module to compile
 1. Navigate around your application or make edits to files to reproduce the problem.
 1. Stop the Next.js development server.
 1. A file called `trace-turbopack` will be available in the `.next` folder.
-1. You can interpret the file using `next internal trace [path-to-file]`:
+1. You can interpret the file using `npx next internal trace [path-to-file]`:
 
    ```bash
-   next internal trace .next/trace-turbopack
+   npx next internal trace .next/trace-turbopack
    ```
 
    On versions where `trace` is not available, the command was named `turbo-trace-server`:
 
    ```bash
-   next internal turbo-trace-server .next/trace-turbopack
+   npx next internal turbo-trace-server .next/trace-turbopack
    ```
 
 1. Once the trace server is running you can view the trace at https://trace.nextjs.org/.

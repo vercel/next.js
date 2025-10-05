@@ -29,9 +29,7 @@ const getMainHeadingTitle = async (browser) =>
 describe('Client Navigation accessibility', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(appDir, context.appPort, {
-      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
-    })
+    context.server = await launchApp(appDir, context.appPort)
 
     const prerender = [
       '/page-with-h1-and-title, /page-with-h1, /page-with-title, /page-without-h1-or-title',

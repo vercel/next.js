@@ -1,0 +1,3 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/780ce_turbopack-tests_tests_snapshot_minification_paren-remover_input_index_57a4eaf0.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/paren-remover/input/index.js [test] (ecmascript)",(t,e,a)=>{var s,i,p,n,o,r;s=Math.round,r="1.2345".split("."),n=Math.pow(10,i=2===r.length?Math.min(Math.max(r[1].length,1),2):1),o=(s("1.2345e+"+i)/n).toFixed(i),1>2-i&&(p=RegExp("\\.?0{1,"+(1-(2-i))+"}$"),o=o.replace(p,""))}]);
+
+//# sourceMappingURL=780ce_turbopack-tests_tests_snapshot_minification_paren-remover_input_index_57a4eaf0.js.map

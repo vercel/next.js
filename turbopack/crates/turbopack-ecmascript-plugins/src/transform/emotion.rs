@@ -102,15 +102,12 @@ impl EmotionTransformer {
             enabled: Some(true),
             sourcemap: config.sourcemap,
             label_format: config.label_format.as_deref().map(From::from),
-            auto_label: if let Some(auto_label) = config.auto_label.as_ref() {
-                match auto_label {
-                    EmotionLabelKind::Always => Some(true),
-                    EmotionLabelKind::Never => Some(false),
-                    // [TODO]: this is not correct coerece, need to be fixed
-                    EmotionLabelKind::DevOnly => None,
-                }
-            } else {
-                None
+            auto_label: match config.auto_label.as_ref() {
+                Some(EmotionLabelKind::Always) => Some(true),
+                Some(EmotionLabelKind::Never) => Some(false),
+                // [TODO]: this is not correct (doesn't take current mode into account)
+                Some(EmotionLabelKind::DevOnly) => None,
+                None => None,
             },
             import_map: config.import_map.as_ref().map(|map| {
                 map.iter()
