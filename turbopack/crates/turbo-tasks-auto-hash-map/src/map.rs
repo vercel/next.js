@@ -862,7 +862,7 @@ impl<K: Eq + Hash, V: Eq + Hash, MH: BuildHasher + Default, const I: usize> Hash
             let entry_hash = entry_hasher.finish();
 
             // Combine using XOR to make it order-independent
-            combined_hash ^= entry_hash;
+            combined_hash = combined_hash.wrapping_add(entry_hash);
         }
 
         // Hash the combined result
