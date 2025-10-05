@@ -12,7 +12,7 @@ use crate::{
         TaskDataCategory,
         operation::{
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
-            invalidate::make_task_dirty_internal,
+            invalidate::{make_task_dirty, make_task_dirty_internal},
         },
         storage::{get, get_many},
     },
@@ -25,6 +25,7 @@ use crate::{
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum UpdateOutputOperation {
     MakeDependentTasksDirty {
+        #[cfg(feature = "trace_task_dirty")]
         task_id: TaskId,
         dependent_tasks: SmallVec<[TaskId; 4]>,
         children: SmallVec<[TaskId; 4]>,
@@ -131,6 +132,7 @@ impl UpdateOutputOperation {
         }
 
         UpdateOutputOperation::MakeDependentTasksDirty {
+            #[cfg(feature = "trace_task_dirty")]
             task_id,
             dependent_tasks,
             children,
@@ -146,35 +148,15 @@ impl Operation for UpdateOutputOperation {
             ctx.operation_suspend_point(&self);
             match self {
                 UpdateOutputOperation::MakeDependentTasksDirty {
+                    #[cfg(feature = "trace_task_dirty")]
                     task_id,
                     ref mut dependent_tasks,
                     ref mut children,
                     ref mut queue,
                 } => {
                     if let Some(dependent_task_id) = dependent_tasks.pop() {
-                        if ctx.is_once_task(dependent_task_id) {
-                            // once tasks are never invalidated
-                            continue;
-                        }
-                        let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
-                        if dependent.has_key(&CachedDataItemKey::OutdatedOutputDependency {
-                            target: task_id,
-                        }) {
-                            // output dependency is outdated, so it hasn't read the output yet
-                            // and doesn't need to be invalidated
-                            continue;
-                        }
-                        if !dependent
-                            .has_key(&CachedDataItemKey::OutputDependency { target: task_id })
-                        {
-                            // output dependency has been removed, so the task doesn't depend on the
-                            // output anymore and doesn't need to be invalidated
-                            continue;
-                        }
-                        make_task_dirty_internal(
-                            dependent,
+                        make_task_dirty(
                             dependent_task_id,
-                            true,
                             #[cfg(feature = "trace_task_dirty")]
                             TaskDirtyCause::OutputChange { task_id },
                             queue,
