@@ -2206,6 +2206,13 @@ async function renderToStream(
     page
   )
 
+  // In development mode, set the request ID as a global variable, before the
+  // bootstrap script is executed, which depends on it during hydration.
+  const bootstrapScriptContent =
+    process.env.NODE_ENV !== 'production'
+      ? `self.__next_r=${JSON.stringify(requestId)}`
+      : undefined
+
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   const silenceLogger = false
   function onHTMLRenderRSCError(err: DigestedError) {
@@ -2377,8 +2384,7 @@ async function renderToStream(
         const inlinedReactServerDataStream = createInlinedDataReadableStream(
           reactServerResult.tee(),
           nonce,
-          formState,
-          requestId
+          formState
         )
 
         return chainStreams(
@@ -2425,8 +2431,7 @@ async function renderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consume(),
             nonce,
-            formState,
-            requestId
+            formState
           ),
           getServerInsertedHTML,
           getServerInsertedMetadata,
@@ -2459,6 +2464,7 @@ async function renderToStream(
           })
         },
         maxHeadersLength: reactMaxHeadersLength,
+        bootstrapScriptContent,
         bootstrapScripts: [bootstrapScript],
         formState,
       }
@@ -2495,8 +2501,7 @@ async function renderToStream(
       inlinedDataStream: createInlinedDataReadableStream(
         reactServerResult.consume(),
         nonce,
-        formState,
-        requestId
+        formState
       ),
       isStaticGeneration: generateStaticHTML,
       isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
@@ -2613,6 +2618,7 @@ async function renderToStream(
           ),
           streamOptions: {
             nonce,
+            bootstrapScriptContent,
             // Include hydration scripts in the HTML
             bootstrapScripts: [errorBootstrapScript],
             formState,
@@ -2645,8 +2651,7 @@ async function renderToStream(
           // render
           reactServerResult.consume(),
           nonce,
-          formState,
-          requestId
+          formState
         ),
         isStaticGeneration: generateStaticHTML,
         isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
@@ -3362,7 +3367,6 @@ async function prerenderToStream(
     nonce,
     pagePath,
     renderOpts,
-    requestId,
     workStore,
   } = ctx
 
@@ -4154,8 +4158,7 @@ async function prerenderToStream(
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
               nonce,
-              formState,
-              requestId
+              formState
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
@@ -4403,8 +4406,7 @@ async function prerenderToStream(
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
               nonce,
-              formState,
-              requestId
+              formState
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
@@ -4501,8 +4503,7 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consumeAsStream(),
             nonce,
-            formState,
-            requestId
+            formState
           ),
           isStaticGeneration: true,
           isBuildTimePrerendering:
@@ -4680,8 +4681,7 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             flightStream,
             nonce,
-            formState,
-            requestId
+            formState
           ),
           isStaticGeneration: true,
           isBuildTimePrerendering:
