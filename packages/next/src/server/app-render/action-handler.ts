@@ -169,6 +169,20 @@ async function createForwardedActionResponse(
   workerPathname: string,
   basePath: string
 ) {
+  // If this action request was already forwarded once, do not forward again to avoid infinite middleware rewrite loops
+  try {
+    const incoming: Headers = (req as any)?.headers?.get
+      ? (req.headers as unknown as Headers)
+      : HeadersAdapter.from((req as any).headers)
+
+    if (incoming?.get('x-action-forwarded') === '1') {
+      // already forwarded once - don't forward again, return undefined so caller can handle this gracefully
+      return
+    }
+  } catch {
+    // if header parser fails, continue
+  }
+
   if (!host) {
     throw new Error(
       'Invariant: Missing `host` header from a forwarded Server Actions request.'
