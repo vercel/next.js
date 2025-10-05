@@ -10,7 +10,9 @@ describe('Validations for <Link legacyBehavior>', () => {
     describe('Rendering <Link> directly', () => {
       it('warns if the child is a synchronous server component', async () => {
         const previousOutputIndex = next.cliOutput.length
-        const browser = await next.browser('/rsc-that-renders-link/synchronous')
+        const browser = await next.browser(
+          '/validations/rsc-that-renders-link/synchronous'
+        )
 
         if (isNextDev) {
           await expect(browser).toDisplayCollapsedRedbox(`
@@ -18,11 +20,11 @@ describe('Validations for <Link legacyBehavior>', () => {
              "description": "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.",
              "environmentLabel": "Server",
              "label": "Console Error",
-             "source": "app/rsc-that-renders-link/synchronous/page.tsx (7:7) @ Page
+             "source": "app/validations/rsc-that-renders-link/synchronous/page.tsx (7:7) @ Page
            >  7 |       <Link href="/about" legacyBehavior>
                 |       ^",
              "stack": [
-               "Page app/rsc-that-renders-link/synchronous/page.tsx (7:7)",
+               "Page app/validations/rsc-that-renders-link/synchronous/page.tsx (7:7)",
              ],
            }
           `)
@@ -39,7 +41,7 @@ describe('Validations for <Link legacyBehavior>', () => {
       it('warns and throws an error if the child is an asynchronous server component', async () => {
         const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
-          '/rsc-that-renders-link/asynchronous'
+          '/validations/rsc-that-renders-link/asynchronous'
         )
 
         if (isNextDev) {
@@ -49,22 +51,22 @@ describe('Validations for <Link legacyBehavior>', () => {
                "description": "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/rsc-that-renders-link/asynchronous/page.tsx (7:7) @ Page
+               "source": "app/validations/rsc-that-renders-link/asynchronous/page.tsx (7:7) @ Page
            >  7 |       <Link href="/about" legacyBehavior>
                 |       ^",
                "stack": [
-                 "Page app/rsc-that-renders-link/asynchronous/page.tsx (7:7)",
+                 "Page app/validations/rsc-that-renders-link/asynchronous/page.tsx (7:7)",
                ],
              },
              {
                "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": null,
                "label": "Runtime Error",
-               "source": "app/rsc-that-renders-link/asynchronous/page.tsx (7:7) @ Page
+               "source": "app/validations/rsc-that-renders-link/asynchronous/page.tsx (7:7) @ Page
            >  7 |       <Link href="/about" legacyBehavior>
                 |       ^",
                "stack": [
-                 "Page app/rsc-that-renders-link/asynchronous/page.tsx (7:7)",
+                 "Page app/validations/rsc-that-renders-link/asynchronous/page.tsx (7:7)",
                ],
              },
            ]
@@ -84,7 +86,9 @@ describe('Validations for <Link legacyBehavior>', () => {
 
       it('does not warn or throw if you pass a client component', async () => {
         const previousOutputIndex = next.cliOutput.length
-        const browser = await next.browser('/rsc-that-renders-link/client')
+        const browser = await next.browser(
+          '/validations/rsc-that-renders-link/client'
+        )
 
         if (isNextDev) {
           await assertNoRedbox(browser)
@@ -98,7 +102,7 @@ describe('Validations for <Link legacyBehavior>', () => {
       it('does not warn or throw if you pass a server component into a client component', async () => {
         const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
-          '/rsc-that-renders-link/client-with-rsc-child'
+          '/validations/rsc-that-renders-link/client-with-rsc-child'
         )
 
         if (isNextDev) {
@@ -115,7 +119,7 @@ describe('Validations for <Link legacyBehavior>', () => {
       it('does not warn if the child is a synchronous server component', async () => {
         const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
-          '/rsc-that-renders-client/synchronous'
+          '/validations/rsc-that-renders-client/synchronous'
         )
 
         if (isNextDev) {
@@ -130,7 +134,7 @@ describe('Validations for <Link legacyBehavior>', () => {
       it('throws an error if the child is an asynchronous server component', async () => {
         const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
-          '/rsc-that-renders-client/asynchronous'
+          '/validations/rsc-that-renders-client/asynchronous'
         )
 
         if (isNextDev) {
@@ -139,12 +143,12 @@ describe('Validations for <Link legacyBehavior>', () => {
               "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
               "environmentLabel": null,
               "label": "Runtime Error",
-              "source": "app/rsc-that-renders-client/client-link.tsx (7:10) @ ClientLink
+              "source": "app/validations/rsc-that-renders-client/client-link.tsx (7:10) @ ClientLink
             > 7 |   return <Link legacyBehavior passHref {...props} />
                 |          ^",
               "stack": [
-                "ClientLink app/rsc-that-renders-client/client-link.tsx (7:10)",
-                "Page app/rsc-that-renders-client/asynchronous/page.tsx (7:7)",
+                "ClientLink app/validations/rsc-that-renders-client/client-link.tsx (7:10)",
+                "Page app/validations/rsc-that-renders-client/asynchronous/page.tsx (7:7)",
               ],
             }
           `)
@@ -162,7 +166,9 @@ describe('Validations for <Link legacyBehavior>', () => {
 
       it('does not warn or throw if you pass a client component', async () => {
         const previousOutputIndex = next.cliOutput.length
-        const browser = await next.browser('/rsc-that-renders-client/client')
+        const browser = await next.browser(
+          '/validations/rsc-that-renders-client/client'
+        )
 
         if (isNextDev) {
           await assertNoRedbox(browser)
@@ -176,7 +182,7 @@ describe('Validations for <Link legacyBehavior>', () => {
       it('does not warn or throw if you pass a server component into a client component', async () => {
         const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
-          '/rsc-that-renders-client/client-with-rsc-child'
+          '/validations/rsc-that-renders-client/client-with-rsc-child'
         )
 
         if (isNextDev) {
@@ -191,8 +197,48 @@ describe('Validations for <Link legacyBehavior>', () => {
   })
 
   describe('When rendering from a Client Component', () => {
-    it.todo('does not warn or throw if you pass a child component')
-    it.todo('warns and throws an error if the child is lazy JSX')
+    it('does not warn or throw if you pass a child component', async () => {
+      const previousOutputIndex = next.cliOutput.length
+      const browser = await next.browser('/validations/client/child-component')
+
+      if (isNextDev) {
+        await assertNoRedbox(browser)
+      } else {
+        expect(next.cliOutput.slice(previousOutputIndex)).toMatchInlineSnapshot(
+          `""`
+        )
+      }
+    })
+
+    it('warns and throws an error if the child is lazy JSX', async () => {
+      const previousOutputIndex = next.cliOutput.length
+      const browser = await next.browser('/validations/client/lazy-jsx')
+
+      if (isNextDev) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "app/validations/client/lazy-jsx/page.tsx (9:7) @ Page
+         >  9 |       <Link href="/about" legacyBehavior passHref>
+              |       ^",
+           "stack": [
+             "Page app/validations/client/lazy-jsx/page.tsx (9:7)",
+           ],
+         }
+        `)
+      } else {
+        const output = getContentBetween({
+          input: next.cliOutput.slice(previousOutputIndex),
+          endContent: '   at',
+        })
+
+        expect(output).toMatchInlineSnapshot(
+          `" ⨯ Error: \`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag."`
+        )
+      }
+    })
   })
 })
 

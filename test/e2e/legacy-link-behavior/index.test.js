@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 describe('Link with legacyBehavior', () => {
   const { next } = nextTestSetup({
@@ -39,47 +39,5 @@ describe('Link with legacyBehavior', () => {
       it.todo('should pass the href to the <a> tag if enabled')
       it.todo('should not pass the href to the <a> tag if disabled')
     })
-  })
-
-  describe('validations from server components', () => {
-    // rendering <Link> in RSC
-    it.only('warns if the child is synchronous server component', async () => {
-      const browser = await next.browser('/rsc/synchronous')
-      const logs = await browser.log()
-
-      const errors = logs.filter(
-        (log) =>
-          log.source === 'error' &&
-          log.message.includes(
-            `You're passing either a Server Component or a Lazy Component into a <Link> that has legacyBehavior enabled`
-          )
-      )
-
-      expect(errors.length).toBe(isNextDev ? 1 : 0)
-    })
-    it.todo(
-      'warns and throws an error if the child is asynchronous server component'
-    )
-    it.todo('does not warn or throw if you pass a client component')
-    it.todo(
-      'does not warn or throw if you pass a server component into a client component into Link'
-    )
-
-    // rendering a <ClientComponent> that renders <Link>
-    it.todo('doesnt warn if the child is synchronous server component')
-    it.todo('throws an error if the child is asynchronous server component')
-    it.todo('does not warn or throw if you pass a client component 2')
-    it.todo(
-      'does not warn or throw if you pass a server component into a client component into Link 2'
-    )
-  })
-
-  // For prod tests:
-  // https://github.com/vercel/next.js/blob/canary/test/e2e/app-dir/cache-components/cache-components.console.test.ts
-  // add -u to update snapshots
-
-  describe('validations from client components', () => {
-    it.todo('does not warn or throw if you pass a child component')
-    it.todo('warns and throws an error if the child is lazy JSX')
   })
 })
