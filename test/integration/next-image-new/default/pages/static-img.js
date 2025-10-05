@@ -29,7 +29,7 @@ function FillContainer({ children }) {
   // Optimized to accept the square test images. Subtracting 16px to account for
   // the default 8px body margin.
   return (
-    <div style={{ position: 'relative', height: 'calc(100vw - 16px);' }}>
+    <div style={{ position: 'relative', height: 'calc(100vw - 16px)' }}>
       {children}
     </div>
   )
