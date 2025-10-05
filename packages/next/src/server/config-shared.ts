@@ -798,6 +798,12 @@ export interface ExperimentalConfig {
   isolatedDevBuild?: boolean
 
   /**
+   * Body size limit for cloning request bodies in middleware.
+   * Defaults to 10MB. Can be specified as a number (bytes) or string (e.g. '5mb').
+   */
+  clientMaxBodySize?: SizeLimit
+
+  /**
    * Enable the Model Context Protocol (MCP) server for AI-assisted development.
    * When enabled, Next.js will expose an MCP server at `/_next/mcp` that provides
    * code intelligence and project context to AI assistants.

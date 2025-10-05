@@ -857,5 +857,8 @@
   "856": "`lockfileTryAcquireSync` is not supported by the wasm bindings.",
   "857": "`lockfileUnlock` is not supported by the wasm bindings.",
   "858": "`lockfileUnlockSync` is not supported by the wasm bindings.",
-  "859": "An IO error occurred while attempting to create and acquire the lockfile"
+  "859": "An IO error occurred while attempting to create and acquire the lockfile",
+  "860": "Client Max Body Size must be a valid number (bytes) or filesize format string (e.g., \"5mb\")",
+  "861": "Client Max Body Size must be larger than 0 bytes",
+  "862": "Request body exceeded %s"
 }
