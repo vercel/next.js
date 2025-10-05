@@ -1794,7 +1794,7 @@ function enforceExperimentalFeatures(
 
   // TODO: Remove this once using the debug channel is the default.
   if (
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
+    process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL === 'true' &&
     // We do respect an explicit value in the user config.
     (config.experimental.reactDebugChannel === undefined ||
       (isDefaultConfig && !config.experimental.reactDebugChannel))
@@ -1806,7 +1806,7 @@ function enforceExperimentalFeatures(
         configuredExperimentalFeatures,
         'reactDebugChannel',
         true,
-        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
+        'enabled by `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`'
       )
     }
   }

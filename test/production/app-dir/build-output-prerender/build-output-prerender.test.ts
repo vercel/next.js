@@ -34,7 +34,7 @@ describe('build-output-prerender', () => {
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)"
+                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -46,7 +46,7 @@ describe('build-output-prerender', () => {
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)"
+                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
           }
         } else if (pprEnabled) {
@@ -182,7 +182,7 @@ describe('build-output-prerender', () => {
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
+                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
                   ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                   ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
@@ -198,7 +198,7 @@ describe('build-output-prerender', () => {
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
+                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
                   ⨯ serverMinification (disabled by \`--debug-prerender\`)
                   ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
@@ -361,7 +361,7 @@ describe('build-output-prerender', () => {
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)"
+                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -373,7 +373,7 @@ describe('build-output-prerender', () => {
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)"
+                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)"
             `)
           }
         } else if (pprEnabled) {
@@ -451,7 +451,7 @@ describe('build-output-prerender', () => {
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
+                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
                   ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                   ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
@@ -467,7 +467,7 @@ describe('build-output-prerender', () => {
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
-                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
+                  ✓ reactDebugChannel (enabled by \`__NEXT_EXPERIMENTAL_DEBUG_CHANNEL\`)
                   ⨯ serverMinification (disabled by \`--debug-prerender\`)
                   ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)

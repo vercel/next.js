@@ -702,6 +702,7 @@ jobs:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
@@ -932,6 +933,7 @@ jobs:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
         export IS_WEBPACK_TEST=1
 
@@ -955,6 +957,7 @@ jobs:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export __NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD=true
@@ -981,6 +984,7 @@ jobs:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
         export NEXT_TEST_MODE=start
         export IS_WEBPACK_TEST=1
