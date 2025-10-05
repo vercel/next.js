@@ -5,11 +5,18 @@ describe('Validations for <Link legacyBehavior>', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
+  let previousOutputIndex
+  beforeEach(() => {
+    previousOutputIndex = next.cliOutput.length
+  })
+
+  function newConsoleOutput() {
+    return next.cliOutput.slice(previousOutputIndex)
+  }
 
   describe('When rendering from a Server Component', () => {
     describe('Rendering <Link> directly', () => {
       it('warns if the child is a synchronous server component', async () => {
-        const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
           '/validations/rsc-that-renders-link/synchronous'
         )
@@ -29,9 +36,7 @@ describe('Validations for <Link legacyBehavior>', () => {
            }
           `)
         } else {
-          const output = next.cliOutput.slice(previousOutputIndex)
-
-          expect(output).toMatchInlineSnapshot(`
+          expect(newConsoleOutput()).toMatchInlineSnapshot(`
            "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.
            "
           `)
@@ -39,7 +44,6 @@ describe('Validations for <Link legacyBehavior>', () => {
       })
 
       it('warns and throws an error if the child is an asynchronous server component', async () => {
-        const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
           '/validations/rsc-that-renders-link/asynchronous'
         )
@@ -73,7 +77,7 @@ describe('Validations for <Link legacyBehavior>', () => {
           `)
         } else {
           const output = getContentBetween({
-            input: next.cliOutput.slice(previousOutputIndex),
+            input: newConsoleOutput(),
             endContent: '   at',
           })
 
@@ -85,7 +89,6 @@ describe('Validations for <Link legacyBehavior>', () => {
       })
 
       it('does not warn or throw if you pass a client component', async () => {
-        const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
           '/validations/rsc-that-renders-link/client'
         )
@@ -93,14 +96,11 @@ describe('Validations for <Link legacyBehavior>', () => {
         if (isNextDev) {
           await assertNoRedbox(browser)
         } else {
-          expect(
-            next.cliOutput.slice(previousOutputIndex)
-          ).toMatchInlineSnapshot(`""`)
+          expect(newConsoleOutput()).toEqual('')
         }
       })
 
       it('does not warn or throw if you pass a server component into a client component', async () => {
-        const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
           '/validations/rsc-that-renders-link/client-with-rsc-child'
         )
@@ -108,9 +108,7 @@ describe('Validations for <Link legacyBehavior>', () => {
         if (isNextDev) {
           await assertNoRedbox(browser)
         } else {
-          expect(
-            next.cliOutput.slice(previousOutputIndex)
-          ).toMatchInlineSnapshot(`""`)
+          expect(newConsoleOutput()).toEqual('')
         }
       })
 
@@ -119,7 +117,6 @@ describe('Validations for <Link legacyBehavior>', () => {
 
     describe('Rendering a Client Component that renders <Link>', () => {
       it('does not warn if the child is a synchronous server component', async () => {
-        const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
           '/validations/rsc-that-renders-client/synchronous'
         )
@@ -127,14 +124,11 @@ describe('Validations for <Link legacyBehavior>', () => {
         if (isNextDev) {
           await assertNoRedbox(browser)
         } else {
-          expect(
-            next.cliOutput.slice(previousOutputIndex)
-          ).toMatchInlineSnapshot(`""`)
+          expect(newConsoleOutput()).toEqual('')
         }
       })
 
       it('throws an error if the child is an asynchronous server component', async () => {
-        const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
           '/validations/rsc-that-renders-client/asynchronous'
         )
@@ -156,7 +150,7 @@ describe('Validations for <Link legacyBehavior>', () => {
           `)
         } else {
           const output = getContentBetween({
-            input: next.cliOutput.slice(previousOutputIndex),
+            input: newConsoleOutput(),
             endContent: '   at',
           })
 
@@ -167,7 +161,6 @@ describe('Validations for <Link legacyBehavior>', () => {
       })
 
       it('does not warn or throw if you pass a client component', async () => {
-        const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
           '/validations/rsc-that-renders-client/client'
         )
@@ -175,14 +168,11 @@ describe('Validations for <Link legacyBehavior>', () => {
         if (isNextDev) {
           await assertNoRedbox(browser)
         } else {
-          expect(
-            next.cliOutput.slice(previousOutputIndex)
-          ).toMatchInlineSnapshot(`""`)
+          expect(newConsoleOutput()).toEqual('')
         }
       })
 
       it('does not warn or throw if you pass a server component into a client component', async () => {
-        const previousOutputIndex = next.cliOutput.length
         const browser = await next.browser(
           '/validations/rsc-that-renders-client/client-with-rsc-child'
         )
@@ -190,9 +180,7 @@ describe('Validations for <Link legacyBehavior>', () => {
         if (isNextDev) {
           await assertNoRedbox(browser)
         } else {
-          expect(
-            next.cliOutput.slice(previousOutputIndex)
-          ).toMatchInlineSnapshot(`""`)
+          expect(newConsoleOutput()).toEqual('')
         }
       })
     })
@@ -200,20 +188,16 @@ describe('Validations for <Link legacyBehavior>', () => {
 
   describe('When rendering from a Client Component', () => {
     it('does not warn or throw if you pass a child component', async () => {
-      const previousOutputIndex = next.cliOutput.length
       const browser = await next.browser('/validations/client/child-component')
 
       if (isNextDev) {
         await assertNoRedbox(browser)
       } else {
-        expect(next.cliOutput.slice(previousOutputIndex)).toMatchInlineSnapshot(
-          `""`
-        )
+        expect(newConsoleOutput()).toEqual('')
       }
     })
 
     it('warns and throws an error if the child is lazy JSX', async () => {
-      const previousOutputIndex = next.cliOutput.length
       const browser = await next.browser('/validations/client/lazy-jsx')
 
       if (isNextDev) {
@@ -232,7 +216,7 @@ describe('Validations for <Link legacyBehavior>', () => {
         `)
       } else {
         const output = getContentBetween({
-          input: next.cliOutput.slice(previousOutputIndex),
+          input: newConsoleOutput(),
           endContent: '   at',
         })
 
