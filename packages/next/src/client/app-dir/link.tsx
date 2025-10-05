@@ -183,7 +183,7 @@ type InternalLinkProps = {
   locale?: string | false
 
   /**
-   * aaa legacy link behavior.
+   * Enable legacy link behavior.
    *
    * @deprecated This will be removed in a future version
    * @defaultValue `false`

@@ -89,7 +89,7 @@ type InternalLinkProps = {
    */
   locale?: string | false
   /**
-   * bbbEnable legacy link behavior.
+   * Enable legacy link behavior.
    *
    * @deprecated This will be removed in a future version
    * @defaultValue `false`
@@ -685,7 +685,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     return (
       <a {...restProps} {...childProps}>
-        {' '}
         {children}
       </a>
     )
