@@ -4833,7 +4833,8 @@ async function collectSegmentData(
     serverModuleMap: getServerModuleMap(),
   }
 
-  const staleTime = prerenderStore.stale
+  const selectStaleTime = createSelectStaleTime(renderOpts.experimental)
+  const staleTime = selectStaleTime(prerenderStore.stale)
   return await ComponentMod.collectSegmentData(
     renderOpts.experimental.clientParamParsing,
     fullPageDataBuffer,
