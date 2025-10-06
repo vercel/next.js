@@ -162,6 +162,189 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   debugIds: z.boolean().optional(),
 })
 
+export const experimentalSchema = {
+  adapterPath: z.string().optional(),
+  useSkewCookie: z.boolean().optional(),
+  after: z.boolean().optional(),
+  appNavFailHandling: z.boolean().optional(),
+  preloadEntriesOnStart: z.boolean().optional(),
+  allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
+  staleTimes: z
+    .object({
+      dynamic: z.number().optional(),
+      static: z.number().optional(),
+    })
+    .optional(),
+  cacheLife: z
+    .record(
+      z.object({
+        stale: z.number().optional(),
+        revalidate: z.number().optional(),
+        expire: z.number().optional(),
+      })
+    )
+    .optional(),
+  cacheHandlers: z.record(z.string(), z.string().optional()).optional(),
+  clientRouterFilter: z.boolean().optional(),
+  clientRouterFilterRedirects: z.boolean().optional(),
+  clientRouterFilterAllowedRate: z.number().optional(),
+  cpus: z.number().optional(),
+  memoryBasedWorkersCount: z.boolean().optional(),
+  craCompat: z.boolean().optional(),
+  caseSensitiveRoutes: z.boolean().optional(),
+  clientSegmentCache: z
+    .union([z.boolean(), z.literal('client-only')])
+    .optional(),
+  rdcForNavigations: z.boolean().optional(),
+  clientParamParsing: z.boolean().optional(),
+  clientParamParsingOrigins: z.array(z.string()).optional(),
+  dynamicOnHover: z.boolean().optional(),
+  disableOptimizedLoading: z.boolean().optional(),
+  disablePostcssPresetEnv: z.boolean().optional(),
+  cacheComponents: z.boolean().optional(),
+  dynamicIO: z.boolean().optional(),
+  inlineCss: z.boolean().optional(),
+  esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
+  serverActions: z
+    .object({
+      bodySizeLimit: zSizeLimit.optional(),
+      allowedOrigins: z.array(z.string()).optional(),
+    })
+    .optional(),
+  // The original type was Record<string, any>
+  extensionAlias: z.record(z.string(), z.any()).optional(),
+  externalDir: z.boolean().optional(),
+  externalMiddlewareRewritesResolve: z.boolean().optional(),
+  fallbackNodePolyfills: z.literal(false).optional(),
+  fetchCacheKeyPrefix: z.string().optional(),
+  forceSwcTransforms: z.boolean().optional(),
+  fullySpecified: z.boolean().optional(),
+  gzipSize: z.boolean().optional(),
+  imgOptConcurrency: z.number().int().optional().nullable(),
+  imgOptTimeoutInSeconds: z.number().int().optional(),
+  imgOptMaxInputPixels: z.number().int().optional(),
+  imgOptSequentialRead: z.boolean().optional().nullable(),
+  imgOptSkipMetadata: z.boolean().optional().nullable(),
+  isrFlushToDisk: z.boolean().optional(),
+  largePageDataBytes: z.number().optional(),
+  linkNoTouchStart: z.boolean().optional(),
+  manualClientBasePath: z.boolean().optional(),
+  middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
+  multiZoneDraftMode: z.boolean().optional(),
+  cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
+  nextScriptWorkers: z.boolean().optional(),
+  // The critter option is unknown, use z.any() here
+  optimizeCss: z.union([z.boolean(), z.any()]).optional(),
+  optimisticClientCache: z.boolean().optional(),
+  parallelServerCompiles: z.boolean().optional(),
+  parallelServerBuildTraces: z.boolean().optional(),
+  ppr: z
+    .union([z.boolean(), z.literal('incremental')])
+    .readonly()
+    .optional(),
+  taint: z.boolean().optional(),
+  prerenderEarlyExit: z.boolean().optional(),
+  proxyTimeout: z.number().gte(0).optional(),
+  rootParams: z.boolean().optional(),
+  isolatedDevBuild: z.boolean().optional(),
+  mcpServer: z.boolean().optional(),
+  routerBFCache: z.boolean().optional(),
+  removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
+  validateRSCRequestHeaders: z.boolean().optional(),
+  scrollRestoration: z.boolean().optional(),
+  sri: z
+    .object({
+      algorithm: z.enum(['sha256', 'sha384', 'sha512']).optional(),
+    })
+    .optional(),
+  swcPlugins: z
+    // The specific swc plugin's option is unknown, use z.any() here
+    .array(z.tuple([z.string(), z.record(z.string(), z.any())]))
+    .optional(),
+  swcTraceProfiling: z.boolean().optional(),
+  // NonNullable<webpack.Configuration['experiments']>['buildHttp']
+  urlImports: z.any().optional(),
+  viewTransition: z.boolean().optional(),
+  workerThreads: z.boolean().optional(),
+  webVitalsAttribution: z
+    .array(
+      z.union([
+        z.literal('CLS'),
+        z.literal('FCP'),
+        z.literal('FID'),
+        z.literal('INP'),
+        z.literal('LCP'),
+        z.literal('TTFB'),
+      ])
+    )
+    .optional(),
+  // This is partial set of mdx-rs transform options we support, aligned
+  // with next_core::next_config::MdxRsOptions. Ensure both types are kept in sync.
+  mdxRs: z
+    .union([
+      z.boolean(),
+      z.object({
+        development: z.boolean().optional(),
+        jsxRuntime: z.string().optional(),
+        jsxImportSource: z.string().optional(),
+        providerImportSource: z.string().optional(),
+        mdxType: z.enum(['gfm', 'commonmark']).optional(),
+      }),
+    ])
+    .optional(),
+  typedRoutes: z.boolean().optional(),
+  webpackBuildWorker: z.boolean().optional(),
+  webpackMemoryOptimizations: z.boolean().optional(),
+  turbopackMemoryLimit: z.number().optional(),
+  turbopackMinify: z.boolean().optional(),
+  turbopackPersistentCachingForDev: z.boolean().optional(),
+  turbopackPersistentCachingForBuild: z.boolean().optional(),
+  turbopackSourceMaps: z.boolean().optional(),
+  turbopackTreeShaking: z.boolean().optional(),
+  turbopackRemoveUnusedExports: z.boolean().optional(),
+  turbopackScopeHoisting: z.boolean().optional(),
+  turbopackImportTypeBytes: z.boolean().optional(),
+  turbopackUseSystemTlsCerts: z.boolean().optional(),
+  turbopackUseBuiltinBabel: z.boolean().optional(),
+  turbopackUseBuiltinSass: z.boolean().optional(),
+  turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
+  optimizePackageImports: z.array(z.string()).optional(),
+  optimizeServerReact: z.boolean().optional(),
+  clientTraceMetadata: z.array(z.string()).optional(),
+  serverMinification: z.boolean().optional(),
+  enablePrerenderSourceMaps: z.boolean().optional(),
+  serverSourceMaps: z.boolean().optional(),
+  useWasmBinary: z.boolean().optional(),
+  useLightningcss: z.boolean().optional(),
+  testProxy: z.boolean().optional(),
+  defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
+  allowDevelopmentBuild: z.literal(true).optional(),
+
+  reactDebugChannel: z.boolean().optional(),
+  staticGenerationRetryCount: z.number().int().optional(),
+  staticGenerationMaxConcurrency: z.number().int().optional(),
+  staticGenerationMinPagesPerWorker: z.number().int().optional(),
+  typedEnv: z.boolean().optional(),
+  serverComponentsHmrCache: z.boolean().optional(),
+  authInterrupts: z.boolean().optional(),
+  useCache: z.boolean().optional(),
+  slowModuleDetection: z
+    .object({
+      buildTimeThresholdMs: z.number().int(),
+    })
+    .optional(),
+  globalNotFound: z.boolean().optional(),
+  browserDebugInfoInTerminal: z
+    .union([
+      z.boolean(),
+      z.object({
+        depthLimit: z.number().int().positive().optional(),
+        edgeLimit: z.number().int().positive().optional(),
+        showSourceLocation: z.boolean().optional(),
+      }),
+    ])
+    .optional(),
+}
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
     allowedDevOrigins: z.array(z.string()).optional(),
@@ -288,191 +471,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       })
       .optional(),
     excludeDefaultMomentLocales: z.boolean().optional(),
-    experimental: z
-      .strictObject({
-        adapterPath: z.string().optional(),
-        useSkewCookie: z.boolean().optional(),
-        after: z.boolean().optional(),
-        appNavFailHandling: z.boolean().optional(),
-        preloadEntriesOnStart: z.boolean().optional(),
-        allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
-        staleTimes: z
-          .object({
-            dynamic: z.number().optional(),
-            static: z.number().optional(),
-          })
-          .optional(),
-        cacheLife: z
-          .record(
-            z.object({
-              stale: z.number().optional(),
-              revalidate: z.number().optional(),
-              expire: z.number().optional(),
-            })
-          )
-          .optional(),
-        cacheHandlers: z.record(z.string(), z.string().optional()).optional(),
-        clientRouterFilter: z.boolean().optional(),
-        clientRouterFilterRedirects: z.boolean().optional(),
-        clientRouterFilterAllowedRate: z.number().optional(),
-        cpus: z.number().optional(),
-        memoryBasedWorkersCount: z.boolean().optional(),
-        craCompat: z.boolean().optional(),
-        caseSensitiveRoutes: z.boolean().optional(),
-        clientSegmentCache: z
-          .union([z.boolean(), z.literal('client-only')])
-          .optional(),
-        rdcForNavigations: z.boolean().optional(),
-        clientParamParsing: z.boolean().optional(),
-        clientParamParsingOrigins: z.array(z.string()).optional(),
-        dynamicOnHover: z.boolean().optional(),
-        disableOptimizedLoading: z.boolean().optional(),
-        disablePostcssPresetEnv: z.boolean().optional(),
-        cacheComponents: z.boolean().optional(),
-        dynamicIO: z.boolean().optional(),
-        inlineCss: z.boolean().optional(),
-        esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
-        serverActions: z
-          .object({
-            bodySizeLimit: zSizeLimit.optional(),
-            allowedOrigins: z.array(z.string()).optional(),
-          })
-          .optional(),
-        // The original type was Record<string, any>
-        extensionAlias: z.record(z.string(), z.any()).optional(),
-        externalDir: z.boolean().optional(),
-        externalMiddlewareRewritesResolve: z.boolean().optional(),
-        fallbackNodePolyfills: z.literal(false).optional(),
-        fetchCacheKeyPrefix: z.string().optional(),
-        forceSwcTransforms: z.boolean().optional(),
-        fullySpecified: z.boolean().optional(),
-        gzipSize: z.boolean().optional(),
-        imgOptConcurrency: z.number().int().optional().nullable(),
-        imgOptTimeoutInSeconds: z.number().int().optional(),
-        imgOptMaxInputPixels: z.number().int().optional(),
-        imgOptSequentialRead: z.boolean().optional().nullable(),
-        imgOptSkipMetadata: z.boolean().optional().nullable(),
-        isrFlushToDisk: z.boolean().optional(),
-        largePageDataBytes: z.number().optional(),
-        linkNoTouchStart: z.boolean().optional(),
-        manualClientBasePath: z.boolean().optional(),
-        middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
-        multiZoneDraftMode: z.boolean().optional(),
-        cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
-        nextScriptWorkers: z.boolean().optional(),
-        // The critter option is unknown, use z.any() here
-        optimizeCss: z.union([z.boolean(), z.any()]).optional(),
-        optimisticClientCache: z.boolean().optional(),
-        parallelServerCompiles: z.boolean().optional(),
-        parallelServerBuildTraces: z.boolean().optional(),
-        ppr: z
-          .union([z.boolean(), z.literal('incremental')])
-          .readonly()
-          .optional(),
-        taint: z.boolean().optional(),
-        prerenderEarlyExit: z.boolean().optional(),
-        proxyTimeout: z.number().gte(0).optional(),
-        rootParams: z.boolean().optional(),
-        isolatedDevBuild: z.boolean().optional(),
-        mcpServer: z.boolean().optional(),
-        routerBFCache: z.boolean().optional(),
-        removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
-        validateRSCRequestHeaders: z.boolean().optional(),
-        scrollRestoration: z.boolean().optional(),
-        sri: z
-          .object({
-            algorithm: z.enum(['sha256', 'sha384', 'sha512']).optional(),
-          })
-          .optional(),
-        swcPlugins: z
-          // The specific swc plugin's option is unknown, use z.any() here
-          .array(z.tuple([z.string(), z.record(z.string(), z.any())]))
-          .optional(),
-        swcTraceProfiling: z.boolean().optional(),
-        // NonNullable<webpack.Configuration['experiments']>['buildHttp']
-        urlImports: z.any().optional(),
-        viewTransition: z.boolean().optional(),
-        workerThreads: z.boolean().optional(),
-        webVitalsAttribution: z
-          .array(
-            z.union([
-              z.literal('CLS'),
-              z.literal('FCP'),
-              z.literal('FID'),
-              z.literal('INP'),
-              z.literal('LCP'),
-              z.literal('TTFB'),
-            ])
-          )
-          .optional(),
-        // This is partial set of mdx-rs transform options we support, aligned
-        // with next_core::next_config::MdxRsOptions. Ensure both types are kept in sync.
-        mdxRs: z
-          .union([
-            z.boolean(),
-            z.object({
-              development: z.boolean().optional(),
-              jsxRuntime: z.string().optional(),
-              jsxImportSource: z.string().optional(),
-              providerImportSource: z.string().optional(),
-              mdxType: z.enum(['gfm', 'commonmark']).optional(),
-            }),
-          ])
-          .optional(),
-        typedRoutes: z.boolean().optional(),
-        webpackBuildWorker: z.boolean().optional(),
-        webpackMemoryOptimizations: z.boolean().optional(),
-        turbopackMemoryLimit: z.number().optional(),
-        turbopackMinify: z.boolean().optional(),
-        turbopackPersistentCachingForDev: z.boolean().optional(),
-        turbopackPersistentCachingForBuild: z.boolean().optional(),
-        turbopackSourceMaps: z.boolean().optional(),
-        turbopackTreeShaking: z.boolean().optional(),
-        turbopackRemoveUnusedExports: z.boolean().optional(),
-        turbopackScopeHoisting: z.boolean().optional(),
-        turbopackImportTypeBytes: z.boolean().optional(),
-        turbopackUseSystemTlsCerts: z.boolean().optional(),
-        turbopackUseBuiltinBabel: z.boolean().optional(),
-        turbopackUseBuiltinSass: z.boolean().optional(),
-        turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
-        optimizePackageImports: z.array(z.string()).optional(),
-        optimizeServerReact: z.boolean().optional(),
-        clientTraceMetadata: z.array(z.string()).optional(),
-        serverMinification: z.boolean().optional(),
-        enablePrerenderSourceMaps: z.boolean().optional(),
-        serverSourceMaps: z.boolean().optional(),
-        useWasmBinary: z.boolean().optional(),
-        useLightningcss: z.boolean().optional(),
-        testProxy: z.boolean().optional(),
-        defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
-        allowDevelopmentBuild: z.literal(true).optional(),
-
-        reactDebugChannel: z.boolean().optional(),
-        staticGenerationRetryCount: z.number().int().optional(),
-        staticGenerationMaxConcurrency: z.number().int().optional(),
-        staticGenerationMinPagesPerWorker: z.number().int().optional(),
-        typedEnv: z.boolean().optional(),
-        serverComponentsHmrCache: z.boolean().optional(),
-        authInterrupts: z.boolean().optional(),
-        useCache: z.boolean().optional(),
-        slowModuleDetection: z
-          .object({
-            buildTimeThresholdMs: z.number().int(),
-          })
-          .optional(),
-        globalNotFound: z.boolean().optional(),
-        browserDebugInfoInTerminal: z
-          .union([
-            z.boolean(),
-            z.object({
-              depthLimit: z.number().int().positive().optional(),
-              edgeLimit: z.number().int().positive().optional(),
-              showSourceLocation: z.boolean().optional(),
-            }),
-          ])
-          .optional(),
-      })
-      .optional(),
+    experimental: z.strictObject(experimentalSchema).optional(),
     exportPathMap: z
       .function()
       .args(
