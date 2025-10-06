@@ -980,6 +980,9 @@ importers:
       caniuse-lite:
         specifier: 1.0.30001746
         version: 1.0.30001746
+      is-local-address:
+        specifier: 2.2.2
+        version: 2.2.2
       postcss:
         specifier: 8.4.31
         version: 8.4.31
@@ -11072,6 +11075,10 @@ packages:
 
   is-lambda@1.0.1:
     resolution: {integrity: sha512-z7CMFGNrENq5iFB9Bqo64Xk6Y9sg+epq1myIcdHaGnbMTYOxvzsEtdYqQUylB7LxfkvgrrjP32T6Ywciio9UIQ==}
+
+  is-local-address@2.2.2:
+    resolution: {integrity: sha512-0f589LeYFladIRZrCx1uVjkAlRF5CPGKDuJgbwVGceRN2Q691MFxH+epioG7krwIfnqcE+kw5MohzXYx2VX2ew==}
+    engines: {node: '>= 10'}
 
   is-map@2.0.3:
     resolution: {integrity: sha512-1Qed0/Hr2m+YqxnM09CjA2d/i6YZNfF6R2oRAOj36eUdS6qIV/huPJNSEpKbupewFs+ZsJlxsjjPbc0/afW6Lw==}
@@ -29474,6 +29481,8 @@ snapshots:
   is-interactive@1.0.0: {}
 
   is-lambda@1.0.1: {}
+
+  is-local-address@2.2.2: {}
 
   is-map@2.0.3: {}
 

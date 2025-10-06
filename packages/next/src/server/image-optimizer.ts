@@ -6,6 +6,7 @@ import contentDisposition from 'next/dist/compiled/content-disposition'
 import imageSizeOf from 'next/dist/compiled/image-size'
 import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
+import isLocalAddress from 'is-local-address' // TODO: compile?
 import { join } from 'path'
 import nodeUrl, { type UrlWithParsedQuery } from 'url'
 
@@ -700,9 +701,17 @@ export async function optimizeImage({
   return optimizedBuffer
 }
 
-export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
+function isRedirect(statusCode: number) {
+  return [301, 302, 303, 307, 308].includes(statusCode)
+}
+
+export async function fetchExternalImage(
+  href: string,
+  count = 3
+): Promise<ImageUpstream> {
   const res = await fetch(href, {
     signal: AbortSignal.timeout(7_000),
+    redirect: 'manual',
   }).catch((err) => err as Error)
 
   if (res instanceof Error) {
@@ -723,6 +732,23 @@ export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
       res.status,
       '"url" parameter is valid but upstream response is invalid'
     )
+  }
+
+  const locationHeader = res.headers.get('location')
+  if (
+    isRedirect(res.status) &&
+    locationHeader &&
+    URL.canParse(locationHeader, href)
+  ) {
+    if (count === 0) {
+      throw new ImageError(508, 'Too Many Redirects')
+    }
+    const nextURL = new URL(locationHeader, href)
+    const nextHref = nextURL.href
+    if (nextURL.origin !== new URL(href).origin && isLocalAddress(nextHref)) {
+      throw new ImageError(400, 'Cannot redirect to local address')
+    }
+    return fetchExternalImage(nextHref, count - 1)
   }
 
   const buffer = Buffer.from(await res.arrayBuffer())
