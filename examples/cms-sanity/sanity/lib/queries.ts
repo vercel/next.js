@@ -21,13 +21,14 @@ export const heroQuery = defineQuery(`
 `);
 
 export const moreStoriesQuery = defineQuery(`
-  *[_type == "post" && _id != $skip && defined(slug.current)] | order(date desc, _updatedAt desc) [0...$limit] {
+  *[_type == "post" && _id != $skip && defined(slug.current) && slug.current != $skip] | order(date desc, _updatedAt desc) [0...$limit] {
     ${postFields}
   }
 `);
 
 export const postQuery = defineQuery(`
-  *[_type == "post" && slug.current == $slug] [0] {
+  *[_type == "post" && (slug.current == $slug)] [0] {
+    _rev,
     content,
     ${postFields}
   }

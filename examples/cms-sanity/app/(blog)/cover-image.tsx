@@ -1,6 +1,6 @@
-import { Image } from "next-sanity/image";
-
 import { urlForImage } from "@/sanity/lib/utils";
+import * as motion from "framer-motion/client";
+import { Image } from "next-sanity/image";
 
 interface CoverImageProps {
   image: any;
@@ -24,8 +24,11 @@ export default function CoverImage(props: CoverImageProps) {
   );
 
   return (
-    <div className="shadow-md transition-shadow duration-200 group-hover:shadow-lg sm:mx-0">
+    <motion.div
+      layout
+      className="shadow-md transition-shadow duration-200 group-hover:shadow-lg sm:mx-0"
+    >
       {image}
-    </div>
+    </motion.div>
   );
 }
