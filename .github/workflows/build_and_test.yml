@@ -542,9 +542,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
-      afterBuild: |
-        export __NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD=true
-        node run-tests.js --type unit
+      afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
 
     secrets: inherit
@@ -735,7 +733,6 @@ jobs:
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        export __NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD=true
 
         node run-tests.js \
           --timings \
@@ -849,7 +846,6 @@ jobs:
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        export __NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD=true
 
         node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
@@ -889,7 +885,6 @@ jobs:
       afterBuild: |
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        export __NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD=true
 
         node run-tests.js \
           --timings \
