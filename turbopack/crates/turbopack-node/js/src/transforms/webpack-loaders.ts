@@ -307,7 +307,9 @@ const transform = (
                 // generated programatically and there is a smaller problem of
                 // non-cacheable/non-portable builds.
                 request = path.relative(lookupPath, request)
-                if (!request.startsWith('.')) {
+                // On Windows, the path might be still absolute if it's on a different drive. Just
+                // let the resolver throw the error in that case.
+                if (!path.isAbsolute(request) && !request.startsWith('.')) {
                   request = './' + request
                 }
               }
