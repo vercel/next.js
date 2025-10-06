@@ -18,7 +18,10 @@ describe('default', () => {
     const port = await findPort()
     const config = new File(join(appDir, 'next.config.js'))
     config.delete()
+    const originalIsNextDev = global.isNextDev
     try {
+      // launchApp is for dev mode, and isNextDev is used in getDistDir
+      global.isNextDev = true
       const app = await launchApp(appDir, port)
       await renderViaHTTP(port, '/')
       if (process.env.IS_TURBOPACK_TEST) {
@@ -46,6 +49,7 @@ describe('default', () => {
       await killApp(app)
     } finally {
       config.restore()
+      global.isNextDev = originalIsNextDev
     }
   })
 })
