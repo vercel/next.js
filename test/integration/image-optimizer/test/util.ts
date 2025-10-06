@@ -161,7 +161,7 @@ export function runTests(ctx: RunTestsCtx) {
     contentDispositionType = 'attachment',
     domains = [],
     formats = [],
-    minimumCacheTTL = 60,
+    minimumCacheTTL = 14400,
   } = nextConfigImages || {}
   const avifEnabled = formats[0] === 'image/avif'
   let slowImageServer: Awaited<ReturnType<typeof serveSlowImage>>

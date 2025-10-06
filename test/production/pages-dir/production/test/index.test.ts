@@ -111,7 +111,7 @@ describe('Production Usage', () => {
   })
 
   it('should contain generated page count in output', async () => {
-    const pageCount = 37
+    const pageCount = 34
     expect(next.cliOutput).toContain(`Generating static pages (0/${pageCount})`)
     expect(next.cliOutput).toContain(
       `Generating static pages (${pageCount}/${pageCount})`
@@ -342,7 +342,7 @@ describe('Production Usage', () => {
 
   // This test checks webpack chunks in particular
   ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-    'should not contain amp, rsc APIs in main chunk',
+    'should not contain rsc APIs in main chunk',
     async () => {
       const globResult = await glob('main-*.js', {
         cwd: join(next.testDir, '.next/static/chunks'),
@@ -357,8 +357,6 @@ describe('Production Usage', () => {
         'utf8'
       )
 
-      // eslint-disable-next-line jest/no-standalone-expect
-      expect(content).not.toContain('useAmp')
       // eslint-disable-next-line jest/no-standalone-expect
       expect(content).not.toContain('useRefreshRoot')
     }
@@ -1116,12 +1114,6 @@ describe('Production Usage', () => {
 
       expect(file.endsWith('.js')).toBe(true)
     }
-  })
-
-  it('should handle AMP correctly in IE', async () => {
-    const browser = await webdriver(next.appPort, '/some-amp')
-    const text = await browser.elementByCss('p').text()
-    expect(text).toBe('Not AMP')
   })
 
   it('should warn when prefetch is true', async () => {

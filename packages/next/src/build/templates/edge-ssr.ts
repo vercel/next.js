@@ -141,9 +141,7 @@ async function requestHandler(
       ComponentMod: pageMod,
       pageConfig: pageMod.pageConfig,
       routeModule: pageMod.routeModule,
-      canonicalBase: nextConfig.amp.canonicalBase || '',
       previewProps: prerenderManifest.preview,
-      ampOptimizerConfig: nextConfig.experimental.amp?.optimizer,
       basePath: nextConfig.basePath,
       assetPrefix: nextConfig.assetPrefix,
       images: nextConfig.images,
@@ -296,7 +294,7 @@ async function requestHandler(
             })
             span.updateName(name)
           } else {
-            span.updateName(`${req.method}`)
+            span.updateName(`${req.method} ${srcPage}`)
           }
         })
 
@@ -343,7 +341,7 @@ async function requestHandler(
     tracer.trace(
       BaseServerSpan.handleRequest,
       {
-        spanName: `${req.method}`,
+        spanName: `${req.method} ${srcPage}`,
         kind: SpanKind.SERVER,
         attributes: {
           'http.method': req.method,

@@ -1130,11 +1130,13 @@
             if ("string" === typeof value.command) return value.command;
             if (
               "object" === typeof value.request &&
+              null !== value.request &&
               "string" === typeof value.request.url
             )
               return value.request.url;
             if (
               "object" === typeof value.response &&
+              null !== value.response &&
               "string" === typeof value.response.url
             )
               return value.response.url;
@@ -1146,7 +1148,7 @@
               return String(value.id);
             if ("string" === typeof value.name) return value.name;
             var str = value.toString();
-            return str.startWith("[object ") ||
+            return str.startsWith("[object ") ||
               5 > str.length ||
               500 < str.length
               ? ""
@@ -1439,6 +1441,24 @@
     function createErrorChunk(response, error) {
       return new ReactPromise("rejected", null, error);
     }
+    function moveDebugInfoFromChunkToInnerValue(chunk, value) {
+      value = resolveLazy(value);
+      "object" !== typeof value ||
+        null === value ||
+        (!isArrayImpl(value) &&
+          "function" !== typeof value[ASYNC_ITERATOR] &&
+          value.$$typeof !== REACT_ELEMENT_TYPE &&
+          value.$$typeof !== REACT_LAZY_TYPE) ||
+        ((chunk = chunk._debugInfo.splice(0)),
+        isArrayImpl(value._debugInfo)
+          ? value._debugInfo.unshift.apply(value._debugInfo, chunk)
+          : Object.defineProperty(value, "_debugInfo", {
+              configurable: !1,
+              enumerable: !1,
+              writable: !0,
+              value: chunk
+            }));
+    }
     function wakeChunk(listeners, value, chunk) {
       for (var i = 0; i < listeners.length; i++) {
         var listener = listeners[i];
@@ -1446,6 +1466,7 @@
           ? listener(value)
           : fulfillReference(listener, value, chunk);
       }
+      moveDebugInfoFromChunkToInnerValue(chunk, value);
     }
     function rejectChunk(listeners, error) {
       for (var i = 0; i < listeners.length; i++) {
@@ -1529,7 +1550,7 @@
           chunk.reason = null;
           initializingChunk = chunk;
           try {
-            initializeDebugChunk(response, chunk), (chunk._debugChunk = null);
+            initializeDebugChunk(response, chunk);
           } finally {
             (initializingHandler = prevHandler),
               (initializingChunk = prevChunk);
@@ -1717,14 +1738,20 @@
       chunk.reason = null;
       initializingChunk = chunk;
       initializeDebugChunk(response, chunk);
-      chunk._debugChunk = null;
       try {
         var value = JSON.parse(resolvedModel, response._fromJSON),
           resolveListeners = chunk.value;
-        null !== resolveListeners &&
-          ((chunk.value = null),
-          (chunk.reason = null),
-          wakeChunk(resolveListeners, value, chunk));
+        if (null !== resolveListeners)
+          for (
+            chunk.value = null, chunk.reason = null, resolvedModel = 0;
+            resolvedModel < resolveListeners.length;
+            resolvedModel++
+          ) {
+            var listener = resolveListeners[resolvedModel];
+            "function" === typeof listener
+              ? listener(value)
+              : fulfillReference(listener, value, chunk);
+          }
         if (null !== initializingHandler) {
           if (initializingHandler.errored) throw initializingHandler.reason;
           if (0 < initializingHandler.deps) {
@@ -1735,6 +1762,7 @@
         }
         chunk.status = "fulfilled";
         chunk.value = value;
+        moveDebugInfoFromChunkToInnerValue(chunk, value);
       } catch (error) {
         (chunk.status = "rejected"), (chunk.reason = error);
       } finally {
@@ -1786,7 +1814,7 @@
         return "<...>";
       }
     }
-    function initializeElement(response, element, lazyType) {
+    function initializeElement(response, element, lazyNode) {
       var stack = element._debugStack,
         owner = element._owner;
       null === owner && (element._owner = response._debugRootOwner);
@@ -1823,11 +1851,22 @@
           : (normalizedStackTrace = env.run(stack)));
       element._debugTask = normalizedStackTrace;
       null !== owner && initializeFakeStack(response, owner);
-      lazyType &&
-        lazyType._store &&
-        lazyType._store.validated &&
-        !element._store.validated &&
-        (element._store.validated = lazyType._store.validated);
+      null !== lazyNode &&
+        (lazyNode._store &&
+          lazyNode._store.validated &&
+          !element._store.validated &&
+          (element._store.validated = lazyNode._store.validated),
+        "fulfilled" === lazyNode._payload.status &&
+          lazyNode._debugInfo &&
+          ((response = lazyNode._debugInfo.splice(0)),
+          element._debugInfo
+            ? element._debugInfo.unshift.apply(element._debugInfo, response)
+            : Object.defineProperty(element, "_debugInfo", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: response
+              })));
       Object.freeze(element.props);
     }
     function createLazyChunkWrapper(chunk, validated) {
@@ -1862,7 +1901,13 @@
         i < path.length;
         i++
       ) {
-        for (; value.$$typeof === REACT_LAZY_TYPE; )
+        for (
+          ;
+          "object" === typeof value &&
+          null !== value &&
+          value.$$typeof === REACT_LAZY_TYPE;
+
+        )
           if (((value = value._payload), value === handler.chunk))
             value = handler.value;
           else {
@@ -1901,6 +1946,30 @@
           }
         value = value[path[i]];
       }
+      for (
+        ;
+        "object" === typeof value &&
+        null !== value &&
+        value.$$typeof === REACT_LAZY_TYPE;
+
+      )
+        if (((path = value._payload), path === handler.chunk))
+          value = handler.value;
+        else {
+          switch (path.status) {
+            case "resolved_model":
+              initializeModelChunk(path);
+              break;
+            case "resolved_module":
+              initializeModuleChunk(path);
+          }
+          switch (path.status) {
+            case "fulfilled":
+              value = path.value;
+              continue;
+          }
+          break;
+        }
       response = map(response, value, parentObject, key);
       parentObject[key] = response;
       "" === key && null === handler.value && (handler.value = response);
@@ -1912,11 +1981,7 @@
       )
         switch (((reference = handler.value), key)) {
           case "3":
-            transferReferencedDebugInfo(
-              handler.chunk,
-              fulfilledChunk,
-              response
-            );
+            transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
             reference.props = response;
             break;
           case "4":
@@ -1926,15 +1991,11 @@
             reference._debugStack = response;
             break;
           default:
-            transferReferencedDebugInfo(
-              handler.chunk,
-              fulfilledChunk,
-              response
-            );
+            transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
         }
       else
         reference.isDebug ||
-          transferReferencedDebugInfo(handler.chunk, fulfilledChunk, response);
+          transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
       handler.deps--;
       0 === handler.deps &&
         ((fulfilledChunk = handler.chunk),
@@ -2126,57 +2187,54 @@
       );
       return null;
     }
-    function transferReferencedDebugInfo(
-      parentChunk,
-      referencedChunk,
-      referencedValue
-    ) {
-      referencedChunk = referencedChunk._debugInfo;
-      if (
-        "object" === typeof referencedValue &&
-        null !== referencedValue &&
-        (isArrayImpl(referencedValue) ||
-          "function" === typeof referencedValue[ASYNC_ITERATOR] ||
-          referencedValue.$$typeof === REACT_ELEMENT_TYPE)
+    function resolveLazy(value) {
+      for (
+        ;
+        "object" === typeof value &&
+        null !== value &&
+        value.$$typeof === REACT_LAZY_TYPE;
+
       ) {
-        var existingDebugInfo = referencedValue._debugInfo;
-        null == existingDebugInfo
-          ? Object.defineProperty(referencedValue, "_debugInfo", {
-              configurable: !1,
-              enumerable: !1,
-              writable: !0,
-              value: referencedChunk.slice(0)
-            })
-          : existingDebugInfo.push.apply(existingDebugInfo, referencedChunk);
+        var payload = value._payload;
+        if ("fulfilled" === payload.status) value = payload.value;
+        else break;
       }
-      if (null !== parentChunk)
-        for (
-          parentChunk = parentChunk._debugInfo, referencedValue = 0;
-          referencedValue < referencedChunk.length;
-          ++referencedValue
-        )
-          (existingDebugInfo = referencedChunk[referencedValue]),
-            null == existingDebugInfo.name &&
-              parentChunk.push(existingDebugInfo);
+      return value;
+    }
+    function transferReferencedDebugInfo(parentChunk, referencedChunk) {
+      if (null !== parentChunk) {
+        referencedChunk = referencedChunk._debugInfo;
+        parentChunk = parentChunk._debugInfo;
+        for (var i = 0; i < referencedChunk.length; ++i) {
+          var debugInfoEntry = referencedChunk[i];
+          null == debugInfoEntry.name && parentChunk.push(debugInfoEntry);
+        }
+      }
     }
     function getOutlinedModel(response, reference, parentObject, key, map) {
-      reference = reference.split(":");
-      var id = parseInt(reference[0], 16);
-      id = getChunk(response, id);
+      var path = reference.split(":");
+      reference = parseInt(path[0], 16);
+      reference = getChunk(response, reference);
       null !== initializingChunk &&
         isArrayImpl(initializingChunk._children) &&
-        initializingChunk._children.push(id);
-      switch (id.status) {
+        initializingChunk._children.push(reference);
+      switch (reference.status) {
         case "resolved_model":
-          initializeModelChunk(id);
+          initializeModelChunk(reference);
           break;
         case "resolved_module":
-          initializeModuleChunk(id);
+          initializeModuleChunk(reference);
       }
-      switch (id.status) {
+      switch (reference.status) {
         case "fulfilled":
-          for (var value = id.value, i = 1; i < reference.length; i++) {
-            for (; value.$$typeof === REACT_LAZY_TYPE; ) {
+          for (var value = reference.value, i = 1; i < path.length; i++) {
+            for (
+              ;
+              "object" === typeof value &&
+              null !== value &&
+              value.$$typeof === REACT_LAZY_TYPE;
+
+            ) {
               value = value._payload;
               switch (value.status) {
                 case "resolved_model":
@@ -2197,7 +2255,7 @@
                     key,
                     response,
                     map,
-                    reference.slice(i - 1),
+                    path.slice(i - 1),
                     !1
                   );
                 case "halted":
@@ -2233,22 +2291,44 @@
                   );
               }
             }
-            value = value[reference[i]];
+            value = value[path[i]];
+          }
+          for (
+            ;
+            "object" === typeof value &&
+            null !== value &&
+            value.$$typeof === REACT_LAZY_TYPE;
+
+          ) {
+            path = value._payload;
+            switch (path.status) {
+              case "resolved_model":
+                initializeModelChunk(path);
+                break;
+              case "resolved_module":
+                initializeModuleChunk(path);
+            }
+            switch (path.status) {
+              case "fulfilled":
+                value = path.value;
+                continue;
+            }
+            break;
           }
           response = map(response, value, parentObject, key);
           (parentObject[0] !== REACT_ELEMENT_TYPE ||
             ("4" !== key && "5" !== key)) &&
-            transferReferencedDebugInfo(initializingChunk, id, response);
+            transferReferencedDebugInfo(initializingChunk, reference);
           return response;
         case "pending":
         case "blocked":
           return waitForReference(
-            id,
+            reference,
             parentObject,
             key,
             response,
             map,
-            reference,
+            path,
             !1
           );
         case "halted":
@@ -2270,12 +2350,12 @@
             initializingHandler
               ? ((initializingHandler.errored = !0),
                 (initializingHandler.value = null),
-                (initializingHandler.reason = id.reason))
+                (initializingHandler.reason = reference.reason))
               : (initializingHandler = {
                   parent: null,
                   chunk: null,
                   value: null,
-                  reason: id.reason,
+                  reason: reference.reason,
                   deps: 0,
                   errored: !0
                 }),
@@ -2641,8 +2721,30 @@
           (streamState._debugTargetChunkSize = chunkLength + MIN_CHUNK_SIZE))
         : ((debugInfo.end = endTime), (debugInfo.byteSize = chunkLength));
     }
+    function addDebugInfo(chunk, debugInfo) {
+      var value = resolveLazy(chunk.value);
+      "object" !== typeof value ||
+      null === value ||
+      (!isArrayImpl(value) &&
+        "function" !== typeof value[ASYNC_ITERATOR] &&
+        value.$$typeof !== REACT_ELEMENT_TYPE &&
+        value.$$typeof !== REACT_LAZY_TYPE)
+        ? chunk._debugInfo.push.apply(chunk._debugInfo, debugInfo)
+        : isArrayImpl(value._debugInfo)
+          ? value._debugInfo.push.apply(value._debugInfo, debugInfo)
+          : Object.defineProperty(value, "_debugInfo", {
+              configurable: !1,
+              enumerable: !1,
+              writable: !0,
+              value: debugInfo
+            });
+    }
     function resolveChunkDebugInfo(streamState, chunk) {
-      chunk._debugInfo.push({ awaited: streamState._debugInfo });
+      streamState = [{ awaited: streamState._debugInfo }];
+      "pending" === chunk.status || "blocked" === chunk.status
+        ? ((streamState = addDebugInfo.bind(null, chunk, streamState)),
+          chunk.then(streamState, streamState))
+        : addDebugInfo(chunk, streamState);
     }
     function resolveBuffer(response, id, buffer, streamState) {
       var chunks = response._chunks,
@@ -2712,7 +2814,6 @@
             try {
               if (
                 (initializeDebugChunk(response, chunk),
-                (chunk._debugChunk = null),
                 null !== initializingHandler &&
                   !initializingHandler.errored &&
                   0 < initializingHandler.deps)
@@ -4771,10 +4872,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-experimental-8a8e9a7e-20250912",
+      version: "19.3.0-experimental-4fdf7cf2-20251003",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-experimental-8a8e9a7e-20250912",
+      reconcilerVersion: "19.3.0-experimental-4fdf7cf2-20251003",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

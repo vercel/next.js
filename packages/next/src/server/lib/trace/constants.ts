@@ -30,6 +30,7 @@ enum LoadComponentsSpan {
 
 enum NextServerSpan {
   getRequestHandler = 'NextServer.getRequestHandler',
+  getRequestHandlerWithMetadata = 'NextServer.getRequestHandlerWithMetadata',
   getServer = 'NextServer.getServer',
   getServerRequestHandler = 'NextServer.getServerRequestHandler',
   createServer = 'createServer.createServer',

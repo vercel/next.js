@@ -9,7 +9,7 @@ use turbo_tasks_fetch::{
     FetchErrorKind,
 };
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 use turbopack_core::issue::{Issue, IssueSeverity, StyledString};
 
 static REGISTRATION: Registration = register!(turbo_tasks_fetch::register);
@@ -21,7 +21,7 @@ static GLOBAL_TEST_LOCK: TokioMutex<()> = TokioMutex::const_new(());
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn basic_get() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
             .mock("GET", "/foo.woff")
@@ -52,7 +52,7 @@ async fn basic_get() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sends_user_agent() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
             .mock("GET", "/foo.woff")
@@ -88,7 +88,7 @@ async fn sends_user_agent() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invalidation_does_not_invalidate() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
             .mock("GET", "/foo.woff")
@@ -133,7 +133,7 @@ fn get_issue_context() -> Vc<FileSystemPath> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn errors_on_failed_connection() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         // Try to connect to port 0 on localhost, which is never valid and immediately returns
         // `ECONNREFUSED`.
         // Other values (e.g. domain name, reserved IP address block) may result in long timeouts.
@@ -164,7 +164,7 @@ async fn errors_on_failed_connection() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn errors_on_404() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
             .mock("GET", "/")
@@ -227,7 +227,7 @@ async fn client_cache() {
     }
 
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         __test_only_reqwest_client_cache_clear();
         assert_eq!(__test_only_reqwest_client_cache_len(), 0);
 

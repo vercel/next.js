@@ -174,6 +174,7 @@ import {
   workUnitAsyncStorage,
   type PrerenderStore,
 } from './work-unit-async-storage.external'
+import { consoleAsyncStorage } from './console-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -447,11 +448,8 @@ async function generateDynamicRSCPayload(
         userland: { loaderTree },
       },
       createMetadataComponents,
-      MetadataBoundary,
-      ViewportBoundary,
     },
     getDynamicParamFromSegment,
-    appUsingSizeAdjustment,
     query,
     requestId,
     flightRouterState,
@@ -464,22 +462,13 @@ async function generateDynamicRSCPayload(
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
 
-    const {
-      ViewportTree,
-      MetadataTree,
-      getViewportReady,
-      getMetadataReady,
-      StreamingMetadataOutlet,
-    } = createMetadataComponents({
+    const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
       tree: loaderTree,
       parsedQuery: query,
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
       getDynamicParamFromSegment,
-      appUsingSizeAdjustment,
       workStore,
-      MetadataBoundary,
-      ViewportBoundary,
       serveStreamingMetadata,
     })
 
@@ -499,18 +488,16 @@ async function generateDynamicRSCPayload(
               isPossibleServerAction={ctx.isPossibleServerAction}
             />
             {/* Adding requestId as react key to make metadata remount for each render */}
-            <ViewportTree key={getFlightViewportKey(requestId)} />
-            <MetadataTree key={getFlightMetadataKey(requestId)} />
+            <Viewport key={getFlightViewportKey(requestId)} />
+            <Metadata key={getFlightMetadataKey(requestId)} />
           </React.Fragment>
         ),
         injectedCSS: new Set(),
         injectedJS: new Set(),
         injectedFontPreloadTags: new Set(),
         rootLayoutIncluded: false,
-        getViewportReady,
-        getMetadataReady,
         preloadCallbacks,
-        StreamingMetadataOutlet,
+        MetadataOutlet,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -675,6 +662,7 @@ async function generateRuntimePrefetchResult(
     prerenderResumeDataCache,
     renderResumeDataCache,
     rootParams,
+    requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode
   )
@@ -685,6 +673,7 @@ async function generateRuntimePrefetchResult(
     prerenderResumeDataCache,
     renderResumeDataCache,
     rootParams,
+    requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode,
     onError
@@ -706,6 +695,7 @@ async function prospectiveRuntimeServerPrerender(
   prerenderResumeDataCache: PrerenderResumeDataCache | null,
   renderResumeDataCache: RenderResumeDataCache | null,
   rootParams: Params,
+  headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode']
 ) {
@@ -756,6 +746,7 @@ async function prospectiveRuntimeServerPrerender(
     // We only need task sequencing in the final prerender.
     runtimeStagePromise: null,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
+    headers,
     cookies,
     draftMode,
   }
@@ -841,6 +832,7 @@ async function finalRuntimeServerPrerender(
   prerenderResumeDataCache: PrerenderResumeDataCache | null,
   renderResumeDataCache: RenderResumeDataCache | null,
   rootParams: Params,
+  headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode'],
   onError: (err: unknown) => string | undefined
@@ -891,6 +883,7 @@ async function finalRuntimeServerPrerender(
     // Used to separate the "Static" stage from the "Runtime" stage.
     runtimeStagePromise,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
+    headers,
     cookies,
     draftMode,
   }
@@ -1112,11 +1105,7 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
-    componentMod: {
-      createMetadataComponents,
-      MetadataBoundary,
-      ViewportBoundary,
-    },
+    componentMod: { createMetadataComponents },
     url,
     workStore,
   } = ctx
@@ -1129,13 +1118,7 @@ async function getRSCPayload(
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
 
-  const {
-    ViewportTree,
-    MetadataTree,
-    getViewportReady,
-    getMetadataReady,
-    StreamingMetadataOutlet,
-  } = createMetadataComponents({
+  const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
     tree,
     // When it's using global-not-found, metadata errorType is undefined, which will retrieve the
     // metadata from the page.
@@ -1147,10 +1130,7 @@ async function getRSCPayload(
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     getDynamicParamFromSegment,
-    appUsingSizeAdjustment,
     workStore,
-    MetadataBoundary,
-    ViewportBoundary,
     serveStreamingMetadata,
   })
 
@@ -1164,12 +1144,10 @@ async function getRSCPayload(
     injectedJS,
     injectedFontPreloadTags,
     rootLayoutIncluded: false,
-    getViewportReady,
-    getMetadataReady,
     missingSlots,
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
-    StreamingMetadataOutlet,
+    MetadataOutlet,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -1186,8 +1164,12 @@ async function getRSCPayload(
         statusCode={ctx.res.statusCode}
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
-      <ViewportTree />
-      <MetadataTree />
+      <Viewport />
+      <Metadata />
+      {/* This meta tag is for next/font which is still required to be blocking. */}
+      {appUsingSizeAdjustment ? (
+        <meta name="next-size-adjust" content="" />
+      ) : null}
     </React.Fragment>
   )
 
@@ -1248,28 +1230,20 @@ async function getErrorRSCPayload(
   const {
     getDynamicParamFromSegment,
     query,
-    appUsingSizeAdjustment,
-    componentMod: {
-      createMetadataComponents,
-      MetadataBoundary,
-      ViewportBoundary,
-    },
+    componentMod: { createMetadataComponents },
     url,
     workStore,
   } = ctx
 
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
-  const { MetadataTree, ViewportTree } = createMetadataComponents({
+  const { Viewport, Metadata } = createMetadataComponents({
     tree,
     parsedQuery: query,
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     errorType,
     getDynamicParamFromSegment,
-    appUsingSizeAdjustment,
     workStore,
-    MetadataBoundary,
-    ViewportBoundary,
     serveStreamingMetadata: serveStreamingMetadata,
   })
 
@@ -1280,11 +1254,11 @@ async function getErrorRSCPayload(
         statusCode={ctx.res.statusCode}
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
-      <ViewportTree />
+      <Viewport />
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
-      <MetadataTree />
+      <Metadata />
     </React.Fragment>
   )
 
@@ -2199,6 +2173,13 @@ async function renderToStream(
     page
   )
 
+  // In development mode, set the request ID as a global variable, before the
+  // bootstrap script is executed, which depends on it during hydration.
+  const bootstrapScriptContent =
+    process.env.NODE_ENV !== 'production'
+      ? `self.__next_r=${JSON.stringify(requestId)}`
+      : undefined
+
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   const silenceLogger = false
   function onHTMLRenderRSCError(err: DigestedError) {
@@ -2302,7 +2283,9 @@ async function renderToStream(
         }
       )
 
-      spawnDynamicValidationInDev(
+      consoleAsyncStorage.run(
+        { dim: true },
+        spawnDynamicValidationInDev,
         resolveValidation,
         tree,
         ctx,
@@ -2368,8 +2351,7 @@ async function renderToStream(
         const inlinedReactServerDataStream = createInlinedDataReadableStream(
           reactServerResult.tee(),
           nonce,
-          formState,
-          requestId
+          formState
         )
 
         return chainStreams(
@@ -2416,8 +2398,7 @@ async function renderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consume(),
             nonce,
-            formState,
-            requestId
+            formState
           ),
           getServerInsertedHTML,
           getServerInsertedMetadata,
@@ -2450,6 +2431,7 @@ async function renderToStream(
           })
         },
         maxHeadersLength: reactMaxHeadersLength,
+        bootstrapScriptContent,
         bootstrapScripts: [bootstrapScript],
         formState,
       }
@@ -2470,7 +2452,7 @@ async function renderToStream(
      *
      *    2.) If dynamic HTML support is requested, we must honor that request
      *        or throw an error. It is the sole responsibility of the caller to
-     *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+     *        ensure they aren't e.g. requesting dynamic HTML for a static page.
      *
      *   3.) If `shouldWaitOnAllReady` is true, which indicates we need to
      *       resolve all suspenses and generate a full HTML. e.g. when it's a
@@ -2486,8 +2468,7 @@ async function renderToStream(
       inlinedDataStream: createInlinedDataReadableStream(
         reactServerResult.consume(),
         nonce,
-        formState,
-        requestId
+        formState
       ),
       isStaticGeneration: generateStaticHTML,
       isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
@@ -2604,6 +2585,7 @@ async function renderToStream(
           ),
           streamOptions: {
             nonce,
+            bootstrapScriptContent,
             // Include hydration scripts in the HTML
             bootstrapScripts: [errorBootstrapScript],
             formState,
@@ -2619,7 +2601,7 @@ async function renderToStream(
        *
        *    2.) If dynamic HTML support is requested, we must honor that request
        *        or throw an error. It is the sole responsibility of the caller to
-       *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+       *        ensure they aren't e.g. requesting dynamic HTML for a static page.
        *    3.) If `shouldWaitOnAllReady` is true, which indicates we need to
        *        resolve all suspenses and generate a full HTML. e.g. when it's a
        *        html limited bot requests, we produce the full HTML content.
@@ -2636,8 +2618,7 @@ async function renderToStream(
           // render
           reactServerResult.consume(),
           nonce,
-          formState,
-          requestId
+          formState
         ),
         isStaticGeneration: generateStaticHTML,
         isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
@@ -3353,7 +3334,6 @@ async function prerenderToStream(
     nonce,
     pagePath,
     renderOpts,
-    requestId,
     workStore,
   } = ctx
 
@@ -4145,8 +4125,7 @@ async function prerenderToStream(
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
               nonce,
-              formState,
-              requestId
+              formState
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
@@ -4394,8 +4373,7 @@ async function prerenderToStream(
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
               nonce,
-              formState,
-              requestId
+              formState
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
@@ -4492,8 +4470,7 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consumeAsStream(),
             nonce,
-            formState,
-            requestId
+            formState
           ),
           isStaticGeneration: true,
           isBuildTimePrerendering:
@@ -4671,8 +4648,7 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             flightStream,
             nonce,
-            formState,
-            requestId
+            formState
           ),
           isStaticGeneration: true,
           isBuildTimePrerendering:
@@ -4824,7 +4800,8 @@ async function collectSegmentData(
     serverModuleMap: getServerModuleMap(),
   }
 
-  const staleTime = prerenderStore.stale
+  const selectStaleTime = createSelectStaleTime(renderOpts.experimental)
+  const staleTime = selectStaleTime(prerenderStore.stale)
   return await ComponentMod.collectSegmentData(
     renderOpts.experimental.clientParamParsing,
     fullPageDataBuffer,

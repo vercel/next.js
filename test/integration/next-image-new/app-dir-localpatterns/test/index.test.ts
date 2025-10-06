@@ -96,7 +96,7 @@ function runTests(mode: 'dev' | 'server') {
               search: '',
             },
           ],
-          minimumCacheTTL: 60,
+          minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [75],
           sizes: [

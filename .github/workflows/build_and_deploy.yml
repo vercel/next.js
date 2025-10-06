@@ -708,6 +708,7 @@ jobs:
   buildPassed:
     needs: ['deploy-target', 'build', 'build-wasm', 'build-native']
     if: ${{ always() && needs.deploy-target.outputs.value != '' }}
+    # Coupled with retry logic in retry_test.yml
     name: thank you, build
     runs-on: ubuntu-latest
     steps:

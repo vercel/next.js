@@ -7,13 +7,13 @@ use std::time::Duration;
 use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{CollectiblesSource, ResolvedVc, State, ValueToString, Vc, emit};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dirty_in_progress() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let cases = [
             (1, 3, 2, 2, ""),
             (11, 13, 12, 42, "12"),

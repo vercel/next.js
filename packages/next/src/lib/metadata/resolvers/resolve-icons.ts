@@ -1,4 +1,4 @@
-import type { ResolvedMetadata } from '../types/metadata-interface'
+import type { ResolvedMetadataWithURLs } from '../types/metadata-interface'
 import type { Icon, IconDescriptor } from '../types/metadata-types'
 import type { FieldResolver } from '../types/resolvers'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
@@ -16,7 +16,7 @@ export const resolveIcons: FieldResolver<'icons'> = (icons) => {
     return null
   }
 
-  const resolved: ResolvedMetadata['icons'] = {
+  const resolved: ResolvedMetadataWithURLs['icons'] = {
     icon: [],
     apple: [],
   }

@@ -495,6 +495,9 @@ exports.useDeferredValue = function (value, initialValue) {
 exports.useEffect = function (create, deps) {
   return ReactSharedInternals.H.useEffect(create, deps);
 };
+exports.useEffectEvent = function (callback) {
+  return ReactSharedInternals.H.useEffectEvent(callback);
+};
 exports.useId = function () {
   return ReactSharedInternals.H.useId();
 };
@@ -536,4 +539,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.2.0-canary-8a8e9a7e-20250912";
+exports.version = "19.3.0-canary-4fdf7cf2-20251003";

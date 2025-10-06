@@ -4,13 +4,9 @@ import { Children, useEffect, useLayoutEffect, type JSX } from 'react'
 type State = JSX.Element[] | undefined
 
 export type SideEffectProps = {
-  reduceComponentsToState: <T extends {}>(
-    components: Array<React.ReactElement<any>>,
-    props: T
-  ) => State
+  reduceComponentsToState: (components: Array<React.ReactElement<any>>) => State
   handleStateChange?: (state: State) => void
   headManager: any
-  inAmpMode?: boolean
   children: React.ReactNode
 }
 
@@ -28,7 +24,7 @@ export default function SideEffect(props: SideEffectProps) {
           Boolean
         )
       ) as React.ReactElement[]
-      headManager.updateHead(reduceComponentsToState(headElements, props))
+      headManager.updateHead(reduceComponentsToState(headElements))
     }
   }
 

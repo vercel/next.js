@@ -2,7 +2,8 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
 use syn::{
-    FnArg, ItemTrait, Pat, TraitItem, TraitItemFn, parse_macro_input, parse_quote, spanned::Spanned,
+    FnArg, ItemTrait, Pat, Receiver, TraitItem, TraitItemFn, parse_macro_input, parse_quote,
+    spanned::Spanned,
 };
 use turbo_tasks_macros_shared::{
     ValueTraitArguments, get_trait_default_impl_function_ident, get_trait_type_ident, is_self_used,
@@ -11,7 +12,7 @@ use turbo_tasks_macros_shared::{
 use crate::{
     func::{
         DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
-        split_function_attributes,
+        get_receiver_style, split_function_attributes,
     },
     global_name::global_name,
 };
@@ -94,15 +95,29 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         let (func_args, attrs) = split_function_attributes(attrs);
         let func_args = match func_args {
             Ok(None) => {
-                // There is no turbo_tasks::function annotation, preserve this item
+                // There is no turbo_tasks::function annotation, preserve this item as is in the
+                // trait
                 items.push(item.clone());
                 // But we still need to add a forwarding implementation to the
                 // impl for `turbo_tasks::Dynamic<Box<dyn T>>`
                 // This will have the same signature, but simply forward the call
                 let mut args = Vec::new();
+                let mut is_vc_receiver = false;
                 for arg in &sig.inputs {
                     let ident = match arg {
-                        FnArg::Receiver(_) => {
+                        FnArg::Receiver(Receiver { ty, .. }) => {
+                            match get_receiver_style(ty, &DefinitionContext::ValueTrait) {
+                                crate::func::ReceiverStyle::Reference => {
+                                    is_vc_receiver = false;
+                                }
+                                crate::func::ReceiverStyle::Vc => {
+                                    is_vc_receiver = true;
+                                }
+                                crate::func::ReceiverStyle::Error => {}
+                            }
+                            // We allow either `&self` or `self: Vc<Self>`
+                            // we cannot really validate Vc<Self> so instead we simply assume that
+                            // any type that isn't a reference is Vc<Self>
                             continue;
                         }
                         FnArg::Typed(pat) => match &*pat.pat {
@@ -120,8 +135,17 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     };
                     args.push(ident);
                 }
+                if is_vc_receiver {
+                    item.span()
+                        .unwrap()
+                        .error(
+                            "`self: Vc<Self>` is only supported on trait items with a \
+                             `turbo-tasks::function` annotation",
+                        )
+                        .emit();
+                }
                 // Add a dummy implementation that derefences the box and delegates to the
-                // actual implementation.
+                // actual implementation.  We need to conditionally add an await if it is async
                 dynamic_trait_fns.push(if sig.asyncness.is_some() {
                     quote! {
                         #sig {

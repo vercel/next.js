@@ -18,7 +18,6 @@ import {
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
@@ -41,7 +40,6 @@ import MiddlewarePlugin, {
 } from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
-import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
@@ -63,7 +61,6 @@ import loadJsConfig, {
   type ResolvedBaseUrl,
 } from './load-jsconfig'
 import { loadBindings } from './swc'
-import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
@@ -94,7 +91,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
-import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
+import { getRspackCore } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 import type { NextBuildContext } from './build-context'
@@ -178,7 +175,7 @@ const reactRefreshLoaderName =
 
 function getReactRefreshLoader() {
   return process.env.NEXT_RSPACK
-    ? getRspackReactRefresh().loader
+    ? 'builtin:react-refresh-loader'
     : require.resolve(reactRefreshLoaderName)
 }
 
@@ -483,18 +480,18 @@ export default async function getBaseWebpackConfig(
     (appDir || pagesDir)!,
     dev,
     isClient,
-    config.experimental?.reactCompiler,
+    config.reactCompiler,
     codeCondition.exclude
   )
 
   const reactCompilerLoader = babelLoader
     ? undefined
     : getReactCompilerLoader(
-        config.experimental?.reactCompiler,
+        config.reactCompiler,
         dir,
-        dev,
         isNodeOrEdgeCompilation,
-        codeCondition.exclude
+        codeCondition.exclude,
+        dev
       )
 
   let swcTraceProfilingInitialized = false
@@ -698,7 +695,9 @@ export default async function getBaseWebpackConfig(
   ]
 
   const reactRefreshEntry = isRspack
-    ? getRspackReactRefresh().entry
+    ? require.resolve(
+        `next/dist/compiled/@next/react-refresh-utils/dist/rspack-runtime`
+      )
     : require.resolve(
         `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
       )
@@ -710,14 +709,6 @@ export default async function getBaseWebpackConfig(
         ...(dev
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: reactRefreshEntry,
-              [CLIENT_STATIC_FILES_RUNTIME_AMP]:
-                `./` +
-                path
-                  .relative(
-                    dir,
-                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
-                  )
-                  .replace(/\\/g, '/'),
             }
           : {}),
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
@@ -1968,7 +1959,7 @@ export default async function getBaseWebpackConfig(
               '.shared-runtime'
             )
             const layer = resource.contextInfo.issuerLayer
-            let runtime
+            let runtime: string
 
             switch (layer) {
               case WEBPACK_LAYERS.serverSideRendering:
@@ -1990,11 +1981,7 @@ export default async function getBaseWebpackConfig(
         isClient &&
         (isRspack
           ? // eslint-disable-next-line
-            new (getRspackReactRefresh() as any)({
-              injectLoader: false,
-              injectEntry: false,
-              overlay: false,
-            })
+            new (require('next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshRspackPlugin').default)()
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -2030,8 +2017,6 @@ export default async function getBaseWebpackConfig(
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
-      // rspack doesn't support the parser hooks used here
-      !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
       isNodeServer &&
         !dev &&
         new ((
@@ -2130,7 +2115,6 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      hasAppDir && isClient && new AppBuildManifestPlugin(),
       hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
@@ -2464,7 +2448,7 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
-    future: config.future,
+    future: (config as any).future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
@@ -2641,8 +2625,8 @@ export default async function getBaseWebpackConfig(
   }
 
   // Backwards compat with webpack-dev-middleware options object
-  if (typeof config.webpackDevMiddleware === 'function') {
-    const options = config.webpackDevMiddleware({
+  if (typeof (config as any).webpackDevMiddleware === 'function') {
+    const options = (config as any).webpackDevMiddleware({
       watchOptions: webpackConfig.watchOptions,
     })
     if (options.watchOptions) {

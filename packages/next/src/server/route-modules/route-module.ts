@@ -48,7 +48,7 @@ import { isStaticMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import { IncrementalCache } from '../lib/incremental-cache'
 import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
 import { interopDefault } from '../app-render/interop-default'
-import type { RouteKind } from '../route-kind'
+import { RouteKind } from '../route-kind'
 import type { BaseNextRequest } from '../base-http'
 import type { I18NConfig, NextConfigComplete } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
@@ -120,7 +120,6 @@ export abstract class RouteModule<
 
   public isDev: boolean
   public distDir: string
-  public isAppRouter?: boolean
   public relativeProjectDir: string
   public incrementCache?: IncrementalCache
   public responseCache?: ResponseCache
@@ -245,6 +244,12 @@ export abstract class RouteModule<
         require('../load-manifest.external') as typeof import('../load-manifest.external')
       const normalizedPagePath = normalizePagePath(srcPage)
 
+      const router =
+        this.definition.kind === RouteKind.PAGES ||
+        this.definition.kind === RouteKind.PAGES_API
+          ? 'pages'
+          : 'app'
+
       const [
         routesManifest,
         prerenderManifest,
@@ -290,7 +295,7 @@ export abstract class RouteModule<
           projectDir,
           distDir: this.distDir,
           manifest: process.env.TURBOPACK
-            ? `server/${this.isAppRouter ? 'app' : 'pages'}${normalizedPagePath}/${REACT_LOADABLE_MANIFEST}`
+            ? `server/${router === 'app' ? 'app' : 'pages'}${normalizedPagePath}/${REACT_LOADABLE_MANIFEST}`
             : REACT_LOADABLE_MANIFEST,
           handleMissing: true,
           shouldCache: !this.isDev,
@@ -301,7 +306,7 @@ export abstract class RouteModule<
           manifest: `server/${NEXT_FONT_MANIFEST}.json`,
           shouldCache: !this.isDev,
         }),
-        this.isAppRouter && !isStaticMetadataRoute(srcPage)
+        router === 'app' && !isStaticMetadataRoute(srcPage)
           ? loadManifestFromRelativePath({
               distDir: this.distDir,
               projectDir,
@@ -311,7 +316,7 @@ export abstract class RouteModule<
               shouldCache: !this.isDev,
             })
           : undefined,
-        this.isAppRouter
+        router === 'app'
           ? loadManifestFromRelativePath<any>({
               distDir: this.distDir,
               projectDir,
@@ -636,11 +641,12 @@ export abstract class RouteModule<
 
     // we apply rewrites against cloned URL so that we don't
     // modify the original with the rewrite destination
-    const clonedParsedUrl = structuredClone(parsedUrl)
-    const rewriteParamKeys = Object.keys(
-      serverUtils.handleRewrites(req, clonedParsedUrl)
+    const { rewriteParams, rewrittenParsedUrl } = serverUtils.handleRewrites(
+      req,
+      parsedUrl
     )
-    Object.assign(parsedUrl.query, clonedParsedUrl.query)
+    const rewriteParamKeys = Object.keys(rewriteParams)
+    Object.assign(parsedUrl.query, rewrittenParsedUrl.query)
 
     // after processing rewrites we want to remove locale
     // from parsedUrl pathname
@@ -650,8 +656,8 @@ export abstract class RouteModule<
         i18n.locales
       ).pathname
 
-      clonedParsedUrl.pathname = normalizeLocalePath(
-        clonedParsedUrl.pathname || '/',
+      rewrittenParsedUrl.pathname = normalizeLocalePath(
+        rewrittenParsedUrl.pathname || '/',
         i18n.locales
       ).pathname
     }
@@ -663,7 +669,7 @@ export abstract class RouteModule<
     if (!params && serverUtils.dynamicRouteMatcher) {
       const paramsMatch = serverUtils.dynamicRouteMatcher(
         normalizeDataPath(
-          clonedParsedUrl?.pathname || parsedUrl.pathname || '/'
+          rewrittenParsedUrl?.pathname || parsedUrl.pathname || '/'
         )
       )
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
@@ -692,11 +698,14 @@ export abstract class RouteModule<
     const routeParamKeys = new Set<string>()
     const combinedParamKeys = []
 
-    // we don't include rewriteParamKeys in the combinedParamKeys
+    // We don't include rewriteParamKeys in the combinedParamKeys
     // for app router since the searchParams is populated from the
     // URL so we don't want to strip the rewrite params from the URL
-    // so that searchParams can include them
-    if (!this.isAppRouter) {
+    // so that searchParams can include them.
+    if (
+      this.definition.kind === RouteKind.PAGES ||
+      this.definition.kind === RouteKind.PAGES_API
+    ) {
       for (const key of [
         ...rewriteParamKeys,
         ...Object.keys(serverUtils.defaultRouteMatches || {}),
@@ -816,9 +825,7 @@ export abstract class RouteModule<
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest.config
 
-    let resolvedPathname =
-      getRequestMeta(req, 'rewroteURL') || normalizedSrcPage
-
+    let resolvedPathname = normalizedSrcPage
     if (isDynamicRoute(resolvedPathname) && params) {
       resolvedPathname = serverUtils.interpolateDynamicPath(
         resolvedPathname,

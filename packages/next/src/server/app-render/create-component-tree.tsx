@@ -23,10 +23,9 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
-import { OUTLET_BOUNDARY_NAME } from '../../lib/framework/boundary-constants'
 import type {
-  UseCacheLayoutComponentProps,
-  UseCachePageComponentProps,
+  UseCacheLayoutProps,
+  UseCachePageProps,
 } from '../use-cache/use-cache-wrapper'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
@@ -48,13 +47,11 @@ export function createComponentTree(props: {
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
-  getMetadataReady: () => Promise<void>
-  getViewportReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadataOutlet: React.ComponentType | null
+  MetadataOutlet: React.ComponentType
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -85,13 +82,11 @@ async function createComponentTreeInternal(
     injectedCSS,
     injectedJS,
     injectedFontPreloadTags,
-    getViewportReady,
-    getMetadataReady,
     ctx,
     missingSlots,
     preloadCallbacks,
     authInterrupts,
-    StreamingMetadataOutlet,
+    MetadataOutlet,
   }: {
     loaderTree: LoaderTree
     parentParams: Params
@@ -99,13 +94,11 @@ async function createComponentTreeInternal(
     injectedCSS: Set<string>
     injectedJS: Set<string>
     injectedFontPreloadTags: Set<string>
-    getViewportReady: () => Promise<void>
-    getMetadataReady: () => Promise<void>
     ctx: AppRenderContext
     missingSlots?: Set<string>
     preloadCallbacks: PreloadCallbacks
     authInterrupts: boolean
-    StreamingMetadataOutlet: React.ComponentType | null
+    MetadataOutlet: React.ComponentType | null
   },
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
@@ -117,7 +110,6 @@ async function createComponentTreeInternal(
       HTTPAccessFallbackBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
-      OutletBoundary,
       ClientPageRoot,
       ClientSegmentRoot,
       createServerSearchParamsForServerPage,
@@ -229,7 +221,7 @@ async function createComponentTreeInternal(
     ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
     : undefined
   /** Whether this segment should use a runtime prefetch instead of a static prefetch. */
-  const hasRuntimePrefetch = prefetchConfig === 'unstable_runtime'
+  const hasRuntimePrefetch = prefetchConfig?.mode === 'runtime'
 
   const [Forbidden, forbiddenStyles] =
     authInterrupts && forbidden
@@ -371,7 +363,7 @@ async function createComponentTreeInternal(
    */
   let MaybeComponent = LayoutOrPage
 
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === 'development' || isStaticGeneration) {
     const { isValidElementType } =
       require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (
@@ -427,13 +419,6 @@ async function createComponentTreeInternal(
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
       : ctx.renderOpts.dir) || ''
-
-  // Use the same condition to render metadataOutlet as metadata
-  const metadataOutlet = StreamingMetadataOutlet ? (
-    <StreamingMetadataOutlet />
-  ) : (
-    <MetadataOutlet ready={getMetadataReady} />
-  )
 
   const [notFoundElement, notFoundFilePath] =
     await createBoundaryConventionElement({
@@ -544,23 +529,13 @@ async function createComponentTreeInternal(
               injectedCSS: injectedCSSWithCurrentLayout,
               injectedJS: injectedJSWithCurrentLayout,
               injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-              // `getMetadataReady` and `getViewportReady` are used to conditionally throw. In the case of parallel routes we will have more than one page
-              // but we only want to throw on the first one.
-              getMetadataReady: isChildrenRouteKey
-                ? getMetadataReady
-                : () => Promise.resolve(),
-              getViewportReady: isChildrenRouteKey
-                ? getViewportReady
-                : () => Promise.resolve(),
               ctx,
               missingSlots,
               preloadCallbacks,
               authInterrupts,
               // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
               // but we only want to throw on the first one.
-              StreamingMetadataOutlet: isChildrenRouteKey
-                ? StreamingMetadataOutlet
-                : null,
+              MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
             },
             false
           )
@@ -793,14 +768,14 @@ async function createComponentTreeInternal(
       let searchParams = createServerSearchParamsForServerPage(query, workStore)
 
       if (isUseCacheFunction(PageComponent)) {
-        const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
+        const UseCachePageComponent: React.ComponentType<UseCachePageProps> =
           PageComponent
 
         pageElement = (
           <UseCachePageComponent
             params={params}
             searchParams={searchParams}
-            $$isPageComponent
+            $$isPage
           />
         )
       } else {
@@ -833,10 +808,7 @@ async function createComponentTreeInternal(
       <React.Fragment key={cacheNodeKey}>
         {wrappedPageElement}
         {layerAssets}
-        <OutletBoundary>
-          <MetadataOutlet ready={getViewportReady} />
-          {metadataOutlet}
-        </OutletBoundary>
+        {MetadataOutlet ? <MetadataOutlet /> : null}
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
@@ -951,14 +923,14 @@ async function createComponentTreeInternal(
       let serverSegment: React.ReactNode
 
       if (isUseCacheFunction(SegmentComponent)) {
-        const UseCacheLayoutComponent: React.ComponentType<UseCacheLayoutComponentProps> =
+        const UseCacheLayoutComponent: React.ComponentType<UseCacheLayoutProps> =
           SegmentComponent
 
         serverSegment = (
           <UseCacheLayoutComponent
             {...parallelRouteProps}
             params={params}
-            $$isLayoutComponent
+            $$isLayout
           />
         )
       } else {
@@ -1023,22 +995,6 @@ async function createComponentTreeInternal(
     ]
   }
 }
-
-async function MetadataOutlet({
-  ready,
-}: {
-  ready: () => Promise<void> & { status?: string; value?: unknown }
-}) {
-  const r = ready()
-  // We can avoid a extra microtask by unwrapping the instrumented promise directly if available.
-  if (r.status === 'rejected') {
-    throw r.value
-  } else if (r.status !== 'fulfilled') {
-    await r
-  }
-  return null
-}
-MetadataOutlet.displayName = OUTLET_BOUNDARY_NAME
 
 function createErrorBoundaryClientSegmentRoot({
   ErrorBoundaryComponent,

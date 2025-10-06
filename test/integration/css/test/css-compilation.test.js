@@ -22,9 +22,15 @@ describe('CSS Support', () => {
       describe('CSS Compilation and Prefixing', () => {
         const appDir = join(fixturesDir, 'compilation-and-prefixing')
         const nextConfig = new File(join(appDir, 'next.config.js'))
+        const packageJson = new File(join(appDir, 'package.json'))
 
         beforeAll(async () => {
           await remove(join(appDir, '.next'))
+          packageJson.write(`{"browserslist": ["chrome 60"]}`)
+        })
+
+        afterAll(async () => {
+          packageJson.delete()
         })
 
         describe.each([true, false])(

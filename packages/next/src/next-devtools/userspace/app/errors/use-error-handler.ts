@@ -7,11 +7,7 @@ import {
 import isError from '../../../../lib/is-error'
 import { createConsoleError } from '../../../shared/console-error'
 import { coerceError, setOwnerStackIfAvailable } from './stitched-error'
-import {
-  forwardUnhandledError,
-  isTerminalLoggingEnabled,
-  logUnhandledRejection,
-} from '../forward-logs'
+import { forwardUnhandledError, logUnhandledRejection } from '../forward-logs'
 
 const queueMicroTask =
   globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))
@@ -100,9 +96,7 @@ function onUnhandledError(event: WindowEventMap['error']): void | boolean {
     const error = coerceError(thrownValue)
     setOwnerStackIfAvailable(error)
     handleClientError(error)
-    if (isTerminalLoggingEnabled) {
-      forwardUnhandledError(error)
-    }
+    forwardUnhandledError(error)
   }
 }
 
@@ -121,9 +115,7 @@ function onUnhandledRejection(ev: WindowEventMap['unhandledrejection']): void {
     handler(error)
   }
 
-  if (isTerminalLoggingEnabled) {
-    logUnhandledRejection(reason)
-  }
+  logUnhandledRejection(reason)
 }
 
 export function handleGlobalErrors() {

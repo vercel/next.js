@@ -48,7 +48,7 @@ pub async fn get_app_page_entry(
     let server_component_transition =
         ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?);
 
-    let base_path = next_config.await?.base_path.clone();
+    let base_path = next_config.base_path().owned().await?;
     let loader_tree = AppPageLoaderTreeModule::build(
         loader_tree,
         module_asset_context,

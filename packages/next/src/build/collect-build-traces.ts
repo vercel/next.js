@@ -79,14 +79,12 @@ export async function collectBuildTraces({
   edgeRuntimeRoutes,
   staticPages,
   nextBuildSpan = new Span({ name: 'build' }),
-  hasSsrAmpPages,
   buildTraceContext,
   outputFileTracingRoot,
 }: {
   dir: string
   distDir: string
   staticPages: string[]
-  hasSsrAmpPages: boolean
   outputFileTracingRoot: string
   // pageInfos is serialized when this function runs in a worker.
   edgeRuntimeRoutes: RoutesUsingEdgeRuntime
@@ -137,6 +135,25 @@ export async function collectBuildTraces({
             path.isAbsolute(cacheHandler)
               ? cacheHandler
               : path.join(dir, cacheHandler)
+          )
+        )
+      }
+
+      // Under standalone mode, we need to ensure that the cache entry debug
+      // handler is traced so it can be copied. This is only used for testing,
+      // and is not used in production.
+      if (
+        process.env.__NEXT_TEST_MODE &&
+        process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+      ) {
+        sharedEntriesSet.push(
+          require.resolve(
+            path.isAbsolute(process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS)
+              ? process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+              : path.join(
+                  dir,
+                  process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+                )
           )
         )
       }
@@ -214,10 +231,6 @@ export async function collectBuildTraces({
             ]
           : []),
 
-        ...(!hasSsrAmpPages
-          ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
-          : []),
-
         ...(isStandalone ? [] : TRACE_IGNORES),
         ...additionalIgnores,
       ]
@@ -250,7 +263,6 @@ export async function collectBuildTraces({
         // as otherwise all chunks are traced here and included for all pages
         // whether they are needed or not
         '**/.next/server/chunks/**',
-        '**/next/dist/server/optimize-amp.js',
         '**/next/dist/server/post-process.js',
       ].filter(nonNullable)
 

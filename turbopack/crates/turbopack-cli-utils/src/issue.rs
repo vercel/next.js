@@ -12,11 +12,11 @@ use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, Vc};
+use turbo_tasks::{RawVc, TransientInstance, TransientValue, Vc};
 use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
-    CapturedIssues, IssueReporter, IssueSeverity, PlainIssue, PlainIssueProcessingPathItem,
-    PlainIssueSource, PlainTraceItem, StyledString,
+    CapturedIssues, IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource, PlainTraceItem,
+    StyledString,
 };
 
 use crate::source_context::format_source_context_lines;
@@ -42,39 +42,6 @@ fn format_source_content(source: &PlainIssueSource, formatted_issue: &mut String
         let ctx = get_source_context(lines, start.line, start.column, end.line, end.column);
         format_source_context_lines(&ctx, formatted_issue);
     }
-}
-
-fn format_optional_path(
-    path: &Option<Vec<ReadRef<PlainIssueProcessingPathItem>>>,
-    formatted_issue: &mut String,
-) -> Result<()> {
-    if let Some(path) = path {
-        let mut last_context = None;
-        for item in path.iter().rev() {
-            let PlainIssueProcessingPathItem {
-                file_path: ref context,
-                ref description,
-            } = **item;
-            if let Some(context) = context {
-                let option_context = Some(context.clone());
-                if last_context == option_context {
-                    writeln!(formatted_issue, " at {description}")?;
-                } else {
-                    writeln!(
-                        formatted_issue,
-                        " at {} ({})",
-                        context.to_string().bright_blue(),
-                        description
-                    )?;
-                    last_context = option_context;
-                }
-            } else {
-                writeln!(formatted_issue, " at {description}")?;
-                last_context = None;
-            }
-        }
-    }
-    Ok(())
 }
 
 pub fn format_issue(
@@ -435,7 +402,6 @@ impl IssueReporter for ConsoleUi {
             let context_path =
                 make_relative_to_cwd(&plain_issue.file_path, project_dir, current_dir);
             let stage = plain_issue.stage.to_string();
-            let processing_path = &*plain_issue.processing_path;
             let severity_map = grouped_issues.entry(severity).or_default();
             let category_map = severity_map.entry(stage.clone()).or_default();
             let issues = category_map.entry(context_path.to_string()).or_default();
@@ -462,7 +428,6 @@ impl IssueReporter for ConsoleUi {
                 if !documentation_link.is_empty() {
                     writeln!(&mut styled_issue, "\ndocumentation: {documentation_link}")?;
                 }
-                format_optional_path(processing_path, &mut styled_issue)?;
             }
             issues.push(styled_issue);
         }

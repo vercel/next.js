@@ -1886,3 +1886,14 @@ export function normalizeManifest<T>(
     )
   )
 }
+
+export function getDistDir(isNextDev?: boolean): '.next' | '.next/dev' {
+  // global.isNextDev is set in e2e/development/production tests.
+  // TODO: If a test utils that are used in integration/unit tests can set
+  // global.isNextDev flag, we could possibly remove the parameter.
+  return (isNextDev ?? (global as any).isNextDev) &&
+    // Flag for incremental rollout of isolated dev build, set in CI.
+    process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true'
+    ? '.next/dev'
+    : '.next'
+}

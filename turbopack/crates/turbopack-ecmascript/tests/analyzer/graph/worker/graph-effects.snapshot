@@ -38,7 +38,6 @@
             ),
         ],
         span: 21..24,
-        in_try: false,
     },
     Member {
         obj: WellKnownObject(
@@ -93,7 +92,6 @@
             ),
         ],
         span: 40..55,
-        in_try: false,
     },
     ImportMeta {
         ast_path: [
@@ -144,7 +142,6 @@
             ),
         ],
         span: 40..51,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -241,7 +238,6 @@
             ),
         ],
         span: 62..68,
-        in_try: false,
     },
     Call {
         func: FreeVar(

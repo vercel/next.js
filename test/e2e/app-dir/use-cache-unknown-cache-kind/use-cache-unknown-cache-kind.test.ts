@@ -41,7 +41,7 @@ describe('use-cache-unknown-cache-kind', () => {
            3 | export default async function Page() {
            4 |   return <p>hello world</p>
 
-         Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
+         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config.
 
 
 
@@ -53,7 +53,7 @@ describe('use-cache-unknown-cache-kind', () => {
          "
          ./app/page.tsx
            × Module build failed:
-           ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
+           ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config.
                  │
                  │    ,-[1:1]
                  │  1 | 'use cache: custom'
@@ -75,7 +75,7 @@ describe('use-cache-unknown-cache-kind', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
          ./app/page.tsx
-         Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
+         Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config.
 
             ,-[1:1]
           1 | 'use cache: custom'
@@ -124,7 +124,7 @@ describe('use-cache-unknown-cache-kind', () => {
         )
       } else {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"  x Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config."`
+          `"  x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config."`
         )
       }
 
@@ -138,13 +138,13 @@ describe('use-cache-unknown-cache-kind', () => {
            3 | export default async function Page() {
            4 |   return <p>hello world</p>
 
-         Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config."
+         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config."
         `)
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx
            × Module build failed:
-           ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
+           ╰─▶   × Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config.
                  │   |
                  │    ,-[1:1]
                  │  1 | 'use cache: custom'
@@ -158,7 +158,7 @@ describe('use-cache-unknown-cache-kind', () => {
       } else {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx
-         Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
+         Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the \`experimental.cacheHandlers\` object in your Next.js config.
 
             ,-[1:1]
           1 | 'use cache: custom'

@@ -13,7 +13,11 @@ import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest, RoutesManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import type {
+  NextParsedUrlQuery,
+  NextUrlWithParsedQuery,
+  RequestMeta,
+} from './request-meta'
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
@@ -27,7 +31,7 @@ import type { WaitUntil } from './after/builtin-request-context'
 import fs from 'fs'
 import { join, relative } from 'path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { addRequestMeta, getRequestMeta } from './request-meta'
+import { addRequestMeta, getRequestMeta, setRequestMeta } from './request-meta'
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
@@ -434,17 +438,20 @@ export default class NextNodeServer extends BaseServer<
   protected loadEnvConfig({
     dev,
     forceReload,
-    silent,
   }: {
     dev: boolean
-    forceReload?: boolean
-    silent?: boolean
+    forceReload: boolean
   }) {
     loadEnvConfig(
       this.dir,
       dev,
-      silent ? { info: () => {}, error: () => {} } : Log,
+      Log,
+      forceReload,
       forceReload
+        ? (envFilePath) => {
+            Log.info(`Reload env: ${envFilePath}`)
+          }
+        : undefined
     )
   }
 
@@ -886,12 +893,6 @@ export default class NextNodeServer extends BaseServer<
     url?: string
   }): Promise<FindComponentsResult | null> {
     const pagePaths: string[] = [page]
-    if (query.amp) {
-      // try serving a static AMP version first
-      pagePaths.unshift(
-        (isAppPath ? normalizeAppPath(page) : normalizePagePath(page)) + '.amp'
-      )
-    }
 
     if (locale) {
       pagePaths.unshift(
@@ -926,9 +927,7 @@ export default class NextNodeServer extends BaseServer<
           query: {
             ...(!this.renderOpts.isExperimentalCompile &&
             components.getStaticProps
-              ? ({
-                  amp: query.amp,
-                } as NextParsedUrlQuery)
+              ? {}
               : query),
             // For appDir params is excluded.
             ...((isAppPath ? {} : params) || {}),
@@ -1268,6 +1267,17 @@ export default class NextNodeServer extends BaseServer<
       return wrapRequestHandlerNode(handler)
     }
     return handler
+  }
+
+  /**
+   * @internal - this method is internal to Next.js and should not be used directly by end-users
+   */
+  public getRequestHandlerWithMetadata(meta: RequestMeta): NodeRequestHandler {
+    const handler = this.makeRequestHandler()
+    return (req, res, parsedUrl) => {
+      setRequestMeta(req, meta)
+      return handler(req, res, parsedUrl)
+    }
   }
 
   private makeRequestHandler(): NodeRequestHandler {

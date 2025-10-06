@@ -1122,9 +1122,6 @@
       Object.seal(refObject);
       return refObject;
     };
-    exports.experimental_useEffectEvent = function (callback) {
-      return resolveDispatcher().useEffectEvent(callback);
-    };
     exports.experimental_useOptimistic = function (passthrough, reducer) {
       console.error(
         "useOptimistic is now in canary. Remove the experimental_ prefix. The prefixed alias will be removed in an upcoming release."
@@ -1309,6 +1306,9 @@
         );
       return resolveDispatcher().useEffect(create, deps);
     };
+    exports.useEffectEvent = function (callback) {
+      return resolveDispatcher().useEffectEvent(callback);
+    };
     exports.useId = function () {
       return resolveDispatcher().useId();
     };
@@ -1356,7 +1356,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.2.0-experimental-8a8e9a7e-20250912";
+    exports.version = "19.3.0-experimental-4fdf7cf2-20251003";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
