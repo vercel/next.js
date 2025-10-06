@@ -8,18 +8,6 @@ const appDir = join(__dirname, '..')
 const appTypeDeclarations = join(appDir, 'next-env.d.ts')
 
 describe('TypeScript App Type Declarations', () => {
-  if (process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true') {
-    it.skip('should skip on isolated dev build', () => {
-      // We use static fixture "next-env.d.ts" but the content should differ
-      // based on the isolated dev build flag. We can't do something like
-      // "next-env-dev.d.ts" because Next.js Types Plugin emits a file
-      // "next-env.d.ts", and we have to change its behavior for this test case.
-      // Rather than that, just skip the test as we're going to remove this flag soon.
-      // Then modify the content to be ".next/dev/types/routes.d.ts"
-    })
-    return
-  }
-
   it('should write a new next-env.d.ts if none exist', async () => {
     const prevContent = await fs.readFile(appTypeDeclarations, 'utf8')
     try {

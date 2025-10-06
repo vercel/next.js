@@ -1893,9 +1893,7 @@ export function normalizeManifest<T>(
 export function getDistDir(): '.next' | '.next/dev' {
   // global.isNextDev is set in e2e/development/production tests.
   // NEXT_TEST_MODE is set in CI or local test-* commands.
-  return ((global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev') &&
-    // Flag for incremental rollout of isolated dev build, set in CI.
-    process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true'
+  return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev'
     ? '.next/dev'
     : '.next'
 }
