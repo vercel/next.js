@@ -1,5 +1,5 @@
 import path from 'path'
-import { check } from 'next-test-utils'
+import { check, getDistDir } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 import {
@@ -42,7 +42,7 @@ describe('app dir - rsc basics', () => {
         const clientReferenceManifest = JSON.parse(
           (
             await next.readFile(
-              '.next/server/app/page_client-reference-manifest.js'
+              `${getDistDir()}/server/app/page_client-reference-manifest.js`
             )
           ).match(/]=(.+)$/)[1]
         )
@@ -632,13 +632,15 @@ describe('app dir - rsc basics', () => {
   if (isNextStart) {
     it('should generate edge SSR manifests for Node.js', async () => {
       const requiredServerFiles = JSON.parse(
-        await next.readFile('.next/required-server-files.json')
+        await next.readFile(`${getDistDir()}/required-server-files.json`)
       ).files
 
       const files = ['middleware-build-manifest.js', 'middleware-manifest.json']
 
       let promises = files.map(async (file) => {
-        expect(await next.hasFile(path.join('.next/server', file))).toBe(true)
+        expect(
+          await next.hasFile(path.join(`${getDistDir()}/server`, file))
+        ).toBe(true)
       })
       await Promise.all(promises)
 

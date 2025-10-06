@@ -9,6 +9,7 @@ import {
   retry,
   waitFor,
   trimEndMultiline,
+  getDistDir,
 } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import { outdent } from 'outdent'
@@ -767,7 +768,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
   if (!process.env.IS_TURBOPACK_TEST) {
     it('should have client HMR events in trace file', async () => {
-      const traceData = await next.readFile('.next/trace')
+      const traceData = await next.readFile(`${getDistDir()}/trace`)
       expect(traceData).toContain('client-hmr-latency')
       expect(traceData).toContain('client-error')
       expect(traceData).toContain('client-success')
