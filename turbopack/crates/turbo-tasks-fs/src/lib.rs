@@ -200,10 +200,12 @@ fn create_semaphore() -> tokio::sync::Semaphore {
         env::var("NEXT_TURBOPACK_IO_CONCURRENCY")
             .ok()
             .filter(|val| !val.is_empty())
-            .map_or(256, |val| {
+            .map(|val| {
                 val.parse()
                     .expect("NEXT_TURBOPACK_IO_CONCURRENCY must be a valid integer")
             })
+            .filter(|val| *val != 0)
+            .unwrap_or(256)
     });
     tokio::sync::Semaphore::new(*NEXT_TURBOPACK_IO_CONCURRENCY)
 }
