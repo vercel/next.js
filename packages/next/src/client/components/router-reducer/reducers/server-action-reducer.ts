@@ -262,9 +262,9 @@ export function serverActionReducer(
     // the next-url after a navigation, but we want the same
     // interception route to be matched that used the last
     // next-url.
-    (state.lastNextUrl || state.nextUrl) &&
+    (state.previousNextUrl || state.nextUrl) &&
     hasInterceptionRouteInCurrentTree(state.tree)
-      ? state.lastNextUrl || state.nextUrl
+      ? state.previousNextUrl || state.nextUrl
       : null
 
   const navigatedAt = Date.now()

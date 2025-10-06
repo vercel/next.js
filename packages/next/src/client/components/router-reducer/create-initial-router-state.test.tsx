@@ -138,7 +138,7 @@ describe('createInitialRouterState', () => {
       },
       cache: expectedCache,
       nextUrl: '/linking',
-      lastNextUrl: null,
+      previousNextUrl: null,
     }
 
     expect(state).toMatchObject(expected)

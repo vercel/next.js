@@ -395,7 +395,7 @@ function InnerLayoutRouter({
               // the next-url after a navigation, but we want the same
               // interception route to be matched that used the last
               // next-url.
-              context.lastNextUrl || context.nextUrl
+              context.previousNextUrl || context.nextUrl
             : null,
         }
       ).then((serverResponse) => {

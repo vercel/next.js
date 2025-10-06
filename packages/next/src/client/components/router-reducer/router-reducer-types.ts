@@ -256,9 +256,9 @@ export type AppRouterState = {
   nextUrl: string | null
 
   /**
-   * The last next-url that was used previous to a dynamic navigation.
+   * The previous next-url that was used previous to a dynamic navigation.
    */
-  lastNextUrl: string | null
+  previousNextUrl: string | null
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>

@@ -255,6 +255,7 @@ function getSafeKeyFromSegment({
       ? `(?:/${interceptionPrefix}${pattern})?`
       : `/${interceptionPrefix}${pattern}`,
     cleanedKey: cleanedKey,
+    optional,
     repeat,
   }
 }
@@ -285,20 +286,21 @@ function getNamedParametrizedRoute(
 
     if (hasInterceptionMarker && paramMatches && paramMatches[2]) {
       // If there's an interception marker, add it to the segments.
-      const { key, pattern, cleanedKey, repeat } = getSafeKeyFromSegment({
-        getSafeRouteKey,
-        interceptionMarker: paramMatches[1],
-        segment: paramMatches[2],
-        routeKeys,
-        keyPrefix: prefixRouteKeys
-          ? NEXT_INTERCEPTION_MARKER_PREFIX
-          : undefined,
-        backreferenceDuplicateKeys,
-      })
+      const { key, pattern, cleanedKey, repeat, optional } =
+        getSafeKeyFromSegment({
+          getSafeRouteKey,
+          interceptionMarker: paramMatches[1],
+          segment: paramMatches[2],
+          routeKeys,
+          keyPrefix: prefixRouteKeys
+            ? NEXT_INTERCEPTION_MARKER_PREFIX
+            : undefined,
+          backreferenceDuplicateKeys,
+        })
 
       segments.push(pattern)
       inverseParts.push(
-        `/${paramMatches[1]}:${reference[key] ?? cleanedKey}${repeat ? '*' : ''}`
+        `/${paramMatches[1]}:${reference[key] ?? cleanedKey}${repeat ? (optional ? '*' : '+') : ''}`
       )
       reference[key] ??= cleanedKey
     } else if (paramMatches && paramMatches[2]) {
@@ -308,13 +310,14 @@ function getNamedParametrizedRoute(
         inverseParts.push(`/${paramMatches[1]}`)
       }
 
-      const { key, pattern, cleanedKey, repeat } = getSafeKeyFromSegment({
-        getSafeRouteKey,
-        segment: paramMatches[2],
-        routeKeys,
-        keyPrefix: prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined,
-        backreferenceDuplicateKeys,
-      })
+      const { key, pattern, cleanedKey, repeat, optional } =
+        getSafeKeyFromSegment({
+          getSafeRouteKey,
+          segment: paramMatches[2],
+          routeKeys,
+          keyPrefix: prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined,
+          backreferenceDuplicateKeys,
+        })
 
       // Remove the leading slash if includePrefix already added it.
       let s = pattern
@@ -323,7 +326,9 @@ function getNamedParametrizedRoute(
       }
 
       segments.push(s)
-      inverseParts.push(`/:${reference[key] ?? cleanedKey}${repeat ? '*' : ''}`)
+      inverseParts.push(
+        `/:${reference[key] ?? cleanedKey}${repeat ? (optional ? '*' : '+') : ''}`
+      )
       reference[key] ??= cleanedKey
     } else {
       segments.push(`/${escapeStringRegexp(segment)}`)

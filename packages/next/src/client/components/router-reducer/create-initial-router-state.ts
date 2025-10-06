@@ -110,7 +110,7 @@ export function createInitialRouterState({
       // the || operator is intentional, the pathname can be an empty string
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
-    lastNextUrl: null,
+    previousNextUrl: null,
   }
 
   if (process.env.NODE_ENV !== 'development' && location) {

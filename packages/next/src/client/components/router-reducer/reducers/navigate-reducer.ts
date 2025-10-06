@@ -396,7 +396,7 @@ export function navigateReducer(
                     // the next-url after a navigation, but we want the same
                     // interception route to be matched that used the last
                     // next-url.
-                    nextUrl: state.lastNextUrl || state.nextUrl,
+                    nextUrl: state.previousNextUrl || state.nextUrl,
                   }
                 )
 

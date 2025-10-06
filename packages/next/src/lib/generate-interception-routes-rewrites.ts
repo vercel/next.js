@@ -47,8 +47,10 @@ function generateSameLevelHeaderRegex(
       : interceptingRoute.split('/').filter(Boolean)
 
   const patterns: string[] = []
+  const optionalIndices: number[] = []
 
-  for (const segment of segments) {
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i]
     const param = getSegmentParam(segment)
     if (param) {
       // Dynamic segment - use named capture group
@@ -63,6 +65,10 @@ function generateSameLevelHeaderRegex(
       // Check if this is a catchall (repeat) parameter
       if (isCatchAll(param.type)) {
         patterns.push(`(?<${prefixedKey}>.+?)`)
+        // Track optional catchall segments so we can wrap them later
+        if (param.type === 'optional-catchall') {
+          optionalIndices.push(i)
+        }
       } else {
         patterns.push(`(?<${prefixedKey}>[^/]+?)`)
       }
@@ -72,7 +78,16 @@ function generateSameLevelHeaderRegex(
     }
   }
 
-  const pattern = patterns.length > 0 ? `/${patterns.join('/')}` : ''
+  // Build the header regex, wrapping optional catchall segments
+  let pattern = ''
+  for (let i = 0; i < patterns.length; i++) {
+    if (optionalIndices.includes(i)) {
+      // Optional catchall: wrap the segment with its leading / in an optional group
+      pattern += `(?:/${patterns[i]})?`
+    } else {
+      pattern += `/${patterns[i]}`
+    }
+  }
 
   // Match the pattern, optionally followed by a single segment, with optional trailing slash
   // Note: Don't add ^ and $ anchors here - matchHas() will add them automatically
@@ -179,7 +194,11 @@ export function generateInterceptionRoutesRewrites(
 
         // Build regex pattern that handles dynamic segments correctly
         const patterns: string[] = []
-        for (const segment of interceptingRoute.split('/').filter(Boolean)) {
+        const optionalIndices: number[] = []
+
+        const segments = interceptingRoute.split('/').filter(Boolean)
+        for (let i = 0; i < segments.length; i++) {
+          const segment = segments[i]
           const param = getSegmentParam(segment)
           if (param) {
             // Dynamic segment - use named capture group from header.reference
@@ -193,6 +212,10 @@ export function generateInterceptionRoutesRewrites(
             // Check if this is a catchall (repeat) parameter
             if (isCatchAll(param.type)) {
               patterns.push(`(?<${key}>.+?)`)
+              // Track optional catchall segments so we can wrap them later
+              if (param.type === 'optional-catchall') {
+                optionalIndices.push(i)
+              }
             } else {
               patterns.push(`(?<${key}>[^/]+?)`)
             }
@@ -202,10 +225,21 @@ export function generateInterceptionRoutesRewrites(
           }
         }
 
+        // Build the header regex, wrapping optional catchall segments
+        let headerPattern = ''
+        for (let i = 0; i < patterns.length; i++) {
+          if (optionalIndices.includes(i)) {
+            // Optional catchall: wrap the segment with its leading / in an optional group
+            headerPattern += `(?:/${patterns[i]})?`
+          } else {
+            headerPattern += `/${patterns[i]}`
+          }
+        }
+
         // Note: Don't add ^ and $ anchors - matchHas() will add them automatically
         // If there's a catchall sibling, match the level and its children (catchall paths)
         // Otherwise, only match the exact level
-        headerRegex = `/${patterns.join('/')}${hasCatchallSibling ? '(/.+)?' : ''}`
+        headerRegex = `${headerPattern}${hasCatchallSibling ? '(/.+)?' : ''}`
       } else {
         // For other markers, use the default behavior (match exact intercepting route)
         // Strip ^ and $ anchors since matchHas() will add them automatically
