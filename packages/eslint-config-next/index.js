@@ -56,7 +56,7 @@ require('@rushstack/eslint-patch/modern-module-resolution')
 module.exports = {
   extends: [
     'plugin:react/recommended',
-    'plugin:react-hooks/recommended-latest',
+    'plugin:react-hooks/recommended-latest-legacy',
     'plugin:@next/next/recommended',
   ],
   plugins: ['import', 'react', 'jsx-a11y'],
