@@ -993,6 +993,7 @@ pub struct ServerChunkingContextOptions {
     pub turbo_source_maps: Vc<bool>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub debug_ids: Vc<bool>,
 }
 
 #[turbo_tasks::function]
@@ -1013,6 +1014,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        debug_ids,
     } = options;
 
     let next_mode = mode.await?;
@@ -1045,7 +1047,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     })
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
-    .file_tracing(next_mode.is_production());
+    .file_tracing(next_mode.is_production())
+    .debug_ids(*debug_ids.await?);
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris();
@@ -1089,6 +1092,7 @@ pub async fn get_server_chunking_context(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        debug_ids,
     } = options;
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1118,7 +1122,8 @@ pub async fn get_server_chunking_context(
     })
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
-    .file_tracing(next_mode.is_production());
+    .file_tracing(next_mode.is_production())
+    .debug_ids(*debug_ids.await?);
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris()
