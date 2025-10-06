@@ -2,7 +2,7 @@ import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   formatIssue,
-  isPersistentCachingEnabled,
+  isPersistentCachingEnabledForBuild,
   isRelevantWarning,
 } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
@@ -41,7 +41,6 @@ export async function turbopackBuild(): Promise<{
   const previewProps = NextBuildContext.previewProps!
   const hasRewrites = NextBuildContext.hasRewrites!
   const rewrites = NextBuildContext.rewrites!
-  const appDirOnly = NextBuildContext.appDirOnly!
   const noMangling = NextBuildContext.noMangling!
   const currentNodeJsVersion = process.versions.node
 
@@ -51,7 +50,7 @@ export async function turbopackBuild(): Promise<{
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
-  const persistentCaching = isPersistentCachingEnabled(config)
+  const persistentCaching = isPersistentCachingEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
   const project = await bindings.turbo.createProject(
     {
@@ -107,8 +106,22 @@ export async function turbopackBuild(): Promise<{
       '{"type": "commonjs"}'
     )
 
+    let appDirOnly = NextBuildContext.appDirOnly!
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+
+    const hasPagesEntries = Array.from(entrypoints.routes.values()).some(
+      (route) => {
+        if (route.type === 'page' || route.type === 'page-api') {
+          return true
+        }
+        return false
+      }
+    )
+    // If there's no pages entries, then we are in app-dir-only mode
+    if (!hasPagesEntries) {
+      appDirOnly = true
+    }
 
     const manifestLoader = new TurbopackManifestLoader({
       buildId,

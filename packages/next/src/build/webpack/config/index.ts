@@ -39,9 +39,10 @@ export async function buildConfiguration(
     sassOptions: any
     productionBrowserSourceMaps: boolean
     transpilePackages: NextConfigComplete['transpilePackages']
+    // @ts-expect-error TODO: remove any
     future: NextConfigComplete['future']
     experimental: NextConfigComplete['experimental']
-    disableStaticImages: NextConfigComplete['disableStaticImages']
+    disableStaticImages: NextConfigComplete['images']['disableStaticImages']
     serverSourceMaps: NextConfigComplete['experimental']['serverSourceMaps']
   }
 ): Promise<webpack.Configuration> {

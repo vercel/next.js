@@ -334,7 +334,7 @@ impl ProjectContainer {
         Ok(())
     }
 
-    #[tracing::instrument(level = "info", name = "update project", skip_all)]
+    #[tracing::instrument(level = "info", name = "update project options", skip_all)]
     pub async fn update(self: Vc<Self>, options: PartialProjectOptions) -> Result<()> {
         let PartialProjectOptions {
             root_path,
@@ -479,8 +479,8 @@ impl ProjectContainer {
         }
 
         let dist_dir = next_config
+            .dist_dir()
             .await?
-            .dist_dir
             .as_ref()
             .map_or_else(|| rcstr!(".next"), |d| d.clone());
 
@@ -722,13 +722,17 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let next_config = self.next_config().await?;
+        let next_config = self.next_config();
         Ok(self
             .client_root()
             .await?
             .join(&format!(
                 "{}/_next",
-                next_config.base_path.clone().unwrap_or_default(),
+                next_config
+                    .base_path()
+                    .await?
+                    .as_deref()
+                    .unwrap_or_default(),
             ))?
             .cell())
     }
@@ -848,12 +852,7 @@ impl Project {
         let mut endpoints = Vec::new();
 
         let entrypoints = self.entrypoints().await?;
-
-        // Always include these basic pages endpoints regardless of `app_dir_only`. The user's
-        // page routes themselves are excluded below.
-        endpoints.push(entrypoints.pages_error_endpoint);
-        endpoints.push(entrypoints.pages_app_endpoint);
-        endpoints.push(entrypoints.pages_document_endpoint);
+        let mut is_pages_entries_added = false;
 
         if let Some(middleware) = &entrypoints.middleware {
             endpoints.push(middleware.endpoint);
@@ -868,15 +867,31 @@ impl Project {
             match route {
                 Route::Page {
                     html_endpoint,
-                    data_endpoint: _,
+                    data_endpoint,
                 } => {
                     if !app_dir_only {
                         endpoints.push(*html_endpoint);
+                        if !is_pages_entries_added {
+                            endpoints.push(entrypoints.pages_error_endpoint);
+                            endpoints.push(entrypoints.pages_app_endpoint);
+                            endpoints.push(entrypoints.pages_document_endpoint);
+                            is_pages_entries_added = true;
+                        }
+                        // This only exists in development mode for HMR
+                        if let Some(data_endpoint) = data_endpoint {
+                            endpoints.push(*data_endpoint);
+                        }
                     }
                 }
                 Route::PageApi { endpoint } => {
                     if !app_dir_only {
                         endpoints.push(*endpoint);
+                        if !is_pages_entries_added {
+                            endpoints.push(entrypoints.pages_error_endpoint);
+                            endpoints.push(entrypoints.pages_app_endpoint);
+                            endpoints.push(entrypoints.pages_document_endpoint);
+                            is_pages_entries_added = true;
+                        }
                     }
                 }
                 Route::AppPage(page_routes) => {
@@ -970,7 +985,7 @@ impl Project {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
             let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
-            let _ = module_graphs_op.take_issues().await?;
+            let _ = module_graphs_op.take_issues();
 
             // At this point all modules have been computed and we can get rid of the node.js
             // process pools
@@ -991,7 +1006,7 @@ impl Project {
         let this = self.await?;
         Ok(get_server_compile_time_info(
             // `/ROOT` corresponds to `[project]/`, so we need exactly the `path` part.
-            format!("/ROOT/{}", self.project_path().await?.path).into(),
+            self.project_path(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
         ))
@@ -1037,6 +1052,7 @@ impl Project {
             source_maps: self.next_config().client_source_maps(self.next_mode()),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            debug_ids: self.next_config().turbopack_debug_ids(),
         }))
     }
 
@@ -1057,6 +1073,7 @@ impl Project {
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            debug_ids: self.next_config().turbopack_debug_ids(),
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(
@@ -1144,26 +1161,38 @@ impl Project {
             *config.persistent_caching_enabled().await?,
         );
 
-        let config = &config.await?;
-
-        emit_event("modularizeImports", config.modularize_imports.is_some());
-        emit_event("transpilePackages", config.transpile_packages.is_some());
+        emit_event(
+            "modularizeImports",
+            !config.modularize_imports().await?.is_empty(),
+        );
+        emit_event(
+            "transpilePackages",
+            !config.transpile_packages().await?.is_empty(),
+        );
         emit_event("turbotrace", false);
 
         // compiler options
-        let compiler_options = config.compiler.as_ref();
-        let swc_relay_enabled = compiler_options.and_then(|c| c.relay.as_ref()).is_some();
+        let compiler_options = config.compiler().await?;
+        let swc_relay_enabled = compiler_options.relay.is_some();
         let styled_components_enabled = compiler_options
-            .and_then(|c| c.styled_components.as_ref().map(|sc| sc.is_enabled()))
+            .styled_components
+            .as_ref()
+            .map(|sc| sc.is_enabled())
             .unwrap_or_default();
         let react_remove_properties_enabled = compiler_options
-            .and_then(|c| c.react_remove_properties.as_ref().map(|rc| rc.is_enabled()))
+            .react_remove_properties
+            .as_ref()
+            .map(|rc| rc.is_enabled())
             .unwrap_or_default();
         let remove_console_enabled = compiler_options
-            .and_then(|c| c.remove_console.as_ref().map(|rc| rc.is_enabled()))
+            .remove_console
+            .as_ref()
+            .map(|rc| rc.is_enabled())
             .unwrap_or_default();
         let emotion_enabled = compiler_options
-            .and_then(|c| c.emotion.as_ref().map(|e| e.is_enabled()))
+            .emotion
+            .as_ref()
+            .map(|e| e.is_enabled())
             .unwrap_or_default();
 
         emit_event("swcRelay", swc_relay_enabled);
@@ -1411,6 +1440,8 @@ impl Project {
         Ok(find_context_file(
             self.project_path().owned().await?,
             middleware_files(self.next_config().page_extensions()),
+            // our callers do not care about affecting sources
+            false,
         ))
     }
 
@@ -1570,6 +1601,8 @@ impl Project {
         Ok(find_context_file(
             self.project_path().owned().await?,
             instrumentation_files(self.next_config().page_extensions()),
+            // our callers do not care about affecting sources
+            false,
         ))
     }
 

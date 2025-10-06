@@ -42,6 +42,7 @@ export async function createApp({
   turbopack,
   rspack,
   disableGit,
+  reactCompiler,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -60,6 +61,7 @@ export async function createApp({
   turbopack: boolean
   rspack: boolean
   disableGit?: boolean
+  reactCompiler: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -252,6 +254,7 @@ export async function createApp({
       skipInstall,
       turbopack,
       rspack,
+      reactCompiler,
     })
   }
 

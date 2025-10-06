@@ -411,12 +411,14 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathHasNoExtension,
                     RuleCondition::ContentTypeEmpty,
                 ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
-                    preprocess: empty,
-                    main: empty,
-                    postprocess: empty,
-                    options: ecmascript_options_vc,
-                })],
+                vec![ModuleRuleEffect::ModuleType(
+                    ModuleType::EcmascriptExtensionless {
+                        preprocess: empty,
+                        main: empty,
+                        postprocess: empty,
+                        options: ecmascript_options_vc,
+                    },
+                )],
             ),
             // Static assets
             ModuleRule::new(

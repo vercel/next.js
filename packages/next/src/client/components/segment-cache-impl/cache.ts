@@ -2203,7 +2203,7 @@ function addSegmentPathToUrlInOutputExportMode(
     // path. Instead, we append it to the end of the pathname.
     const staticUrl = new URL(url)
     const routeDir = staticUrl.pathname.endsWith('/')
-      ? staticUrl.pathname.substring(0, -1)
+      ? staticUrl.pathname.slice(0, -1)
       : staticUrl.pathname
     const staticExportFilename =
       convertSegmentPathToStaticExportFilename(segmentPath)

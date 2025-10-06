@@ -33,7 +33,7 @@ impl ManifestChunkItem {
     async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
         Ok(ChunkData::from_assets(
             self.chunking_context.output_root().owned().await?,
-            self.manifest.chunks(),
+            *self.manifest.chunk_group().await?.assets,
         ))
     }
 }
@@ -77,8 +77,8 @@ impl ChunkItem for ManifestChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        Ok(self.manifest.chunks())
+    fn references(&self) -> Vc<OutputAssets> {
+        self.manifest.chunk_group().all_assets()
     }
 
     #[turbo_tasks::function]

@@ -122,6 +122,8 @@
       "test/e2e/app-dir/app-inline-css/index.test.ts",
       "test/e2e/app-dir/app-invalid-revalidate/app-invalid-revalidate.test.ts",
       "test/e2e/app-dir/app-middleware/app-middleware.test.ts",
+      "test/e2e/app-dir/app-middleware/app-middleware-in-src-dir.test.ts",
+      "test/e2e/app-dir/app-middleware/app-middleware-without-pages-dir.test.ts",
       "test/e2e/app-dir/app-prefetch*/**/*",
       "test/e2e/app-dir/app-rendering/rendering.test.ts",
       "test/e2e/app-dir/app-root-params/generate-static-params.test.ts",

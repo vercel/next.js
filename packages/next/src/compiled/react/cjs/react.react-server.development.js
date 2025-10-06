@@ -533,7 +533,7 @@
     var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
     var didWarnAboutMaps = !1,
       userProvidedKeyEscapeRegex = /\/+/g;
-    exports.Children = {
+    createFakeCallStack = {
       map: mapChildren,
       forEach: function (children, forEachFunc, forEachContext) {
         mapChildren(
@@ -566,6 +566,8 @@
         return children;
       }
     };
+    exports.Activity = REACT_ACTIVITY_TYPE;
+    exports.Children = createFakeCallStack;
     exports.Fragment = REACT_FRAGMENT_TYPE;
     exports.Profiler = REACT_PROFILER_TYPE;
     exports.StrictMode = REACT_STRICT_MODE_TYPE;
@@ -844,5 +846,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.2.0-canary-d415fd3e-20250919";
+    exports.version = "19.3.0-canary-85c427d8-20251003";
   })();

@@ -50,7 +50,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         export_usage::compute_export_usage_info,
     },
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -89,6 +89,8 @@ struct SnapshotOptions {
     scope_hoisting: bool,
     #[serde(default)]
     production_chunking: bool,
+    #[serde(default)]
+    enable_debug_ids: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -118,6 +120,7 @@ impl Default for SnapshotOptions {
             remove_unused_exports: false,
             scope_hoisting: false,
             production_chunking: false,
+            enable_debug_ids: false,
         }
     }
 }
@@ -219,9 +222,8 @@ async fn run(resource: PathBuf) -> Result<()> {
 async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
     let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
-    let captured_issues = out_op.peek_issues().await?;
 
-    let plain_issues = captured_issues.get_plain_issues().await?;
+    let plain_issues = out_op.peek_issues().get_plain_issues().await?;
 
     snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
         .await
@@ -457,7 +459,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage);
+            .export_usage(export_usage)
+            .debug_ids(options.enable_debug_ids);
 
             if options.production_chunking {
                 builder = builder.chunking_config(
@@ -485,7 +488,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage);
+            .export_usage(export_usage)
+            .debug_ids(options.enable_debug_ids);
 
             if options.production_chunking {
                 builder = builder.chunking_config(
@@ -511,28 +515,33 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             AvailabilityInfo::Root,
         ),
         Runtime::NodeJs => {
-            Vc::cell(vec![
-                Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
-                    .await?
-                    .unwrap()
-                    .entry_chunk_group(
-                        // `expected` expects a completely flat output directory.
-                        chunk_root_path
-                            .join(entry_module.ident().path().await?.file_stem().unwrap())?
-                            .with_extension("entry.js"),
-                        evaluatable_assets,
-                        module_graph,
-                        OutputAssets::empty(),
-                        AvailabilityInfo::Root,
-                    )
-                    .await?
-                    .asset,
-            ])
+            OutputAssetsWithReferenced {
+                assets: ResolvedVc::cell(vec![
+                    Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
+                        .await?
+                        .unwrap()
+                        .entry_chunk_group(
+                            // `expected` expects a completely flat output directory.
+                            chunk_root_path
+                                .join(entry_module.ident().path().await?.file_stem().unwrap())?
+                                .with_extension("entry.js"),
+                            evaluatable_assets,
+                            module_graph,
+                            OutputAssets::empty(),
+                            OutputAssets::empty(),
+                            AvailabilityInfo::Root,
+                        )
+                        .await?
+                        .asset,
+                ]),
+                referenced_assets: ResolvedVc::cell(vec![]),
+            }
+            .cell()
         }
     };
 
     let mut seen = FxHashSet::default();
-    let mut queue: VecDeque<_> = chunks.await?.iter().copied().collect();
+    let mut queue: VecDeque<_> = chunks.all_assets().await?.iter().copied().collect();
 
     let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {

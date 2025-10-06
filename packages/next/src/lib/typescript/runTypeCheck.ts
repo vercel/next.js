@@ -15,7 +15,7 @@ export interface TypeCheckResult {
 }
 
 export async function runTypeCheck(
-  ts: typeof import('typescript'),
+  typescript: typeof import('typescript'),
   baseDir: string,
   distDir: string,
   tsConfigPath: string,
@@ -23,7 +23,7 @@ export async function runTypeCheck(
   isAppDirEnabled?: boolean
 ): Promise<TypeCheckResult> {
   const effectiveConfiguration = await getTypeScriptConfiguration(
-    ts,
+    typescript,
     tsConfigPath
   )
 
@@ -35,7 +35,7 @@ export async function runTypeCheck(
       incremental: false,
     }
   }
-  const requiredConfig = getRequiredConfiguration(ts)
+  const requiredConfig = getRequiredConfiguration(typescript)
 
   const options = {
     ...requiredConfig,
@@ -56,7 +56,7 @@ export async function runTypeCheck(
       )
     }
     incremental = true
-    program = ts.createIncrementalProgram({
+    program = typescript.createIncrementalProgram({
       rootNames: effectiveConfiguration.fileNames,
       options: {
         ...options,
@@ -66,7 +66,10 @@ export async function runTypeCheck(
       },
     })
   } else {
-    program = ts.createProgram(effectiveConfiguration.fileNames, options)
+    program = typescript.createProgram(
+      effectiveConfiguration.fileNames,
+      options
+    )
   }
 
   const result = program.emit()
@@ -81,25 +84,35 @@ export async function runTypeCheck(
     ignoreRegex.map((r) => r.source).join('|')
   )
 
-  const allDiagnostics = ts
+  const allDiagnostics = typescript
     .getPreEmitDiagnostics(program as import('typescript').Program)
     .concat(result.diagnostics)
     .filter((d) => !(d.file && regexIgnoredFile.test(d.file.fileName)))
 
   const firstError =
     allDiagnostics.find(
-      (d) => d.category === ts.DiagnosticCategory.Error && Boolean(d.file)
-    ) ?? allDiagnostics.find((d) => d.category === ts.DiagnosticCategory.Error)
+      (d) =>
+        d.category === typescript.DiagnosticCategory.Error && Boolean(d.file)
+    ) ??
+    allDiagnostics.find(
+      (d) => d.category === typescript.DiagnosticCategory.Error
+    )
 
   // In test mode, we want to check all diagnostics, not just the first one.
   if (process.env.__NEXT_TEST_MODE) {
     if (firstError) {
       const allErrors = allDiagnostics
-        .filter((d) => d.category === ts.DiagnosticCategory.Error)
+        .filter((d) => d.category === typescript.DiagnosticCategory.Error)
         .map(
           (d) =>
             '[Test Mode] ' +
-            getFormattedDiagnostic(ts, baseDir, distDir, d, isAppDirEnabled)
+            getFormattedDiagnostic(
+              typescript,
+              baseDir,
+              distDir,
+              d,
+              isAppDirEnabled
+            )
         )
 
       console.error(
@@ -115,14 +128,20 @@ export async function runTypeCheck(
 
   if (firstError) {
     throw new CompileError(
-      getFormattedDiagnostic(ts, baseDir, distDir, firstError, isAppDirEnabled)
+      getFormattedDiagnostic(
+        typescript,
+        baseDir,
+        distDir,
+        firstError,
+        isAppDirEnabled
+      )
     )
   }
 
   const warnings = allDiagnostics
-    .filter((d) => d.category === ts.DiagnosticCategory.Warning)
+    .filter((d) => d.category === typescript.DiagnosticCategory.Warning)
     .map((d) =>
-      getFormattedDiagnostic(ts, baseDir, distDir, d, isAppDirEnabled)
+      getFormattedDiagnostic(typescript, baseDir, distDir, d, isAppDirEnabled)
     )
 
   return {

@@ -106,7 +106,7 @@ fn finalize_module_ids(
     // Filter conflicts
     let mut conflicting_hashes = used_ids
         .iter()
-        .filter(|(_, list)| (list.len() > 1))
+        .filter(|(_, list)| list.len() > 1)
         .map(|(hash, _)| *hash)
         .collect::<Vec<_>>();
     conflicting_hashes.sort();

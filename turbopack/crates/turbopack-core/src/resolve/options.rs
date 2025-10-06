@@ -621,6 +621,8 @@ pub struct ResolveOptions {
     pub enable_typescript_with_output_extension: bool,
     /// Warn instead of error for resolve errors
     pub loose_errors: bool,
+    /// Collect affecting sources for each resolve result.  Useful for tracing.
+    pub collect_affecting_sources: bool,
     /// Whether to parse data URIs into modules (as opposed to keeping them as externals)
     pub parse_data_uris: bool,
 

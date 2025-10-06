@@ -100,7 +100,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
         let exports = self.get_exports().to_resolved().await?;
         let original_module = self.await?.module;
-        let parsed = original_module.await?.parse().to_resolved().await?;
+        let parsed = original_module.await?.parse().await?.to_resolved().await?;
 
         let analyze = original_module.analyze();
         let analyze_result = analyze.await?;
@@ -144,10 +144,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
                 EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(..) => {
                     // not included in locals module
                 }
-                EsmExport::LocalBinding(local_name, liveness) => {
+                EsmExport::LocalBinding(local_name, mutable) => {
                     exports.insert(
                         name.clone(),
-                        EsmExport::LocalBinding(local_name.clone(), *liveness),
+                        EsmExport::LocalBinding(local_name.clone(), *mutable),
                     );
                 }
                 EsmExport::Error => {

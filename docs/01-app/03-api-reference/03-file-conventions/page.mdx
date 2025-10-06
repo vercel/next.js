@@ -135,6 +135,7 @@ export default async function Page(props: PageProps<'/blog/[slug]'>) {
 > - Using a literal route (e.g. `'/blog/[slug]'`) enables autocomplete and strict keys for `params`.
 > - Static routes resolve `params` to `{}`.
 > - Types are generated during `next dev`, `next build`, or with `next typegen`.
+> - After type generation, the `PageProps` helper is globally available. It doesn't need to be imported.
 
 ## Examples
 

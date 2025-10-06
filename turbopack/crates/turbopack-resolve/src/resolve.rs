@@ -204,6 +204,7 @@ async fn base_resolve_options(
         after_resolve_plugins: opt.after_resolve_plugins.clone(),
         before_resolve_plugins: opt.before_resolve_plugins.clone(),
         loose_errors: opt.loose_errors,
+        collect_affecting_sources: opt.collect_affecting_sources,
         ..Default::default()
     }
     .into())
@@ -228,7 +229,12 @@ pub async fn resolve_options(
     let resolve_options = if options_context_value.enable_typescript {
         let find_tsconfig = async || {
             // Otherwise, attempt to find a tsconfig up the file tree
-            let tsconfig = find_context_file(resolve_path.clone(), tsconfig()).await?;
+            let tsconfig = find_context_file(
+                resolve_path.clone(),
+                tsconfig(),
+                options_context_value.collect_affecting_sources,
+            )
+            .await?;
             anyhow::Ok::<Vc<ResolveOptions>>(match &*tsconfig {
                 FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(
                     resolve_options,

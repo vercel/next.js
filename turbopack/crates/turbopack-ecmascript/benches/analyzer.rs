@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
-use criterion::{Bencher, BenchmarkId, Criterion};
+use criterion::{Bencher, BenchmarkId, Criterion, criterion_group, criterion_main};
 use swc_core::{
     common::{FilePathMapping, GLOBALS, Mark, SourceMap},
     ecma::{
@@ -26,6 +26,9 @@ use turbopack_ecmascript::{
         test_utils::{early_visitor, visitor},
     },
 };
+
+#[global_allocator]
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
 pub fn benchmark(c: &mut Criterion) {
     let tests_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/analyzer/graph");
@@ -142,3 +145,6 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
         }
     });
 }
+
+criterion_group!(analyzer_benches, benchmark);
+criterion_main!(analyzer_benches);

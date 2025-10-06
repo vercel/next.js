@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, VecDeque};
 
 use anyhow::{Result, bail};
 use serde_json::json;
-use tracing::{Level, Span};
+use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
@@ -144,204 +144,212 @@ impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = &*self.await?;
-        let mut result: BTreeSet<RcStr> = BTreeSet::new();
+        let span = tracing::info_span!(
+            "output file tracing",
+            path = display(self.path().to_string().await?)
+        );
+        async move {
+            let mut result: BTreeSet<RcStr> = BTreeSet::new();
 
-        let output_root_ref = this.project.output_fs().root().await?;
-        let project_root_ref = this.project.project_fs().root().await?;
-        let next_config = this.project.next_config();
+            let output_root_ref = this.project.output_fs().root().await?;
+            let project_root_ref = this.project.project_fs().root().await?;
+            let next_config = this.project.next_config();
 
-        let output_file_tracing_includes = &*next_config.output_file_tracing_includes().await?;
-        let output_file_tracing_excludes = &*next_config.output_file_tracing_excludes().await?;
+            let output_file_tracing_includes = &*next_config.output_file_tracing_includes().await?;
+            let output_file_tracing_excludes = &*next_config.output_file_tracing_excludes().await?;
 
-        let client_root = this.project.client_fs().root();
-        let client_root = client_root.owned().await?;
+            let client_root = this.project.client_fs().root();
+            let client_root = client_root.owned().await?;
 
-        // [project]/
-        let project_root_path = this.project.project_root_path().owned().await?;
-        // Example: [output]/apps/my-website/.next/server/app -- without the `page.js.nft.json`
-        let ident_folder = self.path().await?.parent();
-        // Example: [project]/apps/my-website/.next/server/app -- without the `page.js.nft.json`
-        let ident_folder_in_project_fs = project_root_path.join(&ident_folder.path)?;
+            // [project]/
+            let project_root_path = this.project.project_root_path().owned().await?;
+            // Example: [output]/apps/my-website/.next/server/app -- without the `page.js.nft.json`
+            let ident_folder = self.path().await?.parent();
+            // Example: [project]/apps/my-website/.next/server/app -- without the `page.js.nft.json`
+            let ident_folder_in_project_fs = project_root_path.join(&ident_folder.path)?;
 
-        let chunk = this.chunk;
-        let entries = this
-            .additional_assets
-            .iter()
-            .copied()
-            .chain(std::iter::once(chunk))
-            .collect();
+            let chunk = this.chunk;
+            let entries = this
+                .additional_assets
+                .iter()
+                .copied()
+                .chain(std::iter::once(chunk))
+                .collect();
 
-        let project_path = this.project.project_path().owned().await?;
-        let exclude_glob = if let Some(route) = &this.page_name {
-            if let Some(excludes_config) = output_file_tracing_excludes {
-                let mut combined_excludes = BTreeSet::new();
+            let project_path = this.project.project_path().owned().await?;
+            let exclude_glob = if let Some(route) = &this.page_name {
+                if let Some(excludes_config) = output_file_tracing_excludes {
+                    let mut combined_excludes = BTreeSet::new();
 
-                if let Some(excludes_obj) = excludes_config.as_object() {
-                    for (glob_pattern, exclude_patterns) in excludes_obj {
-                        // Check if the route matches the glob pattern
+                    if let Some(excludes_obj) = excludes_config.as_object() {
+                        for (glob_pattern, exclude_patterns) in excludes_obj {
+                            // Check if the route matches the glob pattern
+                            let glob = Glob::new(
+                                RcStr::from(glob_pattern.clone()),
+                                GlobOptions { contains: true },
+                            )
+                            .await?;
+                            if glob.matches(route)
+                                && let Some(patterns) = exclude_patterns.as_array()
+                            {
+                                for pattern in patterns {
+                                    if let Some(pattern_str) = pattern.as_str() {
+                                        let (glob, root) =
+                                            relativize_glob(pattern_str, project_path.clone())?;
+                                        let glob = if root.path.is_empty() {
+                                            glob.to_string()
+                                        } else {
+                                            format!("{root}/{glob}")
+                                        };
+                                        combined_excludes.insert(glob);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if combined_excludes.is_empty() {
+                        None
+                    } else {
                         let glob = Glob::new(
-                            RcStr::from(glob_pattern.clone()),
+                            format!(
+                                "{{{}}}",
+                                combined_excludes
+                                    .iter()
+                                    .map(|s| s.as_str())
+                                    .collect::<Vec<_>>()
+                                    .join(",")
+                            )
+                            .into(),
                             GlobOptions { contains: true },
-                        )
-                        .await?;
+                        );
+
+                        Some(glob)
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            // Collect base assets first
+            for referenced_chunk in
+                all_assets_from_entries_filtered(Vc::cell(entries), Some(client_root), exclude_glob)
+                    .await?
+            {
+                if chunk.eq(referenced_chunk) {
+                    continue;
+                }
+
+                let referenced_chunk_path = referenced_chunk.path().await?;
+                if referenced_chunk_path.has_extension(".map") {
+                    continue;
+                }
+
+                #[cfg(debug_assertions)]
+                {
+                    // Verify that we there are no entries where a file is created inside of a
+                    // symlink, as this can result in invalid ZIP files and
+                    // deployment failures. For example
+                    // node_modules/.pnpm/node_modules/@libsql/client/package.json
+                    // where
+                    // node_modules/.pnpm/node_modules/@libsql/client is a symlink
+                    let mut current_path = referenced_chunk_path.parent();
+                    loop {
+                        use turbo_tasks_fs::FileSystemEntryType;
+
+                        if current_path.is_root() {
+                            break;
+                        }
+
+                        if matches!(
+                            &*current_path.get_type().await?,
+                            FileSystemEntryType::Symlink
+                        ) {
+                            bail!(
+                                "Encountered file inside of symlink in NFT list: {} is a symlink, \
+                                 but {} was created inside of it",
+                                current_path.value_to_string().await?,
+                                referenced_chunk_path.value_to_string().await?
+                            );
+                        }
+
+                        current_path = current_path.parent();
+                    }
+                }
+
+                let Some(specifier) = get_output_specifier(
+                    &referenced_chunk_path,
+                    &ident_folder,
+                    &ident_folder_in_project_fs,
+                    &output_root_ref,
+                    &project_root_ref,
+                )?
+                else {
+                    continue;
+                };
+
+                result.insert(specifier);
+            }
+
+            // Apply outputFileTracingIncludes and outputFileTracingExcludes
+            // Extract route from chunk path for pattern matching
+            if let Some(route) = &this.page_name {
+                let mut combined_includes_by_root: FxIndexMap<FileSystemPath, Vec<&str>> =
+                    FxIndexMap::default();
+
+                // Process includes
+                if let Some(includes_config) = output_file_tracing_includes
+                    && let Some(includes_obj) = includes_config.as_object()
+                {
+                    for (glob_pattern, include_patterns) in includes_obj {
+                        // Check if the route matches the glob pattern
+                        let glob =
+                            Glob::new(glob_pattern.as_str().into(), GlobOptions { contains: true })
+                                .await?;
                         if glob.matches(route)
-                            && let Some(patterns) = exclude_patterns.as_array()
+                            && let Some(patterns) = include_patterns.as_array()
                         {
                             for pattern in patterns {
                                 if let Some(pattern_str) = pattern.as_str() {
                                     let (glob, root) =
                                         relativize_glob(pattern_str, project_path.clone())?;
-                                    let glob = if root.path.is_empty() {
-                                        glob.to_string()
-                                    } else {
-                                        format!("{root}/{glob}")
-                                    };
-                                    combined_excludes.insert(glob);
+                                    combined_includes_by_root
+                                        .entry(root)
+                                        .or_default()
+                                        .push(glob);
                                 }
                             }
                         }
                     }
                 }
 
-                if combined_excludes.is_empty() {
-                    None
-                } else {
-                    let glob = Glob::new(
-                        format!(
-                            "{{{}}}",
-                            combined_excludes
-                                .iter()
-                                .map(|s| s.as_str())
-                                .collect::<Vec<_>>()
-                                .join(",")
-                        )
-                        .into(),
-                        GlobOptions { contains: true },
-                    );
-
-                    Some(glob)
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
-        // Collect base assets first
-        for referenced_chunk in
-            all_assets_from_entries_filtered(Vc::cell(entries), Some(client_root), exclude_glob)
-                .await?
-        {
-            if chunk.eq(referenced_chunk) {
-                continue;
-            }
-
-            let referenced_chunk_path = referenced_chunk.path().await?;
-            if referenced_chunk_path.has_extension(".map") {
-                continue;
-            }
-
-            #[cfg(debug_assertions)]
-            {
-                // Verify that we there are no entries where a file is created inside of a symlink,
-                // as this can result in invalid ZIP files and deployment failures.
-                // For example
-                // node_modules/.pnpm/node_modules/@libsql/client/package.json
-                // where
-                // node_modules/.pnpm/node_modules/@libsql/client is a symlink
-                let mut current_path = referenced_chunk_path.parent();
-                loop {
-                    use turbo_tasks_fs::FileSystemEntryType;
-
-                    if current_path.is_root() {
-                        break;
-                    }
-
-                    if matches!(
-                        &*current_path.get_type().await?,
-                        FileSystemEntryType::Symlink
-                    ) {
-                        bail!(
-                            "Encountered file inside of symlink in NFT list: {} is a symlink, but \
-                             {} was created inside of it",
-                            current_path.value_to_string().await?,
-                            referenced_chunk_path.value_to_string().await?
+                // Apply includes - find additional files that match the include patterns
+                let includes = combined_includes_by_root
+                    .into_iter()
+                    .map(|(root, globs)| {
+                        let glob = Glob::new(
+                            format!("{{{}}}", globs.join(",")).into(),
+                            GlobOptions { contains: true },
                         );
-                    }
+                        apply_includes(root, glob, &ident_folder_in_project_fs)
+                    })
+                    .try_join()
+                    .await?;
 
-                    current_path = current_path.parent();
-                }
+                result.extend(includes.into_iter().flatten());
             }
 
-            let Some(specifier) = get_output_specifier(
-                &referenced_chunk_path,
-                &ident_folder,
-                &ident_folder_in_project_fs,
-                &output_root_ref,
-                &project_root_ref,
-            )?
-            else {
-                continue;
-            };
+            let json = json!({
+              "version": 1,
+              "files": result
+            });
 
-            result.insert(specifier);
+            Ok(AssetContent::file(File::from(json.to_string()).into()))
         }
-
-        // Apply outputFileTracingIncludes and outputFileTracingExcludes
-        // Extract route from chunk path for pattern matching
-        if let Some(route) = &this.page_name {
-            let mut combined_includes_by_root: FxIndexMap<FileSystemPath, Vec<&str>> =
-                FxIndexMap::default();
-
-            // Process includes
-            if let Some(includes_config) = output_file_tracing_includes
-                && let Some(includes_obj) = includes_config.as_object()
-            {
-                for (glob_pattern, include_patterns) in includes_obj {
-                    // Check if the route matches the glob pattern
-                    let glob =
-                        Glob::new(glob_pattern.as_str().into(), GlobOptions { contains: true })
-                            .await?;
-                    if glob.matches(route)
-                        && let Some(patterns) = include_patterns.as_array()
-                    {
-                        for pattern in patterns {
-                            if let Some(pattern_str) = pattern.as_str() {
-                                let (glob, root) =
-                                    relativize_glob(pattern_str, project_path.clone())?;
-                                combined_includes_by_root
-                                    .entry(root)
-                                    .or_default()
-                                    .push(glob);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Apply includes - find additional files that match the include patterns
-            let includes = combined_includes_by_root
-                .into_iter()
-                .map(|(root, globs)| {
-                    let glob = Glob::new(
-                        format!("{{{}}}", globs.join(",")).into(),
-                        GlobOptions { contains: true },
-                    );
-                    apply_includes(root, glob, &ident_folder_in_project_fs)
-                })
-                .try_join()
-                .await?;
-
-            result.extend(includes.into_iter().flatten());
-        }
-
-        let json = json!({
-          "version": 1,
-          "files": result
-        });
-
-        Ok(AssetContent::file(File::from(json.to_string()).into()))
+        .instrument(span)
+        .await
     }
 }
 
@@ -400,7 +408,9 @@ pub async fn all_assets_from_entries_filtered(
                         Ok((
                             *asset,
                             if emit_spans {
-                                Some(asset.path().to_string().await?)
+                                // INVALIDATION: we don't need to invalidate the list of assets when
+                                // the span name changes
+                                Some(asset.path_string().untracked().await?)
                             } else {
                                 None
                             },
@@ -453,7 +463,7 @@ impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>
         node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
     ) -> tracing::Span {
         if let Some(ident) = &node.1 {
-            tracing::info_span!("asset", name = display(ident))
+            tracing::trace_span!("asset", name = display(ident))
         } else {
             Span::current()
         }
@@ -490,7 +500,9 @@ async fn get_referenced_server_assets(
             Ok(Some((
                 *asset,
                 if emit_spans {
-                    Some(asset.path().to_string().await?)
+                    // INVALIDATION: we don't need to invalidate the list of assets when the span
+                    // name changes
+                    Some(asset.path_string().untracked().await?)
                 } else {
                     None
                 },

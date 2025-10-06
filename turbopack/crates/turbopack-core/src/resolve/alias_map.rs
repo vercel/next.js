@@ -562,6 +562,10 @@ where
                         }
                     }
                     AliasKey::Wildcard { suffix } => {
+                        // This is quite messy as we'd have to match against the FS to do this
+                        // properly. For now, try to support as many cases as possible (and as are
+                        // actually used).
+
                         let is_match = if let Some(request) = self.request.as_constant_string() {
                             // The request is a constant string, so the PatriciaMap lookup already
                             // ensured that the prefix is matching the request.
@@ -587,9 +591,16 @@ where
                             ] = req.as_slice()
                         {
                             req_prefix.starts_with(&**prefix) && req_suffix.ends_with(&**suffix)
+                        } else if !self.request.could_match(prefix) {
+                            // There's no way it could match if the prefix can't match.
+                            false
+                        } else if suffix.is_empty() {
+                            // Prefix matches the request, and suffix is empty.
+                            true
                         } else {
+                            // It may or may not match, throw an error.
                             return Some(Err(anyhow::anyhow!(
-                                "complex patterns into wildcard exports fields are not \
+                                "Complex patterns into wildcard exports fields are not \
                                  implemented yet: {} into '{}*{}'",
                                 self.request.describe_as_string(),
                                 prefix,

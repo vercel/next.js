@@ -108,15 +108,6 @@ describe('basePath', () => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
-  it('should respect basePath in amphtml link rel', async () => {
-    const html = await renderViaHTTP(next.url, `${basePath}/amp-hybrid`)
-    const $ = cheerio.load(html)
-    const expectedAmpHtmlUrl = isNextDev
-      ? `${basePath}/amp-hybrid?amp=1`
-      : `${basePath}/amp-hybrid.amp`
-    expect($('link[rel=amphtml]').first().attr('href')).toBe(expectedAmpHtmlUrl)
-  })
-
   if (!isNextDev) {
     if (!isNextDeploy) {
       it('should add basePath to routes-manifest', async () => {

@@ -16,16 +16,15 @@ import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/canary-only'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 
-export type NextConfigComplete = Required<NextConfig> & {
+export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   images: Required<ImageConfigComplete>
   typescript: TypeScriptConfig
-  configOrigin?: string
-  configFile?: string
+  configFile: string | undefined
   configFileName: string
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
-  experimental: Omit<ExperimentalConfig, 'turbo'>
+  experimental: ExperimentalConfig
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -89,7 +88,7 @@ export interface StyledComponentsConfig {
   cssProp?: boolean
 }
 
-type JSONValue =
+export type JSONValue =
   | string
   | number
   | boolean
@@ -169,51 +168,18 @@ export interface TurbopackOptions {
   rules?: Record<string, TurbopackRuleConfigCollection>
 
   /**
-   * The module ID strategy to use for Turbopack.
-   * If not set, the default is `'named'` for development and `'deterministic'`
-   * for production.
-   */
-  moduleIds?: 'named' | 'deterministic'
-
-  /**
    * This is the repo root usually and only files above this
    * directory can be resolved by turbopack.
    */
   root?: string
-}
 
-export interface DeprecatedExperimentalTurboOptions extends TurbopackOptions {
   /**
-   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
+   * Enables generation of debug IDs in JavaScript bundles and source maps.
+   * These debug IDs help with debugging and error tracking by providing stable identifiers.
    *
-   * @deprecated Use `rules` instead.
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
+   * @see https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md TC39 Debug ID Proposal
    */
-  loaders?: Record<string, TurbopackLoaderItem[]>
-
-  /**
-   * A target memory limit for turbo, in bytes.
-   * @deprecated Use `experimental.turbopackMemoryLimit` instead.
-   */
-  memoryLimit?: number
-
-  /**
-   * Enable minification. Defaults to true in build mode and false in dev mode.
-   * @deprecated Use `experimental.turbopackMinify` instead.
-   */
-  minify?: boolean
-
-  /**
-   * Enable tree shaking for the turbopack dev server and build.
-   * @deprecated Use `experimental.turbopackTreeShaking` instead.
-   */
-  treeShaking?: boolean
-
-  /**
-   * Enable source maps. Defaults to true.
-   * @deprecated Use `experimental.turbopackSourceMaps` instead.
-   */
-  sourceMaps?: boolean
+  debugIds?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -403,12 +369,6 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  /** @deprecated built-in amp support will be removed in Next 16 */
-  amp?: {
-    optimizer?: any
-    validator?: string
-    skipValidation?: boolean
-  }
   disableOptimizedLoading?: boolean
 
   /** @deprecated A no-op as of Next 16, size metrics were removed from the build output. */
@@ -445,12 +405,6 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   /**
-   * @deprecated Use `config.turbopack` instead.
-   * Run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .` to migrate automatically.
-   */
-  turbo?: DeprecatedExperimentalTurboOptions
-
-  /**
    * A target memory limit for turbo, in bytes.
    */
   turbopackMemoryLimit?: number
@@ -471,9 +425,14 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * Enable persistent caching for the turbopack dev server and build.
+   * Enable persistent caching for the turbopack dev server.
    */
-  turbopackPersistentCaching?: boolean
+  turbopackPersistentCachingForDev?: boolean
+
+  /**
+   * Enable persistent caching for the turbopack build.
+   */
+  turbopackPersistentCachingForBuild?: boolean
 
   /**
    * Enable source maps. Defaults to true.
@@ -519,10 +478,10 @@ export interface ExperimentalConfig {
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
    * configuration file is present. This option is enabled by default.
    *
-   * If this is set to `false`, but `experimental.reactCompiler` is `true`, the built-in Babel will
+   * If this is set to `false`, but `reactCompiler` is `true`, the built-in Babel will
    * still be configured, but any Babel configuration files on disk will be ignored. If you wish to
    * use React Compiler with a different manually-configured `babel-loader`, you should disable both
-   * this and `experimental.reactCompiler`.
+   * this and `reactCompiler`.
    */
   turbopackUseBuiltinBabel?: boolean
 
@@ -721,12 +680,6 @@ export interface ExperimentalConfig {
    *
    */
   serverComponentsExternalPackages?: string[]
-  /**
-   * Enable experimental React compiler optimization.
-   * Configuration accepts partial config object to the compiler, if provided
-   * compiler will be enabled.
-   */
-  reactCompiler?: boolean | ReactCompilerOptions
 
   /**
    * When enabled, in dev mode, Next.js will send React's debug info through the
@@ -836,6 +789,22 @@ export interface ExperimentalConfig {
    * instead of `{distDir}`.
    */
   isolatedDevBuild?: boolean
+
+  /**
+   * Enable the Model Context Protocol (MCP) server for AI-assisted development.
+   * When enabled, Next.js will expose an MCP server at `/_next/mcp` that provides
+   * code intelligence and project context to AI assistants.
+   *
+   * @default false
+   */
+  mcpServer?: boolean
+
+  /**
+   * The module ID strategy to use for Turbopack.
+   * If not set, the default is `'named'` for development and `'deterministic'`
+   * for production.
+   */
+  turbopackModuleIds?: 'named' | 'deterministic'
 }
 
 export type ExportPathMap = {
@@ -907,7 +876,7 @@ export type ExportPathMap = {
  *
  * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
-export interface NextConfig extends Record<string, any> {
+export interface NextConfig {
   allowedDevOrigins?: string[]
 
   exportPathMap?: (
@@ -1094,14 +1063,6 @@ export interface NextConfig extends Record<string, any> {
   }
 
   /**
-   * @deprecated built-in amp support will be removed in Next 16
-   * @see [`next/amp`](https://nextjs.org/docs/api-reference/next/amp)
-   */
-  amp?: {
-    canonicalBase?: string
-  }
-
-  /**
    * A unique identifier for a deployment that will be included in each request's query string or header.
    */
   deploymentId?: string
@@ -1127,6 +1088,13 @@ export interface NextConfig extends Record<string, any> {
   productionBrowserSourceMaps?: boolean
 
   /**
+   * Enable {@link https://nextjs.org/docs/app/api-reference/config/next-config-js/reactCompiler React Compiler in Next.js}.
+   * Configuration accepts partial config object of the Compiler.
+   * If provided, the Compiler will be enabled.
+   */
+  reactCompiler?: boolean | ReactCompilerOptions
+
+  /**
    * Enable react profiling in production
    *
    */
@@ -1146,6 +1114,20 @@ export interface NextConfig extends Record<string, any> {
    * @see [React Max Headers Length](https://nextjs.org/docs/app/api-reference/config/next-config-js/reactMaxHeadersLength)
    */
   reactMaxHeadersLength?: number
+
+  /**
+   * Add public (in browser) runtime configuration to your app
+   *
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
+   */
+  publicRuntimeConfig?: { [key: string]: any }
+
+  /**
+   * Add server runtime configuration to your app
+   *
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
+   */
+  serverRuntimeConfig?: { [key: string]: any }
 
   /**
    * Next.js enables HTTP Keep-Alive by default.
@@ -1322,6 +1304,26 @@ export interface NextConfig extends Record<string, any> {
    * /Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i
    */
   htmlLimitedBots?: RegExp
+
+  /**
+   * @internal
+   */
+  configFile?: string | undefined
+
+  /**
+   * @internal
+   */
+  configOrigin?: string | undefined
+
+  /**
+   * @internal
+   */
+  _originalRedirects?: any
+
+  /**
+   * @internal
+   */
+  _originalRewrites?: any
 }
 
 export const defaultConfig = Object.freeze({
@@ -1356,15 +1358,15 @@ export const defaultConfig = Object.freeze({
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 5,
   },
-  amp: {
-    canonicalBase: '',
-  },
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
   excludeDefaultMomentLocales: true,
+  serverRuntimeConfig: {},
+  publicRuntimeConfig: {},
+  reactCompiler: undefined,
   reactProductionProfiling: false,
   reactStrictMode: null,
   reactMaxHeadersLength: 6000,
@@ -1476,9 +1478,7 @@ export const defaultConfig = Object.freeze({
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
-    amp: undefined,
     urlImports: undefined,
-    turbo: undefined,
     typedEnv: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
@@ -1499,7 +1499,6 @@ export const defaultConfig = Object.freeze({
       static: 300,
     },
     allowDevelopmentBuild: undefined,
-    reactCompiler: undefined,
     reactDebugChannel: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
@@ -1511,7 +1510,8 @@ export const defaultConfig = Object.freeze({
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: false,
-    isolatedDevBuild: false,
+    isolatedDevBuild:
+      process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true',
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

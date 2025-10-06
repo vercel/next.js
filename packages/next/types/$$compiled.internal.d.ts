@@ -264,7 +264,7 @@ declare module 'react-server-dom-webpack/server.node' {
 declare module 'react-server-dom-webpack/static' {
   export type TemporaryReferenceSet = WeakMap<any, string>
 
-  export function unstable_prerender(
+  export function prerender(
     children: any,
     webpackMap: {
       readonly [id: string]: {
@@ -504,11 +504,6 @@ declare module 'next/dist/compiled/acorn' {
   import m from 'acorn'
   export = m
 }
-declare module 'next/dist/compiled/amphtml-validator' {
-  import m from 'amphtml-validator'
-  export = m
-}
-declare module 'next/dist/compiled/@ampproject/toolbox-optimizer'
 
 declare module 'next/dist/compiled/superstruct' {
   import * as m from 'superstruct'
@@ -744,6 +739,14 @@ declare module 'next/dist/compiled/web-vitals-attribution' {}
 declare module 'next/dist/compiled/ws' {
   import m from 'ws'
   export = m
+}
+
+declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp' {
+  export * from '@modelcontextprotocol/sdk/server/mcp'
+}
+
+declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp' {
+  export * from '@modelcontextprotocol/sdk/server/streamableHttp'
 }
 
 declare module 'next/dist/compiled/comment-json' {

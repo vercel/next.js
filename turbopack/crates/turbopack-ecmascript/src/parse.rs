@@ -22,7 +22,7 @@ use swc_core::{
         visit::{Visit, VisitMutWith, VisitWith, noop_visit_type},
     },
 };
-use tracing::{Instrument, Level, instrument};
+use tracing::{Instrument, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc, util::WrapFuture};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
@@ -81,7 +81,7 @@ impl PartialEq for ParseResult {
 
 /// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
 /// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
-#[instrument(level = Level::INFO, skip_all)]
+#[instrument(level = "info", name = "generate source map", skip_all)]
 pub fn generate_js_source_map<'a>(
     files_map: &impl Files,
     mappings: Vec<(BytePos, LineCol)>,
@@ -173,13 +173,22 @@ pub async fn parse(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    is_external_tracing: bool,
 ) -> Result<Vc<ParseResult>> {
-    let name = source.ident().to_string().await?.to_string();
-    let span = tracing::info_span!("parse ecmascript", name = name, ty = display(&ty));
+    let span = tracing::info_span!(
+        "parse ecmascript",
+        name = display(source.ident().to_string().await?),
+        ty = display(&ty)
+    );
 
-    match parse_internal(source, ty, transforms)
-        .instrument(span)
-        .await
+    match parse_internal(
+        source,
+        ty,
+        transforms,
+        is_external_tracing && matches!(ty, EcmascriptModuleAssetType::EcmascriptExtensionless),
+    )
+    .instrument(span)
+    .await
     {
         Ok(result) => Ok(result),
         Err(error) => Err(error.context(format!(
@@ -193,6 +202,7 @@ async fn parse_internal(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    loose_errors: bool,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
     let fs_path = source.ident().path().owned().await?;
@@ -205,6 +215,11 @@ async fn parse_internal(
             ReadSourceIssue {
                 source: IssueSource::from_source_only(source),
                 error: error.clone(),
+                severity: if loose_errors {
+                    IssueSeverity::Warning
+                } else {
+                    IssueSeverity::Error
+                },
             }
             .resolved_cell()
             .emit();
@@ -231,6 +246,7 @@ async fn parse_internal(
                             source,
                             ty,
                             transforms,
+                            loose_errors,
                         )
                         .await
                         {
@@ -251,10 +267,16 @@ async fn parse_internal(
                         .into();
                         ReadSourceIssue {
                             // Technically we could supply byte offsets to the issue source, but
-                            // that would cause another utf8 error to be produced when we attempt to
-                            // infer line/column offsets
+                            // that would cause another utf8 error to be produced when we
+                            // attempt to infer line/column
+                            // offsets
                             source: IssueSource::from_source_only(source),
                             error: error.clone(),
+                            severity: if loose_errors {
+                                IssueSeverity::Warning
+                            } else {
+                                IssueSeverity::Error
+                            },
                         }
                         .resolved_cell()
                         .emit();
@@ -279,6 +301,7 @@ async fn parse_file_content(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
+    loose_errors: bool,
 ) -> Result<Vc<ParseResult>> {
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
     let (emitter, collector) = IssueEmitter::new(
@@ -307,7 +330,9 @@ async fn parse_file_content(
             let mut parsed_program = {
                 let lexer = Lexer::new(
                     match ty {
-                        EcmascriptModuleAssetType::Ecmascript => Syntax::Es(EsSyntax {
+                        EcmascriptModuleAssetType::Ecmascript
+                        | EcmascriptModuleAssetType::EcmascriptExtensionless
+                        => Syntax::Es(EsSyntax {
                             jsx: true,
                             fn_bind: true,
                             decorators: true,
@@ -503,8 +528,8 @@ async fn parse_file_content(
         // Assign the correct globals
         *g = globals;
     }
-    collector.emit().await?;
-    collector_parse.emit().await?;
+    collector.emit(loose_errors).await?;
+    collector_parse.emit(loose_errors).await?;
     Ok(result.cell())
 }
 
@@ -512,6 +537,7 @@ async fn parse_file_content(
 struct ReadSourceIssue {
     source: IssueSource,
     error: RcStr,
+    severity: IssueSeverity,
 }
 
 #[turbo_tasks::value_impl]
@@ -542,7 +568,7 @@ impl Issue for ReadSourceIssue {
     }
 
     fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Error
+        self.severity
     }
 
     #[turbo_tasks::function]

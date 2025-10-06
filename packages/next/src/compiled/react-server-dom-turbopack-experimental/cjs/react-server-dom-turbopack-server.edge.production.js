@@ -390,6 +390,105 @@ function trimOptions(options) {
       ((hasProperties = !0), (trimmed[key] = options[key]));
   return hasProperties ? trimmed : null;
 }
+function getChildFormatContext(parentContext, type, props) {
+  switch (type) {
+    case "img":
+      type = props.src;
+      var srcSet = props.srcSet;
+      if (
+        !(
+          "lazy" === props.loading ||
+          (!type && !srcSet) ||
+          ("string" !== typeof type && null != type) ||
+          ("string" !== typeof srcSet && null != srcSet) ||
+          "low" === props.fetchPriority ||
+          parentContext & 3
+        ) &&
+        ("string" !== typeof type ||
+          ":" !== type[4] ||
+          ("d" !== type[0] && "D" !== type[0]) ||
+          ("a" !== type[1] && "A" !== type[1]) ||
+          ("t" !== type[2] && "T" !== type[2]) ||
+          ("a" !== type[3] && "A" !== type[3])) &&
+        ("string" !== typeof srcSet ||
+          ":" !== srcSet[4] ||
+          ("d" !== srcSet[0] && "D" !== srcSet[0]) ||
+          ("a" !== srcSet[1] && "A" !== srcSet[1]) ||
+          ("t" !== srcSet[2] && "T" !== srcSet[2]) ||
+          ("a" !== srcSet[3] && "A" !== srcSet[3]))
+      ) {
+        var sizes = "string" === typeof props.sizes ? props.sizes : void 0;
+        var input = props.crossOrigin;
+        preload(type || "", "image", {
+          imageSrcSet: srcSet,
+          imageSizes: sizes,
+          crossOrigin:
+            "string" === typeof input
+              ? "use-credentials" === input
+                ? input
+                : ""
+              : void 0,
+          integrity: props.integrity,
+          type: props.type,
+          fetchPriority: props.fetchPriority,
+          referrerPolicy: props.referrerPolicy
+        });
+      }
+      return parentContext;
+    case "link":
+      type = props.rel;
+      srcSet = props.href;
+      if (
+        !(
+          parentContext & 1 ||
+          null != props.itemProp ||
+          "string" !== typeof type ||
+          "string" !== typeof srcSet ||
+          "" === srcSet
+        )
+      )
+        switch (type) {
+          case "preload":
+            preload(srcSet, props.as, {
+              crossOrigin: props.crossOrigin,
+              integrity: props.integrity,
+              nonce: props.nonce,
+              type: props.type,
+              fetchPriority: props.fetchPriority,
+              referrerPolicy: props.referrerPolicy,
+              imageSrcSet: props.imageSrcSet,
+              imageSizes: props.imageSizes,
+              media: props.media
+            });
+            break;
+          case "modulepreload":
+            preloadModule$1(srcSet, {
+              as: props.as,
+              crossOrigin: props.crossOrigin,
+              integrity: props.integrity,
+              nonce: props.nonce
+            });
+            break;
+          case "stylesheet":
+            preload(srcSet, "stylesheet", {
+              crossOrigin: props.crossOrigin,
+              integrity: props.integrity,
+              nonce: props.nonce,
+              type: props.type,
+              fetchPriority: props.fetchPriority,
+              referrerPolicy: props.referrerPolicy,
+              media: props.media
+            });
+        }
+      return parentContext;
+    case "picture":
+      return parentContext | 2;
+    case "noscript":
+      return parentContext | 1;
+    default:
+      return parentContext;
+  }
+}
 var supportsRequestStorage = "function" === typeof AsyncLocalStorage,
   requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null,
   TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
@@ -788,7 +887,7 @@ function RequestInstance(
   this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
-  type = createTask(this, model, null, !1, abortSet);
+  type = createTask(this, model, null, !1, 0, abortSet);
   pingedTasks.push(type);
 }
 var currentRequest = null;
@@ -806,6 +905,7 @@ function serializeThenable(request, task, thenable) {
     thenable,
     task.keyPath,
     task.implicitSlot,
+    task.formatContext,
     request.abortableTasks
   );
   switch (thenable.status) {
@@ -910,6 +1010,7 @@ function serializeReadableStream(request, task, stream) {
       task.model,
       task.keyPath,
       task.implicitSlot,
+      task.formatContext,
       request.abortableTasks
     );
   request.pendingChunks++;
@@ -928,7 +1029,11 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
           var endStreamRow = streamTask.id.toString(16) + ":C\n";
         else
           try {
-            var chunkId = outlineModel(request, entry.value);
+            var chunkId = outlineModelWithFormatContext(
+              request,
+              entry.value,
+              0
+            );
             endStreamRow =
               streamTask.id.toString(16) +
               ":C" +
@@ -989,6 +1094,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
     task.model,
     task.keyPath,
     task.implicitSlot,
+    task.formatContext,
     request.abortableTasks
   );
   request.pendingChunks++;
@@ -1103,6 +1209,7 @@ function deferTask(request, task) {
     task.model,
     task.keyPath,
     task.implicitSlot,
+    task.formatContext,
     request.abortableTasks
   );
   pingTask(request, task);
@@ -1149,6 +1256,13 @@ function renderElement(request, task, type, key, ref, props) {
       case REACT_MEMO_TYPE:
         return renderElement(request, task, type.type, key, ref, props);
     }
+  else
+    "string" === typeof type &&
+      ((ref = task.formatContext),
+      (init = getChildFormatContext(ref, type, props)),
+      ref !== init &&
+        null != props.children &&
+        outlineModelWithFormatContext(request, props.children, init));
   request = key;
   key = task.keyPath;
   null === request
@@ -1171,7 +1285,14 @@ function pingTask(request, task) {
           return performWork(request);
         }, 0));
 }
-function createTask(request, model, keyPath, implicitSlot, abortSet) {
+function createTask(
+  request,
+  model,
+  keyPath,
+  implicitSlot,
+  formatContext,
+  abortSet
+) {
   request.pendingChunks++;
   var id = request.nextChunkId++;
   "object" !== typeof model ||
@@ -1185,6 +1306,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
     model: model,
     keyPath: keyPath,
     implicitSlot: implicitSlot,
+    formatContext: formatContext,
     ping: function () {
       return pingTask(request, task);
     },
@@ -1235,6 +1357,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
             task.model,
             task.keyPath,
             task.implicitSlot,
+            task.formatContext,
             request.abortableTasks
           );
           var ping = JSCompiler_inline_result.ping;
@@ -1343,8 +1466,15 @@ function serializeClientReference(
     );
   }
 }
-function outlineModel(request, value) {
-  value = createTask(request, value, null, !1, request.abortableTasks);
+function outlineModelWithFormatContext(request, value, formatContext) {
+  value = createTask(
+    request,
+    value,
+    null,
+    !1,
+    formatContext,
+    request.abortableTasks
+  );
   retryTask(request, value);
   return value.id;
 }
@@ -1386,7 +1516,7 @@ function serializeBlob(request, blob) {
     }
   }
   var model = [blob.type],
-    newTask = createTask(request, model, null, !1, request.abortableTasks),
+    newTask = createTask(request, model, null, !1, 0, request.abortableTasks),
     reader = blob.stream().getReader();
   request.cacheController.signal.addEventListener("abort", abortBlob);
   reader.read().then(progress).catch(error);
@@ -1509,17 +1639,17 @@ function renderModelDestructive(
     if (value instanceof Map)
       return (
         (value = Array.from(value)),
-        "$Q" + outlineModel(request, value).toString(16)
+        "$Q" + outlineModelWithFormatContext(request, value, 0).toString(16)
       );
     if (value instanceof Set)
       return (
         (value = Array.from(value)),
-        "$W" + outlineModel(request, value).toString(16)
+        "$W" + outlineModelWithFormatContext(request, value, 0).toString(16)
       );
     if ("function" === typeof FormData && value instanceof FormData)
       return (
         (value = Array.from(value.entries())),
-        "$K" + outlineModel(request, value).toString(16)
+        "$K" + outlineModelWithFormatContext(request, value, 0).toString(16)
       );
     if (value instanceof Error) return "$Z";
     if (value instanceof ArrayBuffer)
@@ -1554,8 +1684,9 @@ function renderModelDestructive(
       return (
         (parentPropertyName = elementReference.call(value)),
         parentPropertyName === value
-          ? "$i" +
-            outlineModel(request, Array.from(parentPropertyName)).toString(16)
+          ? ((value = Array.from(parentPropertyName)),
+            "$i" +
+              outlineModelWithFormatContext(request, value, 0).toString(16))
           : renderFragment(request, task, Array.from(parentPropertyName))
       );
     if ("function" === typeof ReadableStream && value instanceof ReadableStream)
@@ -1642,10 +1773,11 @@ function renderModelDestructive(
               null === parentPropertyName
                 ? null
                 : Promise.resolve(parentPropertyName)),
-            (request = outlineModel(request, {
-              id: value.$$id,
-              bound: parentPropertyName
-            })),
+            (request = outlineModelWithFormatContext(
+              request,
+              { id: value.$$id, bound: parentPropertyName },
+              0
+            )),
             task.set(value, request),
             (value = "$F" + request.toString(16))),
         value
@@ -2946,6 +3078,48 @@ exports.decodeReplyFromAsyncIterable = function (
   iterator.next().then(progress, error);
   return getChunk(response, 0);
 };
+exports.prerender = function (model, turbopackMap, options) {
+  return new Promise(function (resolve, reject) {
+    var request = new RequestInstance(
+      21,
+      model,
+      turbopackMap,
+      options ? options.onError : void 0,
+      options ? options.onPostpone : void 0,
+      function () {
+        var stream = new ReadableStream(
+          {
+            type: "bytes",
+            pull: function (controller) {
+              startFlowing(request, controller);
+            },
+            cancel: function (reason) {
+              request.destination = null;
+              abort(request, reason);
+            }
+          },
+          { highWaterMark: 0 }
+        );
+        resolve({ prelude: stream });
+      },
+      reject,
+      options ? options.identifierPrefix : void 0,
+      options ? options.temporaryReferences : void 0
+    );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
+};
 exports.registerClientReference = function (
   proxyImplementation,
   id,
@@ -3007,46 +3181,4 @@ exports.renderToReadableStream = function (model, turbopackMap, options) {
     },
     { highWaterMark: 0 }
   );
-};
-exports.unstable_prerender = function (model, turbopackMap, options) {
-  return new Promise(function (resolve, reject) {
-    var request = new RequestInstance(
-      21,
-      model,
-      turbopackMap,
-      options ? options.onError : void 0,
-      options ? options.onPostpone : void 0,
-      function () {
-        var stream = new ReadableStream(
-          {
-            type: "bytes",
-            pull: function (controller) {
-              startFlowing(request, controller);
-            },
-            cancel: function (reason) {
-              request.destination = null;
-              abort(request, reason);
-            }
-          },
-          { highWaterMark: 0 }
-        );
-        resolve({ prelude: stream });
-      },
-      reject,
-      options ? options.identifierPrefix : void 0,
-      options ? options.temporaryReferences : void 0
-    );
-    if (options && options.signal) {
-      var signal = options.signal;
-      if (signal.aborted) abort(request, signal.reason);
-      else {
-        var listener = function () {
-          abort(request, signal.reason);
-          signal.removeEventListener("abort", listener);
-        };
-        signal.addEventListener("abort", listener);
-      }
-    }
-    startWork(request);
-  });
 };

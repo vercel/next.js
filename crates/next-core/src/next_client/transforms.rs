@@ -2,7 +2,7 @@ use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::ModuleRule;
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
 
 use crate::{
     mode::NextMode,
@@ -17,6 +17,7 @@ use crate::{
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
         next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
+    raw_ecmascript_module::RawEcmascriptModuleType,
 };
 
 /// Returns a list of module rules which apply client-side, Next.js-specific
@@ -43,6 +44,20 @@ pub async fn get_next_client_transforms_rules(
             enable_mdx_rs,
         ));
     }
+
+    // This is purely a performance optimization:
+    // - The next-devtools file is very large and rather slow to analyze (unforatunately, at least
+    //   with our current implementation)
+    // - It's used by every single application in dev, even tiny (CNA) apps
+    // - It's prebundled already and doesn't contain any imports/requires
+    rules.push(ModuleRule::new(
+        RuleCondition::ResourcePathEndsWith(
+            "next/dist/compiled/next-devtools/index.js".to_string(),
+        ),
+        vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
+            ResolvedVc::upcast(RawEcmascriptModuleType {}.resolved_cell()),
+        ))],
+    ));
 
     rules.push(get_next_font_transform_rule(enable_mdx_rs));
 
