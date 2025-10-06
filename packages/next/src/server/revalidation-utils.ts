@@ -110,16 +110,16 @@ async function revalidateTags(
       // Look up the cache profile from workStore if available
       let durations: { expire?: number } | undefined
 
-      if (profile && workStore?.cacheLifeProfiles?.[profile]) {
-        const cacheLife = workStore.cacheLifeProfiles[profile]
+      if (profile) {
+        const cacheLife = workStore?.cacheLifeProfiles?.[profile]
+
+        if (!cacheLife) {
+          throw new Error(
+            `Invalid profile provided "${profile}" must be configured under cacheLife in next.config or be "max"`
+          )
+        }
         durations = {
           expire: cacheLife.expire,
-        }
-      } else if (profile === 'max') {
-        // Default 'max' profile: stale immediately, expire in 1 year
-        const oneYearInSeconds = 365 * 24 * 60 * 60
-        durations = {
-          expire: oneYearInSeconds,
         }
       }
       // If profile is not found and not 'max', durations will be undefined

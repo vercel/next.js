@@ -1420,7 +1420,7 @@ export const defaultConfig = Object.freeze({
       max: {
         stale: 60 * 5, // 5 minutes
         revalidate: 60 * 60 * 24 * 30, // 1 month
-        expire: INFINITE_CACHE, // Unbounded.
+        expire: 60 * 60 * 24 * 365, // 1 year
       },
     },
     cacheHandlers: {

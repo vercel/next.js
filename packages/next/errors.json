@@ -851,5 +851,6 @@
   "850": "Route %s with \\`dynamic = \"error\"\\` couldn't be rendered statically because it used \\`cookies()\\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
   "851": "metadataBase is not a valid URL: %s",
   "852": "Pass either `webpack` or `turbopack`, not both.",
-  "853": "Only custom servers can pass `webpack`, `turbo`, or `turbopack`."
+  "853": "Only custom servers can pass `webpack`, `turbo`, or `turbopack`.",
+  "854": "Invalid profile provided \"%s\" must be configured under cacheLife in next.config or be \"max\""
 }
