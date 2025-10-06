@@ -9,8 +9,8 @@ import type {
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
-} from 'next/types'
-import type { RouteModule } from './future/route-modules/route-module'
+} from '../types'
+import type { RouteModule } from './route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
 
 import { BUILD_MANIFEST } from '../shared/lib/constants'
@@ -40,7 +40,7 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
-  routeModule?: RouteModule
+  routeModule: RouteModule
   isAppPath?: boolean
   page: string
 }
@@ -48,14 +48,16 @@ export type LoadComponentsReturnType = {
 async function loadDefaultErrorComponentsImpl(
   distDir: string
 ): Promise<LoadComponentsReturnType> {
+  // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
   const Document = interopDefault(require('next/dist/pages/_document'))
+  // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
   const AppMod = require('next/dist/pages/_app')
   const App = interopDefault(AppMod)
 
   // Load the compiled route module for this builtin error.
   // TODO: (wyattjoh) replace this with just exporting the route module when the transition is complete
   const ComponentMod =
-    require('./future/route-modules/pages/builtin/_error') as typeof import('./future/route-modules/pages/builtin/_error')
+    require('./route-modules/pages/builtin/_error') as typeof import('./route-modules/pages/builtin/_error')
   const Component = ComponentMod.routeModule.userland.default
 
   return {

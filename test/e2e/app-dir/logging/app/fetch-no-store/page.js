@@ -8,5 +8,5 @@ export default async function Page() {
     }
   )
 
-  return <div>Hello World!</div>
+  return <h1>Hello World!</h1>
 }

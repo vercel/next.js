@@ -96,6 +96,7 @@ const createTransformer: TransformerCreator<
       modularizeImports: inputOptions?.modularizeImports,
       swcPlugins: inputOptions?.swcPlugins,
       compilerOptions: inputOptions?.compilerOptions,
+      serverReferenceHashSalt: '',
       esm:
         isSupportEsm &&
         isEsm(Boolean(inputOptions?.isEsmProject), filename, jestConfig),

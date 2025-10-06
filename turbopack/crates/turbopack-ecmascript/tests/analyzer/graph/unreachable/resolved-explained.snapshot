@@ -1,0 +1,30 @@
+*arrow function 567* = (...) => undefined
+
+a = (...) => undefined
+
+b = (...) => undefined
+
+c = (...) => undefined
+
+d = (...) => undefined
+
+e#16 = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+e#2 = (...) => undefined
+
+f = (...) => undefined
+
+g = (...) => undefined
+
+h = (...) => undefined
+
+x#10 = ???*0*
+- *0* for-in variable currently not analyzed
+
+x#17 = (...) => undefined
+
+y = ???*0*
+- *0* unknown mutation
+  ⚠️  This value might have side effects

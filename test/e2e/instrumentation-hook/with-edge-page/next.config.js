@@ -1,5 +1,1 @@
-module.exports = {
-  experimental: {
-    instrumentationHook: true,
-  },
-}
+module.exports = {}

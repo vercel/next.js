@@ -1,0 +1,3 @@
+0 -> 1 call = super((...) => undefined)((...) => undefined)
+
+1 -> 3 call = module<./module.js, {}>["named"]()

@@ -1,4 +1,4 @@
-const webpack = require('webpack')
+const webpack = require('@rspack/core')
 
 module.exports = function (task) {
   // eslint-disable-next-line require-yield
@@ -23,6 +23,13 @@ module.exports = function (task) {
           return this.emit('plugin_error', {
             plugin: 'taskfile-webpack',
             error: err?.message ?? stats.toString(),
+          })
+        }
+
+        if (stats.hasWarnings()) {
+          this.emit('plugin_warning', {
+            plugin: 'taskfile-webpack',
+            warning: `webpack compiled ${options.name} with warnings:\n${stats.toString('errors-warnings')}`,
           })
         }
 

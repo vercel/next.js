@@ -1,50 +1,52 @@
 import _typeof from "./typeof.js";
 import setPrototypeOf from "./setPrototypeOf.js";
 import inherits from "./inherits.js";
-export default function _wrapRegExp() {
-  _wrapRegExp = function _wrapRegExp(re, groups) {
-    return new BabelRegExp(re, void 0, groups);
+function _wrapRegExp() {
+  _wrapRegExp = function _wrapRegExp(e, r) {
+    return new BabelRegExp(e, void 0, r);
   };
-  var _super = RegExp.prototype,
-    _groups = new WeakMap();
-  function BabelRegExp(re, flags, groups) {
-    var _this = new RegExp(re, flags);
-    return _groups.set(_this, groups || _groups.get(re)), setPrototypeOf(_this, BabelRegExp.prototype);
+  var e = RegExp.prototype,
+    r = new WeakMap();
+  function BabelRegExp(e, t, p) {
+    var o = RegExp(e, t);
+    return r.set(o, p || r.get(e)), setPrototypeOf(o, BabelRegExp.prototype);
   }
-  function buildGroups(result, re) {
-    var g = _groups.get(re);
-    return Object.keys(g).reduce(function (groups, name) {
-      var i = g[name];
-      if ("number" == typeof i) groups[name] = result[i];else {
-        for (var k = 0; void 0 === result[i[k]] && k + 1 < i.length;) k++;
-        groups[name] = result[i[k]];
+  function buildGroups(e, t) {
+    var p = r.get(t);
+    return Object.keys(p).reduce(function (r, t) {
+      var o = p[t];
+      if ("number" == typeof o) r[t] = e[o];else {
+        for (var i = 0; void 0 === e[o[i]] && i + 1 < o.length;) i++;
+        r[t] = e[o[i]];
       }
-      return groups;
+      return r;
     }, Object.create(null));
   }
-  return inherits(BabelRegExp, RegExp), BabelRegExp.prototype.exec = function (str) {
-    var result = _super.exec.call(this, str);
-    if (result) {
-      result.groups = buildGroups(result, this);
-      var indices = result.indices;
-      indices && (indices.groups = buildGroups(indices, this));
+  return inherits(BabelRegExp, RegExp), BabelRegExp.prototype.exec = function (r) {
+    var t = e.exec.call(this, r);
+    if (t) {
+      t.groups = buildGroups(t, this);
+      var p = t.indices;
+      p && (p.groups = buildGroups(p, this));
     }
-    return result;
-  }, BabelRegExp.prototype[Symbol.replace] = function (str, substitution) {
-    if ("string" == typeof substitution) {
-      var groups = _groups.get(this);
-      return _super[Symbol.replace].call(this, str, substitution.replace(/\$<([^>]+)>/g, function (_, name) {
-        var group = groups[name];
-        return "$" + (Array.isArray(group) ? group.join("$") : group);
+    return t;
+  }, BabelRegExp.prototype[Symbol.replace] = function (t, p) {
+    if ("string" == typeof p) {
+      var o = r.get(this);
+      return e[Symbol.replace].call(this, t, p.replace(/\$<([^>]+)(>|$)/g, function (e, r, t) {
+        if ("" === t) return e;
+        var p = o[r];
+        return Array.isArray(p) ? "$" + p.join("$") : "number" == typeof p ? "$" + p : "";
       }));
     }
-    if ("function" == typeof substitution) {
-      var _this = this;
-      return _super[Symbol.replace].call(this, str, function () {
-        var args = arguments;
-        return "object" != _typeof(args[args.length - 1]) && (args = [].slice.call(args)).push(buildGroups(args, _this)), substitution.apply(this, args);
+    if ("function" == typeof p) {
+      var i = this;
+      return e[Symbol.replace].call(this, t, function () {
+        var e = arguments;
+        return "object" != _typeof(e[e.length - 1]) && (e = [].slice.call(e)).push(buildGroups(e, i)), p.apply(this, e);
       });
     }
-    return _super[Symbol.replace].call(this, str, substitution);
+    return e[Symbol.replace].call(this, t, p);
   }, _wrapRegExp.apply(this, arguments);
 }
+export { _wrapRegExp as default };

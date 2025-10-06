@@ -1,0 +1,32 @@
+[package]
+name = "turbopack-ecmascript-runtime"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+# enable "HMR" for embedded assets
+dynamic_embed_contents = ["turbo-tasks-fs/dynamic_embed_contents"]
+# enable test utilities such as `RuntimeType::Dummy`
+test = []
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+indoc = { workspace = true }
+serde = { workspace = true }
+
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+

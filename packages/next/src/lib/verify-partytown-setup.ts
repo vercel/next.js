@@ -26,8 +26,8 @@ async function missingDependencyError(dir: string) {
           (packageManager === 'yarn'
             ? 'yarn add --dev'
             : packageManager === 'pnpm'
-            ? 'pnpm install --save-dev'
-            : 'npm install --save-dev') + ' @builder.io/partytown'
+              ? 'pnpm install --save-dev'
+              : 'npm install --save-dev') + ' @builder.io/partytown'
         )
       )}` +
       '\n\n' +
@@ -66,16 +66,13 @@ export async function verifyPartytownSetup(
   targetDir: string
 ): Promise<void> {
   try {
-    const partytownDeps: NecessaryDependencies = await hasNecessaryDependencies(
-      dir,
-      [
-        {
-          file: '@builder.io/partytown',
-          pkg: '@builder.io/partytown',
-          exportsRestrict: false,
-        },
-      ]
-    )
+    const partytownDeps: NecessaryDependencies = hasNecessaryDependencies(dir, [
+      {
+        file: '@builder.io/partytown',
+        pkg: '@builder.io/partytown',
+        exportsRestrict: false,
+      },
+    ])
 
     if (partytownDeps.missing?.length > 0) {
       await missingDependencyError(dir)

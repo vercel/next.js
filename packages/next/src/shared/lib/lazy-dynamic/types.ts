@@ -6,11 +6,8 @@ export declare type LoaderComponent<P = {}> = Promise<
 
 export declare type Loader<P = {}> = () => LoaderComponent<P>
 
-export type LoaderMap = { [module: string]: () => Loader<any> }
-
 export type LoadableGeneratedOptions = {
-  webpack?(): any
-  modules?(): LoaderMap
+  modules?: string[]
 }
 
 export type DynamicOptionsLoadingProps = {

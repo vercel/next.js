@@ -1,0 +1,18 @@
+[package]
+name = "turbo-tasks-macros-tests"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+
+[dev-dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+trybuild = { version = "1.0.104" }
+turbo-tasks = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+
+[lints]
+workspace = true

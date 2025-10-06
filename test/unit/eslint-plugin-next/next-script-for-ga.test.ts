@@ -1,22 +1,13 @@
-import rule from '@next/eslint-plugin-next/dist/rules/next-script-for-ga'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
-    },
-  },
-})
+import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
+import { RuleTester as ESLintTesterV9 } from 'eslint'
+import { rules } from '@next/eslint-plugin-next'
+
+const NextESLintRule = rules['next-script-for-ga']
 
 const ERROR_MSG =
   'Prefer `next/script` component when using the inline script for Google Analytics. See: https://nextjs.org/docs/messages/next-script-for-ga'
 
-const ruleTester = new RuleTester()
-
-ruleTester.run('sync-scripts', rule, {
+const tests = {
   valid: [
     `import Script from 'next/script'
 
@@ -238,4 +229,30 @@ ruleTester.run('sync-scripts', rule, {
       ],
     },
   ],
+}
+
+describe('next-script-for-ga', () => {
+  new ESLintTesterV8({
+    parserOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
+    },
+  }).run('eslint-v8', NextESLintRule, tests)
+
+  new ESLintTesterV9({
+    languageOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          modules: true,
+          jsx: true,
+        },
+      },
+    },
+  }).run('eslint-v9', NextESLintRule, tests)
 })

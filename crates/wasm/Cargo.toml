@@ -1,0 +1,61 @@
+[package]
+edition = "2018"
+name = "wasm"
+publish = false
+version = "0.0.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+default = ["swc_v1"]
+swc_v1 = []
+
+plugin = ["swc_core/plugin_transform_host_js"]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+console_error_panic_hook = "0.1.6"
+getrandom2 = { package="getrandom", version = "0.2", default-features = false, features = ["js"] }
+getrandom3 = { package="getrandom", version = "0.3", default-features = false, features = ["wasm_js"] }
+js-sys = "0.3.59"
+next-custom-transforms = { workspace = true }
+next-taskless = { workspace = true }
+rustc-hash = { workspace = true }
+serde-wasm-bindgen = "0.4.3"
+serde_json = "1"
+wasm-bindgen = { version = "0.2", features = ["enable-interning"] }
+wasm-bindgen-futures = "0.4.8"
+
+swc_core = { workspace = true, features = [
+  "common",
+  "common_concurrent",
+  "binding_macro_wasm",
+  "ecma_ast_serde",
+  "ecma_codegen",
+  "ecma_minifier",
+  "ecma_transforms",
+  "ecma_transforms_typescript",
+  "ecma_transforms_optimization",
+  "ecma_transforms_react",
+  "ecma_parser",
+  "ecma_parser_typescript",
+  "ecma_utils",
+  "ecma_visit",
+] }
+mdxjs = { workspace = true, features = ["serializable"] }
+
+# Workaround a bug
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+# Workaround a bug
+[package.metadata.wasm-pack.profile.dev]
+wasm-opt = false
+
+[package.metadata.cargo-shear]
+# Needed to declare the `wasm_js` feature
+ignored = ["getrandom2", "getrandom3"]

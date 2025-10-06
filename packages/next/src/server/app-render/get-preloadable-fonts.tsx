@@ -1,4 +1,5 @@
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 /**
  * Get hrefs for fonts to preload
@@ -8,7 +9,7 @@ import type { NextFontManifest } from '../../build/webpack/plugins/next-font-man
  * Returns null if there are fonts but none to preload and at least some were previously preloaded
  */
 export function getPreloadableFonts(
-  nextFontManifest: NextFontManifest | undefined,
+  nextFontManifest: DeepReadonly<NextFontManifest> | undefined,
   filePath: string | undefined,
   injectedFontPreloadTags: Set<string>
 ): string[] | null {

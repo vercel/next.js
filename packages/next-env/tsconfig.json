@@ -6,5 +6,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": false
-  }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -13,7 +13,7 @@ A module not found error can occur for many different reasons:
 
 ## Possible Ways to Fix It
 
-##### The module you're trying to import is not installed in your dependencies
+### The module you're trying to import is not installed in your dependencies
 
 When importing a module from [npm](https://npmjs.com) this module has to be installed locally.
 
@@ -28,17 +28,17 @@ The `swr` module has to be installed using a package manager.
 - When using `npm`: `npm install swr`
 - When using `yarn`: `yarn add swr`
 
-##### The module you're trying to import is in a different directory
+### The module you're trying to import is in a different directory
 
 Make sure that the path you're importing refers to the right directory and file.
 
-##### The module you're trying to import has a different casing
+### The module you're trying to import has a different casing
 
 Make sure the casing of the file is correct.
 
 Example:
 
-```js filename="components/MyComponent.js"
+```jsx filename="components/MyComponent.js"
 export default function MyComponent() {
   return <h1>Hello</h1>
 }
@@ -51,7 +51,7 @@ import MyComponent from '../components/Mycomponent'
 
 Incorrect casing will lead to build failures on case-sensitive environments like most Linux-based continuous integration and can cause issues with Fast Refresh.
 
-##### The module you're trying to import uses Node.js specific modules
+### The module you're trying to import uses Node.js specific modules
 
 `getStaticProps`, `getStaticPaths`, and `getServerSideProps` allow for using modules that can only run in the Node.js environment. This allows you to do direct database queries or reading data from Redis to name a few examples.
 

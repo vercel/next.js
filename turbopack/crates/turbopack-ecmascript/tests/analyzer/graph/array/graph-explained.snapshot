@@ -1,0 +1,17 @@
+a (const after eval) = 1
+
+b (const after eval) = "foo"
+
+c (const after eval) = [1, "foo"][FreeVar(global)["index"]]
+
+d1 (const after eval) = [1, "foo"]
+
+d2 (const after eval) = d1[FreeVar(global)["index"]]
+
+d3 (const after eval) = d1[1]
+
+d4 (const after eval) = d1[2]
+
+value#3 (const after eval) = Iterated(d1)
+
+value#5 (const after eval) = Iterated([])

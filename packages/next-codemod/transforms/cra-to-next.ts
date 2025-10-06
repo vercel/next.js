@@ -428,31 +428,34 @@ export default function Page(props) {
         JSON.stringify(
           {
             ...this.packageJsonData,
-            scripts: Object.keys(scripts).reduce((prev, cur) => {
-              const command = scripts[cur]
-              prev[cur] = command
+            scripts: Object.keys(scripts).reduce(
+              (prev, cur) => {
+                const command = scripts[cur]
+                prev[cur] = command
 
-              if (command === packageName) {
-                prev[cur] = 'next dev'
-              }
+                if (command === packageName) {
+                  prev[cur] = 'next dev'
+                }
 
-              if (command.includes(`${packageName} `)) {
-                prev[cur] = command.replace(
-                  `${packageName} `,
-                  command.includes(`${packageName} test`) ? 'jest ' : 'next '
-                )
-              }
-              if (cur === 'eject') {
-                prev[cur] = undefined
-              }
-              // TODO: do we want to map start -> next start instead of CRA's
-              // default of mapping starting to dev mode?
-              if (cur === 'start') {
-                prev[cur] = prev[cur].replace('next start', 'next dev')
-                prev['start-production'] = 'next start'
-              }
-              return prev
-            }, {} as { [key: string]: string }),
+                if (command.includes(`${packageName} `)) {
+                  prev[cur] = command.replace(
+                    `${packageName} `,
+                    command.includes(`${packageName} test`) ? 'jest ' : 'next '
+                  )
+                }
+                if (cur === 'eject') {
+                  prev[cur] = undefined
+                }
+                // TODO: do we want to map start -> next start instead of CRA's
+                // default of mapping starting to dev mode?
+                if (cur === 'start') {
+                  prev[cur] = prev[cur].replace('next start', 'next dev')
+                  prev['start-production'] = 'next start'
+                }
+                return prev
+              },
+              {} as { [key: string]: string }
+            ),
             dependencies: {
               ...dependencies,
               ...packagesToRemove,

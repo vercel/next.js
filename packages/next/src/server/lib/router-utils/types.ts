@@ -5,3 +5,4 @@ export type PropagateToWorkersField =
   | 'loadEnvConfig'
   | 'appPathRoutes'
   | 'middleware'
+  | 'renderOpts'

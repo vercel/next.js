@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { createTodo } from "@/app/actions";
 
@@ -19,7 +19,8 @@ function SubmitButton() {
 }
 
 export function AddForm() {
-  const [state, formAction] = useFormState(createTodo, initialState);
+  // useActionState is available with React 19 (Next.js App Router)
+  const [state, formAction] = useActionState(createTodo, initialState);
 
   return (
     <form action={formAction}>

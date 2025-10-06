@@ -1,6 +1,6 @@
 import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 const files = {
@@ -32,7 +32,7 @@ const files = {
       return \`1 + 1 is: $\{two}\`
     }
 
-    export const runtime = "experimental-edge"
+    export const runtime = "edge"
   `,
   'wasm/add.wasm': new FileRef(path.join(__dirname, 'add.wasm')),
 }
@@ -43,13 +43,9 @@ describe('app-dir edge runtime with wasm', () => {
   beforeAll(async () => {
     next = await createNext({
       files,
-      dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
-      },
     })
   })
-  afterAll(() => next.destroy())
+  afterAll(() => next?.destroy())
 
   it('should have built', async () => {
     const html = await renderViaHTTP(next.url, '/')

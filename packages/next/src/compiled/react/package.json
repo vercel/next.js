@@ -3,14 +3,21 @@
   "main": "index.js",
   "exports": {
     ".": {
-      "react-server": "./react.shared-subset.js",
+      "react-server": "./react.react-server.js",
       "default": "./index.js"
     },
     "./package.json": "./package.json",
-    "./jsx-runtime": "./jsx-runtime.js",
-    "./jsx-dev-runtime": "./jsx-dev-runtime.js"
-  },
-  "dependencies": {
-    "loose-envify": "^1.1.0"
+    "./jsx-runtime": {
+      "react-server": "./jsx-runtime.react-server.js",
+      "default": "./jsx-runtime.js"
+    },
+    "./jsx-dev-runtime": {
+      "react-server": "./jsx-dev-runtime.react-server.js",
+      "default": "./jsx-dev-runtime.js"
+    },
+    "./compiler-runtime": {
+      "react-server": "./compiler-runtime.js",
+      "default": "./compiler-runtime.js"
+    }
   }
 }

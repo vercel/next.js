@@ -1,0 +1,151 @@
+---
+title: Cannot access Request information or uncached data in `generateMetadata()` in an otherwise entirely static route
+---
+
+## Why This Error Occurred
+
+When `cacheComponents` is enabled, Next.js requires that `generateMetadata()` not depend on uncached data or Request data unless some other part of the page also has similar requirements. The reason for this is that while you normally control your intention for what is allowed to be dynamic by adding or removing Suspense boundaries in your Layout and Page components you are not in control of rendering metadata itself.
+
+The heuristic Next.js uses to understand your intent with `generateMetadata()` is to look at the data requirements of the rest of the route. If other components depend on Request data or uncached data, then we allow `generateMetadata()` to have similar data requirements. If the rest of your page has no dependence on this type of data, we require that `generateMetadata()` also not have this type of data dependence.
+
+## Possible Ways to Fix It
+
+To fix this issue, you must first determine your goal for the affected route.
+
+### Caching External Data
+
+If your metadata does not depend on any request data, then it may be possible for you to indicate that the data is cacheable, which would allow Next.js to include it in the prerender for this route. Consider using `"use cache"` to mark the function producing the external data as cacheable.
+
+Before:
+
+```jsx filename="app/.../page.tsx"
+import { cms } from './cms'
+
+export async function generateMetadata() {
+  // This data lookup is not cached at the moment so
+  // Next.js will interpret this as needing to be rendered
+  // on every request.
+  const { title } = await cms.getPageData('/.../page')
+  return {
+    title,
+  }
+}
+
+async function getPageText() {
+  'use cache'
+  const { text } = await cms.getPageData('/.../page')
+  return text
+}
+
+export default async function Page() {
+  // This text is cached so the main content of this route
+  // is prerenderable.
+  const text = await getPageText()
+  return <article>{text}</article>
+}
+```
+
+After:
+
+```jsx filename="app/.../page.tsx"
+import { cms } from './cms'
+
+export async function generateMetadata() {
+  // By marking this function as cacheable, Next.js
+  // can now include it in the prerender for this route.
+  'use cache'
+  const { title } = await cms.getPageData('/.../page')
+  return {
+    title,
+  }
+}
+
+async function getPageText() {
+  'use cache'
+  const { text } = await cms.getPageData('/.../page')
+  return text
+}
+
+export default async function Page() {
+  // This text is cached so the main content of this route
+  // is prerenderable.
+  const text = await getPageText()
+  return <article>{text}</article>
+}
+```
+
+### If you must access Request Data or your external data is uncacheable
+
+If your metadata requires Request data or depends on external data which is not cacheable then Next.js will need to render this page dynamically on every request. However if you got this error, the rest of your page is able to be completely static. This is generally pretty rare, but if this is your actual constraint, you can indicate to Next.js that the page should be allowed to be dynamic by rendering any other component that is dynamic. Since your route doesn't have any genuine need for Request data, you can indicate an intentional dependency on a Request with `await connection()`. This is like telling Next.js that this component is never prerenderable and must be rendered on every user request.
+
+Before:
+
+```jsx filename="app/.../page.tsx"
+import { cookies } from 'next/headers'
+import { getPersonalizedTitle } from './my-api'
+
+export async function generateMetadata() {
+  // In this example, we are assuming we must fetch our title
+  // from a protected external API. While the response is potentially
+  // cacheable, the it still requires accessing a token from the Request cookies.
+  const token = (await cookies()).get('token')
+  const response = await getPersonalizedTitle(token)
+  return {
+    title: getTitle(response),
+  }
+}
+
+export default function Page() {
+  return <article>This article is completely static</article>
+}
+```
+
+After:
+
+```jsx filename="app/.../page.tsx"
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { connection } from 'next/server'
+
+export async function generateMetadata() {
+  const token = (await cookies()).get('token')
+  const response = await fetch(..., { headers: { Authorization: token } })
+  return {
+    title: getTitle(response),
+  }
+}
+
+async function DynamicMarker() {
+  // This component renders nothing, but it will always
+  // be dynamic because it waits for an actual connection.
+  const Connection = async () => {
+    await connection()
+    return null
+  }
+  return (
+    <Suspense>
+      <Connection />
+    </Suspense>
+  )
+}
+
+export default function Page() {
+  return (
+    <>
+      <article>This article is completely static</article>
+      {/* Rendering this DynamicMarker component tells Next.js that
+          this Page has some dynamic content. */}
+      <DynamicMarker />
+    </>
+  )
+}
+```
+
+Note: The reason to structure this `DynamicMarker` as a self-contained Suspense boundary is to avoid blocking the actual content of the page from being prerendered. When Partial Prerendering is enabled alongside `cacheComponents`, the static shell will still contain all of the prerenderable content, and only the metadata will stream in dynamically.
+
+## Useful Links
+
+- [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata)
+- [`connection()`](/docs/app/api-reference/functions/connection)
+- [`cookies()`](/docs/app/api-reference/functions/cookies)
+- [`"use cache"`](/docs/app/api-reference/directives/use-cache)

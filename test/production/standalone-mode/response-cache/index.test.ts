@@ -3,7 +3,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   killApp,
   findPort,
@@ -22,6 +22,7 @@ describe('minimal-mode-response-cache', () => {
   beforeAll(async () => {
     // test build against environment with next support
     process.env.NOW_BUILDER = '1'
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     next = await createNext({
       files: new FileRef(join(__dirname, 'app')),
@@ -84,13 +85,15 @@ describe('minimal-mode-response-cache', () => {
     appPort = `http://127.0.0.1:${port}`
   })
   afterAll(async () => {
+    delete process.env.NOW_BUILDER
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)
   })
 
   it('app router revalidate should work with previous response cache dynamic', async () => {
     const headers = {
-      vary: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+      vary: 'rsc, next-router-state-tree, next-router-prefetch',
       'x-now-route-matches': '1=compare&rsc=1',
       'x-matched-path': '/app-blog/compare.rsc',
       'x-vercel-id': '1',
@@ -120,7 +123,7 @@ describe('minimal-mode-response-cache', () => {
 
   it('app router revalidate should work with previous response cache', async () => {
     const headers = {
-      vary: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+      vary: 'rsc, next-router-state-tree, next-router-prefetch',
       'x-now-route-matches': '1=app-another&rsc=1',
       'x-matched-path': '/app-another.rsc',
       'x-vercel-id': '1',

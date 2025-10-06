@@ -19,13 +19,13 @@ module.exports = {
     }
     return cfg
   },
+  outputFileTracingIncludes: {
+    '/index': ['include-me/*'],
+  },
+  outputFileTracingExcludes: {
+    '/index': ['public/exclude-me/**/*'],
+  },
   experimental: {
-    outputFileTracingIncludes: {
-      '/index': ['include-me/*'],
-    },
-    outputFileTracingExcludes: {
-      '/index': ['public/exclude-me/**/*'],
-    },
     turbotrace: {
       contextDirectory: path.join(__dirname, '..', '..', '..', '..'),
       memoryLimit: 2048,

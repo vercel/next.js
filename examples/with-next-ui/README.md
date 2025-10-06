@@ -4,8 +4,6 @@ This example shows how to use Next.js along with [NextUI](https://nextui.org/) o
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-next-ui)
 
 ## How to use
@@ -14,9 +12,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-next-ui with-next-ui-app
-# or
+```
+
+```bash
 yarn create next-app --example with-next-ui with-next-ui-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-next-ui with-next-ui-app
 ```
 

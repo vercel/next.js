@@ -1,7 +1,7 @@
-export default function FeedLayout({ params, feed, modal }) {
+export default async function FeedLayout({ params, feed, modal }) {
   return (
     <>
-      <h1>User: {params.username}</h1>
+      <h1>User: {(await params).username}</h1>
       {feed}
       {modal}
     </>

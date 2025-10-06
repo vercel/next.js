@@ -14,7 +14,7 @@ Migrate to using separate dynamic calls for each module.
 
 **Before**
 
-```js filename="example.js"
+```jsx filename="example.js"
 import dynamic from 'next/dynamic'
 
 const HelloBundle = dynamic({
@@ -44,7 +44,7 @@ export default DynamicBundle
 
 **After**
 
-```js filename="example.js"
+```jsx filename="example.js"
 import dynamic from 'next/dynamic'
 
 const Hello1 = dynamic(() => import('../components/hello1'))

@@ -1,0 +1,97 @@
+[package]
+name = "next-core"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+base64 = "0.21.0"
+either = { workspace = true, features = ["serde"] }
+once_cell = { workspace = true }
+qstring = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
+mime_guess = "2.0.4"
+indoc = { workspace = true }
+allsorts = { workspace = true }
+futures = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+regress = { workspace = true }
+rustc-hash = { workspace = true }
+react_remove_properties = { workspace = true }
+remove_console = { workspace = true }
+itertools = { workspace = true }
+percent-encoding = "2.3.1"
+serde_path_to_error = { workspace = true }
+swc_sourcemap = { workspace = true }
+
+swc_core = { workspace = true, features = [
+  "base",
+  "common_concurrent",
+  "ecma_ast",
+  "ecma_loader_lru",
+  "ecma_loader_node",
+  "ecma_minifier",
+  "ecma_parser",
+  "ecma_parser_typescript",
+  "ecma_preset_env",
+  "ecma_transforms",
+  "ecma_transforms_optimization",
+  "ecma_transforms_react",
+  "ecma_transforms_typescript",
+  "ecma_utils",
+  "ecma_visit",
+] }
+modularize_imports = { workspace = true }
+
+next-custom-transforms = { workspace = true }
+next-taskless = { workspace = true }
+
+turbo-rcstr = { workspace = true }
+turbo-esregex = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-bytes = { workspace = true }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fetch = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack = { workspace = true }
+turbopack-browser = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+turbopack-ecmascript-plugins = { workspace = true, features = [
+  "transform_emotion",
+] }
+turbopack-ecmascript-runtime = { workspace = true }
+turbopack-image = { workspace = true }
+turbopack-node = { workspace = true }
+turbopack-nodejs = { workspace = true }
+turbopack-static = { workspace = true }
+turbopack-trace-utils = { workspace = true }
+
+[features]
+next-font-local = []
+plugin = [
+  "swc_core/plugin_transform_host_native",
+  "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
+]
+image-webp = ["turbopack-image/webp"]
+image-avif = ["turbopack-image/avif"]
+
+# enable "HMR" for embedded assets
+dynamic_embed_contents = [
+  "turbo-tasks-fs/dynamic_embed_contents",
+  "turbopack-browser/dynamic_embed_contents",
+]

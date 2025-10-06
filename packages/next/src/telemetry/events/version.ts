@@ -1,5 +1,4 @@
 import type { NextConfigComplete } from '../../server/config-shared'
-import path from 'path'
 
 const EVENT_VERSION = 'NEXT_CLI_SESSION_STARTED'
 
@@ -23,6 +22,8 @@ type EventCliSessionStarted = {
   localeDetectionEnabled: boolean | null
   imageDomainsCount: number | null
   imageRemotePatternsCount: number | null
+  imageLocalPatternsCount: number | null
+  imageQualities: string | null
   imageSizes: string | null
   imageLoader: string | null
   imageFormats: string | null
@@ -31,30 +32,18 @@ type EventCliSessionStarted = {
   reactStrictMode: boolean
   webpackVersion: number | null
   turboFlag: boolean
+  isRspack: boolean
   appDir: boolean | null
   pagesDir: boolean | null
-}
-
-function hasBabelConfig(dir: string): boolean {
-  try {
-    const noopFile = path.join(dir, 'noop.js')
-    const res = require('next/dist/compiled/babel/core').loadPartialConfig({
-      cwd: dir,
-      filename: noopFile,
-      sourceFileName: noopFile,
-    }) as any
-    const isForTooling =
-      res.options?.presets?.every(
-        (e: any) => e?.file?.request === 'next/babel'
-      ) && res.options?.plugins?.length === 0
-    return res.hasFilesystemConfig() && !isForTooling
-  } catch {
-    return false
-  }
+  staticStaleTime: number | null
+  dynamicStaleTime: number | null
+  reactCompiler: boolean
+  reactCompilerCompilationMode: string | null
+  reactCompilerPanicThreshold: string | null
+  mcpServer: boolean | null
 }
 
 export function eventCliSession(
-  dir: string,
   nextConfig: NextConfigComplete,
   event: Omit<
     EventCliSessionStarted,
@@ -73,12 +62,21 @@ export function eventCliSession(
     | 'localeDetectionEnabled'
     | 'imageDomainsCount'
     | 'imageRemotePatternsCount'
+    | 'imageLocalPatternsCount'
+    | 'imageQualities'
     | 'imageSizes'
     | 'imageLoader'
     | 'imageFormats'
     | 'nextConfigOutput'
     | 'trailingSlashEnabled'
     | 'reactStrictMode'
+    | 'staticStaleTime'
+    | 'dynamicStaleTime'
+    | 'reactCompiler'
+    | 'reactCompilerCompilationMode'
+    | 'reactCompilerPanicThreshold'
+    | 'mcpServer'
+    | 'isRspack'
   >
 ): { eventName: string; payload: EventCliSessionStarted }[] {
   // This should be an invariant, if it fails our build tooling is broken.
@@ -98,7 +96,7 @@ export function eventCliSession(
     hasNextConfig: nextConfig.configOrigin !== 'default',
     buildTarget: 'default',
     hasWebpackConfig: typeof nextConfig?.webpack === 'function',
-    hasBabelConfig: hasBabelConfig(dir),
+    hasBabelConfig: false,
     imageEnabled: !!images,
     imageFutureEnabled: !!images,
     basePathEnabled: !!nextConfig?.basePath,
@@ -110,7 +108,11 @@ export function eventCliSession(
     imageRemotePatternsCount: images?.remotePatterns
       ? images.remotePatterns.length
       : null,
+    imageLocalPatternsCount: images?.localPatterns
+      ? images.localPatterns.length
+      : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
+    imageQualities: images?.qualities ? images.qualities.join(',') : null,
     imageLoader: images?.loader,
     imageFormats: images?.formats ? images.formats.join(',') : null,
     nextConfigOutput: nextConfig?.output || null,
@@ -118,8 +120,24 @@ export function eventCliSession(
     reactStrictMode: !!nextConfig?.reactStrictMode,
     webpackVersion: event.webpackVersion || null,
     turboFlag: event.turboFlag || false,
+    isRspack: process.env.NEXT_RSPACK !== undefined,
     appDir: event.appDir,
     pagesDir: event.pagesDir,
+    staticStaleTime: nextConfig.experimental.staleTimes?.static ?? null,
+    dynamicStaleTime: nextConfig.experimental.staleTimes?.dynamic ?? null,
+    reactCompiler: Boolean(nextConfig.reactCompiler),
+    reactCompilerCompilationMode:
+      typeof nextConfig.reactCompiler !== 'boolean'
+        ? (nextConfig.reactCompiler?.compilationMode ?? null)
+        : null,
+    reactCompilerPanicThreshold:
+      typeof nextConfig.reactCompiler !== 'boolean'
+        ? (nextConfig.reactCompiler?.panicThreshold ?? null)
+        : null,
+    mcpServer:
+      typeof nextConfig.experimental.mcpServer === 'boolean'
+        ? nextConfig.experimental.mcpServer
+        : null,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

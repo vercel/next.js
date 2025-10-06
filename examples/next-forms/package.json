@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next dev --turbo",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start"
   },
@@ -9,10 +9,10 @@
     "@types/node": "20.10.6",
     "@types/react": "18.2.46",
     "@types/react-dom": "18.2.18",
-    "next": "latest",
+    "next": "canary",
     "postgres": "^3.4.3",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "react": "rc",
+    "react-dom": "rc",
     "typescript": "5.3.3",
     "zod": "^3.22.4"
   }

@@ -1,0 +1,9 @@
+;[
+  'package.json',
+  'test/unit/browser-remappings-disabled/input.js',
+  'test/unit/browser-remappings-disabled/node_modules/pkg/index.js',
+  'test/unit/browser-remappings-disabled/node_modules/pkg/package.json',
+  'test/unit/browser-remappings-disabled/node_modules/pkg/require-main.cjs',
+  'test/unit/browser-remappings-disabled/node_modules/pkg/subdir/import-main.js',
+  'test/unit/browser-remappings-disabled/node_modules/pkg/subdir/package.json',
+]

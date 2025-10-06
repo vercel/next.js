@@ -1,0 +1,1835 @@
+[
+    (
+        "*arrow function 425*",
+        Function(
+            2,
+            425,
+            Variable(
+                (
+                    "*arrow function 431*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 431*",
+        Function(
+            2,
+            431,
+            Variable(
+                (
+                    "*arrow function 437*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 437*",
+        Function(
+            2,
+            437,
+            Variable(
+                (
+                    "*arrow function 443*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 443*",
+        Function(
+            2,
+            443,
+            Variable(
+                (
+                    "*arrow function 449*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 449*",
+        Function(
+            2,
+            449,
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 468*",
+        Function(
+            2,
+            468,
+            Variable(
+                (
+                    "*arrow function 474*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 474*",
+        Function(
+            2,
+            474,
+            Variable(
+                (
+                    "*arrow function 480*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 480*",
+        Function(
+            2,
+            480,
+            Variable(
+                (
+                    "*arrow function 486*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 486*",
+        Function(
+            2,
+            486,
+            Variable(
+                (
+                    "*arrow function 492*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 492*",
+        Function(
+            2,
+            492,
+            Constant(
+                Num(
+                    ConstantNumber(
+                        2.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 511*",
+        Function(
+            2,
+            511,
+            Variable(
+                (
+                    "*arrow function 517*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 517*",
+        Function(
+            2,
+            517,
+            Variable(
+                (
+                    "*arrow function 523*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 523*",
+        Function(
+            2,
+            523,
+            Variable(
+                (
+                    "*arrow function 529*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 529*",
+        Function(
+            2,
+            529,
+            Variable(
+                (
+                    "*arrow function 535*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 535*",
+        Function(
+            2,
+            535,
+            Constant(
+                Num(
+                    ConstantNumber(
+                        2.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 554*",
+        Function(
+            2,
+            554,
+            Variable(
+                (
+                    "*arrow function 560*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 560*",
+        Function(
+            2,
+            560,
+            Variable(
+                (
+                    "*arrow function 566*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 566*",
+        Function(
+            2,
+            566,
+            Variable(
+                (
+                    "*arrow function 572*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 572*",
+        Function(
+            2,
+            572,
+            Variable(
+                (
+                    "*arrow function 578*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 578*",
+        Function(
+            2,
+            578,
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "a",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            3.0,
+                        ),
+                    ),
+                ),
+                Variable(
+                    (
+                        "b",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "b",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            4.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            5.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            6.0,
+                        ),
+                    ),
+                ),
+                Variable(
+                    (
+                        "c",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "c",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            7.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            8.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            9.0,
+                        ),
+                    ),
+                ),
+                Variable(
+                    (
+                        "a",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "d",
+        Alternatives {
+            total_nodes: 22,
+            values: [
+                Variable(
+                    (
+                        "f11",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f22",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f32",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f42",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f52",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f62",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f72",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f82",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f92",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fa2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fb2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fc2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fd2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fe2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "ff2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fg2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fh2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fi2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fj2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fk2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fl2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f11",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "*arrow function 425*",
+                        #0,
+                    ),
+                ),
+                Variable(
+                    (
+                        "*arrow function 468*",
+                        #0,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f12",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "*arrow function 511*",
+                        #0,
+                    ),
+                ),
+                Variable(
+                    (
+                        "*arrow function 554*",
+                        #0,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f21",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f11",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f12",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f22",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f12",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f11",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f31",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f21",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f22",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f32",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f22",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f21",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f41",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f31",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f32",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f42",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f32",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f31",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f51",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f41",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f42",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f52",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f42",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f41",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f61",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f51",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f52",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f62",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f52",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f51",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f71",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f61",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f62",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f72",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f62",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f61",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f81",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f71",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f72",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f82",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f72",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f71",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f91",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f81",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f82",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f92",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f82",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f81",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fa1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f91",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f92",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fa2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "f92",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "f91",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fb1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fa1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fa2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fb2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fa2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fa1",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fc1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fb1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fb2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fc2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fb2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fb1",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fd1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fc1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fc2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fd2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fc2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fc1",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fe1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fd1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fd2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fe2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fd2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fd1",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "ff1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fe1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fe2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "ff2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fe2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fe1",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fg1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "ff1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "ff2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fg2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "ff2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "ff1",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fh1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fg1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fg2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fh2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fg2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fg1",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fi1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fh1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fh2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fi2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fh2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fh1",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fj1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fi1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fi2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fj2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fi2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fi1",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fk1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fj1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fj2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fk2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fj2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fj1",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fl1",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fk1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fk2",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "fl2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "fk2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "fk1",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "x",
+        Alternatives {
+            total_nodes: 4,
+            values: [
+                Variable(
+                    (
+                        "a",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "b",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "c",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "x1",
+        Alternatives {
+            total_nodes: 7,
+            values: [
+                Variable(
+                    (
+                        "x1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x3",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x4",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x5",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x6",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "x2",
+        Alternatives {
+            total_nodes: 7,
+            values: [
+                Variable(
+                    (
+                        "x1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x3",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x4",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x5",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x6",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "x3",
+        Alternatives {
+            total_nodes: 7,
+            values: [
+                Variable(
+                    (
+                        "x1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x3",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x4",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x5",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x6",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "x4",
+        Alternatives {
+            total_nodes: 7,
+            values: [
+                Variable(
+                    (
+                        "x1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x3",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x4",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x5",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x6",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "x5",
+        Alternatives {
+            total_nodes: 7,
+            values: [
+                Variable(
+                    (
+                        "x1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x3",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x4",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x5",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x6",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "x6",
+        Alternatives {
+            total_nodes: 7,
+            values: [
+                Variable(
+                    (
+                        "x1",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x2",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x3",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x4",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x5",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x6",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "y",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Variable(
+                    (
+                        "a",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "b",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "c",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "x",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "z",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Variable(
+                    (
+                        "a",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "b",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "c",
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        "y",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "z1",
+        Variable(
+            (
+                "z",
+                #2,
+            ),
+        ),
+    ),
+    (
+        "z2",
+        Variable(
+            (
+                "z1",
+                #2,
+            ),
+        ),
+    ),
+    (
+        "z3",
+        Variable(
+            (
+                "z2",
+                #2,
+            ),
+        ),
+    ),
+    (
+        "z4",
+        Variable(
+            (
+                "z3",
+                #2,
+            ),
+        ),
+    ),
+    (
+        "z5",
+        Variable(
+            (
+                "z4",
+                #2,
+            ),
+        ),
+    ),
+    (
+        "z6",
+        Variable(
+            (
+                "z5",
+                #2,
+            ),
+        ),
+    ),
+    (
+        "z7",
+        Variable(
+            (
+                "z6",
+                #2,
+            ),
+        ),
+    ),
+    (
+        "z8",
+        Variable(
+            (
+                "z7",
+                #2,
+            ),
+        ),
+    ),
+    (
+        "z9",
+        Variable(
+            (
+                "z8",
+                #2,
+            ),
+        ),
+    ),
+]

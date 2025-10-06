@@ -21,7 +21,6 @@ describe('TypeScript HMR', () => {
     appPort = await findPort()
     app = await launchApp(appDir, appPort, {
       env: {
-        __NEXT_TEST_WITH_DEVTOOL: 1,
         // Events can be finicky in CI. This switches to a more reliable
         // polling method.
         CHOKIDAR_USEPOLLING: 'true',
@@ -42,7 +41,7 @@ describe('TypeScript HMR', () => {
         const originalContent = await fs.readFile(pagePath, 'utf8')
         const editedContent = originalContent.replace('Hello', 'COOL page')
 
-        if (process.env.TURBOPACK) {
+        if (process.env.IS_TURBOPACK_TEST) {
           // TODO Turbopack needs a bit to start watching
           await new Promise((resolve) => setTimeout(resolve, 500))
         }
@@ -98,7 +97,7 @@ describe('TypeScript HMR', () => {
         '() => <p>Hello world</p>',
         '(): boolean => <p>hello with error</p>'
       )
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         // TODO Turbopack needs a bit to start watching
         await new Promise((resolve) => setTimeout(resolve, 500))
       }

@@ -14,6 +14,36 @@ describe('@next/eslint-plugin-next index', () => {
     expect(index.rules).toContainAllKeys(rules)
   })
 
+  it('should have meta information', () => {
+    expect(index.meta).toBeDefined()
+    expect(index.meta.name).toBe('@next/eslint-plugin-next')
+  })
+
+  it('should have proper flat config structure for recommended', () => {
+    const config = index.configs.recommended
+    expect(config.name).toBe('next/recommended')
+    expect(config.rules).toBeDefined()
+  })
+
+  it('should have proper flat config structure for core-web-vitals', () => {
+    const config = index.configs['core-web-vitals']
+    expect(config.name).toBe('next/core-web-vitals')
+    expect(config.rules).toBeDefined()
+  })
+
+  it('should have legacy recommended config', () => {
+    const config = index.configs['recommended-legacy']
+    expect(config.plugins).toContain('@next/next')
+    expect(config.rules).toBeDefined()
+  })
+
+  it('should have legacy core-web-vitals config', () => {
+    const config = index.configs['core-web-vitals-legacy']
+    expect(config.plugins).toContain('@next/next')
+    expect(config.extends).toContain('plugin:@next/next/recommended-legacy')
+    expect(config.rules).toBeDefined()
+  })
+
   rulePaths.forEach((rulePath) => {
     let rule = require(rulePath)
     rule = rule.default ?? rule

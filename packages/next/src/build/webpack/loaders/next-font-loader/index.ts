@@ -35,6 +35,12 @@ export default async function nextFontLoader(this: any) {
         `${bold('Cannot')} be used within ${cyan('pages/_document.js')}.`
       )
       err.name = 'NextFontError'
+      if (process.env.NEXT_RSPACK) {
+        // Rspack uses miette for error formatting, which automatically includes stack
+        // traces in the error message. To avoid showing redundant stack information
+        // in the final error output, we clear the stack property.
+        err.stack = undefined
+      }
       callback(err)
       return
     }
@@ -118,7 +124,7 @@ export default async function nextFontLoader(this: any) {
       // Exports will be exported as is from css-loader instead of a CSS module export
       const exports: { name: any; value: any }[] = []
 
-      // Generate a hash from the CSS content. Used to generate classnames and font families
+      // Generate a hash from the CSS content. Used to generate classnames
       const fontFamilyHash = loaderUtils.getHashDigest(
         Buffer.from(css),
         'sha1',
@@ -133,7 +139,6 @@ export default async function nextFontLoader(this: any) {
           postcss(
             postcssNextFontPlugin({
               exports,
-              fontFamilyHash,
               fallbackFonts,
               weight,
               style,

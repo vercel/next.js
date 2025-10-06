@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 import path from 'path'
 import fs from 'fs-extra'
@@ -103,18 +103,32 @@ describe('middleware can use wasm files', () => {
     it('lists the necessary wasm bindings in the manifest', async () => {
       const manifestPath = path.join(
         next.testDir,
-        '.next/server/middleware-manifest.json'
+        `${next.distDir}/server/middleware-manifest.json`
       )
       const manifest = await fs.readJSON(manifestPath)
-      expect(manifest.middleware['/']).toMatchObject({
-        wasm: [
-          {
-            filePath:
-              'server/edge-chunks/wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d.wasm',
-            name: 'wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d',
-          },
-        ],
-      })
+      if (process.env.IS_TURBOPACK_TEST) {
+        expect(manifest.middleware['/'].wasm).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              filePath: expect.stringMatching(
+                /^server\/edge\/chunks\/.*\.wasm$/
+              ),
+              name: expect.stringMatching(/^wasm_/),
+            }),
+          ])
+        )
+      } else {
+        expect(manifest.middleware['/'].wasm).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              filePath: expect.stringMatching(
+                /^server\/edge-chunks\/wasm_.*\.wasm$/
+              ),
+              name: expect.stringMatching(/^wasm_/),
+            }),
+          ])
+        )
+      }
     })
   }
 })

@@ -1,0 +1,16 @@
+[package]
+name = "auto-hash-map"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+hashbrown = { workspace = true, features = ["serde"]}
+rustc-hash = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+smallvec = { workspace = true }
+shrink-to-fit = { workspace = true, features = ["hashbrown"] }

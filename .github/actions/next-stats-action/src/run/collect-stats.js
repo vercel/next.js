@@ -10,6 +10,10 @@ const { parse: urlParse } = require('url')
 const benchmarkUrl = require('./benchmark-url')
 const { statsAppDir, diffingDir, benchTitle } = require('../constants')
 
+async function defaultGetRequiredFiles(nextAppDir, fileName) {
+  return [fileName]
+}
+
 module.exports = async function collectStats(
   runConfig = {},
   statsConfig = {},
@@ -136,7 +140,11 @@ module.exports = async function collectStats(
   }
 
   for (const fileGroup of runConfig.filesToTrack) {
-    const { name, globs } = fileGroup
+    const {
+      getRequiredFiles = defaultGetRequiredFiles,
+      name,
+      globs,
+    } = fileGroup
     const groupStats = {}
     const curFiles = new Set()
 
@@ -147,11 +155,17 @@ module.exports = async function collectStats(
 
     for (const file of curFiles) {
       const fileKey = path.basename(file)
-      const absPath = path.join(curDir, file)
       try {
-        const fileInfo = await fs.stat(absPath)
-        groupStats[fileKey] = fileInfo.size
-        groupStats[`${fileKey} gzip`] = await gzipSize.file(absPath)
+        let parsedSizeSum = 0
+        let gzipSizeSum = 0
+        for (const requiredFile of await getRequiredFiles(curDir, file)) {
+          const absPath = path.join(curDir, requiredFile)
+          const fileInfo = await fs.stat(absPath)
+          parsedSizeSum += fileInfo.size
+          gzipSizeSum += await gzipSize.file(absPath)
+        }
+        groupStats[fileKey] = parsedSizeSum
+        groupStats[`${fileKey} gzip`] = gzipSizeSum
       } catch (err) {
         logger.error('Failed to get file stats', err)
       }

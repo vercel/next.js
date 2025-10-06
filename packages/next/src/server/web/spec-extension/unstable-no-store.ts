@@ -1,17 +1,26 @@
-import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
+import { workAsyncStorage } from '../../app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
 
 /**
- * Expects to be called in an App Router render and will error if not.
+ * This function can be used to declaratively opt out of static rendering and indicate a particular component should not be cached.
  *
- * marks the current scope as dynamic. In non PPR cases this will make a static render
- * halt and mark the page as dynamic. In PPR cases this will postpone the render at this location.
+ * It marks the current scope as dynamic.
  *
- * If we are inside a cache scope then this function is a noop
+ * - In [non-PPR](https://nextjs.org/docs/app/api-reference/next-config-js/partial-prerendering) cases this will make a static render
+ * halt and mark the page as dynamic.
+ * - In PPR cases this will postpone the render at this location.
+ *
+ * If we are inside a cache scope then this function does nothing.
+ *
+ * @note It expects to be called within App Router and will error otherwise.
+ *
+ * Read more: [Next.js Docs: `unstable_noStore`](https://nextjs.org/docs/app/api-reference/functions/unstable_noStore)
  */
 export function unstable_noStore() {
   const callingExpression = 'unstable_noStore()'
-  const store = staticGenerationAsyncStorage.getStore()
+  const store = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
   if (!store) {
     // This generally implies we are being called in Pages router. We should probably not support
     // unstable_noStore in contexts outside of `react-server` condition but since we historically
@@ -21,6 +30,24 @@ export function unstable_noStore() {
     return
   } else {
     store.isUnstableNoStore = true
-    markCurrentScopeAsDynamic(store, callingExpression)
+    if (workUnitStore) {
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-client':
+        case 'prerender-runtime':
+          // unstable_noStore() is a noop in Dynamic I/O.
+          return
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'cache':
+        case 'private-cache':
+        case 'unstable-cache':
+          break
+        default:
+          workUnitStore satisfies never
+      }
+    }
+    markCurrentScopeAsDynamic(store, workUnitStore, callingExpression)
   }
 }

@@ -1,0 +1,21 @@
+[package]
+name = "turbo-tasks-testing"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+autotests = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+futures = { workspace = true }
+rustc-hash = { workspace = true }
+tokio = { workspace = true }
+turbo-tasks = { workspace = true, features = ["non_operation_vc_strongly_consistent"] }

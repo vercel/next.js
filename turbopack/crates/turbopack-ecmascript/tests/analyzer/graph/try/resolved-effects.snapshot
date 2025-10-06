@@ -1,0 +1,13 @@
+0 -> 1 free var = FreeVar(require)
+
+0 -> 2 call = require*0*("packages/not-found")
+- *0* require: The require method from CommonJS
+
+0 -> 3 free var = FreeVar(require)
+
+0 -> 4 call = require*0*("packages/found")
+- *0* require: The require method from CommonJS
+
+0 -> 6 member call = (???*0* | module<packages/not-found, {}> | module<packages/found, {}>)["fn"]()
+- *0* pkg
+  ⚠️  pattern without value

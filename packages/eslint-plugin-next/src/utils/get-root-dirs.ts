@@ -1,20 +1,20 @@
-import { globSync } from 'glob'
+import { globSync } from 'fast-glob'
 import type { Rule } from 'eslint'
 
 /**
  * Process a Next.js root directory glob.
  */
 const processRootDir = (rootDir: string): string[] => {
-  // Ensures we only match folders.
-  if (!rootDir.endsWith('/')) rootDir += '/'
-  return globSync(rootDir)
+  return globSync(rootDir.replace(/\\/g, '/'), {
+    onlyDirectories: true,
+  })
 }
 
 /**
  * Gets one or more Root, returns an array of root directories.
  */
 export const getRootDirs = (context: Rule.RuleContext) => {
-  let rootDirs = [context.getCwd()]
+  let rootDirs = [context.cwd]
 
   const nextSettings: { rootDir?: string | string[] } =
     context.settings.next || {}

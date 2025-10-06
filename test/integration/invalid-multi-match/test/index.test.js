@@ -28,29 +28,35 @@ const runTests = () => {
 }
 
 describe('Custom routes invalid multi-match', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        onStderr: (msg) => {
-          stderr += msg
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStderr: (msg) => {
+            stderr += msg
+          },
+        })
       })
-    })
-    afterAll(() => killApp(app))
-    runTests(true)
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        onStderr: (msg) => {
-          stderr += msg
-        },
+      afterAll(() => killApp(app))
+      runTests(true)
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort, {
+          onStderr: (msg) => {
+            stderr += msg
+          },
+        })
       })
-    })
-    afterAll(() => killApp(app))
-    runTests()
-  })
+      afterAll(() => killApp(app))
+      runTests()
+    }
+  )
 })

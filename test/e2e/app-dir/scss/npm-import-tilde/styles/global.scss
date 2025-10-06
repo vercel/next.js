@@ -1,0 +1,6 @@
+@use '~/styles/variables' as *;
+@import '~nprogress/nprogress.css';
+@import '~/styles/base.css';
+.test {
+  background: $red;
+}

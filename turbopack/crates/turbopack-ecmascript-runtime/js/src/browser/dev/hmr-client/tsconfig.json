@@ -1,0 +1,11 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+
+    // environment
+    "lib": ["ESNext", "DOM"],
+    "target": "esnext"
+  },
+  "include": ["*.ts"]
+}

@@ -22,7 +22,9 @@
   border: 1px solid $tt-dropdown-border;
   max-height: 300px;
   overflow-y: auto;
-  box-shadow: 0 3px 8px 0 rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 3px 8px 0 rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 .tt-suggestion {
   padding: 4px 10px;

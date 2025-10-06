@@ -1,0 +1,28 @@
+*arrow function 567* = (...) => undefined
+
+a (const after eval) = (...) => undefined
+
+b (const after eval) = (...) => undefined
+
+c (const after eval) = (...) => undefined
+
+d (const after eval) = (...) => undefined
+
+e#16 = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+e#2 (const after eval) = (...) => undefined
+
+f (const after eval) = (...) => undefined
+
+g (const after eval) = (...) => undefined
+
+h (const after eval) = (...) => undefined
+
+x#10 = ???*0*
+- *0* for-in variable currently not analyzed
+
+x#17 = *arrow function 567*
+
+y = Iterated([])

@@ -1,0 +1,53 @@
+*anonymous function 66* (const after eval) = (...) => undefined
+
+*arrow function 118* (const after eval) = (...) => undefined
+
+*arrow function 229* (const after eval) = (...) => undefined
+
+a (const after eval) = (...) => undefined
+
+b (const after eval) = *anonymous function 66*
+
+c (const after eval) = *arrow function 118*
+
+d (const after eval) = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+e (const after eval) = (...) => undefined
+
+f (const after eval) = e
+
+x#3 = 1
+
+x#4 = 1
+
+x#5 = 1
+
+x#6 = 1
+
+x#7 = 1
+
+x#9 = 1
+
+y#3 = x
+
+y#4 = x
+
+y#5 = x
+
+y#6 = x
+
+y#7 = x
+
+y#9 = x
+
+z#3 = a
+
+z#6 = d
+
+z#7 = d
+
+z#9 = e
+
+z2 = f

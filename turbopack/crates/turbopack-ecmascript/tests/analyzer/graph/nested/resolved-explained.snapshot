@@ -1,0 +1,57 @@
+*anonymous function 66* = (...) => undefined
+
+*arrow function 118* = (...) => undefined
+
+*arrow function 229* = (...) => undefined
+
+a = (...) => undefined
+
+b = (...) => undefined
+
+c = (...) => undefined
+
+d = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+e = (...) => undefined
+
+f = (...) => undefined
+
+x#3 = 1
+
+x#4 = 1
+
+x#5 = 1
+
+x#6 = 1
+
+x#7 = 1
+
+x#9 = 1
+
+y#3 = 1
+
+y#4 = 1
+
+y#5 = 1
+
+y#6 = 1
+
+y#7 = 1
+
+y#9 = 1
+
+z#3 = (...) => undefined
+
+z#6 = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+z#7 = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+z#9 = (...) => undefined
+
+z2 = (...) => undefined

@@ -2,8 +2,8 @@
 import ClientComp from './client-component'
 import { headers } from 'next/headers'
 
-export default function Page() {
+export default async function Page() {
   // Opt-in to SSR.
-  headers()
+  await headers()
   return <ClientComp />
 }

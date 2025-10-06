@@ -1,0 +1,111 @@
+a#3 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+a#5 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+a#6 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+b#3 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+b#5 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analyzed yet
+
+b#6 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+c#3 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+c#6 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analyzed yet
+
+d#3 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+d#6 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analyzed yet
+
+i = (???*0* | 0 | (???*1* + 16))
+- *0* i
+  ⚠️  pattern without value
+- *1* i
+  ⚠️  circular variable reference
+
+len = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+md5cmn = (...) => FreeVar(safeAdd)(
+    FreeVar(bitRotateLeft)(
+        FreeVar(safeAdd)(FreeVar(safeAdd)(a, q), FreeVar(safeAdd)(x, t)),
+        s
+    ),
+    b
+)
+
+md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+olda = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+oldb = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+oldc = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+oldd = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+q = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+s#5 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analyzed yet
+
+s#6 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analyzed yet
+
+t#5 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analyzed yet
+
+t#6 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analyzed yet
+
+wordsToMd5 = (...) => [a, b, c, d]
+
+x#3 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+x#5 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analyzed yet
+
+x#6 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analyzed yet

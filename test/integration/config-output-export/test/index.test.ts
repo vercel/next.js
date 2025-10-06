@@ -1,10 +1,11 @@
 /* eslint-env jest */
 import {
+  assertHasRedbox,
+  assertNoRedbox,
   fetchViaHTTP,
   File,
   findPort,
   getRedboxHeader,
-  hasRedbox,
   killApp,
   launchApp,
 } from 'next-test-utils'
@@ -160,14 +161,14 @@ describe('config-output-export', () => {
         output: 'export',
       })
       response = await fetchViaHTTP(result.port, '/api/wow')
+      expect(response.status).toBe(404)
+      expect(result?.stderr).toContain(
+        'API Routes cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(pagesApi, { recursive: true, force: true })
     }
-    expect(response.status).toBe(404)
-    expect(result?.stderr).toContain(
-      'API Routes cannot be used with "output: export".'
-    )
   })
 
   it('should error with middleware function', async () => {
@@ -183,15 +184,15 @@ describe('config-output-export', () => {
         output: 'export',
       })
       response = await fetchViaHTTP(result.port, '/api/mw')
+      expect(response.status).toBe(404)
+      expect(result?.stdout + result?.stderr).not.toContain('[mw]')
+      expect(result?.stderr).toContain(
+        'Middleware cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(middleware)
     }
-    expect(response.status).toBe(404)
-    expect(result?.stdout + result?.stderr).not.toContain('[mw]')
-    expect(result?.stderr).toContain(
-      'Middleware cannot be used with "output: export".'
-    )
   })
 
   it('should error with getStaticProps and revalidate 10 seconds (ISR)', async () => {
@@ -216,17 +217,18 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
+
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'ISR cannot be used with "output: export".'
+      )
+      expect(result?.stderr).toContain(
+        'ISR cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser)).toBe(true)
-    expect(await getRedboxHeader(browser)).toContain(
-      'ISR cannot be used with "output: export".'
-    )
-    expect(result?.stderr).toContain(
-      'ISR cannot be used with "output: export".'
-    )
   })
 
   it('should work with getStaticProps and revalidate false', async () => {
@@ -251,11 +253,11 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
+      await assertNoRedbox(browser)
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser)).toBe(false)
   })
 
   it('should work with getStaticProps and without revalidate', async () => {
@@ -279,11 +281,11 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
+      await assertNoRedbox(browser)
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser)).toBe(false)
   })
 
   it('should error with getServerSideProps without fallback', async () => {
@@ -307,17 +309,17 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'getServerSideProps cannot be used with "output: export".'
+      )
+      expect(result?.stderr).toContain(
+        'getServerSideProps cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser)).toBe(true)
-    expect(await getRedboxHeader(browser)).toContain(
-      'getServerSideProps cannot be used with "output: export".'
-    )
-    expect(result?.stderr).toContain(
-      'getServerSideProps cannot be used with "output: export".'
-    )
   })
 
   it('should error with getStaticPaths and fallback true', async () => {
@@ -351,7 +353,7 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'getStaticPaths with "fallback: true" cannot be used with "output: export".'
       )
@@ -395,7 +397,7 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'getStaticPaths with "fallback: blocking" cannot be used with "output: export".'
       )
@@ -439,13 +441,13 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
+      const h1 = await browser.elementByCss('h1')
+      expect(await h1.text()).toContain('Hello from one')
+      await assertNoRedbox(browser)
+      expect(result.stderr).toBeEmpty()
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(posts, { recursive: true, force: true })
     }
-    const h1 = await browser.elementByCss('h1')
-    expect(await h1.text()).toContain('Hello from one')
-    expect(await hasRedbox(browser)).toBe(false)
-    expect(result.stderr).toBeEmpty()
   })
 })

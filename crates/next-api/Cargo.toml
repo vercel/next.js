@@ -1,0 +1,49 @@
+[package]
+name = "next-api"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true, features = ["backtrace"] }
+either = { workspace = true }
+futures = { workspace = true }
+indexmap = { workspace = true }
+next-core = { workspace = true }
+regex = { workspace = true }
+roaring = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+swc_core = { workspace = true }
+tracing = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true, features = ["non_operation_vc_strongly_consistent"] }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-unix-path = { workspace = true }
+turbopack = { workspace = true }
+turbopack-browser = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+turbopack-node = { workspace = true }
+turbopack-nodejs = { workspace = true }
+turbopack-wasm = { workspace = true }
+
+[dev-dependencies]
+turbo-tasks-malloc = { workspace = true }
+tokio = { workspace = true }
+tempfile = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+
+[build-dependencies]
+anyhow = { workspace = true }
+vergen = { workspace = true }

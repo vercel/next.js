@@ -1,0 +1,5 @@
+# if you update this, also update `.devcontainer/rust/devcontainer-feature.json`
+[toolchain]
+channel = "nightly-2025-09-21"
+components = ["rustfmt", "clippy", "rust-analyzer"]
+profile = "minimal"

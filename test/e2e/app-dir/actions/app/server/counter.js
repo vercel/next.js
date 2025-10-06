@@ -7,7 +7,7 @@ export default function Counter({ inc, dec, double, slowInc }) {
 
   return (
     <div>
-      <h1>{count}</h1>
+      <h1 id="count">{count}</h1>
       <button
         id="inc"
         onClick={async () => {

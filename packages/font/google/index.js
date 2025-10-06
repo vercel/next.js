@@ -10,6 +10,6 @@ if (process.env.NODE_ENV === 'development') {
     '\nIf you just installed `@next/font`, please try restarting `next dev` and resaving your file.'
 }
 
-message += `\n\nRead more: https://nextjs.org/docs/basic-features/font-optimization`
+message += `\n\nRead more: https://nextjs.org/docs/app/building-your-application/optimizing/fonts`
 
 throw new Error(message)

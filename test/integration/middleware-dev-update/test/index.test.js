@@ -32,10 +32,10 @@ describe('Middleware development errors', () => {
     })
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     context.middleware.restore()
     if (context.app) {
-      killApp(context.app)
+      await killApp(context.app)
     }
   })
 
@@ -53,7 +53,7 @@ describe('Middleware development errors', () => {
   async function assertMiddlewareRender(hasMiddleware, path = '/') {
     const browser = await webdriver(context.appPort, path)
     const fromMiddleware = await browser.elementById('from-middleware').text()
-    expect(fromMiddleware).toBe(hasMiddleware ? 'true' : '')
+    expect(fromMiddleware).toBe(hasMiddleware ? 'true' : 'null')
   }
 
   describe('when middleware is removed', () => {

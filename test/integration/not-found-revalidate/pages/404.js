@@ -14,6 +14,6 @@ export const getStaticProps = () => {
       notFound: true,
       random: Math.random(),
     },
-    revalidate: 1,
+    revalidate: 6000,
   }
 }

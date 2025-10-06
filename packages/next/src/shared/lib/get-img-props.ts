@@ -7,6 +7,8 @@ import type {
   ImageLoaderPropsWithConfig,
 } from './image-config'
 
+import type { CSSProperties, JSX } from 'react'
+
 export interface StaticImageData {
   src: string
   height: number
@@ -33,11 +35,17 @@ export type ImageProps = Omit<
   fill?: boolean
   loader?: ImageLoader
   quality?: number | `${number}`
+  preload?: boolean
+  /**
+   * @deprecated Use `preload` prop instead.
+   * See https://nextjs.org/docs/app/api-reference/components/image#preload
+   */
   priority?: boolean
   loading?: LoadingValue
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
+  overrideSrc?: string
   /**
    * @deprecated Use `onLoad` instead.
    * @see https://nextjs.org/docs/app/api-reference/components/image#onload
@@ -66,7 +74,7 @@ export type ImageProps = Omit<
   lazyRoot?: string
 }
 
-export type ImgProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
+export type ImgProps = Omit<ImageProps, 'src' | 'loader'> & {
   loading: LoadingValue
   width: number | undefined
   height: number | undefined
@@ -77,6 +85,15 @@ export type ImgProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
+
+// Object-fit values that are not valid background-size values
+const INVALID_BACKGROUND_SIZE_VALUES = [
+  '-moz-initial',
+  'fill',
+  'none',
+  'scale-down',
+  undefined,
+]
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
 type ImageConfig = ImageConfigComplete & {
   allSizes: number[]
@@ -94,6 +111,16 @@ export type PlaceholderValue = 'blur' | 'empty' | `data:image/${string}`
 export type OnLoad = React.ReactEventHandler<HTMLImageElement> | undefined
 export type OnLoadingComplete = (img: HTMLImageElement) => void
 
+export type PlaceholderStyle = Partial<
+  Pick<
+    CSSProperties,
+    | 'backgroundSize'
+    | 'backgroundPosition'
+    | 'backgroundRepeat'
+    | 'backgroundImage'
+  >
+>
+
 function isStaticRequire(
   src: StaticRequire | StaticImageData
 ): src is StaticRequire {
@@ -108,6 +135,7 @@ function isStaticImageData(
 
 function isStaticImport(src: string | StaticImport): src is StaticImport {
   return (
+    !!src &&
     typeof src === 'object' &&
     (isStaticRequire(src as StaticImport) ||
       isStaticImageData(src as StaticImport))
@@ -116,7 +144,7 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 const allImgs = new Map<
   string,
-  { src: string; priority: boolean; placeholder: PlaceholderValue }
+  { src: string; loading: LoadingValue; placeholder: PlaceholderValue }
 >()
 let perfObserver: PerformanceObserver | undefined
 
@@ -238,6 +266,7 @@ export function getImgProps(
     sizes,
     unoptimized = false,
     priority = false,
+    preload = false,
     loading,
     className,
     quality,
@@ -245,11 +274,13 @@ export function getImgProps(
     height,
     fill = false,
     style,
+    overrideSrc,
     onLoad,
     onLoadingComplete,
     placeholder = 'empty',
     blurDataURL,
     fetchPriority,
+    decoding = 'async',
     layout,
     objectFit,
     objectPosition,
@@ -267,7 +298,7 @@ export function getImgProps(
   props: ImgProps
   meta: {
     unoptimized: boolean
-    priority: boolean
+    preload: boolean
     placeholder: NonNullable<ImageProps['placeholder']>
     fill: boolean
   }
@@ -280,9 +311,15 @@ export function getImgProps(
   } else {
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    config = { ...c, allSizes, deviceSizes }
+    const qualities = c.qualities?.sort((a, b) => a - b)
+    config = { ...c, allSizes, deviceSizes, qualities }
   }
 
+  if (typeof defaultLoader === 'undefined') {
+    throw new Error(
+      'images.loaderFile detected but the file is missing default export.\nRead more: https://nextjs.org/docs/messages/invalid-images-config'
+    )
+  }
   let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
 
   // Remove property so it's not spread on <img> element
@@ -377,7 +414,9 @@ export function getImgProps(
   src = typeof src === 'string' ? src : staticSrc
 
   let isLazy =
-    !priority && (loading === 'lazy' || typeof loading === 'undefined')
+    !priority &&
+    !preload &&
+    (loading === 'lazy' || typeof loading === 'undefined')
   if (!src || src.startsWith('data:') || src.startsWith('blob:')) {
     // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
@@ -386,13 +425,14 @@ export function getImgProps(
   if (config.unoptimized) {
     unoptimized = true
   }
-  if (isDefaultLoader && src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+  if (
+    isDefaultLoader &&
+    !config.dangerouslyAllowSVG &&
+    src.split('?', 1)[0].endsWith('.svg')
+  ) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
     unoptimized = true
-  }
-  if (priority) {
-    fetchPriority = 'high'
   }
 
   const qualityInt = getInt(quality)
@@ -458,6 +498,18 @@ export function getImgProps(
             `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
           )
         }
+        // eslint-disable-next-line no-control-regex
+        if (/^[\x00-\x20]/.test(src)) {
+          throw new Error(
+            `Image with src "${src}" cannot start with a space or control character. Use src.trimStart() to remove it or encodeURIComponent(src) to keep it.`
+          )
+        }
+        // eslint-disable-next-line no-control-regex
+        if (/[\x00-\x20]$/.test(src)) {
+          throw new Error(
+            `Image with src "${src}" cannot end with a space or control character. Use src.trimEnd() to remove it or encodeURIComponent(src) to keep it.`
+          )
+        }
       }
     }
     if (!VALID_LOADING_VALUES.includes(loading)) {
@@ -470,6 +522,16 @@ export function getImgProps(
     if (priority && loading === 'lazy') {
       throw new Error(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
+      )
+    }
+    if (preload && loading === 'lazy') {
+      throw new Error(
+        `Image with src "${src}" has both "preload" and "loading='lazy'" properties. Only one should be used.`
+      )
+    }
+    if (preload && priority) {
+      throw new Error(
+        `Image with src "${src}" has both "preload" and "priority" properties. Only "preload" should be used.`
       )
     }
     if (
@@ -487,6 +549,28 @@ export function getImgProps(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder" property to improve performance.`
         )
       }
+    }
+    if (
+      qualityInt &&
+      config.qualities &&
+      !config.qualities.includes(qualityInt)
+    ) {
+      warnOnce(
+        `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
+      )
+    }
+    if (
+      src.startsWith('/') &&
+      src.includes('?') &&
+      (!config?.localPatterns?.length ||
+        (config.localPatterns.length === 1 &&
+          config.localPatterns[0].pathname === '/_next/static/media/**'))
+    ) {
+      warnOnce(
+        `Image with src "${src}" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
+      )
     }
     if (placeholder === 'blur' && !blurDataURL) {
       const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
@@ -560,15 +644,15 @@ export function getImgProps(
           const lcpImage = allImgs.get(imgSrc)
           if (
             lcpImage &&
-            !lcpImage.priority &&
+            lcpImage.loading === 'lazy' &&
             lcpImage.placeholder === 'empty' &&
             !lcpImage.src.startsWith('data:') &&
             !lcpImage.src.startsWith('blob:')
           ) {
             // https://web.dev/lcp/#measure-lcp-in-javascript
             warnOnce(
-              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
-                `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
+              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the \`loading="eager"\` property if this image is above the fold.` +
+                `\nRead more: https://nextjs.org/docs/app/api-reference/components/image#loading`
             )
           }
         }
@@ -616,9 +700,17 @@ export function getImgProps(
         : `url("${placeholder}")` // assume `data:image/`
       : null
 
-  let placeholderStyle = backgroundImage
+  const backgroundSize = !INVALID_BACKGROUND_SIZE_VALUES.includes(
+    imgStyle.objectFit
+  )
+    ? imgStyle.objectFit
+    : imgStyle.objectFit === 'fill'
+      ? '100% 100%' // the background-size equivalent of `fill`
+      : 'cover'
+
+  let placeholderStyle: PlaceholderStyle = backgroundImage
     ? {
-        backgroundSize: imgStyle.objectFit || 'cover',
+        backgroundSize,
         backgroundPosition: imgStyle.objectPosition || '50% 50%',
         backgroundRepeat: 'no-repeat',
         backgroundImage,
@@ -648,6 +740,8 @@ export function getImgProps(
     loader,
   })
 
+  const loadingFinal = isLazy ? 'lazy' : loading
+
   if (process.env.NODE_ENV !== 'production') {
     if (typeof window !== 'undefined') {
       let fullUrl: URL
@@ -656,23 +750,23 @@ export function getImgProps(
       } catch (e) {
         fullUrl = new URL(imgAttributes.src, window.location.href)
       }
-      allImgs.set(fullUrl.href, { src, priority, placeholder })
+      allImgs.set(fullUrl.href, { src, loading: loadingFinal, placeholder })
     }
   }
 
   const props: ImgProps = {
     ...rest,
-    loading: isLazy ? 'lazy' : loading,
+    loading: loadingFinal,
     fetchPriority,
     width: widthInt,
     height: heightInt,
-    decoding: 'async',
+    decoding,
     className,
     style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,
     srcSet: imgAttributes.srcSet,
-    src: imgAttributes.src,
+    src: overrideSrc || imgAttributes.src,
   }
-  const meta = { unoptimized, priority, placeholder, fill }
+  const meta = { unoptimized, preload: preload || priority, placeholder, fill }
   return { props, meta }
 }

@@ -1,0 +1,8 @@
+.global-class {
+  background: darkred;
+  color: darkred;
+}
+
+body {
+  background: red;
+}

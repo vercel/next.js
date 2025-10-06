@@ -1,0 +1,10 @@
+  x It is not allowed to define inline "use cache" annotated functions in Client Components.
+  | To use "use cache" functions in a Client Component, you can either export them from a separate file with "use cache" or "use server" at the top, or pass them down through props from a Server
+  | Component.
+  | 
+   ,-[input.js:5:1]
+ 4 |   async function fn() {
+ 5 |     'use cache'
+   :     ^^^^^^^^^^^
+ 6 |   }
+   `----

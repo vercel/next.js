@@ -1,0 +1,61 @@
+name: retry-deploy-tests
+
+on:
+  workflow_run:
+    workflows: ['test-e2e-deploy-release']
+    types:
+      - completed
+
+env:
+  SLACK_WEBHOOK_URL: ${{ secrets.BROKEN_DEPLOY_SLACK_WEBHOOK_URL }}
+
+permissions:
+  actions: write
+
+jobs:
+  retry-on-failure:
+    name: retry failed jobs
+    # Retry the test-e2e-deploy-release workflow up to 2 times
+    if: >-
+      ${{ 
+        github.event.workflow_run.display_title == 'test-e2e-deploy canary' &&
+        github.event.workflow_run.conclusion == 'failure' &&
+        github.repository == 'vercel/next.js' &&
+        github.event.workflow_run.run_attempt < 2
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: send retry request to GitHub API
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/rerun-failed-jobs
+
+  report-failure:
+    name: report failure to slack
+    # Report the failure to Slack if the test-e2e-deploy-release workflow has failed 2 times
+    if: >-
+      ${{ 
+        github.event.workflow_run.display_title == 'test-e2e-deploy canary' &&
+        github.event.workflow_run.conclusion == 'failure' &&
+        github.event.workflow_run.run_attempt >= 2 &&
+        !github.event.workflow_run.head_repository.fork
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: send webhook
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "commit_title": ${{ toJSON(github.event.workflow_run.display_title) }},
+              "commit_url": "github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }}",
+              "workflow_run_url": "github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/attempts/${{ github.event.workflow_run.run_attempt }}",
+              "workflow_branch": ${{ toJSON(github.event.workflow_run.head_branch) }}
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}

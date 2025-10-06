@@ -11,7 +11,7 @@ import {
   launchApp,
   nextBuild,
   killApp,
-  check,
+  retry,
   File,
 } from 'next-test-utils'
 import * as JSON5 from 'json5'
@@ -68,17 +68,13 @@ function runTests() {
 
       try {
         await fs.writeFile(basicPage, contents.replace('@c/world', '@c/worldd'))
-        await renderViaHTTP(appPort, '/basic-alias')
 
-        const found = await check(
-          () => stripAnsi(output),
-          process.env.TURBOPACK
-            ? /unable to resolve module "@c\/worldd"/
-            : /Module not found: Can't resolve '@c\/worldd'/,
-          false,
-          10
-        )
-        expect(found).toBe(true)
+        await retry(async () => {
+          await renderViaHTTP(appPort, '/basic-alias')
+          expect(stripAnsi(output)).toMatch(
+            /Module not found: Can't resolve '@c\/worldd'/
+          )
+        })
       } finally {
         await fs.writeFile(basicPage, contents)
       }
@@ -86,7 +82,7 @@ function runTests() {
   })
 
   describe('should build', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {

@@ -141,3 +141,43 @@ if (!Array.prototype.at) {
     return this[i]
   }
 }
+
+/**
+ * Available in:
+ * Internet Explorer: never
+ * Edge: 93
+ * Firefox: 92
+ * Chrome: 93
+ * Safari: 15.4
+ *
+ * https://caniuse.com/mdn-javascript_builtins_object_hasown
+ */
+// Modifiled from https://github.com/tc39/proposal-accessible-object-hasownproperty/blob/main/polyfill.js
+if (!Object.hasOwn) {
+  Object.hasOwn = function (object, property) {
+    if (object == null) {
+      throw new TypeError('Cannot convert undefined or null to object')
+    }
+    return Object.prototype.hasOwnProperty.call(Object(object), property)
+  }
+}
+
+/**
+ * Available in:
+ * Edge: 120
+ * Firefox: 115
+ * Chrome: 120
+ * Safari: 17.0
+ *
+ * https://caniuse.com/mdn-api_url_canparse_static
+ */
+// Modified from https://github.com/zloirock/core-js/blob/master/packages/core-js/modules/web.url.can-parse.js
+if (!('canParse' in URL)) {
+  URL.canParse = function (url, base) {
+    try {
+      return !!new URL(url, base)
+    } catch {
+      return false
+    }
+  }
+}

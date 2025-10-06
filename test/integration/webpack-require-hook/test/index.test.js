@@ -13,7 +13,7 @@ import {
 const appDir = path.join(__dirname, '..')
 
 // Skip webpack specific test in Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Handles Webpack Require Hook',
   () => {
     describe('build', () => {
@@ -29,22 +29,24 @@ const appDir = path.join(__dirname, '..')
         expect(stdout).toMatch(/Initialized config/)
       })
     })
-
-    describe('dev mode', () => {
-      it('Applies and does not error during development', async () => {
-        let output
-        const handleOutput = (msg) => {
-          output += msg
-        }
-        const appPort = await findPort()
-        const app = await launchApp(appDir, appPort, {
-          onStdout: handleOutput,
-          onStderr: handleOutput,
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        it('Applies and does not error during development', async () => {
+          let output
+          const handleOutput = (msg) => {
+            output += msg
+          }
+          const appPort = await findPort()
+          const app = await launchApp(appDir, appPort, {
+            onStdout: handleOutput,
+            onStderr: handleOutput,
+          })
+          await renderViaHTTP(appPort, '/')
+          await killApp(app)
+          expect(output).toMatch(/Initialized config/)
         })
-        await renderViaHTTP(appPort, '/')
-        await killApp(app)
-        expect(output).toMatch(/Initialized config/)
-      })
-    })
+      }
+    )
   }
 )

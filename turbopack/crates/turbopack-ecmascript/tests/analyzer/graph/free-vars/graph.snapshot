@@ -1,0 +1,27 @@
+[
+    (
+        "buf",
+        MemberCall(
+            4,
+            FreeVar(
+                "Buffer",
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "from",
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "Hello World",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

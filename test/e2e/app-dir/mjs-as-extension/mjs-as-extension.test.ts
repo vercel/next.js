@@ -1,14 +1,12 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-createNextDescribe(
-  'mjs as extension',
-  {
+describe('mjs as extension', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    it('should render the page correctly', async () => {
-      const $ = await next.render$('/')
-      expect($('p').text()).toBe('hello world!')
-    })
-  }
-)
+  })
+
+  it('should render the page correctly', async () => {
+    const $ = await next.render$('/')
+    expect($('p').text()).toBe('hello world!')
+  })
+})

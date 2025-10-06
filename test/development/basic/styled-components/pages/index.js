@@ -13,7 +13,7 @@ const Button = styled.a`
   /* The GitHub button is a primary button
    * edit this to target it specifically! */
   ${(props) =>
-    props.primary &&
+    props.$primary &&
     css`
       background: white;
       color: black;
@@ -33,7 +33,7 @@ export default function Home() {
         href="https://github.com/styled-components/styled-components"
         target="_blank"
         rel="noopener"
-        primary
+        $primary
       >
         GitHub
       </Button>

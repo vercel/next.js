@@ -22,19 +22,22 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      `import "./.next/types/routes.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
-      '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
+      '// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.' +
       eol
 
     await fs.writeFile(declarationFile, content)
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
-      isAppDirEnabled: false,
+      hasAppDir: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -47,19 +50,22 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      `import "./.next/types/routes.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
-      '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
+      '// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.' +
       eol
 
     await fs.writeFile(declarationFile, content)
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
-      isAppDirEnabled: false,
+      hasAppDir: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -72,17 +78,20 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      `import "./.next/types/routes.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
-      '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
+      '// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.' +
       eol
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
-      isAppDirEnabled: false,
+      hasAppDir: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -90,9 +99,10 @@ describe('find config', () => {
   it('should include navigation types if app directory is enabled', async () => {
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
-      isAppDirEnabled: true,
+      hasAppDir: true,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.not.toContain(
@@ -101,9 +111,10 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: true,
-      isAppDirEnabled: true,
+      hasAppDir: true,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.toContain(

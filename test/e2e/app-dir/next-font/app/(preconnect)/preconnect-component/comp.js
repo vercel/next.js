@@ -1,6 +1,9 @@
 import localFont from 'next/font/local'
 
-const componentFont = localFont({ src: './comp.woff2', preload: false })
+const componentFont = localFont({
+  src: './comp-font-merriweather.woff2',
+  preload: false,
+})
 
 export default function Component() {
   return (

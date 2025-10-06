@@ -1,0 +1,327 @@
+[
+    (
+        "*arrow function 1213*",
+        Function(
+            4,
+            1213,
+            Call(
+                3,
+                Variable(
+                    (
+                        "__webpack_require__",
+                        #3,
+                    ),
+                ),
+                [
+                    Variable(
+                        (
+                            "moduleId",
+                            #6,
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "*arrow function 131*",
+        Function(
+            2,
+            131,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "*arrow function 389*",
+        Function(
+            2,
+            389,
+            Variable(
+                (
+                    "handler",
+                    #4,
+                ),
+            ),
+        ),
+    ),
+    (
+        "__unused_webpack_module",
+        Argument(
+            131,
+            0,
+        ),
+    ),
+    (
+        "__webpack_exec__",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Variable(
+                    (
+                        "*arrow function 1213*",
+                        #0,
+                    ),
+                ),
+                Constant(
+                    Undefined,
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "__webpack_exports__#3",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Call(
+                    3,
+                    Variable(
+                        (
+                            "__webpack_exec__",
+                            #3,
+                        ),
+                    ),
+                    [
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    5166.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Constant(
+                    Undefined,
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "__webpack_exports__#4",
+        Argument(
+            131,
+            1,
+        ),
+    ),
+    (
+        "__webpack_require__#3",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Call(
+                    3,
+                    FreeVar(
+                        "require",
+                    ),
+                    [
+                        Constant(
+                            Str(
+                                Atom(
+                                    "../../webpack-api-runtime.js",
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Constant(
+                    Undefined,
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "__webpack_require__#4",
+        Argument(
+            131,
+            2,
+        ),
+    ),
+    (
+        "_req",
+        Argument(
+            760,
+            0,
+        ),
+    ),
+    (
+        "exports",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Object {
+                    total_nodes: 1,
+                    parts: [],
+                    mutable: true,
+                },
+                Constant(
+                    Undefined,
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "handler",
+        Function(
+            3,
+            760,
+            Promise(
+                2,
+                Constant(
+                    Undefined,
+                ),
+            ),
+        ),
+    ),
+    (
+        "hello",
+        Awaited(
+            6,
+            MemberCall(
+                5,
+                Variable(
+                    (
+                        "promises_namespaceObject",
+                        #4,
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "readFile",
+                        ),
+                    ),
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "./hello.txt",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "utf-8",
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "moduleId",
+        Argument(
+            1213,
+            0,
+        ),
+    ),
+    (
+        "promises_namespaceObject",
+        Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "fs/promises",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "res",
+        Argument(
+            760,
+            1,
+        ),
+    ),
+    (
+        "users",
+        Array {
+            total_nodes: 10,
+            items: [
+                Object {
+                    total_nodes: 3,
+                    parts: [
+                        KeyValue(
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "id",
+                                    ),
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        1.0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    mutable: true,
+                },
+                Object {
+                    total_nodes: 3,
+                    parts: [
+                        KeyValue(
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "id",
+                                    ),
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        2.0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    mutable: true,
+                },
+                Object {
+                    total_nodes: 3,
+                    parts: [
+                        KeyValue(
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "id",
+                                    ),
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        3.0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    mutable: true,
+                },
+            ],
+            mutable: true,
+        },
+    ),
+]

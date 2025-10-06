@@ -1,9 +1,8 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
-  FlightData,
   FlightSegmentPath,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
@@ -11,20 +10,18 @@ export const ACTION_NAVIGATE = 'navigate'
 export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_PREFETCH = 'prefetch'
-export const ACTION_FAST_REFRESH = 'fast-refresh'
+export const ACTION_HMR_REFRESH = 'hmr-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
 
-export type RouterChangeByServerResponse = (
-  previousTree: FlightRouterState,
-  flightData: FlightData,
-  overrideCanonicalUrl: URL | undefined
-) => void
-
-export type RouterNavigate = (
-  href: string,
-  navigateType: 'push' | 'replace',
-  shouldScroll: boolean
-) => void
+export type RouterChangeByServerResponse = ({
+  navigatedAt,
+  previousTree,
+  serverResponse,
+}: {
+  navigatedAt: number
+  previousTree: FlightRouterState
+  serverResponse: FetchServerResponseResult
+}) => void
 
 export interface Mutable {
   mpaNavigation?: boolean
@@ -37,11 +34,11 @@ export interface Mutable {
   hashFragment?: string
   shouldScroll?: boolean
   preserveCustomHistoryState?: boolean
+  onlyHashChange?: boolean
 }
 
 export interface ServerActionMutable extends Mutable {
   inFlightServerAction?: Promise<any> | null
-  actionResultResolved?: boolean
 }
 
 /**
@@ -54,8 +51,8 @@ export interface RefreshAction {
   origin: Location['origin']
 }
 
-export interface FastRefreshAction {
-  type: typeof ACTION_FAST_REFRESH
+export interface HmrRefreshAction {
+  type: typeof ACTION_HMR_REFRESH
   origin: Location['origin']
 }
 
@@ -72,6 +69,7 @@ export interface ServerActionAction {
   actionArgs: any[]
   resolve: (value: any) => void
   reject: (reason?: any) => void
+  didRevalidate?: boolean
 }
 
 /**
@@ -111,19 +109,22 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
+  allowAliasing: boolean
 }
 
 /**
  * Restore applies the provided router state.
- * - Only used for `popstate` (back/forward navigation) where a known router state has to be applied.
- * - Router state is applied as-is from the history state.
+ * - Used for `popstate` (back/forward navigation) where a known router state has to be applied.
+ * - Also used when syncing the router state with `pushState`/`replaceState` calls.
+ * - Router state is applied as-is from the history state, if available.
+ * - If the history state does not contain the router state, the existing router state is used.
  * - If any cache node is missing it will be fetched in layout-router during rendering and the server-patch case.
  * - If existing cache nodes match these are used.
  */
 export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
-  tree: FlightRouterState
+  tree: FlightRouterState | undefined
 }
 
 /**
@@ -133,9 +134,9 @@ export interface RestoreAction {
  */
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
-  flightData: FlightData
+  navigatedAt: number
+  serverResponse: FetchServerResponseResult
   previousTree: FlightRouterState
-  overrideCanonicalUrl: URL | undefined
 }
 
 /**
@@ -199,21 +200,27 @@ export type FocusAndScrollRef = {
 
 export type PrefetchCacheEntry = {
   treeAtTimeOfPrefetch: FlightRouterState
-  data: Promise<FetchServerResponseResult> | null
+  data: Promise<FetchServerResponseResult>
   kind: PrefetchKind
   prefetchTime: number
+  staleTime: number
   lastUsedTime: number | null
+  key: string
+  status: PrefetchCacheEntryStatus
+  url: URL
+}
+
+export enum PrefetchCacheEntryStatus {
+  fresh = 'fresh',
+  reusable = 'reusable',
+  expired = 'expired',
+  stale = 'stale',
 }
 
 /**
  * Handles keeping the state of app-router.
  */
 export type AppRouterState = {
-  /**
-   * The buildId is used to do a mpaNavigation when the server returns a different buildId.
-   * It is used to avoid issues where an older version of the app is loaded in the browser while the server has a new version.
-   */
-  buildId: string
   /**
    * The router state, this is written into the history state in app-router using replaceState/pushState.
    * - Has to be serializable as it is written into the history state.
@@ -257,18 +264,6 @@ export type ReducerActions = Readonly<
   | RestoreAction
   | ServerPatchAction
   | PrefetchAction
-  | FastRefreshAction
+  | HmrRefreshAction
   | ServerActionAction
 >
-
-export function isThenable(value: any): value is Promise<AppRouterState> {
-  // TODO: We don't gain anything from this abstraction. It's unsound, and only
-  // makes sense in the specific places where we use it. So it's better to keep
-  // the type coercion inline, instead of leaking this to other places in
-  // the codebase.
-  return (
-    value &&
-    (typeof value === 'object' || typeof value === 'function') &&
-    typeof value.then === 'function'
-  )
-}

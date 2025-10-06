@@ -1,0 +1,15 @@
+.post {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 30px;
+}
+
+.title {
+  text-align: center;
+}
+
+.author {
+  text-align: center;
+  color: #666;
+  margin: 30px 0;
+}

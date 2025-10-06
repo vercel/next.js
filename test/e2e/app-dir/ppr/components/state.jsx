@@ -2,7 +2,13 @@
 
 import { usePathname } from 'next/navigation'
 import React from 'react'
+import { Suspense } from 'react'
 import { useCallback } from 'react'
+
+function Pathname() {
+  const pathname = usePathname()
+  return <pre id="pathname">{pathname}</pre>
+}
 
 export function Login({ signedIn = false, fallback }) {
   const onClick = useCallback(async () => {
@@ -20,11 +26,12 @@ export function Login({ signedIn = false, fallback }) {
 
     window.location.reload()
   }, [signedIn])
-  const pathname = usePathname()
 
   return (
     <>
-      <pre>pathname: {pathname}</pre>
+      <Suspense>
+        <Pathname />
+      </Suspense>
       <button
         id="login"
         className="bg-gray-400 hover:bg-gray-500 px-4 py-2 text-white rounded-md"

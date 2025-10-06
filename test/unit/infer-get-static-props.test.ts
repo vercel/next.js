@@ -3,6 +3,7 @@ import { expectTypeOf } from 'expect-type'
 
 describe('InferGetServerSidePropsType', () => {
   it('should work with sync functions', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     function getStaticProps(context: GetStaticPropsContext) {
       if (context.params?.notFound) {
         return {
@@ -23,6 +24,7 @@ describe('InferGetServerSidePropsType', () => {
   })
 
   it('should work with async functions', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async function getStaticProps(context: GetStaticPropsContext) {
       if (context.params?.notFound) {
         return {

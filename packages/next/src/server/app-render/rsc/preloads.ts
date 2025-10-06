@@ -6,10 +6,17 @@ Files in the rsc directory are meant to be packaged as part of the RSC graph usi
 
 import ReactDOM from 'react-dom'
 
-export function preloadStyle(href: string, crossOrigin?: string | undefined) {
+export function preloadStyle(
+  href: string,
+  crossOrigin: string | undefined,
+  nonce: string | undefined
+) {
   const opts: any = { as: 'style' }
   if (typeof crossOrigin === 'string') {
     opts.crossOrigin = crossOrigin
+  }
+  if (typeof nonce === 'string') {
+    opts.nonce = nonce
   }
   ReactDOM.preload(href, opts)
 }
@@ -17,18 +24,30 @@ export function preloadStyle(href: string, crossOrigin?: string | undefined) {
 export function preloadFont(
   href: string,
   type: string,
-  crossOrigin?: string | undefined
+  crossOrigin: string | undefined,
+  nonce: string | undefined
 ) {
   const opts: any = { as: 'font', type }
   if (typeof crossOrigin === 'string') {
     opts.crossOrigin = crossOrigin
   }
+  if (typeof nonce === 'string') {
+    opts.nonce = nonce
+  }
   ReactDOM.preload(href, opts)
 }
 
-export function preconnect(href: string, crossOrigin?: string | undefined) {
-  ;(ReactDOM as any).preconnect(
-    href,
-    typeof crossOrigin === 'string' ? { crossOrigin } : undefined
-  )
+export function preconnect(
+  href: string,
+  crossOrigin: string | undefined,
+  nonce: string | undefined
+) {
+  const opts: any = {}
+  if (typeof crossOrigin === 'string') {
+    opts.crossOrigin = crossOrigin
+  }
+  if (typeof nonce === 'string') {
+    opts.nonce = nonce
+  }
+  ;(ReactDOM as any).preconnect(href, opts)
 }

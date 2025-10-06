@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 
-export const runtime = 'experimental-edge'
+export const runtime = 'edge'
 
 export async function POST(request: NextRequest) {
   const reader = request.body?.getReader()

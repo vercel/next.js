@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 import path from 'path'
 import webdriver from 'next-webdriver'

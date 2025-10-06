@@ -6,19 +6,14 @@ import {
 // exports.<conditionName>
 export const edgeConditionNames = [
   'edge-light',
-  'worker',
   // inherits the default conditions
   '...',
 ]
 
-const mainFieldsPerCompiler: Record<
-  CompilerNameValues | 'server-esm',
-  string[]
-> = {
+const mainFieldsPerCompiler = {
   // For default case, prefer CJS over ESM on server side. e.g. pages dir SSR
   [COMPILER_NAMES.server]: ['main', 'module'],
   [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-  [COMPILER_NAMES.edgeServer]: edgeConditionNames,
   // For bundling-all strategy, prefer ESM over CJS
   'server-esm': ['module', 'main'],
 }

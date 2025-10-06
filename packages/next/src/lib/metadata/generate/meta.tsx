@@ -53,10 +53,17 @@ function camelToSnake(camelCaseStr: string) {
   })
 }
 
+const aliasPropPrefixes = new Set([
+  'og:image',
+  'twitter:image',
+  'og:video',
+  'og:audio',
+])
 function getMetaKey(prefix: string, key: string) {
   // Use `twitter:image` and `og:image` instead of `twitter:image:url` and `og:image:url`
-  // to be more compatible as it's a more common format
-  if ((prefix === 'og:image' || prefix === 'twitter:image') && key === 'url') {
+  // to be more compatible as it's a more common format.
+  // `og:video` & `og:audio` do not have a `:url` suffix alias
+  if (aliasPropPrefixes.has(prefix) && key === 'url') {
     return prefix
   }
   if (prefix.startsWith('og:') || prefix.startsWith('twitter:')) {

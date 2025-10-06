@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
 import type { NextRequest } from '../web/exports'
-import { ACTION } from '../../client/components/app-router-headers'
+import { ACTION_HEADER } from '../../client/components/app-router-headers'
 
 export function getServerActionRequestMetadata(
   req: IncomingMessage | BaseNextRequest | NextRequest
@@ -10,15 +10,16 @@ export function getServerActionRequestMetadata(
   isURLEncodedAction: boolean
   isMultipartAction: boolean
   isFetchAction: boolean
+  isPossibleServerAction: boolean
 } {
   let actionId: string | null
   let contentType: string | null
 
   if (req.headers instanceof Headers) {
-    actionId = req.headers.get(ACTION.toLowerCase()) ?? null
+    actionId = req.headers.get(ACTION_HEADER) ?? null
     contentType = req.headers.get('content-type')
   } else {
-    actionId = (req.headers[ACTION.toLowerCase()] as string) ?? null
+    actionId = (req.headers[ACTION_HEADER] as string) ?? null
     contentType = req.headers['content-type'] ?? null
   }
 
@@ -34,14 +35,21 @@ export function getServerActionRequestMetadata(
       req.method === 'POST'
   )
 
-  return { actionId, isURLEncodedAction, isMultipartAction, isFetchAction }
+  const isPossibleServerAction = Boolean(
+    isFetchAction || isURLEncodedAction || isMultipartAction
+  )
+
+  return {
+    actionId,
+    isURLEncodedAction,
+    isMultipartAction,
+    isFetchAction,
+    isPossibleServerAction,
+  }
 }
 
-export function getIsServerAction(
+export function getIsPossibleServerAction(
   req: IncomingMessage | BaseNextRequest | NextRequest
 ): boolean {
-  const { isFetchAction, isURLEncodedAction, isMultipartAction } =
-    getServerActionRequestMetadata(req)
-
-  return Boolean(isFetchAction || isURLEncodedAction || isMultipartAction)
+  return getServerActionRequestMetadata(req).isPossibleServerAction
 }

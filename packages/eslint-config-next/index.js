@@ -30,12 +30,13 @@ sortedPaths.push(...keptPaths)
 
 const hookPropertyMap = new Map(
   [
-    ['eslint-plugin-import', 'eslint-plugin-import'],
-    ['eslint-plugin-react', 'eslint-plugin-react'],
-    ['eslint-plugin-jsx-a11y', 'eslint-plugin-jsx-a11y'],
-  ].map(([request, replacement]) => [
+    '@typescript-eslint/eslint-plugin',
+    'eslint-plugin-import',
+    'eslint-plugin-react',
+    'eslint-plugin-jsx-a11y',
+  ].map((request) => [
     request,
-    require.resolve(replacement, { paths: sortedPaths }),
+    require.resolve(request, { paths: sortedPaths }),
   ])
 )
 
@@ -55,7 +56,7 @@ module.exports = {
   extends: [
     'plugin:react/recommended',
     'plugin:react-hooks/recommended',
-    'plugin:@next/next/recommended',
+    'plugin:@next/next/recommended-legacy',
   ],
   plugins: ['import', 'react', 'jsx-a11y'],
   rules: {
@@ -96,10 +97,6 @@ module.exports = {
       parser: '@typescript-eslint/parser',
       parserOptions: {
         sourceType: 'module',
-        ecmaFeatures: {
-          jsx: true,
-        },
-        warnOnUnsupportedTypeScriptVersion: true,
       },
     },
   ],

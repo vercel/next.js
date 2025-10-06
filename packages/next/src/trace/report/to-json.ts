@@ -1,23 +1,12 @@
-import { randomBytes } from 'crypto'
-import { traceGlobals } from '../shared'
+import { traceGlobals, traceId } from '../shared'
 import fs from 'fs'
 import path from 'path'
 import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import type { TraceEvent } from '../types'
 
-const localEndpoint = {
-  serviceName: 'nextjs',
-  ipv4: '127.0.0.1',
-  port: 9411,
-}
-
-type Event = TraceEvent & {
-  localEndpoint?: typeof localEndpoint
-}
-
 // Batch events as zipkin allows for multiple events to be sent in one go
-export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
-  const events: Event[] = []
+export function batcher(reportEvents: (evts: TraceEvent[]) => Promise<void>) {
+  const events: TraceEvent[] = []
   // Promise queue to ensure events are always sent on flushAll
   const queue = new Set()
   return {
@@ -28,7 +17,7 @@ export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
         events.length = 0
       }
     },
-    report: (event: Event) => {
+    report: (event: TraceEvent) => {
       events.push(event)
 
       if (events.length > 100) {
@@ -43,7 +32,6 @@ export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
 }
 
 let writeStream: RotatingWriteStream
-let traceId: string
 let batch: ReturnType<typeof batcher> | undefined
 
 const writeStreamOptions = {
@@ -109,19 +97,15 @@ class RotatingWriteStream {
   }
 }
 
-const reportToLocalHost = (event: TraceEvent) => {
+function reportToJson(event: TraceEvent) {
   const distDir = traceGlobals.get('distDir')
   const phase = traceGlobals.get('phase')
   if (!distDir || !phase) {
     return
   }
 
-  if (!traceId) {
-    traceId = process.env.TRACE_ID || randomBytes(8).toString('hex')
-  }
-
   if (!batch) {
-    batch = batcher(async (events: Event[]) => {
+    batch = batcher(async (events: TraceEvent[]) => {
       if (!writeStream) {
         await fs.promises.mkdir(distDir, { recursive: true })
         const file = path.join(distDir, 'trace')
@@ -147,15 +131,15 @@ const reportToLocalHost = (event: TraceEvent) => {
 }
 
 export default {
-  flushAll: () =>
+  flushAll: (opts?: { end: boolean }) =>
     batch
       ? batch.flushAll().then(() => {
           const phase = traceGlobals.get('phase')
           // Only end writeStream when manually flushing in production
-          if (phase !== PHASE_DEVELOPMENT_SERVER) {
+          if (opts?.end || phase !== PHASE_DEVELOPMENT_SERVER) {
             return writeStream.end()
           }
         })
       : undefined,
-  report: reportToLocalHost,
+  report: reportToJson,
 }

@@ -1,0 +1,59 @@
+[package]
+name = "turbopack-core"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+auto-hash-map = { workspace = true }
+browserslist-rs = { workspace = true }
+bytes-str = { workspace = true }
+const_format = { workspace = true }
+data-encoding = { workspace = true }
+either = { workspace = true }
+indexmap = { workspace = true }
+once_cell = { workspace = true }
+patricia_tree = "0.5.5"
+petgraph = { workspace = true, features = ["serde-1"] }
+roaring = { workspace = true, features = ["serde"] }
+ref-cast = "1.0.20"
+rustc-hash = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
+serde_bytes = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order", "raw_value"] }
+smallvec = { workspace = true }
+swc_sourcemap = { workspace = true }
+swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
+tracing = { workspace = true }
+turbo-prehash = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbo-unix-path = { workspace = true }
+twox-hash = { workspace = true }
+url = { workspace = true }
+urlencoding = { workspace = true }
+uuid = { workspace = true}
+
+
+[dev-dependencies]
+rstest = { workspace = true }
+tokio = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+
+[features]
+default = []

@@ -9,8 +9,6 @@ If you want to learn more about MongoDB, visit the following pages:
 
 ## Deploy your own
 
-Once you have access to the environment variables you'll need, deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?project-name=with-mongodb&repository-name=with-mongodb&repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-mongodb&integration-ids=oac_jnzmjqM10gllKmSrG0SGrHOH)
 
 ## How to use
@@ -52,11 +50,12 @@ Set each variable on `.env.local`:
 ```bash
 npm install
 npm run dev
-
 # or
-
 yarn install
 yarn dev
+# or
+pnpm install
+pnpm dev
 ```
 
 Your app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).

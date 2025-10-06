@@ -1,0 +1,15 @@
+a (const after eval) = ("" | `${a}x`)
+
+b (const after eval) = (0 | ???*0*)
+- *0* unsupported assign operation
+  ⚠️  This value might have side effects
+
+c (const after eval) = (0 | ???*0*)
+- *0* updated with update expression
+  ⚠️  This value might have side effects
+
+d (const after eval) = (0 | 1)
+
+e (const after eval) = (1 | 2)
+
+f (const after eval) = (1 | 2)

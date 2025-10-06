@@ -1,3 +1,3 @@
-export default function Page({ searchParams }) {
-  return searchParams.query ?? null
+export default async function Page({ searchParams }) {
+  return (await searchParams).query ?? null
 }

@@ -47,19 +47,22 @@ function runTests() {
 }
 
 // This test is not needed for Turbopack as it relies on an experimental webpack feature.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'next/dynamic lazy compilation',
   () => {
-    describe('dev mode', () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        beforeAll(async () => {
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort)
+        })
+        afterAll(() => killApp(app))
 
-      runTests(true)
-    })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+        runTests(true)
+      }
+    )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {

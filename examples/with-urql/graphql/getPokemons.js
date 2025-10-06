@@ -1,4 +1,5 @@
 import { client } from "./client";
+
 const firstTwentyPokemonsQuery = `
   query firstTwentyPokemons {
     pokemons(first: 20) {

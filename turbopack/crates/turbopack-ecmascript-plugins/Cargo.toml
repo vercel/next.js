@@ -1,0 +1,46 @@
+[package]
+name = "turbopack-ecmascript-plugins"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+default = ["swc_ecma_transform_plugin"]
+transform_emotion = []
+# [NOTE]: Be careful to explicitly enable this only for the supported platform / targets.
+swc_ecma_transform_plugin = [
+  "swc_core/plugin_transform_host_native",
+  "swc_core/plugin_transform_host_native_shared_runtime",
+  "swc_plugin_backend_wasmer"
+]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+indexmap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+rustc-hash = { workspace = true }
+
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+
+styled_components = { workspace = true }
+styled_jsx = { workspace = true }
+swc_core = { workspace = true, features = ["ecma_ast", "ecma_visit", "common"] }
+swc_plugin_backend_wasmer = { workspace = true, optional = true }
+swc_emotion = { workspace = true }
+swc_relay = { workspace = true }
+

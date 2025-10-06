@@ -18,10 +18,6 @@ if (typeof window !== 'undefined') {
 export default function Page() {
   if (typeof window !== 'undefined') {
     window.pathnames.push(window.location.pathname)
-
-    if (window.location.pathname.includes('hydrate-error')) {
-      return <p>hydration error</p>
-    }
   }
   // eslint-disable-next-line
   return <p>{useRouter().asPath}</p>

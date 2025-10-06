@@ -2,9 +2,7 @@
 import './webpack'
 import { initialize, version, router, emitter } from './'
 import initHMR from './dev/hot-middleware-client'
-import { pageBootrap } from './page-bootstrap'
-
-import './setup-hydration-warning'
+import { pageBootstrap } from './page-bootstrap'
 
 window.next = {
   version,
@@ -15,10 +13,10 @@ window.next = {
   emitter,
 }
 
-const devClient = initHMR('webpack')
+const devClient = initHMR()
 initialize({ devClient })
   .then(({ assetPrefix }) => {
-    return pageBootrap(assetPrefix)
+    return pageBootstrap(assetPrefix)
   })
   .catch((err) => {
     console.error('Error was not caught', err)

@@ -4,18 +4,17 @@ import type { NextConfigComplete } from '../config-shared'
 import type {
   DynamicParamTypesShort,
   FlightRouterState,
-} from '../app-render/types'
+  FlightSegmentPath,
+} from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 import type HotReloaderWebpack from './hot-reloader-webpack'
 
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import {
-  getStaticInfoIncludingLayouts,
-  runDependingOnPageType,
-} from '../../build/entries'
+import { runDependingOnPageType } from '../../build/entries'
+import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -34,14 +33,21 @@ import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_SERVER,
+} from './hot-reloader-types'
+import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
+import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
+import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -53,7 +59,7 @@ const keys = Object.keys as <T>(o: T) => Extract<keyof T, string>[]
 const COMPILER_KEYS = keys(COMPILER_INDEXES)
 
 function treePathToEntrypoint(
-  segmentPath: string[],
+  segmentPath: FlightSegmentPath,
   parentPath?: string
 ): string {
   const [parallelRouteKey, segment] = segmentPath
@@ -71,7 +77,7 @@ function treePathToEntrypoint(
     return path
   }
 
-  const childSegmentPath = segmentPath.slice(2)
+  const childSegmentPath = getNextFlightSegmentPath(segmentPath)
   return treePathToEntrypoint(childSegmentPath, path)
 }
 
@@ -81,10 +87,12 @@ function convertDynamicParamTypeToSyntax(
 ) {
   switch (dynamicParamTypeShort) {
     case 'c':
+    case 'ci':
       return `[...${param}]`
     case 'oc':
       return `[[...${param}]]`
     case 'd':
+    case 'di':
       return `[${param}]`
     default:
       throw new Error('Unknown dynamic param type')
@@ -117,8 +125,8 @@ function getPageBundleType(pageBundlePath: string): PAGE_TYPES {
   return pageBundlePath.startsWith('pages/')
     ? PAGE_TYPES.PAGES
     : pageBundlePath.startsWith('app/')
-    ? PAGE_TYPES.APP
-    : PAGE_TYPES.ROOT
+      ? PAGE_TYPES.APP
+      : PAGE_TYPES.ROOT
 }
 
 function getEntrypointsFromTree(
@@ -301,7 +309,10 @@ class Invalidator {
         this.rebuildAgain.delete(key)
       }
     }
-    this.invalidate(rebuild)
+
+    if (rebuild.length > 0) {
+      this.invalidate(rebuild)
+    }
   }
 
   public willRebuild(compilerKey: keyof typeof COMPILER_INDEXES) {
@@ -376,16 +387,18 @@ interface PagePathData {
  * error. It defaults the `/_error` page to Next.js internal error page.
  *
  * @param rootDir Absolute path to the project root.
+ * @param page The page normalized (it will be denormalized).
+ * @param extensions Array of page extensions.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
- * @param normalizedPagePath The page normalized (it will be denormalized).
- * @param pageExtensions Array of page extensions.
+ * @param appDir Absolute path to the app folder with trailing `/app`.
  */
-async function findPagePathData(
+export async function findPagePathData(
   rootDir: string,
   page: string,
   extensions: string[],
-  pagesDir?: string,
-  appDir?: string
+  pagesDir: string | undefined,
+  appDir: string | undefined,
+  isGlobalNotFoundEnabled: boolean
 ): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
@@ -412,7 +425,7 @@ async function findPagePathData(
     let bundlePath = normalizedPagePath
     let pageKey = posix.normalize(pageUrl)
 
-    if (isInstrumentation) {
+    if (isInstrumentation || isMiddlewareFile(normalizedPagePath)) {
       bundlePath = bundlePath.replace('/src', '')
       pageKey = page.replace('/src', '')
     }
@@ -426,6 +439,49 @@ async function findPagePathData(
 
   // Check appDir first falling back to pagesDir
   if (appDir) {
+    if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
+      // Load `global-not-found` when global-not-found is enabled.
+      // Prefer to load it when both `global-not-found` and root `not-found` present.
+      if (isGlobalNotFoundEnabled) {
+        const globalNotFoundPath = await findPageFile(
+          appDir,
+          'global-not-found',
+          extensions,
+          true
+        )
+        if (globalNotFoundPath) {
+          return {
+            filename: join(appDir, globalNotFoundPath),
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+          }
+        }
+      } else {
+        // Then if global-not-found.js doesn't exist then load not-found.js
+        const notFoundPath = await findPageFile(
+          appDir,
+          'not-found',
+          extensions,
+          true
+        )
+        if (notFoundPath) {
+          return {
+            filename: join(appDir, notFoundPath),
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+          }
+        }
+      }
+
+      // If they're not presented, then fallback to global-not-found
+      return {
+        filename: require.resolve(
+          'next/dist/client/components/builtin/global-not-found'
+        ),
+        bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+        page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+      }
+    }
     pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(
@@ -463,14 +519,6 @@ async function findPagePathData(
       filename: join(pagesDir, pagePath),
       bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
       page: posix.normalize(pageUrl),
-    }
-  }
-
-  if (page === '/not-found' && appDir) {
-    return {
-      filename: require.resolve('next/dist/client/components/not-found-error'),
-      bundlePath: 'app/not-found',
-      page: '/not-found',
     }
   }
 
@@ -525,7 +573,7 @@ export function onDemandEntryHandler({
 
   function getPagePathsFromEntrypoints(
     type: CompilerNameValues,
-    entrypoints: Map<string, { name?: string }>
+    entrypoints: Map<string, { name?: string | null }>
   ) {
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
@@ -702,7 +750,8 @@ export function onDemandEntryHandler({
           page,
           nextConfig.pageExtensions,
           pagesDir,
-          appDir
+          appDir,
+          !!nextConfig.experimental.globalNotFound
         )
       }
 
@@ -781,9 +830,11 @@ export function onDemandEntryHandler({
       const isServerComponent =
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
+      let pageRuntime = staticInfo.runtime
+
       runDependingOnPageType({
         page: route.page,
-        pageRuntime: staticInfo.runtime,
+        pageRuntime,
         pageType: pageBundleType,
         onClient: () => {
           // Skip adding the client entry for app / Server Components.
@@ -936,7 +987,7 @@ export function onDemandEntryHandler({
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
             hotReloader.send({
-              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
+              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR,
               errorJSON: stringifyError(error),
             })
             bufferedHmrServerError = null
@@ -946,12 +997,30 @@ export function onDemandEntryHandler({
             typeof data !== 'string' ? data.toString() : data
           )
 
-          if (parsedData.event === 'ping') {
+          if (parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.PING) {
             if (parsedData.appDirRoute) {
               handleAppDirPing(parsedData.tree)
             } else {
               handlePing(parsedData.page)
             }
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE
+          ) {
+            handleErrorStateResponse(
+              parsedData.requestId,
+              parsedData.errorState,
+              parsedData.url
+            )
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE
+          ) {
+            handlePageMetadataResponse(
+              parsedData.requestId,
+              parsedData.segmentTrieData,
+              parsedData.url
+            )
           }
         } catch {}
       })

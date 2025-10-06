@@ -1,0 +1,171 @@
+name: Integration Tests Reusable
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        description: A unique identifer used for uploaded assets
+        type: string
+      test_type:
+        description: '"development" or "production"'
+        required: true
+        type: string
+      run_before_test:
+        description: >
+          Bash code to run before executing the test (e.g. setting environment
+          variables). Runs in the same step as the test.
+        type: string
+        default: ''
+      e2e_groups:
+        description: >
+          Size of the matrix used for running e2e tests (controls parallelism)
+        type: number
+        default: 6
+      integration_groups:
+        description: >
+          Size of the matrix used for running legacy integration tests (controls
+          parallelism)
+        type: number
+        default: 6
+      e2e_timeout_minutes:
+        type: number
+        default: 30
+      integration_timeout_minutes:
+        type: number
+        default: 30
+      num_retries:
+        type: number
+        default: 2
+
+jobs:
+  # First, build Next.js to execute across tests.
+  build-next:
+    name: build-next
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipNativeBuild: yes
+      stepName: build-next
+    secrets: inherit
+
+  build-native:
+    name: build-native
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipInstallBuild: yes
+      stepName: build-native
+    secrets: inherit
+
+  generate-matrices:
+    runs-on: [self-hosted, linux, x64, metal]
+    steps:
+      - id: out
+        run: |
+          printf 'e2e=[%s]\n' \
+            "$(seq -s, 1 ${{ inputs.e2e_groups }})" | \
+            tee -a "$GITHUB_OUTPUT"
+          printf 'integration=[%s]\n' \
+            "$(seq -s, 1 ${{ inputs.integration_groups }})" | \
+            tee -a "$GITHUB_OUTPUT"
+    outputs:
+      e2e: ${{ steps.out.outputs.e2e }}
+      integration: ${{ steps.out.outputs.integration }}
+
+  # Actual test scheduling. These jobs mimic the normal test jobs.
+  # Refer build_and_test.yml for more details.
+  #
+  # We run tests in two parts. Legacy integration tests are run separately:
+  # https://github.com/vercel/next.js/blob/canary/contributing/core/testing.md#test-types-in-nextjs
+  test-e2e:
+    # Name must match `integrationTestJobs` in
+    # `./.github/actions/next-integration-stat`
+    name: >-
+      Next.js integration test (E2E and ${{ inputs.test_type }})
+      (${{ matrix.group }}/${{ inputs.e2e_groups }})
+    needs: [build-next, build-native, generate-matrices]
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(needs.generate-matrices.outputs.e2e) }}
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: |
+        # e2e and ${{ inputs.test_type }} tests with `node run-tests.js`
+
+        export NEXT_TEST_CONTINUE_ON_ERROR=TRUE
+        export NEXT_TEST_MODE=${{
+          inputs.test_type == 'development' && 'dev' || 'start'
+        }}
+
+        ${{ inputs.run_before_test }}
+
+        node run-tests.js \
+          --group ${{ matrix.group }}/${{ inputs.e2e_groups }} \
+          --retries ${{ inputs.num_retries }} \
+          --type ${{ inputs.test_type }}
+      stepName: test-${{ inputs.name }}-${{ matrix.group }}
+      timeout_minutes: ${{ inputs.e2e_timeout_minutes }}
+    secrets: inherit
+
+  test-integration:
+    # Name must match `integrationTestJobs` in
+    # `./.github/actions/next-integration-stat`
+    name: >-
+      Next.js integration test (Integration)
+      (${{ matrix.group }}/${{ inputs.e2e_groups }})
+    needs: [build-next, build-native, generate-matrices]
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(needs.generate-matrices.outputs.integration) }}
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 20.9.0
+      afterBuild: |
+        # legacy integration tests with `node run-tests.js`
+
+        export NEXT_TEST_CONTINUE_ON_ERROR=TRUE
+
+        # HACK: Despite the name, these environment variables are just used to
+        # gate tests, so they're applicable to both turbopack and rspack tests
+        export ${{
+          inputs.test_type == 'development' &&
+            'TURBOPACK_DEV=1' ||
+            'TURBOPACK_BUILD=1'
+        }}
+
+        ${{ inputs.run_before_test }}
+
+        node run-tests.js \
+          --group ${{ matrix.group }}/${{ inputs.integration_groups }} \
+          --retries ${{ inputs.num_retries }} \
+          --type integration
+      stepName: test-${{ inputs.name }}-integration-${{ matrix.group }}
+      timeout_minutes: ${{ inputs.integration_timeout_minutes }}
+    secrets: inherit
+
+  # Collect integration test results from execute_tests,
+  # Store it as github artifact for next step to consume.
+  collect_nextjs_development_integration_stat:
+    needs: [test-e2e, test-integration]
+    name: Next.js integration test development status report
+    runs-on: [self-hosted, linux, x64, metal]
+    if: always()
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Collect integration test stat
+        uses: ./.github/actions/next-integration-stat
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Store artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ inputs.name }}
+          path: |
+            nextjs-test-results.json
+            failed-test-path-list.json
+            passed-test-path-list.json

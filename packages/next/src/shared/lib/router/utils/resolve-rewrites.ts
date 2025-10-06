@@ -5,7 +5,11 @@ import { matchHas, prepareDestination } from './prepare-destination'
 import { removeTrailingSlash } from './remove-trailing-slash'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { removeBasePath } from '../../../../client/remove-base-path'
-import { parseRelativeUrl } from './parse-relative-url'
+import { parseRelativeUrl, type ParsedRelativeUrl } from './parse-relative-url'
+
+interface ParsedAs extends Omit<ParsedRelativeUrl, 'slashes'> {
+  slashes: boolean | undefined
+}
 
 export default function resolveRewrites(
   asPath: string,
@@ -17,17 +21,17 @@ export default function resolveRewrites(
   },
   query: ParsedUrlQuery,
   resolveHref: (path: string) => string,
-  locales?: string[]
+  locales?: readonly string[]
 ): {
   matchedPage: boolean
-  parsedAs: ReturnType<typeof parseRelativeUrl>
+  parsedAs: ParsedAs
   asPath: string
   resolvedHref?: string
   externalDest?: boolean
 } {
   let matchedPage = false
   let externalDest = false
-  let parsedAs = parseRelativeUrl(asPath)
+  let parsedAs: ParsedAs = parseRelativeUrl(asPath)
   let fsPathname = removeTrailingSlash(
     normalizeLocalePath(removeBasePath(parsedAs.pathname), locales).pathname
   )

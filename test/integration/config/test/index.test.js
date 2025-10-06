@@ -18,9 +18,6 @@ describe('Configuration', () => {
 
     context.appPort = await findPort()
     context.server = await launchApp(join(__dirname, '../'), context.appPort, {
-      env: {
-        NODE_OPTIONS: '--inspect',
-      },
       onStdout: handleOutput,
       onStderr: handleOutput,
     })
@@ -32,8 +29,8 @@ describe('Configuration', () => {
     ])
   })
 
-  afterAll(() => {
-    killApp(context.server)
+  afterAll(async () => {
+    await killApp(context.server)
   })
 
   async function get$(path, query) {
@@ -49,7 +46,7 @@ describe('Configuration', () => {
 
   test('renders server config on the server only', async () => {
     const $ = await get$('/next-config')
-    expect($('#server-only').text()).toBe('secret')
+    expect($('#server-only').text()).toBe('server-only: secret')
   })
 
   test('renders public config on the server only', async () => {
@@ -71,7 +68,7 @@ describe('Configuration', () => {
       .text()
     const envValue = await browser.elementByCss('#env').text()
 
-    expect(serverText).toBe('')
+    expect(serverText).toBe('server-only: ***')
     expect(serverClientText).toBe('/static')
     expect(envValue).toBe('hello')
     await browser.close()

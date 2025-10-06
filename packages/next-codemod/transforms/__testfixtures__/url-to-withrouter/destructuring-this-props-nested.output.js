@@ -6,7 +6,7 @@ export default withRouter(withAppContainer(withAuth(
       const { router } = this.props
 
       return (
-        <Page>
+        (<Page>
           <Header
             user={user}
             pathname={router.pathname}
@@ -16,7 +16,7 @@ export default withRouter(withAppContainer(withAuth(
             }}
             onLogoRightClick={() => router.push('/logos')}
           />
-        </Page>
+        </Page>)
       );
     }
   }

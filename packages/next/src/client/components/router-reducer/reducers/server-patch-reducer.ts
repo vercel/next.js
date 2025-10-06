@@ -1,5 +1,5 @@
 import { createHrefFromUrl } from '../create-href-from-url'
-import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type {
   ServerPatchAction,
@@ -10,15 +10,17 @@ import type {
 import { handleExternalUrl } from './navigate-reducer'
 import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import { createEmptyCacheNode } from '../../app-router'
-import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { flightData, overrideCanonicalUrl } = action
+  const {
+    serverResponse: { flightData, canonicalUrl: canonicalUrlOverride },
+    navigatedAt,
+  } = action
 
   const mutable: Mutable = {}
 
@@ -37,20 +39,25 @@ export function serverPatchReducer(
   let currentTree = state.tree
   let currentCache = state.cache
 
-  for (const flightDataPath of flightData) {
-    // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
-    const flightSegmentPath = flightDataPath.slice(0, -4)
+  for (const normalizedFlightData of flightData) {
+    const { segmentPath: flightSegmentPath, tree: treePatch } =
+      normalizedFlightData
 
-    const [treePatch] = flightDataPath.slice(-3, -2)
-    const newTree = applyRouterStatePatchToTreeSkipDefault(
+    const newTree = applyRouterStatePatchToTree(
       // TODO-APP: remove ''
       ['', ...flightSegmentPath],
       currentTree,
-      treePatch
+      treePatch,
+      state.canonicalUrl
     )
 
+    // `applyRouterStatePatchToTree` returns `null` when it determined that the server response is not applicable to the current tree.
+    // In other words, the server responded with a tree that doesn't match what the client is currently rendering.
+    // This can happen if the server patch action took longer to resolve than a subsequent navigation which would have changed the tree.
+    // Previously this case triggered an MPA navigation but it should be safe to simply discard the server response rather than forcing
+    // the entire page to reload.
     if (newTree === null) {
-      return handleSegmentMismatch(state, action, treePatch)
+      return state
     }
 
     if (isNavigatingToNewRootLayout(currentTree, newTree)) {
@@ -62,8 +69,8 @@ export function serverPatchReducer(
       )
     }
 
-    const canonicalUrlOverrideHref = overrideCanonicalUrl
-      ? createHrefFromUrl(overrideCanonicalUrl)
+    const canonicalUrlOverrideHref = canonicalUrlOverride
+      ? createHrefFromUrl(canonicalUrlOverride)
       : undefined
 
     if (canonicalUrlOverrideHref) {
@@ -71,7 +78,7 @@ export function serverPatchReducer(
     }
 
     const cache: CacheNode = createEmptyCacheNode()
-    applyFlightData(currentCache, cache, flightDataPath)
+    applyFlightData(navigatedAt, currentCache, cache, normalizedFlightData)
 
     mutable.patchedTree = newTree
     mutable.cache = cache

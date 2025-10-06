@@ -1,0 +1,17 @@
+diff --git a/lib/taskr.js b/lib/taskr.js
+index c961a997bfb5791383173e3444d18aed4194b21b..3810e74562d17abda9603080fcdbf2d230dc7fe0 100644
+--- a/lib/taskr.js
++++ b/lib/taskr.js
+@@ -115,11 +115,7 @@ class Taskr extends Emitter {
+ 	}
+ 
+ 	*parallel(tasks, opts) {
+-		try {
+-			yield Promise.all(tasks.map(t => this.start(t, opts)));
+-		} catch (err) {
+-			//
+-		}
++		yield Promise.all(tasks.map(t => this.start(t, opts)));
+ 	}
+ 
+ 	*serial(tasks, opts) {

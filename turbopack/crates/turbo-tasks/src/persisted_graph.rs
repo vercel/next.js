@@ -1,0 +1,402 @@
+use anyhow::Result;
+use serde::{Deserialize, Serialize, ser::SerializeSeq};
+use smallvec::SmallVec;
+
+use crate::{
+    CellId, RawVc, TaskId,
+    backend::{CachedTaskType, CellContent},
+    task::shared_reference::TypedSharedReference,
+};
+
+#[derive(Clone, Debug)]
+pub enum TaskCell {
+    Content(CellContent),
+    NeedComputation,
+}
+
+impl Default for TaskCell {
+    fn default() -> Self {
+        TaskCell::Content(CellContent(None))
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TaskData {
+    pub children: SmallVec<[TaskId; 4]>,
+    pub dependencies: SmallVec<[RawVc; 1]>,
+    pub cells: TaskCells,
+    pub output: RawVc,
+}
+
+/// A newtype struct that intercepts serde. This is required
+/// because for safety reasons, TaskCell<()> is not allowed to
+/// be deserialized.
+///
+/// We augment it with type data then write it. This is inefficient
+/// on disk but could be alleviated later.
+#[derive(Debug)]
+pub struct TaskCells(pub Vec<(CellId, TaskCell)>);
+
+// the on-disk representation of a task cell. it is local to this impl
+// to prevent users accidentally ser/de the untyped data
+#[derive(Serialize, Deserialize)]
+struct SerializableTaskCell(Option<Option<TypedSharedReference>>);
+impl From<SerializableTaskCell> for TaskCell {
+    fn from(val: SerializableTaskCell) -> Self {
+        match val.0 {
+            Some(d) => TaskCell::Content(d.map(TypedSharedReference::into_untyped).into()),
+            None => TaskCell::NeedComputation,
+        }
+    }
+}
+
+impl Serialize for TaskCells {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(self.0.len()))?;
+        for (cell_id, cell) in &self.0 {
+            let task_cell = SerializableTaskCell(match cell {
+                TaskCell::Content(CellContent(opt)) => {
+                    Some(opt.clone().map(|d| d.into_typed(cell_id.type_id)))
+                }
+                TaskCell::NeedComputation => None,
+            });
+            seq.serialize_element(&(cell_id, task_cell))?;
+        }
+        seq.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for TaskCells {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let data: Vec<(CellId, SerializableTaskCell)> = Vec::deserialize(deserializer)?;
+        Ok(TaskCells(
+            data.into_iter()
+                .map(|(id, cell)| (id, cell.into()))
+                .collect(),
+        ))
+    }
+}
+
+pub struct ReadTaskState {
+    pub clean: bool,
+    pub keeps_external_active: bool,
+}
+
+pub struct PersistTaskState {
+    pub externally_active: bool,
+}
+
+/*
+
+There are 4 kinds of task:
+
+(A) A task that exists only in memory.
+(B) A task that exists in persistent graph and in memory (either "store" or "read" has been called)
+(C) A task that exists only in persistent graph.
+
+Parent-child relationships:
+
+(A) as child: active_parents is tracked only in memory.
+(B) as child: active_parents is tracked in memory and either as internal_active_parents or external_active_parents in the persisted graph.
+(C) as child: either as internal_active_parents or external_active_parents in the persisted graph.
+
+(A) as parent: It will use external_active_parents for (B) or (C) as child.
+               update_active_parents() is used to modify the external_active_parents count.
+(B) as parent: It will use internal_active_parents for (B) or (C) as child.
+               compute_active() returns the changes needed for (A) or (C) as child
+(C) as parent: It will use internal_active_parents for (B) or (C) as child.
+               compute_active() returns the changes needed for (A) or (C) as child
+
+(A) as child of (B) or (C): active count tracked as external_active_children, have task ids assigned in persistent graph
+
+*/
+
+#[derive(Debug)]
+pub struct ActivateResult {
+    /// Keeps the external version of the task active
+    pub keeps_external_active: bool,
+
+    /// Task doesn't live in the persisted graph but
+    /// should be track externally
+    pub external: bool,
+
+    /// Task is dirty and need to be scheduled for execution
+    pub dirty: bool,
+
+    /// Further tasks that need to be activated that
+    /// didn't fit into that batch
+    pub more_tasks_to_activate: SmallVec<[TaskId; 4]>,
+}
+
+#[derive(Debug)]
+pub struct PersistResult {
+    /// Tasks that need to be activated
+    pub tasks_to_activate: SmallVec<[TaskId; 4]>,
+
+    /// Tasks that need to be deactivated
+    pub tasks_to_deactivate: SmallVec<[TaskId; 4]>,
+}
+
+#[derive(Debug)]
+pub struct DeactivateResult {
+    /// Further tasks that need to be deactivated that
+    /// didn't fit into that batch
+    pub more_tasks_to_deactivate: SmallVec<[TaskId; 4]>,
+}
+
+pub type TaskIds = SmallVec<[TaskId; 4]>;
+
+pub trait PersistedGraph: Sync + Send {
+    /// read task data and state for a specific task.
+    fn read(
+        &self,
+        task: TaskId,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<Option<(TaskData, ReadTaskState)>>;
+
+    /// lookup all cache entries for a partial task type
+    /// returns true if all cache entries has been initialized
+    /// returns false if that were too many
+    fn lookup(
+        &self,
+        partial_task_type: &CachedTaskType,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<bool>;
+
+    /// lookup one cache entry
+    fn lookup_one(
+        &self,
+        task_type: &CachedTaskType,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<Option<TaskId>>;
+
+    /// checks if a task is persisted
+    fn is_persisted(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool>;
+
+    /// store a completed task into the persisted graph
+    /// together with dependencies, children and cells.
+    /// Returns false, if the task failed to persist.
+    fn persist(
+        &self,
+        task: TaskId,
+        data: TaskData,
+        state: PersistTaskState,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<Option<PersistResult>>;
+
+    /// Activate a task in the persisted graph when active_parents > 0 or it's
+    /// externally kept alive.
+    fn activate_when_needed(
+        &self,
+        task: TaskId,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<Option<ActivateResult>>;
+
+    /// Deactivate a task in the persisted graph when active_parents == 0 and
+    /// it's not externally kept alive.
+    fn deactivate_when_needed(
+        &self,
+        task: TaskId,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<Option<DeactivateResult>>;
+
+    /// Marks a task as kept alive by the consumer graph
+    /// (usually from memory to persisted graph)
+    /// Returns true when activate_when_needed should be called soonish
+    fn set_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool>;
+
+    /// No longer marks a task as kept alive by the consumer graph
+    /// (usually from memory to persisted graph)
+    /// Returns true when deactivate_when_needed should be called soonish
+    fn unset_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool>;
+
+    /// Removes all external keep alives that were not renewed this round.
+    /// This is usually called after the initial build has finished and all
+    /// external keep alives has been renewed.
+    fn remove_outdated_externally_active(
+        &self,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>>;
+
+    /// update the dirty flag for a stored task
+    /// Returns true, when the task is active and should be scheduled
+    fn make_dirty(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool>;
+
+    /// update the dirty flag for a stored task
+    fn make_clean(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<()>;
+
+    /// make all tasks that depend on that vc dirty and
+    /// return a list of active tasks that should be scheduled
+    fn make_dependent_dirty(
+        &self,
+        vc: RawVc,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>>;
+
+    /// Get all tasks that are active, but not persisted.
+    /// This is usually called at beginning to create and schedule
+    /// tasks that are missing in the persisted graph
+    fn get_active_external_tasks(
+        &self,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>>;
+
+    /// Get all tasks that are dirty and active.
+    /// This is usually called at the beginning to schedule these tasks.
+    fn get_dirty_active_tasks(&self, api: &dyn PersistedGraphApi) -> Result<SmallVec<[TaskId; 4]>>;
+
+    /// Get tasks that have active update pending that need to be continued
+    /// returns (tasks_to_activate, tasks_to_deactivate)
+    fn get_pending_active_update(&self, api: &dyn PersistedGraphApi) -> Result<(TaskIds, TaskIds)>;
+
+    /// Stop operations
+    #[allow(unused_variables)]
+    fn stop(&self, api: &dyn PersistedGraphApi) -> Result<()> {
+        Ok(())
+    }
+}
+
+pub trait PersistedGraphApi {
+    fn get_or_create_task_type(&self, ty: CachedTaskType) -> TaskId;
+
+    fn lookup_task_type(&self, id: TaskId) -> &CachedTaskType;
+}
+
+/*
+
+read:
+
+  data: (TaskId) => (TaskData)
+  cache: (CachedTaskType) => (TaskId)
+  type: (TaskId) => (CachedTaskType)
+
+read_dependents:
+
+  dependents: (RawVc) => [TaskId]
+
+store:
+
+  external_active_parents: (TaskId) -> (usize)
+  internal_active_parents: (TaskId) -> (usize)
+  inactive_tasks: [TaskId]
+
+B+C?
+
+
+
+
+*/
+
+impl PersistedGraph for () {
+    fn read(
+        &self,
+        _task: TaskId,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<Option<(TaskData, ReadTaskState)>> {
+        Ok(None)
+    }
+
+    fn lookup(
+        &self,
+        _partial_task_type: &CachedTaskType,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<bool> {
+        Ok(false)
+    }
+
+    fn lookup_one(
+        &self,
+        _task_type: &CachedTaskType,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<Option<TaskId>> {
+        Ok(None)
+    }
+
+    fn is_persisted(&self, _task: TaskId, _api: &dyn PersistedGraphApi) -> Result<bool> {
+        Ok(false)
+    }
+
+    fn persist(
+        &self,
+        _task: TaskId,
+        _data: TaskData,
+        _state: PersistTaskState,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<Option<PersistResult>> {
+        Ok(None)
+    }
+
+    fn activate_when_needed(
+        &self,
+        _task: TaskId,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<Option<ActivateResult>> {
+        Ok(None)
+    }
+
+    fn deactivate_when_needed(
+        &self,
+        _task: TaskId,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<Option<DeactivateResult>> {
+        Ok(None)
+    }
+
+    fn set_externally_active(&self, _task: TaskId, _api: &dyn PersistedGraphApi) -> Result<bool> {
+        Ok(false)
+    }
+
+    fn unset_externally_active(&self, _task: TaskId, _api: &dyn PersistedGraphApi) -> Result<bool> {
+        Ok(false)
+    }
+
+    fn remove_outdated_externally_active(
+        &self,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>> {
+        Ok(Default::default())
+    }
+
+    fn make_dirty(&self, _task: TaskId, _api: &dyn PersistedGraphApi) -> Result<bool> {
+        Ok(false)
+    }
+
+    fn make_clean(&self, _task: TaskId, _api: &dyn PersistedGraphApi) -> Result<()> {
+        Ok(())
+    }
+
+    fn make_dependent_dirty(
+        &self,
+        _vc: RawVc,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>> {
+        Ok(Default::default())
+    }
+
+    fn get_active_external_tasks(
+        &self,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>> {
+        Ok(Default::default())
+    }
+
+    fn get_dirty_active_tasks(
+        &self,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<SmallVec<[TaskId; 4]>> {
+        Ok(Default::default())
+    }
+
+    fn get_pending_active_update(
+        &self,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<(SmallVec<[TaskId; 4]>, SmallVec<[TaskId; 4]>)> {
+        Ok((Default::default(), Default::default()))
+    }
+}

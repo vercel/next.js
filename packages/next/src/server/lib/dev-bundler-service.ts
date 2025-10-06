@@ -2,17 +2,30 @@ import type { IncomingMessage } from 'http'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { WorkerRequestHandler } from './types'
 
+import { LRUCache } from './lru-cache'
 import { createRequestResponseMocks } from './mock-request'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
+import type { ReactDebugChannelForBrowser } from '../dev/debug-channel'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
  * bundler while in development.
  */
 export class DevBundlerService {
+  public appIsrManifestInner: InstanceType<typeof LRUCache<true>>
+
   constructor(
     private readonly bundler: DevBundler,
     private readonly handler: WorkerRequestHandler
-  ) {}
+  ) {
+    this.appIsrManifestInner = new LRUCache(
+      8_000,
+
+      function length() {
+        return 16
+      }
+    ) as any
+  }
 
   public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (
     definition
@@ -21,10 +34,8 @@ export class DevBundlerService {
     return await this.bundler.hotReloader.ensurePage(definition)
   }
 
-  public logErrorWithOriginalStack: typeof this.bundler.logErrorWithOriginalStack =
-    async (...args) => {
-      return await this.bundler.logErrorWithOriginalStack(...args)
-    }
+  public logErrorWithOriginalStack =
+    this.bundler.logErrorWithOriginalStack.bind(this.bundler)
 
   public async getFallbackErrorComponents(url?: string) {
     await this.bundler.hotReloader.buildFallbackError()
@@ -65,11 +76,50 @@ export class DevBundlerService {
 
     if (
       mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+      mocked.res.statusCode !== 200 &&
       !(mocked.res.statusCode === 404 && revalidateOpts.unstable_onlyGenerated)
     ) {
       throw new Error(`Invalid response ${mocked.res.statusCode}`)
     }
 
     return {}
+  }
+
+  public get appIsrManifest() {
+    const serializableManifest: Record<string, true> = {}
+
+    for (const [key, value] of this.appIsrManifestInner) {
+      serializableManifest[key] = value
+    }
+
+    return serializableManifest
+  }
+
+  public setIsrStatus(key: string, value: boolean) {
+    if (value === false) {
+      this.appIsrManifestInner.remove(key)
+    } else {
+      this.appIsrManifestInner.set(key, value)
+    }
+    this.bundler?.hotReloader?.send({
+      type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
+      data: this.appIsrManifest,
+    })
+  }
+
+  public setReactDebugChannel(
+    debugChannel: ReactDebugChannelForBrowser,
+    htmlRequestId: string,
+    requestId: string
+  ): void {
+    this.bundler.hotReloader.setReactDebugChannel(
+      debugChannel,
+      htmlRequestId,
+      requestId
+    )
+  }
+
+  public close() {
+    this.bundler.hotReloader.close()
   }
 }

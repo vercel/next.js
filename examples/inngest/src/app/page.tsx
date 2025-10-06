@@ -1,4 +1,4 @@
-import { inngest } from "@/inngest/inngest.client";
+import { inngest } from "@/inngest/inngest.config";
 import { redirect } from "next/navigation";
 
 export default function Home() {

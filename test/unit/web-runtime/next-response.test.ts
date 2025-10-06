@@ -2,7 +2,7 @@
  * @jest-environment @edge-runtime/jest-environment
  */
 
-import { NextResponse } from 'next/src/server/web/spec-extension/response'
+import { NextResponse } from 'next/dist/server/web/spec-extension/response'
 
 const toJSON = async (response: Response) => ({
   body: await response.json(),

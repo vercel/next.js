@@ -7,7 +7,11 @@ export function generateStaticParams() {
   return []
 }
 
-export default ({ params: { slug } }) => {
+export default async (props) => {
+  const params = await props.params
+
+  const { slug } = params
+
   return (
     <Suspense
       fallback={

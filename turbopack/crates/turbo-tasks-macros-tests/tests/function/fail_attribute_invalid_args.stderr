@@ -1,0 +1,5 @@
+error: unexpected token, expected one of: "fs", "network", "operation", "local"
+  --> tests/function/fail_attribute_invalid_args.rs:10:25
+   |
+10 | #[turbo_tasks::function(invalid_argument)]
+   |                         ^^^^^^^^^^^^^^^^

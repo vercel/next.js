@@ -24,7 +24,6 @@ const context = {
   page: new File(join(__dirname, '../pages/index.js')),
 }
 const appOption = {
-  env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
   onStdout(msg) {
     context.logs.output += msg
     context.logs.stdout += msg
@@ -44,9 +43,9 @@ describe('Edge runtime code with imports', () => {
     await remove(join(__dirname, '../.next'))
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     if (context.app) {
-      killApp(context.app)
+      await killApp(context.app)
     }
     context.api.restore()
     context.middleware.restore()
@@ -72,7 +71,7 @@ describe('Edge runtime code with imports', () => {
       )
       expect(res.status).toBe(500)
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it(`${title} build test Response`, async () => {

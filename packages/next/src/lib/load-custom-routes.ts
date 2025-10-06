@@ -5,10 +5,11 @@ import { bold, yellow } from './picocolors'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { tryToParsePath } from './try-to-parse-path'
 import { allowedStatusCodes } from './redirect-status'
+import { isFullStringUrl } from './url'
 
 export type RouteHas =
   | {
-      type: 'header' | 'query' | 'cookie'
+      type: string
       key: string
       value?: string
     }
@@ -54,6 +55,7 @@ export type Redirect = {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+  priority?: boolean
 
   /**
    * @internal - used internally for routing
@@ -592,9 +594,37 @@ async function loadRedirects(config: NextConfig) {
 }
 
 async function loadRewrites(config: NextConfig) {
+  // If assetPrefix is set, add a rewrite for `/${assetPrefix}/_next/*`
+  // requests so that they are handled in any of dev, start, or deploy
+  // automatically without the user having to configure this.
+  // If the assetPrefix is an absolute URL, we still consider the path for automatic rewrite.
+  // but hostname routing must be handled by the user
+  let maybeAssetPrefixRewrite: Rewrite[] = []
+  if (config.assetPrefix) {
+    let prefix = config.assetPrefix
+    if (
+      isFullStringUrl(config.assetPrefix) &&
+      URL.canParse(config.assetPrefix)
+    ) {
+      prefix = new URL(config.assetPrefix).pathname
+    }
+
+    if (prefix && prefix !== '/') {
+      const assetPrefix = prefix.startsWith('/') ? prefix : `/${prefix}`
+      const basePath = config.basePath || ''
+      // If these are the same, then this would result in an infinite rewrite.
+      if (assetPrefix !== basePath) {
+        maybeAssetPrefixRewrite.push({
+          source: `${assetPrefix}/_next/:path+`,
+          destination: `${basePath}/_next/:path+`,
+        })
+      }
+    }
+  }
+
   if (typeof config.rewrites !== 'function') {
     return {
-      beforeFiles: [],
+      beforeFiles: [...maybeAssetPrefixRewrite],
       afterFiles: [],
       fallback: [],
     }
@@ -631,7 +661,10 @@ async function loadRewrites(config: NextConfig) {
     fallback: fallback.map((r) => ({ ...r })),
   }
 
-  beforeFiles = processRoutes(beforeFiles, config, 'rewrite')
+  beforeFiles = [
+    ...maybeAssetPrefixRewrite,
+    ...processRoutes(beforeFiles, config, 'rewrite'),
+  ]
   afterFiles = processRoutes(afterFiles, config, 'rewrite')
   fallback = processRoutes(fallback, config, 'rewrite')
 
@@ -687,6 +720,18 @@ export default async function loadCustomRoutes(
     )
   }
 
+  if (config.experimental?.useSkewCookie && config.deploymentId) {
+    headers.unshift({
+      source: '/:path*',
+      headers: [
+        {
+          key: 'Set-Cookie',
+          value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
+        },
+      ],
+    })
+  }
+
   if (!config.skipTrailingSlashRedirect) {
     if (config.trailingSlash) {
       redirects.unshift(
@@ -696,6 +741,7 @@ export default async function loadCustomRoutes(
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
           // don't run this redirect for _next/data requests
           missing: [
             {
@@ -710,6 +756,7 @@ export default async function loadCustomRoutes(
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         }
       )
       if (config.basePath) {
@@ -720,6 +767,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         })
       }
     } else {
@@ -729,6 +777,7 @@ export default async function loadCustomRoutes(
         permanent: true,
         locale: config.i18n ? false : undefined,
         internal: true,
+        priority: true,
       })
       if (config.basePath) {
         redirects.unshift({
@@ -738,6 +787,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         })
       }
     }

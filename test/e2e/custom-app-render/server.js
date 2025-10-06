@@ -34,7 +34,7 @@ async function main() {
     process.exit(1)
   })
 
-  server.listen(port, '0.0.0.0', () => {
+  server.listen(port, '::', () => {
     console.log(`- Local: http://localhost:${port}`)
     console.log(`- Next mode: ${dev ? 'development' : process.env.NODE_ENV}`)
   })

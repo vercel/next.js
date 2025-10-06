@@ -1,13 +1,13 @@
 import { notFound } from 'next/navigation'
 
 export interface Props {
-  params: {
+  params: Promise<{
     slug: string
-  }
+  }>
 }
 
-const Article = ({ params }: Props) => {
-  const { slug } = params
+const Article = async ({ params }: Props) => {
+  const { slug } = await params
 
   if (slug !== 'works') {
     return notFound()

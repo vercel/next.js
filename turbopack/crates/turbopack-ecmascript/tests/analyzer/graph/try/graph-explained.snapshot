@@ -1,0 +1,7 @@
+e (const after eval) = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+pkg (const after eval) = (???*0* | FreeVar(require)("packages/not-found") | FreeVar(require)("packages/found"))
+- *0* pkg
+  ⚠️  pattern without value

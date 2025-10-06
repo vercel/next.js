@@ -54,6 +54,7 @@ export async function applyNextWorkerFixture(
 ): Promise<void> {
   const fixture = new NextWorkerFixtureImpl()
   await fixture.setup()
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- not React.use()
   await use(fixture)
   fixture.teardown()
 }

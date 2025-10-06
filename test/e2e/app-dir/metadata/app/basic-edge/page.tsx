@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Client from './client'
 
-export const runtime = 'experimental-edge'
+export const runtime = 'edge'
 
 export default function Page() {
   return (
@@ -28,6 +28,10 @@ export const metadata: Metadata = {
   manifest: '/api/manifest',
   robots: 'index, follow',
   alternates: {},
+  pagination: {
+    previous: '/basic?page=1',
+    next: '/basic?page=3',
+  },
   formatDetection: {
     email: false,
     address: false,

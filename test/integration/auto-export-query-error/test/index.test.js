@@ -14,22 +14,28 @@ const runTests = () => {
       'Error: you provided query values for / which is an auto-exported page. These can not be applied since the page can no longer be re-rendered on the server. To disable auto-export for this page add `getInitialProps`'
     )
 
-    expect(stderr).not.toContain('Error: you provided query values for /amp')
     expect(stderr).not.toContain('Error: you provided query values for /ssr')
     expect(stderr).not.toContain('Error: you provided query values for /ssg')
   })
 }
 
 describe('Auto Export', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      const { stderr: curStderr, code: curCode } = await nextBuild(appDir, [], {
-        stderr: true,
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        const { stderr: curStderr, code: curCode } = await nextBuild(
+          appDir,
+          [],
+          {
+            stderr: true,
+          }
+        )
+        stderr = curStderr
+        exitCode = curCode
       })
-      stderr = curStderr
-      exitCode = curCode
-    })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

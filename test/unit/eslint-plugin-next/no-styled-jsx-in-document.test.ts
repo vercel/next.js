@@ -1,18 +1,10 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-styled-jsx-in-document'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
-    },
-  },
-})
-const ruleTester = new RuleTester()
+import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
+import { RuleTester as ESLintTesterV9 } from 'eslint'
+import { rules } from '@next/eslint-plugin-next'
 
-ruleTester.run('no-styled-jsx-in-document', rule, {
+const NextESLintRule = rules['no-styled-jsx-in-document']
+
+const tests = {
   valid: [
     {
       filename: 'pages/_document.js',
@@ -121,4 +113,30 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
       ],
     },
   ],
+}
+
+describe('no-styled-jsx-in-document', () => {
+  new ESLintTesterV8({
+    parserOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
+    },
+  }).run('eslint-v8', NextESLintRule, tests)
+
+  new ESLintTesterV9({
+    languageOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          modules: true,
+          jsx: true,
+        },
+      },
+    },
+  }).run('eslint-v9', NextESLintRule, tests)
 })

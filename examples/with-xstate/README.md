@@ -4,8 +4,6 @@ This example shows how to integrate XState in Next.js. [Learn more about XState]
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-xstate)
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-xstate&project-name=with-xstate&repository-name=with-xstate)
 
 ## How to use
@@ -34,6 +32,8 @@ You could use the inspection tools for XState: ([`@xstate/inspect`](https://xsta
 npm install @xstate/inspect
 # or
 yarn add @xstate/inspect
+# or
+pnpm add @xstate/inspect
 ```
 
 #### Import it at the top of the project

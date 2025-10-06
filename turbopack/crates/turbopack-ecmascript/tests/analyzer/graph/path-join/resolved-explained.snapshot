@@ -1,0 +1,32 @@
+a = module<foo, {}>
+
+p1 = path*0*
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+path = path*0*
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+path_join1 = path.join*0*
+- *0* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
+
+path_join2 = path.join*0*
+- *0* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
+
+path_join3 = path.join*0*
+- *0* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
+
+path_join4 = path.join*0*
+- *0* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
+
+z1_joined = "foo/bar"
+
+z2_joined = "foo/bar"
+
+z3_joined = "foo/bar"
+
+z4_joined = "foo/bar"
+
+z5_joined = `foo/baz${("/" | "")}${???*0*}${("/" | "")}../foo`
+- *0* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects

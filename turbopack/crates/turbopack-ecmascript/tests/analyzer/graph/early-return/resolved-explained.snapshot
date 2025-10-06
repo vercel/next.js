@@ -1,0 +1,27 @@
+a = (...) => undefined
+
+b = (...) => undefined
+
+c = (...) => undefined
+
+d = (...) => undefined
+
+e = (...) => undefined
+
+f = (...) => undefined
+
+g = (...) => undefined
+
+h = (...) => undefined
+
+i = (...) => (FreeVar(i1)() | FreeVar(i2)())
+
+j#2 = (...) => (FreeVar(i1)() | FreeVar(i2)())
+
+j#25 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+j#26 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet

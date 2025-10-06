@@ -1,6 +1,15 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-createNextDescribe('x-forwarded-headers', { files: __dirname }, ({ next }) => {
+describe('x-forwarded-headers', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname,
+    // This test is skipped because it sends requests with manipulated host headers
+    // which doesn't work in a deployed environment
+    skipDeployment: true,
+  })
+
+  if (skipped) return
+
   it('should include x-forwarded-* headers', async () => {
     const res = await next.fetch('/')
     const headers = await res.json()
@@ -62,6 +71,17 @@ createNextDescribe('x-forwarded-headers', { files: __dirname }, ({ next }) => {
       expect(headers['middleware-x-forwarded-host']).toBe(reqHeaders.host)
       expect(headers['middleware-x-forwarded-port']).toBe(reqHeaders.port)
       expect(headers['middleware-x-forwarded-proto']).toBe(reqHeaders.proto)
+    })
+
+    it('should work with multiple x-forwarded-* headers', async () => {
+      const res = await next.fetch('/', {
+        headers: { 'x-forwarded-proto': 'https, https' },
+      })
+
+      expect(res.status).toBe(200)
+
+      const headers = await res.json()
+      expect(headers['x-forwarded-proto']).toBe('https, https')
     })
   })
 })

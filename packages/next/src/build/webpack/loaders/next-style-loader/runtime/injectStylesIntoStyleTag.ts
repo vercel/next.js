@@ -1,3 +1,5 @@
+/// <reference types="webpack/module.d.ts" />
+
 const isOldIE = (function isOldIE() {
   let memo: any
 
@@ -155,8 +157,8 @@ function applyToSingletonTag(style: any, index: any, remove: any, obj: any) {
   const css = remove
     ? ''
     : obj.media
-    ? '@media ' + obj.media + ' {' + obj.css + '}'
-    : obj.css
+      ? '@media ' + obj.media + ' {' + obj.css + '}'
+      : obj.css
 
   // For old IE
   /* istanbul ignore if  */

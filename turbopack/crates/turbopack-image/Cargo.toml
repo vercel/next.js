@@ -1,0 +1,42 @@
+[package]
+name = "turbopack-image"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+
+# [NOTE]: Before enable this, ensure this can build all of the target platforms we support.
+avif = ["image/avif"]
+webp = ["image/webp"]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+base64 = "0.21.0"
+image = { workspace = true, default-features = false, features = [
+  "gif",
+  "png",
+  "jpeg",
+  "ico",
+  "bmp",
+  "tga",
+] }
+mime = { workspace = true }
+once_cell = { workspace = true }
+regex = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_with = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
+

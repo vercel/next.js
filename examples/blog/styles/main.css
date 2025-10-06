@@ -15,12 +15,30 @@
 }
 
 body {
-  font-family: "Inter var", system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-family:
+    "Inter var",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    "Noto Sans",
+    sans-serif,
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Segoe UI Symbol",
+    "Noto Color Emoji";
   -webkit-font-smoothing: subpixel-antialiased;
-  font-feature-settings: "case" 1, "cpsp" 1, "dlig" 1, "cv01" 1, "cv02",
-    "cv03" 1, "cv04" 1;
+  font-feature-settings:
+    "case" 1,
+    "cpsp" 1,
+    "dlig" 1,
+    "cv01" 1,
+    "cv02",
+    "cv03" 1,
+    "cv04" 1;
   font-variation-settings: "wght" 450;
   font-variant: common-ligatures contextual;
   letter-spacing: -0.02em;

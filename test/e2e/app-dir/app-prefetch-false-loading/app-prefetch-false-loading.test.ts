@@ -1,36 +1,37 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-createNextDescribe(
-  'app-prefetch-false-loading',
-  {
+describe('app-prefetch-false-loading', () => {
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
-  },
-  ({ next }) => {
-    it('should render loading for the initial render', async () => {
-      const $ = await next.render$('/en/testing')
+  })
 
-      expect($('#loading').text()).toBe('Loading...')
-    })
-    it('should not re-trigger loading state when navigating between pages that share a dynamic layout', async () => {
-      const logStartIndex = next.cliOutput.length
+  it('should render loading for the initial render', async () => {
+    const $ = await next.render$('/en/testing')
 
-      const browser = await next.browser('/en/testing')
-      let initialRandomNumber = await browser
-        .elementById('random-number')
-        .text()
-      await browser.elementByCss('[href="/en/testing/test"]').click()
-      expect(await browser.hasElementByCssSelector('#loading')).toBeFalsy()
+    expect($('#loading').text()).toBe('Loading...')
+  })
+  it('should not re-trigger loading state when navigating between pages that share a dynamic layout', async () => {
+    const logStartIndex = next.cliOutput.length
 
-      await check(
-        () => browser.hasElementByCssSelector('#nested-testing-page'),
-        true
-      )
+    const browser = await next.browser('/en/testing')
+    let initialRandomNumber = await browser.elementById('random-number').text()
+    await browser.elementByCss('[href="/en/testing/test"]').click()
+    expect(await browser.hasElementByCssSelector('#loading')).toBeFalsy()
 
-      const newRandomNumber = await browser.elementById('random-number').text()
+    await check(
+      () => browser.hasElementByCssSelector('#nested-testing-page'),
+      true
+    )
 
-      expect(initialRandomNumber).toBe(newRandomNumber)
+    const newRandomNumber = await browser.elementById('random-number').text()
 
+    expect(initialRandomNumber).toBe(newRandomNumber)
+
+    // Deploy doesn't have access to runtime logs. This assertion is also redundant since if
+    // the layout was re-fetched, the `no-store` on the random number would have resulted in a new value.
+    // Keeping this here for consistency with the original test.
+    if (!isNextDeploy) {
       await check(() => {
         const logOccurrences =
           next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
@@ -38,6 +39,6 @@ createNextDescribe(
 
         return logOccurrences
       }, 1)
-    })
-  }
-)
+    }
+  })
+})

@@ -1,0 +1,135 @@
+[
+    (
+        "*arrow function 567*",
+        Function(
+            2,
+            567,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "a",
+        Function(
+            2,
+            1,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "b",
+        Function(
+            2,
+            45,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "c",
+        Function(
+            2,
+            125,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "d",
+        Function(
+            2,
+            209,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "e#16",
+        Unknown {
+            original_value: Some(
+                Variable(
+                    (
+                        "e",
+                        #16,
+                    ),
+                ),
+            ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
+    ),
+    (
+        "e#2",
+        Function(
+            2,
+            284,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "f",
+        Function(
+            2,
+            368,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "g",
+        Function(
+            2,
+            452,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "h",
+        Function(
+            2,
+            540,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "x#10",
+        Unknown {
+            original_value: None,
+            reason: "for-in variable currently not analyzed",
+            has_side_effects: false,
+        },
+    ),
+    (
+        "x#17",
+        Variable(
+            (
+                "*arrow function 567*",
+                #0,
+            ),
+        ),
+    ),
+    (
+        "y",
+        Iterated(
+            2,
+            Array {
+                total_nodes: 1,
+                items: [],
+                mutable: true,
+            },
+        ),
+    ),
+]

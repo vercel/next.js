@@ -1,7 +1,5 @@
-// @ts-ignore
-import fetch from 'next/dist/compiled/node-fetch'
 import { nextFontError } from '../next-font-error'
-import { getProxyAgent } from './get-proxy-agent'
+import { fetchResource } from './fetch-resource'
 import { retry } from './retry'
 
 /**
@@ -16,56 +14,23 @@ export async function fetchCSSFromGoogleFonts(
   fontFamily: string,
   isDev: boolean
 ): Promise<string> {
-  // Check if mocked responses are defined, if so use them instead of fetching from Google Fonts
-  let mockedResponse: string | undefined
   if (process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) {
     const mockFile = require(process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES)
-    mockedResponse = mockFile[url]
+    const mockedResponse = mockFile[url]
     if (!mockedResponse) {
       nextFontError('Missing mocked response for URL: ' + url)
     }
+    return mockedResponse
   }
 
-  let cssResponse: string
-  if (mockedResponse) {
-    // Just use the mocked CSS if it's set
-    cssResponse = mockedResponse
-  } else {
-    // Retry the fetch a few times in case of network issues as some font files
-    // are quite large:
-    // https://github.com/vercel/next.js/issues/45080
-    cssResponse = await retry(async () => {
-      const controller =
-        isDev && typeof AbortController !== 'undefined'
-          ? new AbortController()
-          : undefined
-      const signal = controller?.signal
-      const timeoutId = controller
-        ? setTimeout(() => controller.abort(), 3000)
-        : undefined
+  const buffer = await retry(async () => {
+    return fetchResource(
+      url,
+      isDev,
+      `Failed to fetch font \`${fontFamily}\`: ${url}\n` +
+        `Please check your network connection.`
+    )
+  }, 3)
 
-      const res = await fetch(url, {
-        agent: getProxyAgent(),
-        // Add a timeout in dev
-        signal,
-        headers: {
-          // The file format is based off of the user agent, make sure woff2 files are fetched
-          'user-agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36',
-        },
-      }).finally(() => {
-        timeoutId && clearTimeout(timeoutId)
-      })
-
-      if (!res.ok) {
-        nextFontError(
-          `Failed to fetch font \`${fontFamily}\`.\nURL: ${url}\n\nPlease check if the network is available.`
-        )
-      }
-
-      return res.text()
-    }, 3)
-  }
-
-  return cssResponse
+  return buffer.toString('utf8')
 }
