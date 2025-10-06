@@ -46,6 +46,13 @@ fn main() {
 
     let worker_threads = args
         .worker_threads()
+        .map(|v| {
+            if v == 0 {
+                panic!("--worker-threads=0 is invalid, you must use at least one thread.");
+            } else {
+                v
+            }
+        })
         .unwrap_or_else(|| available_parallelism().map(|n| n.get()).unwrap_or(1));
 
     rt.worker_threads(worker_threads);

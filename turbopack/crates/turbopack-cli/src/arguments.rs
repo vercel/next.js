@@ -88,21 +88,17 @@ pub struct CommonArguments {
     #[clap(long)]
     pub full_stats: bool,
 
-    // Enable experimental garbage collection with the provided memory limit in
-    // MB.
-    // #[clap(long)]
-    // pub memory_limit: Option<usize>,
-    /// Whether to build for the `browser` or `node``
+    /// Whether to build for the `browser` or `node`
     #[clap(long)]
     pub target: Option<Target>,
 
+    /// Number of worker threads to use for parallel processing
+    #[clap(long)]
+    pub worker_threads: Option<usize>,
     // Enable experimental garbage collection with the provided memory limit in
     // MB.
     // #[clap(long)]
     // pub memory_limit: Option<usize>,
-    /// Whether to build for the `browser` or `node``
-    #[clap(long)]
-    pub worker_threads: Option<usize>,
 }
 
 #[derive(Debug, Args)]
