@@ -16,6 +16,7 @@ import {
   type TransformIpc,
 } from './transforms'
 import fs from 'fs'
+import path from 'path'
 
 export type IpcInfoMessage =
   | {
@@ -301,6 +302,16 @@ const transform = (
               request: string,
               callback?: (err?: Error, result?: string) => void
             ) => {
+              if (path.isAbsolute(request)) {
+                // Relativize absolute requests. Turbopack disallow them in JS code, but here it's
+                // generated programatically and there is a smaller problem of
+                // non-cacheable/non-portable builds.
+                request = path.relative(lookupPath, request)
+                if (!request.startsWith('.')) {
+                  request = './' + request
+                }
+              }
+
               const promise = ipc
                 .sendRequest({
                   type: 'resolve',
