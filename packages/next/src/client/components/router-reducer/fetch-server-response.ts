@@ -70,6 +70,7 @@ export type FetchServerResponseResult = {
   prerendered: boolean
   postponed: boolean
   staleTime: number
+  debugInfo: Array<any> | null
 }
 
 export type RequestHeaders = {
@@ -96,6 +97,7 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
     prerendered: false,
     postponed: false,
     staleTime: -1,
+    debugInfo: null,
   }
 }
 
@@ -268,6 +270,7 @@ export async function fetchServerResponse(
       prerendered: flightResponse.S,
       postponed,
       staleTime,
+      debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {
     if (!abortController.signal.aborted) {
@@ -287,6 +290,7 @@ export async function fetchServerResponse(
       prerendered: false,
       postponed: false,
       staleTime: -1,
+      debugInfo: null,
     }
   }
 }
