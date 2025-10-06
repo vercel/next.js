@@ -450,5 +450,4 @@ webbrowser = "0.8.7"
 inventory = "0.3.21"
 
 [patch.crates-io]
-hyper = { git = "https://github.com/bgw/hyper-rs.git", branch = "v1.6.0-with-macos-intel-miscompilation-workaround" }
 mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }
