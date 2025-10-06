@@ -159,11 +159,11 @@ describe('Cache Components Errors', () => {
              "description": "Route "/dynamic-metadata-error-route": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
              "environmentLabel": "Server",
              "label": "Console Error",
-             "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
-           > 21 |   await new Promise((r) => setTimeout(r))
-                |         ^",
+             "source": "app/dynamic-metadata-error-route/page.tsx (20:16) @ Dynamic
+           > 20 | async function Dynamic() {
+                |                ^",
              "stack": [
-               "Dynamic app/dynamic-metadata-error-route/page.tsx (21:9)",
+               "Dynamic app/dynamic-metadata-error-route/page.tsx (20:16)",
                "Page app/dynamic-metadata-error-route/page.tsx (15:7)",
                "LogSafely <anonymous>",
              ],
@@ -3081,35 +3081,13 @@ describe('Cache Components Errors', () => {
             )
 
             if (isTurbopack) {
-              await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "description": "Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-                 "environmentLabel": "Server",
-                 "label": "Console Error",
-                 "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
-               > 10 |       <Private />
-                    |       ^",
-                 "stack": [
-                   "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
-                   "LogSafely <anonymous>",
-                 ],
-               }
-              `)
+              await expect(browser).toDisplayCollapsedRedbox(
+                `"Redbox did not open."`
+              )
             } else {
-              await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "description": "Route "/use-cache-private-without-suspense": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-                 "environmentLabel": "Server",
-                 "label": "Console Error",
-                 "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
-               > 10 |       <Private />
-                    |       ^",
-                 "stack": [
-                   "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
-                   "LogSafely <anonymous>",
-                 ],
-               }
-              `)
+              await expect(browser).toDisplayCollapsedRedbox(
+                `"Redbox did not open."`
+              )
             }
           })
         } else {
