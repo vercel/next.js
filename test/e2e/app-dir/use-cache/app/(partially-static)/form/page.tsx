@@ -1,8 +1,8 @@
-import { unstable_expireTag, unstable_cacheTag as cacheTag } from 'next/cache'
+import { revalidateTag, unstable_cacheTag as cacheTag } from 'next/cache'
 
 async function refresh() {
   'use server'
-  unstable_expireTag('home')
+  revalidateTag('home')
 }
 
 export default async function Page() {

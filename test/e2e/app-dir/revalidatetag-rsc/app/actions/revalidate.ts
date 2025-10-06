@@ -1,11 +1,11 @@
 'use server'
 
-import { unstable_expireTag } from 'next/cache'
+import { revalidateTag } from 'next/cache'
 
 export const revalidate = async (
   tag: string
 ): Promise<{ revalidated: boolean }> => {
-  unstable_expireTag(tag)
+  revalidateTag(tag)
 
   return { revalidated: true }
 }

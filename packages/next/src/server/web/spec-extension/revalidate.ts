@@ -52,47 +52,6 @@ export function updateTag(tag: string) {
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific path.
  *
- * Read more: [Next.js Docs: `unstable_expirePath`](https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath)
- */
-export function unstable_expirePath(
-  originalPath: string,
-  type?: 'layout' | 'page'
-) {
-  if (originalPath.length > NEXT_CACHE_SOFT_TAG_MAX_LENGTH) {
-    console.warn(
-      `Warning: expirePath received "${originalPath}" which exceeded max length of ${NEXT_CACHE_SOFT_TAG_MAX_LENGTH}. See more info here https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath`
-    )
-    return
-  }
-
-  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath}`
-
-  if (type) {
-    normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
-  } else if (isDynamicRoute(originalPath)) {
-    console.warn(
-      `Warning: a dynamic page path "${originalPath}" was passed to "expirePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath`
-    )
-  }
-  return revalidate(
-    [normalizedPath],
-    `unstable_expirePath ${originalPath}`,
-    undefined
-  )
-}
-
-/**
- * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
- *
- * Read more: [Next.js Docs: `unstable_expireTag`](https://nextjs.org/docs/app/api-reference/functions/unstable_expireTag)
- */
-export function unstable_expireTag(...tags: string[]) {
-  return revalidate(tags, `unstable_expireTag ${tags.join(', ')}`, undefined)
-}
-
-/**
- * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific path.
- *
  * Read more: [Next.js Docs: `revalidatePath`](https://nextjs.org/docs/app/api-reference/functions/revalidatePath)
  */
 export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {

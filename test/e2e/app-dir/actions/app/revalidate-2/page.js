@@ -1,4 +1,4 @@
-import { unstable_expireTag } from 'next/cache'
+import { revalidateTag } from 'next/cache'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 
@@ -26,7 +26,7 @@ export default async function Page() {
           id="revalidate-tag"
           formAction={async () => {
             'use server'
-            unstable_expireTag('thankyounext')
+            revalidateTag('thankyounext')
           }}
         >
           revalidate thankyounext

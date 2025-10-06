@@ -169,7 +169,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(data1).not.toBe(data2)
       })
 
-      it('should not fetch from memory cache after unstable_expireTag is used', async () => {
+      it('should not fetch from memory cache after revalidateTag is used', async () => {
         const res1 = await next.fetch('/specify-new-tags/one-tag')
         expect(res1.status).toBe(200)
 
