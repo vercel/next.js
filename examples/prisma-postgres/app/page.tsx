@@ -24,7 +24,7 @@ export default async function Home() {
         Recent Posts
       </h1>
       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 w-full max-w-6xl">
-        {posts.map((post) => (
+        {posts && posts.map((post) => (
           <Link key={post.id} href={`/posts/${post.id}`} className="group">
             <div className="border rounded-lg shadow-md bg-white p-6 hover:shadow-lg transition-shadow duration-300">
               <h2 className="text-2xl font-semibold text-blue-600 group-hover:underline mb-2">

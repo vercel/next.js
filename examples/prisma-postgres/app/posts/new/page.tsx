@@ -13,23 +13,18 @@ export default function NewPost() {
     const title = formData.get("title") as string;
     const content = formData.get("content") as string;
 
-    const postData = authorEmail
-      ? {
-          title,
-          content,
-          author: {
-            connect: {
-              email: authorEmail,
-            },
-          },
-        }
-      : {
-          title,
-          content,
-        };
+    if (!authorEmail) {
+      throw new Error("Author email is required");
+    }
 
     await prisma.post.create({
-      data: postData,
+      data: {
+        title,
+        content,
+        author: {
+          connect: { email: authorEmail },
+        },
+      },
     });
 
     revalidatePath("/posts");
@@ -83,6 +78,7 @@ export default function NewPost() {
             id="authorEmail"
             name="authorEmail"
             placeholder="Enter the email of the author here ..."
+            required
             className="w-full px-4 py-2 border rounded-lg"
           />
         </div>
