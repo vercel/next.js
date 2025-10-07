@@ -65,7 +65,10 @@ let createDebugChannel:
   | typeof import('../../../dev/debug-channel').createDebugChannel
   | undefined
 
-if (process.env.NODE_ENV !== 'production') {
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEBUG_CHANNEL
+) {
   createDebugChannel = (
     require('../../../dev/debug-channel') as typeof import('../../../dev/debug-channel')
   ).createDebugChannel
