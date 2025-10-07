@@ -52,60 +52,63 @@ impl UpdateCellOperation {
             task.has_key(&CachedDataItemKey::Stateful {}));
 
         if should_invalidate {
-            // Slow path: We need to invalidate tasks depending on this cell.
-            // To avoid a race condition, we need to remove the old content first,
-            // then invalidate dependent tasks and only then update the cell content.
-
-            let old_content = task.remove(&CachedDataItemKey::CellData { cell });
-
-            let dependent_tasks = get_many!(
+            let dependent_tasks: SmallVec<[TaskId; 4]> = get_many!(
                 task,
                 CellDependent { cell: dependent_cell, task }
                 if dependent_cell == cell
                 => task
             );
 
-            drop(task);
-            drop(old_content);
+            if !dependent_tasks.is_empty() {
+                // Slow path: We need to invalidate tasks depending on this cell.
+                // To avoid a race condition, we need to remove the old content first,
+                // then invalidate dependent tasks and only then update the cell content.
 
-            let content = if let CellContent(Some(new_content)) = content {
-                Some(new_content.into_typed(cell.type_id))
-            } else {
-                None
-            };
+                let old_content = task.remove(&CachedDataItemKey::CellData { cell });
 
-            UpdateCellOperation::InvalidateWhenCellDependency {
-                cell_ref: CellRef {
-                    task: task_id,
-                    cell,
-                },
-                dependent_tasks,
-                content,
-                queue: AggregationUpdateQueue::new(),
+                drop(task);
+                drop(old_content);
+
+                let content = if let CellContent(Some(new_content)) = content {
+                    Some(new_content.into_typed(cell.type_id))
+                } else {
+                    None
+                };
+
+                UpdateCellOperation::InvalidateWhenCellDependency {
+                    cell_ref: CellRef {
+                        task: task_id,
+                        cell,
+                    },
+                    dependent_tasks,
+                    content,
+                    queue: AggregationUpdateQueue::new(),
+                }
+                .execute(&mut ctx);
+                return;
             }
-            .execute(&mut ctx);
+        }
+
+        // Fast path: We don't need to invalidate anything.
+        // So we can just update the cell content.
+
+        let old_content = if let CellContent(Some(new_content)) = content {
+            let new_content = new_content.into_typed(cell.type_id);
+            task.insert(CachedDataItem::CellData {
+                cell,
+                value: new_content,
+            })
         } else {
-            // Fast path: We don't need to invalidate anything.
-            // So we can just update the cell content.
+            task.remove(&CachedDataItemKey::CellData { cell })
+        };
 
-            let old_content = if let CellContent(Some(new_content)) = content {
-                let new_content = new_content.into_typed(cell.type_id);
-                task.insert(CachedDataItem::CellData {
-                    cell,
-                    value: new_content,
-                })
-            } else {
-                task.remove(&CachedDataItemKey::CellData { cell })
-            };
+        let in_progress_cell = remove!(task, InProgressCell { cell });
 
-            let in_progress_cell = remove!(task, InProgressCell { cell });
+        drop(task);
+        drop(old_content);
 
-            drop(task);
-            drop(old_content);
-
-            if let Some(in_progress) = in_progress_cell {
-                in_progress.event.notify(usize::MAX);
-            }
+        if let Some(in_progress) = in_progress_cell {
+            in_progress.event.notify(usize::MAX);
         }
     }
 }
