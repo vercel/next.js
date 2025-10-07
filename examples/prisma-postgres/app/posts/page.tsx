@@ -89,14 +89,14 @@ function PostsList() {
           <div className="flex justify-center space-x-4 mt-8">
             {page > 1 && (
               <Link href={`/posts?page=${page - 1}`}>
-                <button className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+                <button className="px-4 py-2 bg-gray-200 rounded-sm hover:bg-gray-300">
                   Previous
                 </button>
               </Link>
             )}
             {page < totalPages && (
               <Link href={`/posts?page=${page + 1}`}>
-                <button className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+                <button className="px-4 py-2 bg-gray-200 rounded-sm hover:bg-gray-300">
                   Next
                 </button>
               </Link>

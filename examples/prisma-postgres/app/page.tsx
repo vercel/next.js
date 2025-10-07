@@ -44,7 +44,7 @@ export default async function Home() {
                 <p className="text-gray-700 leading-relaxed line-clamp-2">
                   {post.content || "No content available."}
                 </p>
-                <div className="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-gray-50 to-transparent" />
+                <div className="absolute bottom-0 left-0 w-full h-12 bg-linear-to-t from-gray-50 to-transparent" />
               </div>
             </div>
           </Link>
