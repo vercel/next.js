@@ -145,7 +145,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
 
                 let source_map = serde_json::json!({
                     "version": 3,
-                    "sources": [format!("turbopack://{}", self.module.ident().path().await?.path)],
+                    "sources": [format!("turbopack:///{}", self.module.ident().path().to_string().await?)],
                     "sourcesContent": [&data_str],
                     "names": [],
                     "mappings": "AAAA",
