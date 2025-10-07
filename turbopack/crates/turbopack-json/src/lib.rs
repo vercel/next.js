@@ -14,7 +14,7 @@ use std::fmt::Write;
 use anyhow::{Error, Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileJsonContent, glob::Glob};
+use turbo_tasks_fs::{FileContent, FileJsonContent, glob::Glob, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -130,45 +130,31 @@ impl EcmascriptChunkItem for JsonChunkItem {
         let data = content.parse_json().await?;
         match &*data {
             FileJsonContent::Content(data) => {
-                let mut code = CodeBuilder::default();
-
-                code += TURBOPACK_EXPORT_VALUE.full;
-                code += "(";
-
                 let data_str = data.to_string();
 
-                // Only use JSON.parse if the content is larger than 10kb
-                // https://v8.dev/blog/cost-of-javascript-2019#json
-                let use_json_parse = data_str.len() > 10_000;
-                if use_json_parse {
-                    code += "JSON.parse(";
-                }
+                let mut code = CodeBuilder::default();
 
-                {
-                    let source_map = serde_json::json!({
-                        "version": 3,
-                        "sources": [format!("turbopack://{}", self.module.ident().path().await?.path)],
-                        "sourcesContent": [&data_str],
-                        "names": [],
-                        "mappings": "AAAA",
-                    })
-                    .to_string()
-                    .into();
+                let source_code = if data_str.len() > 10_000 {
+                    // Only use JSON.parse if the content is larger than 10kb
+                    // https://v8.dev/blog/cost-of-javascript-2019#json
+                    let js_str_content = serde_json::to_string(&data_str)?;
+                    format!("{TURBOPACK_EXPORT_VALUE}(JSON.parse({js_str_content}));")
+                } else {
+                    format!("{TURBOPACK_EXPORT_VALUE}({data_str});")
+                };
 
-                    let source_code = if use_json_parse {
-                        serde_json::to_string(&data_str)?.into()
-                    } else {
-                        data_str.into()
-                    };
+                let source_map = serde_json::json!({
+                    "version": 3,
+                    "sources": [format!("turbopack://{}", self.module.ident().path().await?.path)],
+                    "sourcesContent": [&data_str],
+                    "names": [],
+                    "mappings": "AAAA",
+                })
+                .to_string()
+                .into();
 
-                    code.push_source(&source_code, Some(source_map));
-                }
-
-                if use_json_parse {
-                    code += ")";
-                }
-
-                code += ");";
+                let source_code: Rope = source_code.into();
+                code.push_source(&source_code, Some(source_map));
 
                 let code = code.build();
                 Ok(EcmascriptChunkItemContent {
