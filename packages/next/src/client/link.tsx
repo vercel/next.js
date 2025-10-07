@@ -681,7 +681,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     if (legacyBehavior) {
       if (process.env.NODE_ENV === 'development') {
-        // TODO
         errorOnce(
           '`legacyBehavior` is deprecated and will be removed in a future ' +
             'release. A codemod is available to upgrade your components:\n\n' +
