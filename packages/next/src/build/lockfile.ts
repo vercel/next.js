@@ -7,20 +7,29 @@ const RETRY_DELAY_MS = 10
 const MAX_RETRY_MS = 1000
 
 /**
- * A cross-platform on-disk best-effort exclusive lockfile implementation.
+ * A cross-platform on-disk best-effort advisory exclusive lockfile
+ * implementation.
  *
- * This uses https://doc.rust-lang.org/std/fs/struct.File.html#method.try_lock,
- * which uses `flock()` on Unix platforms and `LockFileEx` on Windows.
+ * On Windows, this opens a file in write mode with the `FILE_SHARE_WRITE` flag
+ * unset, so it still allows reading the lockfile. This avoids breaking tools
+ * that read the contents of `.next`.
  *
- * A dummy implementation is used on WASM, which always succeeds in acquiring
+ * On POSIX platforms, this uses `flock()` via `std::fs::File::try_lock`:
+ * https://doc.rust-lang.org/std/fs/struct.File.html#method.try_lock
+ *
+ * On WASM, a dummy implementation is used which always "succeeds" in acquiring
  * the lock.
  *
  * This provides a more idiomatic wrapper around the lockfile APIs exposed on
  * the native bindings object.
  *
- * If this lock is not explicitly closed with `unlock`, it will leak the lock
- * and file descriptor. The operating system will clean up the lock and file
- * descriptor upon process exit.
+ * If this lock is not explicitly closed with `unlock`, we will:
+ * - If `unlockOnExit` is set (the default), it will make a best-effort attempt
+ *   to unlock the lockfile using `process.on('exit', ...)`. This is preferrable
+ *   on Windows where it may take some time after process exit for the operating
+ *   system to clean up locks that are not explicitly released by the process.
+ * - If we fail to ever release the lockfile, the operating system will clean up
+ *   the lock and file descriptor upon process exit.
  */
 export class Lockfile {
   /**
@@ -30,6 +39,7 @@ export class Lockfile {
    */
   private bindings: Binding
   private nativeLockfile: NativeLockfile | undefined
+  private listener: NodeJS.ExitListener | undefined
 
   private constructor(
     bindings: Binding,
@@ -46,7 +56,10 @@ export class Lockfile {
    * - If we fail to acquire the lock, we return `undefined`.
    * - If we're on wasm, this always returns a dummy `Lockfile` object.
    */
-  static async tryAcquire(path: string): Promise<Lockfile | undefined> {
+  static async tryAcquire(
+    path: string,
+    unlockOnExit: boolean = true
+  ): Promise<Lockfile | undefined> {
     const { loadBindings } = require('./swc') as typeof import('./swc')
     // Ideally we could provide a sync version of `tryAcquire`, but
     // `loadBindings` is async. We're okay with skipping async-loaded wasm
@@ -70,9 +83,25 @@ export class Lockfile {
           { cause: e }
         )
       }
-      return nativeLockfile != null
-        ? new Lockfile(bindings, nativeLockfile)
-        : undefined
+      if (nativeLockfile != null) {
+        const jsLockfile = new Lockfile(bindings, nativeLockfile)
+        if (unlockOnExit) {
+          function exitListener() {
+            // Best-Effort: If we don't do this, the operating system will
+            // release the lock for us. This gives an opportunity to delete the
+            // unlocked lockfile (which is not otherwise deleted on POSIX).
+            //
+            // This must be synchronous because `process.on('exit', ...)` is
+            // synchronous.
+            jsLockfile.unlockSync()
+          }
+          process.on('exit', exitListener)
+          jsLockfile.listener = exitListener
+        }
+        return jsLockfile
+      } else {
+        return undefined
+      }
     }
   }
 
@@ -88,12 +117,13 @@ export class Lockfile {
    */
   static async acquireWithRetriesOrExit(
     path: string,
-    processName: string
+    processName: string,
+    unlockOnExit: boolean = true
   ): Promise<Lockfile> {
     const startMs = Date.now()
     let lockfile
     while (Date.now() - startMs < MAX_RETRY_MS) {
-      lockfile = await Lockfile.tryAcquire(path)
+      lockfile = await Lockfile.tryAcquire(path, unlockOnExit)
       if (lockfile !== undefined) break
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
     }
@@ -116,9 +146,12 @@ export class Lockfile {
    * when the file handle is closed during process exit.
    */
   async unlock(): Promise<void> {
-    const { nativeLockfile } = this
+    const { nativeLockfile, listener } = this
     if (nativeLockfile !== undefined) {
       await this.bindings.lockfileUnlock(nativeLockfile)
+    }
+    if (listener !== undefined) {
+      process.off('exit', listener)
     }
   }
 
@@ -126,9 +159,12 @@ export class Lockfile {
    * A blocking version of `unlock`.
    */
   unlockSync(): void {
-    const { nativeLockfile } = this
+    const { nativeLockfile, listener } = this
     if (nativeLockfile !== undefined) {
       this.bindings.lockfileUnlockSync(nativeLockfile)
+    }
+    if (listener !== undefined) {
+      process.off('exit', listener)
     }
   }
 }
