@@ -50,30 +50,30 @@ function PostsList() {
     <>
       {isLoading ? (
         <div className="flex items-center justify-center space-x-2 min-h-[200px]">
-          <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="">Loading...</p>
         </div>
       ) : (
         <>
           {posts.length === 0 ? (
-            <p className="text-gray-600">No posts available.</p>
+            <p className="text-foreground/70">No posts available.</p>
           ) : (
             <ul className="space-y-6 w-full max-w-4xl mx-auto">
               {posts.map((post) => (
                 <li
                   key={post.id}
-                  className="border p-6 rounded-lg shadow-md bg-white"
+                  className="border p-6 rounded-lg shadow-md bg-card border-border"
                 >
                   <Link
                     href={`/posts/${post.id}`}
-                    className="text-2xl font-semibold text-blue-600 hover:underline"
+                    className="text-2xl font-semibold text-primary hover:underline"
                   >
                     {post.title}
                   </Link>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm ">
                     by {post.author?.name || "Anonymous"}
                   </p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-foreground/70">
                     {new Date(post.createdAt).toLocaleDateString("en-US", {
                       year: "numeric",
                       month: "long",
@@ -89,14 +89,14 @@ function PostsList() {
           <div className="flex justify-center space-x-4 mt-8">
             {page > 1 && (
               <Link href={`/posts?page=${page - 1}`}>
-                <button className="px-4 py-2 bg-gray-200 rounded-sm hover:bg-gray-300">
+                <button className="px-4 py-2 bg-card border border-border text-foreground rounded-sm hover:brightness-110">
                   Previous
                 </button>
               </Link>
             )}
             {page < totalPages && (
               <Link href={`/posts?page=${page + 1}`}>
-                <button className="px-4 py-2 bg-gray-200 rounded-sm hover:bg-gray-300">
+                <button className="px-4 py-2 bg-card border border-border text-foreground rounded-sm hover:brightness-110">
                   Next
                 </button>
               </Link>
@@ -110,12 +110,12 @@ function PostsList() {
 
 export default function PostsPage() {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-start p-8">
+    <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-start p-8">
       <Suspense
         fallback={
           <div className="flex items-center justify-center min-h-screen">
-            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="ml-3 text-gray-600">Loading page...</p>
+            <div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div>
+            <p className="ml-3 text-[color:rgba(107,114,128,1)] dark:text-[color:rgba(156,163,175,1)]">Loading page...</p>
           </div>
         }
       >

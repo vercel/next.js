@@ -33,7 +33,7 @@ export default function NewPost() {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Create New Post</h1>
+      <h1 className="text-2xl font-bold mb-6 text-foreground">Create New Post</h1>
       <Form action={createPost} className="space-y-6">
         <div>
           <label
@@ -41,7 +41,7 @@ export default function NewPost() {
             className="flex text-lg font-medium mb-2 items-center"
           >
             Title
-            <span className="ml-2 px-2 py-1 text-xs font-semibold text-white bg-gray-500 rounded-lg">
+            <span className="ml-2 px-2 py-1 text-xs font-semibold text-white bg-foreground/70 rounded-lg">
               Required
             </span>
           </label>
@@ -51,7 +51,7 @@ export default function NewPost() {
             name="title"
             required
             placeholder="Enter your post title ..."
-            className="w-full px-4 py-2 border rounded-lg"
+            className="w-full px-4 py-2 border border-border bg-card text-foreground rounded-lg"
           />
         </div>
         <div>
@@ -63,7 +63,7 @@ export default function NewPost() {
             name="content"
             placeholder="Write your post content here ..."
             rows={6}
-            className="w-full px-4 py-2 border rounded-lg"
+            className="w-full px-4 py-2 border border-border bg-card text-foreground rounded-lg"
           />
         </div>
         <div>
@@ -79,12 +79,12 @@ export default function NewPost() {
             name="authorEmail"
             placeholder="Enter the email of the author here ..."
             required
-            className="w-full px-4 py-2 border rounded-lg"
+            className="w-full px-4 py-2 border border-border bg-card text-foreground rounded-lg"
           />
         </div>
         <button
           type="submit"
-          className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600"
+          className="w-full bg-primary text-white py-3 rounded-lg hover:brightness-110"
         >
           Create Post
         </button>
