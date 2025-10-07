@@ -94,7 +94,8 @@ export async function recursiveDeleteSyncWithAsyncRetries(
       const isNotExcluded = !exclude || !exclude.test(pp)
 
       if (isNotExcluded) {
-        // Note: readdir does not follow symbolic links, that's what we want
+        // Note: readdir does not follow symbolic links, that's good: we want to
+        // delete the links and not the destination.
         let isDirectory = part.isDirectory()
         if (isDirectory) {
           await recursiveDeleteSyncWithAsyncRetries(absolutePath, exclude, pp)
