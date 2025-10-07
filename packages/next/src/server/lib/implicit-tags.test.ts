@@ -12,7 +12,7 @@ describe('getImplicitTags()', () => {
       page: '/',
       url: { pathname: '/', search: '' },
       fallbackRouteParams: null,
-      expectedTags: ['_N_T_/layout', '_N_T_/', '_N_T_/index'],
+      expectedTags: ['_N_T_/layout', '_N_T_/layout', '_N_T_/', '_N_T_/index'],
     },
     {
       page: '/hello',

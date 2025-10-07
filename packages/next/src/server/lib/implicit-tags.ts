@@ -96,6 +96,10 @@ export async function getImplicitTags(
   ) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${url.pathname}`
     tags.push(tag)
+    if (url.pathname === '/') {
+      // Since build outputs can be `/index`, we include this additional tag
+      tags.push(`${NEXT_CACHE_IMPLICIT_TAG_ID}/index`)
+    }
   }
 
   return {
