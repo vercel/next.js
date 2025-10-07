@@ -4,6 +4,13 @@ module.exports =
     if (!enabled) {
       return nextConfig
     }
+    if (process.env.TURBOPACK) {
+      console.warn(
+        'The Next Bundle Analyzer is not compatible with turbopack builds, disabling analysis.\n\n' +
+          'To run this analysis pass the `--webpack` flag to `next build`'
+      )
+      return nextConfig
+    }
 
     const extension = analyzerMode === 'json' ? '.json' : '.html'
 
