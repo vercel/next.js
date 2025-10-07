@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'e2e-utils/router-act'
 import { Page } from 'playwright'
 
 describe('segment cache (incremental opt in)', () => {

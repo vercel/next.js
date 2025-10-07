@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'e2e-utils/router-act'
 
 describe('navigating without a prefetch', () => {
   const { next } = nextTestSetup({

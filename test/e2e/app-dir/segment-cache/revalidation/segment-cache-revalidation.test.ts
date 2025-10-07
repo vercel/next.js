@@ -1,5 +1,5 @@
 import { isNextDev, isNextDeploy, createNext } from 'e2e-utils'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'e2e-utils/router-act'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
 import { findPort } from 'next-test-utils'

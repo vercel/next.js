@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
+import { createRouterAct } from 'e2e-utils/router-act'
 import type * as Playwright from 'playwright'
-import { createRouterAct } from '../router-act'
 
 describe('runtime prefetching', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({

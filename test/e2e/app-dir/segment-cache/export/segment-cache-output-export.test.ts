@@ -1,8 +1,8 @@
 import type * as Playwright from 'playwright'
 import webdriver from 'next-webdriver'
-import { createRouterAct } from '../router-act'
 import { findPort, nextBuild } from 'next-test-utils'
 import { isNextStart } from 'e2e-utils'
+import { createRouterAct } from 'e2e-utils/router-act'
 import { server } from './server.mjs'
 
 describe('segment cache (output: "export")', () => {

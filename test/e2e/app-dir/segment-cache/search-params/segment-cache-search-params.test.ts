@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from '../router-act'
-import { retry } from '../../../../lib/next-test-utils'
+import { createRouterAct } from 'e2e-utils/router-act'
+import { retry } from 'next-test-utils'
 
 describe('segment cache (search params)', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
