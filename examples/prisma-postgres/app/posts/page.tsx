@@ -51,7 +51,7 @@ function PostsList() {
       {isLoading ? (
         <div className="flex items-center justify-center space-x-2 min-h-[200px]">
           <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="">Loading...</p>
+          <p className="text-foreground/70">Loading...</p>
         </div>
       ) : (
         <>
@@ -70,7 +70,7 @@ function PostsList() {
                   >
                     {post.title}
                   </Link>
-                  <p className="text-sm ">
+                  <p className="text-sm text-foreground/70">
                     by {post.author?.name || "Anonymous"}
                   </p>
                   <p className="text-xs text-foreground/70">
