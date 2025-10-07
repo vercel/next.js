@@ -241,7 +241,7 @@ export function createRouterAct(
           const timerId = setTimeout(() => {
             error.message = 'Timed out waiting for a request to be initiated.'
             reject(error)
-          }, 500)
+          }, 1000)
           onDidIssueFirstRequest = () => {
             clearTimeout(timerId)
             resolve()
