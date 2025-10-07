@@ -6,7 +6,7 @@ import type {
 import type { UrlWithParsedQuery } from 'url'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
-import type { NextUrlWithParsedQuery } from './request-meta'
+import type { NextUrlWithParsedQuery, RequestMeta } from './request-meta'
 
 import './require-hook'
 import './node-polyfill-crypto'
@@ -14,7 +14,7 @@ import './node-polyfill-crypto'
 import type { default as NextNodeServer } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import path, { resolve } from 'path'
+import path from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import {
   PHASE_DEVELOPMENT_SERVER,
@@ -51,6 +51,15 @@ export type NextServerOptions = Omit<
   'conf'
 > &
   Partial<Pick<ServerOptions | DevServerOptions, 'conf'>>
+
+export type NextBundlerOptions = {
+  /** @deprecated Use `turbopack` instead */
+  turbo?: boolean
+  /** Selects Turbopack as the bundler */
+  turbopack?: boolean
+  /** Selects Webpack as the bundler */
+  webpack?: boolean
+}
 
 export type RequestHandler = (
   req: IncomingMessage,
@@ -145,6 +154,27 @@ export class NextServer implements NextWrapperServer {
         const requestHandler = await this.getServerRequestHandler()
         return requestHandler(req, res, parsedUrl)
       })
+    }
+  }
+
+  /**
+   * @internal - this method is internal to Next.js and should not be used
+   * directly by end-users, only used in testing
+   */
+  getRequestHandlerWithMetadata(meta: RequestMeta): RequestHandler {
+    return async (
+      req: IncomingMessage,
+      res: ServerResponse,
+      parsedUrl?: UrlWithParsedQuery
+    ) => {
+      return getTracer().trace(
+        NextServerSpan.getRequestHandlerWithMetadata,
+        async () => {
+          const server = await this.getServer()
+          const handler = server.getRequestHandlerWithMetadata(meta)
+          return handler(req, res, parsedUrl)
+        }
+      )
     }
   }
 
@@ -247,7 +277,9 @@ export class NextServer implements NextWrapperServer {
   }
 
   private async [SYMBOL_LOAD_CONFIG]() {
-    const dir = resolve(this.options.dir || '.')
+    const dir = path.resolve(
+      /* turbopackIgnore: true */ this.options.dir || '.'
+    )
 
     const config = await loadConfig(
       this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
@@ -262,7 +294,12 @@ export class NextServer implements NextWrapperServer {
     if (!this.options.dev) {
       try {
         const serializedConfig = require(
-          path.join(dir, config.distDir, SERVER_FILES_MANIFEST)
+          /* turbopackIgnore: true */
+          path.join(
+            /* turbopackIgnore: true */ dir,
+            config.distDir,
+            SERVER_FILES_MANIFEST
+          )
         ).config
 
         config.experimental.isExperimentalCompile =
@@ -503,17 +540,30 @@ class NextCustomServer implements NextWrapperServer {
 
 // This file is used for when users run `require('next')`
 function createServer(
-  options: NextServerOptions & {
-    turbo?: boolean
-    turbopack?: boolean
-  }
+  options: NextServerOptions & NextBundlerOptions
 ): NextWrapperServer {
-  if (
-    options &&
-    (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
-  ) {
-    process.env.TURBOPACK = '1'
+  // next sets customServer to false when calling this function, in that case we don't want to modify the environment variables
+  const isCustomServer = options?.customServer ?? true
+  if (isCustomServer) {
+    const selectTurbopack =
+      options &&
+      (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
+    const selectWebpack =
+      options && (options.webpack || process.env.IS_WEBPACK_TEST)
+    if (selectTurbopack && selectWebpack) {
+      throw new Error('Pass either `webpack` or `turbopack`, not both.')
+    }
+    if (selectTurbopack || !selectWebpack) {
+      process.env.TURBOPACK ??= selectTurbopack ? '1' : 'auto'
+    }
+  } else {
+    if (options && (options.webpack || options.turbo || options.turbopack)) {
+      throw new Error(
+        'Only custom servers can pass `webpack`, `turbo`, or `turbopack`.'
+      )
+    }
   }
+
   // The package is used as a TypeScript plugin.
   if (
     options &&
@@ -549,7 +599,7 @@ function createServer(
 
   // When the caller is a custom server (using next()).
   if (options.customServer !== false) {
-    const dir = resolve(options.dir || '.')
+    const dir = path.resolve(/* turbopackIgnore: true */ options.dir || '.')
 
     return new NextCustomServer({
       ...options,

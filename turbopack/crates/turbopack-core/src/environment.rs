@@ -9,6 +9,7 @@ use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::ProcessEnv;
+use turbo_tasks_fs::FileSystemPathOption;
 
 use crate::target::CompileTarget;
 
@@ -112,7 +113,7 @@ impl Environment {
             // browserslist correctly because CSS Modules in client components is double-processed,
             // once for server once for browser.
             {
-                Vc::cell("".into())
+                Vc::cell(rcstr!(""))
             }
             ExecutionEnvironment::Browser(browser_env) => {
                 Vc::cell(browser_env.await?.browserslist_query.clone())
@@ -213,7 +214,7 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn cwd(&self) -> Result<Vc<Option<RcStr>>> {
+    pub async fn cwd(&self) -> Result<Vc<FileSystemPathOption>> {
         let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
@@ -258,7 +259,7 @@ pub struct NodeJsEnvironment {
     pub compile_target: ResolvedVc<CompileTarget>,
     pub node_version: ResolvedVc<NodeJsVersion>,
     // user specified process.cwd
-    pub cwd: ResolvedVc<Option<RcStr>>,
+    pub cwd: ResolvedVc<FileSystemPathOption>,
 }
 
 impl Default for NodeJsEnvironment {

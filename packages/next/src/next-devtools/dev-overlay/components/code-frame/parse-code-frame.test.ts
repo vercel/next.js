@@ -9,8 +9,8 @@ describe('parse line numbers', () => {
     const input = {
       stackFrame: {
         file: 'app/page.tsx',
-        lineNumber: 2,
-        column: 9,
+        line1: 2,
+        column1: 9,
         methodName: 'Page',
         arguments: [],
         ignored: false,
@@ -61,8 +61,8 @@ describe('parse line numbers', () => {
     const input = {
       stackFrame: {
         file: 'app/page.tsx',
-        lineNumber: 6,
-        column: 7,
+        line1: 6,
+        column1: 7,
         methodName: 'Page',
         arguments: [],
       },

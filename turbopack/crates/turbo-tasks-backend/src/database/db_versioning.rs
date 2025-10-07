@@ -143,8 +143,11 @@ pub fn handle_db_versioning(
         }
     } else {
         path = base_path.join("temp");
-        // propagate errors: if this fails we may have stale files left over in the temp directory
-        remove_dir_all(&path)?;
+        if path.exists() {
+            // propagate errors: if this fails we may have stale files left over in the temp
+            // directory
+            remove_dir_all(&path)?;
+        }
     }
 
     Ok(path)

@@ -9,6 +9,8 @@ import { fileURLToPath } from 'url'
 function getAbsolutePath(value: string): any {
   return dirname(require.resolve(join(value, 'package.json')))
 }
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
 
 const config: StorybookConfig = {
   stories: ['../src/next-devtools/**/*.stories.tsx'],

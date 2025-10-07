@@ -19,13 +19,15 @@ import { collectRootParamKeys } from '../../build/segment-config/app/collect-roo
 import { buildAppStaticPaths } from '../../build/static-paths/app'
 import { buildPagesStaticPaths } from '../../build/static-paths/pages'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
+import type { AppPageRouteModule } from '../route-modules/app-page/module'
+import type { AppRouteRouteModule } from '../route-modules/app-route/module'
 
 type RuntimeConfig = {
   pprConfig: ExperimentalPPRConfig | undefined
   configFileName: string
   publicRuntimeConfig: { [key: string]: any }
   serverRuntimeConfig: { [key: string]: any }
-  dynamicIO: boolean
+  cacheComponents: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -104,21 +106,27 @@ export async function loadStaticPaths({
     isAppPath,
     isDev: true,
     sriEnabled,
+    needsManifestsForLegacyReasons: true,
   })
 
   if (isAppPath) {
-    const segments = await collectSegments(components)
+    const routeModule = components.routeModule
+    const segments = await collectSegments(
+      // We know this is an app page or app route module because we checked
+      // above that the page type is 'app'.
+      routeModule as AppPageRouteModule | AppRouteRouteModule
+    )
 
     const isRoutePPREnabled =
-      isAppPageRouteModule(components.routeModule) &&
+      isAppPageRouteModule(routeModule) &&
       checkIsRoutePPREnabled(config.pprConfig, reduceAppConfig(segments))
 
-    const rootParamKeys = collectRootParamKeys(components)
+    const rootParamKeys = collectRootParamKeys(routeModule)
 
     return buildAppStaticPaths({
       dir,
       page: pathname,
-      dynamicIO: config.dynamicIO,
+      cacheComponents: config.cacheComponents,
       segments,
       distDir,
       requestHeaders,

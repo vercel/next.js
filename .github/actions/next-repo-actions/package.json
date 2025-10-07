@@ -15,7 +15,7 @@
     "@slack/web-api": "^7.6.0",
     "ai": "^3.4.14",
     "slack-block-builder": "^2.8.0",
-    "zod": "^3.23.8"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@vercel/ncc": "^0.38.3"

@@ -1,45 +1,68 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import { format, measure } from '../lib/measure'
 
-async function measureClientButton(element, name, fn) {
+function report(result, element, textarea) {
+  if (!globalThis.BENCHMARK_RESULTS) {
+    globalThis.BENCHMARK_RESULTS = []
+  }
+  globalThis.BENCHMARK_RESULTS.push(result)
+
+  const formattedResult = format(result)
+  element.textContent += `: ${formattedResult}`
+  textarea.current.value += `\n    ${formattedResult}`
+  console.log(formattedResult)
+  element.disabled = true
+}
+
+async function measureClientButton(element, textarea, name, fn) {
   if (element.textContent.includes('Loading time')) {
     return
   }
 
   const result = await measure(name, fn)
-
-  element.textContent += ` (${format(result)})`
+  report(result, element, textarea)
 }
 
-async function measureActionButton(element, action) {
+async function measureActionButton(element, textarea, action) {
   if (element.textContent.includes('Loading time')) {
     return
   }
 
   const result = await action()
 
-  element.textContent += ` (${format(result)})`
+  report(result, element, textarea)
 }
 
-async function measureApiButton(element, url) {
+async function measureApiButton(element, textarea, url) {
   if (element.textContent.includes('Loading time')) {
     return
   }
 
   const result = await fetch(url).then((res) => res.json())
 
-  element.textContent += ` (${format(result)})`
+  report(result, element, textarea)
 }
 
 export function Client({ prefix, commonjsAction, esmAction }) {
+  const [runtime, setRuntime] = useState('')
+  const textarea = useRef()
+  useEffect(() => {
+    setRuntime(
+      `${globalThis.TURBOPACK ? 'Turbopack' : 'Webpack'} (${process.env.NODE_ENV})`
+    )
+  }, [])
   return (
     <>
+      <h1>{runtime}</h1>
       <p>
         <button
+          type="button"
           onClick={(e) =>
             measureClientButton(
               e.target,
+              textarea,
               'client commonjs',
               () => import('../lib/commonjs.js')
             )
@@ -50,9 +73,11 @@ export function Client({ prefix, commonjsAction, esmAction }) {
       </p>
       <p>
         <button
+          type="button"
           onClick={(e) =>
             measureClientButton(
               e.target,
+              textarea,
               'client esm',
               () => import('../lib/esm.js')
             )
@@ -64,7 +89,10 @@ export function Client({ prefix, commonjsAction, esmAction }) {
       {commonjsAction && (
         <p>
           <button
-            onClick={(e) => measureActionButton(e.target, commonjsAction)}
+            type="button"
+            onClick={(e) =>
+              measureActionButton(e.target, textarea, commonjsAction)
+            }
           >
             CommonJs server action
           </button>
@@ -72,23 +100,41 @@ export function Client({ prefix, commonjsAction, esmAction }) {
       )}
       {esmAction && (
         <p>
-          <button onClick={(e) => measureActionButton(e.target, esmAction)}>
+          <button
+            type="button"
+            onClick={(e) => measureActionButton(e.target, textarea, esmAction)}
+          >
             ESM server action
           </button>
         </p>
       )}
       <p>
         <button
-          onClick={(e) => measureApiButton(e.target, `${prefix}/commonjs`)}
+          type="button"
+          onClick={(e) =>
+            measureApiButton(e.target, textarea, `${prefix}/commonjs`)
+          }
         >
           CommonJs API
         </button>
       </p>
       <p>
-        <button onClick={(e) => measureApiButton(e.target, `${prefix}/esm`)}>
+        <button
+          type="button"
+          onClick={(e) => measureApiButton(e.target, textarea, `${prefix}/esm`)}
+        >
           ESM API
         </button>
       </p>
+      {
+        // holds all the timing data for easier copy paste
+      }
+      <textarea
+        readOnly={true}
+        ref={textarea}
+        value={runtime}
+        style={{ fieldSizing: 'content' }}
+      ></textarea>
     </>
   )
 }

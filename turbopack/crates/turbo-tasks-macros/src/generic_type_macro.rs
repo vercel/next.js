@@ -4,7 +4,7 @@ use rustc_hash::FxHashSet;
 use syn::{GenericParam, Lifetime, Type, parse_macro_input, spanned::Spanned, visit_mut::VisitMut};
 use turbo_tasks_macros_shared::{GenericTypeInput, get_type_ident};
 
-use crate::value_macro::value_type_and_register;
+use crate::{global_name::global_name, value_macro::value_type_and_register};
 
 pub fn generic_type(input: TokenStream) -> TokenStream {
     let mut input = parse_macro_input!(input as GenericTypeInput);
@@ -44,10 +44,10 @@ pub fn generic_type(input: TokenStream) -> TokenStream {
 
     let (impl_generics, _, where_clause) = input.generics.split_for_impl();
 
-    let repr = replace_generics_with_unit(input.generics.params.iter(), &input.ty);
+    let ty = &input.ty;
+    let repr = replace_generics_with_unit(input.generics.params.iter(), ty);
 
-    let ty = input.ty;
-    let Some(ident) = get_type_ident(&ty) else {
+    let Some(ident) = get_type_ident(ty) else {
         return quote! {
             // An error occurred while parsing the ident.
         }
@@ -64,6 +64,7 @@ pub fn generic_type(input: TokenStream) -> TokenStream {
         }
     }
 
+    let name = global_name(quote! {stringify!(#repr) });
     let value_type_and_register = value_type_and_register(
         &ident,
         quote! { #ty },
@@ -75,7 +76,7 @@ pub fn generic_type(input: TokenStream) -> TokenStream {
             turbo_tasks::VcCellSharedMode<#ty>
         },
         quote! {
-            turbo_tasks::ValueType::new_with_any_serialization::<#repr>()
+            turbo_tasks::ValueType::new_with_any_serialization::<#repr>(#name)
         },
     );
 

@@ -35,16 +35,41 @@ describe('app-dir - missing required html tags', () => {
     `)
   })
 
-  it('should hmr when you fix the error', async () => {
-    const browser = await next.browser('/')
+  it('should reload when you fix the error', async () => {
+    let reloaded = false
 
-    await next.patchFile('app/layout.js', (code) =>
-      code.replace('return children', 'return <body>{children}</body>')
-    )
-
-    await assertHasRedbox(browser)
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        page.on('requestfinished', async (request) => {
+          if (new URL(request.url()).pathname === '/') {
+            reloaded = true
+          }
+        })
+      },
+    })
 
     await expect(browser).toDisplayRedbox(`
+     {
+       "description": "Missing <html> and <body> tags in the root layout.
+     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": null,
+       "stack": [],
+     }
+    `)
+
+    reloaded = false
+
+    await Promise.all([
+      next.patchFile('app/layout.js', (code) =>
+        code.replace('return children', 'return <body>{children}</body>')
+      ),
+      retry(() => expect(reloaded).toBe(true), 10_000),
+    ])
+
+    await retry(() =>
+      expect(browser).toDisplayRedbox(`
      {
        "description": "Missing <html> tags in the root layout.
      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
@@ -54,13 +79,19 @@ describe('app-dir - missing required html tags', () => {
        "stack": [],
      }
     `)
-
-    await next.patchFile('app/layout.js', (code) =>
-      code.replace(
-        'return <body>{children}</body>',
-        'return <html><body>{children}</body></html>'
-      )
     )
+
+    reloaded = false
+
+    await Promise.all([
+      next.patchFile('app/layout.js', (code) =>
+        code.replace(
+          'return <body>{children}</body>',
+          'return <html><body>{children}</body></html>'
+        )
+      ),
+      retry(() => expect(reloaded).toBe(true), 10_000),
+    ])
 
     await assertNoRedbox(browser)
     expect(await browser.elementByCss('p').text()).toBe('hello world')

@@ -24,6 +24,7 @@ async function externalImport(id: DependencySpecifier) {
 
   return raw
 }
+contextPrototype.y = externalImport
 
 function externalRequire(
   id: ModuleId,
@@ -56,3 +57,4 @@ externalRequire.resolve = (
 ) => {
   return require.resolve(id, options)
 }
+contextPrototype.x = externalRequire

@@ -2,23 +2,21 @@ use core::fmt;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
-    hash::{Hash, Hasher},
-    ops::DerefMut,
+    hash::Hash,
     sync::Arc,
 };
 
 use serde::{Deserialize, Serialize, de::DeserializeSeed};
+use turbo_dyn_eq_hash::{
+    DynEq, DynHash, DynPartialEq, impl_eq_for_dyn, impl_hash_for_dyn, impl_partial_eq_for_dyn,
+};
 
 use crate::trace::{TraceRawVcs, TraceRawVcsContext};
 
-pub trait MagicAny: mopa::Any + Send + Sync {
+pub trait MagicAny: mopa::Any + DynPartialEq + DynEq + DynHash + Send + Sync {
     fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send>;
 
     fn magic_debug(&self, f: &mut fmt::Formatter) -> fmt::Result;
-
-    fn magic_eq(&self, other: &dyn MagicAny) -> bool;
-
-    fn magic_hash(&self, hasher: &mut dyn Hasher);
 
     fn magic_trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext);
 
@@ -51,17 +49,6 @@ impl<T: Debug + Eq + Hash + Send + Sync + TraceRawVcs + 'static> MagicAny for T 
         d.finish()
     }
 
-    fn magic_eq(&self, other: &dyn MagicAny) -> bool {
-        match other.downcast_ref::<Self>() {
-            None => false,
-            Some(other) => self == other,
-        }
-    }
-
-    fn magic_hash(&self, hasher: &mut dyn Hasher) {
-        Hash::hash(&(TypeId::of::<Self>(), self), &mut HasherMut(hasher))
-    }
-
     fn magic_trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         self.trace_raw_vcs(trace_context);
     }
@@ -78,34 +65,9 @@ impl fmt::Debug for dyn MagicAny {
     }
 }
 
-impl PartialEq for dyn MagicAny {
-    fn eq(&self, other: &Self) -> bool {
-        self.magic_eq(other)
-    }
-}
-
-impl Eq for dyn MagicAny {}
-
-impl Hash for dyn MagicAny {
-    fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.magic_hash(hasher)
-    }
-}
-
-pub struct HasherMut<H: ?Sized>(pub H);
-
-impl<H: DerefMut + ?Sized> Hasher for HasherMut<H>
-where
-    H::Target: Hasher,
-{
-    fn finish(&self) -> u64 {
-        self.0.finish()
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        self.0.write(bytes)
-    }
-}
+impl_partial_eq_for_dyn!(dyn MagicAny);
+impl_eq_for_dyn!(dyn MagicAny);
+impl_hash_for_dyn!(dyn MagicAny);
 
 impl TraceRawVcs for dyn MagicAny {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {

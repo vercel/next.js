@@ -16,7 +16,7 @@ async function slack() {
   const ping = process.env.SLACK_PING ?? '@nextjs-oncall'
 
   const message =
-    process.env.SLACK_MESSAGE ?? process.env.RELEASE_STATUS === 'true'
+    (process.env.SLACK_MESSAGE ?? process.env.RELEASE_STATUS === 'true')
       ? `Successfully published a new release!\n<https://github.com/vercel/next.js/releases|Releases Link>`
       : `Failed to publish a new release triggered by "${process.env.WORKFLOW_ACTOR}". ${ping}\n<${workflowLink}|Workflow Link>`
 

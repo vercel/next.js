@@ -1,7 +1,8 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::hash_map::Entry};
 
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use either::Either;
+use futures::join;
 use next_core::{
     next_client_reference::{
         ClientReference, ClientReferenceGraphResult, ClientReferenceType, ServerEntries,
@@ -9,13 +10,13 @@ use next_core::{
     },
     next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
+    next_server_utility::server_utility_module::NextServerUtilityModule,
 };
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc,
+    CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::{CssModuleAsset, ModuleCssAsset};
@@ -27,7 +28,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    client_references::{ClientReferenceMapType, ClientReferencesSet, map_client_references},
+    client_references::{ClientManifestEntryType, ClientReferenceManifest, map_client_references},
     dynamic_imports::{DynamicImportEntries, DynamicImportEntriesMapType, map_next_dynamic},
     server_actions::{AllActions, AllModuleActions, map_server_actions, to_rsc_context},
 };
@@ -243,7 +244,7 @@ pub struct ClientReferencesGraph {
     is_single_page: bool,
     graph: ResolvedVc<SingleModuleGraph>,
     /// List of client references (modules that entries into the client graph)
-    data: ResolvedVc<ClientReferencesSet>,
+    data: ResolvedVc<ClientReferenceManifest>,
 }
 
 #[turbo_tasks::value_impl]
@@ -285,83 +286,138 @@ impl ClientReferencesGraph {
                 Either::Right(graph.entry_modules())
             };
 
-            let mut client_references = FxIndexSet::default();
-            // Make sure None (for the various internal next/dist/esm/client/components/*) is
-            // listed first
-            let mut client_references_by_server_component =
-                FxIndexMap::from_iter([(None, Vec::new())]);
+            // Because we care about 'evaluation order' we need to collect client references in the
+            // post_order callbacks which is the same as evaluation order
+            let mut client_references = Vec::new();
+            let mut client_reference_modules = Vec::new();
+            let mut server_components = FxIndexSet::default();
+            let mut server_utils = FxIndexSet::default();
 
-            graph.traverse_edges_from_entries_topological(
+            // Track how we reached each client reference.  This way if a client reference is
+            // referenced by the root and by a server component we don't only associate it with the
+            // server component.
+            #[derive(PartialEq, Eq, Copy, Clone)]
+            enum ParentType {
+                ServerComponent,
+                Page,
+                Both,
+            }
+            impl ParentType {
+                fn merge(left: Self, right: Self) -> Self {
+                    if left == right {
+                        left
+                    } else {
+                        // One is Both or one is ServerComponent and the other is Page, which means
+                        // Both
+                        Self::Both
+                    }
+                }
+            }
+            // Perform a DFS traversal to collect all client references and the set of server
+            // components for each module.
+            graph.traverse_edges_from_entries_dfs(
                 entries,
-                // state_map is `module -> Option< the current so parent server component >`
+                // state_map is `module -> ParentType` to track whether the module is reachable
+                // directly from an entry point.
                 &mut FxHashMap::default(),
                 |parent_info, node, state_map| {
                     let module = node.module();
-                    let module_type = data.get(&module);
+                    let module_type = data.manifest.get(&module);
 
-                    let current_server_component = if let Some(
-                        ClientReferenceMapType::ServerComponent(module),
-                    ) = module_type
-                    {
-                        Some(*module)
-                    } else if let Some((parent_node, _)) = parent_info {
-                        *state_map.get(&parent_node.module).unwrap()
-                    } else {
-                        // a root node
-                        None
-                    };
+                    let parent_type =
+                        if let Some(ClientManifestEntryType::ServerComponent(_)) = module_type {
+                            ParentType::ServerComponent
+                        } else if let Some((parent_node, _)) = parent_info {
+                            *state_map.get(&parent_node.module).unwrap()
+                        } else {
+                            // a root node
+                            ParentType::Page
+                        };
 
-                    state_map.insert(module, current_server_component);
+                    match state_map.entry(module) {
+                        Entry::Occupied(mut occupied_entry) => {
+                            let current = occupied_entry.get_mut();
+                            let merged = ParentType::merge(*current, parent_type);
+                            if merged != parent_type {
+                                *current = merged;
+                            }
+                        }
+                        Entry::Vacant(vacant_entry) => {
+                            vacant_entry.insert(parent_type);
+                        }
+                    }
 
                     Ok(match module_type {
                         Some(
-                            ClientReferenceMapType::EcmascriptClientReference { .. }
-                            | ClientReferenceMapType::CssClientReference { .. },
+                            ClientManifestEntryType::EcmascriptClientReference { .. }
+                            | ClientManifestEntryType::CssClientReference { .. },
                         ) => GraphTraversalAction::Skip,
                         _ => GraphTraversalAction::Continue,
                     })
                 },
-                |parent_info, node, state_map| {
-                    let Some((parent_node, _)) = parent_info else {
+                |_, node, state_map| {
+                    let module = node.module();
+                    if let Some(server_util_module) =
+                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(module)
+                    {
+                        server_utils.insert(server_util_module);
+                    }
+
+                    let Some(module_type) = data.manifest.get(&module) else {
                         return Ok(());
                     };
-                    let parent_module = parent_node.module;
 
-                    let parent_server_component = *state_map.get(&parent_module).unwrap();
-
-                    match data.get(&node.module()) {
-                        Some(ClientReferenceMapType::EcmascriptClientReference {
-                            module: module_ref,
-                            ssr_module,
-                        }) => {
-                            let client_reference: ClientReference = ClientReference {
-                                server_component: parent_server_component,
-                                ty: ClientReferenceType::EcmascriptClientReference(*module_ref),
-                            };
-                            client_references.insert(client_reference);
-                            client_references_by_server_component
-                                .entry(parent_server_component)
-                                .or_insert_with(Vec::new)
-                                .push(*ssr_module);
+                    let ty = match module_type {
+                        ClientManifestEntryType::EcmascriptClientReference {
+                            module,
+                            ssr_module: _,
+                        } => ClientReferenceType::EcmascriptClientReference(*module),
+                        ClientManifestEntryType::CssClientReference(module) => {
+                            ClientReferenceType::CssClientReference(*module)
                         }
-                        Some(ClientReferenceMapType::CssClientReference(module_ref)) => {
-                            let client_reference = ClientReference {
-                                server_component: parent_server_component,
-                                ty: ClientReferenceType::CssClientReference(*module_ref),
-                            };
-                            client_references.insert(client_reference);
+                        ClientManifestEntryType::ServerComponent(sc) => {
+                            server_components.insert(*sc);
+                            return Ok(());
                         }
-                        _ => {}
                     };
+
+                    if *state_map.get(&module).unwrap() == ParentType::ServerComponent {
+                        // This is only reachable through server components, we need to wait to
+                        // compute the client references until we have seen all server components
+                        // reachable by this entrypoint, then we can intersect that with the set of
+                        // server components that depend on this client reference
+                        client_reference_modules.push((module, ty));
+                    } else {
+                        // Otherwise there is some path from the root directly to the reference,
+                        // just associate it with the root.
+                        client_references.push(ClientReference {
+                            server_component: None,
+                            ty,
+                        })
+                    }
+
                     Ok(())
                 },
             )?;
 
+            // Now compute all the parent components for each client reference module reachable from
+            // server components
+            client_references.extend(client_reference_modules.into_iter().flat_map(
+                |(module, ty)| {
+                    data.server_components_for_client_reference(module)
+                        .filter(|sc| server_components.contains(sc))
+                        .map(move |sc| ClientReference {
+                            server_component: Some(sc),
+                            ty,
+                        })
+                },
+            ));
+
             Ok(ClientReferenceGraphResult {
                 client_references: client_references.into_iter().collect(),
-                client_references_by_server_component,
-                server_utils: vec![],
-                server_component_entries: vec![],
+                // The order of server_utils does not matter
+                server_utils: server_utils.into_iter().collect(),
+                server_component_entries: server_components.into_iter().collect(),
             }
             .cell())
         }
@@ -372,8 +428,8 @@ impl ClientReferencesGraph {
 
 #[turbo_tasks::value(shared)]
 struct CssGlobalImportIssue {
-    parent_module: ResolvedVc<Box<dyn Module>>,
-    module: ResolvedVc<Box<dyn Module>>,
+    pub parent_module: ResolvedVc<Box<dyn Module>>,
+    pub module: ResolvedVc<Box<dyn Module>>,
 }
 
 impl CssGlobalImportIssue {
@@ -393,15 +449,16 @@ impl Issue for CssGlobalImportIssue {
     #[turbo_tasks::function]
     async fn title(&self) -> Vc<StyledString> {
         StyledString::Stack(vec![
-            StyledString::Text("Failed to compile".into()),
-            StyledString::Text(
+            StyledString::Text(rcstr!("Failed to compile")),
+            StyledString::Text(rcstr!(
                 "Global CSS cannot be imported from files other than your Custom <App>. Due to \
                  the Global nature of stylesheets, and to avoid conflicts, Please move all \
                  first-party global CSS imports to pages/_app.js. Or convert the import to \
                  Component-Level CSS (CSS Modules)."
-                    .into(),
-            ),
-            StyledString::Text("Read more: https://nextjs.org/docs/messages/css-global".into()),
+            )),
+            StyledString::Text(rcstr!(
+                "Read more: https://nextjs.org/docs/messages/css-global"
+            )),
         ])
         .cell()
     }
@@ -433,7 +490,7 @@ impl Issue for CssGlobalImportIssue {
     }
 
     fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Error
+        IssueSeverity::Fatal
     }
 
     #[turbo_tasks::function]
@@ -454,17 +511,16 @@ type FxModuleNameMap = FxIndexMap<ResolvedVc<Box<dyn Module>>, RcStr>;
 #[turbo_tasks::value(transparent)]
 struct ModuleNameMap(pub FxModuleNameMap);
 
+#[tracing::instrument(level = "info", name = "validate pages css imports", skip_all)]
 #[turbo_tasks::function]
 async fn validate_pages_css_imports(
     graph: Vc<SingleModuleGraph>,
     is_single_page: bool,
     entry: Vc<Box<dyn Module>>,
     app_module: ResolvedVc<Box<dyn Module>>,
-    module_name_map: ResolvedVc<ModuleNameMap>,
 ) -> Result<()> {
     let graph = &*graph.await?;
     let entry = entry.to_resolved().await?;
-    let module_name_map = module_name_map.await?;
 
     let entries = if !is_single_page {
         if !graph.has_entry_module(entry) {
@@ -476,8 +532,22 @@ async fn validate_pages_css_imports(
         Either::Right(graph.entry_modules())
     };
 
+    let mut candidates = vec![];
+
     graph.traverse_edges_from_entries(entries, |parent_info, node| {
         let module = node.module;
+
+        // If we're at a root node, there is nothing importing this module and we can skip
+        // any further validations.
+        let Some((parent_node, _)) = parent_info else {
+            return GraphTraversalAction::Continue;
+        };
+        let parent_module = parent_node.module;
+
+        // Importing CSS from _app.js is always allowed.
+        if parent_module == app_module {
+            return GraphTraversalAction::Continue;
+        }
 
         // If the module being imported isn't a global css module, there is nothing to validate.
         let module_is_global_css =
@@ -487,22 +557,6 @@ async fn validate_pages_css_imports(
             return GraphTraversalAction::Continue;
         }
 
-        // We allow imports of global CSS files which are inside of `node_modules`.
-        let module_name_contains_node_modules = module_name_map
-            .get(&module)
-            .is_some_and(|s| s.contains("node_modules"));
-
-        if module_name_contains_node_modules {
-            return GraphTraversalAction::Continue;
-        }
-
-        // If we're at a root node, there is nothing importing this module and we can skip
-        // any further validations.
-        let Some((parent_node, _)) = parent_info else {
-            return GraphTraversalAction::Continue;
-        };
-
-        let parent_module = parent_node.module;
         let parent_is_css_module = ResolvedVc::try_downcast_type::<ModuleCssAsset>(parent_module)
             .is_some()
             || ResolvedVc::try_downcast_type::<CssModuleAsset>(parent_module).is_some();
@@ -516,13 +570,37 @@ async fn validate_pages_css_imports(
         // the same as the app module. If it isn't we know it isn't a valid place to import global
         // css.
         if parent_module != app_module {
-            CssGlobalImportIssue::new(parent_module, module)
-                .resolved_cell()
-                .emit();
+            candidates.push(CssGlobalImportIssue::new(parent_module, module))
         }
 
         GraphTraversalAction::Continue
     })?;
+
+    candidates
+        .into_iter()
+        .map(async |issue| {
+            // We allow imports of global CSS files which are inside of `node_modules`.
+            Ok(
+                if !issue
+                    .module
+                    .ident()
+                    .path()
+                    .await?
+                    .path
+                    .contains("/node_modules/")
+                {
+                    Some(issue)
+                } else {
+                    None
+                },
+            )
+        })
+        .try_flat_join()
+        .await?
+        .into_iter()
+        .for_each(|issue| {
+            issue.resolved_cell().emit();
+        });
 
     Ok(())
 }
@@ -669,44 +747,48 @@ impl GlobalBuildInformation {
     ) -> Result<Vc<ClientReferenceGraphResult>> {
         let span = tracing::info_span!("collect all client references for endpoint");
         async move {
-            let mut result = if let [graph] = &self.client_references[..] {
-                // Just a single graph, no need to merge results
-                graph
-                    .get_client_references_for_endpoint(entry)
-                    .owned()
-                    .await?
+            let result = if let [graph] = &self.client_references[..] {
+                // Just a single graph, no need to merge results  This also naturally aggregates
+                // server components and server utilities in the correct order
+                graph.get_client_references_for_endpoint(entry)
             } else {
                 let results = self
                     .client_references
                     .iter()
-                    .map(|graph| async move {
-                        let get_client_references_for_endpoint =
-                            graph.get_client_references_for_endpoint(entry).await?;
-                        Ok(get_client_references_for_endpoint)
-                    })
-                    .try_join()
-                    .await?;
+                    .map(|graph| graph.get_client_references_for_endpoint(entry))
+                    .try_join();
+                // Do this separately for now, because the aggregation of multiple graph traversals
+                // messes up the order of the server_component_entries.
+                let server_entries = async {
+                    if has_layout_segments {
+                        let server_entries = find_server_entries(entry, include_traced).await?;
+                        Ok(Some(server_entries))
+                    } else {
+                        Ok(None)
+                    }
+                };
+                // Wait for both in parallel since `find_server_entries` tends to be slower than the
+                // graph traversals
+                let (results, server_entries) = join!(results, server_entries);
 
-                let mut iter = results.into_iter();
-                let mut result = ReadRef::into_owned(iter.next().unwrap());
-                for r in iter {
-                    result.extend(&r);
-                }
-                result
-            };
-
-            if has_layout_segments {
-                // Do this separately for now, because the graph traversal order messes up the order
-                // of the server_component_entries.
-                let ServerEntries {
+                let mut result = ClientReferenceGraphResult {
+                    client_references: results?
+                        .iter()
+                        .flat_map(|r| r.client_references.iter().copied())
+                        .collect(),
+                    ..Default::default()
+                };
+                if let Some(ServerEntries {
                     server_utils,
                     server_component_entries,
-                } = &*find_server_entries(entry, include_traced).await?;
-                result.server_utils = server_utils.clone();
-                result.server_component_entries = server_component_entries.clone();
-            }
-
-            Ok(result.cell())
+                }) = server_entries?.as_deref()
+                {
+                    result.server_utils = server_utils.clone();
+                    result.server_component_entries = server_component_entries.clone();
+                }
+                result.cell()
+            };
+            Ok(result)
         }
         .instrument(span)
         .await
@@ -723,54 +805,18 @@ impl GlobalBuildInformation {
         entry: Vc<Box<dyn Module>>,
         app_module: Vc<Box<dyn Module>>,
     ) -> Result<()> {
-        let span = tracing::info_span!("validate pages css imports");
-        async move {
-            let graphs = &self.bare_graphs.await?.graphs;
+        let graphs = &self.bare_graphs.await?.graphs;
 
-            // We need to collect the module names here to pass into the
-            // `validate_pages_css_imports` function. This is because the function is
-            // called for each graph, and we need to know the module names of the parent
-            // modules to determine if the import is valid. We can't do this in the
-            // called function because it's within a closure that can't resolve turbo tasks.
-            let graph_to_module_ident_tuples = async |graph: &ResolvedVc<SingleModuleGraph>| {
-                graph
-                    .await?
-                    .graph
-                    .node_weights()
-                    .map(async |n| Ok((n.module(), n.module().ident().to_string().owned().await?)))
-                    .try_join()
-                    .await
-            };
-
-            let identifier_map = graphs
-                .iter()
-                .map(graph_to_module_ident_tuples)
-                .try_join()
-                .await?
-                .into_iter()
-                .flatten()
-                .collect::<FxIndexMap<_, _>>();
-            let identifier_map = ModuleNameMap(identifier_map).cell();
-
-            graphs
-                .iter()
-                .map(|graph| {
-                    validate_pages_css_imports(
-                        **graph,
-                        self.is_single_page,
-                        entry,
-                        app_module,
-                        identifier_map,
-                    )
+        graphs
+            .iter()
+            .map(|graph| {
+                validate_pages_css_imports(**graph, self.is_single_page, entry, app_module)
                     .as_side_effect()
-                })
-                .try_join()
-                .await?;
+            })
+            .try_join()
+            .await?;
 
-            Ok(())
-        }
-        .instrument(span)
-        .await
+        Ok(())
     }
 }
 

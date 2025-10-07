@@ -1,10 +1,7 @@
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import {
-  getPageStaticInfo,
-  type MiddlewareMatcher,
-} from '../../../build/analysis/get-page-static-info'
+import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
 import type { RoutesManifest } from '../../../build'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
@@ -12,33 +9,26 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv } from '../../../build/swc'
 import fs from 'fs'
-import { mkdir } from 'fs/promises'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
-import { loadEnvConfig } from '@next/env'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
-import HotReloaderWebpack from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
 import type { Telemetry } from '../../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
-import loadJsConfig from '../../../build/load-jsconfig'
 import { createValidFileMatcher } from '../find-page-file'
 import {
   EVENT_BUILD_FEATURE_USAGE,
   eventCliSession,
 } from '../../../telemetry/events'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import {
-  getStaticInfoIncludingLayouts,
-  sortByPageExts,
-} from '../../../build/entries'
+import { sortByPageExts } from '../../../build/sort-by-page-exts'
 import { verifyTypeScriptSetup } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
-import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
+import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { buildDataRoute } from './build-data-route'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
@@ -68,21 +58,31 @@ import {
 } from '../../../build/utils'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
-import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
-import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
+import {
+  isMetadataRouteFile,
+  isStaticMetadataFile,
+} from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
-import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
-  isPersistentCachingEnabled,
+  isPersistentCachingEnabledForDev,
   ModuleBuildError,
-  TurbopackInternalError,
 } from '../../../shared/lib/turbopack/utils'
 import { getDefineEnv } from '../../../build/define-env'
+import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
+import { normalizePath } from '../../../lib/normalize-path'
+import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
+import {
+  createRouteTypesManifest,
+  writeRouteTypesManifest,
+  writeValidatorFile,
+} from './route-types-utils'
+import { isParallelRouteSegment } from '../../../shared/lib/segment'
+import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -132,7 +132,6 @@ export type ServerFields = {
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
-  let usingTypeScript = false
   const verifyResult = await verifyTypeScriptSetup({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
@@ -145,9 +144,9 @@ async function verifyTypeScript(opts: SetupOpts) {
   })
 
   if (verifyResult.version) {
-    usingTypeScript = true
+    return true
   }
-  return usingTypeScript
+  return false
 }
 
 export async function propagateServerField(
@@ -165,17 +164,8 @@ async function startWatcher(
 ) {
   const { nextConfig, appDir, pagesDir, dir, resetFetch } = opts
   const { useFileSystemPublicRoutes } = nextConfig
-  const usingTypeScript = await verifyTypeScript(opts)
 
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
-
-  // we ensure the types directory exists here
-  if (usingTypeScript) {
-    const distTypesDir = path.join(distDir, 'types')
-    if (!fs.existsSync(distTypesDir)) {
-      await mkdir(distTypesDir, { recursive: true })
-    }
-  }
 
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -193,28 +183,63 @@ async function startWatcher(
   })
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
-    ? await createHotReloaderTurbopack(opts, serverFields, distDir, resetFetch)
-    : new HotReloaderWebpack(opts.dir, {
-        isSrcDir: opts.isSrcDir,
-        appDir,
-        pagesDir,
-        distDir,
-        config: opts.nextConfig,
-        buildId: 'development',
-        encryptionKey: await generateEncryptionKeyBase64({
-          isBuild: false,
+    ? await (async () => {
+        const createHotReloaderTurbopack = (
+          require('../../dev/hot-reloader-turbopack') as typeof import('../../dev/hot-reloader-turbopack')
+        ).createHotReloaderTurbopack
+        return await createHotReloaderTurbopack(
+          opts,
+          serverFields,
           distDir,
-        }),
-        telemetry: opts.telemetry,
-        rewrites: opts.fsChecker.rewrites,
-        previewProps: opts.fsChecker.prerenderManifest.preview,
-        resetFetch,
-      })
+          resetFetch
+        )
+      })()
+    : await (async () => {
+        const HotReloaderWebpack = (
+          require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
+        ).default
+        return new HotReloaderWebpack(opts.dir, {
+          isSrcDir: opts.isSrcDir,
+          appDir,
+          pagesDir,
+          distDir,
+          config: opts.nextConfig,
+          buildId: 'development',
+          encryptionKey: await generateEncryptionKeyBase64({
+            isBuild: false,
+            distDir,
+          }),
+          telemetry: opts.telemetry,
+          rewrites: opts.fsChecker.rewrites,
+          previewProps: opts.fsChecker.prerenderManifest.preview,
+          resetFetch,
+        })
+      })()
 
   await hotReloader.start()
 
   // have to write this after starting hot-reloader since that
   // cleans the dist dir
+  const distTypesDir = path.join(distDir, 'types')
+  await writeRouteTypesManifest(
+    {
+      appRoutes: {},
+      pageRoutes: {},
+      layoutRoutes: {},
+      appRouteHandlerRoutes: {},
+      redirectRoutes: {},
+      rewriteRoutes: {},
+      appPagePaths: new Set(),
+      pagesRouterPagePaths: new Set(),
+      layoutPaths: new Set(),
+      appRouteHandlers: new Set(),
+      pageApiRoutes: new Set(),
+      filePathToRoute: new Map(),
+    },
+    path.join(distTypesDir, 'routes.d.ts'),
+    opts.nextConfig
+  )
+
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
     version: 3,
@@ -307,6 +332,8 @@ async function startWatcher(
     files.push(...tsconfigPaths)
 
     const wp = new Watchpack({
+      // Watchpack default is 200ms which adds 200ms of dead time on bootup.
+      aggregateTimeout: 5, // Matches webpack-config.ts.
       ignored: (pathname: string) => {
         return (
           !files.some((file) => file.startsWith(pathname)) &&
@@ -317,11 +344,16 @@ async function startWatcher(
       },
     })
     const fileWatchTimes = new Map()
-    let enabledTypeScript = usingTypeScript
+    let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
 
+    const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+    const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
+
     wp.on('aggregated', async () => {
+      let writeEnvDefinitions = false
+      let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: MiddlewareMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
@@ -330,16 +362,24 @@ async function startWatcher(
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
+      const appRouteHandlers: Array<{ route: string; filePath: string }> = []
+      const pageApiRoutes: Array<{ route: string; filePath: string }> = []
+
+      const pageRoutes: Array<{ route: string; filePath: string }> = []
+      const appRoutes: Array<{ route: string; filePath: string }> = []
+      const layoutRoutes: Array<{ route: string; filePath: string }> = []
+      const slots: Array<{ name: string; parent: string }> = []
 
       let envChange = false
       let tsconfigChange = false
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
 
-      const { appFiles, pageFiles } = opts.fsChecker
+      const { appFiles, pageFiles, staticMetadataFiles } = opts.fsChecker
 
       appFiles.clear()
       pageFiles.clear()
+      staticMetadataFiles.clear()
       devPageFiles.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
@@ -407,6 +447,9 @@ async function startWatcher(
         })
 
         if (isMiddlewareFile(rootFile)) {
+          const getStaticInfoIncludingLayouts = (
+            require('../../../build/get-static-info-including-layouts') as typeof import('../../../build/get-static-info-including-layouts')
+          ).getStaticInfoIncludingLayouts
           const staticInfo = await getStaticInfoIncludingLayouts({
             pageFilePath: fileName,
             config: nextConfig,
@@ -429,7 +472,7 @@ async function startWatcher(
             serverFields.actualMiddlewareFile
           )
           middlewareMatchers = staticInfo.middleware?.matchers || [
-            { regexp: '.*', originalSource: '/:path*' },
+            { regexp: '^/.*$', originalSource: '/:path*' },
           ]
           continue
         }
@@ -470,6 +513,9 @@ async function startWatcher(
             true
           )
         ) {
+          const getPageStaticInfo = (
+            require('../../../build/analysis/get-page-static-info') as typeof import('../../../build/analysis/get-page-static-info')
+          ).getPageStaticInfo
           const staticInfo = await getPageStaticInfo({
             pageFilePath: fileName,
             nextConfig: {},
@@ -502,11 +548,54 @@ async function startWatcher(
           if (isRootNotFound) {
             continue
           }
-          if (!isRootNotFound && !validFileMatcher.isAppRouterPage(fileName)) {
-            continue
-          }
+
           // Ignore files/directories starting with `_` in the app directory
           if (normalizePathSep(pageName).includes('/_')) {
+            continue
+          }
+
+          // Record parallel route slots for layout typing
+          // May run multiple times (e.g. if a parallel route
+          // has both a layout and a page, and children) but that's fine
+          const segments = normalizePathSep(pageName).split('/')
+          for (let i = segments.length - 1; i >= 0; i--) {
+            const segment = segments[i]
+            if (isParallelRouteSegment(segment)) {
+              const parentPath = normalizeAppPath(
+                segments.slice(0, i).join('/')
+              )
+
+              const slotName = segment.slice(1)
+              // check if the slot already exists
+              if (
+                slots.some(
+                  (s) => s.name === slotName && s.parent === parentPath
+                )
+              )
+                continue
+
+              slots.push({
+                name: slotName,
+                parent: parentPath,
+              })
+              break
+            }
+          }
+
+          // Record layouts
+          if (validFileMatcher.isAppLayoutPage(fileName)) {
+            layoutRoutes.push({
+              route: ensureLeadingSlash(
+                normalizeAppPath(normalizePathSep(pageName)).replace(
+                  /\/layout$/,
+                  ''
+                )
+              ),
+              filePath: fileName,
+            })
+          }
+
+          if (!validFileMatcher.isAppRouterPage(fileName)) {
             continue
           }
 
@@ -523,7 +612,24 @@ async function startWatcher(
           )
 
           if (useFileSystemPublicRoutes) {
-            appFiles.add(pageName)
+            // Static metadata files will be served from filesystem.
+            if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
+              staticMetadataFiles.set(pageName, fileName)
+            } else {
+              appFiles.add(pageName)
+            }
+          }
+
+          if (validFileMatcher.isAppRouterRoute(fileName)) {
+            appRouteHandlers.push({
+              route: normalizePathSep(pageName),
+              filePath: fileName,
+            })
+          } else {
+            appRoutes.push({
+              route: normalizePathSep(pageName),
+              filePath: fileName,
+            })
           }
 
           if (routedPages.includes(pageName)) {
@@ -536,11 +642,26 @@ async function startWatcher(
             // entries that actually use getStaticProps/getServerSideProps
             opts.fsChecker.nextDataRoutes.add(pageName)
           }
+
+          if (pageName.startsWith('/api/')) {
+            pageApiRoutes.push({
+              route: normalizePathSep(pageName),
+              filePath: fileName,
+            })
+          } else {
+            pageRoutes.push({
+              route: normalizePathSep(pageName),
+              filePath: fileName,
+            })
+          }
         }
-        ;(isAppPath ? appPageFilePaths : pagesPageFilePaths).set(
-          pageName,
-          fileName
-        )
+
+        // Record pages
+        if (isAppPath) {
+          appPageFilePaths.set(pageName, fileName)
+        } else {
+          pagesPageFilePaths.set(pageName, fileName)
+        }
 
         if (appDir && pageNameSet.has(pageName)) {
           conflictingAppPagePaths.add(pageName)
@@ -605,57 +726,13 @@ async function startWatcher(
         }
       }
 
-      if (!usingTypeScript && enabledTypeScript) {
-        // we tolerate the error here as this is best effort
-        // and the manual install command will be shown
-        await verifyTypeScript(opts)
-          .then(() => {
-            tsconfigChange = true
-          })
-          .catch(() => {})
-      }
-
       if (envChange || tsconfigChange) {
         if (envChange) {
-          const { loadedEnvFiles } = loadEnvConfig(
-            dir,
-            process.env.NODE_ENV === 'development',
-            Log,
-            true,
-            (envFilePath) => {
-              Log.info(`Reload env: ${envFilePath}`)
-            }
-          )
-
-          if (usingTypeScript && nextConfig.experimental?.typedEnv) {
-            // do not await, this is not essential for further process
-            createEnvDefinitions({
-              distDir,
-              loadedEnvFiles: [
-                ...loadedEnvFiles,
-                {
-                  path: nextConfig.configFileName,
-                  env: nextConfig.env,
-                  contents: '',
-                },
-              ],
-            })
-          }
+          writeEnvDefinitions = true
 
           await propagateServerField(opts, 'loadEnvConfig', [
-            { dev: true, forceReload: true, silent: true },
+            { dev: true, forceReload: true },
           ])
-        }
-        let tsconfigResult:
-          | UnwrapPromise<ReturnType<typeof loadJsConfig>>
-          | undefined
-
-        if (tsconfigChange) {
-          try {
-            tsconfigResult = await loadJsConfig(dir, nextConfig)
-          } catch (_) {
-            /* do we want to log if there are syntax errors in tsconfig while editing? */
-          }
         }
 
         if (hotReloader.turbopackProject) {
@@ -664,6 +741,10 @@ async function startWatcher(
             opts.fsChecker.rewrites.beforeFiles.length > 0 ||
             opts.fsChecker.rewrites.fallback.length > 0
 
+          const rootPath =
+            opts.nextConfig.turbopack?.root ||
+            opts.nextConfig.outputFileTracingRoot ||
+            opts.dir
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
               isTurbopack: true,
@@ -679,93 +760,115 @@ async function startWatcher(
               projectPath: opts.dir,
               rewrites: opts.fsChecker.rewrites,
             }),
+            rootPath,
+            projectPath: normalizePath(path.relative(rootPath, dir)),
+          })
+        } else {
+          let tsconfigResult:
+            | UnwrapPromise<
+                ReturnType<
+                  typeof import('../../../build/load-jsconfig').default
+                >
+              >
+            | undefined
+          // This is not relevant for Turbopack because tsconfig/jsconfig is handled internally.
+          if (tsconfigChange) {
+            try {
+              const loadJsConfig = (
+                require('../../../build/load-jsconfig') as typeof import('../../../build/load-jsconfig')
+              ).default
+              tsconfigResult = await loadJsConfig(dir, nextConfig)
+            } catch (_) {
+              /* do we want to log if there are syntax errors in tsconfig while editing? */
+            }
+          }
+
+          hotReloader.activeWebpackConfigs?.forEach((config, idx) => {
+            const isClient = idx === 0
+            const isNodeServer = idx === 1
+            const isEdgeServer = idx === 2
+            const hasRewrites =
+              opts.fsChecker.rewrites.afterFiles.length > 0 ||
+              opts.fsChecker.rewrites.beforeFiles.length > 0 ||
+              opts.fsChecker.rewrites.fallback.length > 0
+
+            if (tsconfigChange) {
+              config.resolve?.plugins?.forEach((plugin: any) => {
+                // look for the JsConfigPathsPlugin and update with
+                // the latest paths/baseUrl config
+                if (plugin instanceof JsConfigPathsPlugin && tsconfigResult) {
+                  const { resolvedBaseUrl, jsConfig } = tsconfigResult
+                  const currentResolvedBaseUrl = plugin.resolvedBaseUrl
+                  const resolvedUrlIndex = config.resolve?.modules?.findIndex(
+                    (item) => item === currentResolvedBaseUrl?.baseUrl
+                  )
+
+                  if (resolvedBaseUrl) {
+                    if (
+                      resolvedBaseUrl.baseUrl !==
+                      currentResolvedBaseUrl?.baseUrl
+                    ) {
+                      // remove old baseUrl and add new one
+                      if (resolvedUrlIndex && resolvedUrlIndex > -1) {
+                        config.resolve?.modules?.splice(resolvedUrlIndex, 1)
+                      }
+
+                      // If the resolvedBaseUrl is implicit we only remove the previous value.
+                      // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
+                      if (!resolvedBaseUrl.isImplicit) {
+                        config.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
+                      }
+                    }
+                  }
+
+                  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
+                    Object.keys(plugin.paths).forEach((key) => {
+                      delete plugin.paths[key]
+                    })
+                    Object.assign(plugin.paths, jsConfig.compilerOptions.paths)
+                    plugin.resolvedBaseUrl = resolvedBaseUrl
+                  }
+                }
+              })
+            }
+
+            if (envChange) {
+              config.plugins?.forEach((plugin: any) => {
+                // we look for the DefinePlugin definitions so we can
+                // update them on the active compilers
+                if (
+                  plugin &&
+                  typeof plugin.definitions === 'object' &&
+                  plugin.definitions.__NEXT_DEFINE_ENV
+                ) {
+                  const newDefine = getDefineEnv({
+                    isTurbopack: false,
+                    clientRouterFilters,
+                    config: nextConfig,
+                    dev: true,
+                    distDir,
+                    fetchCacheKeyPrefix:
+                      opts.nextConfig.experimental.fetchCacheKeyPrefix,
+                    hasRewrites,
+                    isClient,
+                    isEdgeServer,
+                    isNodeServer,
+                    middlewareMatchers: undefined,
+                    projectPath: opts.dir,
+                    rewrites: opts.fsChecker.rewrites,
+                  })
+
+                  Object.keys(plugin.definitions).forEach((key) => {
+                    if (!(key in newDefine)) {
+                      delete plugin.definitions[key]
+                    }
+                  })
+                  Object.assign(plugin.definitions, newDefine)
+                }
+              })
+            }
           })
         }
-
-        hotReloader.activeWebpackConfigs?.forEach((config, idx) => {
-          const isClient = idx === 0
-          const isNodeServer = idx === 1
-          const isEdgeServer = idx === 2
-          const hasRewrites =
-            opts.fsChecker.rewrites.afterFiles.length > 0 ||
-            opts.fsChecker.rewrites.beforeFiles.length > 0 ||
-            opts.fsChecker.rewrites.fallback.length > 0
-
-          if (tsconfigChange) {
-            config.resolve?.plugins?.forEach((plugin: any) => {
-              // look for the JsConfigPathsPlugin and update with
-              // the latest paths/baseUrl config
-              if (plugin instanceof JsConfigPathsPlugin && tsconfigResult) {
-                const { resolvedBaseUrl, jsConfig } = tsconfigResult
-                const currentResolvedBaseUrl = plugin.resolvedBaseUrl
-                const resolvedUrlIndex = config.resolve?.modules?.findIndex(
-                  (item) => item === currentResolvedBaseUrl?.baseUrl
-                )
-
-                if (resolvedBaseUrl) {
-                  if (
-                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl?.baseUrl
-                  ) {
-                    // remove old baseUrl and add new one
-                    if (resolvedUrlIndex && resolvedUrlIndex > -1) {
-                      config.resolve?.modules?.splice(resolvedUrlIndex, 1)
-                    }
-
-                    // If the resolvedBaseUrl is implicit we only remove the previous value.
-                    // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
-                    if (!resolvedBaseUrl.isImplicit) {
-                      config.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
-                    }
-                  }
-                }
-
-                if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
-                  Object.keys(plugin.paths).forEach((key) => {
-                    delete plugin.paths[key]
-                  })
-                  Object.assign(plugin.paths, jsConfig.compilerOptions.paths)
-                  plugin.resolvedBaseUrl = resolvedBaseUrl
-                }
-              }
-            })
-          }
-
-          if (envChange) {
-            config.plugins?.forEach((plugin: any) => {
-              // we look for the DefinePlugin definitions so we can
-              // update them on the active compilers
-              if (
-                plugin &&
-                typeof plugin.definitions === 'object' &&
-                plugin.definitions.__NEXT_DEFINE_ENV
-              ) {
-                const newDefine = getDefineEnv({
-                  isTurbopack: false,
-                  clientRouterFilters,
-                  config: nextConfig,
-                  dev: true,
-                  distDir,
-                  fetchCacheKeyPrefix:
-                    opts.nextConfig.experimental.fetchCacheKeyPrefix,
-                  hasRewrites,
-                  isClient,
-                  isEdgeServer,
-                  isNodeServer,
-                  middlewareMatchers: undefined,
-                  projectPath: opts.dir,
-                  rewrites: opts.fsChecker.rewrites,
-                })
-
-                Object.keys(plugin.definitions).forEach((key) => {
-                  if (!(key in newDefine)) {
-                    delete plugin.definitions[key]
-                  }
-                })
-                Object.assign(plugin.definitions, newDefine)
-              }
-            })
-          }
-        })
         await hotReloader.invalidate({
           reloadAfterInvalidation: envChange,
         })
@@ -863,9 +966,13 @@ async function startWatcher(
 
         opts.fsChecker.dynamicRoutes = sortedRoutes.map(
           (page): FilesystemDynamicRoute => {
-            const regex = getRouteRegex(page)
+            const regex = getNamedRouteRegex(page, {
+              prefixRouteKeys: true,
+            })
             return {
               regex: regex.re.toString(),
+              namedRegex: regex.namedRegex,
+              routeKeys: regex.routeKeys,
               match: getRouteMatcher(regex),
               page,
             }
@@ -876,10 +983,14 @@ async function startWatcher(
 
         for (const page of sortedRoutes) {
           const route = buildDataRoute(page, 'development')
-          const routeRegex = getRouteRegex(route.page)
+          const routeRegex = getNamedRouteRegex(route.page, {
+            prefixRouteKeys: true,
+          })
           dataRoutes.push({
             ...route,
             regex: routeRegex.re.toString(),
+            namedRegex: routeRegex.namedRegex,
+            routeKeys: routeRegex.routeKeys,
             match: getRouteMatcher({
               // TODO: fix this in the manifest itself, must also be fixed in
               // upstream builder that relies on this
@@ -897,39 +1008,115 @@ async function startWatcher(
         }
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
 
-        if (!prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])) {
-          const addedRoutes = sortedRoutes.filter(
-            (route) => !prevSortedRoutes.includes(route)
-          )
-          const removedRoutes = prevSortedRoutes.filter(
-            (route) => !sortedRoutes.includes(route)
-          )
+        // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
+        // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.
+        if (!opts.turbo) {
+          // Reload the matchers. The filesystem would have been written to,
+          // and the matchers need to re-scan it to update the router.
+          // Reloading the matchers should happen before `ADDED_PAGE` or `REMOVED_PAGE` is sent over the websocket
+          // otherwise it sends the event too early.
+          await propagateServerField(opts, 'reloadMatchers', undefined)
 
-          // emit the change so clients fetch the update
-          hotReloader.send({
-            action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
-            data: [
-              {
-                devPagesManifest: true,
-              },
-            ],
-          })
+          if (
+            !prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
+          ) {
+            const addedRoutes = sortedRoutes.filter(
+              (route) => !prevSortedRoutes.includes(route)
+            )
+            const removedRoutes = prevSortedRoutes.filter(
+              (route) => !sortedRoutes.includes(route)
+            )
 
-          addedRoutes.forEach((route) => {
+            // emit the change so clients fetch the update
             hotReloader.send({
-              action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE,
-              data: [route],
+              type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
+              data: [
+                {
+                  devPagesManifest: true,
+                },
+              ],
             })
-          })
 
-          removedRoutes.forEach((route) => {
-            hotReloader.send({
-              action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE,
-              data: [route],
+            addedRoutes.forEach((route) => {
+              hotReloader.send({
+                type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
+                data: [route],
+              })
             })
-          })
+
+            removedRoutes.forEach((route) => {
+              hotReloader.send({
+                type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
+                data: [route],
+              })
+            })
+          }
         }
         prevSortedRoutes = sortedRoutes
+
+        if (enabledTypeScript) {
+          // Using === false to make the check clearer.
+          if (typescriptStatusFromLastAggregation === false) {
+            // we tolerate the error here as this is best effort
+            // and the manual install command will be shown
+            await verifyTypeScript(opts)
+              .then(() => {
+                tsconfigChange = true
+              })
+              .catch(() => {})
+          }
+
+          if (writeEnvDefinitions && nextConfig.experimental?.typedEnv) {
+            // TODO: The call to propagateServerField 'loadEnvConfig' causes the env to be loaded twice on env file changes.
+            const loadEnvConfig = (
+              require('@next/env') as typeof import('@next/env')
+            ).loadEnvConfig
+            const { loadedEnvFiles } = loadEnvConfig(
+              dir,
+              process.env.NODE_ENV === 'development',
+              // Silent as it's the second time `loadEnvConfig` is called in this pass.
+              undefined,
+              true
+            )
+
+            const createEnvDefinitions = (
+              require('../experimental/create-env-definitions') as typeof import('../experimental/create-env-definitions')
+            ).createEnvDefinitions
+            await createEnvDefinitions({
+              distDir,
+              loadedEnvFiles: [
+                ...loadedEnvFiles,
+                {
+                  path: nextConfig.configFileName,
+                  env: nextConfig.env,
+                  contents: '',
+                },
+              ],
+            })
+          }
+
+          const routeTypesManifest = await createRouteTypesManifest({
+            dir,
+            pageRoutes,
+            appRoutes,
+            layoutRoutes,
+            slots,
+            redirects: opts.nextConfig.redirects,
+            rewrites: opts.nextConfig.rewrites,
+            // Ensure relative paths in validator.ts are computed from validatorFilePath,
+            // matching behavior of build and CLI typegen.
+            validatorFilePath,
+            appRouteHandlers,
+            pageApiRoutes,
+          })
+
+          await writeRouteTypesManifest(
+            routeTypesManifest,
+            routeTypesFilePath,
+            opts.nextConfig
+          )
+          await writeValidatorFile(routeTypesManifest, validatorFilePath)
+        }
 
         if (!resolved) {
           resolve()
@@ -942,10 +1129,6 @@ async function startWatcher(
         } else {
           Log.warn('Failed to reload dynamic routes:', e)
         }
-      } finally {
-        // Reload the matchers. The filesystem would have been written to,
-        // and the matchers need to re-scan it to update the router.
-        await propagateServerField(opts, 'reloadMatchers', undefined)
       }
     })
 
@@ -966,7 +1149,7 @@ async function startWatcher(
 
     if (parsedUrl.pathname?.includes(clientPagesManifestPath)) {
       res.statusCode = 200
-      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
       res.end(
         JSON.stringify({
           pages: prevSortedRoutes.filter(
@@ -982,7 +1165,7 @@ async function startWatcher(
       parsedUrl.pathname?.includes(devTurbopackMiddlewareManifestPath)
     ) {
       res.statusCode = 200
-      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
       res.end(JSON.stringify(serverFields.middleware?.matchers || []))
       return { finished: true }
     }
@@ -1039,20 +1222,16 @@ export async function setupDevBundler(opts: SetupOpts) {
   })
 
   opts.telemetry.record(
-    eventCliSession(
-      path.join(opts.dir, opts.nextConfig.distDir),
-      opts.nextConfig,
-      {
-        webpackVersion: 5,
-        isSrcDir,
-        turboFlag: !!opts.turbo,
-        cliCommand: 'dev',
-        appDir: !!opts.appDir,
-        pagesDir: !!opts.pagesDir,
-        isCustomServer: !!opts.isCustomServer,
-        hasNowJson: !!(await findUp('now.json', { cwd: opts.dir })),
-      }
-    )
+    eventCliSession(opts.nextConfig, {
+      webpackVersion: 5,
+      isSrcDir,
+      turboFlag: !!opts.turbo,
+      cliCommand: 'dev',
+      appDir: !!opts.appDir,
+      pagesDir: !!opts.pagesDir,
+      isCustomServer: !!opts.isCustomServer,
+      hasNowJson: !!(await findUp('now.json', { cwd: opts.dir })),
+    })
   )
 
   // Track build features for dev server here:
@@ -1060,7 +1239,9 @@ export async function setupDevBundler(opts: SetupOpts) {
     eventName: EVENT_BUILD_FEATURE_USAGE,
     payload: {
       featureName: 'turbopackPersistentCaching',
-      invocationCount: isPersistentCachingEnabled(opts.nextConfig) ? 1 : 0,
+      invocationCount: isPersistentCachingEnabledForDev(opts.nextConfig)
+        ? 1
+        : 0,
     },
   })
 

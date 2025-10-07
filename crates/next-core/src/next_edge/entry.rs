@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -51,7 +51,7 @@ pub fn wrap_edge_entry(
     );
 
     let inner_assets = fxindexmap! {
-        "MODULE".into() => entry
+        rcstr!("MODULE") => entry
     };
 
     Ok(asset_context

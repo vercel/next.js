@@ -1,13 +1,12 @@
 import * as React from 'react'
 import { useOnClickOutside } from '../../hooks/use-on-click-outside'
 
-export type DialogProps = {
+type DialogProps = {
   children?: React.ReactNode
   'aria-labelledby': string
   'aria-describedby': string
   className?: string
   onClose?: () => void
-  dialogResizerRef?: React.RefObject<HTMLDivElement | null>
 } & React.HTMLAttributes<HTMLDivElement>
 
 const CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE = [
@@ -27,10 +26,10 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   onClose,
   'aria-labelledby': ariaLabelledBy,
   'aria-describedby': ariaDescribedBy,
-  dialogResizerRef,
   ...props
 }) {
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
+  // TODO: Document is an external store. Either use useSyncExternalStore or always set the role.
   const [role, setRole] = React.useState<string | undefined>(
     typeof document !== 'undefined' && document.hasFocus()
       ? 'dialog'
@@ -38,7 +37,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   )
 
   useOnClickOutside(
-    dialogRef.current,
+    dialogRef,
     CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE,
     (e) => {
       e.preventDefault()
@@ -87,6 +86,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       ref={dialogRef}
       tabIndex={-1}
       data-nextjs-dialog
+      data-nextjs-scrollable-content
       role={role}
       aria-labelledby={ariaLabelledBy}
       aria-describedby={ariaDescribedBy}

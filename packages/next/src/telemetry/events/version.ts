@@ -1,5 +1,4 @@
 import type { NextConfigComplete } from '../../server/config-shared'
-import path from 'path'
 
 const EVENT_VERSION = 'NEXT_CLI_SESSION_STARTED'
 
@@ -41,30 +40,10 @@ type EventCliSessionStarted = {
   reactCompiler: boolean
   reactCompilerCompilationMode: string | null
   reactCompilerPanicThreshold: string | null
-}
-
-function hasBabelConfig(dir: string): boolean {
-  try {
-    const noopFile = path.join(dir, 'noop.js')
-    const res = (
-      require('next/dist/compiled/babel/core') as typeof import('next/dist/compiled/babel/core')
-    ).loadPartialConfig({
-      cwd: dir,
-      filename: noopFile,
-      sourceFileName: noopFile,
-    }) as any
-    const isForTooling =
-      res.options?.presets?.every(
-        (e: any) => e?.file?.request === 'next/babel'
-      ) && res.options?.plugins?.length === 0
-    return res.hasFilesystemConfig() && !isForTooling
-  } catch {
-    return false
-  }
+  mcpServer: boolean | null
 }
 
 export function eventCliSession(
-  dir: string,
   nextConfig: NextConfigComplete,
   event: Omit<
     EventCliSessionStarted,
@@ -96,6 +75,7 @@ export function eventCliSession(
     | 'reactCompiler'
     | 'reactCompilerCompilationMode'
     | 'reactCompilerPanicThreshold'
+    | 'mcpServer'
     | 'isRspack'
   >
 ): { eventName: string; payload: EventCliSessionStarted }[] {
@@ -116,7 +96,7 @@ export function eventCliSession(
     hasNextConfig: nextConfig.configOrigin !== 'default',
     buildTarget: 'default',
     hasWebpackConfig: typeof nextConfig?.webpack === 'function',
-    hasBabelConfig: hasBabelConfig(dir),
+    hasBabelConfig: false,
     imageEnabled: !!images,
     imageFutureEnabled: !!images,
     basePathEnabled: !!nextConfig?.basePath,
@@ -145,14 +125,18 @@ export function eventCliSession(
     pagesDir: event.pagesDir,
     staticStaleTime: nextConfig.experimental.staleTimes?.static ?? null,
     dynamicStaleTime: nextConfig.experimental.staleTimes?.dynamic ?? null,
-    reactCompiler: Boolean(nextConfig.experimental.reactCompiler),
+    reactCompiler: Boolean(nextConfig.reactCompiler),
     reactCompilerCompilationMode:
-      typeof nextConfig.experimental.reactCompiler !== 'boolean'
-        ? nextConfig.experimental.reactCompiler?.compilationMode ?? null
+      typeof nextConfig.reactCompiler !== 'boolean'
+        ? (nextConfig.reactCompiler?.compilationMode ?? null)
         : null,
     reactCompilerPanicThreshold:
-      typeof nextConfig.experimental.reactCompiler !== 'boolean'
-        ? nextConfig.experimental.reactCompiler?.panicThreshold ?? null
+      typeof nextConfig.reactCompiler !== 'boolean'
+        ? (nextConfig.reactCompiler?.panicThreshold ?? null)
+        : null,
+    mcpServer:
+      typeof nextConfig.experimental.mcpServer === 'boolean'
+        ? nextConfig.experimental.mcpServer
         : null,
   }
   return [{ eventName: EVENT_VERSION, payload }]

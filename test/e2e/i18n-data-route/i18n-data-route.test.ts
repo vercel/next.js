@@ -54,7 +54,9 @@ describe('i18n-data-route', () => {
 
           const res = await next.fetch(url)
           expect(res.status).toBe(200)
-          expect(res.headers.get('content-type')).toBe('application/json')
+          expect(res.headers.get('content-type')).toStartWith(
+            'application/json'
+          )
           const data = await res.json()
           checkDataRoute(data, page)
         }
@@ -80,7 +82,7 @@ describe('i18n-data-route', () => {
         }
         const res = await next.fetch(url)
         expect(res.status).toBe(200)
-        expect(res.headers.get('content-type')).toBe('application/json')
+        expect(res.headers.get('content-type')).toStartWith('application/json')
         const data = await res.json()
         checkDataRoute(data, page)
       }

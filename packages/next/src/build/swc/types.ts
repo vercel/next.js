@@ -16,7 +16,10 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions?: NapiTurboEngineOptions
     ): Promise<Project>
-    startTurbopackTraceServer(traceFilePath: string): void
+    startTurbopackTraceServer(
+      traceFilePath: string,
+      port: number | undefined
+    ): void
 
     nextBuild?: any
   }
@@ -52,6 +55,14 @@ export interface Binding {
       isProduction: boolean
     ): Promise<NapiSourceDiagnostic[]>
   }
+  expandNextJsTemplate(
+    content: Buffer,
+    templatePath: string,
+    nextPackageDirPath: string,
+    replacements: Record<`VAR_${string}`, string>,
+    injections: Record<string, string>,
+    imports: Record<string, string | null>
+  ): string
 }
 
 export type StyledString =
@@ -214,9 +225,11 @@ export interface Project {
 
   writeAllEntrypointsToDisk(
     appDirOnly: boolean
-  ): Promise<TurbopackResult<RawEntrypoints>>
+  ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
 
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints>>
+  entrypointsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<RawEntrypoints | {}>
+  >
 
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
 
@@ -346,18 +359,22 @@ export type WrittenEndpoint =
 
 export interface ProjectOptions {
   /**
-   * A root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail. Think of this as a chroot.
+   * An absolute root path (Unix or Windows path) from which all files must be nested under. Trying
+   * to access a file outside this root will fail, so think of this as a chroot.
+   * E.g. `/home/user/projects/my-repo`.
    */
   rootPath: string
 
   /**
-   * A path inside the root_path which contains the app/pages directories.
+   * A path which contains the app/pages directories, relative to `root_path`, always a Unix path.
+   * E.g. `apps/my-app`
    */
   projectPath: string
 
   /**
-   * The path to the .next directory.
+   * A path where to emit the build outputs, relative to [`Project::project_path`], always a Unix
+   * path. Corresponds to next.config.js's `distDir`.
+   * E.g. `.next`
    */
   distDir: string
 
@@ -365,17 +382,6 @@ export interface ProjectOptions {
    * The next.config.js contents.
    */
   nextConfig: NextConfigComplete
-
-  /**
-   * Jsconfig, or tsconfig contents.
-   *
-   * Next.js implicitly requires to read it to support few options
-   * https://nextjs.org/docs/architecture/nextjs-compiler#legacy-decorators
-   * https://nextjs.org/docs/architecture/nextjs-compiler#importsource
-   */
-  jsConfig: {
-    compilerOptions: object
-  }
 
   /**
    * A map of environment variables to use when compiling code.

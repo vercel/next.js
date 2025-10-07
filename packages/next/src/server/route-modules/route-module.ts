@@ -48,7 +48,7 @@ import { isStaticMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import { IncrementalCache } from '../lib/incremental-cache'
 import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
 import { interopDefault } from '../app-render/interop-default'
-import type { RouteKind } from '../route-kind'
+import { RouteKind } from '../route-kind'
 import type { BaseNextRequest } from '../base-http'
 import type { I18NConfig, NextConfigComplete } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
@@ -60,6 +60,7 @@ import {
 } from '../lib/router-utils/router-server-context'
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
+import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -73,7 +74,7 @@ export interface RouteModuleOptions<
   readonly definition: Readonly<D>
   readonly userland: Readonly<U>
   readonly distDir: string
-  readonly projectDir: string
+  readonly relativeProjectDir: string
 }
 
 /**
@@ -119,8 +120,7 @@ export abstract class RouteModule<
 
   public isDev: boolean
   public distDir: string
-  public projectDir: string
-  public isAppRouter?: boolean
+  public relativeProjectDir: string
   public incrementCache?: IncrementalCache
   public responseCache?: ResponseCache
 
@@ -128,13 +128,13 @@ export abstract class RouteModule<
     userland,
     definition,
     distDir,
-    projectDir,
+    relativeProjectDir,
   }: RouteModuleOptions<D, U>) {
     this.userland = userland
     this.definition = definition
     this.isDev = process.env.NODE_ENV === 'development'
     this.distDir = distDir
-    this.projectDir = projectDir
+    this.relativeProjectDir = relativeProjectDir
   }
 
   public async instrumentationOnRequestError(
@@ -150,12 +150,14 @@ export abstract class RouteModule<
       }
     } else {
       const { join } = require('node:path') as typeof import('node:path')
-      const absoluteProjectDir =
-        getRequestMeta(req, 'projectDir') ||
-        join(process.cwd(), this.projectDir)
+      const absoluteProjectDir = join(
+        /* turbopackIgnore: true */
+        process.cwd(),
+        getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+      )
 
       const { instrumentationOnRequestError } = await import(
-        '../lib/router-utils/instrumentation-globals.external'
+        '../lib/router-utils/instrumentation-globals.external.js'
       )
 
       return instrumentationOnRequestError(
@@ -172,6 +174,7 @@ export abstract class RouteModule<
   ): {
     buildId: string
     buildManifest: BuildManifest
+    fallbackBuildManifest: BuildManifest
     routesManifest: DeepReadonly<DevRoutesManifest>
     nextFontManifest: DeepReadonly<NextFontManifest>
     prerenderManifest: DeepReadonly<PrerenderManifest>
@@ -181,6 +184,7 @@ export abstract class RouteModule<
     clientReferenceManifest: any
     serverActionsManifest: any
     dynamicCssManifest: any
+    interceptionRoutePatterns: RegExp[]
   } {
     if (process.env.NEXT_RUNTIME === 'edge') {
       const { getEdgePreviewProps } =
@@ -192,6 +196,7 @@ export abstract class RouteModule<
       return {
         buildId: process.env.__NEXT_BUILD_ID || '',
         buildManifest: self.__BUILD_MANIFEST as any,
+        fallbackBuildManifest: {} as any,
         reactLoadableManifest: maybeJSONParse(self.__REACT_LOADABLE_MANIFEST),
         nextFontManifest: maybeJSONParse(self.__NEXT_FONT_MANIFEST),
         prerenderManifest: {
@@ -227,6 +232,9 @@ export abstract class RouteModule<
           self.__SUBRESOURCE_INTEGRITY_MANIFEST
         ),
         dynamicCssManifest: maybeJSONParse(self.__DYNAMIC_CSS_MANIFEST),
+        interceptionRoutePatterns: (
+          maybeJSONParse(self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST) ?? []
+        ).map((rewrite: any) => new RegExp(rewrite.regex)),
       }
     } else {
       if (!projectDir) {
@@ -236,10 +244,17 @@ export abstract class RouteModule<
         require('../load-manifest.external') as typeof import('../load-manifest.external')
       const normalizedPagePath = normalizePagePath(srcPage)
 
+      const router =
+        this.definition.kind === RouteKind.PAGES ||
+        this.definition.kind === RouteKind.PAGES_API
+          ? 'pages'
+          : 'app'
+
       const [
         routesManifest,
         prerenderManifest,
         buildManifest,
+        fallbackBuildManifest,
         reactLoadableManifest,
         nextFontManifest,
         clientReferenceManifest,
@@ -267,11 +282,20 @@ export abstract class RouteModule<
           manifest: BUILD_MANIFEST,
           shouldCache: !this.isDev,
         }),
+        srcPage === '/_error'
+          ? loadManifestFromRelativePath<BuildManifest>({
+              projectDir,
+              distDir: this.distDir,
+              manifest: `fallback-${BUILD_MANIFEST}`,
+              shouldCache: !this.isDev,
+              handleMissing: true,
+            })
+          : ({} as BuildManifest),
         loadManifestFromRelativePath<ReactLoadableManifest>({
           projectDir,
           distDir: this.distDir,
           manifest: process.env.TURBOPACK
-            ? `server/${this.isAppRouter ? 'app' : 'pages'}${normalizedPagePath}/${REACT_LOADABLE_MANIFEST}`
+            ? `server/${router === 'app' ? 'app' : 'pages'}${normalizedPagePath}/${REACT_LOADABLE_MANIFEST}`
             : REACT_LOADABLE_MANIFEST,
           handleMissing: true,
           shouldCache: !this.isDev,
@@ -282,7 +306,7 @@ export abstract class RouteModule<
           manifest: `server/${NEXT_FONT_MANIFEST}.json`,
           shouldCache: !this.isDev,
         }),
-        this.isAppRouter && !isStaticMetadataRoute(srcPage)
+        router === 'app' && !isStaticMetadataRoute(srcPage)
           ? loadManifestFromRelativePath({
               distDir: this.distDir,
               projectDir,
@@ -292,7 +316,7 @@ export abstract class RouteModule<
               shouldCache: !this.isDev,
             })
           : undefined,
-        this.isAppRouter
+        router === 'app'
           ? loadManifestFromRelativePath<any>({
               distDir: this.distDir,
               projectDir,
@@ -334,6 +358,7 @@ export abstract class RouteModule<
       return {
         buildId,
         buildManifest,
+        fallbackBuildManifest,
         routesManifest,
         nextFontManifest,
         prerenderManifest,
@@ -344,12 +369,15 @@ export abstract class RouteModule<
         serverActionsManifest,
         subresourceIntegrityManifest,
         dynamicCssManifest,
+        interceptionRoutePatterns: routesManifest.rewrites.beforeFiles
+          .filter(isInterceptionRouteRewrite)
+          .map((rewrite) => new RegExp(rewrite.regex)),
       }
     }
   }
 
   public async loadCustomCacheHandlers(
-    req: IncomingMessage,
+    req: IncomingMessage | BaseNextRequest,
     nextConfig: NextConfigComplete
   ) {
     if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -367,9 +395,11 @@ export abstract class RouteModule<
           require('../../lib/format-dynamic-import-path') as typeof import('../../lib/format-dynamic-import-path')
 
         const { join } = require('node:path') as typeof import('node:path')
-        const absoluteProjectDir =
-          getRequestMeta(req, 'projectDir') ||
-          join(process.cwd(), this.projectDir)
+        const absoluteProjectDir = join(
+          /* turbopackIgnore: true */
+          process.cwd(),
+          getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+        )
 
         setCacheHandler(
           kind,
@@ -387,7 +417,7 @@ export abstract class RouteModule<
   }
 
   public async getIncrementalCache(
-    req: IncomingMessage,
+    req: IncomingMessage | BaseNextRequest,
     nextConfig: NextConfigComplete,
     prerenderManifest: DeepReadonly<PrerenderManifest>
   ): Promise<IncrementalCache> {
@@ -408,9 +438,11 @@ export abstract class RouteModule<
         )
       }
       const { join } = require('node:path') as typeof import('node:path')
-      const projectDir =
-        getRequestMeta(req, 'projectDir') ||
-        join(process.cwd(), this.projectDir)
+      const projectDir = join(
+        /* turbopackIgnore: true */
+        process.cwd(),
+        getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+      )
 
       await this.loadCustomCacheHandlers(req, nextConfig)
 
@@ -484,8 +516,10 @@ export abstract class RouteModule<
         pageIsDynamic: boolean
         isDraftMode: boolean
         resolvedPathname: string
+        encodedResolvedPathname: string
         isNextDataRequest: boolean
         buildManifest: DeepReadonly<BuildManifest>
+        fallbackBuildManifest: DeepReadonly<BuildManifest>
         nextFontManifest: DeepReadonly<NextFontManifest>
         serverFilesManifest: DeepReadonly<RequiredServerFilesManifest>
         reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
@@ -501,33 +535,36 @@ export abstract class RouteModule<
         revalidateOnlyGenerated: boolean
         nextConfig: NextConfigComplete
         routerServerContext?: RouterServerContext[string]
+        interceptionRoutePatterns?: any
       }
     | undefined
   > {
-    let projectDir: string | undefined
+    let absoluteProjectDir: string | undefined
 
     // edge runtime handles loading instrumentation at the edge adapter level
     if (process.env.NEXT_RUNTIME !== 'edge') {
       const { join, relative } =
         require('node:path') as typeof import('node:path')
 
-      projectDir =
-        getRequestMeta(req, 'projectDir') ||
-        join(process.cwd(), this.projectDir)
+      absoluteProjectDir = join(
+        /* turbopackIgnore: true */
+        process.cwd(),
+        getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+      )
 
       const absoluteDistDir = getRequestMeta(req, 'distDir')
 
       if (absoluteDistDir) {
-        this.distDir = relative(projectDir, absoluteDistDir)
+        this.distDir = relative(absoluteProjectDir, absoluteDistDir)
       }
       const { ensureInstrumentationRegistered } = await import(
-        '../lib/router-utils/instrumentation-globals.external'
+        '../lib/router-utils/instrumentation-globals.external.js'
       )
       // ensure instrumentation is registered and pass
       // onRequestError below
-      ensureInstrumentationRegistered(projectDir, this.distDir)
+      ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
-    const manifests = await this.loadManifests(srcPage, projectDir)
+    const manifests = await this.loadManifests(srcPage, absoluteProjectDir)
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest
@@ -570,8 +607,13 @@ export abstract class RouteModule<
       }
     }
 
+    // Normalize the page path for route matching. The srcPage contains the
+    // internal page path (e.g., /app/[slug]/page), but route matchers expect
+    // the pathname format (e.g., /app/[slug]).
+    const normalizedSrcPage = normalizeAppPath(srcPage)
+
     const serverUtils = getServerUtils({
-      page: srcPage,
+      page: normalizedSrcPage,
       i18n,
       basePath,
       rewrites,
@@ -597,15 +639,25 @@ export abstract class RouteModule<
     const locale =
       getRequestMeta(req, 'locale') || detectedLocale || defaultLocale
 
-    const rewriteParamKeys = Object.keys(
-      serverUtils.handleRewrites(req, parsedUrl)
+    // we apply rewrites against cloned URL so that we don't
+    // modify the original with the rewrite destination
+    const { rewriteParams, rewrittenParsedUrl } = serverUtils.handleRewrites(
+      req,
+      parsedUrl
     )
+    const rewriteParamKeys = Object.keys(rewriteParams)
+    Object.assign(parsedUrl.query, rewrittenParsedUrl.query)
 
     // after processing rewrites we want to remove locale
     // from parsedUrl pathname
     if (i18n) {
       parsedUrl.pathname = normalizeLocalePath(
         parsedUrl.pathname || '/',
+        i18n.locales
+      ).pathname
+
+      rewrittenParsedUrl.pathname = normalizeLocalePath(
+        rewrittenParsedUrl.pathname || '/',
         i18n.locales
       ).pathname
     }
@@ -616,7 +668,9 @@ export abstract class RouteModule<
     // attempt parsing from pathname
     if (!params && serverUtils.dynamicRouteMatcher) {
       const paramsMatch = serverUtils.dynamicRouteMatcher(
-        normalizeDataPath(localeResult?.pathname || parsedUrl.pathname || '/')
+        normalizeDataPath(
+          rewrittenParsedUrl?.pathname || parsedUrl.pathname || '/'
+        )
       )
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
         paramsMatch || {},
@@ -644,11 +698,14 @@ export abstract class RouteModule<
     const routeParamKeys = new Set<string>()
     const combinedParamKeys = []
 
-    // we don't include rewriteParamKeys in the combinedParamKeys
+    // We don't include rewriteParamKeys in the combinedParamKeys
     // for app router since the searchParams is populated from the
     // URL so we don't want to strip the rewrite params from the URL
-    // so that searchParams can include them
-    if (!this.isAppRouter) {
+    // so that searchParams can include them.
+    if (
+      this.definition.kind === RouteKind.PAGES ||
+      this.definition.kind === RouteKind.PAGES_API
+    ) {
       for (const key of [
         ...rewriteParamKeys,
         ...Object.keys(serverUtils.defaultRouteMatches || {}),
@@ -760,15 +817,15 @@ export abstract class RouteModule<
       isDraftMode = previewData !== false
     }
 
+    const relativeProjectDir =
+      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+
     const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[this.projectDir]
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest.config
 
-    const normalizedSrcPage = normalizeAppPath(srcPage)
-    let resolvedPathname =
-      getRequestMeta(req, 'rewroteURL') || normalizedSrcPage
-
+    let resolvedPathname = normalizedSrcPage
     if (isDynamicRoute(resolvedPathname) && params) {
       resolvedPathname = serverUtils.interpolateDynamicPath(
         resolvedPathname,
@@ -779,6 +836,10 @@ export abstract class RouteModule<
     if (resolvedPathname === '/index') {
       resolvedPathname = '/'
     }
+    const encodedResolvedPathname = resolvedPathname
+
+    // we decode for cache key/manifest usage encoded is
+    // for URL building
     try {
       resolvedPathname = decodePathParams(resolvedPathname)
     } catch (_) {}
@@ -799,6 +860,7 @@ export abstract class RouteModule<
       previewData,
       pageIsDynamic,
       resolvedPathname,
+      encodedResolvedPathname,
       isOnDemandRevalidate,
       revalidateOnlyGenerated,
       ...manifests,
@@ -809,7 +871,7 @@ export abstract class RouteModule<
     }
   }
 
-  public getResponseCache(req: IncomingMessage) {
+  public getResponseCache(req: IncomingMessage | BaseNextRequest) {
     if (!this.responseCache) {
       const minimalMode = getRequestMeta(req, 'minimalMode') ?? false
       this.responseCache = new ResponseCache(minimalMode)
@@ -830,7 +892,7 @@ export abstract class RouteModule<
     responseGenerator,
     waitUntil,
   }: {
-    req: IncomingMessage
+    req: IncomingMessage | BaseNextRequest
     nextConfig: NextConfigComplete
     cacheKey: string | null
     routeKind: RouteKind

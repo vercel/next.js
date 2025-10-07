@@ -7,7 +7,7 @@ import { createFromReadableStream as createFromReadableStreamBrowser } from 'rea
 import type {
   FlightRouterState,
   NavigationFlightResponse,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 
 import type { NEXT_ROUTER_SEGMENT_PREFETCH_HEADER } from '../app-router-headers'
 import {
@@ -20,6 +20,8 @@ import {
   NEXT_HMR_REFRESH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
+  NEXT_REQUEST_ID_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
@@ -31,9 +33,23 @@ import {
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
+import { urlToUrlWithoutFlightMarker } from '../../route-params'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
+
+let createDebugChannel:
+  | typeof import('../../dev/debug-channel').createDebugChannel
+  | undefined
+
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEBUG_CHANNEL
+) {
+  createDebugChannel = (
+    require('../../dev/debug-channel') as typeof import('../../dev/debug-channel')
+  ).createDebugChannel
+}
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
@@ -55,34 +71,21 @@ export type RequestHeaders = {
   [RSC_HEADER]?: '1'
   [NEXT_ROUTER_STATE_TREE_HEADER]?: string
   [NEXT_URL]?: string
-  [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2'
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
   [NEXT_HMR_REFRESH_HEADER]?: '1'
   // A header that is only added in test mode to assert on fetch priority
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
-}
-
-export function urlToUrlWithoutFlightMarker(url: string): URL {
-  const urlWithoutFlightParameters = new URL(url, location.origin)
-  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
-  if (process.env.NODE_ENV === 'production') {
-    if (
-      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
-      urlWithoutFlightParameters.pathname.endsWith('.txt')
-    ) {
-      const { pathname } = urlWithoutFlightParameters
-      const length = pathname.endsWith('/index.txt') ? 10 : 4
-      // Slice off `/index.txt` or `.txt` from the end of the pathname
-      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
-    }
-  }
-  return urlWithoutFlightParameters
+  [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
+  [NEXT_REQUEST_ID_HEADER]?: string // dev-only
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
   return {
-    flightData: urlToUrlWithoutFlightMarker(url).toString(),
+    flightData: urlToUrlWithoutFlightMarker(
+      new URL(url, location.origin)
+    ).toString(),
     canonicalUrl: undefined,
     couldBeIntercepted: false,
     prerendered: false,
@@ -179,7 +182,7 @@ export async function fetchServerResponse(
       abortController.signal
     )
 
-    const responseUrl = urlToUrlWithoutFlightMarker(res.url)
+    const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
     const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''
@@ -228,7 +231,8 @@ export async function fetchServerResponse(
       ? createUnclosingPrefetchStream(res.body)
       : res.body
     const response = await (createFromNextReadableStream(
-      flightStream
+      flightStream,
+      headers
     ) as Promise<NavigationFlightResponse>)
 
     if (getAppBuildId() !== response.b) {
@@ -295,6 +299,19 @@ export async function createFetch(
 
   if (process.env.NEXT_DEPLOYMENT_ID) {
     headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    if (self.__next_r) {
+      headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
+    }
+
+    // Create a new request ID for the server action request. The server uses
+    // this to tag debug information sent via WebSocket to the client, which
+    // then routes those chunks to the debug channel associated with this ID.
+    headers[NEXT_REQUEST_ID_HEADER] = crypto
+      .getRandomValues(new Uint32Array(1))[0]
+      .toString(16)
   }
 
   const fetchOptions: RequestInit = {
@@ -397,11 +414,13 @@ export async function createFetch(
 }
 
 export function createFromNextReadableStream(
-  flightStream: ReadableStream<Uint8Array>
+  flightStream: ReadableStream<Uint8Array>,
+  requestHeaders: RequestHeaders
 ): Promise<unknown> {
   return createFromReadableStream(flightStream, {
     callServer,
     findSourceMapURL,
+    debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
   })
 }
 

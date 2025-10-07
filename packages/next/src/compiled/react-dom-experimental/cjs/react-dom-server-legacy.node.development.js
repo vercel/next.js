@@ -896,11 +896,16 @@
       );
     }
     function getSuspenseContentFormatContext(resumableState, parentContext) {
+      resumableState = getSuspenseViewTransition(parentContext.viewTransition);
+      var subtreeScope = parentContext.tagScope | 16;
+      null !== resumableState &&
+        "none" !== resumableState.share &&
+        (subtreeScope |= 64);
       return createFormatContext(
         parentContext.insertionMode,
         parentContext.selectedValue,
-        parentContext.tagScope | 16,
-        getSuspenseViewTransition(parentContext.viewTransition)
+        subtreeScope,
+        resumableState
       );
     }
     function makeId(resumableState, treeId, localId) {
@@ -2784,6 +2789,9 @@
               ("t" !== srcSet[2] && "T" !== srcSet[2]) ||
               ("a" !== srcSet[3] && "A" !== srcSet[3]))
           ) {
+            null !== hoistableState &&
+              formatContext.tagScope & 64 &&
+              (hoistableState.suspenseyImages = !0);
             var sizes = "string" === typeof props.sizes ? props.sizes : void 0,
               key$jscomp$0 = srcSet ? srcSet + "\n" + (sizes || "") : src,
               promotablePreloads = renderState.preloads.images,
@@ -3502,7 +3510,7 @@
       destination.push(attributeName);
     }
     function createHoistableState() {
-      return { styles: new Set(), stylesheets: new Set() };
+      return { styles: new Set(), stylesheets: new Set(), suspenseyImages: !1 };
     }
     function preloadBootstrapScriptOrModule(
       resumableState,
@@ -3610,6 +3618,7 @@
     function hoistHoistables(parentState, childState) {
       childState.styles.forEach(hoistStyleQueueDependency, parentState);
       childState.stylesheets.forEach(hoistStylesheetDependency, parentState);
+      childState.suspenseyImages && (parentState.suspenseyImages = !0);
     }
     function createRenderState(resumableState, generateStaticMarkup) {
       var idPrefix = resumableState.idPrefix,
@@ -4613,6 +4622,11 @@
       }
       return "";
     }
+    function isEligibleForOutlining(request, boundary) {
+      return (
+        (500 < boundary.byteSize || !1) && null === boundary.contentPreamble
+      );
+    }
     function defaultErrorHandler(error) {
       if (
         "object" === typeof error &&
@@ -4628,7 +4642,7 @@
               "[%s] " + error[0],
               " " + JSCompiler_inline_result + " "
             )
-          : error.splice(0, 0, "[%s] ", " " + JSCompiler_inline_result + " ");
+          : error.splice(0, 0, "[%s]", " " + JSCompiler_inline_result + " ");
         error.unshift(console);
         JSCompiler_inline_result = bind.apply(console.error, error);
         JSCompiler_inline_result();
@@ -5143,7 +5157,7 @@
           if (
             1 !== rowBoundary.pendingTasks ||
             rowBoundary.parentFlushed ||
-            500 < rowBoundary.byteSize
+            isEligibleForOutlining(request, rowBoundary)
           ) {
             allCompleteAndInlinable = !1;
             break;
@@ -6243,7 +6257,7 @@
                   ) {
                     if (
                       ((newBoundary.status = COMPLETED),
-                      !(500 < newBoundary.byteSize))
+                      !isEligibleForOutlining(request, newBoundary))
                     ) {
                       null !== prevRow$jscomp$0 &&
                         0 === --prevRow$jscomp$0.pendingTasks &&
@@ -7214,10 +7228,13 @@
               thrownValue === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue),
-            "object" === typeof node && null !== node)
+            12 !== request.status && "object" === typeof node && null !== node)
           ) {
             if ("function" === typeof node.then) {
-              childIndex = getThenableStateAfterSuspending();
+              childIndex =
+                thrownValue === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               request = spawnNewSuspendedReplayTask(
                 request,
                 task,
@@ -7235,7 +7252,10 @@
               return;
             }
             if ("Maximum call stack size exceeded" === node.message) {
-              node = getThenableStateAfterSuspending();
+              node =
+                thrownValue === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               node = spawnNewSuspendedReplayTask(request, task, node);
               request.pingedTasks.push(node);
               task.formatContext = previousFormatContext;
@@ -7264,11 +7284,14 @@
               thrownValue$3 === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue$3),
-            "object" === typeof node && null !== node)
+            12 !== request.status && "object" === typeof node && null !== node)
           ) {
             if ("function" === typeof node.then) {
               segment = node;
-              node = getThenableStateAfterSuspending();
+              node =
+                thrownValue$3 === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               request = spawnNewSuspendedRenderTask(request, task, node).ping;
               segment.then(request, request);
               task.formatContext = previousFormatContext;
@@ -7310,7 +7333,10 @@
               return;
             }
             if ("Maximum call stack size exceeded" === node.message) {
-              segment = getThenableStateAfterSuspending();
+              segment =
+                thrownValue$3 === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               segment = spawnNewSuspendedRenderTask(request, task, segment);
               request.pingedTasks.push(segment);
               task.formatContext = previousFormatContext;
@@ -7728,7 +7754,7 @@
             (row = boundary.row),
               null !== row &&
                 hoistHoistables(row.hoistables, boundary.contentState),
-              500 < boundary.byteSize ||
+              isEligibleForOutlining(request, boundary) ||
                 (boundary.fallbackAbortableTasks.forEach(
                   abortTaskSoft,
                   request
@@ -7850,7 +7876,10 @@
                   ) {
                     var ping = request.ping;
                     x.then(ping, ping);
-                    request.thenableState = getThenableStateAfterSuspending();
+                    request.thenableState =
+                      thrownValue === SuspenseException
+                        ? getThenableStateAfterSuspending()
+                        : null;
                   } else {
                     request.replay.pendingTasks--;
                     request.abortSet.delete(request);
@@ -7959,7 +7988,9 @@
                         if ("function" === typeof x$jscomp$0.then) {
                           segment$jscomp$0.status = PENDING;
                           task$jscomp$0.thenableState =
-                            getThenableStateAfterSuspending();
+                            thrownValue === SuspenseException
+                              ? getThenableStateAfterSuspending()
+                              : null;
                           var ping$jscomp$0 = task$jscomp$0.ping;
                           x$jscomp$0.then(ping$jscomp$0, ping$jscomp$0);
                           break a;
@@ -8115,6 +8146,7 @@
       switch (boundary.status) {
         case COMPLETED:
           hoistPreambleState(request.renderState, preamble);
+          request.byteSize += boundary.byteSize;
           segment = boundary.completedSegments[0];
           if (!segment)
             throw Error(
@@ -8147,17 +8179,17 @@
         null === request.completedPreambleSegments
       ) {
         var collectedPreambleSegments = [],
+          originalRequestByteSize = request.byteSize,
           hasPendingPreambles = preparePreambleFromSegment(
             request,
             request.completedRootSegment,
             collectedPreambleSegments
           ),
           preamble = request.renderState.preamble;
-        if (
-          !1 === hasPendingPreambles ||
-          (preamble.headChunks && preamble.bodyChunks)
-        )
-          request.completedPreambleSegments = collectedPreambleSegments;
+        !1 === hasPendingPreambles ||
+        (preamble.headChunks && preamble.bodyChunks)
+          ? (request.completedPreambleSegments = collectedPreambleSegments)
+          : (request.byteSize = originalRequestByteSize);
       }
     }
     function flushSubtree(request, destination, segment, hoistableState) {
@@ -8204,6 +8236,7 @@
       var boundary = segment.boundary;
       if (null === boundary)
         return flushSubtree(request, destination, segment, hoistableState);
+      segment.boundary = null;
       boundary.parentFlushed = !0;
       if (boundary.status === CLIENT_RENDERED) {
         var row = boundary.row;
@@ -8270,7 +8303,8 @@
           destination.push(endSuspenseBoundary)
         );
       if (
-        500 < boundary.byteSize &&
+        !flushingPartialBoundaries &&
+        isEligibleForOutlining(request, boundary) &&
         flushedByteSize + boundary.byteSize > request.progressiveChunkSize
       )
         return (
@@ -8288,7 +8322,7 @@
       hoistableState && hoistHoistables(hoistableState, boundary.contentState);
       segment = boundary.row;
       null !== segment &&
-        500 < boundary.byteSize &&
+        isEligibleForOutlining(request, boundary) &&
         0 === --segment.pendingTasks &&
         finishSuspenseListRow(request, segment);
       request.renderState.generateStaticMarkup ||
@@ -8335,7 +8369,7 @@
       completedSegments.length = 0;
       completedSegments = boundary.row;
       null !== completedSegments &&
-        500 < boundary.byteSize &&
+        isEligibleForOutlining(request, boundary) &&
         0 === --completedSegments.pendingTasks &&
         finishSuspenseListRow(request, completedSegments);
       writeHoistablesForBoundary(
@@ -8798,6 +8832,7 @@
               return;
             }
           completedBoundaries.splice(0, i);
+          flushingPartialBoundaries = !0;
           var partialBoundaries = request.partialBoundaries;
           for (i = 0; i < partialBoundaries.length; i++) {
             a: {
@@ -8850,6 +8885,7 @@
             }
           }
           partialBoundaries.splice(0, i);
+          flushingPartialBoundaries = !1;
           var largeBoundaries = request.completedBoundaries;
           for (i = 0; i < largeBoundaries.length; i++)
             if (
@@ -8863,23 +8899,24 @@
           largeBoundaries.splice(0, i);
         }
       } finally {
-        0 === request.allPendingTasks &&
-          0 === request.clientRenderedBoundaries.length &&
-          0 === request.completedBoundaries.length &&
-          ((request.flushScheduled = !1),
-          null === request.trackedPostpones &&
-            ((i = request.resumableState),
-            i.hasBody &&
-              ((partialBoundaries = endChunkForTag("body")),
-              destination.push(partialBoundaries)),
-            i.hasHtml && ((i = endChunkForTag("html")), destination.push(i))),
-          0 !== request.abortableTasks.size &&
-            console.error(
-              "There was still abortable task at the root when we closed. This is a bug in React."
-            ),
-          (request.status = CLOSED),
-          destination.push(null),
-          (request.destination = null));
+        (flushingPartialBoundaries = !1),
+          0 === request.allPendingTasks &&
+            0 === request.clientRenderedBoundaries.length &&
+            0 === request.completedBoundaries.length &&
+            ((request.flushScheduled = !1),
+            null === request.trackedPostpones &&
+              ((i = request.resumableState),
+              i.hasBody &&
+                ((partialBoundaries = endChunkForTag("body")),
+                destination.push(partialBoundaries)),
+              i.hasHtml && ((i = endChunkForTag("html")), destination.push(i))),
+            0 !== request.abortableTasks.size &&
+              console.error(
+                "There was still abortable task at the root when we closed. This is a bug in React."
+              ),
+            (request.status = CLOSED),
+            destination.push(null),
+            (request.destination = null));
       }
     }
     function startWork(request) {
@@ -9190,7 +9227,11 @@
         "aria-rowcount": 0,
         "aria-rowindex": 0,
         "aria-rowspan": 0,
-        "aria-setsize": 0
+        "aria-setsize": 0,
+        "aria-braillelabel": 0,
+        "aria-brailleroledescription": 0,
+        "aria-colindextext": 0,
+        "aria-rowindextext": 0
       },
       warnedProperties$1 = {},
       rARIA$1 = RegExp(
@@ -10183,7 +10224,7 @@
       completeSegmentData2 = '" data-pid="',
       completeSegmentDataEnd = '"></template>',
       completeBoundaryScriptFunctionOnly =
-        '$RB=[];$RV=function(b){$RT=performance.now();for(var a=0;a<b.length;a+=2){var c=b[a],e=b[a+1];null!==e.parentNode&&e.parentNode.removeChild(e);var f=c.parentNode;if(f){var g=c.previousSibling,h=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===h)break;else h--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||h++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;e.firstChild;)f.insertBefore(e.firstChild,c);g.data="$";g._reactRetry&&g._reactRetry()}}b.length=0};\n$RC=function(b,a){if(a=document.getElementById(a))(b=document.getElementById(b))?(b.previousSibling.data="$~",$RB.push(b,a),2===$RB.length&&(b="number"!==typeof $RT?0:$RT,a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:b+300-a))):a.parentNode.removeChild(a)};',
+        '$RB=[];$RV=function(a){$RT=performance.now();for(var b=0;b<a.length;b+=2){var c=a[b],e=a[b+1];null!==e.parentNode&&e.parentNode.removeChild(e);var f=c.parentNode;if(f){var g=c.previousSibling,h=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===h)break;else h--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||h++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;e.firstChild;)f.insertBefore(e.firstChild,c);g.data="$";g._reactRetry&&requestAnimationFrame(g._reactRetry)}}a.length=0};\n$RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))?(a.previousSibling.data="$~",$RB.push(a,b),2===$RB.length&&("number"!==typeof $RT?requestAnimationFrame($RV.bind(null,$RB)):(a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:$RT+300-a)))):b.parentNode.removeChild(b)};',
       completeBoundaryUpgradeToViewTransitionsInstruction =
         '$RV=function(A,g){function k(a,b){var e=a.getAttribute(b);e&&(b=a.style,l.push(a,b.viewTransitionName,b.viewTransitionClass),"auto"!==e&&(b.viewTransitionClass=e),(a=a.getAttribute("vt-name"))||(a="_T_"+K++ +"_"),b.viewTransitionName=a,B=!0)}var B=!1,K=0,l=[];try{var f=document.__reactViewTransition;if(f){f.finished.finally($RV.bind(null,g));return}var m=new Map;for(f=1;f<g.length;f+=2)for(var h=g[f].querySelectorAll("[vt-share]"),d=0;d<h.length;d++){var c=h[d];m.set(c.getAttribute("vt-name"),c)}var u=[];for(h=0;h<g.length;h+=2){var C=g[h],x=C.parentNode;if(x){var v=x.getBoundingClientRect();if(v.left||v.top||v.width||v.height){c=C;for(f=0;c;){if(8===c.nodeType){var r=c.data;if("/$"===r)if(0===f)break;else f--;else"$"!==r&&"$?"!==r&&"$~"!==r&&"$!"!==r||f++}else if(1===c.nodeType){d=c;var D=d.getAttribute("vt-name"),y=m.get(D);k(d,y?"vt-share":"vt-exit");y&&(k(y,"vt-share"),m.set(D,null));var E=d.querySelectorAll("[vt-share]");for(d=0;d<E.length;d++){var F=E[d],G=F.getAttribute("vt-name"),\nH=m.get(G);H&&(k(F,"vt-share"),k(H,"vt-share"),m.set(G,null))}}c=c.nextSibling}for(var I=g[h+1],t=I.firstElementChild;t;)null!==m.get(t.getAttribute("vt-name"))&&k(t,"vt-enter"),t=t.nextElementSibling;c=x;do for(var n=c.firstElementChild;n;){var J=n.getAttribute("vt-update");J&&"none"!==J&&!l.includes(n)&&k(n,"vt-update");n=n.nextElementSibling}while((c=c.parentNode)&&1===c.nodeType&&"none"!==c.getAttribute("vt-update"));u.push.apply(u,I.querySelectorAll(\'img[src]:not([loading="lazy"])\'))}}}if(B){var z=\ndocument.__reactViewTransition=document.startViewTransition({update:function(){A(g);for(var a=[document.documentElement.clientHeight,document.fonts.ready],b={},e=0;e<u.length;b={g:b.g},e++)if(b.g=u[e],!b.g.complete){var p=b.g.getBoundingClientRect();0<p.bottom&&0<p.right&&p.top<window.innerHeight&&p.left<window.innerWidth&&(p=new Promise(function(w){return function(q){w.g.addEventListener("load",q);w.g.addEventListener("error",q)}}(b)),a.push(p))}return Promise.race([Promise.all(a),new Promise(function(w){var q=\nperformance.now();setTimeout(w,2300>q&&2E3<q?2300-q:500)})])},types:[]});z.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var b=l[a],e=b.style;e.viewTransitionName=l[a+1];e.viewTransitionClass=l[a+1];""===b.getAttribute("style")&&b.removeAttribute("style")}});z.finished.finally(function(){document.__reactViewTransition===z&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}A(g)}.bind(null,$RV);',
       completeBoundaryScript1Partial = '$RC("',
@@ -10485,7 +10526,8 @@
       didWarnAboutReassigningProps = !1,
       didWarnAboutGenerators = !1,
       didWarnAboutMaps = !1,
-      flushedByteSize = 0;
+      flushedByteSize = 0,
+      flushingPartialBoundaries = !1;
     exports.renderToStaticMarkup = function (children, options) {
       return renderToStringImpl(
         children,
@@ -10502,5 +10544,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-experimental-97cdd5d3-20250710";
+    exports.version = "19.3.0-experimental-a4eb2dfa-20251006";
   })();

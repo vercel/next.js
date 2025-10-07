@@ -3,6 +3,13 @@
 use std::{num::NonZeroU8, os::raw::c_void, ptr::NonNull, slice};
 
 use self::raw_types::*;
+#[cfg(not(any(
+    target_pointer_width = "32",
+    target_pointer_width = "16",
+    feature = "atom_size_64",
+    feature = "atom_size_128"
+)))]
+use crate::TAG_MASK;
 
 #[cfg(feature = "atom_size_128")]
 mod raw_types {
@@ -89,7 +96,9 @@ impl TaggedValue {
             feature = "atom_size_128"
         ))]
         {
-            self.value.get() as usize as _
+            use crate::TAG_MASK;
+
+            (self.value.get() as usize & !(TAG_MASK as usize)) as _
         }
         #[cfg(not(any(
             target_pointer_width = "32",
@@ -97,8 +106,8 @@ impl TaggedValue {
             feature = "atom_size_64",
             feature = "atom_size_128"
         )))]
-        unsafe {
-            std::mem::transmute(Some(self.value))
+        {
+            (self.value.as_ptr() as usize & !(TAG_MASK as usize)) as _
         }
     }
 
@@ -108,7 +117,7 @@ impl TaggedValue {
     }
 
     #[inline(always)]
-    pub fn tag(&self) -> u8 {
+    pub fn tag_byte(&self) -> u8 {
         (self.get_value() & 0xff) as u8
     }
 

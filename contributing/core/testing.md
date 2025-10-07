@@ -201,4 +201,4 @@ or, to use `next` from a specific Pull Request (PR number required):
 
 <sup>1</sup> Not all native packages are built automatically.
 `build-and-deploy` excludes slow, rarely used native variants of `next-swc`.
-To force a build of all packages, you can trigger `build-and-deploy` manually (i.e. `workflow_dispatch`).
+To force a build of all packages, you can [trigger `build-and-deploy` manually](https://github.com/vercel/next.js/actions/workflows/build_and_deploy.yml) (i.e. `workflow_dispatch`).

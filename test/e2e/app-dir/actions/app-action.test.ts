@@ -6,6 +6,7 @@ import {
   check,
   waitFor,
   getRedboxSource,
+  getDistDir,
 } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
 import fs from 'node:fs/promises'
@@ -28,6 +29,49 @@ describe('app-dir action handling', () => {
         'server-only': 'latest',
       },
     })
+
+  if (isNextStart) {
+    it('should output exportName and filename info in manifest', async () => {
+      const referenceManifest = await next.readJSON(
+        `${getDistDir()}/server/server-reference-manifest.json`
+      )
+      let foundExportNames = []
+
+      for (const item in referenceManifest.node) {
+        try {
+          const itemInfo = referenceManifest.node[item]
+
+          foundExportNames.push(itemInfo.exportedName)
+
+          expect(itemInfo.filename).toBeString()
+          // can be outside app dir but this test suite has them all in app
+          expect(itemInfo.filename).toStartWith('app/')
+          expect(itemInfo.exportedName).toBeString()
+        } catch (err) {
+          require('console').error(`Invalid action entry ${item}`, err)
+          throw err
+        }
+      }
+      for (const item in referenceManifest.edge) {
+        try {
+          const itemInfo = referenceManifest.edge[item]
+
+          foundExportNames.push(itemInfo.exportedName)
+
+          expect(itemInfo.filename).toBeString()
+          expect(itemInfo.exportedName).toBeString()
+        } catch (err) {
+          require('console').error(`Invalid action entry ${item}`, err)
+          throw err
+        }
+      }
+
+      expect(foundExportNames).toContain('setCookie')
+      expect(foundExportNames).toContain('getCookie')
+      expect(foundExportNames).toContain('getHeader')
+      expect(foundExportNames).toContain('setCookieWithMaxAge')
+    })
+  }
 
   it('should handle action correctly with middleware rewrite', async () => {
     const browser = await next.browser('/rewrite-to-static-first')
@@ -155,7 +199,7 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#cookie').click()
     await retry(async () => {
-      const res = (await browser.elementByCss('h1').text()) || ''
+      const res = await browser.elementByCss('h1', { state: 'attached' }).text()
       const id = res.split(':', 2)
       expect(id[0]).toBeDefined()
       expect(id[0]).toBe(id[1])
@@ -163,14 +207,14 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#header').click()
     await retry(async () => {
-      const res = (await browser.elementByCss('h1').text()) || ''
+      const res = await browser.elementByCss('h1').text()
       expect(res).toContain('Mozilla')
     })
 
     // Set cookies
     await browser.elementByCss('#setCookie').click()
     await retry(async () => {
-      const res = (await browser.elementByCss('h1').text()) || ''
+      const res = await browser.elementByCss('h1').text()
       const id = res.split(':', 3)
 
       expect(id[0]).toBeDefined()
@@ -188,7 +232,7 @@ describe('app-dir action handling', () => {
       const browser = await next.browser('/mutate-cookie-with-redirect', {
         disableJavaScript,
       })
-      expect(await browser.elementByCss('#value').text()).toBe('')
+      expect(await browser.elementByCss('#value').text()).toBe('<null>')
 
       await browser.elementByCss('#update-cookie').click()
       await browser.elementByCss('#redirect-target')
@@ -510,27 +554,6 @@ describe('app-dir action handling', () => {
     await check(() => browser.url(), `${next.url}/`, true, 2)
   })
 
-  it('should trigger a refresh for a server action that gets discarded due to a navigation', async () => {
-    let browser = await next.browser('/client')
-    const initialRandomNumber = await browser
-      .elementByCss('#random-number')
-      .text()
-
-    await browser.elementByCss('#slow-inc').click()
-
-    // navigate to server
-    await browser.elementByCss('#navigate-server').click()
-
-    // wait for the action to be completed
-    await retry(async () => {
-      const newRandomNumber = await browser
-        .elementByCss('#random-number')
-        .text()
-
-      expect(newRandomNumber).not.toBe(initialRandomNumber)
-    })
-  })
-
   it('should trigger a refresh for a server action that also dispatches a navigation event', async () => {
     let browser = await next.browser('/revalidate')
     let initialJustPutit = await browser.elementById('justputit').text()
@@ -842,7 +865,9 @@ describe('app-dir action handling', () => {
       const browser = await next.browser(`/delayed-action/${runtime}`)
 
       // confirm there's no data yet
-      expect(await browser.elementById('delayed-action-result').text()).toBe('')
+      expect(await browser.elementById('delayed-action-result').text()).toBe(
+        '<null>'
+      )
 
       // Trigger the delayed action. This will sleep for a few seconds before dispatching the server action handler
       await browser.elementById('run-action').click()
@@ -911,7 +936,7 @@ describe('app-dir action handling', () => {
     it('should not expose action content in sourcemaps', async () => {
       // We check all sourcemaps in the `static` folder for sensitive information given that chunking
       const sourcemaps = await fs
-        .readdir(join(next.testDir, '.next', 'static'), {
+        .readdir(join(next.testDir, getDistDir(), 'static'), {
           recursive: true,
           encoding: 'utf8',
         })
@@ -920,7 +945,7 @@ describe('app-dir action handling', () => {
             files
               .filter((f) => f.endsWith('.js.map'))
               .map((f) =>
-                fs.readFile(join(next.testDir, '.next', 'static', f), {
+                fs.readFile(join(next.testDir, getDistDir(), 'static', f), {
                   encoding: 'utf8',
                 })
               )
@@ -998,14 +1023,14 @@ describe('app-dir action handling', () => {
     it('should bundle external libraries if they are on the action layer', async () => {
       await next.fetch('/client')
       const pageBundle = await fs.readFile(
-        join(next.testDir, '.next', 'server', 'app', 'client', 'page.js'),
+        join(next.testDir, getDistDir(), 'server', 'app', 'client', 'page.js'),
         { encoding: 'utf8' }
       )
       if (isTurbopack) {
-        const chunkPaths = pageBundle.matchAll(/loadChunk\("([^"]*)"\)/g)
+        const chunkPaths = pageBundle.matchAll(/R\.c\("([^"]*)"\)/g)
         const reads = [...chunkPaths].map(async (match) => {
           const bundle = await fs.readFile(
-            join(next.testDir, '.next', ...match[1].split(/[\\/]/g)),
+            join(next.testDir, getDistDir(), ...match[1].split(/[\\/]/g)),
             { encoding: 'utf8' }
           )
           return bundle.includes('node_modules/nanoid/index.js')
@@ -1373,7 +1398,9 @@ describe('app-dir action handling', () => {
 
     it('should revalidate when cookies.set is called', async () => {
       const browser = await next.browser('/revalidate')
-      const randomNumber = await browser.elementByCss('#random-cookie').text()
+      const randomNumber = await browser
+        .elementByCss('#random-cookie', { state: 'attached' })
+        .text()
 
       await browser.elementByCss('#set-cookie').click()
 
@@ -1424,11 +1451,8 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         randomCookie = JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
-        expect(randomCookie).toBeDefined()
+        ).cookie.value
       })
-
-      console.log(123, await browser.elementByCss('body').text())
 
       await browser.elementByCss('#another').click()
       await retry(async () => {
@@ -1439,7 +1463,7 @@ describe('app-dir action handling', () => {
 
       const newRandomCookie = JSON.parse(
         await browser.elementByCss('#random-cookie').text()
-      ).value
+      ).cookie.value
 
       console.log(456, await browser.elementByCss('body').text())
 
@@ -1456,7 +1480,7 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         revalidatedRandomCookie = JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
+        ).cookie.value
         expect(revalidatedRandomCookie).not.toBe(randomCookie)
       })
 
@@ -1466,7 +1490,7 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         const newRandomCookie = await JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
+        ).cookie.value
         expect(revalidatedRandomCookie).toBe(newRandomCookie)
       })
     })
@@ -1882,5 +1906,58 @@ describe('app-dir action handling', () => {
         )
       }
     )
+  })
+
+  describe('action discarding', () => {
+    // TODO: Investigate flaky behavior when deployed
+    if (!isNextDeploy) {
+      it('should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)', async () => {
+        let browser = await next.browser('/action-discarding')
+        await browser.waitForIdleNetwork()
+        const initialRandomNumber = await browser
+          .elementByCss('#cached-random')
+          .text()
+
+        await browser.elementByCss('#slow-action').click()
+
+        // navigate to destination
+        await browser.elementByCss('#navigate-destination').click()
+
+        // wait for the 2s action to finish
+        await waitFor(2000)
+
+        await retry(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#cached-random')
+            .text()
+
+          expect(newRandomNumber).toBe(initialRandomNumber)
+        })
+      })
+    }
+
+    it('should trigger a refresh for a server action that gets discarded due to a navigation (with revalidation)', async () => {
+      let browser = await next.browser('/action-discarding')
+      await browser.waitForIdleNetwork()
+      const initialRandomNumber = await browser
+        .elementByCss('#cached-random')
+        .text()
+
+      await browser.elementByCss('#slow-action-revalidate').click()
+
+      // navigate to destination
+      await browser.elementByCss('#navigate-destination').click()
+
+      // wait for the 2s action to finish
+      await waitFor(2000)
+
+      await retry(async () => {
+        const newRandomNumber = await browser
+          .elementByCss('#cached-random')
+          .text()
+
+        expect(newRandomNumber).not.toBe(initialRandomNumber)
+      })
+    })
   })
 })

@@ -43,7 +43,6 @@ describe('Basic CSS Module Support', () => {
       it('should have compiled successfully', () => {
         expect(code).toBe(0)
         expect(stdout).toMatch(/Compiled successfully/)
-        expect(stdout).toContain('.css')
       })
 
       it(`should've emitted a single CSS file`, async () => {
@@ -137,7 +136,7 @@ describe('3rd Party CSS Module Support', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index-module__jAE1EW__foo{position:relative}.index-module__jAE1EW__foo .bar{height:100%;overflow:hidden}.index-module__jAE1EW__foo .baz{height:100%;overflow:hidden}.index-module__jAE1EW__foo .lol{width:80%}.index-module__jAE1EW__foo>.lel{width:80%}"`
+            `".index-module__jAE1EW__foo{position:relative}:is(.index-module__jAE1EW__foo .bar,.index-module__jAE1EW__foo .baz){height:100%;overflow:hidden}.index-module__jAE1EW__foo .lol{width:80%}.index-module__jAE1EW__foo>.lel{width:80%}"`
           )
         } else {
           expect(
@@ -303,9 +302,12 @@ describe.skip('Invalid CSS Module Usage in node_modules', () => {
         expect(stderr).toMatch(
           /CSS Modules.*cannot.*be imported from within.*node_modules/
         )
-        expect(stderr).toMatch(
-          /Location:.*node_modules[\\/]example[\\/]index\.mjs/
-        )
+        // Skip: Rspack loaders cannot access module issuer info for location details
+        if (!process.env.NEXT_RSPACK) {
+          expect(stderr).toMatch(
+            /Location:.*node_modules[\\/]example[\\/]index\.mjs/
+          )
+        }
       })
     }
   )
@@ -331,9 +333,12 @@ describe.skip('Invalid Global CSS Module Usage in node_modules', () => {
         expect(stderr).toMatch(
           /Global CSS.*cannot.*be imported from within.*node_modules/
         )
-        expect(stderr).toMatch(
-          /Location:.*node_modules[\\/]example[\\/]index\.mjs/
-        )
+        // Skip: Rspack loaders cannot access module issuer info for location details
+        if (!process.env.NEXT_RSPACK) {
+          expect(stderr).toMatch(
+            /Location:.*node_modules[\\/]example[\\/]index\.mjs/
+          )
+        }
       })
     }
   )

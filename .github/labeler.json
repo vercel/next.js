@@ -31,8 +31,7 @@
       { "type": "user", "pattern": "valorkin" },
       { "type": "user", "pattern": "xc2" },
       { "type": "user", "pattern": "zackarychapple" },
-      { "type": "user", "pattern": "zoolsher" },
-      "packages/next/src/build/**"
+      { "type": "user", "pattern": "zoolsher" }
     ],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "atcastle" },
@@ -59,7 +58,7 @@
       { "type": "user", "pattern": "ijjk" },
       { "type": "user", "pattern": "lazarv" },
       { "type": "user", "pattern": "lubieowoce" },
-      { "type": "user", "pattern": "nebrelbug" },
+      { "type": "user", "pattern": "bgub" },
       { "type": "user", "pattern": "RobPruzan" },
       { "type": "user", "pattern": "samcx" },
       { "type": "user", "pattern": "sebmarkbage" },

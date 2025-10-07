@@ -1,9 +1,10 @@
-import type { FlightRouterState } from '../../server/app-render/types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
-import { getCurrentAppRouterState } from './app-router-instance'
-import { createPrefetchURL } from './app-router'
-import { PrefetchKind } from './router-reducer/router-reducer-types'
-import { isPrefetchTaskDirty } from './segment-cache'
+import {
+  FetchStrategy,
+  isPrefetchTaskDirty,
+  type PrefetchTaskFetchStrategy,
+} from './segment-cache'
 import { createCacheKey } from './segment-cache'
 import {
   type PrefetchTask,
@@ -13,16 +14,16 @@ import {
   reschedulePrefetchTask,
 } from './segment-cache'
 import { startTransition } from 'react'
+import { PrefetchKind } from './router-reducer/router-reducer-types'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
-type LinkElement = HTMLAnchorElement | SVGAElement
-
-type Element = LinkElement | HTMLFormElement
+type Element = HTMLAnchorElement | HTMLFormElement
 
 // Properties that are shared between Link and Form instances. We use the same
 // shape for both to prevent a polymorphic de-opt in the VM.
 type LinkOrFormInstanceShared = {
   router: AppRouterInstance
-  kind: PrefetchKind.AUTO | PrefetchKind.FULL
+  fetchStrategy: PrefetchTaskFetchStrategy
 
   isVisible: boolean
 
@@ -119,28 +120,35 @@ function observeVisibility(element: Element, instance: PrefetchableInstance) {
 }
 
 function coercePrefetchableUrl(href: string): URL | null {
-  try {
-    return createPrefetchURL(href)
-  } catch {
-    // createPrefetchURL sometimes throws an error if an invalid URL is
-    // provided, though I'm not sure if it's actually necessary.
-    // TODO: Consider removing the throw from the inner function, or change it
-    // to reportError. Or maybe the error isn't even necessary for automatic
-    // prefetches, just navigations.
-    const reportErrorFn =
-      typeof reportError === 'function' ? reportError : console.error
-    reportErrorFn(
-      `Cannot prefetch '${href}' because it cannot be converted to a URL.`
-    )
+  if (typeof window !== 'undefined') {
+    const { createPrefetchURL } =
+      require('./app-router-utils') as typeof import('./app-router-utils')
+
+    try {
+      return createPrefetchURL(href)
+    } catch {
+      // createPrefetchURL sometimes throws an error if an invalid URL is
+      // provided, though I'm not sure if it's actually necessary.
+      // TODO: Consider removing the throw from the inner function, or change it
+      // to reportError. Or maybe the error isn't even necessary for automatic
+      // prefetches, just navigations.
+      const reportErrorFn =
+        typeof reportError === 'function' ? reportError : console.error
+      reportErrorFn(
+        `Cannot prefetch '${href}' because it cannot be converted to a URL.`
+      )
+      return null
+    }
+  } else {
     return null
   }
 }
 
 export function mountLinkInstance(
-  element: LinkElement,
+  element: HTMLAnchorElement,
   href: string,
   router: AppRouterInstance,
-  kind: PrefetchKind.AUTO | PrefetchKind.FULL,
+  fetchStrategy: PrefetchTaskFetchStrategy,
   prefetchEnabled: boolean,
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
 ): LinkInstance {
@@ -149,7 +157,7 @@ export function mountLinkInstance(
     if (prefetchURL !== null) {
       const instance: PrefetchableLinkInstance = {
         router,
-        kind,
+        fetchStrategy,
         isVisible: false,
         prefetchTask: null,
         prefetchHref: prefetchURL.href,
@@ -165,7 +173,7 @@ export function mountLinkInstance(
   // track its optimistic state (i.e. useLinkStatus).
   const instance: NonPrefetchableLinkInstance = {
     router,
-    kind,
+    fetchStrategy,
     isVisible: false,
     prefetchTask: null,
     prefetchHref: null,
@@ -178,7 +186,7 @@ export function mountFormInstance(
   element: HTMLFormElement,
   href: string,
   router: AppRouterInstance,
-  kind: PrefetchKind.AUTO | PrefetchKind.FULL
+  fetchStrategy: PrefetchTaskFetchStrategy
 ): void {
   const prefetchURL = coercePrefetchableUrl(href)
   if (prefetchURL === null) {
@@ -190,7 +198,7 @@ export function mountFormInstance(
   }
   const instance: FormInstance = {
     router,
-    kind,
+    fetchStrategy,
     isVisible: false,
     prefetchTask: null,
     prefetchHref: prefetchURL.href,
@@ -247,7 +255,7 @@ export function onLinkVisibilityChanged(element: Element, isVisible: boolean) {
 }
 
 export function onNavigationIntent(
-  element: HTMLAnchorElement | SVGAElement,
+  element: HTMLAnchorElement,
   unstable_upgradeToDynamicPrefetch: boolean
 ) {
   const instance = prefetchable.get(element)
@@ -260,8 +268,8 @@ export function onNavigationIntent(
       process.env.__NEXT_DYNAMIC_ON_HOVER &&
       unstable_upgradeToDynamicPrefetch
     ) {
-      // Switch to a full, dynamic prefetch
-      instance.kind = PrefetchKind.FULL
+      // Switch to a full prefetch
+      instance.fetchStrategy = FetchStrategy.Full
     }
     rescheduleLinkPrefetch(instance, PrefetchPriority.Intent)
   }
@@ -271,51 +279,57 @@ function rescheduleLinkPrefetch(
   instance: PrefetchableInstance,
   priority: PrefetchPriority.Default | PrefetchPriority.Intent
 ) {
-  const existingPrefetchTask = instance.prefetchTask
+  // Ensures that app-router-instance is not compiled in the server bundle
+  if (typeof window !== 'undefined') {
+    const existingPrefetchTask = instance.prefetchTask
 
-  if (!instance.isVisible) {
-    // Cancel any in-progress prefetch task. (If it already finished then this
-    // is a no-op.)
-    if (existingPrefetchTask !== null) {
-      cancelPrefetchTask(existingPrefetchTask)
+    if (!instance.isVisible) {
+      // Cancel any in-progress prefetch task. (If it already finished then this
+      // is a no-op.)
+      if (existingPrefetchTask !== null) {
+        cancelPrefetchTask(existingPrefetchTask)
+      }
+      // We don't need to reset the prefetchTask to null upon cancellation; an
+      // old task object can be rescheduled with reschedulePrefetchTask. This is a
+      // micro-optimization but also makes the code simpler (don't need to
+      // worry about whether an old task object is stale).
+      return
     }
-    // We don't need to reset the prefetchTask to null upon cancellation; an
-    // old task object can be rescheduled with reschedulePrefetchTask. This is a
-    // micro-optimization but also makes the code simpler (don't need to
-    // worry about whether an old task object is stale).
-    return
-  }
 
-  if (!process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-    // The old prefetch implementation does not have different priority levels.
-    // Just schedule a new prefetch task.
-    prefetchWithOldCacheImplementation(instance)
-    return
-  }
+    if (!process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+      // The old prefetch implementation does not have different priority levels.
+      // Just schedule a new prefetch task.
+      prefetchWithOldCacheImplementation(instance)
+      return
+    }
 
-  const appRouterState = getCurrentAppRouterState()
-  if (appRouterState !== null) {
-    const treeAtTimeOfPrefetch = appRouterState.tree
-    if (existingPrefetchTask === null) {
-      // Initiate a prefetch task.
-      const nextUrl = appRouterState.nextUrl
-      const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
-      instance.prefetchTask = scheduleSegmentPrefetchTask(
-        cacheKey,
-        treeAtTimeOfPrefetch,
-        instance.kind === PrefetchKind.FULL,
-        priority,
-        null
-      )
-    } else {
-      // We already have an old task object that we can reschedule. This is
-      // effectively the same as canceling the old task and creating a new one.
-      reschedulePrefetchTask(
-        existingPrefetchTask,
-        treeAtTimeOfPrefetch,
-        instance.kind === PrefetchKind.FULL,
-        priority
-      )
+    const { getCurrentAppRouterState } =
+      require('./app-router-instance') as typeof import('./app-router-instance')
+
+    const appRouterState = getCurrentAppRouterState()
+    if (appRouterState !== null) {
+      const treeAtTimeOfPrefetch = appRouterState.tree
+      if (existingPrefetchTask === null) {
+        // Initiate a prefetch task.
+        const nextUrl = appRouterState.nextUrl
+        const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
+        instance.prefetchTask = scheduleSegmentPrefetchTask(
+          cacheKey,
+          treeAtTimeOfPrefetch,
+          instance.fetchStrategy,
+          priority,
+          null
+        )
+      } else {
+        // We already have an old task object that we can reschedule. This is
+        // effectively the same as canceling the old task and creating a new one.
+        reschedulePrefetchTask(
+          existingPrefetchTask,
+          treeAtTimeOfPrefetch,
+          instance.fetchStrategy,
+          priority
+        )
+      }
     }
   }
 }
@@ -347,7 +361,7 @@ export function pingVisibleLinks(
     instance.prefetchTask = scheduleSegmentPrefetchTask(
       cacheKey,
       tree,
-      instance.kind === PrefetchKind.FULL,
+      instance.fetchStrategy,
       PrefetchPriority.Default,
       null
     )
@@ -363,8 +377,33 @@ function prefetchWithOldCacheImplementation(instance: PrefetchableInstance) {
   const doPrefetch = async () => {
     // note that `appRouter.prefetch()` is currently sync,
     // so we have to wrap this call in an async function to be able to catch() errors below.
+
+    let prefetchKind: PrefetchKind
+    switch (instance.fetchStrategy) {
+      case FetchStrategy.PPR: {
+        prefetchKind = PrefetchKind.AUTO
+        break
+      }
+      case FetchStrategy.Full: {
+        prefetchKind = PrefetchKind.FULL
+        break
+      }
+      case FetchStrategy.PPRRuntime: {
+        // We can only get here if Client Segment Cache is off, and in that case
+        // it shouldn't be possible for a link to request a runtime prefetch.
+        throw new InvariantError(
+          'FetchStrategy.PPRRuntime should never be used when `experimental.clientSegmentCache` is disabled'
+        )
+      }
+      default: {
+        instance.fetchStrategy satisfies never
+        // Unreachable, but otherwise typescript will consider the variable unassigned
+        prefetchKind = undefined!
+      }
+    }
+
     return instance.router.prefetch(instance.prefetchHref, {
-      kind: instance.kind,
+      kind: prefetchKind,
     })
   }
 

@@ -1,0 +1,8 @@
+@import "//example.com/something.css";
+@import "//somewhere.com/example.css";
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/protocol-dependent-import/input/index.css [test] (css) */
+.foo {
+  background: red;
+}
+
+/*# sourceMappingURL=bf321_tests_snapshot_css_protocol-dependent-import_input_index_c3270130.css.map*/

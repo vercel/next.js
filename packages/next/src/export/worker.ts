@@ -40,8 +40,8 @@ import {
 } from '../build/turborepo-access-trace'
 import type { Params } from '../server/request/params'
 import {
-  getFallbackRouteParams,
-  type FallbackRouteParams,
+  createOpaqueFallbackRouteParams,
+  type OpaqueFallbackRouteParams,
 } from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module.compiled'
@@ -81,7 +81,6 @@ async function exportPageImpl(
     disableOptimizedLoading,
     debugOutput = false,
     enableExperimentalReact,
-    ampValidatorPath,
     trailingSlash,
     sriEnabled,
     renderOpts: commonRenderOpts,
@@ -112,15 +111,15 @@ async function exportPageImpl(
     _isRoutePPREnabled: isRoutePPREnabled,
 
     // Configure the rendering of the page to allow that an empty static shell
-    // is generated while rendering using PPR and Dynamic IO.
+    // is generated while rendering using PPR and Cache Components.
     _allowEmptyStaticShell: allowEmptyStaticShell = false,
 
     // Pull the original query out.
     query: originalQuery = {},
   } = exportPath
 
-  const fallbackRouteParams: FallbackRouteParams | null =
-    getFallbackRouteParams(_fallbackRouteParams)
+  const fallbackRouteParams: OpaqueFallbackRouteParams | null =
+    createOpaqueFallbackRouteParams(_fallbackRouteParams)
 
   let query = { ...originalQuery }
   const pathname = normalizeAppPath(page)
@@ -128,8 +127,6 @@ async function exportPageImpl(
   const outDir = isAppDir ? join(distDir, 'server/app') : commonOutDir
 
   const filePath = normalizePagePath(path)
-  const ampPath = `${filePath}.amp`
-  let renderAmpPath = ampPath
 
   let updatedPath = exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
@@ -140,10 +137,6 @@ async function exportPageImpl(
     if (localePathResult.detectedLocale) {
       updatedPath = localePathResult.pathname
       locale = localePathResult.detectedLocale
-
-      if (locale === commonRenderOpts.defaultLocale) {
-        renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
-      }
     }
   }
 
@@ -240,6 +233,7 @@ async function exportPageImpl(
     isAppPath: isAppDir,
     isDev: false,
     sriEnabled,
+    needsManifestsForLegacyReasons: true,
   })
 
   // Handle App Routes.
@@ -262,7 +256,6 @@ async function exportPageImpl(
   const renderOpts: WorkerRenderOpts = {
     ...components,
     ...commonRenderOpts,
-    ampPath: renderAmpPath,
     params,
     optimizeCss,
     disableOptimizedLoading,
@@ -279,10 +272,6 @@ async function exportPageImpl(
       isRoutePPREnabled,
     },
     renderResumeDataCache,
-  }
-
-  if (hasNextSupport) {
-    renderOpts.isRevalidate = true
   }
 
   // Handle App Pages
@@ -327,10 +316,6 @@ async function exportPageImpl(
     params,
     htmlFilepath,
     htmlFilename,
-    ampPath,
-    subFolders,
-    outDir,
-    ampValidatorPath,
     pagesDataDir,
     buildExport,
     isDynamic,
@@ -416,8 +401,6 @@ export async function exportPages(
             outDir,
             pagesDataDir,
             renderOpts,
-            ampValidatorPath:
-              nextConfig.experimental.amp?.validator || undefined,
             trailingSlash: nextConfig.trailingSlash,
             serverRuntimeConfig: nextConfig.serverRuntimeConfig,
             subFolders: nextConfig.trailingSlash && !options.buildExport,

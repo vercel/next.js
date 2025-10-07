@@ -12,6 +12,8 @@ describe('ReactRefreshLogBox app', () => {
     patchFileDelay: 1000,
   })
 
+  const isRspack = !!process.env.NEXT_RSPACK
+
   test('should strip whitespace correctly with newline', async () => {
     await using sandbox = await createSandbox(next)
     const { browser, session } = sandbox
@@ -93,12 +95,33 @@ describe('ReactRefreshLogBox app', () => {
          "description": "no",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (3:7) @ [project]/index.js [app-client] (ecmascript)
+         "source": "index.js (3:7) @ {module evaluation}
        > 3 | throw new Error('no')
            |       ^",
          "stack": [
-           "[project]/index.js [app-client] (ecmascript) index.js (3:7)",
-           "[project]/app/page.js [app-client] (ecmascript) app/page.js (2:1)",
+           "{module evaluation} index.js (3:7)",
+           "{module evaluation} app/page.js (2:1)",
+         ],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "no",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (3:7) @ eval
+       > 3 | throw new Error('no')
+           |       ^",
+         "stack": [
+           "eval index.js (3:7)",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "eval ./app/page.js",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
          ],
        }
       `)
@@ -270,6 +293,39 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+               │    ,-[7:1]
+               │  4 |       <p>lol</p>
+               │  5 |     div
+               │  6 |   )
+               │  7 | }
+               │    : ^
+               │    \`----
+               │   x Expected '</', got '<eof>'
+               │    ,-[7:1]
+               │  4 |       <p>lol</p>
+               │  5 |     div
+               │  6 |   )
+               │  7 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -285,7 +341,7 @@ describe('ReactRefreshLogBox app', () => {
         7 | }
           : ^
           \`----
-         x Unexpected eof
+         x Expected '</', got '<eof>'
           ,-[7:1]
         4 |       <p>lol</p>
         5 |     div
@@ -350,9 +406,22 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     if (isTurbopack) {
-      // TODO(veil): Turbopack is flaky. Possibly related to https://linear.app/vercel/issue/NDX-920/turbopack-errors-after-hmr-have-no-stacktraces-in-affected-chunks
-      // Should use `await expect(browser).toDisplayRedbox()`
-      await session.assertHasRedbox()
+      // TODO(veil): Possibly https://linear.app/vercel/issue/NEXT-4411
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "Child.js (4:11) @ ClickCount.render
+       > 4 |     throw new Error()
+           |           ^",
+         "stack": [
+           "ClickCount.render Child.js (4:11)",
+           "Home index.js (6:7)",
+           "<FIXME-file-protocol>",
+         ],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -415,13 +484,35 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing css source code failed",
+         "description": "Parsing CSS source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.module.css (1:9)
-       Parsing css source code failed
+         "source": "./index.module.css (1:8)
+       Parsing CSS source code failed
        > 1 | .button
-           |         ^",
+           |        ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.module.css
+         × Module build failed:
+         ╰─▶   × SyntaxError
+               │
+               │ (1:1) <FIXME-project-root>/index.module.css Unknown word
+               │
+               │ > 1 | .button
+               │     | ^
+               │
+       Import trace for requested module:
+       ./index.module.css
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
@@ -447,11 +538,11 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing css source code failed",
+         "description": "Transforming CSS failed",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-       Parsing css source code failed
+       Transforming CSS failed
        Selector "button" is not pure. Pure selectors must contain at least one local class or id.
        Import traces:
          Client Component Browser:
@@ -464,6 +555,28 @@ describe('ReactRefreshLogBox app', () => {
            ./index.js [Client Component SSR]
            ./app/page.js [Client Component SSR]
            ./app/page.js [Server Component]",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.module.css
+         × Module build failed:
+         ╰─▶   × CssSyntaxError
+               │
+               │ (1:1) Selector "button" is not pure (pure selectors must contain at least one local class or id)
+               │
+               │ > 1 | button {}
+               │     | ^
+               │
+       Import trace for requested module:
+       ./index.module.css
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
@@ -932,22 +1045,16 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "test",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (3:11) @
-       {default export}
+         "source": "index.js (3:11) @ {default export}
        > 3 |     throw new Error('test')
            |           ^",
          "stack": [
            "{default export} index.js (3:11)",
-           "Set.forEach <anonymous>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "Page app/page.js (2:1)",
          ],
        }
@@ -1038,8 +1145,6 @@ describe('ReactRefreshLogBox app', () => {
     // Render error should "win" and show up in fullscreen
     // TODO(veil): Why Owner Stack location different?
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "Component error",
@@ -1050,9 +1155,6 @@ describe('ReactRefreshLogBox app', () => {
            |                                            ^",
          "stack": [
            "Index index.js (2:44)",
-           "Set.forEach <anonymous>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "Page index.js (16:8)",
          ],
        }
@@ -1163,41 +1265,25 @@ describe('ReactRefreshLogBox app', () => {
     )
     const { browser } = sandbox
 
-    if (isTurbopack) {
-      // TODO(veil): investigate the column number is off by 1 between turbo and webpack
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "This is an error from an anonymous function",
-         "environmentLabel": "Server",
-         "label": "Runtime Error",
-         "source": "app/page.js (4:13) @ <anonymous>
-       > 4 |       throw new Error("This is an error from an anonymous function");
-           |             ^",
-         "stack": [
-           "<anonymous> app/page.js (4:13)",
-           "Page app/page.js (5:6)",
-         ],
-       }
-      `)
-    } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "This is an error from an anonymous function",
-         "environmentLabel": "Server",
-         "label": "Runtime Error",
-         "source": "app/page.js (4:13) @ eval
-       > 4 |       throw new Error("This is an error from an anonymous function");
-           |             ^",
-         "stack": [
-           "eval app/page.js (4:13)",
-           "Page app/page.js (5:5)",
-         ],
-       }
-      `)
-    }
+    // TODO(veil): Turbopack uses correct name
+    // TODO(veil): Column of 2nd frame should be 7
+    await expect(browser).toDisplayRedbox(`
+      {
+        "description": "This is an error from an anonymous function",
+        "environmentLabel": "Server",
+        "label": "Runtime Error",
+        "source": "app/page.js (4:13) @ ${isTurbopack ? '<anonymous>' : 'eval'}
+      > 4 |       throw new Error("This is an error from an anonymous function");
+          |             ^",
+        "stack": [
+          "${isTurbopack ? '<anonymous>' : 'eval'} app/page.js (4:13)",
+          "Page app/page.js (5:${isTurbopack ? '6' : '5'})",
+        ],
+      }
+    `)
   })
 
-  test('should hide unrelated frames in stack trace with nodejs internal calls', async () => {
+  it('should hide unrelated frames in stack trace with nodejs internal calls', async () => {
     await using sandbox = await createSandbox(
       next,
       new Map([
@@ -1213,35 +1299,19 @@ describe('ReactRefreshLogBox app', () => {
     )
     const { browser } = sandbox
 
-    if (isTurbopack) {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "Invalid URL",
-         "environmentLabel": "Server",
-         "label": "Runtime TypeError",
-         "source": "app/page.js (2:3) @ Page
-       > 2 |   new URL("/", "invalid");
-           |   ^",
-         "stack": [
-           "Page app/page.js (2:3)",
-         ],
-       }
-      `)
-    } else {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "Invalid URL",
-         "environmentLabel": "Server",
-         "label": "Runtime TypeError",
-         "source": "app/page.js (2:3) @ Page
-       > 2 |   new URL("/", "invalid");
-           |   ^",
-         "stack": [
-           "Page app/page.js (2:3)",
-         ],
-       }
-      `)
-    }
+    await expect(browser).toDisplayRedbox(`
+     {
+       "description": "Invalid URL",
+       "environmentLabel": "Server",
+       "label": "Runtime TypeError",
+       "source": "app/page.js (2:3) @ Page
+     > 2 |   new URL("/", "invalid");
+         |   ^",
+       "stack": [
+         "Page app/page.js (2:3)",
+       ],
+     }
+    `)
   })
 
   test('Server component errors should open up in fullscreen', async () => {
@@ -1363,6 +1433,24 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module not found: Can't resolve 'non-existing-module' in '<FIXME-project-root>/app'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/module.js
+         × Module not found: Can't resolve 'non-existing-module' in '<FIXME-project-root>/app'
+          ╭────
+        1 │ import "non-existing-module";
+          ·        ─────────────────────
+          ╰────
+       Import trace for requested module:
+       ./app/module.js
+       ./app/layout.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -1418,6 +1506,17 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "× Module build failed:
+         ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -1448,9 +1547,26 @@ describe('ReactRefreshLogBox app', () => {
         await session.assertHasRedbox()
       })
 
-      // TODO(veil): Turbopack is flaky. Possibly related to https://linear.app/vercel/issue/NDX-920/turbopack-errors-after-hmr-have-no-stacktraces-in-affected-chunks
-
-      if (!isTurbopack) {
+      if (isRspack) {
+        await expect({ browser, next }).toDisplayRedbox(`
+         {
+           "description": "module error",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "index.js (1:7) @ eval
+         > 1 | throw new Error('module error')
+             |       ^",
+           "stack": [
+             "eval index.js (1:7)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "eval ./app/server/page.js",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
+      } else if (!isTurbopack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
            "description": "module error",
@@ -1606,12 +1722,33 @@ export default function Home() {
          "description": "utils error",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "app/utils.ts (1:7) @ [project]/app/utils.ts [app-client] (ecmascript)
+         "source": "app/utils.ts (1:7) @ {module evaluation}
        > 1 | throw new Error('utils error')
            |       ^",
          "stack": [
-           "[project]/app/utils.ts [app-client] (ecmascript) app/utils.ts (1:7)",
-           "[project]/app/page.js [app-client] (ecmascript) app/page.js (2:1)",
+           "{module evaluation} app/utils.ts (1:7)",
+           "{module evaluation} app/page.js (2:1)",
+         ],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "utils error",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "app/utils.ts (1:7) @ eval
+       > 1 | throw new Error('utils error')
+           |       ^",
+         "stack": [
+           "eval app/utils.ts (1:7)",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "eval ./app/page.js",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
          ],
        }
       `)

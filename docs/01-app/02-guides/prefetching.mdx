@@ -152,7 +152,7 @@ function ManualPrefetchLink({
 }
 ```
 
-`onInvalidate` is invoked when Next.js suspects cached data is stale, allowing you to refresh the prefetch.
+[`onInvalidate`](/docs/app/api-reference/functions/use-router#userouter) is invoked when Next.js suspects cached data is stale, allowing you to refresh the prefetch.
 
 > **Good to know:** Using an `a` tag will cause a full page navigation to the destination route, you can use `onClick` to prevent the full page navigation, and then invoke `router.push` to navigate to the destination.
 

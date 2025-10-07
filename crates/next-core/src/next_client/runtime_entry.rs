@@ -5,6 +5,7 @@ use turbopack_core::{
     chunk::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
     context::AssetContext,
     module::Module,
+    reference_type::CommonJsReferenceSubType,
     resolve::{origin::PlainResolveOrigin, parse::Request},
     source::Source,
 };
@@ -35,6 +36,7 @@ impl RuntimeEntry {
         let modules = cjs_resolve(
             Vc::upcast(PlainResolveOrigin::new(asset_context, path.clone())),
             *request,
+            CommonJsReferenceSubType::Undefined,
             None,
             false,
         )

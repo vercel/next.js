@@ -661,38 +661,23 @@ export async function ncc_image_size(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['image-detector'] = 'next/dist/compiled/image-detector'
+export async function ncc_image_detector(task, opts) {
+  // NOTE: remove this special compile step if the upstream PR lands
+  // https://github.com/image-size/image-size/pull/451
+  await task
+    .source(relative(__dirname, require.resolve('image-size/dist/detector.js')))
+    .ncc({ packageName: 'image-size', externals })
+    .target('src/compiled/image-detector')
+}
+
+// eslint-disable-next-line camelcase
 externals['@hapi/accept'] = 'next/dist/compiled/@hapi/accept'
 export async function ncc_hapi_accept(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@hapi/accept')))
     .ncc({ packageName: '@hapi/accept', externals })
     .target('src/compiled/@hapi/accept')
-}
-
-// eslint-disable-next-line camelcase
-externals['amphtml-validator'] = 'next/dist/compiled/amphtml-validator'
-export async function ncc_amphtml_validator(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('amphtml-validator')))
-    .ncc({ packageName: 'amphtml-validator', externals })
-    .target('src/compiled/amphtml-validator')
-
-  const validatorRes = await fetch(
-    'https://cdn.ampproject.org/v0/validator_wasm.js'
-  ).catch((err) => {
-    throw new Error('Failed to fetch AMP validator', { cause: err })
-  })
-
-  if (!validatorRes.ok) {
-    throw new Error(
-      `Failed to get the AMP validator, status: ${validatorRes.status}`
-    )
-  }
-
-  await fs.writeFile(
-    join(__dirname, 'src/compiled/amphtml-validator/validator_wasm.js'),
-    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
-  )
 }
 
 // eslint-disable-next-line camelcase
@@ -992,20 +977,6 @@ export async function ncc_vm_browserify(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['@ampproject/toolbox-optimizer'] =
-  'next/dist/compiled/@ampproject/toolbox-optimizer'
-export async function ncc_amp_optimizer(task, opts) {
-  await task
-    .source(
-      relative(__dirname, require.resolve('@ampproject/toolbox-optimizer'))
-    )
-    .ncc({
-      externals,
-      packageName: '@ampproject/toolbox-optimizer',
-    })
-    .target('src/compiled/@ampproject/toolbox-optimizer')
-}
-// eslint-disable-next-line camelcase
 externals['async-retry'] = 'next/dist/compiled/async-retry'
 export async function ncc_async_retry(task, opts) {
   await task
@@ -1057,6 +1028,9 @@ const babelCorePackages = {
 externals['next/dist/compiled/babel/code-frame'] =
   'next/dist/compiled/babel/code-frame'
 
+externals['next/dist/compiled/babel-code-frame'] =
+  'next/dist/compiled/babel-code-frame'
+
 Object.assign(externals, babelCorePackages)
 
 // eslint-disable-next-line camelcase
@@ -1076,6 +1050,22 @@ export async function ncc_babel_bundle(task, opts) {
       externals: bundleExternals,
     })
     .target('src/compiled/babel')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_babel_code_frame(task, opts) {
+  const bundleExternals = {
+    ...externals,
+    'next/dist/compiled/babel-packages': 'next/dist/compiled/babel-packages',
+  }
+  await task
+    .source('src/bundles/babel-code-frame/index.js')
+    .ncc({
+      packageName: '@babel/code-frame',
+      bundleName: 'babel-code-frame',
+      externals: bundleExternals,
+    })
+    .target('src/compiled/babel-code-frame')
 }
 
 // eslint-disable-next-line camelcase
@@ -1799,24 +1789,10 @@ export async function copy_vendor_react(task_) {
         // package will be bundled alongside user code and we don't need to introduce the extra
         // indirection
 
-        if (file.base.startsWith('react-server-dom-turbopack-client.browser')) {
-          const source = file.data.toString()
-          const filepath = file.dir + '/' + file.base
-          const ast = parseFile(source, { sourceFileName: filepath })
-          replaceIdentifiersInAst(
-            ast,
-            new Map([
-              [
-                '__turbopack_load__',
-                parseExpression('__turbopack_load_by_url__'),
-              ],
-            ])
-          )
-          file.data = recast.print(ast).code
-        } else if (
-          file.base.startsWith('react-server-dom-turbopack-client') ||
-          (file.base.startsWith('react-server-dom-turbopack-server') &&
-            !file.base.startsWith('react-server-dom-turbopack-server.browser'))
+        if (
+          (file.base.startsWith('react-server-dom-turbopack-client') ||
+            file.base.startsWith('react-server-dom-turbopack-server')) &&
+          !file.base.includes('.browser.')
         ) {
           const source = file.data.toString()
           const filepath = file.dir + '/' + file.base
@@ -1826,7 +1802,7 @@ export async function copy_vendor_react(task_) {
             ast,
             new Map([
               [
-                '__turbopack_load__',
+                '__turbopack_load_by_url__',
                 parseExpression('globalThis.__next_chunk_load__'),
               ],
               [
@@ -1881,7 +1857,7 @@ export async function ncc_sass_loader(task, opts) {
   await fs.writeFile(
     utilsPath,
     originalContent.replace(
-      /require\.resolve\(["'](sass|node-sass)["']\)/g,
+      /require\.resolve\(["'](sass|node-sass|sass-embedded)["']\)/g,
       'eval("require").resolve("$1")'
     )
   )
@@ -2219,6 +2195,32 @@ export async function ncc_ws(task, opts) {
     .target('src/compiled/ws')
 }
 
+// eslint-disable-next-line camelcase
+export async function ncc_modelcontextprotocol_sdk(task, opts) {
+  await task
+    .source(
+      relative(
+        __dirname,
+        require.resolve('@modelcontextprotocol/sdk/server/mcp.js')
+      )
+    )
+    .ncc({
+      externals,
+    })
+    .target('src/compiled/@modelcontextprotocol/sdk/server')
+  await task
+    .source(
+      relative(
+        __dirname,
+        require.resolve('@modelcontextprotocol/sdk/server/streamableHttp.js')
+      )
+    )
+    .ncc({
+      externals,
+    })
+    .target('src/compiled/@modelcontextprotocol/sdk/server')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function ncc_path_to_regexp(task, opts) {
   await task
@@ -2288,13 +2290,13 @@ export async function ncc(task, opts) {
     .parallel(
       [
         'ncc_safe_stable_stringify',
-        'ncc_amp_optimizer',
         'ncc_node_html_parser',
         'ncc_napirs_triples',
         'ncc_p_limit',
         'ncc_p_queue',
         'ncc_raw_body',
         'ncc_image_size',
+        'ncc_image_detector',
         'ncc_hapi_accept',
         'ncc_commander',
         'ncc_node_anser',
@@ -2303,7 +2305,6 @@ export async function ncc(task, opts) {
         'ncc_node_cssescape',
         'ncc_node_shell_quote',
         'ncc_acorn',
-        'ncc_amphtml_validator',
         'ncc_async_retry',
         'ncc_async_sema',
         'ncc_postcss_plugin_stub_for_cssnano_simple',
@@ -2328,6 +2329,7 @@ export async function ncc(task, opts) {
         'ncc_tty_browserify',
         'ncc_vm_browserify',
         'ncc_babel_bundle',
+        'ncc_babel_code_frame',
         'ncc_bytes',
         'ncc_ci_info',
         'ncc_cli_select',
@@ -2423,6 +2425,7 @@ export async function ncc(task, opts) {
       'ncc_busboy',
       'ncc_mswjs_interceptors',
       'ncc_rsc_poison_packages',
+      'ncc_modelcontextprotocol_sdk',
     ],
     opts
   )
@@ -2850,7 +2853,7 @@ export async function shared(task, opts) {
   await task
     .source('src/shared/**/*.+(js|ts|tsx)', {
       ignore: [
-        'src/shared/**/{amp,config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)',
+        'src/shared/**/{config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)',
         '**/*.test.d.ts',
         '**/*.test.+(js|ts|tsx)',
       ],
@@ -2863,7 +2866,7 @@ export async function shared_esm(task, opts) {
   await task
     .source('src/shared/**/*.+(js|ts|tsx)', {
       ignore: [
-        'src/shared/**/{amp,config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)',
+        'src/shared/**/{config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)',
         '**/*.test.d.ts',
         '**/*.test.+(js|ts|tsx)',
       ],
@@ -2875,7 +2878,7 @@ export async function shared_esm(task, opts) {
 export async function shared_re_exported(task, opts) {
   await task
     .source(
-      'src/shared/**/{amp,config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)',
+      'src/shared/**/{config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)',
       {
         ignore: ['**/*.test.d.ts', '**/*.test.+(js|ts|tsx)'],
       }
@@ -2887,7 +2890,7 @@ export async function shared_re_exported(task, opts) {
 export async function shared_re_exported_esm(task, opts) {
   await task
     .source(
-      'src/shared/**/{amp,config,constants,app-dynamic,dynamic,head}.+(js|ts|tsx)',
+      'src/shared/**/{config,constants,app-dynamic,dynamic,head}.+(js|ts|tsx)',
       {
         ignore: ['**/*.test.d.ts', '**/*.test.+(js|ts|tsx)'],
       }

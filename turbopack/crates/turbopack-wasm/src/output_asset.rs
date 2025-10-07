@@ -41,7 +41,7 @@ impl OutputAsset for WebAssemblyAsset {
         let ident = this.source.ident().with_modifier(rcstr!("wasm"));
         Ok(this
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".wasm")))
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".wasm")))
     }
 }
 

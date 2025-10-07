@@ -1,5 +1,5 @@
 {
-  "extends": "plugin:@next/next/recommended",
+  "extends": "plugin:@next/next/recommended-legacy",
   "root": true,
   "parserOptions": {
     "sourceType": "module",

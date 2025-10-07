@@ -2,9 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('Node Extensions', () => {
   describe('Random', () => {
-    describe('Dynamic IO', () => {
+    describe('Cache Components', () => {
       const { next, skipped } = nextTestSetup({
-        files: __dirname + '/fixtures/random/dynamic-io',
+        files: __dirname + '/fixtures/random/cache-components',
         skipDeployment: true,
       })
 
@@ -24,11 +24,6 @@ describe('Node Extensions', () => {
 
       it('should not error when accessing pages that use Math.random() in App Router', async () => {
         let res, $
-
-        res = await next.fetch('/app/prerendered/uncached')
-        expect(res.status).toBe(200)
-        $ = await next.render$('/app/prerendered/uncached')
-        expect($('li').length).toBe(2)
 
         res = await next.fetch('/app/prerendered/unstable-cache')
         expect(res.status).toBe(200)

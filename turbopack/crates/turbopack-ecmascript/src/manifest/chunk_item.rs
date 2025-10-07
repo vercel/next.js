@@ -33,7 +33,7 @@ impl ManifestChunkItem {
     async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
         Ok(ChunkData::from_assets(
             self.chunking_context.output_root().owned().await?,
-            self.manifest.chunks(),
+            *self.manifest.chunk_group().await?.assets,
         ))
     }
 }
@@ -77,18 +77,13 @@ impl ChunkItem for ManifestChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let mut references = vec![];
-        for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter());
-        }
-
-        Ok(Vc::cell(references))
+    fn references(&self) -> Vc<OutputAssets> {
+        self.manifest.chunk_group().all_assets()
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]

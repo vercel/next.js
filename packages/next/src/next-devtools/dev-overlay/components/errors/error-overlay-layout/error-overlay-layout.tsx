@@ -52,6 +52,7 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
+  generateErrorInfo: () => string
 }
 
 export function ErrorOverlayLayout({
@@ -70,6 +71,7 @@ export function ErrorOverlayLayout({
   setActiveIndex,
   isTurbopack,
   dialogResizerRef,
+  generateErrorInfo,
   // This prop is used to animate the dialog, it comes from a parent component (<ErrorOverlay>)
   // If it's not being passed, we should just render the component as it is being
   // used without the context of a parent component that controls its state (e.g. Storybook).
@@ -126,7 +128,6 @@ export function ErrorOverlayLayout({
         />
         <ErrorOverlayDialog
           onClose={onClose}
-          dialogResizerRef={dialogResizerRef}
           data-has-footer={hasFooter}
           onScroll={onScroll}
           footer={hasFooter && <ErrorOverlayFooter errorCode={errorCode} />}
@@ -151,7 +152,11 @@ export function ErrorOverlayLayout({
                       />
                     )}
                   </span>
-                  <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
+                  <ErrorOverlayToolbar
+                    error={error}
+                    debugInfo={debugInfo}
+                    generateErrorInfo={generateErrorInfo}
+                  />
                 </div>
                 <ErrorMessage errorMessage={errorMessage} />
               </ErrorOverlayDialogHeader>

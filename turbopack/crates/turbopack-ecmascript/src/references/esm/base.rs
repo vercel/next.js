@@ -41,11 +41,9 @@ use crate::{
     analyzer::imports::ImportAnnotations,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    export::Liveness,
     magic_identifier,
-    references::{
-        esm::EsmExport,
-        util::{request_to_string, throw_module_not_found_expr},
-    },
+    references::{esm::EsmExport, util::throw_module_not_found_expr},
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
     tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, asset::EcmascriptModulePartAsset},
     utils::module_id_to_lit,
@@ -62,7 +60,11 @@ pub enum ReferencedAsset {
 #[derive(Debug)]
 pub enum ReferencedAssetIdent {
     /// The given export (or namespace) is a local binding in the current scope hoisting group.
-    LocalBinding { ident: RcStr, ctxt: SyntaxContext },
+    LocalBinding {
+        ident: RcStr,
+        ctxt: SyntaxContext,
+        liveness: Liveness,
+    },
     /// The given export (or namespace) should be imported and will be assigned to a new variable.
     Module {
         namespace_ident: String,
@@ -85,34 +87,39 @@ impl ReferencedAssetIdent {
 
     pub fn as_expr_individual(&self, span: Span) -> Either<Ident, MemberExpr> {
         match self {
-            ReferencedAssetIdent::LocalBinding { ident, ctxt } => {
-                Either::Left(Ident::new(ident.as_str().into(), span, *ctxt))
-            }
+            ReferencedAssetIdent::LocalBinding {
+                ident,
+                ctxt,
+                liveness: _,
+            } => Either::Left(Ident::new(ident.as_str().into(), span, *ctxt)),
             ReferencedAssetIdent::Module {
                 namespace_ident,
                 ctxt,
                 export,
             } => {
-                let ns = Ident::new(
-                    namespace_ident.as_str().into(),
-                    span,
-                    ctxt.unwrap_or_default(),
-                );
                 if let Some(export) = export {
                     Either::Right(MemberExpr {
                         span,
-                        obj: Box::new(Expr::Ident(ns)),
+                        obj: Box::new(Expr::Ident(Ident::new(
+                            namespace_ident.as_str().into(),
+                            DUMMY_SP,
+                            ctxt.unwrap_or_default(),
+                        ))),
                         prop: MemberProp::Computed(ComputedPropName {
-                            span,
+                            span: DUMMY_SP,
                             expr: Box::new(Expr::Lit(Lit::Str(Str {
-                                span,
+                                span: DUMMY_SP,
                                 value: export.as_str().into(),
                                 raw: None,
                             }))),
                         }),
                     })
                 } else {
-                    Either::Left(ns)
+                    Either::Left(Ident::new(
+                        namespace_ident.as_str().into(),
+                        span,
+                        ctxt.unwrap_or_default(),
+                    ))
                 }
             }
         }
@@ -125,13 +132,13 @@ impl ReferencedAssetIdent {
                     Expr::Seq(SeqExpr {
                         exprs: vec![
                             Box::new(Expr::Lit(Lit::Num(Number {
-                                span,
+                                span: DUMMY_SP,
                                 value: 0.0,
                                 raw: None,
                             }))),
                             Box::new(member.into()),
                         ],
-                        span,
+                        span: DUMMY_SP,
                     })
                 } else {
                     member.into()
@@ -161,21 +168,21 @@ impl ReferencedAsset {
     ) -> Result<Option<ReferencedAssetIdent>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => {
-                if let Some(ctxt) =
-                    scope_hoisting_context.get_module_syntax_context(ResolvedVc::upcast(*asset))
+                if let Some(ctxt) = scope_hoisting_context.get_module_syntax_context(*asset)
                     && let Some(export) = &export
                     && let EcmascriptExports::EsmExports(exports) = *asset.get_exports().await?
                 {
                     let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
                     let esm_export = exports.exports.get(export);
                     match esm_export {
-                        Some(EsmExport::LocalBinding(_, _)) => {
+                        Some(EsmExport::LocalBinding(_name, liveness)) => {
                             // A local binding in a module that is merged in the same group. Use the
                             // export name as identifier, it will be replaced with the actual
                             // variable name during AST merging.
                             return Ok(Some(ReferencedAssetIdent::LocalBinding {
                                 ident: export.clone(),
                                 ctxt,
+                                liveness: *liveness,
                             }));
                         }
                         Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
@@ -260,7 +267,7 @@ impl ReferencedAsset {
         asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
-        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
+        let id = asset.chunk_item_id(chunking_context).await?;
         Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
 }
@@ -311,7 +318,8 @@ impl EsmAssetReferences {
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    pub request: ResolvedVc<Request>,
+    // Request is a string to avoid eagerly parsing into a `Request` VC
+    pub request: RcStr,
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
     pub export_name: Option<ModulePart>,
@@ -332,7 +340,7 @@ impl EsmAssetReference {
 impl EsmAssetReference {
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        request: ResolvedVc<Request>,
+        request: RcStr,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
@@ -351,7 +359,7 @@ impl EsmAssetReference {
 
     pub fn new_pure(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        request: ResolvedVc<Request>,
+        request: RcStr,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
@@ -383,6 +391,8 @@ impl ModuleReference for EsmAssetReference {
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let ty = if matches!(self.annotations.module_type(), Some("json")) {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
+        } else if matches!(self.annotations.module_type(), Some("bytes")) {
+            EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Bytes)
         } else if let Some(part) = &self.export_name {
             EcmaScriptModulesReferenceSubType::ImportPart(part.clone())
         } else {
@@ -414,9 +424,10 @@ impl ModuleReference for EsmAssetReference {
                 }
             }
         }
+        let request = Request::parse(self.request.clone().into());
 
-        if let Request::Module { module, .. } = &*self.request.await?
-            && module == TURBOPACK_PART_IMPORT_SOURCE
+        if let Request::Module { module, .. } = &*request.await?
+            && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
         {
             if let Some(part) = &self.export_name {
                 let module: ResolvedVc<crate::EcmascriptModuleAsset> =
@@ -435,7 +446,7 @@ impl ModuleReference for EsmAssetReference {
 
         let result = esm_resolve(
             self.get_origin().resolve().await?,
-            *self.request,
+            request,
             ty,
             false,
             Some(self.issue_source),
@@ -465,15 +476,8 @@ impl ModuleReference for EsmAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for EsmAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "import {} with {}",
-                self.request.to_string().await?,
-                self.annotations
-            )
-            .into(),
-        ))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell(format!("import {} with {}", self.request, self.annotations).into())
     }
 }
 
@@ -527,9 +531,9 @@ impl EsmAssetReference {
                 ReferencedAsset::Unresolvable => {
                     // Insert code that throws immediately at time of import if a request is
                     // unresolvable
-                    let request = request_to_string(*this.request).await?.to_string();
+                    let request = &this.request;
                     let stmt = Stmt::Expr(ExprStmt {
-                        expr: Box::new(throw_module_not_found_expr(&request)),
+                        expr: Box::new(throw_module_not_found_expr(request)),
                         span: DUMMY_SP,
                     });
                     return Ok(CodeGeneration::hoisted_stmt(
@@ -593,9 +597,7 @@ impl EsmAssetReference {
                                         unreachable!();
                                     }
                                     ReferencedAsset::Some(asset) => {
-                                        let id = asset
-                                            .chunk_item_id(Vc::upcast(chunking_context))
-                                            .await?;
+                                        let id = asset.chunk_item_id(chunking_context).await?;
                                         let (sym, ctxt) =
                                             ident.into_module_namespace_ident().unwrap();
                                         let name = Ident::new(
@@ -863,9 +865,9 @@ impl Issue for CircularReExport {
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Line(vec![
-            StyledString::Text("Export ".into()),
+            StyledString::Text(rcstr!("Export ")),
             StyledString::Code(self.export.clone()),
-            StyledString::Text(" is a circular re-export".into()),
+            StyledString::Text(rcstr!(" is a circular re-export")),
         ])
         .cell())
     }
@@ -884,20 +886,20 @@ impl Issue for CircularReExport {
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         Ok(Vc::cell(Some(
             StyledString::Stack(vec![
-                StyledString::Line(vec![StyledString::Text("The export".into())]),
+                StyledString::Line(vec![StyledString::Text(rcstr!("The export"))]),
                 StyledString::Line(vec![
                     StyledString::Code(self.export.clone()),
-                    StyledString::Text(" of module ".into()),
+                    StyledString::Text(rcstr!(" of module ")),
                     StyledString::Strong(self.module.ident().to_string().owned().await?),
                 ]),
-                StyledString::Line(vec![StyledString::Text(
-                    "is a re-export of the export".into(),
-                )]),
+                StyledString::Line(vec![StyledString::Text(rcstr!(
+                    "is a re-export of the export"
+                ))]),
                 StyledString::Line(vec![
-                    StyledString::Code(self.import.clone().unwrap_or_else(|| "*".into())),
-                    StyledString::Text(" of module ".into()),
+                    StyledString::Code(self.import.clone().unwrap_or_else(|| rcstr!("*"))),
+                    StyledString::Text(rcstr!(" of module ")),
                     StyledString::Strong(self.module_cycle.ident().to_string().owned().await?),
-                    StyledString::Text(".".into()),
+                    StyledString::Text(rcstr!(".")),
                 ]),
             ])
             .resolved_cell(),

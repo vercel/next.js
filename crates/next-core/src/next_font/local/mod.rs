@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
-    FileContent, FileSystemPath, glob::Glob, json::parse_json_with_source_context,
+    FileContent, FileSystemPath,
+    glob::{Glob, GlobOptions},
+    json::parse_json_with_source_context,
 };
 use turbopack_core::{
     asset::AssetContent,
@@ -68,9 +70,10 @@ impl NextFontLocalResolvePlugin {
 impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
     fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
-        BeforeResolvePluginCondition::from_request_glob(Glob::new(rcstr!(
-            "{next,@vercel/turbopack-next/internal}/font/local/*"
-        )))
+        BeforeResolvePluginCondition::from_request_glob(Glob::new(
+            rcstr!("{next,@vercel/turbopack-next/internal}/font/local/*"),
+            GlobOptions::default(),
+        ))
     }
 
     #[turbo_tasks::function]

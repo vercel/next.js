@@ -54,7 +54,7 @@ export function onCaughtError(
     // We don't consider errors caught unless they're caught by an explicit error
     // boundary. The built-in ones are considered implicit.
     // This mimics how the same app would behave without Next.js.
-    return onUncaughtError(thrownValue, errorInfo)
+    return onUncaughtError(thrownValue)
   }
 
   // Skip certain custom errors which are not expected to be reported on client
@@ -84,7 +84,7 @@ export function onCaughtError(
       : `The above error occurred in one of your components.`
 
     const errorLocation = `${componentErrorMessage} ${errorBoundaryMessage}`
-    const error = devToolErrorMod.decorateDevError(thrownValue, errorInfo)
+    const error = devToolErrorMod.decorateDevError(thrownValue)
 
     // Log and report the error with location but without modifying the error stack
     devToolErrorMod.originConsoleError('%o\n\n%s', thrownValue, errorLocation)
@@ -95,15 +95,12 @@ export function onCaughtError(
   }
 }
 
-export function onUncaughtError(
-  thrownValue: unknown,
-  errorInfo: React.ErrorInfo
-) {
+export function onUncaughtError(thrownValue: unknown) {
   // Skip certain custom errors which are not expected to be reported on client
   if (isBailoutToCSRError(thrownValue) || isNextRouterError(thrownValue)) return
 
   if (process.env.NODE_ENV !== 'production') {
-    const error = devToolErrorMod.decorateDevError(thrownValue, errorInfo)
+    const error = devToolErrorMod.decorateDevError(thrownValue)
 
     // TODO: Add an adendum to the overlay telling people about custom error boundaries.
     reportGlobalError(error)

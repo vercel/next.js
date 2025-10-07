@@ -258,6 +258,46 @@
         ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
         : [resolvedModuleData.id, resolvedModuleData.chunks, name];
     }
+    function preload(href, as, options) {
+      if ("string" === typeof href) {
+        var request = resolveRequest();
+        if (request) {
+          var hints = request.hints,
+            key = "L";
+          if ("image" === as && options) {
+            var imageSrcSet = options.imageSrcSet,
+              imageSizes = options.imageSizes,
+              uniquePart = "";
+            "string" === typeof imageSrcSet && "" !== imageSrcSet
+              ? ((uniquePart += "[" + imageSrcSet + "]"),
+                "string" === typeof imageSizes &&
+                  (uniquePart += "[" + imageSizes + "]"))
+              : (uniquePart += "[][]" + href);
+            key += "[image]" + uniquePart;
+          } else key += "[" + as + "]" + href;
+          hints.has(key) ||
+            (hints.add(key),
+            (options = trimOptions(options))
+              ? emitHint(request, "L", [href, as, options])
+              : emitHint(request, "L", [href, as]));
+        } else previousDispatcher.L(href, as, options);
+      }
+    }
+    function preloadModule$1(href, options) {
+      if ("string" === typeof href) {
+        var request = resolveRequest();
+        if (request) {
+          var hints = request.hints,
+            key = "m|" + href;
+          if (hints.has(key)) return;
+          hints.add(key);
+          return (options = trimOptions(options))
+            ? emitHint(request, "m", [href, options])
+            : emitHint(request, "m", href);
+        }
+        previousDispatcher.m(href, options);
+      }
+    }
     function trimOptions(options) {
       if (null == options) return null;
       var hasProperties = !1,
@@ -267,6 +307,105 @@
         null != options[key] &&
           ((hasProperties = !0), (trimmed[key] = options[key]));
       return hasProperties ? trimmed : null;
+    }
+    function getChildFormatContext(parentContext, type, props) {
+      switch (type) {
+        case "img":
+          type = props.src;
+          var srcSet = props.srcSet;
+          if (
+            !(
+              "lazy" === props.loading ||
+              (!type && !srcSet) ||
+              ("string" !== typeof type && null != type) ||
+              ("string" !== typeof srcSet && null != srcSet) ||
+              "low" === props.fetchPriority ||
+              parentContext & 3
+            ) &&
+            ("string" !== typeof type ||
+              ":" !== type[4] ||
+              ("d" !== type[0] && "D" !== type[0]) ||
+              ("a" !== type[1] && "A" !== type[1]) ||
+              ("t" !== type[2] && "T" !== type[2]) ||
+              ("a" !== type[3] && "A" !== type[3])) &&
+            ("string" !== typeof srcSet ||
+              ":" !== srcSet[4] ||
+              ("d" !== srcSet[0] && "D" !== srcSet[0]) ||
+              ("a" !== srcSet[1] && "A" !== srcSet[1]) ||
+              ("t" !== srcSet[2] && "T" !== srcSet[2]) ||
+              ("a" !== srcSet[3] && "A" !== srcSet[3]))
+          ) {
+            var sizes = "string" === typeof props.sizes ? props.sizes : void 0;
+            var input = props.crossOrigin;
+            preload(type || "", "image", {
+              imageSrcSet: srcSet,
+              imageSizes: sizes,
+              crossOrigin:
+                "string" === typeof input
+                  ? "use-credentials" === input
+                    ? input
+                    : ""
+                  : void 0,
+              integrity: props.integrity,
+              type: props.type,
+              fetchPriority: props.fetchPriority,
+              referrerPolicy: props.referrerPolicy
+            });
+          }
+          return parentContext;
+        case "link":
+          type = props.rel;
+          srcSet = props.href;
+          if (
+            !(
+              parentContext & 1 ||
+              null != props.itemProp ||
+              "string" !== typeof type ||
+              "string" !== typeof srcSet ||
+              "" === srcSet
+            )
+          )
+            switch (type) {
+              case "preload":
+                preload(srcSet, props.as, {
+                  crossOrigin: props.crossOrigin,
+                  integrity: props.integrity,
+                  nonce: props.nonce,
+                  type: props.type,
+                  fetchPriority: props.fetchPriority,
+                  referrerPolicy: props.referrerPolicy,
+                  imageSrcSet: props.imageSrcSet,
+                  imageSizes: props.imageSizes,
+                  media: props.media
+                });
+                break;
+              case "modulepreload":
+                preloadModule$1(srcSet, {
+                  as: props.as,
+                  crossOrigin: props.crossOrigin,
+                  integrity: props.integrity,
+                  nonce: props.nonce
+                });
+                break;
+              case "stylesheet":
+                preload(srcSet, "stylesheet", {
+                  crossOrigin: props.crossOrigin,
+                  integrity: props.integrity,
+                  nonce: props.nonce,
+                  type: props.type,
+                  fetchPriority: props.fetchPriority,
+                  referrerPolicy: props.referrerPolicy,
+                  media: props.media
+                });
+            }
+          return parentContext;
+        case "picture":
+          return parentContext | 2;
+        case "noscript":
+          return parentContext | 1;
+        default:
+          return parentContext;
+      }
     }
     function resolveOwner() {
       if (currentOwner) return currentOwner;
@@ -719,13 +858,30 @@
       );
     }
     function devirtualizeURL(url) {
-      if (url.startsWith("rsc://React/")) {
-        var envIdx = url.indexOf("/", 12),
+      if (url.startsWith("about://React/")) {
+        var envIdx = url.indexOf("/", 14),
           suffixIdx = url.lastIndexOf("?");
         if (-1 < envIdx && -1 < suffixIdx)
           return decodeURI(url.slice(envIdx + 1, suffixIdx));
       }
       return url;
+    }
+    function isPromiseCreationInternal(url, functionName) {
+      if ("node:internal/async_hooks" === url) return !0;
+      if ("" !== url) return !1;
+      switch (functionName) {
+        case "new Promise":
+        case "Function.withResolvers":
+        case "Function.reject":
+        case "Function.resolve":
+        case "Function.all":
+        case "Function.allSettled":
+        case "Function.race":
+        case "Function.try":
+          return !0;
+        default:
+          return !1;
+      }
     }
     function filterStackTrace(request, stack) {
       request = request.filterStackFrame;
@@ -756,10 +912,29 @@
       }
       return !1;
     }
+    function isPromiseAwaitInternal(url, functionName) {
+      if ("node:internal/async_hooks" === url) return !0;
+      if ("" !== url) return !1;
+      switch (functionName) {
+        case "Promise.then":
+        case "Promise.catch":
+        case "Promise.finally":
+        case "Function.reject":
+        case "Function.resolve":
+        case "Function.all":
+        case "Function.allSettled":
+        case "Function.race":
+        case "Function.try":
+          return !0;
+        default:
+          return !1;
+      }
+    }
     function isAwaitInUserspace(request, stack) {
       for (
         var firstFrame = 0;
-        stack.length > firstFrame && "Promise.then" === stack[firstFrame][0];
+        stack.length > firstFrame &&
+        isPromiseAwaitInternal(stack[firstFrame][1], stack[firstFrame][0]);
 
       )
         firstFrame++;
@@ -807,22 +982,24 @@
                 style = args[env + 1],
                 badge = args[env + 2];
               "string" === typeof format &&
-              format.startsWith("\u001b[0m\u001b[7m%c%s\u001b[0m%c ") &&
+              format.startsWith("\u001b[0m\u001b[7m%c%s\u001b[0m%c") &&
               "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px" ===
                 style &&
               "string" === typeof badge
-                ? (args.splice(env, 4, format.slice(19)),
+                ? ((format = format.slice(18)),
+                  " " === format[0] && (format = format.slice(1)),
+                  args.splice(env, 4, format),
                   (env = badge.slice(1, badge.length - 1)))
                 : (env = null);
             }
             null === env && (env = (0, request.environmentName)());
             null != owner && outlineComponentInfo(request, owner);
-            format = [methodName, stack, owner, env];
-            format.push.apply(format, args);
+            badge = [methodName, stack, owner, env];
+            badge.push.apply(badge, args);
             args = serializeDebugModel(
               request,
               (null === request.deferredDebugObjects ? 500 : 10) + stack.length,
-              format
+              badge
             );
             "[" !== args[0] &&
               (args = serializeDebugModel(request, 10 + stack.length, [
@@ -1002,6 +1179,7 @@
         model,
         null,
         !1,
+        0,
         abortSet,
         type,
         null,
@@ -1083,7 +1261,9 @@
             ref
           );
         case "rejected":
-          return emitErrorChunk(request, id, "", thenable.reason, !0), ref;
+          return (
+            emitErrorChunk(request, id, "", thenable.reason, !0, null), ref
+          );
       }
       if (request.status === ABORTING)
         return emitDebugHaltChunk(request, id), ref;
@@ -1110,7 +1290,7 @@
             ((cancelled = !0),
             request.status === ABORTING
               ? emitDebugHaltChunk(request, id)
-              : emitErrorChunk(request, id, "", reason, !0),
+              : emitErrorChunk(request, id, "", reason, !0, null),
             enqueueFlush(request));
         }
       );
@@ -1134,7 +1314,7 @@
         function (reason) {
           request.status === ABORTING
             ? emitDebugHaltChunk(request, id)
-            : emitErrorChunk(request, id, "", reason, !0);
+            : emitErrorChunk(request, id, "", reason, !0, null);
           enqueueFlush(request);
         }
       );
@@ -1145,6 +1325,7 @@
         thenable,
         task.keyPath,
         task.implicitSlot,
+        task.formatContext,
         request.abortableTasks,
         task.time,
         task.debugOwner,
@@ -1278,6 +1459,7 @@
           task.model,
           task.keyPath,
           task.implicitSlot,
+          task.formatContext,
           request.abortableTasks,
           task.time,
           task.debugOwner,
@@ -1362,17 +1544,19 @@
           task.model,
           task.keyPath,
           task.implicitSlot,
+          task.formatContext,
           request.abortableTasks,
           task.time,
           task.debugOwner,
           task.debugStack,
           task.debugTask
         );
+      (task = iterable._debugInfo) &&
+        forwardDebugInfo(request, streamTask, task);
       request.pendingChunks++;
-      task = streamTask.id.toString(16) + ":" + (isIterator ? "x" : "X") + "\n";
-      request.completedRegularChunks.push(task);
-      (iterable = iterable._debugInfo) &&
-        forwardDebugInfo(request, streamTask, iterable);
+      isIterator =
+        streamTask.id.toString(16) + ":" + (isIterator ? "x" : "X") + "\n";
+      request.completedRegularChunks.push(isIterator);
       request.cacheController.signal.addEventListener("abort", abortIterable);
       callIteratorInDEV(iterator, progress, error);
       return serializeByValueID(streamTask.id);
@@ -1593,6 +1777,9 @@
         Component,
         props
       );
+      task.debugOwner = componentDebugInfo;
+      task.debugStack = null;
+      task.debugTask = null;
       Component = task.keyPath;
       componentDebugInfo = task.implicitSlot;
       null !== key
@@ -1690,6 +1877,7 @@
         task.model,
         task.keyPath,
         task.implicitSlot,
+        task.formatContext,
         request.abortableTasks,
         task.time,
         task.debugOwner,
@@ -1705,6 +1893,7 @@
         task.model,
         task.keyPath,
         task.implicitSlot,
+        task.formatContext,
         request.abortableTasks,
         task.time,
         task.debugOwner,
@@ -1802,6 +1991,17 @@
             case REACT_ELEMENT_TYPE:
               type._store.validated = 1;
           }
+        else if ("string" === typeof type) {
+          ref = task.formatContext;
+          var newFormatContext = getChildFormatContext(ref, type, props);
+          ref !== newFormatContext &&
+            null != props.children &&
+            outlineModelWithFormatContext(
+              request,
+              props.children,
+              newFormatContext
+            );
+        }
       } else
         return renderFunctionComponent(
           request,
@@ -1813,20 +2013,20 @@
         );
       ref = task.keyPath;
       null === key ? (key = ref) : null !== ref && (key = ref + "," + key);
-      var debugStack = null;
+      newFormatContext = null;
       ref = task.debugOwner;
       null !== ref && outlineComponentInfo(request, ref);
       if (null !== task.debugStack) {
-        debugStack = filterStackTrace(
+        newFormatContext = filterStackTrace(
           request,
           parseStackTrace(task.debugStack, 1)
         );
         var id = outlineDebugModel(
           request,
-          { objectLimit: 2 * debugStack.length + 1 },
-          debugStack
+          { objectLimit: 2 * newFormatContext.length + 1 },
+          newFormatContext
         );
-        request.writtenObjects.set(debugStack, serializeByValueID(id));
+        request.writtenObjects.set(newFormatContext, serializeByValueID(id));
       }
       request = [
         REACT_ELEMENT_TYPE,
@@ -1834,7 +2034,7 @@
         key,
         props,
         ref,
-        debugStack,
+        newFormatContext,
         validated
       ];
       task = task.implicitSlot && null !== key ? [request] : request;
@@ -1908,11 +2108,20 @@
                 endTime = node.end;
               if (endTime <= request.timeOrigin) return null;
               startTime < cutOff
-                ? (previousIONode = _ioNode)
+                ? ((previousIONode = _ioNode),
+                  null !== node.stack &&
+                    isAwaitInUserspace(request, node.stack) &&
+                    void 0 !==
+                      (null === awaited.promise
+                        ? void 0
+                        : awaited.promise.deref()) &&
+                    serializeIONode(request, _ioNode, awaited.promise))
                 : null !== node.stack && isAwaitInUserspace(request, node.stack)
                   ? (request.status === ABORTING &&
                       startTime > request.abortTime) ||
                     (serializeIONode(request, _ioNode, awaited.promise),
+                    null != node.owner &&
+                      outlineComponentInfo(request, node.owner),
                     (cutOff = (0, request.environmentName)()),
                     advanceTaskTime(request, task, startTime),
                     request.pendingChunks++,
@@ -1961,12 +2170,20 @@
           awaited: node,
           env: alreadyForwardedDebugInfo
         }),
-        null != owner && (alreadyForwardedDebugInfo.owner = owner),
-        null != stack &&
-          (alreadyForwardedDebugInfo.stack = filterStackTrace(
-            request,
-            parseStackTrace(stack, 1)
-          )),
+        null === owner && null === stack
+          ? (null !== task.debugOwner &&
+              (alreadyForwardedDebugInfo.owner = task.debugOwner),
+            null !== task.debugStack &&
+              (alreadyForwardedDebugInfo.stack = filterStackTrace(
+                request,
+                parseStackTrace(task.debugStack, 1)
+              )))
+          : (null != owner && (alreadyForwardedDebugInfo.owner = owner),
+            null != stack &&
+              (alreadyForwardedDebugInfo.stack = filterStackTrace(
+                request,
+                parseStackTrace(stack, 1)
+              ))),
         advanceTaskTime(request, task, task.time),
         emitDebugChunk(request, task.id, alreadyForwardedDebugInfo),
         markOperationEndTime(request, task, node.end));
@@ -1990,6 +2207,7 @@
       model,
       keyPath,
       implicitSlot,
+      formatContext,
       abortSet,
       lastTimestamp,
       debugOwner,
@@ -2009,6 +2227,7 @@
         model: model,
         keyPath: keyPath,
         implicitSlot: implicitSlot,
+        formatContext: formatContext,
         ping: function () {
           return pingTask(request, task);
         },
@@ -2112,7 +2331,7 @@
           request.pendingChunks++,
           (parent = request.nextChunkId++),
           (parentPropertyName = logRecoverableError(request, x, null)),
-          emitErrorChunk(request, parent, parentPropertyName, x, !1),
+          emitErrorChunk(request, parent, parentPropertyName, x, !1, null),
           serializeByValueID(parent)
         );
       }
@@ -2148,17 +2367,21 @@
           request.pendingDebugChunks++,
           (parent = request.nextChunkId++),
           (parentPropertyName = logRecoverableError(request, x, null)),
-          emitErrorChunk(request, parent, parentPropertyName, x, !0),
+          emitErrorChunk(request, parent, parentPropertyName, x, !0, null),
           serializeByValueID(parent)
         );
       }
     }
     function outlineModel(request, value) {
+      return outlineModelWithFormatContext(request, value, 0);
+    }
+    function outlineModelWithFormatContext(request, value, formatContext) {
       value = createTask(
         request,
         value,
         null,
         !1,
+        formatContext,
         request.abortableTasks,
         performance.now(),
         null,
@@ -2245,7 +2468,7 @@
           );
       }
       function error(reason) {
-        emitErrorChunk(request, id, "", reason, !0);
+        emitErrorChunk(request, id, "", reason, !0, null);
         enqueueFlush(request);
         reader.cancel(reason).then(noop, noop);
       }
@@ -2299,6 +2522,7 @@
           model,
           null,
           !1,
+          0,
           request.abortableTasks,
           performance.now(),
           null,
@@ -2351,6 +2575,7 @@
               task.model,
               task.keyPath,
               task.implicitSlot,
+              task.formatContext,
               request.abortableTasks,
               task.time,
               task.debugOwner,
@@ -2375,8 +2600,15 @@
         key.$$typeof === REACT_POSTPONE_TYPE
           ? (logPostpone(request, key.message, task),
             emitPostponeChunk(request, prevKeyPath, key))
-          : ((task = logRecoverableError(request, key, task)),
-            emitErrorChunk(request, prevKeyPath, task, key, !1));
+          : ((prevImplicitSlot = logRecoverableError(request, key, task)),
+            emitErrorChunk(
+              request,
+              prevKeyPath,
+              prevImplicitSlot,
+              key,
+              !1,
+              task.debugOwner
+            ));
         return parent
           ? serializeLazyID(prevKeyPath)
           : serializeByValueID(prevKeyPath);
@@ -2417,15 +2649,30 @@
               else return outlineTask(request, task);
             _existingReference = value.props;
             var refProp = _existingReference.ref;
+            refProp = void 0 !== refProp ? refProp : null;
             task.debugOwner = value._owner;
             task.debugStack = value._debugStack;
             task.debugTask = value._debugTask;
+            if (
+              void 0 === value._owner ||
+              void 0 === value._debugStack ||
+              void 0 === value._debugTask
+            ) {
+              var key = "";
+              null !== value.key && (key = ' key="' + value.key + '"');
+              console.error(
+                "Attempted to render <%s%s> without development properties. This is not supported. It can happen if:\n- The element is created with a production version of React but rendered in development.\n- The element was cloned with a custom function instead of `React.cloneElement`.\nThe props of this element may help locate this element: %o",
+                value.type,
+                key,
+                value.props
+              );
+            }
             request = renderElement(
               request,
               task,
               value.type,
               value.key,
-              void 0 !== refProp ? refProp : null,
+              refProp,
               _existingReference,
               value._store.validated
             );
@@ -2802,7 +3049,7 @@
         }).toString(16)
       );
     }
-    function emitErrorChunk(request, id, digest, error, debug) {
+    function emitErrorChunk(request, id, digest, error, debug, owner) {
       var name = "Error",
         env = (0, request.environmentName)();
       try {
@@ -2823,12 +3070,14 @@
           "An error occurred but serializing the error message failed."),
           (stack = []);
       }
+      error = null == owner ? null : outlineComponentInfo(request, owner);
       digest = {
         digest: digest,
         name: name,
         message: message,
         stack: stack,
-        env: env
+        env: env,
+        owner: error
       };
       id = id.toString(16) + ":E" + stringify(digest) + "\n";
       debug
@@ -2863,38 +3112,34 @@
           request.completedRegularChunks.push(id));
     }
     function outlineComponentInfo(request, componentInfo) {
-      if (!request.writtenDebugObjects.has(componentInfo)) {
-        null != componentInfo.owner &&
-          outlineComponentInfo(request, componentInfo.owner);
-        var objectLimit = 10;
-        null != componentInfo.stack &&
-          (objectLimit += componentInfo.stack.length);
-        objectLimit = { objectLimit: objectLimit };
-        var componentDebugInfo = {
-          name: componentInfo.name,
-          key: componentInfo.key
-        };
-        null != componentInfo.env &&
-          (componentDebugInfo.env = componentInfo.env);
-        null != componentInfo.owner &&
-          (componentDebugInfo.owner = componentInfo.owner);
-        null == componentInfo.stack && null != componentInfo.debugStack
-          ? (componentDebugInfo.stack = filterStackTrace(
-              request,
-              parseStackTrace(componentInfo.debugStack, 1)
-            ))
-          : null != componentInfo.stack &&
-            (componentDebugInfo.stack = componentInfo.stack);
-        componentDebugInfo.props = componentInfo.props;
-        objectLimit = outlineDebugModel(
-          request,
-          objectLimit,
-          componentDebugInfo
-        );
-        objectLimit = serializeByValueID(objectLimit);
-        request.writtenDebugObjects.set(componentInfo, objectLimit);
-        request.writtenObjects.set(componentInfo, objectLimit);
-      }
+      var existingRef = request.writtenDebugObjects.get(componentInfo);
+      if (void 0 !== existingRef) return existingRef;
+      null != componentInfo.owner &&
+        outlineComponentInfo(request, componentInfo.owner);
+      existingRef = 10;
+      null != componentInfo.stack &&
+        (existingRef += componentInfo.stack.length);
+      existingRef = { objectLimit: existingRef };
+      var componentDebugInfo = {
+        name: componentInfo.name,
+        key: componentInfo.key
+      };
+      null != componentInfo.env && (componentDebugInfo.env = componentInfo.env);
+      null != componentInfo.owner &&
+        (componentDebugInfo.owner = componentInfo.owner);
+      null == componentInfo.stack && null != componentInfo.debugStack
+        ? (componentDebugInfo.stack = filterStackTrace(
+            request,
+            parseStackTrace(componentInfo.debugStack, 1)
+          ))
+        : null != componentInfo.stack &&
+          (componentDebugInfo.stack = componentInfo.stack);
+      componentDebugInfo.props = componentInfo.props;
+      existingRef = outlineDebugModel(request, existingRef, componentDebugInfo);
+      existingRef = serializeByValueID(existingRef);
+      request.writtenDebugObjects.set(componentInfo, existingRef);
+      request.writtenObjects.set(componentInfo, existingRef);
+      return existingRef;
     }
     function emitIOInfoChunk(
       request,
@@ -2928,33 +3173,43 @@
       existingRef = null;
       var name = "";
       if (null !== ioNode.stack) {
-        name = ioNode.stack;
+        a: {
+          existingRef = ioNode.stack;
+          for (name = 0; name < existingRef.length; name++) {
+            var callsite = existingRef[name];
+            if (!isPromiseCreationInternal(callsite[1], callsite[0])) {
+              name = 0 < name ? existingRef.slice(name) : existingRef;
+              break a;
+            }
+          }
+          name = [];
+        }
         existingRef = filterStackTrace(request, name);
         a: {
+          callsite = "";
           for (
-            var bestMatch = "",
-              filterStackFrame = request.filterStackFrame,
-              i = 0;
+            var filterStackFrame = request.filterStackFrame, i = 0;
             i < name.length;
             i++
           ) {
-            var callsite = name[i],
-              functionName = callsite[0],
-              url = devirtualizeURL(callsite[1]),
-              lineNumber = callsite[2];
-            callsite = callsite[3];
+            var callsite$jscomp$0 = name[i],
+              functionName = callsite$jscomp$0[0],
+              url = devirtualizeURL(callsite$jscomp$0[1]);
             if (
-              "new Promise" !== functionName &&
-              "node:internal/async_hooks" !== url
-            )
-              if (filterStackFrame(url, functionName, lineNumber, callsite)) {
-                if ("" === bestMatch) {
-                  name = functionName;
-                  break a;
-                }
-                name = bestMatch;
+              filterStackFrame(
+                url,
+                functionName,
+                callsite$jscomp$0[2],
+                callsite$jscomp$0[3]
+              )
+            ) {
+              if ("" === callsite) {
+                name = functionName;
                 break a;
-              } else bestMatch = functionName;
+              }
+              name = callsite;
+              break a;
+            } else callsite = functionName;
           }
           name = "";
         }
@@ -2962,28 +3217,28 @@
           ? (name = name.slice(7))
           : name.startsWith("<anonymous>.") && (name = name.slice(7));
       }
-      bestMatch = ioNode.owner;
-      null != bestMatch && outlineComponentInfo(request, bestMatch);
+      callsite = ioNode.owner;
+      null != callsite && outlineComponentInfo(request, callsite);
       filterStackFrame = void 0;
       null !== promiseRef && (filterStackFrame = promiseRef.deref());
       promiseRef = (0, request.environmentName)();
       i = 3 === ioNode.tag ? request.abortTime : ioNode.end;
       request.pendingDebugChunks++;
-      functionName = request.nextChunkId++;
+      callsite$jscomp$0 = request.nextChunkId++;
       emitIOInfoChunk(
         request,
-        functionName,
+        callsite$jscomp$0,
         name,
         ioNode.start,
         i,
         filterStackFrame,
         promiseRef,
-        bestMatch,
+        callsite,
         existingRef
       );
-      existingRef = serializeByValueID(functionName);
-      request.writtenDebugObjects.set(ioNode, existingRef);
-      return existingRef;
+      promiseRef = serializeByValueID(callsite$jscomp$0);
+      request.writtenDebugObjects.set(ioNode, promiseRef);
+      return promiseRef;
     }
     function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
       if (TaintRegistryByteLengths.has(typedArray.byteLength)) {
@@ -3141,6 +3396,62 @@
               counter,
               value._store.validated
             ];
+          case REACT_LAZY_TYPE:
+            value = value._payload;
+            if (null !== value && "object" === typeof value) {
+              switch (value._status) {
+                case 1:
+                  return (
+                    (request = outlineDebugModel(
+                      request,
+                      counter,
+                      value._result
+                    )),
+                    serializeLazyID(request)
+                  );
+                case 2:
+                  return (
+                    (counter = request.nextChunkId++),
+                    emitErrorChunk(
+                      request,
+                      counter,
+                      "",
+                      value._result,
+                      !0,
+                      null
+                    ),
+                    serializeLazyID(counter)
+                  );
+              }
+              switch (value.status) {
+                case "fulfilled":
+                  return (
+                    (request = outlineDebugModel(
+                      request,
+                      counter,
+                      value.value
+                    )),
+                    serializeLazyID(request)
+                  );
+                case "rejected":
+                  return (
+                    (counter = request.nextChunkId++),
+                    emitErrorChunk(
+                      request,
+                      counter,
+                      "",
+                      value.reason,
+                      !0,
+                      null
+                    ),
+                    serializeLazyID(counter)
+                  );
+              }
+            }
+            request.pendingDebugChunks++;
+            value = request.nextChunkId++;
+            emitDebugHaltChunk(request, value);
+            return serializeLazyID(value);
         }
         if ("function" === typeof value.then)
           return serializeDebugThenable(request, counter, value);
@@ -3283,7 +3594,17 @@
         counter = request.writtenDebugObjects;
         ref = counter.get(value);
         if (void 0 !== ref) return ref;
-        key = "$E(" + (Function.prototype.toString.call(value) + ")");
+        ref = Function.prototype.toString.call(value);
+        key = value.name;
+        key =
+          "$E" +
+          ("string" === typeof key
+            ? "Object.defineProperty(" +
+              ref +
+              ',"name",{value:' +
+              JSON.stringify(key) +
+              "})"
+            : "(" + ref + ")");
         request.pendingDebugChunks++;
         ref = request.nextChunkId++;
         key = encodeReferenceChunk(request, ref, key);
@@ -3427,6 +3748,8 @@
                 serializeByValueID(id$jscomp$0)
               );
             }
+            null != info.owner &&
+              outlineComponentInfo(request$jscomp$0, info.owner);
             debugStack =
               null == info.stack && null != info.debugStack
                 ? filterStackTrace(
@@ -3592,7 +3915,7 @@
           emitPostponeChunk(request, task.id, error);
       else {
         var digest = logRecoverableError(request, error, task);
-        emitErrorChunk(request, task.id, digest, error, !1);
+        emitErrorChunk(request, task.id, digest, error, !1, task.debugOwner);
       }
       request.abortableTasks.delete(task);
       callOnAllReadyIfReady(request);
@@ -3840,15 +4163,18 @@
                   "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
                 )
               ),
-            (request.status = CLOSED),
             null !== request.destination &&
-              (request.destination.end(), (request.destination = null)),
+              ((request.status = CLOSED),
+              request.destination.end(),
+              (request.destination = null)),
             null !== request.debugDestination &&
               (request.debugDestination.end(),
               (request.debugDestination = null)))
           : null !== importsChunks &&
             null !== request.destination &&
-            (request.destination.end(), (request.destination = null)));
+            ((request.status = CLOSED),
+            request.destination.end(),
+            (request.destination = null)));
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
@@ -3969,7 +4295,7 @@
                 _errorId2 = request.nextChunkId++;
               request.fatalError = _errorId2;
               request.pendingChunks++;
-              emitErrorChunk(request, _errorId2, digest, error, !1);
+              emitErrorChunk(request, _errorId2, digest, error, !1, null);
               abortableTasks.forEach(function (task) {
                 return abortTask(task, request, _errorId2);
               });
@@ -5043,46 +5369,8 @@
           } else previousDispatcher.C(href, crossOrigin);
         }
       },
-      L: function (href, as, options) {
-        if ("string" === typeof href) {
-          var request = resolveRequest();
-          if (request) {
-            var hints = request.hints,
-              key = "L";
-            if ("image" === as && options) {
-              var imageSrcSet = options.imageSrcSet,
-                imageSizes = options.imageSizes,
-                uniquePart = "";
-              "string" === typeof imageSrcSet && "" !== imageSrcSet
-                ? ((uniquePart += "[" + imageSrcSet + "]"),
-                  "string" === typeof imageSizes &&
-                    (uniquePart += "[" + imageSizes + "]"))
-                : (uniquePart += "[][]" + href);
-              key += "[image]" + uniquePart;
-            } else key += "[" + as + "]" + href;
-            hints.has(key) ||
-              (hints.add(key),
-              (options = trimOptions(options))
-                ? emitHint(request, "L", [href, as, options])
-                : emitHint(request, "L", [href, as]));
-          } else previousDispatcher.L(href, as, options);
-        }
-      },
-      m: function (href, options) {
-        if ("string" === typeof href) {
-          var request = resolveRequest();
-          if (request) {
-            var hints = request.hints,
-              key = "m|" + href;
-            if (hints.has(key)) return;
-            hints.add(key);
-            return (options = trimOptions(options))
-              ? emitHint(request, "m", [href, options])
-              : emitHint(request, "m", href);
-          }
-          previousDispatcher.m(href, options);
-        }
-      },
+      L: preload,
+      m: preloadModule$1,
       X: function (src, options) {
         if ("string" === typeof src) {
           var request = resolveRequest();
@@ -5172,6 +5460,8 @@
               throw Error(
                 "Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider."
               );
+            case "then":
+              return;
           }
           throw Error(
             "Cannot access " +
@@ -5689,12 +5979,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_237 = [];
+        var JSCompiler_object_inline_chunks_252 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_237.push(chunk);
+          JSCompiler_object_inline_chunks_252.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_237, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_252, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);
@@ -5717,6 +6007,94 @@
         reportGlobalError(response, err);
       });
       return getChunk(response, 0);
+    };
+    exports.prerender = function (model, webpackMap, options) {
+      return new Promise(function (resolve, reject) {
+        var request = createPrerenderRequest(
+          model,
+          webpackMap,
+          function () {
+            var writable,
+              stream = new ReadableStream(
+                {
+                  type: "bytes",
+                  start: function (controller) {
+                    writable =
+                      createFakeWritableFromReadableStreamController(
+                        controller
+                      );
+                  },
+                  pull: function () {
+                    startFlowing(request, writable);
+                  },
+                  cancel: function (reason) {
+                    request.destination = null;
+                    abort(request, reason);
+                  }
+                },
+                { highWaterMark: 0 }
+              );
+            resolve({ prelude: stream });
+          },
+          reject,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0,
+          !1
+        );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
+    };
+    exports.prerenderToNodeStream = function (model, webpackMap, options) {
+      return new Promise(function (resolve, reject) {
+        var request = createPrerenderRequest(
+          model,
+          webpackMap,
+          function () {
+            var readable = new stream.Readable({
+                read: function () {
+                  startFlowing(request, writable);
+                }
+              }),
+              writable = createFakeWritableFromNodeReadable(readable);
+            resolve({ prelude: readable });
+          },
+          reject,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0,
+          !1
+        );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
     };
     exports.registerClientReference = function (
       proxyImplementation,
@@ -5875,97 +6253,5 @@
         },
         { highWaterMark: 0 }
       );
-    };
-    exports.unstable_prerender = function (model, webpackMap, options) {
-      return new Promise(function (resolve, reject) {
-        var request = createPrerenderRequest(
-          model,
-          webpackMap,
-          function () {
-            var writable,
-              stream = new ReadableStream(
-                {
-                  type: "bytes",
-                  start: function (controller) {
-                    writable =
-                      createFakeWritableFromReadableStreamController(
-                        controller
-                      );
-                  },
-                  pull: function () {
-                    startFlowing(request, writable);
-                  },
-                  cancel: function (reason) {
-                    request.destination = null;
-                    abort(request, reason);
-                  }
-                },
-                { highWaterMark: 0 }
-              );
-            resolve({ prelude: stream });
-          },
-          reject,
-          options ? options.onError : void 0,
-          options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
-          options ? options.temporaryReferences : void 0,
-          options ? options.environmentName : void 0,
-          options ? options.filterStackFrame : void 0,
-          !1
-        );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
-        startWork(request);
-      });
-    };
-    exports.unstable_prerenderToNodeStream = function (
-      model,
-      webpackMap,
-      options
-    ) {
-      return new Promise(function (resolve, reject) {
-        var request = createPrerenderRequest(
-          model,
-          webpackMap,
-          function () {
-            var readable = new stream.Readable({
-                read: function () {
-                  startFlowing(request, writable);
-                }
-              }),
-              writable = createFakeWritableFromNodeReadable(readable);
-            resolve({ prelude: readable });
-          },
-          reject,
-          options ? options.onError : void 0,
-          options ? options.identifierPrefix : void 0,
-          options ? options.onPostpone : void 0,
-          options ? options.temporaryReferences : void 0,
-          options ? options.environmentName : void 0,
-          options ? options.filterStackFrame : void 0,
-          !1
-        );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
-        startWork(request);
-      });
     };
   })();

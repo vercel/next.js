@@ -2,13 +2,26 @@ import { useReducer } from 'react'
 
 import type { VersionInfo } from '../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './container/runtime-error/render-error'
-import { parseComponentStack } from './utils/parse-component-stack'
 import type { DebugInfo } from '../shared/types'
 import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-server-state'
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 
+export type DevToolsConfig = {
+  theme?: 'light' | 'dark' | 'system'
+  disableDevIndicator?: boolean
+  devToolsPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  devToolsPanelPosition?: Record<
+    string,
+    'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  >
+  devToolsPanelSize?: Record<string, { width: number; height: number }>
+  scale?: number
+  hideShortcut?: string | null
+}
+
 export type Corners = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+export type DevToolsIndicatorPosition = Corners
 
 const BASE_SIZE = 16
 
@@ -18,40 +31,45 @@ export const NEXT_DEV_TOOLS_SCALE = {
   Large: BASE_SIZE / 18,
 }
 
+export type DevToolsScale =
+  (typeof NEXT_DEV_TOOLS_SCALE)[keyof typeof NEXT_DEV_TOOLS_SCALE]
+
 type FastRefreshState =
   /** No refresh in progress. */
   | { type: 'idle' }
   /** The refresh process has been triggered, but the new code has not been executed yet. */
-  | { type: 'pending'; errors: SupportedErrorEvent[] }
+  | { type: 'pending'; errors: readonly SupportedErrorEvent[] }
 
 export interface OverlayState {
-  nextId: number
-  buildError: string | null
-  errors: SupportedErrorEvent[]
-  refreshState: FastRefreshState
-  versionInfo: VersionInfo
-  notFound: boolean
-  buildingIndicator: boolean
-  renderingIndicator: boolean
-  staticIndicator: boolean
-  showIndicator: boolean
-  disableDevIndicator: boolean
-  /** Whether to show the restart server button in the panel UI. Currently
-   *  only used when Turbopack + Persistent Cache is enabled.
-   */
-  showRestartServerButton: boolean
-  debugInfo: DebugInfo
-  routerType: 'pages' | 'app'
+  readonly nextId: number
+  readonly buildError: string | null
+  readonly errors: readonly SupportedErrorEvent[]
+  readonly refreshState: FastRefreshState
+  readonly versionInfo: VersionInfo
+  readonly notFound: boolean
+  readonly buildingIndicator: boolean
+  readonly renderingIndicator: boolean
+  readonly staticIndicator: boolean
+  readonly showIndicator: boolean
+  readonly disableDevIndicator: boolean
+  readonly debugInfo: DebugInfo
+  readonly routerType: 'pages' | 'app'
   /** This flag is used to handle the Error Overlay state in the "old" overlay.
    *  In the DevTools panel, this value will used for the "Error Overlay Mode"
    *  which is viewing the "Issues Tab" as a fullscreen.
    */
-  isErrorOverlayOpen: boolean
-  isDevToolsPanelOpen: boolean
-  devToolsPosition: Corners
-  scale: number
-  page: string
+  readonly isErrorOverlayOpen: boolean
+  readonly devToolsPosition: Corners
+  readonly devToolsPanelPosition: Readonly<Record<DevtoolsPanelName, Corners>>
+  readonly devToolsPanelSize: Readonly<
+    Record<DevtoolsPanelName, { width: number; height: number }>
+  >
+  readonly scale: number
+  readonly page: string
+  readonly theme: 'light' | 'dark' | 'system'
+  readonly hideShortcut: string | null
 }
+type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
@@ -64,6 +82,7 @@ export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
 export const ACTION_DEBUG_INFO = 'debug-info'
 export const ACTION_DEV_INDICATOR = 'dev-indicator'
+export const ACTION_DEV_INDICATOR_SET = 'dev-indicator-disable'
 
 export const ACTION_ERROR_OVERLAY_OPEN = 'error-overlay-open'
 export const ACTION_ERROR_OVERLAY_CLOSE = 'error-overlay-close'
@@ -74,18 +93,19 @@ export const ACTION_BUILDING_INDICATOR_HIDE = 'building-indicator-hide'
 export const ACTION_RENDERING_INDICATOR_SHOW = 'rendering-indicator-show'
 export const ACTION_RENDERING_INDICATOR_HIDE = 'rendering-indicator-hide'
 
-export const ACTION_DEVTOOLS_PANEL_OPEN = 'devtools-panel-open'
-export const ACTION_DEVTOOLS_PANEL_CLOSE = 'devtools-panel-close'
-export const ACTION_DEVTOOLS_PANEL_TOGGLE = 'devtools-panel-toggle'
-
 export const ACTION_DEVTOOLS_POSITION = 'devtools-position'
+export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
-export const ACTION_RESTART_SERVER_BUTTON = 'restart-server-button'
 
-export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
-export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
-export const STORAGE_KEY_SCALE = '__nextjs-dev-tools-scale'
-export const STORAGE_KEY_ACTIVE_TAB = '__nextjs-devtools-active-tab'
+export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
+
+export const STORAGE_KEY_PANEL_POSITION_PREFIX =
+  '__nextjs-dev-tools-panel-position'
+export const STORE_KEY_PANEL_SIZE_PREFIX = '__nextjs-dev-tools-panel-size'
+export const STORE_KEY_SHARED_PANEL_SIZE =
+  '__nextjs-dev-tools-shared-panel-size'
+export const STORE_KEY_SHARED_PANEL_LOCATION =
+  '__nextjs-dev-tools-shared-panel-location'
 
 export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE =
   'segment-explorer-update-route-state'
@@ -109,16 +129,16 @@ interface FastRefreshAction {
   type: typeof ACTION_REFRESH
 }
 
-export interface UnhandledErrorAction {
+interface UnhandledErrorAction {
   type: typeof ACTION_UNHANDLED_ERROR
   reason: Error
 }
-export interface UnhandledRejectionAction {
+interface UnhandledRejectionAction {
   type: typeof ACTION_UNHANDLED_REJECTION
   reason: Error
 }
 
-export interface DebugInfoAction {
+interface DebugInfoAction {
   type: typeof ACTION_DEBUG_INFO
   debugInfo: any
 }
@@ -133,58 +153,59 @@ interface DevIndicatorAction {
   devIndicator: DevIndicatorServerState
 }
 
-export interface ErrorOverlayOpenAction {
+interface DevIndicatorSetAction {
+  type: typeof ACTION_DEV_INDICATOR_SET
+  disabled: boolean
+}
+
+interface ErrorOverlayOpenAction {
   type: typeof ACTION_ERROR_OVERLAY_OPEN
 }
-export interface ErrorOverlayCloseAction {
+interface ErrorOverlayCloseAction {
   type: typeof ACTION_ERROR_OVERLAY_CLOSE
 }
-export interface ErrorOverlayToggleAction {
+interface ErrorOverlayToggleAction {
   type: typeof ACTION_ERROR_OVERLAY_TOGGLE
 }
 
-export interface BuildingIndicatorShowAction {
+interface BuildingIndicatorShowAction {
   type: typeof ACTION_BUILDING_INDICATOR_SHOW
 }
-export interface BuildingIndicatorHideAction {
+interface BuildingIndicatorHideAction {
   type: typeof ACTION_BUILDING_INDICATOR_HIDE
 }
 
-export interface RenderingIndicatorShowAction {
+interface RenderingIndicatorShowAction {
   type: typeof ACTION_RENDERING_INDICATOR_SHOW
 }
-export interface RenderingIndicatorHideAction {
+interface RenderingIndicatorHideAction {
   type: typeof ACTION_RENDERING_INDICATOR_HIDE
 }
 
-export interface DevToolsPanelOpenAction {
-  type: typeof ACTION_DEVTOOLS_PANEL_OPEN
-}
-export interface DevToolsPanelCloseAction {
-  type: typeof ACTION_DEVTOOLS_PANEL_CLOSE
-}
-export interface DevToolsPanelToggleAction {
-  type: typeof ACTION_DEVTOOLS_PANEL_TOGGLE
-}
-
-export interface DevToolsIndicatorPositionAction {
+interface DevToolsIndicatorPositionAction {
   type: typeof ACTION_DEVTOOLS_POSITION
   devToolsPosition: Corners
 }
 
-export interface DevToolsScaleAction {
+interface DevToolsPanelPositionAction {
+  type: typeof ACTION_DEVTOOLS_PANEL_POSITION
+  key: string
+  devToolsPanelPosition: Corners
+}
+
+interface DevToolsScaleAction {
   type: typeof ACTION_DEVTOOLS_SCALE
   scale: number
 }
 
-export interface DevToolUpdateRouteStateAction {
+interface DevToolUpdateRouteStateAction {
   type: typeof ACTION_DEVTOOL_UPDATE_ROUTE_STATE
   page: string
 }
 
-export interface RestartServerButtonAction {
-  type: typeof ACTION_RESTART_SERVER_BUTTON
-  showRestartServerButton: boolean
+interface DevToolsConfigAction {
+  type: typeof ACTION_DEVTOOLS_CONFIG
+  devToolsConfig: DevToolsConfig
 }
 
 export type DispatcherEvent =
@@ -205,13 +226,12 @@ export type DispatcherEvent =
   | BuildingIndicatorHideAction
   | RenderingIndicatorShowAction
   | RenderingIndicatorHideAction
-  | DevToolsPanelOpenAction
-  | DevToolsPanelCloseAction
-  | DevToolsPanelToggleAction
   | DevToolsIndicatorPositionAction
+  | DevToolsPanelPositionAction
   | DevToolsScaleAction
   | DevToolUpdateRouteStateAction
-  | RestartServerButtonAction
+  | DevIndicatorSetAction
+  | DevToolsConfigAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -230,6 +250,9 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
 
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
+
+const devToolsInitialPositionFromNextConfig = (process.env
+  .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
 
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
@@ -252,11 +275,15 @@ export const INITIAL_OVERLAY_STATE: Omit<
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
-  isDevToolsPanelOpen: false,
-  showRestartServerButton: false,
-  devToolsPosition: 'bottom-left',
+  devToolsPosition: devToolsInitialPositionFromNextConfig,
+  devToolsPanelPosition: {
+    [STORE_KEY_SHARED_PANEL_LOCATION]: devToolsInitialPositionFromNextConfig,
+  },
+  devToolsPanelSize: {},
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
+  theme: 'system',
+  hideShortcut: null,
 }
 
 function getInitialState(
@@ -274,27 +301,20 @@ function getInitialState(
 
 export function useErrorOverlayReducer(
   routerType: 'pages' | 'app',
-  getComponentStack: (error: Error) => string | undefined,
   getOwnerStack: (error: Error) => string | null | undefined,
   isRecoverableError: (error: Error) => boolean
 ) {
   function pushErrorFilterDuplicates(
-    events: SupportedErrorEvent[],
+    events: readonly SupportedErrorEvent[],
     id: number,
     error: Error
-  ): SupportedErrorEvent[] {
-    const componentStack = getComponentStack(error)
-    const componentStackFrames =
-      componentStack === undefined
-        ? undefined
-        : parseComponentStack(componentStack)
+  ): readonly SupportedErrorEvent[] {
     const ownerStack = getOwnerStack(error)
     const frames = parseStack((error.stack || '') + (ownerStack || ''))
     const pendingEvent: SupportedErrorEvent = {
       id,
       error,
       frames,
-      componentStackFrames,
       type: isRecoverableError(error)
         ? 'recoverable'
         : isConsoleError(error)
@@ -390,6 +410,9 @@ export function useErrorOverlayReducer(
         case ACTION_VERSION_INFO: {
           return { ...state, versionInfo: action.versionInfo }
         }
+        case ACTION_DEV_INDICATOR_SET: {
+          return { ...state, disableDevIndicator: action.disabled }
+        }
         case ACTION_DEV_INDICATOR: {
           return {
             ...state,
@@ -419,28 +442,50 @@ export function useErrorOverlayReducer(
         case ACTION_RENDERING_INDICATOR_HIDE: {
           return { ...state, renderingIndicator: false }
         }
-        case ACTION_DEVTOOLS_PANEL_OPEN: {
-          return { ...state, isDevToolsPanelOpen: true }
-        }
-        case ACTION_DEVTOOLS_PANEL_CLOSE: {
-          return { ...state, isDevToolsPanelOpen: false }
-        }
-        case ACTION_DEVTOOLS_PANEL_TOGGLE: {
-          return { ...state, isDevToolsPanelOpen: !state.isDevToolsPanelOpen }
-        }
+
         case ACTION_DEVTOOLS_POSITION: {
           return { ...state, devToolsPosition: action.devToolsPosition }
         }
+        case ACTION_DEVTOOLS_PANEL_POSITION: {
+          return {
+            ...state,
+            devToolsPanelPosition: {
+              ...state.devToolsPanelPosition,
+              [action.key]: action.devToolsPanelPosition,
+            },
+          }
+        }
+
         case ACTION_DEVTOOLS_SCALE: {
           return { ...state, scale: action.scale }
         }
         case ACTION_DEVTOOL_UPDATE_ROUTE_STATE: {
           return { ...state, page: action.page }
         }
-        case ACTION_RESTART_SERVER_BUTTON: {
+        case ACTION_DEVTOOLS_CONFIG: {
+          const {
+            theme,
+            disableDevIndicator,
+            devToolsPosition,
+            devToolsPanelPosition,
+            devToolsPanelSize,
+            scale,
+            hideShortcut,
+          } = action.devToolsConfig
+
           return {
             ...state,
-            showRestartServerButton: action.showRestartServerButton,
+            theme: theme ?? state.theme,
+            disableDevIndicator:
+              disableDevIndicator ?? state.disableDevIndicator,
+            devToolsPosition: devToolsPosition ?? state.devToolsPosition,
+            devToolsPanelPosition:
+              devToolsPanelPosition ?? state.devToolsPanelPosition,
+            scale: scale ?? state.scale,
+            devToolsPanelSize: devToolsPanelSize ?? state.devToolsPanelSize,
+            hideShortcut:
+              // hideShortcut can be null.
+              hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
           }
         }
         default: {

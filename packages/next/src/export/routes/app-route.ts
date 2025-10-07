@@ -20,7 +20,6 @@ import type {
   MockedResponse,
 } from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
-import { hasNextSupport } from '../../server/ci-info'
 import { isStaticGenEnabled } from '../../server/route-modules/app-route/helpers/is-static-gen-enabled'
 import type { ExperimentalConfig } from '../../server/config-shared'
 import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
@@ -49,7 +48,7 @@ export async function exportAppRoute(
   htmlFilepath: string,
   fileWriter: MultiFileWriter,
   experimental: Required<
-    Pick<ExperimentalConfig, 'dynamicIO' | 'authInterrupts'>
+    Pick<ExperimentalConfig, 'cacheComponents' | 'authInterrupts'>
   >,
   buildId: string
 ): Promise<ExportRouteResult> {
@@ -94,10 +93,6 @@ export async function exportAppRoute(
     },
   }
 
-  if (hasNextSupport) {
-    context.renderOpts.isRevalidate = true
-  }
-
   try {
     const userland = module.userland
     // we don't bail from the static optimization for
@@ -108,11 +103,11 @@ export async function exportAppRoute(
     if (
       !isStaticGenEnabled(userland) &&
       !isPageMetadataRoute &&
-      // We don't disable static gen when dynamicIO is enabled because we
+      // We don't disable static gen when cacheComponents is enabled because we
       // expect that anything dynamic in the GET handler will make it dynamic
       // and thus avoid the cache surprises that led to us removing static gen
       // unless specifically opted into
-      experimental.dynamicIO !== true
+      experimental.cacheComponents !== true
     ) {
       return { cacheControl: { revalidate: 0, expire: undefined } }
     }

@@ -1,15 +1,17 @@
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type {
   OriginalStackFrameResponse,
   OriginalStackFrameResponseResult,
   OriginalStackFramesRequest,
+  StackFrame,
 } from '../server/shared'
 import {
   isWebpackInternalResource,
   formatFrameSourceFile,
 } from './webpack-module-path'
 
-export interface ResolvedOriginalStackFrame extends OriginalStackFrameResponse {
+export type { StackFrame }
+
+interface ResolvedOriginalStackFrame extends OriginalStackFrameResponse {
   error: false
   reason: null
   external: boolean
@@ -17,7 +19,7 @@ export interface ResolvedOriginalStackFrame extends OriginalStackFrameResponse {
   sourceStackFrame: StackFrame
 }
 
-export interface RejectedOriginalStackFrame extends OriginalStackFrameResponse {
+interface RejectedOriginalStackFrame extends OriginalStackFrameResponse {
   error: true
   reason: string
   external: boolean
@@ -78,10 +80,10 @@ function getOriginalStackFrame(
 }
 
 export async function getOriginalStackFrames(
-  frames: StackFrame[],
+  frames: readonly StackFrame[],
   type: 'server' | 'edge-server' | null,
   isAppDir: boolean
-): Promise<OriginalStackFrame[]> {
+): Promise<readonly OriginalStackFrame[]> {
   const req: OriginalStackFramesRequest = {
     frames,
     isServer: type === 'server',
@@ -157,14 +159,14 @@ export function getFrameSource(frame: StackFrame): string {
     }
   }
 
-  if (!isWebpackInternalResource(frame.file) && frame.lineNumber != null) {
+  if (!isWebpackInternalResource(frame.file) && frame.line1 != null) {
     // We don't need line and column numbers for anonymous sources because
     // there's no entrypoint for the location anyway.
     if (str && frame.file !== '<anonymous>') {
-      if (frame.column != null) {
-        str += ` (${frame.lineNumber}:${frame.column})`
+      if (frame.column1 != null) {
+        str += ` (${frame.line1}:${frame.column1})`
       } else {
-        str += ` (${frame.lineNumber})`
+        str += ` (${frame.line1})`
       }
     }
   }

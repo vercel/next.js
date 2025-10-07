@@ -26,6 +26,7 @@ pub(crate) struct EcmascriptBuildNodeEntryChunk {
     other_chunks: ResolvedVc<OutputAssets>,
     evaluatable_assets: ResolvedVc<EvaluatableAssets>,
     exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    referenced_output_assets: ResolvedVc<OutputAssets>,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
 }
@@ -39,6 +40,7 @@ impl EcmascriptBuildNodeEntryChunk {
         other_chunks: ResolvedVc<OutputAssets>,
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
         exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        referenced_output_assets: ResolvedVc<OutputAssets>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
     ) -> Vc<Self> {
@@ -47,6 +49,7 @@ impl EcmascriptBuildNodeEntryChunk {
             other_chunks,
             evaluatable_assets,
             exported_module,
+            referenced_output_assets,
             module_graph,
             chunking_context,
         }
@@ -86,11 +89,10 @@ impl EcmascriptBuildNodeEntryChunk {
         writedoc!(
             code,
             r#"
-                const CHUNK_PUBLIC_PATH = {};
-                const runtime = require({});
+                var R=require({})({})
             "#,
+            StringifyJs(&*runtime_relative_path),
             StringifyJs(chunk_public_path),
-            StringifyJs(&*runtime_relative_path)
         )?;
 
         let other_chunks = this.other_chunks.await?;
@@ -102,7 +104,7 @@ impl EcmascriptBuildNodeEntryChunk {
                     // TODO(WEB-1112) This should call `require()` directly, perhaps as an argument
                     // to `loadChunk`.
                     r#"
-                        runtime.loadChunk({});
+                        R.c({})
                     "#,
                     StringifyJs(&other_chunk_public_path)
                 )?;
@@ -121,7 +123,7 @@ impl EcmascriptBuildNodeEntryChunk {
                 writedoc!(
                     code,
                     r#"
-                        runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH);
+                        R.m({})
                     "#,
                     StringifyJs(&*runtime_module_id),
                 )?;
@@ -136,8 +138,8 @@ impl EcmascriptBuildNodeEntryChunk {
         writedoc!(
             code,
             r#"
-                    module.exports = runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH).exports;
-                "#,
+                module.exports=R.m({}).exports
+            "#,
             StringifyJs(&*runtime_module_id),
         )?;
 
@@ -190,8 +192,11 @@ impl OutputAsset for EcmascriptBuildNodeEntryChunk {
         }
 
         let other_chunks = this.other_chunks.await?;
-        for &other_chunk in &*other_chunks {
-            references.push(ResolvedVc::upcast(other_chunk));
+        references.extend(other_chunks.iter().copied());
+
+        let referenced_output_assets = this.referenced_output_assets.await?;
+        for &referenced_output_asset in &*referenced_output_assets {
+            references.push(referenced_output_asset);
         }
 
         Ok(Vc::cell(references))

@@ -25,7 +25,6 @@ import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
-import { ampValidation } from '../../build/output'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import {
@@ -75,6 +74,8 @@ import {
   getInstrumentationModule,
 } from '../lib/router-utils/instrumentation-globals.external'
 import type { PrerenderManifest } from '../../build'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
+import type { PrerenderedRoute } from '../../build/static-paths/types'
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -116,7 +117,6 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private originalFetch?: typeof fetch
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
@@ -177,62 +177,6 @@ export default class DevServer extends Server {
         return JSON.stringify(value.staticPaths)?.length ?? 0
       }
     )
-    this.renderOpts.ampSkipValidation =
-      this.nextConfig.experimental?.amp?.skipValidation ?? false
-    this.renderOpts.ampValidator = async (html: string, pathname: string) => {
-      const { getAmpValidatorInstance, getBundledAmpValidatorFilepath } =
-        require('../../export/helpers/get-amp-html-validator') as typeof import('../../export/helpers/get-amp-html-validator')
-
-      const validatorPath =
-        this.nextConfig.experimental?.amp?.validator ||
-        getBundledAmpValidatorFilepath()
-
-      const validator = await getAmpValidatorInstance(validatorPath)
-
-      const result = validator.validateString(html)
-      ampValidation(
-        pathname,
-        result.errors
-          .filter((error) => {
-            if (error.severity === 'ERROR') {
-              // Unclear yet if these actually prevent the page from being indexed by the AMP cache.
-              // These are coming from React so all we can do is ignore them for now.
-
-              // <link rel="expect" blocking="render" />
-              // https://github.com/ampproject/amphtml/issues/40279
-              if (
-                error.code === 'DISALLOWED_ATTR' &&
-                error.params[0] === 'blocking' &&
-                error.params[1] === 'link'
-              ) {
-                return false
-              }
-              // <template> without type
-              // https://github.com/ampproject/amphtml/issues/40280
-              if (
-                error.code === 'MANDATORY_ATTR_MISSING' &&
-                error.params[0] === 'type' &&
-                error.params[1] === 'template'
-              ) {
-                return false
-              }
-              // <template> without type
-              // https://github.com/ampproject/amphtml/issues/40280
-              if (
-                error.code === 'MISSING_REQUIRED_EXTENSION' &&
-                error.params[0] === 'template' &&
-                error.params[1] === 'amp-mustache'
-              ) {
-                return false
-              }
-              return true
-            }
-            return false
-          })
-          .filter((e) => this._filterAmpDevelopmentScript(html, e)),
-        result.errors.filter((e) => e.severity !== 'ERROR')
-      )
-    }
 
     const { pagesDir, appDir } = findPagesDir(this.dir)
     this.pagesDir = pagesDir
@@ -758,41 +702,20 @@ export default class DevServer extends Server {
     // })
   }
 
-  _filterAmpDevelopmentScript(
-    html: string,
-    event: { line: number; col: number; code: string }
-  ): boolean {
-    if (event.code !== 'DISALLOWED_SCRIPT_TAG') {
-      return true
-    }
-
-    const snippetChunks = html.split('\n')
-
-    let snippet
-    if (
-      !(snippet = html.split('\n')[event.line - 1]) ||
-      !(snippet = snippet.substring(event.col))
-    ) {
-      return true
-    }
-
-    snippet = snippet + snippetChunks.slice(event.line).join('\n')
-    snippet = snippet.substring(0, snippet.indexOf('</script>'))
-
-    return !snippet.includes('data-amp-development-mode-only')
-  }
-
   protected async getStaticPaths({
     pathname,
+    urlPathname,
     requestHeaders,
     page,
     isAppPath,
   }: {
     pathname: string
+    urlPathname: string
     requestHeaders: IncrementalCache['requestHeaders']
     page: string
     isAppPath: boolean
   }): Promise<{
+    prerenderedRoutes?: PrerenderedRoute[]
     staticPaths?: string[]
     fallbackMode?: FallbackMode
   }> {
@@ -819,7 +742,9 @@ export default class DevServer extends Server {
             configFileName,
             publicRuntimeConfig,
             serverRuntimeConfig,
-            dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
+            cacheComponents: Boolean(
+              this.nextConfig.experimental.cacheComponents
+            ),
           },
           httpAgentOptions,
           locales,
@@ -851,8 +776,25 @@ export default class DevServer extends Server {
       []
     )
       .then(async (res) => {
-        const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
-          res.value
+        const { prerenderedRoutes, fallbackMode: fallback } = res.value
+
+        if (isAppPath) {
+          if (this.nextConfig.output === 'export') {
+            if (!prerenderedRoutes) {
+              throw new Error(
+                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+              )
+            }
+
+            if (
+              !prerenderedRoutes.some((item) => item.pathname === urlPathname)
+            ) {
+              throw new Error(
+                `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
+              )
+            }
+          }
+        }
 
         if (!isAppPath && this.nextConfig.output === 'export') {
           if (fallback === FallbackMode.BLOCKING_STATIC_RENDER) {
@@ -868,13 +810,19 @@ export default class DevServer extends Server {
 
         const value: {
           staticPaths: string[] | undefined
+          prerenderedRoutes: PrerenderedRoute[] | undefined
           fallbackMode: FallbackMode | undefined
         } = {
-          staticPaths: staticPaths?.map((route) => route.pathname),
+          staticPaths: prerenderedRoutes?.map((route) => route.pathname),
+          prerenderedRoutes,
           fallbackMode: fallback,
         }
 
-        if (res.value?.fallbackMode !== undefined) {
+        if (
+          res.value?.fallbackMode !== undefined &&
+          // This matches the hasGenerateStaticParams logic we do during build.
+          (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
+        ) {
           // we write the static paths to partial manifest for
           // fallback handling inside of entry handler's
           const rawExistingManifest = await fs.promises.readFile(
@@ -886,9 +834,25 @@ export default class DevServer extends Server {
           for (const staticPath of value.staticPaths || []) {
             existingManifest.routes[staticPath] = {} as any
           }
+
           existingManifest.dynamicRoutes[pathname] = {
+            dataRoute: null,
+            dataRouteRegex: null,
             fallback: fallbackModeToFallbackField(res.value.fallbackMode, page),
-          } as any
+            fallbackRevalidate: false,
+            fallbackExpire: undefined,
+            fallbackHeaders: undefined,
+            fallbackStatus: undefined,
+            fallbackRootParams: undefined,
+            fallbackRouteParams: undefined,
+            fallbackSourceRoute: pathname,
+            prefetchDataRoute: undefined,
+            prefetchDataRouteRegex: undefined,
+            routeRegex: getRouteRegex(pathname).re.source,
+            experimentalPPR: undefined,
+            renderingMode: undefined,
+            allowHeader: [],
+          }
 
           const updatedManifest = JSON.stringify(existingManifest)
 

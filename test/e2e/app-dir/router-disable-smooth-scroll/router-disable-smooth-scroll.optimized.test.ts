@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('router smooth scroll optimization (optimized)', () => {
+describe('router smooth scroll optimization', () => {
   const { next } = nextTestSetup({
     files: __dirname + '/fixtures/optimized',
-    nextConfig: {
-      experimental: {
-        optimizeRouterScrolling: true,
-      },
-    },
   })
 
   const getTopScroll = async (browser: any) =>
@@ -55,7 +50,7 @@ describe('router smooth scroll optimization (optimized)', () => {
       expect(
         logs.some((log) =>
           log.message.includes(
-            'Detected `scroll-behavior: smooth` on the `<html>` element. In a future version'
+            'Detected `scroll-behavior: smooth` on the `<html>` element.'
           )
         )
       ).toBe(false)
@@ -64,13 +59,8 @@ describe('router smooth scroll optimization (optimized)', () => {
 })
 
 describe('router smooth scroll optimization (optimized early exit)', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/optimized-no-data',
-    nextConfig: {
-      experimental: {
-        optimizeRouterScrolling: true,
-      },
-    },
   })
 
   const getTopScroll = async (browser: any) =>
@@ -90,7 +80,7 @@ describe('router smooth scroll optimization (optimized early exit)', () => {
     await waitForScrollToComplete(browser, y)
   }
 
-  it('should exit early when CSS smooth scroll detected but no data attribute', async () => {
+  it('should warn in dev when CSS smooth scroll detected but no data attribute', async () => {
     const browser = await next.browser('/page1')
 
     // Verify CSS smooth scrolling is present
@@ -123,17 +113,16 @@ describe('router smooth scroll optimization (optimized early exit)', () => {
 
     await waitForScrollToComplete(browser, 0)
 
-    // No warning should appear in optimized mode even with CSS smooth scroll
-    // because the function exits early when no data attribute is present
+    const shouldWarn = isNextDev
     await retry(async () => {
       const logs = await browser.log()
       expect(
         logs.some((log) =>
           log.message.includes(
-            'Detected `scroll-behavior: smooth` on the `<html>` element. In a future version'
+            'Detected `scroll-behavior: smooth` on the `<html>` element.'
           )
         )
-      ).toBe(false)
+      ).toBe(shouldWarn)
     })
   })
 })

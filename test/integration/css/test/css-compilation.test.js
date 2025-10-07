@@ -22,9 +22,15 @@ describe('CSS Support', () => {
       describe('CSS Compilation and Prefixing', () => {
         const appDir = join(fixturesDir, 'compilation-and-prefixing')
         const nextConfig = new File(join(appDir, 'next.config.js'))
+        const packageJson = new File(join(appDir, 'package.json'))
 
         beforeAll(async () => {
           await remove(join(appDir, '.next'))
+          packageJson.write(`{"browserslist": ["chrome 60"]}`)
+        })
+
+        afterAll(async () => {
+          packageJson.delete()
         })
 
         describe.each([true, false])(
@@ -116,39 +122,8 @@ module.exports = {
               delete sourceMapContentParsed.file
               delete sourceMapContentParsed.sources
 
-              if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
-                expect(sourceMapContentParsed).toMatchInlineSnapshot(`
-                 {
-                   "mappings": "AAAA,qDACE,2BAKF,0DAIA,kDAIA,uCAIA",
-                   "names": [],
-                   "sourcesContent": [
-                     "@media (480px <= width < 768px) {
-                   ::placeholder {
-                     color: green;
-                   }
-                 }
-
-                 .flex-parsing {
-                   flex: 0 0 calc(50% - var(--vertical-gutter));
-                 }
-
-                 .transform-parsing {
-                   transform: translate3d(0px, 0px);
-                 }
-
-                 .css-grid-shorthand {
-                   grid-column: span 2;
-                 }
-
-                 .g-docs-sidenav .filter::-webkit-input-placeholder {
-                   opacity: 80%;
-                 }
-                 ",
-                   ],
-                   "version": 3,
-                 }
-                `)
-              } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+              if (process.env.IS_TURBOPACK_TEST) {
+                // Turbopack always uses lightningcss
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
                  {
                    "mappings": "AAAA,qDACE,2BAKF,0DAIA,kDAIA,uCAIA",
@@ -183,6 +158,7 @@ module.exports = {
               } else if (useLightningcss) {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
                  {
+                   "ignoreList": [],
                    "mappings": "AAAA,qDACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,UACF",
                    "names": [],
                    "sourceRoot": "",
@@ -217,6 +193,7 @@ module.exports = {
               } else {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
                   {
+                    "ignoreList": [],
                     "mappings": "AAAA,+CACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,WACF",
                     "names": [],
                     "sourceRoot": "",
@@ -247,6 +224,32 @@ module.exports = {
                     "version": 3,
                   }
                 `)
+              }
+
+              const inlineStyle = $('style')
+              expect(inlineStyle.length).toBe(1)
+              const inlineCssContent = inlineStyle
+                .html()
+                .replace(
+                  /media-query-test.jsx-[a-f0-9]{16}/g,
+                  'media-query-test.jsx-HASH'
+                )
+              if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+                expect(inlineCssContent).toMatchInlineSnapshot(
+                  `".media-query-test.jsx-HASH{color:#00f}@media (max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
+                )
+              } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+                expect(inlineCssContent).toMatchInlineSnapshot(
+                  `".media-query-test.jsx-HASH{color:#00f}@media (max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
+                )
+              } else if (useLightningcss) {
+                expect(inlineCssContent).toMatchInlineSnapshot(
+                  `".media-query-test.jsx-HASH{color:blue}@media(max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
+                )
+              } else {
+                expect(inlineCssContent).toMatchInlineSnapshot(
+                  `".media-query-test.jsx-HASH{color:blue}@media(max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
+                )
               }
             })
           }

@@ -28,7 +28,7 @@ pub use self::{
     operation::{OperationValue, OperationVc},
     read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
-    traits::{Dynamic, Upcast, VcValueTrait, VcValueType},
+    traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
 use crate::{
     CellId, RawVc, ResolveTypeError,
@@ -357,7 +357,7 @@ where
     T: ?Sized,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Vc").field("node", &self.node).finish()
+        f.debug_tuple("Vc").field(&self.node).finish()
     }
 }
 
@@ -412,6 +412,33 @@ where
     #[inline(always)]
     pub fn upcast<K>(vc: Self) -> Vc<K>
     where
+        T: UpcastStrict<K>,
+        K: VcValueTrait + ?Sized,
+    {
+        Self::upcast_non_strict(vc)
+    }
+
+    /// Upcasts the given `Vc<T>` to a `Vc<Box<dyn K>>`
+    ///
+    /// This has a loose type constraint which would allow upcasting to the same type, prefer using
+    /// [`Vc::upcast`] when possible.  This is useful for extension traits and other more generic
+    /// usecases.
+    ///
+    /// # Example
+    /// ```rust
+    /// // In generic code where T might be the same as K
+    /// fn process_foo(vc: ResolvedVc<impl Upcast<Box<dyn MyTrait>>>) -> Vc<Foo> {
+    ///    let my_trait: ResolvedVc<Box<dyn MyTrait>> = Vc::upcast_non_strict(vc);
+    ///    my_trait.do_something()
+    /// }
+    /// ```
+    /// Using generics you could allow users to pass any compatible type, but if you specified
+    /// `UpcastStrict<...>` instead of `Upcast<...>` you would disallow calling this function if you
+    /// already had a `ResolvedVc<Box<dyn MyTrait>>.  So this function has a looser type constraint
+    /// to make these functions easier to write and use.
+    #[inline(always)]
+    pub fn upcast_non_strict<K>(vc: Self) -> Vc<K>
+    where
         T: Upcast<K>,
         K: VcValueTrait + ?Sized,
     {
@@ -420,7 +447,6 @@ where
             _t: PhantomData,
         }
     }
-
     /// Runs the operation, but ignores the returned Vc. Use that when only interested in running
     /// the task for side effects.
     pub async fn as_side_effect(self) -> Result<()> {
@@ -493,6 +519,12 @@ where
     where
         K: VcValueTrait + ?Sized,
     {
+        debug_assert!(
+            <K as VcValueTrait>::get_trait_type_id() != <T as VcValueTrait>::get_trait_type_id(),
+            "Attempted to cast a type {} to itself, which is pointless. Use the value directly \
+             instead.",
+            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id()).global_name
+        );
         let raw_vc: RawVc = vc.node;
         let raw_vc = raw_vc
             .resolve_trait(<K as VcValueTrait>::get_trait_type_id())
@@ -510,16 +542,9 @@ where
     /// Returns `None` if the underlying value type is not a `K`.
     pub async fn try_resolve_downcast<K>(vc: Self) -> Result<Option<Vc<K>>, ResolveTypeError>
     where
-        K: Upcast<T> + VcValueTrait + ?Sized,
+        K: UpcastStrict<T> + VcValueTrait + ?Sized,
     {
-        let raw_vc: RawVc = vc.node;
-        let raw_vc = raw_vc
-            .resolve_trait(<K as VcValueTrait>::get_trait_type_id())
-            .await?;
-        Ok(raw_vc.map(|raw_vc| Vc {
-            node: raw_vc,
-            _t: PhantomData,
-        }))
+        Self::try_resolve_sidecast(vc).await
     }
 
     /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K`
@@ -529,7 +554,7 @@ where
     /// Returns `None` if the underlying value type is not a `K`.
     pub async fn try_resolve_downcast_type<K>(vc: Self) -> Result<Option<Vc<K>>, ResolveTypeError>
     where
-        K: Upcast<T> + VcValueType,
+        K: UpcastStrict<T> + VcValueType,
     {
         let raw_vc: RawVc = vc.node;
         let raw_vc = raw_vc
@@ -565,7 +590,7 @@ where
 
 impl<T> ValueDebugFormat for Vc<T>
 where
-    T: Upcast<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
+    T: UpcastStrict<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         ValueDebugFormatString::Async(Box::pin(async move {

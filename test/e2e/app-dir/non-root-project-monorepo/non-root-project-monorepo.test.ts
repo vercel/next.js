@@ -23,6 +23,7 @@ describe('non-root-project-monorepo', () => {
     installCommand: 'pnpm i',
     skipDeployment: true,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) {
     return
@@ -89,7 +90,7 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-           "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript)
+           "app/separate-file.ts (1:7) @ {module evaluation}
 
            > 1 | throw new Error('Expected error')
                |       ^
@@ -97,8 +98,26 @@ describe('non-root-project-monorepo', () => {
           `)
           expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
            [
-             "[project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript) app/separate-file.ts (1:7)",
+             "{module evaluation} app/separate-file.ts (1:7)",
              "innerArrowFunction app/source-maps-rsc/page.tsx (13:28)",
+             "innerFunction app/source-maps-rsc/page.tsx (10:3)",
+             "Page app/source-maps-rsc/page.tsx (4:5)",
+           ]
+          `)
+        } else if (isRspack) {
+          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+           "app/separate-file.ts (1:11) @ eval
+
+           > 1 | throw new Error('Expected error')
+               |           ^
+             2 |"
+          `)
+          expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
+           [
+             "eval app/separate-file.ts (1:11)",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+             "innerArrowFunction app/source-maps-rsc/page.tsx (14:3)",
              "innerFunction app/source-maps-rsc/page.tsx (10:3)",
              "Page app/source-maps-rsc/page.tsx (4:5)",
            ]
@@ -134,7 +153,7 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-           "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
+           "app/separate-file.ts (1:7) @ {module evaluation}
 
            > 1 | throw new Error('Expected error')
                |       ^
@@ -142,8 +161,27 @@ describe('non-root-project-monorepo', () => {
           `)
           expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
            [
-             "[project]/apps/web/app/separate-file.ts [app-client] (ecmascript) app/separate-file.ts (1:7)",
+             "{module evaluation} app/separate-file.ts (1:7)",
              "innerArrowFunction app/source-maps-ssr/page.tsx (15:28)",
+             "innerFunction app/source-maps-ssr/page.tsx (12:3)",
+             "Page app/source-maps-ssr/page.tsx (6:5)",
+           ]
+          `)
+        } else if (isRspack) {
+          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+           "app/separate-file.ts (1:7) @ eval
+
+           > 1 | throw new Error('Expected error')
+               |       ^
+             2 |"
+          `)
+          expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
+           [
+             "eval app/separate-file.ts (1:7)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "innerArrowFunction app/source-maps-ssr/page.tsx (16:3)",
              "innerFunction app/source-maps-ssr/page.tsx (12:3)",
              "Page app/source-maps-ssr/page.tsx (6:5)",
            ]
@@ -178,7 +216,7 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-           "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
+           "app/separate-file.ts (1:7) @ {module evaluation}
 
            > 1 | throw new Error('Expected error')
                |       ^
@@ -186,8 +224,27 @@ describe('non-root-project-monorepo', () => {
           `)
           expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
            [
-             "[project]/apps/web/app/separate-file.ts [app-client] (ecmascript) app/separate-file.ts (1:7)",
+             "{module evaluation} app/separate-file.ts (1:7)",
              "innerArrowFunction app/source-maps-client/page.tsx (16:28)",
+             "innerFunction app/source-maps-client/page.tsx (13:3)",
+             "effectCallback app/source-maps-client/page.tsx (7:5)",
+           ]
+          `)
+        } else if (isRspack) {
+          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+           "app/separate-file.ts (1:7) @ eval
+
+           > 1 | throw new Error('Expected error')
+               |       ^
+             2 |"
+          `)
+          expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
+           [
+             "eval app/separate-file.ts (1:7)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "innerArrowFunction app/source-maps-client/page.tsx (17:3)",
              "innerFunction app/source-maps-client/page.tsx (13:3)",
              "effectCallback app/source-maps-client/page.tsx (7:5)",
            ]

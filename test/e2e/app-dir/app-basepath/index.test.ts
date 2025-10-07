@@ -78,9 +78,9 @@ describe('app dir - basepath', () => {
           page.on('request', (request) => {
             return request.allHeaders().then((headers) => {
               if (
-                headers['RSC'.toLowerCase()] === '1' &&
-                // Prefetches also include `RSC`
-                headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
+                headers['rsc'] === '1' &&
+                // Prefetches also include `rsc`
+                headers['next-router-prefetch'] !== '1'
               ) {
                 rscRequests.push(request.url())
               }

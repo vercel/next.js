@@ -1,10 +1,11 @@
 import { check, retry } from 'next-test-utils'
+import type { Playwright } from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
-async function clickSourceFile(browser: any) {
+async function clickSourceFile(browser: Playwright) {
   await browser.waitForElementByCss(
     '[data-with-open-in-editor-link-source-file]'
   )
@@ -13,7 +14,7 @@ async function clickSourceFile(browser: any) {
     .click()
 }
 
-async function clickImportTraceFiles(browser: any) {
+async function clickImportTraceFiles(browser: Playwright) {
   await browser.waitForElementByCss(
     '[data-with-open-in-editor-link-import-trace]'
   )

@@ -116,10 +116,8 @@ export function getDefineEnv({
   const nextConfigEnv = getNextConfigEnv(config)
 
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
-  const isDynamicIOEnabled = !!config.experimental.dynamicIO
+  const isCacheComponentsEnabled = !!config.experimental.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
-
-  const isDevToolPanelUIEnabled = Boolean(config.experimental.devtoolNewPanelUI)
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -164,7 +162,7 @@ export function getDefineEnv({
       config.experimental.appNavFailHandling
     ),
     'process.env.__NEXT_PPR': isPPREnabled,
-    'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
+    'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
 
     'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
@@ -200,6 +198,9 @@ export function getDefineEnv({
       clientRouterFilters?.dynamicFilter ?? false,
     'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
       config.experimental.clientSegmentCache
+    ),
+    'process.env.__NEXT_CLIENT_PARAM_PARSING': Boolean(
+      config.experimental.clientParamParsing
     ),
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
@@ -242,7 +243,7 @@ export function getDefineEnv({
     'process.env.__NEXT_DEV_INDICATOR_POSITION':
       config.devIndicators === false
         ? 'bottom-left' // This will not be used as the indicator is disabled.
-        : config.devIndicators.position ?? 'bottom-left',
+        : (config.devIndicators.position ?? 'bottom-left'),
     'process.env.__NEXT_STRICT_MODE':
       config.reactStrictMode === null ? false : config.reactStrictMode,
     'process.env.__NEXT_STRICT_MODE_APP':
@@ -256,8 +257,6 @@ export function getDefineEnv({
       config.experimental.scrollRestoration ?? false,
     ...getImageConfig(config, dev),
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
-    'process.env.__NEXT_STRICT_NEXT_HEAD':
-      config.experimental.strictNextHead ?? true,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
     'process.env.__NEXT_CONFIG_OUTPUT': config.output,
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,
@@ -298,15 +297,12 @@ export function getDefineEnv({
         }
       : undefined),
 
-    'process.env.__NEXT_MULTI_ZONE_DRAFT_MODE': JSON.stringify(
-      config.experimental.multiZoneDraftMode
-    ),
-    'process.env.__NEXT_TRUST_HOST_HEADER': JSON.stringify(
-      config.experimental.trustHostHeader
-    ),
-    'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS': JSON.stringify(
-      config.experimental.allowedRevalidateHeaderKeys
-    ),
+    'process.env.__NEXT_MULTI_ZONE_DRAFT_MODE':
+      config.experimental.multiZoneDraftMode ?? false,
+    'process.env.__NEXT_TRUST_HOST_HEADER':
+      config.experimental.trustHostHeader ?? false,
+    'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS':
+      config.experimental.allowedRevalidateHeaderKeys ?? [],
     ...(isNodeServer
       ? {
           'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,
@@ -316,14 +312,11 @@ export function getDefineEnv({
           ),
         }
       : {}),
-    'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
-      // Enable segment explorer in devtools
-      isDevToolPanelUIEnabled || !!config.experimental.devtoolSegmentExplorer,
-    'process.env.__NEXT_DEVTOOL_NEW_PANEL_UI': isDevToolPanelUIEnabled,
 
     'process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL': JSON.stringify(
       config.experimental.browserDebugInfoInTerminal || false
     ),
+    'process.env.__NEXT_MCP_SERVER': !!config.experimental.mcpServer,
 
     // The devtools need to know whether or not to show an option to clear the
     // bundler cache. This option may be removed later once Turbopack's
@@ -338,9 +331,10 @@ export function getDefineEnv({
     // In the worst case we'll show an option to clear the cache, but it'll be a
     // no-op that just restarts the development server.
     'process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE':
-      !isTurbopack || (config.experimental.turbopackPersistentCaching ?? false),
-    'process.env.__NEXT_OPTIMIZE_ROUTER_SCROLL':
-      config.experimental.optimizeRouterScrolling ?? false,
+      !isTurbopack ||
+      (config.experimental.turbopackPersistentCachingForDev ?? false),
+    'process.env.__NEXT_REACT_DEBUG_CHANNEL':
+      config.experimental.reactDebugChannel ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

@@ -1,13 +1,13 @@
 import './segment-boundary-trigger.css'
 import { useCallback, useState, useRef, useMemo } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
-import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
-import {
-  isBoundaryFile,
-  normalizeBoundaryFilename,
-} from '../../../../server/app-render/segment-explorer-path'
-import { cx } from '../../utils/cx'
-import { useClickOutside } from '../errors/dev-tools-indicator/utils'
+import { useDevOverlayContext } from '../../../dev-overlay.browser'
+import type {
+  SegmentBoundaryType,
+  SegmentNodeState,
+} from '../../../userspace/app/segment-explorer-node'
+import { normalizeBoundaryFilename } from '../../../../server/app-render/segment-explorer-path'
+import { useClickOutsideAndEscape } from '../errors/dev-tools-indicator/utils'
 
 const composeRefs = (...refs: (React.Ref<HTMLButtonElement> | undefined)[]) => {
   return (node: HTMLButtonElement | null) => {
@@ -26,30 +26,18 @@ export function SegmentBoundaryTrigger({
   boundaries,
 }: {
   nodeState: SegmentNodeState
-  boundaries: Record<'not-found' | 'loading' | 'error', string | null>
+  boundaries: Record<SegmentBoundaryType, string | null>
 }) {
   const currNode = nodeState
-  const {
-    pagePath,
-    boundaryType,
-    type,
-    setBoundaryType: onSelectBoundary,
-  } = currNode
-  const fileType = type
+  const { pagePath, boundaryType, setBoundaryType: onSelectBoundary } = currNode
 
   const [isOpen, setIsOpen] = useState(false)
-  // TODO: move this shadowRoot ref util to a shared hook or into context
-  const [shadowRoot] = useState<ShadowRoot>(() => {
-    const ownerDocument = document
-    const portalNode = ownerDocument.querySelector('nextjs-portal')!
-    return portalNode.shadowRoot! as ShadowRoot
-  })
-  const shadowRootRef = useRef<ShadowRoot>(shadowRoot)
+  const { shadowRoot } = useDevOverlayContext()
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
 
   // Click outside of popup should close the menu
-  useClickOutside(
+  useClickOutsideAndEscape(
     popupRef,
     triggerRef,
     isOpen,
@@ -60,9 +48,8 @@ export function SegmentBoundaryTrigger({
   )
 
   const firstDefinedBoundary = Object.values(boundaries).find((v) => v !== null)
-  const possibleExtension = firstDefinedBoundary
-    ? firstDefinedBoundary.split('.')?.pop()
-    : 'js'
+  const possibleExtension =
+    (firstDefinedBoundary || '').split('.').pop() || 'js'
 
   const fileNames = useMemo(() => {
     return Object.fromEntries(
@@ -76,14 +63,11 @@ export function SegmentBoundaryTrigger({
   }, [boundaries, possibleExtension])
 
   const fileName = (pagePath || '').split('/').pop() || ''
-  const isBoundary = isBoundaryFile(fileType)
   const pageFileName = normalizeBoundaryFilename(
     boundaryType
       ? `page.${possibleExtension}`
       : fileName || `page.${possibleExtension}`
   )
-
-  const isPageOrBoundary = fileType && !isBoundary
 
   const triggerOptions = [
     {
@@ -158,19 +142,24 @@ export function SegmentBoundaryTrigger({
     return <Trigger {...triggerProps} ref={mergedRef} />
   }
 
+  const hasBoundary = useMemo(() => {
+    const hasPageOrBoundary =
+      nodeState.type !== 'layout' && nodeState.type !== 'template'
+    return (
+      hasPageOrBoundary && Object.values(boundaries).some((v) => v !== null)
+    )
+  }, [nodeState.type, boundaries])
+
   return (
     <Menu.Root delay={0} modal={false} open={isOpen} onOpenChange={setIsOpen}>
       <Menu.Trigger
-        className={cx(
-          'segment-boundary-trigger',
-          !isPageOrBoundary && 'segment-boundary-trigger--boundary'
-        )}
+        className="segment-boundary-trigger"
         data-nextjs-dev-overlay-segment-boundary-trigger-button
         render={MergedRefTrigger}
+        disabled={!hasBoundary}
       />
 
-      {/* @ts-expect-error remove this expect-error once shadowRoot is supported as container */}
-      <Menu.Portal container={shadowRootRef}>
+      <Menu.Portal container={shadowRoot}>
         <Menu.Positioner
           className="segment-boundary-dropdown-positioner"
           side="bottom"
@@ -330,13 +319,9 @@ function SwitchIcon(props: React.SVGProps<SVGSVGElement>) {
   )
 }
 
-export function Trigger(props: React.ComponentProps<'button'>) {
+function Trigger(props: React.ComponentProps<'button'>) {
   return (
-    <button
-      {...props}
-      className={cx('segment-boundary-trigger', props.className)}
-      role="button"
-    >
+    <button {...props}>
       <span className="segment-boundary-trigger-text">
         <SwitchIcon className="plus-icon" />
       </span>

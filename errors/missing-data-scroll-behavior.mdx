@@ -8,11 +8,9 @@ Your application has smooth scrolling enabled via CSS (`scroll-behavior: smooth`
 
 Next.js automatically attempts to detect the smooth scrolling configuration to ensure that navigating back/forward through the router doesn't also trigger the smooth scrolling behavior, as this is often not desired.
 
-In a future version of Next.js, this behavior will no longer be automatically detected, and you will need to add the `data-scroll-behavior` attribute to your `<html>` element to opt-in to having Next.js disable smooth scrolling during route transitions.
-
 ## Possible Ways to Fix It
 
-Add `data-scroll-behavior="smooth"` to your `<html>` element to prepare for the upcoming optimization:
+Add `data-scroll-behavior="smooth"` to your `<html>` element if you want to disable smooth scrolling when routing via Next.js.
 
 ```html filename="app/layout.tsx"
 export default function RootLayout({ children, }: { children: React.ReactNode })
@@ -42,21 +40,4 @@ function Document() { return (
 
 ## Why This Optimization Matters
 
-Without the data attribute, Next.js must modify the `scroll-behavior` style on the `<html>` element on every navigation to ensure smooth scrolling isn't triggered. This can cause unnecessary style recalculation and impact performance.
-
-With the data attribute, Next.js can instantly detect smooth scrolling configuration without triggering style recalculation, resulting in faster navigation and making this behavior opt-in.
-
-## Enabling the Optimization Early
-
-You can enable this optimization early by adding the experimental flag to your `next.config.js`:
-
-```js filename="next.config.js"
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    optimizeRouterScrolling: true,
-  },
-}
-
-module.exports = nextConfig
-```
+Next.js will only attempt to modify the `scroll-behavior` style on the `<html>` element when the data attribute is present to ensure smooth scrolling isn't triggered. This avoids unnecessary style recalculation unless explicitly opted into.

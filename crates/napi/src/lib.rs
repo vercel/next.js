@@ -34,7 +34,7 @@ DEALINGS IN THE SOFTWARE.
 #[macro_use]
 extern crate napi_derive;
 
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 
 use napi::bindgen_prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -70,7 +70,16 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 #[cfg(not(target_arch = "wasm32"))]
 #[napi::module_init]
 fn init() {
-    use std::panic::{set_hook, take_hook};
+    use std::{
+        cell::RefCell,
+        panic::{set_hook, take_hook},
+        thread::available_parallelism,
+        time::{Duration, Instant},
+    };
+
+    thread_local! {
+        static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
+    }
 
     use tokio::runtime::Builder;
     use turbo_tasks::panic_hooks::handle_panic;
@@ -82,11 +91,25 @@ fn init() {
         prev_hook(info);
     }));
 
+    let worker_threads = available_parallelism().map(|n| n.get()).unwrap_or(1);
+
     let rt = Builder::new_multi_thread()
         .enable_all()
         .on_thread_stop(|| {
             TurboMalloc::thread_stop();
         })
+        .on_thread_park(|| {
+            LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
+                if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
+                    swc_core::ecma::atoms::hstr::global_atom_store_gc();
+                    *cell = Some(Instant::now());
+                }
+            });
+        })
+        .worker_threads(worker_threads)
+        // Avoid a limit on threads to avoid deadlocks due to usage of block_in_place
+        .max_blocking_threads(usize::MAX - worker_threads)
+        // Avoid the extra lifo slot to avoid stalling tasks when doing cpu-heavy work
         .disable_lifo_slot()
         .build()
         .unwrap();
@@ -130,20 +153,4 @@ pub fn complete_output(
     }
 
     Ok(js_output)
-}
-
-static REGISTER_ONCE: Once = Once::new();
-
-#[cfg(not(target_arch = "wasm32"))]
-fn register() {
-    REGISTER_ONCE.call_once(|| {
-        ::next_api::register();
-        next_core::register();
-        include!(concat!(env!("OUT_DIR"), "/register.rs"));
-    });
-}
-
-#[cfg(target_arch = "wasm32")]
-fn register() {
-    //noop
 }

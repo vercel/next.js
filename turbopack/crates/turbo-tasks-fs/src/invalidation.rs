@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     fmt::{Display, Formatter},
     hash::Hash,
 };
@@ -36,12 +37,12 @@ impl InvalidationReasonKind for WatchChangeKind {
         reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
+        let first_reason: &dyn InvalidationReason = &*reasons[0];
         write!(
             f,
             "{} files changed ({}, ...)",
             reasons.len(),
-            reasons[0]
-                .as_any()
+            (first_reason as &dyn Any)
                 .downcast_ref::<WatchChange>()
                 .unwrap()
                 .path
@@ -81,7 +82,10 @@ impl InvalidationReasonKind for WatchStartKind {
         reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
-        let example = reasons[0].as_any().downcast_ref::<WatchStart>().unwrap();
+        let first_reason: &dyn InvalidationReason = &*reasons[0];
+        let example = (first_reason as &dyn Any)
+            .downcast_ref::<WatchStart>()
+            .unwrap();
         write!(
             f,
             "{} items started watching (e.g. {} in {})",
@@ -126,7 +130,10 @@ impl InvalidationReasonKind for InitializeKind {
         reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
-        let example = reasons[0].as_any().downcast_ref::<Initialize>().unwrap();
+        let first_reason: &dyn InvalidationReason = &*reasons[0];
+        let example = (first_reason as &dyn Any)
+            .downcast_ref::<Initialize>()
+            .unwrap();
         write!(
             f,
             "{} items invalidated as part of project or filesystem initialization ({}, ...)",
@@ -166,11 +173,15 @@ impl InvalidationReasonKind for WriteKind {
         reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
+        let first_reason: &dyn InvalidationReason = &*reasons[0];
         write!(
             f,
             "{} files written ({}, ...)",
             reasons.len(),
-            reasons[0].as_any().downcast_ref::<Write>().unwrap().path
+            (first_reason as &dyn Any)
+                .downcast_ref::<Write>()
+                .unwrap()
+                .path
         )
     }
 }

@@ -3,7 +3,14 @@
 import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import { check, findPort, killApp, nextBuild, nextStart } from 'next-test-utils'
+import {
+  check,
+  findPort,
+  killApp,
+  nextBuild,
+  nextStart,
+  getClientBuildManifestLoaderChunkUrlPath,
+} from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -60,9 +67,11 @@ describe('Middleware Production Prefetch', () => {
           const attrs = await Promise.all(
             scripts.map((script) => script.getAttribute('src'))
           )
-          // Check if the filename follows the format `static/chunks/pages/[pagename]-[hash].js`
-          // and specifically targets files containing '/ssg-page-' in their path.
-          return attrs.find((src) => src.includes('/ssg-page')) ? 'yes' : 'nope'
+          let chunk = getClientBuildManifestLoaderChunkUrlPath(
+            context.appDir,
+            '/ssg-page'
+          )
+          return attrs.find((src) => src.includes(chunk)) ? 'yes' : 'nope'
         }, 'yes')
       })
 

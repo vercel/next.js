@@ -18,7 +18,6 @@ import {
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
@@ -41,7 +40,6 @@ import MiddlewarePlugin, {
 } from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
-import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
@@ -63,7 +61,6 @@ import loadJsConfig, {
   type ResolvedBaseUrl,
 } from './load-jsconfig'
 import { loadBindings } from './swc'
-import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
@@ -94,10 +91,12 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
-import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
+import { getRspackCore } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 import type { NextBuildContext } from './build-context'
+import type { RootParamsLoaderOpts } from './webpack/loaders/next-root-params-loader'
+import type { InvalidImportLoaderOpts } from './webpack/loaders/next-invalid-import-error-loader'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -176,7 +175,7 @@ const reactRefreshLoaderName =
 
 function getReactRefreshLoader() {
   return process.env.NEXT_RSPACK
-    ? getRspackReactRefresh().loader
+    ? 'builtin:react-refresh-loader'
     : require.resolve(reactRefreshLoaderName)
 }
 
@@ -269,7 +268,7 @@ export async function loadProjectInfo({
     dir,
     config
   )
-  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
+  const supportedBrowsers = getSupportedBrowsers(dir, dev)
   return {
     jsConfig,
     jsConfigPath,
@@ -387,7 +386,6 @@ export default async function getBaseWebpackConfig(
 
   const hasAppDir = !!appDir
   const disableOptimizedLoading = true
-  const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
   const bundledReactChannel = needsExperimentalReact(config)
     ? '-experimental'
     : ''
@@ -445,6 +443,22 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
+  const excludeCache: Record<string, boolean> = {}
+  function exclude(excludePath: string): boolean {
+    const cached = excludeCache[excludePath]
+    if (cached !== undefined) {
+      return cached
+    }
+
+    const shouldExclude =
+      excludePath.includes('node_modules') &&
+      !babelIncludeRegexes.some((r) => r.test(excludePath)) &&
+      !isResourceInPackages(excludePath, finalTranspilePackages)
+
+    excludeCache[excludePath] = shouldExclude
+    return shouldExclude
+  }
+
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
   const codeCondition = {
@@ -453,19 +467,7 @@ export default async function getBaseWebpackConfig(
       ? // Allowing importing TS/TSX files from outside of the root dir.
         {}
       : { include: [dir, ...babelIncludeRegexes] }),
-    exclude: (excludePath: string) => {
-      if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
-        return false
-      }
-
-      const shouldBeBundled = isResourceInPackages(
-        excludePath,
-        finalTranspilePackages
-      )
-      if (shouldBeBundled) return false
-
-      return excludePath.includes('node_modules')
-    },
+    exclude,
   }
 
   const babelLoader = getBabelLoader(
@@ -478,18 +480,18 @@ export default async function getBaseWebpackConfig(
     (appDir || pagesDir)!,
     dev,
     isClient,
-    config.experimental?.reactCompiler,
+    config.reactCompiler,
     codeCondition.exclude
   )
 
   const reactCompilerLoader = babelLoader
     ? undefined
     : getReactCompilerLoader(
-        config.experimental?.reactCompiler,
+        config.reactCompiler,
         dir,
-        dev,
         isNodeOrEdgeCompilation,
-        codeCondition.exclude
+        codeCondition.exclude,
+        dev
       )
 
   let swcTraceProfilingInitialized = false
@@ -693,7 +695,9 @@ export default async function getBaseWebpackConfig(
   ]
 
   const reactRefreshEntry = isRspack
-    ? getRspackReactRefresh().entry
+    ? require.resolve(
+        `next/dist/compiled/@next/react-refresh-utils/dist/rspack-runtime`
+      )
     : require.resolve(
         `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
       )
@@ -705,14 +709,6 @@ export default async function getBaseWebpackConfig(
         ...(dev
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: reactRefreshEntry,
-              [CLIENT_STATIC_FILES_RUNTIME_AMP]:
-                `./` +
-                path
-                  .relative(
-                    dir,
-                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
-                  )
-                  .replace(/\\/g, '/'),
             }
           : {}),
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
@@ -907,6 +903,15 @@ export default async function getBaseWebpackConfig(
   const builtinModules = (require('module') as typeof import('module'))
     .builtinModules
 
+  const bunExternals = [
+    'bun:ffi',
+    'bun:jsc',
+    'bun:sqlite',
+    'bun:test',
+    'bun:wrap',
+    'bun',
+  ]
+
   const shouldEnableSlowModuleDetection =
     !!config.experimental.slowModuleDetection && dev
 
@@ -980,6 +985,7 @@ export default async function getBaseWebpackConfig(
           ]
         : [
             ...builtinModules,
+            ...bunExternals,
             ({
               context,
               request,
@@ -1173,7 +1179,7 @@ export default async function getBaseWebpackConfig(
           chunks: isRspack
             ? // using a function here causes noticable slowdown
               // in rspack
-              /(?!polyfills|main|pages\/_app)/
+              /^(?!(polyfills|main|pages\/_app)$).*$/
             : (chunk: any) =>
                 !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
 
@@ -1183,7 +1189,9 @@ export default async function getBaseWebpackConfig(
                   chunks: 'all' as const,
                   name: 'framework',
                   layer: RSPACK_DEFAULT_LAYERS_REGEX,
-                  test: /[/]node_modules[/](react|react-dom|next[/]dist[/]compiled[/](react|react-dom)(-experimental)?)[/]/,
+                  test: new RegExp(
+                    `^(${topLevelFrameworkPaths.map((p) => `(${escapeStringRegexp(p)})`).join('|')})`
+                  ),
                   priority: 40,
                   enforce: true,
                 },
@@ -1360,6 +1368,7 @@ export default async function getBaseWebpackConfig(
         'modularize-import-loader',
         'next-barrel-loader',
         'next-error-browser-binary-loader',
+        'next-root-params-loader',
       ].reduce(
         (alias, loader) => {
           // using multiple aliases to replace `resolveLoader.modules`
@@ -1539,6 +1548,18 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+
+        ...getNextRootParamsRules({
+          isRootParamsEnabled:
+            config.experimental.rootParams ??
+            // `experimental.dynamicIO` implies `experimental.rootParams`.
+            config.experimental.cacheComponents ??
+            false,
+          isClient,
+          appDir,
+          pageExtensions,
+        }),
+
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1938,7 +1959,7 @@ export default async function getBaseWebpackConfig(
               '.shared-runtime'
             )
             const layer = resource.contextInfo.issuerLayer
-            let runtime
+            let runtime: string
 
             switch (layer) {
               case WEBPACK_LAYERS.serverSideRendering:
@@ -1947,6 +1968,8 @@ export default async function getBaseWebpackConfig(
               case WEBPACK_LAYERS.actionBrowser:
                 runtime = 'app-page'
                 break
+              case null:
+              case undefined:
               default:
                 runtime = 'pages'
             }
@@ -1958,11 +1981,7 @@ export default async function getBaseWebpackConfig(
         isClient &&
         (isRspack
           ? // eslint-disable-next-line
-            new (getRspackReactRefresh() as any)({
-              injectLoader: false,
-              injectEntry: false,
-              overlay: false,
-            })
+            new (require('next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshRspackPlugin').default)()
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -1998,8 +2017,6 @@ export default async function getBaseWebpackConfig(
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
-      // rspack doesn't support the parser hooks used here
-      !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
       isNodeServer &&
         !dev &&
         new ((
@@ -2015,7 +2032,6 @@ export default async function getBaseWebpackConfig(
             appDirEnabled: hasAppDir,
             traceIgnores: [],
             compilerType,
-            swcLoaderConfig: swcDefaultLoader,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
@@ -2099,7 +2115,6 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
       hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
@@ -2122,7 +2137,6 @@ export default async function getBaseWebpackConfig(
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          typedRoutes: enableTypedRoutes,
           cacheLifeConfig: config.experimental.cacheLife,
           originalRewrites,
           originalRedirects,
@@ -2216,6 +2230,15 @@ export default async function getBaseWebpackConfig(
         : undefined,
   }
 
+  if (isRspack) {
+    // @ts-ignore
+    // Disable Rspack's incremental buildChunkGraph due to Next.js compatibility issues
+    // TODO: Remove this workaround after Rspack 1.5.1 release
+    webpack5Config.experiments.incremental = {
+      buildChunkGraph: false,
+    }
+  }
+
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
@@ -2273,7 +2296,7 @@ export default async function getBaseWebpackConfig(
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
-    buildActivityPosition:
+    devIndicatorsPosition:
       config.devIndicators === false
         ? undefined
         : config.devIndicators.position,
@@ -2282,7 +2305,6 @@ export default async function getBaseWebpackConfig(
     optimizeCss: config.experimental.optimizeCss,
     nextScriptWorkers: config.experimental.nextScriptWorkers,
     scrollRestoration: config.experimental.scrollRestoration,
-    typedRoutes: config.experimental.typedRoutes,
     basePath: config.basePath,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
@@ -2426,7 +2448,7 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
-    future: config.future,
+    future: (config as any).future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
@@ -2603,8 +2625,8 @@ export default async function getBaseWebpackConfig(
   }
 
   // Backwards compat with webpack-dev-middleware options object
-  if (typeof config.webpackDevMiddleware === 'function') {
-    const options = config.webpackDevMiddleware({
+  if (typeof (config as any).webpackDevMiddleware === 'function') {
+    const options = (config as any).webpackDevMiddleware({
       watchOptions: webpackConfig.watchOptions,
     })
     if (options.watchOptions) {
@@ -2747,4 +2769,79 @@ export default async function getBaseWebpackConfig(
   }
 
   return webpackConfig
+}
+
+function getNextRootParamsRules({
+  isRootParamsEnabled,
+  isClient,
+  appDir,
+  pageExtensions,
+}: {
+  isRootParamsEnabled: boolean
+  isClient: boolean
+  appDir: string | undefined
+  pageExtensions: string[]
+}): webpack.RuleSetRule[] {
+  // Match resolved import of 'next/root-params'
+  const nextRootParamsModule = path.join(NEXT_PROJECT_ROOT, 'root-params.js')
+
+  const createInvalidImportRule = (message: string) => {
+    return {
+      resource: nextRootParamsModule,
+      loader: 'next-invalid-import-error-loader',
+      options: {
+        message,
+      } satisfies InvalidImportLoaderOpts,
+    } satisfies webpack.RuleSetRule
+  }
+
+  // Hard-error if the flag is not enabled, regardless of if we're on the server or on the client.
+  if (!isRootParamsEnabled) {
+    return [
+      createInvalidImportRule(
+        "'next/root-params' can only be imported when `experimental.rootParams` is enabled."
+      ),
+    ]
+  }
+
+  // If there's no app-dir (and thus no layouts), there's no sensible way to use 'next/root-params',
+  // because we wouldn't generate any getters.
+  if (!appDir) {
+    return [
+      createInvalidImportRule(
+        "'next/root-params' can only be used with the App Directory."
+      ),
+    ]
+  }
+
+  // In general, the compiler should prevent importing 'next/root-params' from client modules, but it doesn't catch everything.
+  // If an import slips through our validation, make it error.
+  const invalidClientImportRule = createInvalidImportRule(
+    "'next/root-params' cannot be imported from a Client Component module. It should only be used from a Server Component."
+  )
+
+  // in the browser compilation we can skip the server rules, because we know all imports will be invalid.
+  if (isClient) {
+    return [invalidClientImportRule]
+  }
+
+  return [
+    {
+      oneOf: [
+        {
+          resource: nextRootParamsModule,
+          issuerLayer: shouldUseReactServerCondition as (
+            layer: string
+          ) => boolean,
+          loader: 'next-root-params-loader',
+          options: {
+            appDir,
+            pageExtensions,
+          } satisfies RootParamsLoaderOpts,
+        },
+        // if the rule above didn't match, we're in the SSR layer (or something else that isn't server-only).
+        invalidClientImportRule,
+      ],
+    },
+  ]
 }

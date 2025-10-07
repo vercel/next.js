@@ -24,15 +24,13 @@ import {
 } from './../index'
 import { getCookieParser } from './../get-cookie-parser'
 import {
+  JSON_CONTENT_TYPE_HEADER,
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../../lib/constants'
 import { tryGetPreviewData } from './try-get-preview-data'
 import { parseBody } from './parse-body'
-import {
-  RouterServerContextSymbol,
-  routerServerGlobal,
-} from '../../lib/router-utils/router-server-context'
+import type { RevalidateFn } from '../../lib/router-utils/router-server-context'
 import type { InstrumentationOnRequestError } from '../../instrumentation/types'
 
 type ApiContext = __ApiPreviewProps & {
@@ -41,7 +39,7 @@ type ApiContext = __ApiPreviewProps & {
   hostname?: string
   multiZoneDraftMode?: boolean
   dev: boolean
-  projectDir: string
+  internalRevalidate?: RevalidateFn
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -106,7 +104,7 @@ function sendData(req: NextApiRequest, res: NextApiResponse, body: any): void {
   }
 
   if (isJSONLike) {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
   }
 
   res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
@@ -120,7 +118,7 @@ function sendData(req: NextApiRequest, res: NextApiResponse, body: any): void {
  */
 function sendJson(res: NextApiResponse, jsonBody: any): void {
   // Set header to application/json
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
 
   // Use send to handle request
   res.send(JSON.stringify(jsonBody))
@@ -286,9 +284,7 @@ async function revalidate(
     }
   }
 
-  const internalRevalidate =
-    routerServerGlobal[RouterServerContextSymbol]?.[context.projectDir]
-      ?.revalidate
+  const internalRevalidate = context.internalRevalidate
 
   try {
     // We use the revalidate in router-server if available.

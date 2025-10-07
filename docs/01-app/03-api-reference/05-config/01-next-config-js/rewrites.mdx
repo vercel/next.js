@@ -34,7 +34,7 @@ module.exports = {
 }
 ```
 
-Rewrites are applied to client-side routing, a `<Link href="/about">` will have the rewrite applied in the above example.
+Rewrites are applied to client-side routing. In the example above, navigating to `<Link href="/about">` will serve content from `/` while keeping the URL as `/about`.
 
 `rewrites` is an async function that expects to return either an array or an object of arrays (see below) holding objects with `source` and `destination` properties:
 

@@ -1,5 +1,7 @@
+import type { EnvironmentConfig } from 'babel-plugin-react-compiler'
 import path from 'path'
-import type { ReactCompilerOptions } from '../server/config-shared'
+import type { JSONValue, ReactCompilerOptions } from '../server/config-shared'
+import type { NextBabelLoaderOptions } from './babel/loader/types'
 
 function getReactCompiler() {
   try {
@@ -14,27 +16,24 @@ function getReactCompiler() {
 }
 
 const getReactCompilerPlugins = (
-  options: boolean | ReactCompilerOptions | undefined,
-  isDev: boolean,
-  isServer: boolean
-) => {
-  if (!options || isServer) {
+  maybeOptions: boolean | ReactCompilerOptions | undefined,
+  isServer: boolean,
+  isDev: boolean
+): undefined | JSONValue[] => {
+  if (!maybeOptions || isServer) {
     return undefined
   }
 
-  const compilerOptions = typeof options === 'boolean' ? {} : options
-  if (options) {
-    return [
-      [
-        getReactCompiler(),
-        {
-          panicThreshold: isDev ? undefined : 'NONE',
-          ...compilerOptions,
-        },
-      ],
-    ]
+  const environment: Pick<EnvironmentConfig, 'enableNameAnonymousFunctions'> = {
+    enableNameAnonymousFunctions: isDev,
   }
-  return undefined
+  const options: ReactCompilerOptions =
+    typeof maybeOptions === 'boolean' ? {} : maybeOptions
+  const compilerOptions: JSONValue = {
+    ...options,
+    environment,
+  }
+  return [[getReactCompiler(), compilerOptions]]
 }
 
 const getBabelLoader = (
@@ -51,26 +50,29 @@ const getBabelLoader = (
   reactCompilerExclude: ((excludePath: string) => boolean) | undefined
 ) => {
   if (!useSWCLoader) {
+    // Make sure these options are kept in sync with
+    // `packages/next/src/build/get-babel-loader-config.ts`
+    const options: NextBabelLoaderOptions = {
+      transformMode: 'default',
+      configFile: babelConfigFile,
+      isServer,
+      distDir,
+      pagesDir,
+      cwd,
+      srcDir: path.dirname(srcDir),
+      development: dev,
+      hasReactRefresh: dev && isClient,
+      hasJsxRuntime: true,
+      reactCompilerPlugins: getReactCompilerPlugins(
+        reactCompilerOptions,
+        isServer,
+        dev
+      ),
+      reactCompilerExclude,
+    }
     return {
       loader: require.resolve('./babel/loader/index'),
-      options: {
-        transformMode: 'default',
-        configFile: babelConfigFile,
-        isServer,
-        distDir,
-        pagesDir,
-        cwd,
-        srcDir: path.dirname(srcDir),
-        development: dev,
-        hasReactRefresh: dev && isClient,
-        hasJsxRuntime: true,
-        reactCompilerPlugins: getReactCompilerPlugins(
-          reactCompilerOptions,
-          dev,
-          isServer
-        ),
-        reactCompilerExclude,
-      },
+      options,
     }
   }
 
@@ -84,31 +86,35 @@ const getBabelLoader = (
  * > For best results, compiler must run as the first plugin in your Babel pipeline so it receives input as close to the original source as possible.
  */
 const getReactCompilerLoader = (
-  options: boolean | ReactCompilerOptions | undefined,
+  reactCompilerOptions: boolean | ReactCompilerOptions | undefined,
   cwd: string,
-  isDev: boolean,
   isServer: boolean,
-  reactCompilerExclude: ((excludePath: string) => boolean) | undefined
+  reactCompilerExclude: ((excludePath: string) => boolean) | undefined,
+  isDev: boolean
 ) => {
-  const reactCompilerPlugins = getReactCompilerPlugins(options, isDev, isServer)
+  const reactCompilerPlugins = getReactCompilerPlugins(
+    reactCompilerOptions,
+    isServer,
+    isDev
+  )
   if (!reactCompilerPlugins) {
     return undefined
   }
 
-  const config: any = {
-    loader: require.resolve('./babel/loader/index'),
-    options: {
-      transformMode: 'standalone',
-      cwd,
-      reactCompilerPlugins,
-    },
+  const babelLoaderOptions: NextBabelLoaderOptions = {
+    transformMode: 'standalone',
+    cwd,
+    reactCompilerPlugins,
+    isServer,
   }
-
   if (reactCompilerExclude) {
-    config.options.reactCompilerExclude = reactCompilerExclude
+    babelLoaderOptions.reactCompilerExclude = reactCompilerExclude
   }
 
-  return config
+  return {
+    loader: require.resolve('./babel/loader/index'),
+    options: babelLoaderOptions,
+  }
 }
 
 export { getBabelLoader, getReactCompilerLoader }

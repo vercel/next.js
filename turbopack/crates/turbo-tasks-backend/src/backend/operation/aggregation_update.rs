@@ -733,7 +733,6 @@ impl AggregationUpdateQueue {
     /// Runs the job and all dependent jobs until it's done. It can persist the operation, so
     /// following code might not be executed when persisted.
     pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext) {
-        debug_assert!(ctx.should_track_children());
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
@@ -1218,24 +1217,26 @@ impl AggregationUpdateQueue {
         } else {
             None
         };
-        if let Some(reason) = should_schedule {
-            let description = || ctx.get_task_desc_fn(task_id);
-            if task.add(CachedDataItem::new_scheduled(reason, description)) {
-                ctx.schedule(task_id);
-            }
-        }
+
         // if it has `Activeness` we can skip visiting the nested nodes since
         // this would already be scheduled by the `Activeness`
         let is_active_until_clean = get!(task, Activeness).is_some_and(|a| a.active_until_clean);
         if !is_active_until_clean {
-            let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task);
-            if !dirty_containers.is_empty() || dirty {
+            let mut dirty_containers = iter_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task).peekable();
+            let is_empty = dirty_containers.peek().is_none();
+            if !is_empty || dirty {
+                self.extend_find_and_schedule_dirty(dirty_containers);
+
                 let activeness_state =
                     get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
                 activeness_state.set_active_until_clean();
+            }
+        }
+        if let Some(reason) = should_schedule {
+            let description = || ctx.get_task_desc_fn(task_id);
+            if task.add(CachedDataItem::new_scheduled(reason, description)) {
                 drop(task);
-
-                self.extend_find_and_schedule_dirty(dirty_containers);
+                ctx.schedule(task_id);
             }
         }
     }
@@ -1284,7 +1285,7 @@ impl AggregationUpdateQueue {
         let _span = trace_span!("lost follower (n uppers)", uppers = upper_ids.len()).entered();
 
         // see documentation of `retry_loop` for more information why this is needed
-        let result = retry_loop(|| {
+        let result = retry_loop(retry, || {
             let mut follower = ctx.task(
                 lost_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
@@ -1418,8 +1419,14 @@ impl AggregationUpdateQueue {
             if retry > MAX_RETRIES {
                 panic!(
                     "inner_of_uppers_lost_follower is not able to remove follower \
-                     {lost_follower_id:?} from {upper_ids:?} as they don't exist as upper or \
-                     follower edges"
+                     {lost_follower_id} ({}) from {} as they don't exist as upper or follower \
+                     edges",
+                    ctx.get_task_description(lost_follower_id),
+                    upper_ids
+                        .iter()
+                        .map(|id| format!("{} ({})", id, ctx.get_task_description(*id)))
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 );
             }
             self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
@@ -1445,7 +1452,7 @@ impl AggregationUpdateQueue {
         .entered();
 
         // see documentation of `retry_loop` for more information why this is needed
-        let result = retry_loop(|| {
+        let result = retry_loop(retry, || {
             swap_retain(&mut lost_follower_ids, |&mut lost_follower_id| {
                 let mut follower = ctx.task(
                     lost_follower_id,
@@ -1570,9 +1577,14 @@ impl AggregationUpdateQueue {
             retry += 1;
             if retry > MAX_RETRIES {
                 panic!(
-                    "inner_of_upper_lost_followers is not able to remove followers \
-                     {lost_follower_ids:?} from {upper_id:?} as they don't exist as upper or \
-                     follower edges"
+                    "inner_of_upper_lost_followers is not able to remove followers {} from \
+                     {upper_id} ({}) as they don't exist as upper or follower edges",
+                    lost_follower_ids
+                        .iter()
+                        .map(|id| format!("{} ({})", id, ctx.get_task_description(*id)))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    ctx.get_task_description(upper_id),
                 )
             }
             self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
@@ -2144,12 +2156,25 @@ impl AggregationUpdateQueue {
             TaskDataCategory::Meta,
         );
         let state = get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
+        let is_new = state.is_empty();
         let is_zero = state.decrement_active_counter();
         let is_empty = state.is_empty();
         if is_empty {
             task.remove(&CachedDataItemKey::Activeness {});
         }
-        if is_zero {
+        debug_assert!(
+            !(is_new && is_zero),
+            // This allows us to but the `if is_zero` block in the else branch of the `if is_new`
+            // block below for fewer checks and less problems with the borrow checker.
+            "A new Activeness will never be zero after decrementing"
+        );
+        if is_new {
+            // A task is considered "active" purely by the existence of an `Activeness` item, even
+            // if that item has an negative active counter. So we need to make sure to
+            // schedule it here. That case is pretty rare and only happens under extreme race
+            // conditions.
+            self.find_and_schedule_dirty_internal(task_id, task, ctx);
+        } else if is_zero {
             let followers = get_followers(&task);
             drop(task);
             if !followers.is_empty() {
@@ -2157,6 +2182,8 @@ impl AggregationUpdateQueue {
                     task_ids: followers,
                 });
             }
+        } else {
+            drop(task);
         }
     }
 
@@ -2173,16 +2200,27 @@ impl AggregationUpdateQueue {
             TaskDataCategory::Meta,
         );
         let state = get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
+        let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
         let is_empty = state.is_empty();
         // This can happen if active count was negative before
         if is_empty {
             task.remove(&CachedDataItemKey::Activeness {});
         }
+        debug_assert!(
+            !is_new || is_positive_now,
+            // This allows us to nest the `if is_new` block below `if is_positive_now` for fewer
+            // checks.
+            "A new Activeness will always be positive after incrementing"
+        );
         if is_positive_now {
             let followers = get_followers(&task);
-            // Fast path to schedule
-            self.find_and_schedule_dirty_internal(task_id, task, ctx);
+            if is_new {
+                // Fast path to schedule
+                self.find_and_schedule_dirty_internal(task_id, task, ctx);
+            } else {
+                drop(task);
+            }
 
             if !followers.is_empty() {
                 self.push(AggregationUpdateJob::IncreaseActiveCounts {
@@ -2438,7 +2476,7 @@ impl Operation for AggregationUpdateQueue {
 struct RetryTimeout;
 
 const MAX_YIELD_DURATION: Duration = Duration::from_millis(1);
-const MAX_RETRIES: u16 = 10000;
+const MAX_RETRIES: u16 = 60000;
 
 /// Retry the passed function for a few milliseconds, while yielding to other threads.
 /// Returns an error if the function was not able to complete and the timeout was reached.
@@ -2454,13 +2492,17 @@ const MAX_RETRIES: u16 = 10000;
 /// successful, the update is added to the end of the queue again. This is important as the "add"
 /// update might even be in the current thread and in the same queue. If that's the case yielding
 /// won't help and the update need to be requeued.
-fn retry_loop(mut f: impl FnMut() -> ControlFlow<()>) -> Result<(), RetryTimeout> {
+fn retry_loop(mut retry: u16, mut f: impl FnMut() -> ControlFlow<()>) -> Result<(), RetryTimeout> {
     let mut time: Option<Instant> = None;
     loop {
         match f() {
             ControlFlow::Continue(()) => {}
             ControlFlow::Break(()) => return Ok(()),
         }
+        if retry == 0 {
+            return Err(RetryTimeout);
+        }
+        retry -= 1;
         yield_now();
         if let Some(t) = time {
             if t.elapsed() > MAX_YIELD_DURATION {

@@ -6,7 +6,7 @@ related:
   title: Related
   description: View related API references.
   links:
-    - app/api-reference/config/next-config-js/dynamicIO
+    - app/api-reference/config/next-config-js/cacheComponents
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/revalidateTag
     - app/api-reference/functions/cacheTag
@@ -16,14 +16,14 @@ The `cacheLife` function is used to set the cache lifetime of a function or comp
 
 ## Usage
 
-To use `cacheLife`, enable the [`dynamicIO` flag](/docs/app/api-reference/config/next-config-js/dynamicIO) in your `next.config.js` file:
+To use `cacheLife`, enable the [`cacheComponents` flag](/docs/app/api-reference/config/next-config-js/cacheComponents) in your `next.config.js` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
   },
 }
 
@@ -33,7 +33,7 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
   },
 }
 
@@ -111,7 +111,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
     cacheLife: {
       biweekly: {
         stale: 60 * 60 * 24 * 14, // 14 days
@@ -128,7 +128,7 @@ module.exports = nextConfig
 ```js filename="next.config.js" switcher
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
     cacheLife: {
       biweekly: {
         stale: 60 * 60 * 24 * 14, // 14 days
@@ -165,7 +165,7 @@ The example below shows how to override the default “days” cache profile:
 ```ts filename="next.config.ts"
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
     cacheLife: {
       days: {
         stale: 3600, // 1 hour
