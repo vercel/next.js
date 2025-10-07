@@ -12,7 +12,7 @@ describe('getImplicitTags()', () => {
       page: '/',
       url: { pathname: '/', search: '' },
       fallbackRouteParams: null,
-      expectedTags: ['_N_T_/layout', '_N_T_/layout', '_N_T_/', '_N_T_/index'],
+      expectedTags: ['_N_T_/layout', '_N_T_/', '_N_T_/index'],
     },
     {
       page: '',
@@ -24,7 +24,7 @@ describe('getImplicitTags()', () => {
       page: '/',
       url: { pathname: '', search: '' },
       fallbackRouteParams: null,
-      expectedTags: ['_N_T_/layout', '_N_T_/layout'],
+      expectedTags: ['_N_T_/layout'],
     },
     {
       page: '/page',
@@ -42,7 +42,7 @@ describe('getImplicitTags()', () => {
       page: '/page',
       url: { pathname: '/page', search: '' },
       fallbackRouteParams: null,
-      expectedTags: ['_N_T_/layout', '_N_T_/page', '_N_T_/page'],
+      expectedTags: ['_N_T_/layout', '_N_T_/page'],
     },
     {
       page: '/index',
