@@ -42,14 +42,16 @@ describe('persistent-caching', () => {
     await next.start()
   }
 
-  it('should log unsupported experimental key', () => {
-    expect(next.cliOutput).toContain(
-      'Unrecognized key(s) in object: \'turbopackPersistentCaching\' at "experimental"'
-    )
-    expect(next.cliOutput).toContain(
-      '? turbopackPersistentCaching (invalid experimental key)'
-    )
-  })
+  if (isTurbopack) {
+    it('should log unsupported experimental key', () => {
+      expect(next.cliOutput).toContain(
+        'Unrecognized key(s) in object: \'turbopackPersistentCaching\' at "experimental"'
+      )
+      expect(next.cliOutput).toContain(
+        '? turbopackPersistentCaching (invalid experimental key)'
+      )
+    })
+  }
 
   it('should persistent cache loaders', async () => {
     let appTimestamp, unchangedTimestamp, appClientTimestamp, pagesTimestamp
