@@ -802,13 +802,9 @@
       "app dir - prefetching dynamic rendering /revalidate-0 should update search params following a link click",
       "app dir - prefetching fetch priority should have an auto priority for all other fetch operations",
       "app dir - prefetching fetch priority should prefetch links in viewport with low priority",
-      "app dir - prefetching fetch priority should prefetch with high priority when navigating to a page without a prefetch entry",
       "app dir - prefetching fetch priority should respect multiple prefetch types to the same URL",
       "app dir - prefetching invalid URLs should not throw when an invalid URL is passed to Link",
       "app dir - prefetching invalid URLs should throw when an invalid URL is passed to router.prefetch",
-      "app dir - prefetching prefetch cache seeding should not re-fetch the initial dynamic page if the same page is prefetched with prefetch={true}",
-      "app dir - prefetching prefetch cache seeding should not re-fetch the initial static page if the same page is prefetched with prefetch={true}",
-      "app dir - prefetching should calculate `_rsc` query based on `Next-Url`",
       "app dir - prefetching should immediately render the loading state for a dynamic segment when fetched from higher up in the tree",
       "app dir - prefetching should navigate when prefetch is false",
       "app dir - prefetching should not fetch again when a static page was prefetched",
@@ -6186,9 +6182,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-module-document/invalid-module-document.test.ts": {
-    "passed": [
-      "Invalid SCSS in _document production only should fail to build"
-    ],
+    "passed": ["Invalid SCSS in _document should fail to build"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6276,9 +6270,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/npm-import-bad/npm-import-bad.test.ts": {
-    "passed": [
-      "CSS Import from node_modules production only should fail the build"
-    ],
+    "passed": ["CSS Import from node_modules should fail the build"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6624,18 +6616,19 @@
   },
   "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
     "passed": [
-      "layout sharing in non-static prefetches full prefetches should include layouts that were only prefetched with a runtime prefetch",
-      "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches full prefetches should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
       "layout sharing in non-static prefetches navigations should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches navigations should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
       "layout sharing in non-static prefetches runtime prefetches should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches runtime prefetches should omit layouts that were already prefetched with a runtime prefetch",
       "layout sharing in non-static prefetches segment-level prefetch config does not unnecessarily use a runtime prefetch for sub-pages of runtime-prefetchable layouts",
-      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available",
+      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available"
+    ],
+    "failed": [
+      "layout sharing in non-static prefetches full prefetches should include layouts that were only prefetched with a runtime prefetch",
+      "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches segment-level prefetch config uses a runtime prefetch for sub-pages of runtime-prefetchable layouts if requested"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10576,7 +10569,6 @@
   },
   "test/integration/api-catch-all/test/index.test.js": {
     "passed": [
-      "API routes dev support should return data when catch-all",
       "API routes dev support should return data when catch-all with index and no trailing slash",
       "API routes dev support should return data when catch-all with index and trailing slash",
       "API routes dev support should return redirect when catch-all with index and trailing slash",
@@ -10585,7 +10577,7 @@
       "API routes production mode should return data when catch-all with index and trailing slash",
       "API routes production mode should return redirect when catch-all with index and trailing slash"
     ],
-    "failed": [],
+    "failed": ["API routes dev support should return data when catch-all"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11905,11 +11897,12 @@
     "passed": [
       "Custom _error development mode 1 should not warn with /_error and /404 when rendering error first",
       "Custom _error development mode 2 should not warn with /_error and /404",
-      "Custom _error development mode 2 should warn on custom /_error without custom /404",
       "Custom _error production mode renders custom _error successfully",
       "Custom _error production mode should not contain /_error in build output"
     ],
-    "failed": [],
+    "failed": [
+      "Custom _error development mode 2 should warn on custom /_error without custom /404"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -14933,11 +14926,11 @@
     "runtimeError": false
   },
   "test/integration/gssp-redirect-with-rewrites/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "getServerSideProps redirects should fallback to browser navigation for an unknown URL",
       "getServerSideProps redirects should use a client-side navigation for a rewritten URL"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16853,10 +16846,11 @@
   },
   "test/integration/jsconfig-paths-wildcard/test/index.test.js": {
     "passed": [
-      "jsconfig paths wildcard default behavior should resolve a wildcard alias",
       "jsconfig paths without baseurl wildcard default behavior should resolve a wildcard alias"
     ],
-    "failed": [],
+    "failed": [
+      "jsconfig paths wildcard default behavior should resolve a wildcard alias"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18065,14 +18059,15 @@
   },
   "test/integration/next-image-new/unoptimized/test/index.test.ts": {
     "passed": [
-      "Unoptimized Image Tests development mode - component should not optimize any image",
-      "Unoptimized Image Tests development mode - getImageProps should not optimize any image",
       "Unoptimized Image Tests production mode - component should build correct images-manifest.json",
       "Unoptimized Image Tests production mode - component should not optimize any image",
       "Unoptimized Image Tests production mode - getImageProps should build correct images-manifest.json",
       "Unoptimized Image Tests production mode - getImageProps should not optimize any image"
     ],
-    "failed": [],
+    "failed": [
+      "Unoptimized Image Tests development mode - component should not optimize any image",
+      "Unoptimized Image Tests development mode - getImageProps should not optimize any image"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18584,10 +18579,9 @@
   "test/integration/read-only-source-hmr/test/index.test.js": {
     "passed": [
       "Read-only source HMR should detect a new page",
-      "Read-only source HMR should detect changes to a page",
       "Read-only source HMR should handle page deletion and subsequent recreation"
     ],
-    "failed": [],
+    "failed": ["Read-only source HMR should detect changes to a page"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
