@@ -223,8 +223,8 @@ export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<Omit<InternalLinkProps, 'locale'>>
 
-function isModifiedEvent(event: React.MouseEvent<HTMLAnchorElement>): boolean {
-  const eventTarget = event.currentTarget
+function isModifiedEvent(event: React.MouseEvent): boolean {
+  const eventTarget = event.currentTarget as HTMLAnchorElement | SVGAElement
   const target = eventTarget.getAttribute('target')
   return (
     (target && target !== '_self') ||
@@ -237,7 +237,7 @@ function isModifiedEvent(event: React.MouseEvent<HTMLAnchorElement>): boolean {
 }
 
 function linkClicked(
-  e: React.MouseEvent<HTMLAnchorElement>,
+  e: React.MouseEvent,
   href: string,
   as: string,
   linkInstanceRef: React.RefObject<LinkInstance | null>,
@@ -246,7 +246,14 @@ function linkClicked(
   onNavigate?: OnNavigateEventHandler
 ): void {
   if (typeof window !== 'undefined') {
-    if (isModifiedEvent(e) || e.currentTarget.hasAttribute('download')) {
+    const { nodeName } = e.currentTarget
+
+    // anchors inside an svg have a lowercase nodeName
+    const isAnchorNodeName = nodeName.toUpperCase() === 'A'
+    if (
+      (isAnchorNodeName && isModifiedEvent(e)) ||
+      e.currentTarget.hasAttribute('download')
+    ) {
       // ignore click for browser’s default behavior
       return
     }
@@ -575,7 +582,7 @@ export default function LinkComponent(
   // currently mounted <Link> instances, e.g. so we can re-prefetch them after
   // a revalidation or refresh.
   const observeLinkVisibilityOnMount = React.useCallback(
-    (element: HTMLAnchorElement) => {
+    (element: HTMLAnchorElement | SVGAElement) => {
       if (router !== null) {
         linkInstanceRef.current = mountLinkInstance(
           element,
@@ -658,7 +665,10 @@ export default function LinkComponent(
       }
 
       const upgradeToDynamicPrefetch = unstable_dynamicOnHover === true
-      onNavigationIntent(e.currentTarget, upgradeToDynamicPrefetch)
+      onNavigationIntent(
+        e.currentTarget as HTMLAnchorElement | SVGAElement,
+        upgradeToDynamicPrefetch
+      )
     },
     onTouchStart: process.env.__NEXT_LINK_NO_TOUCH_START
       ? undefined
@@ -683,7 +693,10 @@ export default function LinkComponent(
           }
 
           const upgradeToDynamicPrefetch = unstable_dynamicOnHover === true
-          onNavigationIntent(e.currentTarget, upgradeToDynamicPrefetch)
+          onNavigationIntent(
+            e.currentTarget as HTMLAnchorElement | SVGAElement,
+            upgradeToDynamicPrefetch
+          )
         },
   }
 

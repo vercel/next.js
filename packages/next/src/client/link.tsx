@@ -188,7 +188,7 @@ function prefetch(
 }
 
 function isModifiedEvent(event: React.MouseEvent): boolean {
-  const eventTarget = event.currentTarget as HTMLAnchorElement
+  const eventTarget = event.currentTarget as HTMLAnchorElement | SVGAElement
   const target = eventTarget.getAttribute('target')
   return (
     (target && target !== '_self') ||
@@ -211,7 +211,15 @@ function linkClicked(
   locale?: string | false,
   onNavigate?: OnNavigateEventHandler
 ): void {
-  if (isModifiedEvent(e) || e.currentTarget.hasAttribute('download')) {
+  const { nodeName } = e.currentTarget
+
+  // anchors inside an svg have a lowercase nodeName
+  const isAnchorNodeName = nodeName.toUpperCase() === 'A'
+
+  if (
+    (isAnchorNodeName && isModifiedEvent(e)) ||
+    e.currentTarget.hasAttribute('download')
+  ) {
     // ignore click for browser’s default behavior
     return
   }
@@ -514,7 +522,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       rootMargin: '200px',
     })
     const setIntersectionWithResetRef = React.useCallback(
-      (el: HTMLAnchorElement | null) => {
+      (el: Element | null) => {
         // Before the link getting observed, check if visible state need to be reset
         if (previousAs.current !== as || previousHref.current !== href) {
           resetVisible()
