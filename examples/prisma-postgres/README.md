@@ -64,89 +64,21 @@ bun install
 
 ### 2. Create a Prisma Postgres instance
 
-Run the following command in your terminal:
+Run the following command to create a Prisma Postgres database and append the `DATABASE_URL` to your `.env`:
 
 ```
-npx prisma init --db
+npx create-db >> .env
 ```
-
-If you don't have a [Prisma Data Platform](https://console.prisma.io/) account yet, or if you are not logged in, the command will prompt you to log in using one of the available authentication providers. A browser window will open so you can log in or create an account. Return to the CLI after you have completed this step.
-
-Once logged in (or if you were already logged in), the CLI will prompt you to:
-
-1. Select a **region** (e.g. `us-east-1`)
-1. Enter a **project name**
-
-After successful creation, you will see output similar to the following:
-
-<details>
-
-<summary>CLI output</summary>
-
-```terminal
-Let's set up your Prisma Postgres database!
-? Select your region: ap-northeast-1 - Asia Pacific (Tokyo)
-? Enter a project name: testing-migration
-✔ Success! Your Prisma Postgres database is ready ✅
-
-We found an existing schema.prisma file in your current project directory.
-
---- Database URL ---
-
-Connect Prisma ORM to your Prisma Postgres database with this URL:
-
-prisma+postgres://accelerate.prisma-data.net/?api_key=ey...
-
---- Next steps ---
-
-Go to https://pris.ly/ppg-init for detailed instructions.
-
-1. Install and use the Prisma Accelerate extension
-Prisma Postgres requires the Prisma Accelerate extension for querying. If you haven't already installed it, install it in your project:
-npm install @prisma/extension-accelerate
-
-...and add it to your Prisma Client instance:
-import { withAccelerate } from "@prisma/extension-accelerate"
-
-const prisma = new PrismaClient().$extends(withAccelerate())
-
-2. Apply migrations
-Run the following command to create and apply a migration:
-npx prisma migrate dev
-
-3. Manage your data
-View and edit your data locally by running this command:
-npx prisma studio
-
-...or online in Console:
-https://console.prisma.io/{workspaceId}/{projectId}/studio
-
-4. Send queries from your app
-If you already have an existing app with Prisma ORM, you can now run it and it will send queries against your newly created Prisma Postgres instance.
-
-5. Learn more
-For more info, visit the Prisma Postgres docs: https://pris.ly/ppg-docs
-```
-
-</details>
-
-Locate and copy the database URL provided in the CLI output. Then, follow the instructions in the next step to create a `.env` file in the project root.
 
 ### 3. Setup your `.env` file
 
-You now need to configure your database connection via an environment variable.
-
-First, create an `.env` file:
-
-```bash
-touch .env
-```
-
-Then update the `.env` file by replacing the existing `DATABASE_URL` value with the one you previously copied. It will look similar to this:
+This command writes the `DATABASE_URL` to your `.env`. Verify it contains a value like:
 
 ```bash
 DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=PRISMA_POSTGRES_API_KEY"
 ```
+
+If not, create `.env` and add the `DATABASE_URL` manually.
 
 ### 4. Migrate the database
 
@@ -232,7 +164,7 @@ Once the server is running, visit `http://localhost:3000` to start using the app
 
 The app includes the following routes:
 
-- `/`: Display the thee most recent posts
+- `/`: Display the three most recent posts
 - `/posts`: Paginated list view of all posts
 - `/posts/new`: Create a new post
 - `/users/new`: Create a new user
@@ -242,7 +174,7 @@ The app includes the following routes:
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fprisma-orm&env=DATABASE_URL&envDescription=Add%20your%20PRISMA%20POSTGRES%20database%20url&project-name=prisma-orm-app&repository-name=prisma-orm)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fprisma-postgres&env=DATABASE_URL&envDescription=Add%20your%20PRISMA%20POSTGRES%20database%20url&project-name=prisma-postgres-app&repository-name=prisma-postgres)
 
 ## Additional information
 
