@@ -112,7 +112,7 @@ impl StaticSortedFile {
         #[cfg(unix)]
         {
             let offset = meta.block_offsets_start(mmap.len());
-            let _ = mmap.advise_range(memmap2::Advice::WillNeed, offset, mmap.len() - offset);
+            let _ = mmap.advise_range(memmap2::Advice::Sequential, offset, mmap.len() - offset);
         }
         let file = Self { meta, mmap };
         Ok(file)
@@ -404,7 +404,7 @@ impl StaticSortedFile {
         }
         #[cfg(unix)]
         let _ = self.mmap.advise_range(
-            memmap2::Advice::WillNeed,
+            memmap2::Advice::Sequential,
             block_start,
             block_end - block_start,
         );
