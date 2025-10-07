@@ -6,7 +6,7 @@ module.exports =
     }
     if (process.env.TURBOPACK) {
       console.warn(
-        'The Next Bundle Analyzer is not compatible with turbopack builds, disabling analysis.\n\n' +
+        'The Next Bundle Analyzer is not compatible with Turbopack builds. Disabling analysis.\n\n' +
           'To run this analysis pass the `--webpack` flag to `next build`'
       )
       return nextConfig
