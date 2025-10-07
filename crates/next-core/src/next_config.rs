@@ -103,6 +103,7 @@ pub struct NextConfig {
     asset_prefix: Option<RcStr>,
     base_path: Option<RcStr>,
     skip_middleware_url_normalize: Option<bool>,
+    skip_middleware_next_internal_routes: Option<bool>,
     skip_trailing_slash_redirect: Option<bool>,
     i18n: Option<I18NConfig>,
     cross_origin: Option<CrossOriginConfig>,
@@ -1341,6 +1342,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn base_path(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.base_path.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn skip_middleware_next_internal_routes(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.skip_middleware_next_internal_routes)
     }
 
     #[turbo_tasks::function]

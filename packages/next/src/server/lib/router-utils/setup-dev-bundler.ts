@@ -48,6 +48,7 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { getDefaultMiddlewareMatcher } from '../../../shared/lib/router/utils/get-default-middleware-matcher'
 
 import {
   isMiddlewareFile,
@@ -472,7 +473,7 @@ async function startWatcher(
             serverFields.actualMiddlewareFile
           )
           middlewareMatchers = staticInfo.middleware?.matchers || [
-            { regexp: '^/.*$', originalSource: '/:path*' },
+            getDefaultMiddlewareMatcher(opts.nextConfig),
           ]
           continue
         }
