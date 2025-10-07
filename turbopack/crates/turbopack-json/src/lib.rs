@@ -14,7 +14,7 @@ use std::fmt::Write;
 use anyhow::{Error, Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileJsonContent, glob::Glob, rope::Rope};
+use turbo_tasks_fs::{FileContent, FileJsonContent, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -143,6 +143,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
                     format!("{TURBOPACK_EXPORT_VALUE}({data_str});")
                 };
 
+                let source_code = source_code.into();
                 let source_map = serde_json::json!({
                     "version": 3,
                     "sources": [format!("turbopack:///{}", self.module.ident().path().to_string().await?)],
@@ -152,8 +153,6 @@ impl EcmascriptChunkItem for JsonChunkItem {
                 })
                 .to_string()
                 .into();
-
-                let source_code: Rope = source_code.into();
                 code.push_source(&source_code, Some(source_map));
 
                 let code = code.build();
