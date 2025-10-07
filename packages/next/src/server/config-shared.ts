@@ -653,7 +653,7 @@ export interface ExperimentalConfig {
   useLightningcss?: boolean
 
   /**
-   * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
+   * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.
    */
   viewTransition?: boolean
 

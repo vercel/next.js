@@ -864,7 +864,6 @@ pub struct ExperimentalConfig {
     trust_host_header: Option<bool>,
 
     url_imports: Option<serde_json::Value>,
-    view_transition: Option<bool>,
     /// This option is to enable running the Webpack build in a worker thread
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
@@ -1720,11 +1719,6 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_taint(&self) -> Vc<bool> {
         Vc::cell(self.experimental.taint.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_view_transition(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.view_transition.unwrap_or(false))
     }
 
     #[turbo_tasks::function]

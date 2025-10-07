@@ -86,6 +86,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (type.$$typeof) {
@@ -842,7 +844,8 @@
       return parentContext.insertionMode >= HTML_TABLE_MODE ||
         parentContext.insertionMode < HTML_MODE
         ? createFormatContext(HTML_MODE, null, subtreeScope, null)
-        : parentContext.tagScope !== subtreeScope
+        : null !== parentContext.viewTransition ||
+            parentContext.tagScope !== subtreeScope
           ? createFormatContext(
               parentContext.insertionMode,
               parentContext.selectedValue,
@@ -865,7 +868,8 @@
           };
     }
     function getSuspenseFallbackFormatContext(resumableState, parentContext) {
-      parentContext.tagScope & 32 && (resumableState.instructions |= 128);
+      parentContext.tagScope & 32 &&
+        (resumableState.instructions |= NeedUpgradeToViewTransitions);
       return createFormatContext(
         parentContext.insertionMode,
         parentContext.selectedValue,
@@ -885,6 +889,31 @@
         subtreeScope,
         resumableState
       );
+    }
+    function makeId(resumableState, treeId, localId) {
+      resumableState = "_" + resumableState.idPrefix + "R_" + treeId;
+      0 < localId && (resumableState += "H" + localId.toString(32));
+      return resumableState + "_";
+    }
+    function pushViewTransitionAttributes(target, formatContext) {
+      formatContext = formatContext.viewTransition;
+      null !== formatContext &&
+        ("auto" !== formatContext.name &&
+          (pushStringAttribute(
+            target,
+            "vt-name",
+            0 === formatContext.nameIdx
+              ? formatContext.name
+              : formatContext.name + "_" + formatContext.nameIdx
+          ),
+          formatContext.nameIdx++),
+        pushStringAttribute(target, "vt-update", formatContext.update),
+        "none" !== formatContext.enter &&
+          pushStringAttribute(target, "vt-enter", formatContext.enter),
+        "none" !== formatContext.exit &&
+          pushStringAttribute(target, "vt-exit", formatContext.exit),
+        "none" !== formatContext.share &&
+          pushStringAttribute(target, "vt-share", formatContext.share));
     }
     function pushStyleAttribute(target, style) {
       if ("object" !== typeof style)
@@ -1431,7 +1460,7 @@
       checkHtmlStringCoercion(styleText);
       return ("" + styleText).replace(styleRegex, styleReplacer);
     }
-    function pushSelfClosing(target, props, tag) {
+    function pushSelfClosing(target, props, tag, formatContext) {
       target.push(startChunkForTag(tag));
       for (var propKey in props)
         if (hasOwnProperty.call(props, propKey)) {
@@ -1448,6 +1477,7 @@
                 pushAttribute(target, propKey, propValue);
             }
         }
+      pushViewTransitionAttributes(target, formatContext);
       target.push(endOfStartTagSelfClosing);
       return null;
     }
@@ -1525,7 +1555,7 @@
       target.push(endChunkForTag("script"));
       return null;
     }
-    function pushStartSingletonElement(target, props, tag) {
+    function pushStartSingletonElement(target, props, tag, formatContext) {
       target.push(startChunkForTag(tag));
       var innerHTML = (tag = null),
         propKey;
@@ -1544,11 +1574,12 @@
                 pushAttribute(target, propKey, propValue);
             }
         }
+      pushViewTransitionAttributes(target, formatContext);
       target.push(endOfStartTag);
       pushInnerHTML(target, innerHTML, tag);
       return tag;
     }
-    function pushStartGenericElement(target, props, tag) {
+    function pushStartGenericElement(target, props, tag, formatContext) {
       target.push(startChunkForTag(tag));
       var innerHTML = (tag = null),
         propKey;
@@ -1567,6 +1598,7 @@
                 pushAttribute(target, propKey, propValue);
             }
         }
+      pushViewTransitionAttributes(target, formatContext);
       target.push(endOfStartTag);
       pushInnerHTML(target, innerHTML, tag);
       return "string" === typeof tag
@@ -1672,6 +1704,7 @@
                     pushAttribute(target$jscomp$0, propKey, propValue);
                 }
             }
+          pushViewTransitionAttributes(target$jscomp$0, formatContext);
           target$jscomp$0.push(endOfStartTag);
           pushInnerHTML(target$jscomp$0, innerHTML, children);
           if ("string" === typeof children) {
@@ -1720,6 +1753,7 @@
                     );
                 }
             }
+          pushViewTransitionAttributes(target$jscomp$0, formatContext);
           target$jscomp$0.push(endOfStartTag);
           pushInnerHTML(target$jscomp$0, innerHTML$jscomp$0, children$jscomp$0);
           return children$jscomp$0;
@@ -1833,6 +1867,7 @@
           null === value$jscomp$0 &&
             null !== defaultValue &&
             (value$jscomp$0 = defaultValue);
+          pushViewTransitionAttributes(target$jscomp$0, formatContext);
           target$jscomp$0.push(endOfStartTag);
           if (null != children$jscomp$2) {
             console.error(
@@ -1960,6 +1995,7 @@
             ? pushAttribute(target$jscomp$0, "value", value$jscomp$1)
             : null !== defaultValue$jscomp$0 &&
               pushAttribute(target$jscomp$0, "value", defaultValue$jscomp$0);
+          pushViewTransitionAttributes(target$jscomp$0, formatContext);
           target$jscomp$0.push(endOfStartTagSelfClosing);
           null != formData &&
             formData.forEach(pushAdditionalFormField, target$jscomp$0);
@@ -2026,6 +2062,7 @@
             formTarget$jscomp$0,
             name$jscomp$0
           );
+          pushViewTransitionAttributes(target$jscomp$0, formatContext);
           target$jscomp$0.push(endOfStartTag);
           null != formData$jscomp$0 &&
             formData$jscomp$0.forEach(pushAdditionalFormField, target$jscomp$0);
@@ -2123,6 +2160,7 @@
             pushAttribute(target$jscomp$0, "method", formMethod$jscomp$1);
           null != formTarget$jscomp$1 &&
             pushAttribute(target$jscomp$0, "target", formTarget$jscomp$1);
+          pushViewTransitionAttributes(target$jscomp$0, formatContext);
           target$jscomp$0.push(endOfStartTag);
           null !== formActionName &&
             (target$jscomp$0.push('<input type="hidden"'),
@@ -2159,6 +2197,7 @@
                     );
                 }
             }
+          pushViewTransitionAttributes(target$jscomp$0, formatContext);
           target$jscomp$0.push(endOfStartTag);
           return null;
         case "object":
@@ -2204,6 +2243,7 @@
                     );
                 }
             }
+          pushViewTransitionAttributes(target$jscomp$0, formatContext);
           target$jscomp$0.push(endOfStartTag);
           pushInnerHTML(target$jscomp$0, innerHTML$jscomp$4, children$jscomp$5);
           if ("string" === typeof children$jscomp$5) {
@@ -2587,20 +2627,32 @@
             var JSCompiler_inline_result$jscomp$8 = pushSelfClosing(
               target$jscomp$0,
               props,
-              "meta"
+              "meta",
+              formatContext
             );
           else
             textEmbedded && target$jscomp$0.push("\x3c!-- --\x3e"),
               (JSCompiler_inline_result$jscomp$8 = isFallback$jscomp$1
                 ? null
                 : "string" === typeof props.charSet
-                  ? pushSelfClosing(renderState.charsetChunks, props, "meta")
+                  ? pushSelfClosing(
+                      renderState.charsetChunks,
+                      props,
+                      "meta",
+                      formatContext
+                    )
                   : "viewport" === props.name
-                    ? pushSelfClosing(renderState.viewportChunks, props, "meta")
+                    ? pushSelfClosing(
+                        renderState.viewportChunks,
+                        props,
+                        "meta",
+                        formatContext
+                      )
                     : pushSelfClosing(
                         renderState.hoistableChunks,
                         props,
-                        "meta"
+                        "meta",
+                        formatContext
                       ));
           return JSCompiler_inline_result$jscomp$8;
         case "listing":
@@ -2628,6 +2680,7 @@
                     );
                 }
             }
+          pushViewTransitionAttributes(target$jscomp$0, formatContext);
           target$jscomp$0.push(endOfStartTag);
           if (null != innerHTML$jscomp$7) {
             if (null != children$jscomp$10)
@@ -2746,7 +2799,7 @@
                       promotablePreloads.set(key$jscomp$0, resource$jscomp$1)));
             }
           }
-          return pushSelfClosing(target$jscomp$0, props, "img");
+          return pushSelfClosing(target$jscomp$0, props, "img", formatContext);
         case "base":
         case "area":
         case "br":
@@ -2758,7 +2811,7 @@
         case "source":
         case "track":
         case "wbr":
-          return pushSelfClosing(target$jscomp$0, props, type);
+          return pushSelfClosing(target$jscomp$0, props, type, formatContext);
         case "annotation-xml":
         case "color-profile":
         case "font-face":
@@ -2778,13 +2831,15 @@
             var JSCompiler_inline_result$jscomp$9 = pushStartSingletonElement(
               preamble.headChunks,
               props,
-              "head"
+              "head",
+              formatContext
             );
           } else
             JSCompiler_inline_result$jscomp$9 = pushStartGenericElement(
               target$jscomp$0,
               props,
-              "head"
+              "head",
+              formatContext
             );
           return JSCompiler_inline_result$jscomp$9;
         case "body":
@@ -2797,13 +2852,15 @@
             var JSCompiler_inline_result$jscomp$10 = pushStartSingletonElement(
               preamble$jscomp$0.bodyChunks,
               props,
-              "body"
+              "body",
+              formatContext
             );
           } else
             JSCompiler_inline_result$jscomp$10 = pushStartGenericElement(
               target$jscomp$0,
               props,
-              "body"
+              "body",
+              formatContext
             );
           return JSCompiler_inline_result$jscomp$10;
         case "html":
@@ -2816,13 +2873,15 @@
             var JSCompiler_inline_result$jscomp$11 = pushStartSingletonElement(
               preamble$jscomp$1.htmlChunks,
               props,
-              "html"
+              "html",
+              formatContext
             );
           } else
             JSCompiler_inline_result$jscomp$11 = pushStartGenericElement(
               target$jscomp$0,
               props,
-              "html"
+              "html",
+              formatContext
             );
           return JSCompiler_inline_result$jscomp$11;
         default:
@@ -2874,6 +2933,7 @@
                   }
                 }
               }
+            pushViewTransitionAttributes(target$jscomp$0, formatContext);
             target$jscomp$0.push(endOfStartTag);
             pushInnerHTML(
               target$jscomp$0,
@@ -2883,7 +2943,12 @@
             return children$jscomp$11;
           }
       }
-      return pushStartGenericElement(target$jscomp$0, props, type);
+      return pushStartGenericElement(
+        target$jscomp$0,
+        props,
+        type,
+        formatContext
+      );
     }
     function endChunkForTag(tag) {
       var chunk = endTagCache.get(tag);
@@ -3610,6 +3675,8 @@
           return "SuspenseList";
         case REACT_ACTIVITY_TYPE:
           return "Activity";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (
@@ -3738,6 +3805,13 @@
           publicInstance
         ),
         (didWarnAboutNoopUpdateForComponent[warningKey] = !0));
+    }
+    function getTreeId(context) {
+      var overflow = context.overflow;
+      context = context.id;
+      return (
+        (context & ~(1 << (32 - clz32(context) - 1))).toString(32) + overflow
+      );
     }
     function pushTreeContext(baseContext, totalChildren, index) {
       var baseIdWithLeadingBit = baseContext.id;
@@ -4364,6 +4438,8 @@
           return describeBuiltInComponentFrame("SuspenseList");
         case REACT_SUSPENSE_TYPE:
           return describeBuiltInComponentFrame("Suspense");
+        case REACT_VIEW_TRANSITION_TYPE:
+          return describeBuiltInComponentFrame("ViewTransition");
       }
       return "";
     }
@@ -5765,6 +5841,26 @@
             }
             return;
           case REACT_VIEW_TRANSITION_TYPE:
+            var prevContext$jscomp$0 = task.formatContext,
+              prevKeyPath$jscomp$4 = task.keyPath;
+            var resumableState$jscomp$0 = request.resumableState;
+            if (null == props.name || "auto" === props.name) {
+              var treeId = getTreeId(task.treeContext);
+              makeId(resumableState$jscomp$0, treeId, 0);
+            }
+            task.formatContext = prevContext$jscomp$0;
+            task.keyPath = keyPath;
+            if (null != props.name && "auto" !== props.name)
+              renderNodeDestructive(request, task, props.children, -1);
+            else {
+              var prevTreeContext = task.treeContext;
+              task.treeContext = pushTreeContext(prevTreeContext, 1, 0);
+              renderNode(request, task, props.children, -1);
+              task.treeContext = prevTreeContext;
+            }
+            task.formatContext = prevContext$jscomp$0;
+            task.keyPath = prevKeyPath$jscomp$4;
+            return;
           case REACT_SCOPE_TYPE:
             throw Error(
               "ReactDOMServer does not yet support scope components."
@@ -5789,8 +5885,8 @@
                   (task.row = _prevRow);
               }
             } else {
-              var prevKeyPath$jscomp$4 = task.keyPath,
-                prevContext$jscomp$0 = task.formatContext,
+              var prevKeyPath$jscomp$5 = task.keyPath,
+                prevContext$jscomp$1 = task.formatContext,
                 prevRow$jscomp$0 = task.row,
                 parentBoundary = task.blockedBoundary,
                 parentPreamble = task.blockedPreamble,
@@ -5850,7 +5946,7 @@
                 task.keyPath = fallbackKeyPath;
                 task.formatContext = getSuspenseFallbackFormatContext(
                   request.resumableState,
-                  prevContext$jscomp$0
+                  prevContext$jscomp$1
                 );
                 task.componentStack =
                   replaceSuspenseComponentStackWithSuspenseFallbackStack(
@@ -5875,8 +5971,8 @@
                 } finally {
                   (task.blockedSegment = parentSegment),
                     (task.blockedPreamble = parentPreamble),
-                    (task.keyPath = prevKeyPath$jscomp$4),
-                    (task.formatContext = prevContext$jscomp$0);
+                    (task.keyPath = prevKeyPath$jscomp$5),
+                    (task.formatContext = prevContext$jscomp$1);
                 }
                 var suspendedPrimaryTask = createRenderTask(
                   request,
@@ -5910,7 +6006,7 @@
                 task.keyPath = keyPath;
                 task.formatContext = getSuspenseContentFormatContext(
                   request.resumableState,
-                  prevContext$jscomp$0
+                  prevContext$jscomp$1
                 );
                 task.row = null;
                 contentRootSegment.status = 6;
@@ -5972,8 +6068,8 @@
                     (task.blockedPreamble = parentPreamble),
                     (task.hoistableState = parentHoistableState),
                     (task.blockedSegment = parentSegment),
-                    (task.keyPath = prevKeyPath$jscomp$4),
-                    (task.formatContext = prevContext$jscomp$0),
+                    (task.keyPath = prevKeyPath$jscomp$5),
+                    (task.formatContext = prevContext$jscomp$1),
                     (task.row = prevRow$jscomp$0);
                 }
                 var suspendedFallbackTask = createRenderTask(
@@ -6039,7 +6135,7 @@
               var value$jscomp$0 = props.value,
                 children$jscomp$2 = props.children;
               var prevSnapshot = task.context;
-              var prevKeyPath$jscomp$5 = task.keyPath;
+              var prevKeyPath$jscomp$6 = task.keyPath;
               var prevValue = type._currentValue2;
               type._currentValue2 = value$jscomp$0;
               void 0 !== type._currentRenderer2 &&
@@ -6082,7 +6178,7 @@
               var JSCompiler_inline_result$jscomp$0 = (currentActiveSnapshot =
                 prevSnapshot$jscomp$0.parent);
               task.context = JSCompiler_inline_result$jscomp$0;
-              task.keyPath = prevKeyPath$jscomp$5;
+              task.keyPath = prevKeyPath$jscomp$6;
               prevSnapshot !== task.context &&
                 console.error(
                   "Popping the context provider did not return back to the original snapshot. This is a bug in React."
@@ -6096,10 +6192,10 @@
                   "A context consumer was rendered with multiple children, or a child that isn't a function. A context consumer expects a single child that is a function. If you did pass a function, make sure there is no trailing or leading whitespace around it."
                 );
               var newChildren = render(context$jscomp$0._currentValue2),
-                prevKeyPath$jscomp$6 = task.keyPath;
+                prevKeyPath$jscomp$7 = task.keyPath;
               task.keyPath = keyPath;
               renderNodeDestructive(request, task, newChildren, -1);
-              task.keyPath = prevKeyPath$jscomp$6;
+              task.keyPath = prevKeyPath$jscomp$7;
               return;
             case REACT_LAZY_TYPE:
               var Component = callLazyInitInDEV(type);
@@ -7840,7 +7936,10 @@
       request = request.renderState;
       i = boundary.rootSegmentID;
       boundary = boundary.contentState;
-      var requiresStyleInsertion = request.stylesToHoist;
+      var requiresStyleInsertion = request.stylesToHoist,
+        requiresViewTransitions =
+          (completedSegments.instructions & NeedUpgradeToViewTransitions) !==
+          NothingSent;
       request.stylesToHoist = !1;
       destination.push(request.startInlineScript);
       destination.push(endOfStartTag);
@@ -7853,6 +7952,13 @@
             NothingSent &&
             ((completedSegments.instructions |= SentCompleteBoundaryFunction),
             destination.push(completeBoundaryScriptFunctionOnly)),
+          requiresViewTransitions &&
+            (completedSegments.instructions & SentUpgradeToViewTransitions) ===
+              NothingSent &&
+            ((completedSegments.instructions |= SentUpgradeToViewTransitions),
+            destination.push(
+              completeBoundaryUpgradeToViewTransitionsInstruction
+            )),
           (completedSegments.instructions & SentStyleInsertionFunction) ===
           NothingSent
             ? ((completedSegments.instructions |= SentStyleInsertionFunction),
@@ -7862,6 +7968,13 @@
             NothingSent &&
             ((completedSegments.instructions |= SentCompleteBoundaryFunction),
             destination.push(completeBoundaryScriptFunctionOnly)),
+          requiresViewTransitions &&
+            (completedSegments.instructions & SentUpgradeToViewTransitions) ===
+              NothingSent &&
+            ((completedSegments.instructions |= SentUpgradeToViewTransitions),
+            destination.push(
+              completeBoundaryUpgradeToViewTransitionsInstruction
+            )),
           destination.push(completeBoundaryScript1Partial));
       completedSegments = i.toString(16);
       destination.push(request.boundaryPrefix);
@@ -9470,6 +9583,8 @@
       SentStyleInsertionFunction = 8,
       SentCompletedShellId = 32,
       SentMarkShellTime = 64,
+      NeedUpgradeToViewTransitions = 128,
+      SentUpgradeToViewTransitions = 256,
       EXISTS = null,
       PRELOAD_NO_CREDS = [];
     Object.freeze(PRELOAD_NO_CREDS);
@@ -9562,6 +9677,8 @@
       completeSegmentScriptEnd = '")\x3c/script>',
       completeBoundaryScriptFunctionOnly =
         '$RB=[];$RV=function(a){$RT=performance.now();for(var b=0;b<a.length;b+=2){var c=a[b],e=a[b+1];null!==e.parentNode&&e.parentNode.removeChild(e);var f=c.parentNode;if(f){var g=c.previousSibling,h=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===h)break;else h--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||h++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;e.firstChild;)f.insertBefore(e.firstChild,c);g.data="$";g._reactRetry&&requestAnimationFrame(g._reactRetry)}}a.length=0};\n$RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))?(a.previousSibling.data="$~",$RB.push(a,b),2===$RB.length&&("number"!==typeof $RT?requestAnimationFrame($RV.bind(null,$RB)):(a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:$RT+300-a)))):b.parentNode.removeChild(b)};',
+      completeBoundaryUpgradeToViewTransitionsInstruction =
+        '$RV=function(A,g){function k(a,b){var e=a.getAttribute(b);e&&(b=a.style,l.push(a,b.viewTransitionName,b.viewTransitionClass),"auto"!==e&&(b.viewTransitionClass=e),(a=a.getAttribute("vt-name"))||(a="_T_"+K++ +"_"),b.viewTransitionName=a,B=!0)}var B=!1,K=0,l=[];try{var f=document.__reactViewTransition;if(f){f.finished.finally($RV.bind(null,g));return}var m=new Map;for(f=1;f<g.length;f+=2)for(var h=g[f].querySelectorAll("[vt-share]"),d=0;d<h.length;d++){var c=h[d];m.set(c.getAttribute("vt-name"),c)}var u=[];for(h=0;h<g.length;h+=2){var C=g[h],x=C.parentNode;if(x){var v=x.getBoundingClientRect();if(v.left||v.top||v.width||v.height){c=C;for(f=0;c;){if(8===c.nodeType){var r=c.data;if("/$"===r)if(0===f)break;else f--;else"$"!==r&&"$?"!==r&&"$~"!==r&&"$!"!==r||f++}else if(1===c.nodeType){d=c;var D=d.getAttribute("vt-name"),y=m.get(D);k(d,y?"vt-share":"vt-exit");y&&(k(y,"vt-share"),m.set(D,null));var E=d.querySelectorAll("[vt-share]");for(d=0;d<E.length;d++){var F=E[d],G=F.getAttribute("vt-name"),\nH=m.get(G);H&&(k(F,"vt-share"),k(H,"vt-share"),m.set(G,null))}}c=c.nextSibling}for(var I=g[h+1],t=I.firstElementChild;t;)null!==m.get(t.getAttribute("vt-name"))&&k(t,"vt-enter"),t=t.nextElementSibling;c=x;do for(var n=c.firstElementChild;n;){var J=n.getAttribute("vt-update");J&&"none"!==J&&!l.includes(n)&&k(n,"vt-update");n=n.nextElementSibling}while((c=c.parentNode)&&1===c.nodeType&&"none"!==c.getAttribute("vt-update"));u.push.apply(u,I.querySelectorAll(\'img[src]:not([loading="lazy"])\'))}}}if(B){var z=\ndocument.__reactViewTransition=document.startViewTransition({update:function(){A(g);for(var a=[document.documentElement.clientHeight,document.fonts.ready],b={},e=0;e<u.length;b={g:b.g},e++)if(b.g=u[e],!b.g.complete){var p=b.g.getBoundingClientRect();0<p.bottom&&0<p.right&&p.top<window.innerHeight&&p.left<window.innerWidth&&(p=new Promise(function(w){return function(q){w.g.addEventListener("load",q);w.g.addEventListener("error",q)}}(b)),a.push(p))}return Promise.race([Promise.all(a),new Promise(function(w){var q=\nperformance.now();setTimeout(w,2300>q&&2E3<q?2300-q:500)})])},types:[]});z.ready.finally(function(){for(var a=l.length-3;0<=a;a-=3){var b=l[a],e=b.style;e.viewTransitionName=l[a+1];e.viewTransitionClass=l[a+1];""===b.getAttribute("style")&&b.removeAttribute("style")}});z.finished.finally(function(){document.__reactViewTransition===z&&(document.__reactViewTransition=null)});$RB=[];return}}catch(a){}A(g)}.bind(null,$RV);',
       completeBoundaryScript1Partial = '$RC("',
       completeBoundaryWithStylesScript1FullPartial =
         '$RM=new Map;$RR=function(n,w,p){function u(q){this._p=null;q()}for(var r=new Map,t=document,h,b,e=t.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=e[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&$RM.set(b.getAttribute("href"),b),r.set(b.dataset.precedence,h=b));e=0;b=[];var l,a;for(k=!0;;){if(k){var f=p[e++];if(!f){k=!1;e=0;continue}var c=!1,m=0;var d=f[m++];if(a=$RM.get(d)){var g=a._p;c=!0}else{a=t.createElement("link");a.href=d;a.rel=\n"stylesheet";for(a.dataset.precedence=l=f[m++];g=f[m++];)a.setAttribute(g,f[m++]);g=a._p=new Promise(function(q,x){a.onload=u.bind(a,q);a.onerror=u.bind(a,x)});$RM.set(d,a)}d=a.getAttribute("media");!g||d&&!matchMedia(d).matches||b.push(g);if(c)continue}else{a=v[e++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=r.get(l)||h;c===h&&(h=a);r.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=t.head,c.insertBefore(a,c.firstChild))}if(p=document.getElementById(n))p.previousSibling.data=\n"$~";Promise.all(b).then($RC.bind(null,n,w),$RX.bind(null,n,"CSS failed to load"))};$RR("',
@@ -9726,20 +9843,14 @@
           return [!1, unsupportedStartTransition];
         },
         useId: function () {
-          var treeId = currentlyRenderingTask.treeContext;
-          var overflow = treeId.overflow;
-          treeId = treeId.id;
-          treeId =
-            (treeId & ~(1 << (32 - clz32(treeId) - 1))).toString(32) + overflow;
-          var resumableState = currentResumableState;
+          var treeId = getTreeId(currentlyRenderingTask.treeContext),
+            resumableState = currentResumableState;
           if (null === resumableState)
             throw Error(
               "Invalid hook call. Hooks can only be called inside of the body of a function component."
             );
-          overflow = localIdCounter++;
-          treeId = "_" + resumableState.idPrefix + "R_" + treeId;
-          0 < overflow && (treeId += "H" + overflow.toString(32));
-          return treeId + "_";
+          var localId = localIdCounter++;
+          return makeId(resumableState, treeId, localId);
         },
         useSyncExternalStore: function (
           subscribe,
@@ -9874,5 +9985,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.3.0-canary-c7862584-20251006";
+    exports.version = "19.3.0-canary-a4eb2dfa-20251006";
   })();

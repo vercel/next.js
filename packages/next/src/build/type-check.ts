@@ -9,6 +9,7 @@ import { verifyAndLint } from '../lib/verifyAndLint'
 import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'
 import isError from '../lib/is-error'
+import { hrtimeDurationToString } from './duration-to-string'
 
 /**
  * typescript will be loaded in "next/lib/verify-typescript-setup" and
@@ -156,7 +157,13 @@ export async function startTypeChecking({
           )
         }),
     ])
-    typeCheckingAndLintingSpinner?.stopAndPersist()
+
+    if (typeCheckingAndLintingSpinner) {
+      typeCheckingAndLintingSpinner.setText(
+        `${typeCheckingAndLintingSpinnerPrefixText} in ${hrtimeDurationToString(typeCheckEnd)}`
+      )
+      typeCheckingAndLintingSpinner.stopAndPersist()
+    }
 
     if (!ignoreTypeScriptErrors && verifyResult) {
       telemetry.record(

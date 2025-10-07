@@ -668,6 +668,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (type.$$typeof) {
@@ -4855,7 +4857,8 @@
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
     Symbol.for("react.postpone");
-    var MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
+    var REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+      MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       SuspenseException = Error(
         "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
