@@ -12,6 +12,7 @@ import {
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
+  NEXT_REQUEST_ID_HEADER,
 } from '../../app-router-headers'
 import { UnrecognizedActionError } from '../../unrecognized-action-error'
 
@@ -119,8 +120,17 @@ async function fetchServerAction(
     headers[NEXT_URL] = nextUrl
   }
 
-  if (process.env.NODE_ENV !== 'production' && self.__next_r) {
-    headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
+  if (process.env.NODE_ENV !== 'production') {
+    if (self.__next_r) {
+      headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
+    }
+
+    // Create a new request ID for the server action request. The server uses
+    // this to tag debug information sent via WebSocket to the client, which
+    // then routes those chunks to the debug channel associated with this ID.
+    headers[NEXT_REQUEST_ID_HEADER] = crypto
+      .getRandomValues(new Uint32Array(1))[0]
+      .toString(16)
   }
 
   const res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
@@ -198,7 +208,7 @@ async function fetchServerAction(
         callServer,
         findSourceMapURL,
         temporaryReferences,
-        debugChannel: createDebugChannel && createDebugChannel(res.headers),
+        debugChannel: createDebugChannel && createDebugChannel(headers),
       }
     )
 
