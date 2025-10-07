@@ -658,16 +658,15 @@
       this.updater.enqueueForceUpdate(this, callback, "forceUpdate");
     };
     var deprecatedAPIs = {
-        isMounted: [
-          "isMounted",
-          "Instead, make sure to clean up subscriptions and pending requests in componentWillUnmount to prevent memory leaks."
-        ],
-        replaceState: [
-          "replaceState",
-          "Refactor your code to use setState instead (see https://github.com/facebook/react/issues/3236)."
-        ]
-      },
-      fnName;
+      isMounted: [
+        "isMounted",
+        "Instead, make sure to clean up subscriptions and pending requests in componentWillUnmount to prevent memory leaks."
+      ],
+      replaceState: [
+        "replaceState",
+        "Refactor your code to use setState instead (see https://github.com/facebook/react/issues/3236)."
+      ]
+    };
     for (fnName in deprecatedAPIs)
       deprecatedAPIs.hasOwnProperty(fnName) &&
         defineDeprecationWarning(fnName, deprecatedAPIs[fnName]);
@@ -760,7 +759,7 @@
         return resolveDispatcher().useMemoCache(size);
       }
     });
-    exports.Children = {
+    var fnName = {
       map: mapChildren,
       forEach: function (children, forEachFunc, forEachContext) {
         mapChildren(
@@ -793,6 +792,8 @@
         return children;
       }
     };
+    exports.Activity = REACT_ACTIVITY_TYPE;
+    exports.Children = fnName;
     exports.Component = Component;
     exports.Fragment = REACT_FRAGMENT_TYPE;
     exports.Profiler = REACT_PROFILER_TYPE;
@@ -1223,6 +1224,9 @@
         );
       return resolveDispatcher().useEffect(create, deps);
     };
+    exports.useEffectEvent = function (callback) {
+      return resolveDispatcher().useEffectEvent(callback);
+    };
     exports.useId = function () {
       return resolveDispatcher().useId();
     };
@@ -1272,7 +1276,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.2.0-canary-f3a80361-20250911";
+    exports.version = "19.3.0-canary-c7862584-20251006";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

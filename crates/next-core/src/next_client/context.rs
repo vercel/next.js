@@ -28,7 +28,7 @@ use turbopack_core::{
     module_graph::export_usage::OptionExportUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::{TypeofWindow, chunk::EcmascriptChunkType};
+use turbopack_ecmascript::{AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -337,6 +337,14 @@ pub async fn get_client_module_options_context(
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
         keep_last_successful_parse: next_mode.is_development(),
+        analyze_mode: if next_mode.is_development() {
+            AnalyzeMode::CodeGeneration
+        } else {
+            // Technically, this doesn't need to tracing for the client context. But this will
+            // result in more cache hits for the analysis for modules which are loaded for both ssr
+            // and client
+            AnalyzeMode::CodeGenerationAndTracing
+        },
         ..Default::default()
     };
 
@@ -413,6 +421,7 @@ pub struct ClientChunkingContextOptions {
     pub source_maps: Vc<bool>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub debug_ids: Vc<bool>,
 }
 
 #[turbo_tasks::function]
@@ -433,11 +442,12 @@ pub async fn get_client_chunking_context(
         source_maps,
         no_mangling,
         scope_hoisting,
+        debug_ids,
     } = options;
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
-    let chunk_suffix_path = chunk_suffix_path.owned().await?;
+    let chunk_suffix_path = chunk_suffix_path.to_resolved().await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         client_root.clone(),
@@ -465,7 +475,8 @@ pub async fn get_client_chunking_context(
     .asset_base_path(asset_prefix)
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .export_usage(*export_usage.await?)
-    .module_id_strategy(module_id_strategy.to_resolved().await?);
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .debug_ids(*debug_ids.await?);
 
     if next_mode.is_development() {
         builder = builder

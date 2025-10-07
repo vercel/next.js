@@ -16,7 +16,10 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions?: NapiTurboEngineOptions
     ): Promise<Project>
-    startTurbopackTraceServer(traceFilePath: string): void
+    startTurbopackTraceServer(
+      traceFilePath: string,
+      port: number | undefined
+    ): void
 
     nextBuild?: any
   }
@@ -222,9 +225,11 @@ export interface Project {
 
   writeAllEntrypointsToDisk(
     appDirOnly: boolean
-  ): Promise<TurbopackResult<RawEntrypoints>>
+  ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
 
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints>>
+  entrypointsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<RawEntrypoints | {}>
+  >
 
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
 

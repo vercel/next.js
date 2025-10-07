@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, check, retry } from 'next-test-utils'
+import { assertNoRedbox, check, getDistDir, retry } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -274,7 +274,7 @@ describe('app dir - external dependency', () => {
     expect(html).toContain('resolve response')
 
     const outputFile = await next.readFile(
-      '.next/server/app/cjs/server/page.js'
+      `${getDistDir()}/server/app/cjs/server/page.js`
     )
     expect(outputFile).not.toContain('image-response')
   })

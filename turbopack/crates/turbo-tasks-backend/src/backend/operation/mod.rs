@@ -48,6 +48,9 @@ enum TransactionState<'a, 'tx, B: BackingStorage> {
 }
 
 pub trait ExecuteContext<'e>: Sized {
+    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, Self>
+    where
+        'e: 'l;
     fn session_id(&self) -> SessionId;
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> impl TaskGuard + 'e;
     fn is_once_task(&self, task_id: TaskId) -> bool;
@@ -65,9 +68,12 @@ pub trait ExecuteContext<'e>: Sized {
     fn suspending_requested(&self) -> bool;
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static;
     fn get_task_description(&self, task_id: TaskId) -> String;
-    fn should_track_children(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
+}
+
+pub trait ChildExecuteContext<'e>: Send + Sized {
+    fn create(self) -> impl ExecuteContext<'e>;
 }
 
 pub struct ExecuteContextImpl<'e, 'tx, B: BackingStorage>
@@ -157,6 +163,16 @@ impl<'e, 'tx, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, '
 where
     'tx: 'e,
 {
+    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'tx, 'l, B>
+    where
+        'e: 'l,
+    {
+        ChildExecuteContextImpl {
+            backend: self.backend,
+            turbo_tasks: self.turbo_tasks,
+        }
+    }
+
     fn session_id(&self) -> SessionId {
         self.backend.session_id()
     }
@@ -289,16 +305,28 @@ where
         self.backend.get_task_description(task_id)
     }
 
-    fn should_track_children(&self) -> bool {
-        self.backend.should_track_children()
-    }
-
     fn should_track_dependencies(&self) -> bool {
         self.backend.should_track_dependencies()
     }
 
     fn should_track_activeness(&self) -> bool {
         self.backend.should_track_activeness()
+    }
+}
+
+struct ChildExecuteContextImpl<'e, B: BackingStorage> {
+    backend: &'e TurboTasksBackendInner<B>,
+    turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+}
+
+impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e, B> {
+    fn create(self) -> impl ExecuteContext<'e> {
+        ExecuteContextImpl {
+            backend: self.backend,
+            turbo_tasks: self.turbo_tasks,
+            _operation_guard: None,
+            transaction: TransactionState::None,
+        }
     }
 }
 

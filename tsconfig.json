@@ -13,7 +13,6 @@
     "paths": {
       "development-sandbox": ["./test/lib/development-sandbox"],
       "next-test-utils": ["./test/lib/next-test-utils"],
-      "amp-test-utils": ["./test/lib/amp-test-utils"],
       "next-webdriver": ["./test/lib/next-webdriver"],
       "e2e-utils": ["./test/lib/e2e-utils"],
       "e2e-utils/*": ["./test/lib/e2e-utils/*"],

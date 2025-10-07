@@ -10,6 +10,7 @@ import { type webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
+  getOriginalStackFrames,
 } from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
@@ -31,10 +32,9 @@ import getBaseWebpackConfig, {
   loadProjectInfo,
 } from '../../build/webpack-config'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
-import { recursiveDelete } from '../../lib/recursive-delete'
+import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
@@ -88,7 +88,10 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { checkPersistentCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
-import { receiveBrowserLogsWebpack } from './browser-logs/receive-logs'
+import {
+  receiveBrowserLogsWebpack,
+  handleClientFileLogs,
+} from './browser-logs/receive-logs'
 import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
@@ -104,6 +107,9 @@ import {
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
+import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
+import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import { getFileLogger } from './browser-logs/file-logger'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -208,7 +214,6 @@ function erroredPages(compilation: webpack.Compilation) {
 }
 
 export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
-  private hasAmpEntrypoints: boolean
   private hasAppRouterEntrypoints: boolean
   private hasPagesRouterEntrypoints: boolean
   private dir: string
@@ -283,7 +288,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch: () => void
     }
   ) {
-    this.hasAmpEntrypoints = false
     this.hasAppRouterEntrypoints = false
     this.hasPagesRouterEntrypoints = false
     this.buildId = buildId
@@ -310,6 +314,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
     // of the current `next dev` invocation.
     this.hotReloaderSpan.stop()
+
+    // Initialize log monitor for file logging
+    // Enable logging by default in development mode
+    const mcpServerEnabled = !!config.experimental.mcpServer
+    const fileLogger = getFileLogger()
+    fileLogger.initialize(this.distDir, mcpServerEnabled)
   }
 
   public async run(
@@ -575,6 +585,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               }
               break
             }
+            case 'client-file-logs': {
+              // Always log to file regardless of terminal flag
+              await handleClientFileLogs(payload.logs)
+              break
+            }
+            case 'ping': {
+              // Handle ping events to keep WebSocket connections alive
+              // No-op - just acknowledge the ping
+              break
+            }
             default: {
               break
             }
@@ -614,7 +634,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     return span
       .traceChild('clean')
       .traceAsyncFn(() =>
-        recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
+        recursiveDeleteSyncWithAsyncRetries(
+          join(this.dir, this.config.distDir),
+          /^cache/
+        )
       )
   }
 
@@ -904,15 +927,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 })
               : undefined
 
-            if (staticInfo?.type === PAGE_TYPES.PAGES) {
-              if (
-                staticInfo.config?.config?.amp === true ||
-                staticInfo.config?.config?.amp === 'hybrid'
-              ) {
-                this.hasAmpEntrypoints = true
-              }
-            }
-
             const isServerComponent =
               isAppPath && staticInfo?.rsc !== RSC_MODULE_TYPES.client
 
@@ -1149,10 +1163,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             })
           })
         )
-
-        if (!this.hasAmpEntrypoints) {
-          delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP]
-        }
         if (!this.hasPagesRouterEntrypoints) {
           delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_MAIN]
           delete entrypoints['pages/_app']
@@ -1161,7 +1171,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           delete entrypoints['pages/_document']
         }
         // Remove React Refresh entrypoint chunk as `app` doesn't require it.
-        if (!this.hasAmpEntrypoints && !this.hasPagesRouterEntrypoints) {
+        if (!this.hasPagesRouterEntrypoints) {
           delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]
         }
         if (!this.hasAppRouterEntrypoints) {
@@ -1620,7 +1630,30 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           })
         },
       }),
+      ...(this.config.experimental.mcpServer
+        ? [
+            getMcpMiddleware(
+              this.dir,
+              this.distDir,
+              (message) => this.send(message),
+              () => this.webpackHotMiddleware?.getClientCount() ?? 0
+            ),
+          ]
+        : []),
     ]
+
+    setStackFrameResolver(async (request) => {
+      return getOriginalStackFrames({
+        isServer: request.isServer,
+        isEdgeServer: request.isEdgeServer,
+        isAppDirectory: request.isAppDirectory,
+        frames: request.frames,
+        clientStats: () => this.clientStats,
+        serverStats: () => this.serverStats,
+        edgeServerStats: () => this.edgeServerStats,
+        rootDirectory: this.dir,
+      })
+    })
   }
 
   public invalidate(

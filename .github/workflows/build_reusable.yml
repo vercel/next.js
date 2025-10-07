@@ -100,13 +100,18 @@ env:
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'
-  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+  # Vercel KV Store for test timings
+  KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+  KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
   NEXT_TEST_JOB: 1
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   NEXT_TEST_PREFER_OFFLINE: 1
   NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
   NEXT_TEST_PROXY_ADDRESS: ${{ inputs.overrideProxyAddress || '' }}
+
+  # defaults to 256, but we run a lot of tests in parallel, so the limit should be lower
+  NEXT_TURBOPACK_IO_CONCURRENCY: 64
 
 jobs:
   build:

@@ -10,7 +10,7 @@ use turbopack_core::{
 
 use super::asset::EcmascriptModulePartAsset;
 use crate::{
-    EcmascriptAnalyzable,
+    EcmascriptAnalyzableExt,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType,

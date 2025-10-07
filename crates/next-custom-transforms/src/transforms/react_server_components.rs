@@ -645,7 +645,7 @@ impl ReactServerComponentValidator {
             ],
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([
-                ("next/server", vec!["after", "unstable_rootParams"]),
+                ("next/server", vec!["after"]),
                 (
                     "next/cache",
                     vec![

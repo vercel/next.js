@@ -11,7 +11,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
-    output::OutputAssets,
+    output::OutputAssetsWithReferenced,
     reference::{ModuleReferences, SingleOutputAssetReference},
 };
 
@@ -55,7 +55,7 @@ impl ManifestAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn chunks(&self) -> Vc<OutputAssets> {
+    pub(super) fn chunk_group(&self) -> Vc<OutputAssetsWithReferenced> {
         self.chunking_context.chunk_group_assets(
             self.inner.ident(),
             ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
@@ -65,7 +65,9 @@ impl ManifestAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub async fn manifest_chunks(self: ResolvedVc<Self>) -> Result<Vc<OutputAssets>> {
+    pub async fn manifest_chunk_group(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         if let Some(chunk_items) = this.availability_info.available_modules() {
             let inner_module = ResolvedVc::upcast(this.inner);
@@ -78,7 +80,11 @@ impl ManifestAsyncModule {
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
                 && *chunk_items.get(chunkable_module_or_batch).await?
             {
-                return Ok(Vc::cell(vec![]));
+                return Ok(OutputAssetsWithReferenced {
+                    assets: ResolvedVc::cell(vec![]),
+                    referenced_assets: ResolvedVc::cell(vec![]),
+                }
+                .cell());
             }
         }
         Ok(this.chunking_context.chunk_group_assets(
@@ -119,12 +125,11 @@ impl Module for ManifestAsyncModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let chunks = self.chunks();
+        let assets = self.chunk_group().all_assets().await?;
 
         Ok(Vc::cell(
-            chunks
-                .await?
-                .iter()
+            assets
+                .into_iter()
                 .copied()
                 .map(|chunk| async move {
                     Ok(ResolvedVc::upcast(

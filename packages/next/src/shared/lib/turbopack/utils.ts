@@ -163,7 +163,7 @@ export function formatIssue(issue: Issue) {
       message +=
         "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
       message += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
-      message += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
+      message += '\nLearn more: https://nextjs.org/docs/messages/install-sass\n'
     } else {
       message += renderStyledStringToErrorAnsi(description) + '\n\n'
     }
@@ -314,8 +314,14 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
   }
 }
 
-export function isPersistentCachingEnabled(
+export function isPersistentCachingEnabledForDev(
   config: NextConfigComplete
 ): boolean {
-  return config.experimental?.turbopackPersistentCaching || false
+  return config.experimental?.turbopackPersistentCachingForDev || false
+}
+
+export function isPersistentCachingEnabledForBuild(
+  config: NextConfigComplete
+): boolean {
+  return config.experimental?.turbopackPersistentCachingForBuild || false
 }

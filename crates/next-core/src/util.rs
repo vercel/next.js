@@ -249,7 +249,7 @@ pub async fn load_next_js_template(
     let content = file_content_rope(template_path.read()).await?;
     let content = content.to_str()?;
 
-    let package_root = &*get_next_package(project_path).await?;
+    let package_root = get_next_package(project_path).await?;
 
     let content = expand_next_js_template(
         &content,

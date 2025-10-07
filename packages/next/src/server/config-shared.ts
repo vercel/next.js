@@ -16,16 +16,15 @@ import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/canary-only'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 
-export type NextConfigComplete = Required<NextConfig> & {
+export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   images: Required<ImageConfigComplete>
   typescript: TypeScriptConfig
-  configOrigin?: string
-  configFile?: string
+  configFile: string | undefined
   configFileName: string
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
-  experimental: Omit<ExperimentalConfig, 'turbo'>
+  experimental: ExperimentalConfig
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -89,23 +88,24 @@ export interface StyledComponentsConfig {
   cssProp?: boolean
 }
 
-type JSONValue =
+export type JSONValue =
   | string
   | number
   | boolean
   | JSONValue[]
   | { [k: string]: JSONValue }
 
+// At the moment, Turbopack options must be JSON-serializable, so restrict values.
+export type TurbopackLoaderOptions = Record<string, JSONValue>
+
 export type TurbopackLoaderItem =
   | string
   | {
       loader: string
-      // At the moment, Turbopack options must be JSON-serializable, so restrict values.
-      options?: Record<string, JSONValue>
+      options?: TurbopackLoaderOptions
     }
 
 export type TurbopackLoaderBuiltinCondition =
-  | 'default'
   | 'browser'
   | 'foreign'
   | 'development'
@@ -168,51 +168,18 @@ export interface TurbopackOptions {
   rules?: Record<string, TurbopackRuleConfigCollection>
 
   /**
-   * The module ID strategy to use for Turbopack.
-   * If not set, the default is `'named'` for development and `'deterministic'`
-   * for production.
-   */
-  moduleIds?: 'named' | 'deterministic'
-
-  /**
    * This is the repo root usually and only files above this
    * directory can be resolved by turbopack.
    */
   root?: string
-}
 
-export interface DeprecatedExperimentalTurboOptions extends TurbopackOptions {
   /**
-   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
+   * Enables generation of debug IDs in JavaScript bundles and source maps.
+   * These debug IDs help with debugging and error tracking by providing stable identifiers.
    *
-   * @deprecated Use `rules` instead.
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
+   * @see https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md TC39 Debug ID Proposal
    */
-  loaders?: Record<string, TurbopackLoaderItem[]>
-
-  /**
-   * A target memory limit for turbo, in bytes.
-   * @deprecated Use `experimental.turbopackMemoryLimit` instead.
-   */
-  memoryLimit?: number
-
-  /**
-   * Enable minification. Defaults to true in build mode and false in dev mode.
-   * @deprecated Use `experimental.turbopackMinify` instead.
-   */
-  minify?: boolean
-
-  /**
-   * Enable tree shaking for the turbopack dev server and build.
-   * @deprecated Use `experimental.turbopackTreeShaking` instead.
-   */
-  treeShaking?: boolean
-
-  /**
-   * Enable source maps. Defaults to true.
-   * @deprecated Use `experimental.turbopackSourceMaps` instead.
-   */
-  sourceMaps?: boolean
+  debugIds?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -248,15 +215,36 @@ export interface NextJsWebpackConfig {
 }
 
 /**
- * Set of options for the react compiler next.js
- * currently supports.
+ * Set of options for React Compiler that Next.js currently supports.
  *
- * This can be changed without breaking changes while supporting
- * react compiler in the experimental phase.
+ * These options may be changed in breaking ways at any time without notice
+ * while support for React Compiler is experimental.
+ *
+ * @see https://react.dev/reference/react-compiler/configuration
  */
 export interface ReactCompilerOptions {
+  /**
+   * Controls the strategy for determining which functions the React Compiler
+   * will optimize.
+   *
+   * The default is `'infer'`, which uses intelligent heuristics to identify
+   * React components and hooks.
+   *
+   * When using `infer`, Next.js applies its own heuristics before calling
+   * `react-compiler`. This improves compilation performance by avoiding extra
+   * invocations of Babel and reducing redundant parsing of code.
+   *
+   * @see https://react.dev/reference/react-compiler/compilationMode
+   */
   compilationMode?: 'infer' | 'annotation' | 'all'
-  panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
+  /**
+   * Controls how the React Compiler handles errors during compilation.
+   *
+   * The default is `'none'`, which skips components which cannot be compiled.
+   *
+   * @see https://react.dev/reference/react-compiler/panicThreshold
+   */
+  panicThreshold?: 'none' | 'critical_errors' | 'all_errors'
 }
 
 export interface IncomingRequestLoggingConfig {
@@ -381,13 +369,9 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  /** @deprecated built-in amp support will be removed in Next 16 */
-  amp?: {
-    optimizer?: any
-    validator?: string
-    skipValidation?: boolean
-  }
   disableOptimizedLoading?: boolean
+
+  /** @deprecated A no-op as of Next 16, size metrics were removed from the build output. */
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
@@ -421,12 +405,6 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   /**
-   * @deprecated Use `config.turbopack` instead.
-   * Run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .` to migrate automatically.
-   */
-  turbo?: DeprecatedExperimentalTurboOptions
-
-  /**
    * A target memory limit for turbo, in bytes.
    */
   turbopackMemoryLimit?: number
@@ -437,14 +415,24 @@ export interface ExperimentalConfig {
   turbopackMinify?: boolean
 
   /**
+   * Enable support for `with {type: "module"}` for ESM imports.
+   */
+  turbopackImportTypeBytes?: boolean
+
+  /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
 
   /**
-   * Enable persistent caching for the turbopack dev server and build.
+   * Enable persistent caching for the turbopack dev server.
    */
-  turbopackPersistentCaching?: boolean
+  turbopackPersistentCachingForDev?: boolean
+
+  /**
+   * Enable persistent caching for the turbopack build.
+   */
+  turbopackPersistentCachingForBuild?: boolean
 
   /**
    * Enable source maps. Defaults to true.
@@ -487,8 +475,13 @@ export interface ExperimentalConfig {
   turbopackUseSystemTlsCerts?: boolean
 
   /**
-   * Set this to `false` to disable the automatic configuration of the babel loader when a babel
-   * configuration file is present. The babel loader configuration is enabled by default.
+   * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
+   * configuration file is present. This option is enabled by default.
+   *
+   * If this is set to `false`, but `reactCompiler` is `true`, the built-in Babel will
+   * still be configured, but any Babel configuration files on disk will be ignored. If you wish to
+   * use React Compiler with a different manually-configured `babel-loader`, you should disable both
+   * this and `reactCompiler`.
    */
   turbopackUseBuiltinBabel?: boolean
 
@@ -687,12 +680,6 @@ export interface ExperimentalConfig {
    *
    */
   serverComponentsExternalPackages?: string[]
-  /**
-   * Enable experimental React compiler optimization.
-   * Configuration accepts partial config object to the compiler, if provided
-   * compiler will be enabled.
-   */
-  reactCompiler?: boolean | ReactCompilerOptions
 
   /**
    * When enabled, in dev mode, Next.js will send React's debug info through the
@@ -792,18 +779,32 @@ export interface ExperimentalConfig {
       }
 
   /**
-   * When enabled, will only opt-in to special smooth scroll handling when
-   * data-scroll-behavior="smooth" is present on the <html> element.
-   * This will be the default, non-configurable behavior in the next major version.
-   *
-   * @default false
-   */
-  optimizeRouterScrolling?: boolean
-
-  /**
    * Enable accessing root params via the `next/root-params` module.
    */
   rootParams?: boolean
+
+  /**
+   * Use an isolated directory for development builds to prevent conflicts
+   * with production builds. Development builds will use `{distDir}/dev`
+   * instead of `{distDir}`.
+   */
+  isolatedDevBuild?: boolean
+
+  /**
+   * Enable the Model Context Protocol (MCP) server for AI-assisted development.
+   * When enabled, Next.js will expose an MCP server at `/_next/mcp` that provides
+   * code intelligence and project context to AI assistants.
+   *
+   * @default false
+   */
+  mcpServer?: boolean
+
+  /**
+   * The module ID strategy to use for Turbopack.
+   * If not set, the default is `'named'` for development and `'deterministic'`
+   * for production.
+   */
+  turbopackModuleIds?: 'named' | 'deterministic'
 }
 
 export type ExportPathMap = {
@@ -875,7 +876,7 @@ export type ExportPathMap = {
  *
  * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
-export interface NextConfig extends Record<string, any> {
+export interface NextConfig {
   allowedDevOrigins?: string[]
 
   exportPathMap?: (
@@ -920,28 +921,35 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [Headers configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/headers)
    */
-  headers?: () => Promise<Header[]>
+  headers?: () => Promise<Header[]> | Header[]
 
   /**
    * Rewrites allow you to map an incoming request path to a different destination path.
    *
    * @see [Rewrites configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites)
    */
-  rewrites?: () => Promise<
+  rewrites?: () =>
+    | Promise<
+        | Rewrite[]
+        | {
+            beforeFiles?: Rewrite[]
+            afterFiles?: Rewrite[]
+            fallback?: Rewrite[]
+          }
+      >
     | Rewrite[]
     | {
         beforeFiles?: Rewrite[]
         afterFiles?: Rewrite[]
         fallback?: Rewrite[]
       }
-  >
 
   /**
    * Redirects allow you to redirect an incoming request path to a different destination path.
    *
    * @see [Redirects configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/redirects)
    */
-  redirects?: () => Promise<Redirect[]>
+  redirects?: () => Promise<Redirect[]> | Redirect[]
 
   /**
    * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
@@ -1055,14 +1063,6 @@ export interface NextConfig extends Record<string, any> {
   }
 
   /**
-   * @deprecated built-in amp support will be removed in Next 16
-   * @see [`next/amp`](https://nextjs.org/docs/api-reference/next/amp)
-   */
-  amp?: {
-    canonicalBase?: string
-  }
-
-  /**
    * A unique identifier for a deployment that will be included in each request's query string or header.
    */
   deploymentId?: string
@@ -1086,6 +1086,13 @@ export interface NextConfig extends Record<string, any> {
    * @see [Source Maps](https://nextjs.org/docs/advanced-features/source-maps)
    */
   productionBrowserSourceMaps?: boolean
+
+  /**
+   * Enable {@link https://nextjs.org/docs/app/api-reference/config/next-config-js/reactCompiler React Compiler in Next.js}.
+   * Configuration accepts partial config object of the Compiler.
+   * If provided, the Compiler will be enabled.
+   */
+  reactCompiler?: boolean | ReactCompilerOptions
 
   /**
    * Enable react profiling in production
@@ -1297,6 +1304,26 @@ export interface NextConfig extends Record<string, any> {
    * /Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i
    */
   htmlLimitedBots?: RegExp
+
+  /**
+   * @internal
+   */
+  configFile?: string | undefined
+
+  /**
+   * @internal
+   */
+  configOrigin?: string | undefined
+
+  /**
+   * @internal
+   */
+  _originalRedirects?: any
+
+  /**
+   * @internal
+   */
+  _originalRewrites?: any
 }
 
 export const defaultConfig = Object.freeze({
@@ -1331,9 +1358,6 @@ export const defaultConfig = Object.freeze({
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 5,
   },
-  amp: {
-    canonicalBase: '',
-  },
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
@@ -1342,6 +1366,7 @@ export const defaultConfig = Object.freeze({
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
+  reactCompiler: undefined,
   reactProductionProfiling: false,
   reactStrictMode: null,
   reactMaxHeadersLength: 6000,
@@ -1453,9 +1478,7 @@ export const defaultConfig = Object.freeze({
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
-    amp: undefined,
     urlImports: undefined,
-    turbo: undefined,
     typedEnv: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
@@ -1476,7 +1499,6 @@ export const defaultConfig = Object.freeze({
       static: 300,
     },
     allowDevelopmentBuild: undefined,
-    reactCompiler: undefined,
     reactDebugChannel: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
@@ -1488,7 +1510,8 @@ export const defaultConfig = Object.freeze({
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: false,
-    optimizeRouterScrolling: false,
+    isolatedDevBuild:
+      process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true',
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

@@ -5,8 +5,9 @@ use either::Either;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbo_tasks_fs::{FileSystem, FileSystemPath, to_sys_path};
 use turbopack_core::{
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
@@ -25,7 +26,7 @@ use crate::{
     embed_js::{VIRTUAL_PACKAGE_NAME, next_js_fs},
     mode::NextMode,
     next_client::context::ClientContextType,
-    next_config::NextConfig,
+    next_config::{NextConfig, OptionFileSystemPath},
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
     next_font::google::{
         GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
@@ -129,7 +130,6 @@ pub async fn get_next_client_import_map(
             let react_flavor = if *next_config.enable_ppr().await?
                 || *next_config.enable_taint().await?
                 || *next_config.enable_view_transition().await?
-                || *next_config.enable_router_bfcache().await?
             {
                 "-experimental"
             } else {
@@ -705,7 +705,7 @@ async fn insert_next_server_special_aliases(
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
         | ServerContextType::AppRoute { app_dir, .. } => {
-            let next_package = get_next_package(app_dir.clone()).owned().await?;
+            let next_package = get_next_package(app_dir.clone()).await?;
             import_map.insert_exact_alias(
                 rcstr!("styled-jsx"),
                 request_to_import_mapping(next_package.clone(), rcstr!("styled-jsx")),
@@ -833,9 +833,8 @@ async fn apply_vendored_react_aliases_server(
 ) -> Result<()> {
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let router_bfcache = *next_config.enable_router_bfcache().await?;
     let view_transition = *next_config.enable_view_transition().await?;
-    let react_channel = if ppr || taint || view_transition || router_bfcache {
+    let react_channel = if ppr || taint || view_transition {
         "-experimental"
     } else {
         ""
@@ -1136,7 +1135,7 @@ async fn insert_next_shared_aliases(
         .resolved_cell(),
     );
 
-    let next_package = get_next_package(project_path.clone()).owned().await?;
+    let next_package = get_next_package(project_path.clone()).await?;
     import_map.insert_singleton_alias(rcstr!("@swc/helpers"), next_package.clone());
     import_map.insert_singleton_alias(rcstr!("styled-jsx"), next_package.clone());
     import_map.insert_singleton_alias(rcstr!("next"), project_path.clone());
@@ -1235,20 +1234,94 @@ async fn insert_next_shared_aliases(
     Ok(())
 }
 
+pub async fn get_next_package(context_directory: FileSystemPath) -> Result<FileSystemPath> {
+    try_get_next_package(context_directory)
+        .owned()
+        .await?
+        .context("Next.js package not found")
+}
+
+#[turbo_tasks::value(shared)]
+struct MissingNextFolderIssue {
+    path: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for MissingNextFolderIssue {
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.path.clone().cell()
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Fatal
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Resolve.into()
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        let system_path = match to_sys_path(self.path.clone()).await? {
+            Some(path) => path.to_str().unwrap_or("{unknown}").to_string(),
+            _ => "{unknown}".to_string(),
+        };
+
+        Ok(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Text(
+                    "Error: Next.js inferred your workspace root, but it may not be correct.".into(),
+                ),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text("We couldn't find the Next.js package (".into()),
+                StyledString::Strong("next/package.json".into()),
+                StyledString::Text(") from the project directory: ".into()),
+                StyledString::Strong(system_path.into()),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text(" To fix this, set ".into()),
+                StyledString::Code("turbopack.root".into()),
+                StyledString::Text(
+                    " in your Next.js config, or ensure the Next.js package is resolvable from this directory.".into(),
+                ),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text("Note: For security and performance reasons, files outside of the project directory will not be compiled.".into()),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text("See ".into()),
+                StyledString::Strong("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory".into()),
+                StyledString::Text(" for more information.".into())
+            ]),
+        ])
+            .cell())
+    }
+}
+
 #[turbo_tasks::function]
-pub async fn get_next_package(context_directory: FileSystemPath) -> Result<Vc<FileSystemPath>> {
+pub async fn try_get_next_package(
+    context_directory: FileSystemPath,
+) -> Result<Vc<OptionFileSystemPath>> {
     let root = context_directory.root().owned().await?;
     let result = resolve(
-        context_directory,
+        context_directory.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
         node_cjs_resolve_options(root),
     );
-    let source = result
-        .first_source()
-        .await?
-        .context("Next.js package not found")?;
-    Ok(source.ident().path().await?.parent().cell())
+    if let Some(source) = &*result.first_source().await? {
+        Ok(Vc::cell(Some(source.ident().path().await?.parent())))
+    } else {
+        MissingNextFolderIssue {
+            path: context_directory,
+        }
+        .resolved_cell()
+        .emit();
+        Ok(Vc::cell(None))
+    }
 }
 
 pub async fn insert_alias_option<const N: usize>(

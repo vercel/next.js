@@ -7,7 +7,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, State, TaskInput, Vc, trace::TraceRawVcs};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
@@ -35,7 +35,7 @@ struct Iteration(State<usize>);
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn graph_bug() {
-    run(&REGISTRATION, move || async move {
+    run_once(&REGISTRATION, move || async move {
         let spec = vec![
             TaskSpec {
                 references: vec![TaskReferenceSpec {

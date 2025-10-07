@@ -16,7 +16,9 @@ env:
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
-  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+  # Vercel KV Store for test timings
+  KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+  KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
   NEXT_TEST_JOB: 1
   NEXT_DISABLE_SWC_WASM: 1
 
@@ -58,3 +60,7 @@ jobs:
 
       - uses: ./.github/actions/next-stats-action
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        env:
+          # This uses the webpack bundle analyzer and for consistent results we need to use webpack.
+          # Once there is an equivalent analyzer for turbopack, we can remove this.
+          IS_WEBPACK_TEST: 1

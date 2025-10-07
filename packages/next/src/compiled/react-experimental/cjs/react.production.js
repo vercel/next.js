@@ -349,7 +349,7 @@ function addTransitionType(type) {
       : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
   } else startTransition(addTransitionType.bind(null, type));
 }
-exports.Children = {
+var Children = {
   map: mapChildren,
   forEach: function (children, forEachFunc, forEachContext) {
     mapChildren(
@@ -382,6 +382,8 @@ exports.Children = {
     return children;
   }
 };
+exports.Activity = REACT_ACTIVITY_TYPE;
+exports.Children = Children;
 exports.Component = Component;
 exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.Profiler = REACT_PROFILER_TYPE;
@@ -471,9 +473,6 @@ exports.createElement = function (type, config, children) {
 exports.createRef = function () {
   return { current: null };
 };
-exports.experimental_useEffectEvent = function (callback) {
-  return ReactSharedInternals.H.useEffectEvent(callback);
-};
 exports.experimental_useOptimistic = function (passthrough, reducer) {
   return useOptimistic(passthrough, reducer);
 };
@@ -556,6 +555,9 @@ exports.useDeferredValue = function (value, initialValue) {
 exports.useEffect = function (create, deps) {
   return ReactSharedInternals.H.useEffect(create, deps);
 };
+exports.useEffectEvent = function (callback) {
+  return ReactSharedInternals.H.useEffectEvent(callback);
+};
 exports.useId = function () {
   return ReactSharedInternals.H.useId();
 };
@@ -595,4 +597,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.2.0-experimental-f3a80361-20250911";
+exports.version = "19.3.0-experimental-c7862584-20251006";
