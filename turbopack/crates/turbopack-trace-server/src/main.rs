@@ -18,6 +18,7 @@ mod span_graph_ref;
 mod span_ref;
 mod store;
 mod store_container;
+mod string_tuple_ref;
 mod timestamp;
 mod u64_empty_string;
 mod u64_string;
@@ -30,7 +31,9 @@ fn main() {
     let args: FxIndexSet<String> = std::env::args().skip(1).collect();
 
     let mut iter = args.iter();
-    let arg = iter.next().expect("missing argument: trace file path");
+    let arg = iter
+        .next()
+        .expect("missing positional argument for the trace file path");
     let port = iter.next().map_or(5747, |s| s.parse().unwrap());
 
     let store = Arc::new(StoreContainer::new());

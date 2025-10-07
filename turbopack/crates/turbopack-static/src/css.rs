@@ -1,4 +1,4 @@
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -11,11 +11,6 @@ use turbopack_core::{
 use turbopack_css::embed::CssEmbed;
 
 use crate::output_asset::StaticOutputAsset;
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("static in css".into())
-}
 
 #[turbo_tasks::value]
 #[derive(Clone)]
@@ -31,7 +26,7 @@ impl StaticUrlCssModule {
     }
 
     #[turbo_tasks::function]
-    async fn static_output_asset(
+    fn static_output_asset(
         &self,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<StaticOutputAsset> {
@@ -43,7 +38,7 @@ impl StaticUrlCssModule {
 impl Module for StaticUrlCssModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(modifier())
+        self.source.ident().with_modifier(rcstr!("static in css"))
     }
 }
 
@@ -64,12 +59,4 @@ impl CssEmbed for StaticUrlCssModule {
     ) -> Vc<Box<dyn OutputAsset>> {
         Vc::upcast(self.static_output_asset(chunking_context))
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

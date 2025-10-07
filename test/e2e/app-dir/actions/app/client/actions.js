@@ -5,13 +5,6 @@ import 'server-only'
 import { redirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
 
-try {
-  require('fs').readFileSync(
-    require('path').join(process.cwd(), 'data.txt'),
-    'utf8'
-  )
-} catch {}
-
 export async function getHeaders() {
   console.log('accept header:', (await headers()).get('accept'))
   ;(await cookies()).set('test-cookie', Date.now())
@@ -22,7 +15,7 @@ export async function inc(value) {
 }
 
 export async function slowInc(value) {
-  await new Promise((resolve) => setTimeout(resolve, 10000))
+  await new Promise((resolve) => setTimeout(resolve, 2000))
   return value + 1
 }
 

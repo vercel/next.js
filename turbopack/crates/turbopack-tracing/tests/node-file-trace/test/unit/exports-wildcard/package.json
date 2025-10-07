@@ -1,0 +1,12 @@
+{
+  "name": "y",
+  "type": "module",
+  "exports": {
+    "./*": {
+      "module": "./*.js",
+      "default": {
+        "node": "./*de.js"
+      }
+    }
+  }
+}

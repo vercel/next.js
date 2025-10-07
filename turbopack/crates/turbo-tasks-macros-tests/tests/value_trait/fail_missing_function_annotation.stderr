@@ -1,0 +1,5 @@
+error: trait items cannot be operations
+  --> tests/value_trait/fail_missing_function_annotation.rs:14:29
+   |
+14 |     #[turbo_tasks::function(operation)]
+   |                             ^^^^^^^^^

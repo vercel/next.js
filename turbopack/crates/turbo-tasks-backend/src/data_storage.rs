@@ -104,10 +104,10 @@ impl<V> Storage for OptionStorage<V> {
     where
         F: for<'a, 'b> FnMut(&'a Self::K, &'b mut Self::V) -> bool + 'l,
     {
-        if let Some(value) = self.value.as_mut() {
-            if f(&(), value) {
-                return self.value.take().map(|v| ((), v)).into_iter();
-            }
+        if let Some(value) = self.value.as_mut()
+            && f(&(), value)
+        {
+            return self.value.take().map(|v| ((), v)).into_iter();
         }
         None.into_iter()
     }

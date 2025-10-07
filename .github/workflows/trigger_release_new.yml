@@ -28,8 +28,8 @@ on:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 env:
-  NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 2.3.3
+  NAPI_CLI_VERSION: 2.18.4
+  TURBO_VERSION: 2.5.5
   NODE_LTS_VERSION: 20
 
 permissions:

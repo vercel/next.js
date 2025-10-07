@@ -127,6 +127,9 @@ export async function createSandbox(
         async remove(filename) {
           await next.deleteFile(filename)
         },
+        async renameFolder(...args: Parameters<(typeof next)['renameFolder']>) {
+          await next.renameFolder(...args)
+        },
         evaluate,
         async assertHasRedbox() {
           return assertHasRedbox(browser)

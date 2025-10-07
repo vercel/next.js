@@ -163,6 +163,33 @@ describe('use-cache-dev', () => {
         expect(next.cliOutput.slice(cliOutputLength)).toInclude('✓ Compiled')
       }, 10_000)
     })
+
+    it('should handle edits on nested pages', async () => {
+      // This is a regression test that ensures that setting the HMR refresh
+      // hash cookie is not done per path, leading to a stale cookie being used
+      // for nested pages.
+      const browser = await next.browser('/')
+
+      // Edit something in the root page.tsx file.
+      await next.patchFile('app/page.tsx', (content) =>
+        content.replace('foo', 'bar')
+      )
+
+      // Navigate to the nested page. This an explicit hard navigation. A soft
+      // navigation plus refresh would also reproduce the issue.
+      await browser.loadPage(new URL('/some/path', next.url).href)
+
+      expect(await browser.elementById('greeting').text()).toBe('Hi')
+
+      // Edit something in the nested page.tsx file.
+      await next.patchFile('app/some/path/page.tsx', (content) =>
+        content.replace('Hi', 'Hello')
+      )
+
+      await retry(async () => {
+        expect(await browser.elementById('greeting').text()).toBe('Hello')
+      })
+    })
   } else {
     it('should ignore an existing HMR refresh hash cookie with "next start"', async () => {
       const browser = await next.browser('/')

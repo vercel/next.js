@@ -79,6 +79,7 @@ export interface AppPageStaticInfo {
   runtime: AppSegmentConfig['runtime'] | undefined
   preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
   maxDuration: number | undefined
+  hadUnsupportedValue: boolean
 }
 
 export interface PagesPageStaticInfo {
@@ -98,6 +99,7 @@ export interface PagesPageStaticInfo {
   runtime: PagesSegmentConfig['runtime'] | undefined
   preferredRegion: PagesSegmentConfigConfig['regions'] | undefined
   maxDuration: number | undefined
+  hadUnsupportedValue: boolean
 }
 
 export type PageStaticInfo = AppPageStaticInfo | PagesPageStaticInfo
@@ -414,7 +416,7 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
     return
   }
 
-  if (apiRouteWarnings.has(apiRoute)) {
+  if (apiRoute && apiRouteWarnings.has(apiRoute)) {
     return
   }
 
@@ -423,10 +425,13 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
       ? `${apiRoute} provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
       : `You are using an experimental edge runtime, the API might change.`
   )
-  apiRouteWarnings.set(apiRoute, 1)
+
+  if (apiRoute) {
+    apiRouteWarnings.set(apiRoute, 1)
+  }
 }
 
-export let hadUnsupportedValue = false
+let hadUnsupportedValue = false
 const warnedUnsupportedValueMap = new LRUCache<boolean>(250, () => 1)
 
 function warnAboutUnsupportedValue(
@@ -487,6 +492,7 @@ export async function getAppPageStaticInfo({
       runtime: undefined,
       preferredRegion: undefined,
       maxDuration: undefined,
+      hadUnsupportedValue: false,
     }
   }
 
@@ -541,6 +547,17 @@ export async function getAppPageStaticInfo({
     )
   }
 
+  if (
+    'unstable_prefetch' in config &&
+    (!nextConfig.experimental?.cacheComponents ||
+      // don't allow in `clientSegmentCache: 'client-only'` mode
+      nextConfig.experimental?.clientSegmentCache !== true)
+  ) {
+    throw new Error(
+      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`experimental.cacheComponents\` and \`experimental.clientSegmentCache\`.`
+    )
+  }
+
   return {
     type: PAGE_TYPES.APP,
     rsc,
@@ -552,6 +569,7 @@ export async function getAppPageStaticInfo({
     runtime: config.runtime,
     preferredRegion: config.preferredRegion,
     maxDuration: config.maxDuration,
+    hadUnsupportedValue,
   }
 }
 
@@ -569,6 +587,7 @@ export async function getPagesPageStaticInfo({
       runtime: undefined,
       preferredRegion: undefined,
       maxDuration: undefined,
+      hadUnsupportedValue: false,
     }
   }
 
@@ -634,6 +653,7 @@ export async function getPagesPageStaticInfo({
     runtime: resolvedRuntime,
     preferredRegion: config.config?.regions,
     maxDuration: config.maxDuration ?? config.config?.maxDuration,
+    hadUnsupportedValue,
   }
 }
 

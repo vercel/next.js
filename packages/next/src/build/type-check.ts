@@ -23,7 +23,7 @@ function verifyTypeScriptSetup(
   distDir: string,
   intentDirs: string[],
   typeCheckPreflight: boolean,
-  tsconfigPath: string,
+  tsconfigPath: string | undefined,
   disableStaticImages: boolean,
   cacheDir: string | undefined,
   enableWorkerThreads: boolean | undefined,
@@ -128,7 +128,7 @@ export async function startTypeChecking({
 
   try {
     const [[verifyResult, typeCheckEnd]] = await Promise.all([
-      nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
+      nextBuildSpan.traceChild('run-typescript').traceAsyncFn(() =>
         verifyTypeScriptSetup(
           dir,
           config.distDir,
@@ -146,7 +146,7 @@ export async function startTypeChecking({
         })
       ),
       shouldLint &&
-        nextBuildSpan.traceChild('verify-and-lint').traceAsyncFn(async () => {
+        nextBuildSpan.traceChild('run-eslint').traceAsyncFn(async () => {
           await verifyAndLint(
             dir,
             eslintCacheDir,

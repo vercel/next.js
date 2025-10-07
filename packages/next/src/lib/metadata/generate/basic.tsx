@@ -162,7 +162,7 @@ export function PinterestMeta({
 }: {
   pinterest: ResolvedMetadata['pinterest']
 }) {
-  if (!pinterest || !pinterest.richPin) return null
+  if (!pinterest || pinterest.richPin === undefined) return null
 
   const { richPin } = pinterest
 
@@ -184,12 +184,12 @@ export function FormatDetectionMeta({
   if (!formatDetection) return null
   let content = ''
   for (const key of formatDetectionKeys) {
-    if (key in formatDetection) {
+    if (formatDetection[key] === false) {
       if (content) content += ', '
       content += `${key}=no`
     }
   }
-  return <meta name="format-detection" content={content} />
+  return content ? <meta name="format-detection" content={content} /> : null
 }
 
 export function AppleWebAppMeta({

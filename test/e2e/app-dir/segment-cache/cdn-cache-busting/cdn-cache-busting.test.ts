@@ -11,6 +11,8 @@ describe('segment cache (CDN cache busting)', () => {
     return
   }
 
+  // TODO(runtime-ppr): add tests for runtime prefetches
+
   // To debug these tests locally, run:
   //   node start.mjs
   //
@@ -74,24 +76,68 @@ describe('segment cache (CDN cache busting)', () => {
   )
 
   it(
-    'prevent cache poisoning attacks by responding with an error if a custom ' +
-      'header is sent during a prefetch without a corresponding cache-busting ' +
-      'search param',
+    'prevent cache poisoning attacks by responding with a redirect to correct ' +
+      'cache busting query param if a custom header is sent during a prefetch ' +
+      'without a corresponding cache-busting search param',
     async () => {
       const browser = await webdriver(port, '/')
-      const { status, text } = await browser.eval(async () => {
-        const res = await fetch('/target-page', {
-          headers: {
-            RSC: '1',
-            'Next-Router-Prefetch': '1',
-            'Next-Router-Segment-Prefetch': '/_tree',
-          },
-        })
-        return { status: res.status, text: await res.text() }
+      const { status, responseUrl, redirected } = await browser.eval(
+        async () => {
+          const res = await fetch('/target-page', {
+            headers: {
+              rsc: '1',
+              'next-router-prefetch': '1',
+              'next-router-segment-prefetch': '/_tree',
+            },
+          })
+          return {
+            status: res.status,
+            responseUrl: res.url,
+            redirected: res.redirected,
+          }
+        }
+      )
+      expect(status).toBe(200)
+      expect(responseUrl).toContain('_rsc=')
+      expect(redirected).toBe(true)
+    }
+  )
+
+  it(
+    'perform fully prefetched navigation when a third-party proxy ' +
+      'performs a redirect',
+    async () => {
+      let act
+      const browser = await webdriver(port, '/', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
       })
 
-      expect(status).toBe(400)
-      expect(text).toContain('Bad Request')
+      await act(
+        async () => {
+          const linkToggle = await browser.elementByCss(
+            '[data-link-accordion="/redirect-to-target-page"]'
+          )
+          await linkToggle.click()
+        },
+        {
+          includes: 'Target page',
+        }
+      )
+
+      // Navigate to the prefetched target page.
+      await act(async () => {
+        const link = await browser.elementByCss(
+          'a[href="/redirect-to-target-page"]'
+        )
+        await link.click()
+
+        // The page was prefetched, so we're able to render the target
+        // page immediately.
+        const div = await browser.elementById('target-page')
+        expect(await div.text()).toBe('Target page')
+      }, 'no-requests')
     }
   )
 })

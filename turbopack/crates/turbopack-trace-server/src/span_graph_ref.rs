@@ -9,9 +9,9 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use crate::{
     FxIndexMap,
     bottom_up::build_bottom_up_graph,
-    span::{SpanGraph, SpanGraphEvent, SpanIndex},
+    span::{SpanGraph, SpanGraphEvent},
     span_bottom_up_ref::SpanBottomUpRef,
-    span_ref::SpanRef,
+    span_ref::{GroupNameToDirectAndRecusiveSpans, SpanRef},
     store::{SpanId, Store},
     timestamp::Timestamp,
 };
@@ -40,7 +40,7 @@ impl<'a> SpanGraphRef<'a> {
         if self.count() == 1 {
             self.first_span().nice_name()
         } else {
-            ("", self.first_span().group_name())
+            self.first_span().group_name()
         }
     }
 
@@ -87,21 +87,20 @@ impl<'a> SpanGraphRef<'a> {
                 self.first_span().extra().graph.get().unwrap().clone()
             } else {
                 let self_group = self.first_span().group_name();
-                let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
-                    FxIndexMap::default();
+                let mut map: GroupNameToDirectAndRecusiveSpans = FxIndexMap::default();
                 let mut queue = VecDeque::with_capacity(8);
                 for span in self.recursive_spans() {
                     for span in span.children() {
                         let name = span.group_name();
                         if name != self_group {
-                            let (list, recusive_list) = map.entry(name).or_default();
+                            let (list, recursive_list) = map.entry(name).or_default();
                             list.push(span.index());
                             queue.push_back(span);
                             while let Some(child) = queue.pop_front() {
                                 for nested_child in child.children() {
                                     let nested_name = nested_child.group_name();
                                     if name == nested_name {
-                                        recusive_list.push(nested_child.index());
+                                        recursive_list.push(nested_child.index());
                                         queue.push_back(nested_child);
                                     }
                                 }
@@ -303,9 +302,7 @@ impl<'a> SpanGraphRef<'a> {
     }
 }
 
-pub fn event_map_to_list(
-    map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)>,
-) -> Vec<SpanGraphEvent> {
+pub fn event_map_to_list(map: GroupNameToDirectAndRecusiveSpans) -> Vec<SpanGraphEvent> {
     map.into_iter()
         .map(|(_, (root_spans, recursive_spans))| {
             let graph = SpanGraph {

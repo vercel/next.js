@@ -2,7 +2,6 @@ import { join } from 'path'
 import { setupTests } from './util'
 
 const appDir = join(__dirname, '../app')
-const imagesDir = join(appDir, '.next', 'cache', 'images')
 
 describe('with minimumCacheTTL of 5 sec', () => {
   setupTests({
@@ -21,6 +20,5 @@ describe('with minimumCacheTTL of 5 sec', () => {
       minimumCacheTTL: 5,
     },
     appDir,
-    imagesDir,
   })
 })

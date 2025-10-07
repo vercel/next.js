@@ -53,10 +53,11 @@ describe('tsconfig module: preserve', () => {
           "noEmit": true,
           "incremental": true,
           "isolatedModules": true,
-          "jsx": "preserve"
+          "jsx": "react-jsx"
         },
         "include": [
           "next-env.d.ts",
+          "**/*.mts",
           "**/*.ts",
           "**/*.tsx"
         ],

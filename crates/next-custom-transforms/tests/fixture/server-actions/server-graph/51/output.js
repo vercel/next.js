@@ -7,7 +7,8 @@ export const $$RSC_SERVER_ACTION_1 = async function $$RSC_SERVER_ACTION_0(a, b, 
       {c}
     </div>;
 };
-export default registerServerReference($$RSC_SERVER_ACTION_1, "7090b5db271335765a4b0eab01f044b381b5ebd5cd", null);
+registerServerReference($$RSC_SERVER_ACTION_1, "7090b5db271335765a4b0eab01f044b381b5ebd5cd", null);
+export default $$RSC_SERVER_ACTION_1;
 Object["defineProperty"]($$RSC_SERVER_ACTION_0, "name", {
     value: "default",
     writable: false
@@ -18,11 +19,13 @@ export const $$RSC_SERVER_ACTION_2 = async function foo(a, b) {
       {b}
     </div>;
 };
-export var foo = registerServerReference($$RSC_SERVER_ACTION_2, "601c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null);
+registerServerReference($$RSC_SERVER_ACTION_2, "601c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null);
+export var foo = $$RSC_SERVER_ACTION_2;
 export const $$RSC_SERVER_ACTION_3 = async function bar(a, b) {
     return <div>
       {a}
       {b}
     </div>;
 };
-export const bar = registerServerReference($$RSC_SERVER_ACTION_3, "609ed0cc47abc4e1c64320cf42b74ae60b58c40f00", null);
+registerServerReference($$RSC_SERVER_ACTION_3, "609ed0cc47abc4e1c64320cf42b74ae60b58c40f00", null);
+export const bar = $$RSC_SERVER_ACTION_3;

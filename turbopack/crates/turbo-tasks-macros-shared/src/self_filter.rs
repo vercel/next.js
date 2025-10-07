@@ -26,11 +26,11 @@ impl Visit<'_> for SelfFinder {
             return;
         }
 
-        if let syn::Expr::Path(path) = expr {
-            if path.path.is_ident("self") {
-                self.found = true;
-                return;
-            }
+        if let syn::Expr::Path(path) = expr
+            && path.path.is_ident("self")
+        {
+            self.found = true;
+            return;
         }
 
         visit_expr(self, expr);

@@ -85,6 +85,7 @@ describe('minimal-mode-response-cache', () => {
     appPort = `http://127.0.0.1:${port}`
   })
   afterAll(async () => {
+    delete process.env.NOW_BUILDER
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)
@@ -92,7 +93,7 @@ describe('minimal-mode-response-cache', () => {
 
   it('app router revalidate should work with previous response cache dynamic', async () => {
     const headers = {
-      vary: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+      vary: 'rsc, next-router-state-tree, next-router-prefetch',
       'x-now-route-matches': '1=compare&rsc=1',
       'x-matched-path': '/app-blog/compare.rsc',
       'x-vercel-id': '1',
@@ -122,7 +123,7 @@ describe('minimal-mode-response-cache', () => {
 
   it('app router revalidate should work with previous response cache', async () => {
     const headers = {
-      vary: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+      vary: 'rsc, next-router-state-tree, next-router-prefetch',
       'x-now-route-matches': '1=app-another&rsc=1',
       'x-matched-path': '/app-another.rsc',
       'x-vercel-id': '1',

@@ -1,4 +1,5 @@
 import { install } from "../helpers/install";
+import { runTypegen } from "../helpers/typegen";
 import { copy } from "../helpers/copy";
 
 import { async as glob } from "fast-glob";
@@ -9,7 +10,7 @@ import { cyan, bold } from "picocolors";
 import { Sema } from "async-sema";
 import pkg from "../package.json";
 
-import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
+import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
@@ -40,11 +41,12 @@ export const installTemplate = async ({
   mode,
   tailwind,
   eslint,
+  biome,
   srcDir,
   importAlias,
   skipInstall,
-  turbopack,
-  rspack,
+  bundler,
+  reactCompiler,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -56,6 +58,7 @@ export const installTemplate = async ({
   const templatePath = path.join(__dirname, template, mode);
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
+  if (!biome) copySource.push("!biome.json");
   if (!tailwind) copySource.push("!postcss.config.mjs");
 
   await copy(copySource, root, {
@@ -78,7 +81,7 @@ export const installTemplate = async ({
     },
   });
 
-  if (rspack) {
+  if (bundler === Bundler.Rspack) {
     const nextConfigFile = path.join(
       root,
       mode === "js" ? "next.config.mjs" : "next.config.ts",
@@ -91,6 +94,28 @@ export const installTemplate = async ({
           "export default withRspack(nextConfig);",
         ),
     );
+  }
+
+  if (reactCompiler) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    if (mode === "ts") {
+      configContent = configContent.replace(
+        "const nextConfig: NextConfig = {\n  /* config options here */\n};",
+        `const nextConfig: NextConfig = {\n  reactCompiler: true,\n};`,
+      );
+    } else {
+      configContent = configContent.replace(
+        "const nextConfig = {};",
+        `const nextConfig = {\n  reactCompiler: true,\n};`,
+      );
+    }
+
+    await fs.writeFile(nextConfigFile, configContent);
   }
 
   const tsconfigFile = path.join(
@@ -181,6 +206,7 @@ export const installTemplate = async ({
 
   /** Copy the version from package.json or override for tests. */
   const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version;
+  const bundlerFlags = `${bundler === Bundler.Turbopack ? " --turbopack" : ""}${bundler === Bundler.Webpack ? " --webpack" : ""}`;
 
   /** Create a package.json for the new project and write it to disk. */
   const packageJson: any = {
@@ -188,10 +214,11 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: `next dev${turbopack ? " --turbopack" : ""}`,
-      build: "next build",
+      dev: `next dev${bundlerFlags}`,
+      build: `next build${bundlerFlags}`,
       start: "next start",
-      lint: "next lint",
+      ...(eslint && { lint: "eslint" }),
+      ...(biome && { lint: "biome check", format: "biome format --write" }),
     },
     /**
      * Default dependencies.
@@ -204,7 +231,7 @@ export const installTemplate = async ({
     devDependencies: {},
   };
 
-  if (rspack) {
+  if (bundler === Bundler.Rspack) {
     const NEXT_PRIVATE_TEST_VERSION = process.env.NEXT_PRIVATE_TEST_VERSION;
     if (
       NEXT_PRIVATE_TEST_VERSION &&
@@ -217,6 +244,11 @@ export const installTemplate = async ({
     } else {
       packageJson.dependencies["next-rspack"] = version;
     }
+  }
+
+  if (reactCompiler) {
+    // TODO: Use "^19" when React Compiler is stable
+    packageJson.devDependencies["babel-plugin-react-compiler"] = "19.1.0-rc.3";
   }
 
   /**
@@ -252,6 +284,14 @@ export const installTemplate = async ({
     };
   }
 
+  /* Biome dependencies. */
+  if (biome) {
+    packageJson.devDependencies = {
+      ...packageJson.devDependencies,
+      "@biomejs/biome": "2.2.0",
+    };
+  }
+
   if (isApi) {
     delete packageJson.dependencies.react;
     delete packageJson.dependencies["react-dom"];
@@ -263,7 +303,9 @@ export const installTemplate = async ({
     // if a type error was thrown at `distDir/types/app/page.ts`.
     delete packageJson.devDependencies["@types/react-dom"];
 
+    // Remove linting scripts for API-only templates
     delete packageJson.scripts.lint;
+    delete packageJson.scripts.format;
   }
 
   const devDeps = Object.keys(packageJson.devDependencies).length;
@@ -289,6 +331,14 @@ export const installTemplate = async ({
   console.log();
 
   await install(packageManager, isOnline);
+  try {
+    console.log();
+    await runTypegen(packageManager);
+    console.log();
+  } catch (err) {
+    console.error("Error running typegen:", err);
+    // Best effort: do not fail app creation if typegen fails
+  }
 };
 
 export * from "./types";

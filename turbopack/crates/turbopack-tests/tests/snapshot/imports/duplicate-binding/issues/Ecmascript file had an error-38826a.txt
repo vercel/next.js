@@ -1,0 +1,11 @@
+error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js:3:16  Ecmascript file had an error
+       1 | import { Table } from './table'
+       2 | 
+         +                 v---v
+       3 + export function Table() {
+         +                 ^---^
+       4 |   console.log(Table)
+       5 | }
+       6 | 
+  
+  the name `Table` is defined multiple times

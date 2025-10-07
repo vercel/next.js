@@ -37,14 +37,11 @@
     "unoptimized": false
   },
   "devIndicators": {
-    "buildActivityPosition": "bottom-right"
+    "position": "bottom-right"
   },
   "onDemandEntries": {
     "maxInactiveAge": 60000,
     "pagesBufferLength": 5
-  },
-  "amp": {
-    "canonicalBase": ""
   },
   "basePath": "",
   "sassOptions": {},
@@ -84,7 +81,6 @@
     "scrollRestoration": false,
     "externalDir": false,
     "disableOptimizedLoading": false,
-    "gzipSize": true,
     "craCompat": false,
     "esmExternals": true,
     "fullySpecified": false,

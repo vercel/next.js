@@ -16,10 +16,10 @@ export function getServerActionRequestMetadata(
   let contentType: string | null
 
   if (req.headers instanceof Headers) {
-    actionId = req.headers.get(ACTION_HEADER.toLowerCase()) ?? null
+    actionId = req.headers.get(ACTION_HEADER) ?? null
     contentType = req.headers.get('content-type')
   } else {
-    actionId = (req.headers[ACTION_HEADER.toLowerCase()] as string) ?? null
+    actionId = (req.headers[ACTION_HEADER] as string) ?? null
     contentType = req.headers['content-type'] ?? null
   }
 

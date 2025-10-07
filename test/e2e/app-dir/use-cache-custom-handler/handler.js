@@ -1,7 +1,7 @@
 // @ts-check
 
 const defaultCacheHandler =
-  require('next/dist/server/lib/cache-handlers/default').default
+  require('next/dist/server/lib/cache-handlers/default.external').default
 
 /**
  * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandlerV2}
@@ -24,7 +24,9 @@ const cacheHandler = {
 
   async getExpiration(...tags) {
     console.log('ModernCustomCacheHandler::getExpiration', JSON.stringify(tags))
-    return defaultCacheHandler.getExpiration(...tags)
+    // Expecting soft tags in `get` to be used by the cache handler for checking
+    // the expiration of a cache entry, instead of letting Next.js handle it.
+    return Infinity
   },
 
   async expireTags(...tags) {

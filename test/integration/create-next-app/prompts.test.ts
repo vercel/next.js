@@ -29,6 +29,7 @@ describe('create-next-app prompts', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         {
           cwd,
@@ -68,6 +69,7 @@ describe('create-next-app prompts', () => {
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         {
           cwd,
@@ -104,6 +106,7 @@ describe('create-next-app prompts', () => {
           '--no-turbopack',
           '--no-src-dir',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         {
           cwd,
@@ -140,6 +143,7 @@ describe('create-next-app prompts', () => {
           '--no-turbopack',
           '--no-tailwind',
           '--no-src-dir',
+          '--no-react-compiler',
         ],
         {
           cwd,

@@ -1,3 +1,5 @@
+// Start CPU profile if it wasn't already started.
+import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
 
 if (performance.getEntriesByName('next-start').length === 0) {
@@ -16,6 +18,7 @@ import path from 'path'
 import http from 'http'
 import https from 'https'
 import os from 'os'
+import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
@@ -37,6 +40,81 @@ import type { ConfiguredExperimentalFeature } from '../config'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
+
+/**
+ * Get the process ID (PID) of the process using the specified port
+ */
+async function getProcessIdUsingPort(port: number): Promise<string | null> {
+  const timeoutMs = 250
+  const processLookupController = new AbortController()
+
+  const pidPromise = new Promise<string | null>((resolve) => {
+    const handleError = (error: Error) => {
+      debug('Failed to get process ID for port', port, error)
+      resolve(null)
+    }
+
+    try {
+      // Use lsof on Unix-like systems (macOS, Linux)
+      if (process.platform !== 'win32') {
+        exec(
+          `lsof -ti:${port} -sTCP:LISTEN`,
+          { signal: processLookupController.signal },
+          (error, stdout) => {
+            if (error) {
+              handleError(error)
+              return
+            }
+            // `-sTCP` will ensure there's only one port, clean up output
+            const pid = stdout.trim()
+            resolve(pid || null)
+          }
+        )
+      } else {
+        // Use netstat on Windows
+        exec(
+          `netstat -ano | findstr /C:":${port} " | findstr LISTENING`,
+          { signal: processLookupController.signal },
+          (error, stdout) => {
+            if (error) {
+              handleError(error)
+              return
+            }
+            // Clean up output and extract PID
+            const cleanOutput = stdout.replace(/\s+/g, ' ').trim()
+            if (cleanOutput) {
+              const lines = cleanOutput.split('\n')
+              const firstLine = lines[0].trim()
+              if (firstLine) {
+                const parts = firstLine.split(' ')
+                const pid = parts[parts.length - 1]
+                resolve(pid || null)
+              } else {
+                resolve(null)
+              }
+            } else {
+              resolve(null)
+            }
+          }
+        )
+      }
+    } catch (cause) {
+      handleError(
+        new Error('Unexpected error during process lookup', { cause })
+      )
+    }
+  })
+
+  const timeoutId = setTimeout(() => {
+    processLookupController.abort(
+      `PID detection timed out after ${timeoutMs}ms for port ${port}.`
+    )
+  }, timeoutMs)
+
+  pidPromise.finally(() => clearTimeout(timeoutId))
+
+  return pidPromise
+}
 
 export interface StartServerOptions {
   dir: string
@@ -244,9 +322,16 @@ export async function startServer(
       port = typeof addr === 'object' ? addr?.port || port : port
 
       if (portRetryCount) {
-        Log.warn(
-          `Port ${originalPort} is in use, using available port ${port} instead.`
-        )
+        const pid = await getProcessIdUsingPort(originalPort)
+        if (pid) {
+          Log.warn(
+            `Port ${originalPort} is in use by process ${pid}, using available port ${port} instead.`
+          )
+        } else {
+          Log.warn(
+            `Port ${originalPort} is in use by an unknown process, using available port ${port} instead.`
+          )
+        }
       }
 
       const networkHostname =
@@ -274,25 +359,30 @@ export async function startServer(
 
       process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
+      // Set experimental HTTPS flag for metadata resolution
+      if (selfSignedCertificate) {
+        process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
+      }
+
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
       let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
-      if (isDev) {
-        const startServerInfo = await getStartServerInfo(dir, isDev)
-        envInfo = startServerInfo.envInfo
-        experimentalFeatures = startServerInfo.experimentalFeatures
-      }
-      logStartInfo({
-        networkUrl,
-        appUrl,
-        envInfo,
-        experimentalFeatures,
-        maxExperimentalFeatures: 3,
-      })
-
-      Log.event(`Starting...`)
-
       try {
+        if (isDev) {
+          const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
+          envInfo = startServerInfo.envInfo
+          experimentalFeatures = startServerInfo.experimentalFeatures
+        }
+        logStartInfo({
+          networkUrl,
+          appUrl,
+          envInfo,
+          experimentalFeatures,
+          logBundler: isDev,
+        })
+
+        Log.event(`Starting...`)
+
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
         const cleanup = () => {
@@ -375,7 +465,7 @@ export async function startServer(
         if (process.env.TURBOPACK) {
           await validateTurboNextConfig({
             dir: serverOptions.dir,
-            isDev: true,
+            isDev: serverOptions.isDev,
           })
         }
       } catch (err) {

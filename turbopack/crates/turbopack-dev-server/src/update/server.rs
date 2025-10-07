@@ -52,11 +52,10 @@ where
 
     /// Run the update server loop.
     pub fn run(self, tt: &dyn TurboTasksApi, ws: HyperWebsocket) {
-        tt.run_once_process(Box::pin(async move {
+        tt.start_once_process(Box::pin(async move {
             if let Err(err) = self.run_internal(ws).await {
                 println!("[UpdateServer]: error {err:#}");
             }
-            Ok(())
         }));
     }
 
@@ -185,7 +184,7 @@ where
             UpdateStreamItem::Found { update, issues } => {
                 let issues = issues
                     .iter()
-                    .map(|p| (&**p).into())
+                    .map(|p| Issue::from(&**p))
                     .collect::<Vec<Issue<'_>>>();
                 match &**update {
                     Update::Partial(partial) => {

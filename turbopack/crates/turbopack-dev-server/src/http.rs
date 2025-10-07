@@ -89,7 +89,7 @@ pub async fn process_request_with_content_source(
     handle_issues(
         result_op,
         issue_reporter,
-        IssueSeverity::Fatal.cell(),
+        IssueSeverity::Fatal,
         Some(&original_path),
         Some("get_from_source_operation"),
     )

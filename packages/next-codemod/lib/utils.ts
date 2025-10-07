@@ -43,11 +43,6 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     version: '6.0.0',
   },
   {
-    title: 'Transforms the withAmp HOC into Next.js 9 page configuration',
-    value: 'withamp-to-config',
-    version: '8.0.0',
-  },
-  {
     title:
       'Transforms anonymous components into named components to make sure they work with Fast Refresh',
     value: 'name-default-component',
@@ -115,5 +110,15 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
       'Transform App Router Route Segment Config `runtime` value from `experimental-edge` to `edge`',
     value: 'app-dir-runtime-config-experimental-edge',
     version: '15.0.0-canary.179',
+  },
+  {
+    title: 'Updates `next.config.js` to use the new `turbopack` configuration',
+    value: 'next-experimental-turbo-to-turbopack',
+    version: '10.0.0',
+  },
+  {
+    title: 'Migrate from `next lint` to the ESLint CLI',
+    value: 'next-lint-to-eslint-cli',
+    version: '16.0.0',
   },
 ]

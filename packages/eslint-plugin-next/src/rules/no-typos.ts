@@ -41,7 +41,7 @@ function minDistance(a, b) {
 }
 
 /* eslint-disable eslint-plugin/require-meta-docs-url */
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description: 'Prevent common typos in Next.js data fetching functions.',
@@ -98,9 +98,11 @@ export = defineRule({
             })
             break
           }
-          default: {
+          case 'ClassDeclaration':
+            // We don't need to check typos in class declarations.
             break
-          }
+          default:
+            decl satisfies never
         }
         return
       },

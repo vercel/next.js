@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, rope::RopeBuilder};
 use turbopack_core::{
@@ -13,10 +13,6 @@ use turbopack_ecmascript::utils::StringifyJs;
 use turbopack_image::process::{BlurPlaceholderOptions, get_meta_data};
 
 use super::module::BlurPlaceholderMode;
-
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("structured image object".into())
-}
 
 #[turbo_tasks::function]
 fn blur_options() -> Vc<BlurPlaceholderOptions> {
@@ -39,10 +35,17 @@ pub struct StructuredImageFileSource {
 impl Source for StructuredImageFileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
+        let modifier = match self.blur_placeholder_mode {
+            BlurPlaceholderMode::DataUrl => rcstr!("structured image object with data url"),
+            BlurPlaceholderMode::NextImageUrl => {
+                rcstr!("structured image object with next image url")
+            }
+            BlurPlaceholderMode::None => rcstr!("structured image object"),
+        };
         self.image
             .ident()
-            .with_modifier(modifier())
-            .rename_as("*.mjs".into())
+            .with_modifier(modifier)
+            .rename_as(rcstr!("*.mjs"))
     }
 }
 
@@ -59,7 +62,7 @@ impl Asset for StructuredImageFileSource {
         let blur_options = blur_options();
         match self.blur_placeholder_mode {
             BlurPlaceholderMode::NextImageUrl => {
-                let info = get_meta_data(self.image.ident(), *content, None).await?;
+                let info = get_meta_data(*self.image, *content, None).await?;
                 let width = info.width;
                 let height = info.height;
                 let blur_options = blur_options.await?;
@@ -87,23 +90,29 @@ impl Asset for StructuredImageFileSource {
                 )?;
             }
             BlurPlaceholderMode::DataUrl => {
-                let info = get_meta_data(self.image.ident(), *content, Some(blur_options)).await?;
-                writeln!(
+                let info = get_meta_data(*self.image, *content, Some(blur_options)).await?;
+                write!(
                     result,
-                    "export default {{ src, width: {width}, height: {height}, blurDataURL: \
-                     {blur_data_url}, blurWidth: {blur_width}, blurHeight: {blur_height} }}",
+                    "export default {{ src, width: {width}, height: {height}, blurWidth: \
+                     {blur_width}, blurHeight: {blur_height}",
                     width = StringifyJs(&info.width),
                     height = StringifyJs(&info.height),
-                    blur_data_url =
-                        StringifyJs(&info.blur_placeholder.as_ref().map(|p| p.data_url.as_str())),
                     blur_width =
                         StringifyJs(&info.blur_placeholder.as_ref().map_or(0, |p| p.width)),
                     blur_height =
                         StringifyJs(&info.blur_placeholder.as_ref().map_or(0, |p| p.height),),
                 )?;
+                if let Some(blur_placeholder) = &info.blur_placeholder {
+                    write!(
+                        result,
+                        ", blurDataURL: {blur_data_url}",
+                        blur_data_url = StringifyJs(blur_placeholder.data_url.as_str()),
+                    )?;
+                }
+                writeln!(result, "}};")?;
             }
             BlurPlaceholderMode::None => {
-                let info = get_meta_data(self.image.ident(), *content, None).await?;
+                let info = get_meta_data(*self.image, *content, None).await?;
                 writeln!(
                     result,
                     "export default {{ src, width: {width}, height: {height} }}",

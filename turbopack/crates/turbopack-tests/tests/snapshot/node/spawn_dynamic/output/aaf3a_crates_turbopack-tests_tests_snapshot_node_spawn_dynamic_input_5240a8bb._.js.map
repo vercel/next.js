@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/node/spawn_dynamic/input/index.js"],"sourcesContent":["import { spawn } from 'child_process'\n\nconst program = ['ls']\nconst proc = spawn(program[0], ['-la'])\n"],"names":[],"mappings":";AAAA;;AAEA,MAAM,UAAU;IAAC;CAAK;AACtB,MAAM,OAAO,IAAA,6OAAK,EAAC,OAAO,CAAC,EAAE,EAAE;IAAC;CAAM"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/node/spawn_dynamic/input/node_modules/child_process/index.js"],"sourcesContent":["export function spawn(cmd, args) {\n  //\n}\n"],"names":[],"mappings":";;;;AAAO,SAAS,MAAM,GAAG,EAAE,IAAI;AAC7B,EAAE;AACJ","ignoreList":[0]}}]
+}

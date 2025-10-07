@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
@@ -16,17 +16,14 @@ use crate::typescript::TsConfigModuleAsset;
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct TsConfigReference {
-    pub tsconfig: ResolvedVc<FileSystemPath>,
+    pub tsconfig: FileSystemPath,
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
 }
 
 #[turbo_tasks::value_impl]
 impl TsConfigReference {
     #[turbo_tasks::function]
-    pub fn new(
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        tsconfig: ResolvedVc<FileSystemPath>,
-    ) -> Vc<Self> {
+    pub fn new(origin: ResolvedVc<Box<dyn ResolveOrigin>>, tsconfig: FileSystemPath) -> Vc<Self> {
         Self::cell(TsConfigReference { tsconfig, origin })
     }
 }
@@ -36,9 +33,12 @@ impl ModuleReference for TsConfigReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            TsConfigModuleAsset::new(*self.origin, Vc::upcast(FileSource::new(*self.tsconfig)))
-                .to_resolved()
-                .await?,
+            TsConfigModuleAsset::new(
+                *self.origin,
+                Vc::upcast(FileSource::new(self.tsconfig.clone())),
+            )
+            .to_resolved()
+            .await?,
         )))
     }
 }
@@ -48,7 +48,7 @@ impl ValueToString for TsConfigReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(
-            format!("tsconfig {}", self.tsconfig.to_string().await?,).into(),
+            format!("tsconfig {}", self.tsconfig.value_to_string().await?).into(),
         ))
     }
 }
@@ -73,21 +73,19 @@ impl ModuleReference for TsReferencePathAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(
-            if let Some(path) = &*self
+            if let Some(path) = self
                 .origin
                 .origin_path()
-                .parent()
-                .try_join(self.path.clone())
                 .await?
+                .parent()
+                .try_join(&self.path)?
             {
                 let module = self
                     .origin
                     .asset_context()
                     .process(
-                        Vc::upcast(FileSource::new(**path)),
-                        Value::new(ReferenceType::TypeScript(
-                            TypeScriptReferenceSubType::Undefined,
-                        )),
+                        Vc::upcast(FileSource::new(path.clone())),
+                        ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
                     )
                     .module()
                     .to_resolved()
@@ -103,7 +101,7 @@ impl ModuleReference for TsReferencePathAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TsReferencePathAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Vc<RcStr> {
+    fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(format!("typescript reference path comment {}", self.path,).into())
     }
 }
@@ -130,10 +128,10 @@ impl ModuleReference for TsReferenceTypeAssetReference {
         type_resolve(
             *self.origin,
             Request::module(
-                self.module.clone(),
-                Value::new(RcStr::default().into()),
-                Vc::<RcStr>::default(),
-                Vc::<RcStr>::default(),
+                self.module.clone().into(),
+                RcStr::default().into(),
+                RcStr::default(),
+                RcStr::default(),
             ),
         )
     }
@@ -142,7 +140,7 @@ impl ModuleReference for TsReferenceTypeAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TsReferenceTypeAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Vc<RcStr> {
+    fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(format!("typescript reference type comment {}", self.module,).into())
     }
 }

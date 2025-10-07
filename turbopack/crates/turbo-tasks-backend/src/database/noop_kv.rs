@@ -15,12 +15,6 @@ impl KeyValueDatabase for NoopKvDb {
     where
         Self: 'l;
 
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        tx
-    }
-
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
         Ok(())
     }

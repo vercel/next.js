@@ -687,7 +687,7 @@ graph TD
     N21["Items: [ItemId(15, VarDeclarator(0))]"];
     N22["Items: [ItemId(16, VarDeclarator(0))]"];
     N23["Items: [ItemId(17, VarDeclarator(0)), ItemId(Export((&quot;routeModule&quot;, #2), &quot;routeModule&quot;))]"];
-    N24["Items: [ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #3), &quot;default&quot;))]"];
+    N24["Items: [ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #0), &quot;default&quot;))]"];
     N25["Items: [ItemId(Export((&quot;config&quot;, #2), &quot;config&quot;))]"];
     N26["Items: [ItemId(Export((&quot;getServerSideProps&quot;, #2), &quot;getServerSideProps&quot;))]"];
     N27["Items: [ItemId(Export((&quot;getStaticPaths&quot;, #2), &quot;getStaticPaths&quot;))]"];

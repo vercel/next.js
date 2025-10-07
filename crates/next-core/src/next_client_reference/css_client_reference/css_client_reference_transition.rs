@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::{ModuleAssetContext, css::chunk::CssChunkPlaceable, transition::Transition};
 use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, source::Source};
 
@@ -25,7 +25,7 @@ impl Transition for NextCssClientReferenceTransition {
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         rsc_module_asset_context: Vc<ModuleAssetContext>,
-        reference_type: Value<ReferenceType>,
+        reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
         let module =
             self.await?

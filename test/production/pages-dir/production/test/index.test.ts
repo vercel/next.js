@@ -25,7 +25,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 const glob = promisify(globOriginal)
 
-if (process.env.TEST_WASM) {
+if (process.env.NEXT_TEST_WASM) {
   jest.setTimeout(120 * 1000)
 }
 
@@ -111,7 +111,7 @@ describe('Production Usage', () => {
   })
 
   it('should contain generated page count in output', async () => {
-    const pageCount = 37
+    const pageCount = 34
     expect(next.cliOutput).toContain(`Generating static pages (0/${pageCount})`)
     expect(next.cliOutput).toContain(
       `Generating static pages (${pageCount}/${pageCount})`
@@ -342,7 +342,7 @@ describe('Production Usage', () => {
 
   // This test checks webpack chunks in particular
   ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-    'should not contain amp, rsc APIs in main chunk',
+    'should not contain rsc APIs in main chunk',
     async () => {
       const globResult = await glob('main-*.js', {
         cwd: join(next.testDir, '.next/static/chunks'),
@@ -357,8 +357,6 @@ describe('Production Usage', () => {
         'utf8'
       )
 
-      // eslint-disable-next-line jest/no-standalone-expect
-      expect(content).not.toContain('useAmp')
       // eslint-disable-next-line jest/no-standalone-expect
       expect(content).not.toContain('useRefreshRoot')
     }
@@ -783,7 +781,8 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      // Just wait for google.com to be revealed. We can't control which input we get.
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -800,7 +799,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -820,7 +819,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -1117,12 +1116,6 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should handle AMP correctly in IE', async () => {
-    const browser = await webdriver(next.appPort, '/some-amp')
-    const text = await browser.elementByCss('p').text()
-    expect(text).toBe('Not AMP')
-  })
-
   it('should warn when prefetch is true', async () => {
     if (global.browserName !== 'chrome') return
     let browser
@@ -1156,9 +1149,15 @@ describe('Production Usage', () => {
       const version = await browser.eval('window.next.version')
       expect(version).toBeTruthy()
       expect(version).toBe(
-        (await next.readJSON('node_modules/next/package.json')).version +
-          (process.env.IS_TURBOPACK_TEST ? '-turbo' : '')
+        (await next.readJSON('node_modules/next/package.json')).version
       )
+
+      const turbopack = await browser.eval('window.next.turbopack')
+      if (process.env.IS_TURBOPACK_TEST) {
+        expect(turbopack).toBeTrue()
+      } else {
+        expect(turbopack).toBeFalsy()
+      }
     } finally {
       if (browser) {
         await browser.close()

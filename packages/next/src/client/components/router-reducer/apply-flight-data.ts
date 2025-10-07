@@ -1,4 +1,4 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import type { PrefetchCacheEntry } from './router-reducer-types'

@@ -109,7 +109,6 @@ describe('app dir - global-error', () => {
            |         ^",
          "stack": [
            "Module.generateMetadata app/metadata-error-without-boundary/page.js (4:9)",
-           "JSON.parse <anonymous> (0:0)",
          ],
        }
       `)

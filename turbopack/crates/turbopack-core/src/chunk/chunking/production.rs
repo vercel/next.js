@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault, mem::take};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 use tracing::{Instrument, field::Empty};
@@ -32,14 +32,15 @@ pub async fn make_production_chunks(
     let span = span_outer.clone();
     async move {
         let chunk_group_info = module_graph.chunk_group_info().await?;
+        let merged_modules = module_graph.merged_modules().await?;
 
         #[derive(Default)]
-        struct GrouppedChunkItems<'l> {
+        struct GroupedChunkItems<'l> {
             chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
             batch_group: Option<ResolvedVc<ChunkItemBatchGroup>>,
         }
 
-        let mut grouped_chunk_items = FxIndexMap::<_, GrouppedChunkItems<'_>>::default();
+        let mut grouped_chunk_items = FxIndexMap::<_, GroupedChunkItems<'_>>::default();
 
         // Helper Vec to keep ReadRefs on batches and allow references into them
         let batch_read_refs = chunk_items
@@ -69,9 +70,21 @@ pub async fn make_production_chunks(
                             ..
                         },
                     ..
-                } => chunk_group_info
-                    .module_chunk_groups
-                    .get(&ResolvedVc::upcast(module)),
+                } => Some(
+                    chunk_group_info
+                        .module_chunk_groups
+                        .get(&ResolvedVc::upcast(module))
+                        .or_else(|| {
+                            // Merged modules don't have a chunk group in chunk_group_info, so
+                            // lookup using the original module.
+                            merged_modules
+                                .get_original_module(ResolvedVc::upcast(module))
+                                .and_then(|module| {
+                                    chunk_group_info.module_chunk_groups.get(&module)
+                                })
+                        })
+                        .context("every module should have a chunk group")?,
+                ),
                 &ChunkItemOrBatchWithInfo::ChunkItem {
                     chunk_item: ChunkItemWithAsyncModuleInfo { module: None, .. },
                     ..
@@ -118,7 +131,7 @@ pub async fn make_production_chunks(
                 .map(
                     |(
                         key,
-                        GrouppedChunkItems {
+                        GroupedChunkItems {
                             chunk_items,
                             batch_group,
                         },
@@ -197,8 +210,8 @@ pub async fn make_production_chunks(
                     while let Some(candidate) = chunks_to_merge.pop() {
                         // Exist early when no better overlaps are possible
                         if let Some((_, _, best_overlap, _)) = best_combination.as_ref() {
-                            let candiate_best_possible_value = candidate.chunk_groups_len();
-                            if *best_overlap >= candiate_best_possible_value {
+                            let candidate_best_possible_value = candidate.chunk_groups_len();
+                            if *best_overlap >= candidate_best_possible_value {
                                 chunks_to_merge.push(candidate);
                                 break;
                             }
@@ -457,7 +470,7 @@ pub async fn make_production_chunks(
                         u64::MAX
                     };
                     for unused in selection {
-                        // Candiates from selection that are already big enough move into the
+                        // Candidates from selection that are already big enough move into the
                         // heap again when no more merges are expected.
                         // Since we can only merge into big enough candates when overlap ==
                         // chunk_groups_len we can use that as condition.
@@ -479,9 +492,9 @@ pub async fn make_production_chunks(
                     }
                 }
 
-                let mut remainer_size = 0;
-                let mut remainer_chunk_items = Vec::new();
-                let mut remainer_batch_groups = FxIndexSet::default();
+                let mut remained_size = 0;
+                let mut remained_chunk_items = Vec::new();
+                let mut remained_batch_groups = FxIndexSet::default();
                 for MergeCandidate {
                     size,
                     chunk_items,
@@ -497,19 +510,19 @@ pub async fn make_production_chunks(
                             chunk_groups,
                         });
                     } else {
-                        remainer_size += size;
-                        remainer_chunk_items.extend(chunk_items);
-                        remainer_batch_groups.extend(batch_groups);
+                        remained_size += size;
+                        remained_chunk_items.extend(chunk_items);
+                        remained_batch_groups.extend(batch_groups);
                     }
                 }
 
-                // Left-over chunks are merged together forming the remainer chunk, which includes
+                // Left-over chunks are merged together forming the remained chunk, which includes
                 // all modules that are not sharable
-                if !remainer_chunk_items.is_empty() {
+                if !remained_chunk_items.is_empty() {
                     heap.push(ChunkCandidate {
-                        size: remainer_size,
-                        chunk_items: remainer_chunk_items,
-                        batch_groups: remainer_batch_groups.into_iter().collect(),
+                        size: remained_size,
+                        chunk_items: remained_chunk_items,
+                        batch_groups: remained_batch_groups.into_iter().collect(),
                         chunk_groups: None,
                     });
                 }

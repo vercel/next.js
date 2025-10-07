@@ -5,31 +5,30 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
 } from '../../shared/lib/constants'
-import loadConfig, {
-  getConfiguredExperimentalFeatures,
-  type ConfiguredExperimentalFeature,
-} from '../config'
+import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 
 export function logStartInfo({
   networkUrl,
   appUrl,
   envInfo,
   experimentalFeatures,
-  maxExperimentalFeatures = Infinity,
+  logBundler,
 }: {
   networkUrl: string | null
   appUrl: string | null
   envInfo?: string[]
   experimentalFeatures?: ConfiguredExperimentalFeature[]
-  maxExperimentalFeatures?: number
+  logBundler: boolean
 }) {
-  let bundlerSuffix
-  if (process.env.TURBOPACK) {
-    bundlerSuffix = ' (Turbopack)'
-  } else if (process.env.NEXT_RSPACK) {
-    bundlerSuffix = ' (Rspack)'
-  } else {
-    bundlerSuffix = ''
+  let bundlerSuffix = ''
+  if (logBundler) {
+    if (process.env.TURBOPACK) {
+      bundlerSuffix = ' (Turbopack)'
+    } else if (process.env.NEXT_RSPACK) {
+      bundlerSuffix = ' (Rspack)'
+    } else {
+      bundlerSuffix = ' (webpack)'
+    }
   }
 
   Log.bootstrap(
@@ -47,22 +46,22 @@ export function logStartInfo({
 
   if (experimentalFeatures?.length) {
     Log.bootstrap(`- Experiments (use with caution):`)
-    // only show a maximum number of flags
-    for (const exp of experimentalFeatures.slice(0, maxExperimentalFeatures)) {
+    for (const exp of experimentalFeatures) {
       const symbol =
-        exp.type === 'boolean'
+        typeof exp.value === 'boolean'
           ? exp.value === true
             ? bold('✓')
             : bold('⨯')
           : '·'
 
-      const suffix = exp.type === 'number' ? `: ${exp.value}` : ''
+      const suffix =
+        typeof exp.value === 'number' || typeof exp.value === 'string'
+          ? `: ${JSON.stringify(exp.value)}`
+          : ''
 
-      Log.bootstrap(`  ${symbol} ${exp.name}${suffix}`)
-    }
-    /* indicate if there are more than the maximum shown no. flags */
-    if (experimentalFeatures.length > maxExperimentalFeatures) {
-      Log.bootstrap(`  · ...`)
+      const reason = exp.reason ? ` (${exp.reason})` : ''
+
+      Log.bootstrap(`  ${symbol} ${exp.key}${suffix}${reason}`)
     }
   }
 
@@ -70,10 +69,15 @@ export function logStartInfo({
   Log.info('')
 }
 
-export async function getStartServerInfo(
-  dir: string,
+export async function getStartServerInfo({
+  dir,
+  dev,
+  debugPrerender,
+}: {
+  dir: string
   dev: boolean
-): Promise<{
+  debugPrerender?: boolean
+}): Promise<{
   envInfo?: string[]
   experimentalFeatures?: ConfiguredExperimentalFeature[]
 }> {
@@ -82,14 +86,13 @@ export async function getStartServerInfo(
     dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
     dir,
     {
-      onLoadUserConfig(userConfig) {
-        const configuredExperimentalFeatures =
-          getConfiguredExperimentalFeatures(userConfig.experimental)
-
-        experimentalFeatures = configuredExperimentalFeatures.sort(
-          ({ name: a }, { name: b }) => a.length - b.length
+      reportExperimentalFeatures(features) {
+        experimentalFeatures = features.sort(({ key: a }, { key: b }) =>
+          a.localeCompare(b)
         )
       },
+      debugPrerender,
+      silent: false,
     }
   )
 

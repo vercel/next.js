@@ -12,7 +12,7 @@ There are several reasons why you might want to switch from Create React App to 
 
 ### Slow initial page loading time
 
-Create React App uses purely client-side React. Client-side only applications, also known as [single-page applications (SPAs)](/docs/app/guides/single-page-applications), often experience slow initial page loading time. This happens due to a couple of reasons:
+Create React App uses purely client-side rendering. Client-side only applications, also known as [single-page applications (SPAs)](/docs/app/guides/single-page-applications), often experience slow initial page loading time. This happens due to a couple of reasons:
 
 1. The browser needs to wait for the React code and your entire application bundle to download and run before your code is able to send requests to load data.
 2. Your application code grows with every new feature and dependency you add.
@@ -29,7 +29,7 @@ While client-side data fetching is supported in Next.js, Next.js also lets you m
 
 ### Fast and intentional loading states
 
-With built-in support for [streaming through React Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense), you can define which parts of your UI load first and in what order, without creating network waterfalls.
+With built-in support for [streaming through React Suspense](/docs/app/getting-started/linking-and-navigating#streaming), you can define which parts of your UI load first and in what order, without creating network waterfalls.
 
 This enables you to build pages that are faster to load and eliminate [layout shifts](https://vercel.com/blog/how-core-web-vitals-affect-seo).
 
@@ -39,7 +39,7 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 ### Middleware
 
-[Next.js Middleware](/docs/app/building-your-application/routing/middleware) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the middleware for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/guides/internationalization).
+[Next.js Middleware](/docs/app/api-reference/file-conventions/middleware) allows you to run code on the server before a request is completed. For instance, you can avoid a flash of unauthenticated content by redirecting a user to a login page in the middleware for authenticated-only pages. You can also use it for features like A/B testing, experimentation, and [internationalization](/docs/app/guides/internationalization).
 
 ### Built-in Optimizations
 
@@ -300,7 +300,7 @@ export default function RootLayout({
 }
 ```
 
-If you’re using Tailwind CSS, see our [installation docs](/docs/app/guides/tailwind-css).
+If you're using Tailwind CSS, see our [installation docs](/docs/app/getting-started/css#tailwind-css).
 
 ### Step 6: Create the Entrypoint Page
 
@@ -569,9 +569,9 @@ You can still provide a [custom webpack configuration](/docs/app/api-reference/c
 
 If everything worked, you now have a functioning Next.js application running as a single-page application. You aren’t yet leveraging Next.js features like server-side rendering or file-based routing, but you can now do so incrementally:
 
-- **Migrate from React Router** to the [Next.js App Router](/docs/app/building-your-application/routing) for:
+- **Migrate from React Router** to the [Next.js App Router](/docs/app) for:
   - Automatic code splitting
-  - [Streaming server rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming)
+  - [Streaming server rendering](/docs/app/api-reference/file-conventions/loading)
   - [React Server Components](/docs/app/getting-started/server-and-client-components)
 - **Optimize images** with the [`<Image>` component](/docs/app/api-reference/components/image)
 - **Optimize fonts** with [`next/font`](/docs/app/api-reference/components/font)

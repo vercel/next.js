@@ -1,12 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from '../router-act'
+import { Page } from 'playwright'
 
 describe('segment cache (incremental opt in)', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     test('ppr is disabled', () => {})
     return
   }
@@ -21,23 +21,24 @@ describe('segment cache (incremental opt in)', () => {
     // that occur. Then at the end we confirm there are no duplicates.
     const prefetches = new Map()
     const duplicatePrefetches = new Map()
+    const unexpectedResponses = []
 
-    let act
+    let currentPage: Page
     const browser = await next.browser('/', {
       async beforePageLoad(page) {
-        act = createRouterAct(page)
+        currentPage = page
         await page.route('**/*', async (route) => {
           const request = route.request()
+          const headers = await request.allHeaders()
           const isPrefetch =
-            request.headerValue('rsc') !== null &&
-            request.headerValue('next-router-prefetch') !== null
+            headers['rsc'] !== undefined &&
+            headers['next-router-prefetch'] !== undefined
           if (isPrefetch) {
-            const request = route.request()
-            const headers = await request.allHeaders()
+            const url = request.url()
             const prefetchInfo = {
-              href: new URL(request.url()).pathname,
-              segment: headers['Next-Router-Segment-Prefetch'.toLowerCase()],
-              base: headers['Next-Router-State-Tree'.toLowerCase()] ?? null,
+              href: new URL(url).pathname,
+              segment: headers['next-router-segment-prefetch'],
+              base: headers['next-router-state-tree'] ?? null,
             }
             const key = JSON.stringify(prefetchInfo)
             if (prefetches.has(key)) {
@@ -45,6 +46,19 @@ describe('segment cache (incremental opt in)', () => {
             } else {
               prefetches.set(key, prefetchInfo)
             }
+            const response = await page.request.fetch(request, {
+              maxRedirects: 0,
+            })
+            const status = response.status()
+            if (status !== 200) {
+              unexpectedResponses.push({
+                status,
+                url,
+                headers: response.headers(),
+                response: await response.text(),
+              })
+            }
+            return route.fulfill({ response })
           }
           route.continue()
         })
@@ -60,10 +74,8 @@ describe('segment cache (incremental opt in)', () => {
     expect(await checkbox.isChecked()).toBe(false)
 
     // Click the checkbox to reveal the link and trigger a prefetch
-    await act(async () => {
-      await checkbox.click()
-      await browser.elementByCss(`a[href="${linkHref}"]`)
-    })
+    await checkbox.click()
+    await browser.elementByCss(`a[href="${linkHref}"]`)
 
     // Toggle the visibility of the link. Prefetches are initiated on viewport,
     // so if the cache does not dedupe then properly, this test will detect it.
@@ -78,9 +90,14 @@ describe('segment cache (incremental opt in)', () => {
     await browser.elementById('page-content')
     expect(new URL(await browser.url()).pathname).toBe(linkHref)
 
-    // Finally, assert there were no duplicate prefetches
-    expect(prefetches.size).not.toBe(0)
-    expect(duplicatePrefetches.size).toBe(0)
+    // Wait for all pending requests to complete.
+    await currentPage.unrouteAll({ behavior: 'wait' })
+
+    // Finally, assert there were no duplicate prefetches and no unexpected
+    // responses.
+    expect(prefetches).not.toBeEmpty()
+    expect(duplicatePrefetches).toBeEmpty()
+    expect(unexpectedResponses).toBeEmpty()
   }
 
   describe('multiple prefetches to same link are deduped', () => {
@@ -168,11 +185,7 @@ describe('segment cache (incremental opt in)', () => {
           )
           await checkbox.click()
         },
-        // This assertion will fail if more than one request includes the given
-        // string. Because the string appears in the FlightRouterState for the
-        // page, it effectively asserts that only one prefetch request is issued
-        // — the one for the route tree.
-        { includes: 'ppr-disabled-with-loading-boundary' }
+        { includes: 'Loading...', block: 'reject' }
       )
 
       // Navigate to the page
@@ -216,11 +229,8 @@ describe('segment cache (incremental opt in)', () => {
         )
         await checkbox.click()
       },
-      // This assertion will fail if more than one request includes the given
-      // string. Because the string appears in the FlightRouterState for the
-      // page, it effectively asserts that only one prefetch request is issued
-      // — the one for the route tree.
-      { includes: 'ppr-disabled' }
+      // We should not prefetch the page content
+      { includes: 'Page content', block: 'reject' }
     )
 
     // Navigate to the page
@@ -275,7 +285,7 @@ describe('segment cache (incremental opt in)', () => {
   )
 
   it(
-    'when a link is prefetched with <Link prefetch=true>, no dynamic request ' +
+    'when a link is prefetched with <Link prefetch="unstable_forceStale">, no dynamic request ' +
       'is made on navigation',
     async () => {
       let act
@@ -314,7 +324,7 @@ describe('segment cache (incremental opt in)', () => {
   )
 
   it(
-    'when prefetching with prefetch=true, refetches cache entries that only ' +
+    'when prefetching with prefetch="unstable_forceStale", refetches cache entries that only ' +
       'contain partial data',
     async () => {
       let act
@@ -333,7 +343,7 @@ describe('segment cache (incremental opt in)', () => {
         { includes: 'Loading (PPR shell of shared-layout)...' }
       )
 
-      // Prefetch the same link again, this time with prefetch=true to include
+      // Prefetch the same link again, this time with prefetch="unstable_forceStale" to include
       // the dynamic data
       await act(
         async () => {
@@ -360,7 +370,7 @@ describe('segment cache (incremental opt in)', () => {
           // If this fails, it likely means that the partial cache entry that
           // resulted from prefetching the normal link (<Link prefetch={false}>)
           // was not properly re-fetched when the full link (<Link
-          // prefetch={true}>) was prefetched.
+          // prefetch='unstable_forceStale'>) was prefetched.
           await browser.elementById('page-content')
         },
         // Assert that no network requests are initiated within this block.
@@ -370,7 +380,7 @@ describe('segment cache (incremental opt in)', () => {
   )
 
   it(
-    'when prefetching with prefetch=true, refetches partial cache entries ' +
+    'when prefetching with prefetch="unstable_forceStale", refetches partial cache entries ' +
       "even if there's already a pending PPR request",
     async () => {
       // This test is hard to describe succinctly because it involves a fairly
@@ -417,7 +427,7 @@ describe('segment cache (incremental opt in)', () => {
         )
 
         // Before the previous prefetch finishes, prefetch the same link again,
-        // this time with prefetch=true to include the dynamic data.
+        // this time with prefetch="unstable_forceStale" to include the dynamic data.
         await act(
           async () => {
             const checkbox = await browser.elementById(
@@ -447,7 +457,7 @@ describe('segment cache (incremental opt in)', () => {
           // If this fails, it likely means that the pending cache entry that
           // resulted from prefetching the normal link (<Link prefetch={false}>)
           // was not properly re-fetched when the full link (<Link
-          // prefetch={true}>) was prefetched.
+          // prefetch='unstable_forceStale'>) was prefetched.
           await browser.elementById('page-content')
         },
         // Assert that no network requests are initiated within this block.
@@ -455,4 +465,41 @@ describe('segment cache (incremental opt in)', () => {
       )
     }
   )
+
+  it('fully prefetch a page with a dynamic title', async () => {
+    let act
+    const browser = await next.browser('/', {
+      beforePageLoad(p) {
+        act = createRouterAct(p)
+      },
+    })
+
+    await act(
+      async () => {
+        const checkbox = await browser.elementByCss(
+          'input[data-link-accordion="/ppr-disabled-dynamic-head?foo=yay"]'
+        )
+        await checkbox.click()
+      },
+      // Because the link is prefetched with prefetch=true, we should be able to
+      // prefetch the title, even though it's dynamic.
+      {
+        includes: 'Dynamic Title: yay',
+      }
+    )
+
+    // When we navigate to the page, it should not make any additional
+    // network requests, because both the segment data and the head were
+    // fully prefetched.
+    await act(async () => {
+      const link = await browser.elementByCss(
+        'a[href="/ppr-disabled-dynamic-head?foo=yay"]'
+      )
+      await link.click()
+      const pageContent = await browser.elementById('page-content')
+      expect(await pageContent.text()).toBe('Page content')
+      const title = await browser.eval(() => document.title)
+      expect(title).toBe('Dynamic Title: yay')
+    }, 'no-requests')
+  })
 })

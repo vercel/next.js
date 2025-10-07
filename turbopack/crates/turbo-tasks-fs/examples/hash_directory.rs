@@ -10,22 +10,15 @@ use std::{
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Vc, util::FormatDuration};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
-    register,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    register();
-    include!(concat!(
-        env!("OUT_DIR"),
-        "/register_example_hash_directory.rs"
-    ));
-
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions::default(),
         noop_backing_storage(),
@@ -35,12 +28,12 @@ async fn main() -> Result<()> {
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
             let root = current_dir().unwrap().to_str().unwrap().into();
-            let disk_fs = DiskFileSystem::new("project".into(), root, vec![]);
+            let disk_fs = DiskFileSystem::new(rcstr!("project"), root);
             disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
-            let input = fs.root().join("demo".into());
+            let input = fs.root().await?.join("demo")?;
             let dir_hash = hash_directory(input);
             print_hash(dir_hash).await?;
             Ok::<Vc<()>, _>(Default::default())
@@ -67,13 +60,13 @@ async fn print_hash(dir_hash: Vc<RcStr>) -> Result<Vc<()>> {
     Ok(Default::default())
 }
 
-async fn filename(path: Vc<FileSystemPath>) -> Result<String> {
-    Ok(path.await?.path.split('/').next_back().unwrap().to_string())
+async fn filename(path: FileSystemPath) -> Result<String> {
+    Ok(path.path.split('/').next_back().unwrap().to_string())
 }
 
 #[turbo_tasks::function]
-async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
-    let dir_path = &directory.await?.path;
+async fn hash_directory(directory: FileSystemPath) -> Result<Vc<RcStr>> {
+    let dir_path = &directory.path;
     let content = directory.read_dir();
     let mut hashes = BTreeMap::new();
     match &*content.await? {
@@ -81,19 +74,19 @@ async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
             for entry in entries.values() {
                 match entry {
                     DirectoryEntry::File(path) => {
-                        let name = filename(**path).await?;
-                        hashes.insert(name, hash_file(**path).owned().await?);
+                        let name = filename(path.clone()).await?;
+                        hashes.insert(name, hash_file(path.clone()).owned().await?);
                     }
                     DirectoryEntry::Directory(path) => {
-                        let name = filename(**path).await?;
-                        hashes.insert(name, hash_directory(**path).owned().await?);
+                        let name = filename(path.clone()).await?;
+                        hashes.insert(name, hash_directory(path.clone()).owned().await?);
                     }
                     _ => {}
                 }
             }
         }
         DirectoryContent::NotFound => {
-            println!("{}: not found", directory.await?.path);
+            println!("{}: not found", directory.path);
         }
     };
     let hash = hash_content(
@@ -108,7 +101,7 @@ async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
 }
 
 #[turbo_tasks::function]
-async fn hash_file(file_path: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+async fn hash_file(file_path: FileSystemPath) -> Result<Vc<RcStr>> {
     let content = file_path.read().await?;
     Ok(match &*content {
         FileContent::Content(file) => hash_content(&mut file.read()),

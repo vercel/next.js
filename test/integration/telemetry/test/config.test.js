@@ -369,9 +369,9 @@ describe('config telemetry', () => {
         }
       )
 
-      it('emits telemetry for usage of `experimental/dynamicIO`', async () => {
+      it('emits telemetry for usage of `experimental/cacheComponents`', async () => {
         await fs.rename(
-          path.join(appDir, 'next.config.dynamic-io'),
+          path.join(appDir, 'next.config.cache-components'),
           path.join(appDir, 'next.config.js')
         )
 
@@ -382,7 +382,7 @@ describe('config telemetry', () => {
 
         await fs.rename(
           path.join(appDir, 'next.config.js'),
-          path.join(appDir, 'next.config.dynamic-io')
+          path.join(appDir, 'next.config.cache-components')
         )
 
         const events = findAllTelemetryEvents(
@@ -390,7 +390,7 @@ describe('config telemetry', () => {
           'NEXT_BUILD_FEATURE_USAGE'
         )
         expect(events).toContainEqual({
-          featureName: 'experimental/dynamicIO',
+          featureName: 'experimental/cacheComponents',
           invocationCount: 1,
         })
       })
@@ -704,7 +704,7 @@ describe('config telemetry', () => {
           expect(event).toMatch(/"reactCompiler": true/)
           expect(event).toMatch(/"reactCompilerCompilationMode": "annotation"/)
           expect(event).toMatch(
-            /"reactCompilerPanicThreshold": "CRITICAL_ERRORS"/
+            /"reactCompilerPanicThreshold": "critical_errors"/
           )
         } catch (err) {
           require('console').error('failing stderr', stderr, err)
@@ -721,7 +721,7 @@ describe('config telemetry', () => {
       ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemetry for useCache directive',
         async () => {
-          // use cache depends on dynamicIO flag
+          // use cache depends on cacheComponents flag
           await fs.rename(
             path.join(appDir, 'next.config.use-cache'),
             path.join(appDir, 'next.config.js')

@@ -19,12 +19,27 @@ import {
 import json from '../big.json'
 
 const appDir = join(__dirname, '../')
+const originalIsNextDev = global.isNextDev
 let appPort
 let stderr
 let mode
 let app
 
 function runTests(dev = false) {
+  beforeAll(() => {
+    // isNextDev is used for getDistDir, where it is used for reading the build manifest files.
+    global.isNextDev = dev
+  })
+  afterAll(() => {
+    global.isNextDev = originalIsNextDev
+  })
+
+  it('should not strip .json from API route', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/hello.json')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ post: 'hello.json' })
+  })
+
   it('should handle proxying to self correctly', async () => {
     const res1 = await fetchViaHTTP(appPort, '/api/proxy-self')
     expect(res1.status).toBe(200)

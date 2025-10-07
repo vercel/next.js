@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { SourceMapPayload } from 'module'
 
 describe('browser-chunks', () => {
   const { next } = nextTestSetup({
@@ -13,16 +12,15 @@ describe('browser-chunks', () => {
       filename.endsWith('.js.map')
     )
 
-    sources = sourcemaps.flatMap(
-      (sourcemap) => (JSON.parse(sourcemap) as SourceMapPayload).sources
-    )
+    sources = sourcemaps.flatMap((sourcemap) => JSON.parse(sourcemap).sources)
   })
   it('must not bundle any server modules into browser chunks', () => {
     const serverSources = sources.filter(
       (source) =>
         /webpack:\/\/_N_E\/(\.\.\/)*src\/server\//.test(source) ||
         source.includes('next/dist/esm/server') ||
-        source.includes('next/dist/server')
+        source.includes('next/dist/server') ||
+        source.includes('next-devtools/server')
     )
 
     if (serverSources.length > 0) {
@@ -36,12 +34,7 @@ describe('browser-chunks', () => {
 
   it('must not bundle any dev overlay into browser chunks', () => {
     const devOverlaySources = sources.filter((source) => {
-      return (
-        /webpack:\/\/_N_E\/(\.\.\/)*src\/client\/components\/react-dev-overlay\//.test(
-          source
-        ) ||
-        /next\/dist\/(esm\/)?client\/components\/react-dev-overlay/.test(source)
-      )
+      return source.includes('next-devtools')
     })
 
     if (devOverlaySources.length > 0) {
