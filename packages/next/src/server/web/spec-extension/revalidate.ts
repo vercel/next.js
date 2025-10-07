@@ -20,7 +20,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
 export function revalidateTag(tag: string, profile: string) {
   if (!profile) {
     console.warn(
-      'revalidateTag without the second argument is now deprecated, add second argument of "max" or use updateTag. See more info here: https://nextjs.org/docs/messages/revalidate-tag-single-arg'
+      '"revalidateTag" without the second argument is now deprecated, add second argument of "max" or use "updateTag". See more info here: https://nextjs.org/docs/messages/revalidate-tag-single-arg'
     )
   }
   return revalidate([tag], `revalidateTag ${tag}`, profile)

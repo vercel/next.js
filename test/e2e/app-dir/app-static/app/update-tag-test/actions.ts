@@ -17,8 +17,8 @@ export async function revalidateAction() {
 }
 
 export async function deprecatedRevalidateAction() {
-  // This should show deprecation warning
-  updateTag('test-update-tag')
+  // @ts-expect-error This should show deprecation warning
+  revalidateTag('test-update-tag')
 
   return { revalidated: true, timestamp: Date.now() }
 }

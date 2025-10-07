@@ -5096,7 +5096,7 @@ describe('app-dir static/dynamic handling', () => {
           await browser.elementByCss('#deprecated-button').click()
           const output = next.cliOutput.substring(cliOutputStart)
           expect(output).toContain(
-            'revalidateTag without the second argument is now deprecated'
+            '"revalidateTag" without the second argument is now deprecated'
           )
         })
       })
