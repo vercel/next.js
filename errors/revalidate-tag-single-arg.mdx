@@ -40,7 +40,7 @@ export async function createPost() {
 
 - **`revalidateTag(tag, "max")` (recommended)**: The tag entry is marked as stale, and the next time a resource with that tag is visited, it will use stale-while-revalidate semantics. This means the stale content is served while fresh content is fetched in the background.
 
-- **`revalidateTag(tag, profile)`**: For advanced usage, you can specify any cache life profile that your application has defined instead of `"max"`, allowing for custom revalidation behaviors.
+- **`revalidateTag(tag, profile)`**: For advanced usage, you can specify any cache life profile that your application has defined in your `next.config` instead of `"max"`, allowing for custom revalidation behaviors.
 
 - **`updateTag(tag)`**: Only available in Server Actions. The tag entry is expired immediately, and the next request to that resource will be a blocking revalidate/cache miss. This ensures read-your-own-writes consistency.
 

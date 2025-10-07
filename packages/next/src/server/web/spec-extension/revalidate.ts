@@ -17,7 +17,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
  *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  */
-export function revalidateTag(tag: string, profile?: string) {
+export function revalidateTag(tag: string, profile: string) {
   if (!profile) {
     console.warn(
       'revalidateTag without the second argument is now deprecated, add second argument of "max" or use updateTag. See more info here: https://nextjs.org/docs/messages/revalidate-tag-single-arg'
