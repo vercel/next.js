@@ -31,6 +31,7 @@ mod watcher;
 use std::{
     borrow::Cow,
     cmp::{Ordering, min},
+    env,
     fmt::{self, Debug, Display, Formatter},
     fs::FileType,
     future::Future,
@@ -193,7 +194,20 @@ where
 }
 
 fn create_semaphore() -> tokio::sync::Semaphore {
-    tokio::sync::Semaphore::new(256)
+    // the semaphore isn't serialized, and we assume the environment variable doesn't change during
+    // runtime, so it's okay to access it in this untracked way.
+    static NEXT_TURBOPACK_IO_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
+        env::var("NEXT_TURBOPACK_IO_CONCURRENCY")
+            .ok()
+            .filter(|val| !val.is_empty())
+            .map(|val| {
+                val.parse()
+                    .expect("NEXT_TURBOPACK_IO_CONCURRENCY must be a valid integer")
+            })
+            .filter(|val| *val != 0)
+            .unwrap_or(256)
+    });
+    tokio::sync::Semaphore::new(*NEXT_TURBOPACK_IO_CONCURRENCY)
 }
 
 #[turbo_tasks::value_trait]

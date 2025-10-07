@@ -11,26 +11,6 @@
         "app-dir action handling should reset the form state when the action redirects to itself"
       ]
     },
-    "test/e2e/app-dir/app-prefetch/prefetching.stale-times.test.ts": {
-      "failed": [
-        "app dir - prefetching (custom staleTime) should fetch again when a static page was prefetched when navigating to it after the stale time has passed",
-        "app dir - prefetching (custom staleTime) should fetch again when the initially visited static page is visited after the stale time has passed",
-        "app dir - prefetching (custom staleTime) should not fetch again when a static page was prefetched when navigating to it twice",
-        "app dir - prefetching (custom staleTime) should renew the stale time after refetching expired RSC data"
-      ]
-    },
-    "test/e2e/app-dir/app-prefetch/prefetching.test.ts": {
-      "failed": [
-        "app dir - prefetching fetch priority should have an auto priority for all other fetch operations",
-        "app dir - prefetching fetch priority should prefetch with high priority when navigating to a page without a prefetch entry",
-        "app dir - prefetching prefetch cache seeding should not re-fetch the initial dynamic page if the same page is prefetched with prefetch={true}",
-        "app dir - prefetching prefetch cache seeding should not re-fetch the initial static page if the same page is prefetched with prefetch={true}",
-        "app dir - prefetching should calculate `_rsc` query based on `Next-Url`",
-        "app dir - prefetching should immediately render the loading state for a dynamic segment when fetched from higher up in the tree",
-        "app dir - prefetching should not fetch again when a static page was prefetched",
-        "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params"
-      ]
-    },
     "test/e2e/app-dir/navigation/navigation.test.ts": {
       "failed": [
         "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response"

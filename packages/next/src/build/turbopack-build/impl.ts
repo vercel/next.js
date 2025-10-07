@@ -1,15 +1,11 @@
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import {
-  formatIssue,
-  isPersistentCachingEnabledForBuild,
-  isRelevantWarning,
-} from '../../shared/lib/turbopack/utils'
+import { isPersistentCachingEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, loadBindings } from '../swc'
 import {
-  rawEntrypointsToEntrypoints,
   handleRouteType,
+  rawEntrypointsToEntrypoints,
 } from '../handle-entrypoints'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { promises as fs } from 'fs'
@@ -20,8 +16,9 @@ import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers } from '../utils'
+import { getSupportedBrowsers, printBuildErrors } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
+import type { RawEntrypoints, TurbopackResult } from '../swc/types'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -107,17 +104,22 @@ export async function turbopackBuild(): Promise<{
     )
 
     let appDirOnly = NextBuildContext.appDirOnly!
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+    printBuildErrors(entrypoints, dev)
 
-    const hasPagesEntries = Array.from(entrypoints.routes.values()).some(
-      (route) => {
-        if (route.type === 'page' || route.type === 'page-api') {
-          return true
-        }
-        return false
+    let routes = entrypoints.routes
+    if (!routes) {
+      // This should never ever happen, there should be an error issue, or the bindings call should
+      // have thrown.
+      throw new Error(`Turbopack build failed`)
+    }
+
+    const hasPagesEntries = Array.from(routes.values()).some((route) => {
+      if (route.type === 'page' || route.type === 'page-api') {
+        return true
       }
-    )
+      return false
+    })
     // If there's no pages entries, then we are in app-dir-only mode
     if (!hasPagesEntries) {
       appDirOnly = true
@@ -129,35 +131,11 @@ export async function turbopackBuild(): Promise<{
       encryptionKey,
     })
 
-    const topLevelErrors = []
-    const topLevelWarnings = []
-    for (const issue of entrypoints.issues) {
-      if (issue.severity === 'error' || issue.severity === 'fatal') {
-        topLevelErrors.push(formatIssue(issue))
-      } else if (isRelevantWarning(issue)) {
-        topLevelWarnings.push(formatIssue(issue))
-      }
-    }
+    const currentEntrypoints = await rawEntrypointsToEntrypoints(
+      entrypoints as TurbopackResult<RawEntrypoints>
+    )
 
-    if (topLevelWarnings.length > 0) {
-      console.warn(
-        `Turbopack build encountered ${
-          topLevelWarnings.length
-        } warnings:\n${topLevelWarnings.join('\n')}`
-      )
-    }
-
-    if (topLevelErrors.length > 0) {
-      throw new Error(
-        `Turbopack build failed with ${
-          topLevelErrors.length
-        } errors:\n${topLevelErrors.join('\n')}`
-      )
-    }
-
-    const currentEntrypoints = await rawEntrypointsToEntrypoints(entrypoints)
-
-    const promises: Promise<any>[] = []
+    const promises: Promise<void>[] = []
 
     if (!appDirOnly) {
       for (const [page, route] of currentEntrypoints.page) {

@@ -917,7 +917,7 @@
       return null;
     }
     function getArrayKind(array) {
-      for (var kind = 0, i = 0; i < array.length; i++) {
+      for (var kind = 0, i = 0; i < array.length && 100 > i; i++) {
         var value = array[i];
         if ("object" === typeof value && null !== value)
           if (
@@ -941,10 +941,24 @@
       return kind;
     }
     function addObjectToProperties(object, properties, indent, prefix) {
-      for (var key in object)
-        hasOwnProperty.call(object, key) &&
+      var addedProperties = 0,
+        key;
+      for (key in object)
+        if (
+          hasOwnProperty.call(object, key) &&
           "_" !== key[0] &&
-          addValueToProperties(key, object[key], properties, indent, prefix);
+          (addedProperties++,
+          addValueToProperties(key, object[key], properties, indent, prefix),
+          100 <= addedProperties)
+        ) {
+          properties.push([
+            prefix +
+              "\u00a0\u00a0".repeat(indent) +
+              "Only 100 properties are shown. React will not log more properties of this object.",
+            ""
+          ]);
+          break;
+        }
     }
     function addValueToProperties(
       propertyName,
@@ -991,21 +1005,27 @@
                   prefix
                 );
               propertyName = !1;
+              key = 0;
               for (var propKey in value)
-                "children" === propKey
-                  ? null != value.children &&
-                    (!isArrayImpl(value.children) ||
-                      0 < value.children.length) &&
-                    (propertyName = !0)
-                  : hasOwnProperty.call(value, propKey) &&
-                    "_" !== propKey[0] &&
-                    addValueToProperties(
-                      propKey,
-                      value[propKey],
-                      properties,
-                      indent + 1,
-                      prefix
-                    );
+                if (
+                  (key++,
+                  "children" === propKey
+                    ? null != value.children &&
+                      (!isArrayImpl(value.children) ||
+                        0 < value.children.length) &&
+                      (propertyName = !0)
+                    : hasOwnProperty.call(value, propKey) &&
+                      "_" !== propKey[0] &&
+                      addValueToProperties(
+                        propKey,
+                        value[propKey],
+                        properties,
+                        indent + 1,
+                        prefix
+                      ),
+                  100 <= key)
+                )
+                  break;
               properties.push([
                 "",
                 propertyName ? ">\u2026</" + typeName + ">" : "/>"
@@ -1013,35 +1033,46 @@
               return;
             }
             typeName = Object.prototype.toString.call(value);
-            typeName = typeName.slice(8, typeName.length - 1);
-            if ("Array" === typeName)
+            propKey = typeName.slice(8, typeName.length - 1);
+            if ("Array" === propKey)
               if (
-                ((propKey = getArrayKind(value)),
-                2 === propKey || 0 === propKey)
+                ((typeName = 100 < value.length),
+                (key = getArrayKind(value)),
+                2 === key || 0 === key)
               ) {
-                value = JSON.stringify(value);
+                value = JSON.stringify(
+                  typeName ? value.slice(0, 100).concat("\u2026") : value
+                );
                 break;
-              } else if (3 === propKey) {
+              } else if (3 === key) {
                 properties.push([
                   prefix + "\u00a0\u00a0".repeat(indent) + propertyName,
                   ""
                 ]);
                 for (
                   propertyName = 0;
-                  propertyName < value.length;
+                  propertyName < value.length && 100 > propertyName;
                   propertyName++
                 )
-                  (typeName = value[propertyName]),
+                  (propKey = value[propertyName]),
                     addValueToProperties(
-                      typeName[0],
-                      typeName[1],
+                      propKey[0],
+                      propKey[1],
                       properties,
                       indent + 1,
                       prefix
                     );
+                typeName &&
+                  addValueToProperties(
+                    (100).toString(),
+                    "\u2026",
+                    properties,
+                    indent + 1,
+                    prefix
+                  );
                 return;
               }
-            if ("Promise" === typeName) {
+            if ("Promise" === propKey) {
               if ("fulfilled" === value.status) {
                 if (
                   ((typeName = properties.length),
@@ -1081,13 +1112,13 @@
               ]);
               return;
             }
-            "Object" === typeName &&
-              (propKey = Object.getPrototypeOf(value)) &&
-              "function" === typeof propKey.constructor &&
-              (typeName = propKey.constructor.name);
+            "Object" === propKey &&
+              (typeName = Object.getPrototypeOf(value)) &&
+              "function" === typeof typeName.constructor &&
+              (propKey = typeName.constructor.name);
             properties.push([
               prefix + "\u00a0\u00a0".repeat(indent) + propertyName,
-              "Object" === typeName ? (3 > indent ? "" : "\u2026") : typeName
+              "Object" === propKey ? (3 > indent ? "" : "\u2026") : propKey
             ]);
             3 > indent &&
               addObjectToProperties(value, properties, indent + 1, prefix);
@@ -4872,10 +4903,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-4fdf7cf2-20251003",
+      version: "19.3.0-experimental-c7862584-20251006",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-4fdf7cf2-20251003",
+      reconcilerVersion: "19.3.0-experimental-c7862584-20251006",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

@@ -4662,15 +4662,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/no-double-tailwind-execution/no-double-tailwind-execution.test.ts": {
-    "passed": [
-      "no-double-tailwind-execution should run tailwind only once initially and per change"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/no-duplicate-headers-middleware/no-duplicate-headers-middleware.test.ts": {
     "passed": [
       "no-duplicate-headers-next-config should prioritise headers in middleware for static assets"
@@ -11496,12 +11487,12 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app-api.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "create-next-app --api (Headless App) should create JavaScript project with --js flag",
       "create-next-app --api (Headless App) should create TypeScript project with --ts flag",
       "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag"
     ],
+    "failed": [],
     "pending": [
       "create-next-app --api (Headless App) should enable turbopack dev with --turbopack flag"
     ],
@@ -11509,8 +11500,7 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "create-next-app --app (App Router) should create JavaScript project with --js flag",
       "create-next-app --app (App Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --app (App Router) should create TypeScript project with --ts flag",
@@ -11518,6 +11508,7 @@
       "create-next-app --app (App Router) should create an empty project with --empty flag",
       "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag"
     ],
+    "failed": [],
     "pending": [
       "create-next-app --app (App Router) should enable turbopack dev with --turbopack flag"
     ],
@@ -11525,8 +11516,7 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/matrix.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --tailwind",
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --react-compiler --no-tailwind",
@@ -11576,13 +11566,13 @@
       "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --no-tailwind",
       "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --tailwind"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/pages.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
       "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
@@ -11590,6 +11580,7 @@
       "create-next-app --no-app (Pages Router) should create an empty project with --empty flag",
       "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
     ],
+    "failed": [],
     "pending": [
       "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbopack flag"
     ],
@@ -18201,13 +18192,12 @@
   },
   "test/integration/ondemand/test/index.test.js": {
     "passed": [
-      "On Demand Entries should compile pages for JSON page requests",
       "On Demand Entries should compile pages for SSR",
       "On Demand Entries should dispose inactive pages",
       "On Demand Entries should navigate to pages with dynamic imports",
       "On Demand Entries should pass"
     ],
-    "failed": [],
+    "failed": ["On Demand Entries should compile pages for JSON page requests"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -19023,7 +19013,6 @@
   "test/integration/script-loader/test/index.test.ts": {
     "passed": [
       "Next.js Script - Primary Strategies - Production Mode production mode Does not duplicate inline scripts",
-      "Next.js Script - Primary Strategies - Production Mode production mode Error message is shown if Partytown is not installed locally",
       "Next.js Script - Primary Strategies - Production Mode production mode onReady fires after load event and then on every subsequent re-mount",
       "Next.js Script - Primary Strategies - Production Mode production mode onReady should only fires once after loaded (issue #39993)",
       "Next.js Script - Primary Strategies - Production Mode production mode onload fires correctly",
@@ -19046,7 +19035,9 @@
       "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script should execute",
       "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload"
     ],
-    "failed": [],
+    "failed": [
+      "Next.js Script - Primary Strategies - Production Mode production mode Error message is shown if Partytown is not installed locally"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false

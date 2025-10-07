@@ -658,24 +658,42 @@ function bindingToApi(
 
     async writeAllEntrypointsToDisk(
       appDirOnly: boolean
-    ): Promise<TurbopackResult<RawEntrypoints>> {
+    ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
       const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
         this._nativeProject,
         appDirOnly
-      )) as TurbopackResult<NapiEntrypoints>
+      )) as TurbopackResult<Partial<NapiEntrypoints>>
 
-      return napiEntrypointsToRawEntrypoints(napiEndpoints)
+      if ('routes' in napiEndpoints) {
+        return napiEntrypointsToRawEntrypoints(
+          napiEndpoints as TurbopackResult<NapiEntrypoints>
+        )
+      } else {
+        return {
+          issues: napiEndpoints.issues,
+          diagnostics: napiEndpoints.diagnostics,
+        }
+      }
     }
 
     entrypointsSubscribe() {
-      const subscription = subscribe<TurbopackResult<NapiEntrypoints>>(
+      const subscription = subscribe<TurbopackResult<NapiEntrypoints | {}>>(
         false,
         async (callback) =>
           binding.projectEntrypointsSubscribe(this._nativeProject, callback)
       )
       return (async function* () {
         for await (const entrypoints of subscription) {
-          yield napiEntrypointsToRawEntrypoints(entrypoints)
+          if ('routes' in (entrypoints as TurbopackResult<NapiEntrypoints>)) {
+            yield napiEntrypointsToRawEntrypoints(
+              entrypoints as TurbopackResult<NapiEntrypoints>
+            )
+          } else {
+            yield {
+              issues: entrypoints.issues,
+              diagnostics: entrypoints.diagnostics,
+            } as TurbopackResult<{}>
+          }
         }
       })()
     }
@@ -766,7 +784,7 @@ function bindingToApi(
       )) as TurbopackResult<WrittenEndpoint>
     }
 
-    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>> {
       const clientSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -778,7 +796,7 @@ function bindingToApi(
 
     async serverChanged(
       includeIssues: boolean
-    ): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+    ): Promise<AsyncIterableIterator<TurbopackResult>> {
       const serverSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -1023,12 +1041,13 @@ function bindingToApi(
             type: 'conflict',
           }
           break
-        default:
+        default: {
           const _exhaustiveCheck: never = routeType
           invariant(
             nativeRoute,
             () => `Unknown route type: ${_exhaustiveCheck}`
           )
+        }
       }
       routes.set(pathname, route)
     }

@@ -1182,10 +1182,10 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Skipped in Turbopack optimizePackageImports - mui should support MUI"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1350,7 +1350,6 @@
   "test/development/basic/hmr/error-recovery-yes-base-path-no-asset-prefix.test.ts": {
     "passed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
@@ -1365,6 +1364,7 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should show the error on all pages"
     ],
     "failed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
     ],
     "pending": [],
@@ -3711,7 +3711,7 @@
       "app dir - basic searchParams prop server component should have the correct search params",
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -3770,7 +3770,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -6870,15 +6870,6 @@
   "test/e2e/app-dir/next-script/next-script.test.ts": {
     "passed": [
       "Script component with crossOrigin props should be set crossOrigin also in preload link tag"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/no-double-tailwind-execution/no-double-tailwind-execution.test.ts": {
-    "passed": [
-      "no-double-tailwind-execution should run tailwind only once initially and per change"
     ],
     "failed": [],
     "pending": [],
@@ -13314,12 +13305,12 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app-api.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "create-next-app --api (Headless App) should create JavaScript project with --js flag",
       "create-next-app --api (Headless App) should create TypeScript project with --ts flag",
       "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag"
     ],
+    "failed": [],
     "pending": [
       "create-next-app --api (Headless App) should enable turbopack dev with --turbopack flag"
     ],
@@ -13327,8 +13318,7 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "create-next-app --app (App Router) should create JavaScript project with --js flag",
       "create-next-app --app (App Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --app (App Router) should create TypeScript project with --ts flag",
@@ -13336,6 +13326,7 @@
       "create-next-app --app (App Router) should create an empty project with --empty flag",
       "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag"
     ],
+    "failed": [],
     "pending": [
       "create-next-app --app (App Router) should enable turbopack dev with --turbopack flag"
     ],
@@ -13343,8 +13334,7 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/matrix.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --tailwind",
       "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --react-compiler --no-tailwind",
@@ -13394,13 +13384,13 @@
       "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --no-tailwind",
       "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --tailwind"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/pages.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
       "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
@@ -13408,6 +13398,7 @@
       "create-next-app --no-app (Pages Router) should create an empty project with --empty flag",
       "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
     ],
+    "failed": [],
     "pending": [
       "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbopack flag"
     ],
@@ -20022,13 +20013,12 @@
   },
   "test/integration/ondemand/test/index.test.js": {
     "passed": [
-      "On Demand Entries should compile pages for JSON page requests",
       "On Demand Entries should compile pages for SSR",
       "On Demand Entries should dispose inactive pages",
       "On Demand Entries should navigate to pages with dynamic imports",
       "On Demand Entries should pass"
     ],
-    "failed": [],
+    "failed": ["On Demand Entries should compile pages for JSON page requests"],
     "pending": [],
     "flakey": [],
     "runtimeError": false

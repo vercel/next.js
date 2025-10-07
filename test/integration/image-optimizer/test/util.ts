@@ -8,6 +8,7 @@ import {
   fetchViaHTTP,
   File,
   findPort,
+  getDistDir,
   killApp,
   launchApp,
   nextBuild,
@@ -20,7 +21,6 @@ import type { NextConfig } from 'next'
 
 type SetupTestsCtx = {
   appDir: string
-  imagesDir: string
   nextConfigImages?: Partial<import('next').NextConfig['images']>
   nextConfigExperimental?: Partial<import('next').NextConfig['experimental']>
   isDev?: boolean
@@ -29,6 +29,7 @@ type SetupTestsCtx = {
 type RunTestsCtx = SetupTestsCtx & {
   w: number
   q: number
+  imagesDir: string
   app?: import('child_process').ChildProcess
   appDir?: string
   appPort?: number
@@ -98,9 +99,9 @@ export async function expectWidth(res, w, { expectAnimated = false } = {}) {
   expect(isAnimated(buffer)).toBe(expectAnimated)
 }
 
-export const cleanImagesDir = async (ctx: { imagesDir: string }) => {
-  console.warn('Cleaning', ctx.imagesDir)
-  await fs.remove(ctx.imagesDir)
+export const cleanImagesDir = async (imagesDir) => {
+  console.warn('Cleaning', imagesDir)
+  await fs.remove(imagesDir)
 }
 
 async function expectAvifSmallerThanWebp(
@@ -156,7 +157,7 @@ async function fetchWithDuration(
 }
 
 export function runTests(ctx: RunTestsCtx) {
-  const { isDev, nextConfigImages } = ctx
+  const { isDev, nextConfigImages, imagesDir } = ctx
   const {
     contentDispositionType = 'attachment',
     domains = [],
@@ -932,7 +933,7 @@ export function runTests(ctx: RunTestsCtx) {
       if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
         return // this test is not applicable when we don't write the cache
       }
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
       const delay = 500
 
       const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${delay}`
@@ -1154,7 +1155,7 @@ export function runTests(ctx: RunTestsCtx) {
     if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
       return // this test is not applicable when we don't write the cache
     }
-    await cleanImagesDir(ctx)
+    await cleanImagesDir(imagesDir)
 
     const query = {
       url: '/api/stateful/test.png',
@@ -1261,7 +1262,7 @@ export function runTests(ctx: RunTestsCtx) {
 
   if (ctx.nextConfigImages?.dangerouslyAllowSVG) {
     it('should use cached image file when parameters are the same for svg', async () => {
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
 
       const query = { url: '/test.svg', w: ctx.w, q: ctx.q }
       const opts = { headers: { accept: 'image/webp' } }
@@ -1301,7 +1302,7 @@ export function runTests(ctx: RunTestsCtx) {
     if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
       return // this test is not applicable when we don't write the cache
     }
-    await cleanImagesDir(ctx)
+    await cleanImagesDir(imagesDir)
 
     const query = { url: '/animated.gif', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
@@ -1490,7 +1491,7 @@ export function runTests(ctx: RunTestsCtx) {
 
   if (domains.length > 0) {
     it('should handle concurrent requests', async () => {
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(ctx.imagesDir)
       const delay = 500
       const query = {
         url: `http://localhost:${slowImageServer.port}/slow.png?delay=${delay}`,
@@ -1552,17 +1553,28 @@ export function runTests(ctx: RunTestsCtx) {
 export const setupTests = (ctx: SetupTestsCtx) => {
   const nextConfig = new File(join(ctx.appDir, 'next.config.js'))
 
+  const originalIsNextDev = (global as any).isNextDev
+  afterAll(() => {
+    ;(global as any).isNextDev = originalIsNextDev
+  })
+
   describe('dev support w/o next.config.js', () => {
     if (ctx.nextConfigImages) {
       // skip this test because it requires next.config.js
       return
     }
+
+    const isDev = true
+    // Set global.isNextDev for getDistDir()
+    ;(global as any).isNextDev = isDev
+    const imagesDir = join(ctx.appDir, getDistDir(), 'cache', 'images')
     const size = 384 // defaults defined in server/config.ts
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       q: 75,
-      isDev: true,
+      isDev,
+      imagesDir,
     }
 
     beforeAll(async () => {
@@ -1580,7 +1592,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         },
         cwd: curCtx.appDir,
       })
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
     })
     afterAll(async () => {
       nextConfig.restore()
@@ -1591,12 +1603,16 @@ export const setupTests = (ctx: SetupTestsCtx) => {
   })
 
   describe('dev support with next.config.js', () => {
+    const isDev = true
+    // Set global.isNextDev for getDistDir()
+    ;(global as any).isNextDev = isDev
+    const imagesDir = join(ctx.appDir, getDistDir(), 'cache', 'images')
     const size = 400
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       q: 100,
-      isDev: true,
+      isDev,
       nextConfigImages: {
         domains: [
           'localhost',
@@ -1611,6 +1627,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         qualities: [50, 75, 100],
         ...ctx.nextConfigImages,
       },
+      imagesDir,
     }
     beforeAll(async () => {
       const json = JSON.stringify({
@@ -1621,7 +1638,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       } satisfies NextConfig)
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
       curCtx.appPort = await findPort()
       curCtx.app = await launchApp(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {
@@ -1644,12 +1661,16 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       // skip this test because it requires next.config.js
       return
     }
+    const isDev = false
+    ;(global as any).isNextDev = isDev
+    const imagesDir = join(ctx.appDir, getDistDir(), 'cache', 'images')
     const size = 384 // defaults defined in server/config.ts
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       q: 75,
-      isDev: false,
+      isDev,
+      imagesDir,
     }
     beforeAll(async () => {
       const json = JSON.stringify({
@@ -1660,7 +1681,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       nextConfig.replace('{ /* replaceme */ }', json)
       curCtx.nextOutput = ''
       await nextBuild(curCtx.appDir)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
       curCtx.appPort = await findPort()
       curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {
@@ -1679,12 +1700,15 @@ export const setupTests = (ctx: SetupTestsCtx) => {
   ;(process.env.TURBOPACK_DEV || process.env.TURBOPACK_BUILD
     ? describe.skip
     : describe)('Production Mode Server support with next.config.js', () => {
+    const isDev = false
+    ;(global as any).isNextDev = isDev
+    const imagesDir = join(ctx.appDir, getDistDir(), 'cache', 'images')
     const size = 399
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       q: 100,
-      isDev: false,
+      isDev,
       nextConfigImages: {
         domains: [
           'localhost',
@@ -1698,6 +1722,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         qualities: [50, 75, 100],
         ...ctx.nextConfigImages,
       },
+      imagesDir,
     }
     beforeAll(async () => {
       const json = JSON.stringify({
@@ -1709,7 +1734,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
       await nextBuild(curCtx.appDir)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
       curCtx.appPort = await findPort()
       curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {

@@ -15,6 +15,7 @@ import { getPkgManager } from './helpers/get-pkg-manager'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
+import { Bundler } from './templates'
 
 let projectPath: string = ''
 
@@ -54,8 +55,9 @@ const program = new Command(packageJson.name)
   .option('--biome', 'Initialize with Biome config.')
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
-  .option('--turbopack', 'Enable Turbopack by default for development.')
-  .option('--rspack', 'Using Rspack as the bundler')
+  .option('--turbopack', 'Enable Turbopack as the bundler.')
+  .option('--webpack', 'Enable Webpack as the bundler.')
+  .option('--rspack', 'Enable Rspack as the bundler')
   .option(
     '--import-alias <prefix/*>',
     'Specify import alias to use (default "@/*").'
@@ -276,7 +278,7 @@ async function run(): Promise<void> {
          * Depending on the prompt response, set the appropriate program flags.
          */
         opts.typescript = Boolean(typescript)
-        opts.javascript = !Boolean(typescript)
+        opts.javascript = !typescript
         preferences.typescript = Boolean(typescript)
       }
     }
@@ -429,7 +431,12 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!opts.turbopack && !args.includes('--no-turbopack')) {
+    if (
+      !opts.turbopack &&
+      !args.includes('--no-turbopack') &&
+      !opts.webpack &&
+      !opts.rspack
+    ) {
       if (skipPrompt) {
         opts.turbopack = getPrefOrDefault('turbopack')
       } else {
@@ -446,6 +453,8 @@ async function run(): Promise<void> {
         opts.turbopack = Boolean(turbopack)
         preferences.turbopack = Boolean(turbopack)
       }
+      // If Turbopack is not selected, default to Webpack
+      opts.webpack = !opts.turbopack
     }
 
     const importAliasPattern = /^[^*"]+\/\*\s*$/
@@ -493,6 +502,14 @@ async function run(): Promise<void> {
     }
   }
 
+  const bundler: Bundler = opts.turbopack
+    ? Bundler.Turbopack
+    : opts.webpack
+      ? Bundler.Webpack
+      : opts.rspack
+        ? Bundler.Rspack
+        : Bundler.Turbopack
+
   try {
     await createApp({
       appPath,
@@ -509,8 +526,7 @@ async function run(): Promise<void> {
       skipInstall: opts.skipInstall,
       empty: opts.empty,
       api: opts.api,
-      turbopack: opts.turbopack,
-      rspack: opts.rspack,
+      bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
     })
@@ -544,8 +560,7 @@ async function run(): Promise<void> {
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
       empty: opts.empty,
-      turbopack: opts.turbopack,
-      rspack: opts.rspack,
+      bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
     })

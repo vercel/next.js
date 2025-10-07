@@ -96,7 +96,7 @@ import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers } from '../../build/utils'
+import { getSupportedBrowsers, printBuildErrors } from '../../build/utils'
 import {
   receiveBrowserLogsTurbopack,
   handleClientFileLogs,
@@ -627,25 +627,34 @@ export async function createHotReloaderTurbopack(
         )
       }
 
+      // Always process issues/diagnostics, even if there are no entrypoints yet
+      processTopLevelIssues(currentTopLevelIssues, entrypoints)
+
+      // Certain crtical issues prevent any entrypoints from being constructed so return early
+      if (!('routes' in entrypoints)) {
+        printBuildErrors(entrypoints, true)
+
+        currentEntriesHandlingResolve!()
+        currentEntriesHandlingResolve = undefined
+        continue
+      }
+
+      const routes = entrypoints.routes
       const existingRoutes = [
         ...currentEntrypoints.app.keys(),
         ...currentEntrypoints.page.keys(),
       ]
-      const newRoutes = [...entrypoints.routes.keys()]
+      const newRoutes = [...routes.keys()]
 
       const addedRoutes = newRoutes.filter(
         (route) =>
           !currentEntrypoints.app.has(route) &&
           !currentEntrypoints.page.has(route)
       )
-      const removedRoutes = existingRoutes.filter(
-        (route) => !entrypoints.routes.has(route)
-      )
-
-      processTopLevelIssues(currentTopLevelIssues, entrypoints)
+      const removedRoutes = existingRoutes.filter((route) => !routes.has(route))
 
       await handleEntrypoints({
-        entrypoints,
+        entrypoints: entrypoints as any,
 
         currentEntrypoints,
 
