@@ -853,5 +853,6 @@
   "852": "Only custom servers can pass `webpack`, `turbo`, or `turbopack`.",
   "853": "Turbopack build failed",
   "854": "updateTag can only be called from within a Server Action. To invalidate cache tags in Route Handlers or other contexts, use revalidateTag instead. See more info here: https://nextjs.org/docs/app/api-reference/functions/updateTag",
-  "855": "Invalid profile provided \"%s\" must be configured under cacheLife in next.config or be \"max\""
+  "855": "Invalid profile provided \"%s\" must be configured under cacheLife in next.config or be \"max\"",
+  "856": "Expected a %s request header."
 }

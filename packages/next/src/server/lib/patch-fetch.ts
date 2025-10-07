@@ -27,7 +27,6 @@ import {
   type ServerComponentsHmrCache,
   type SetIncrementalFetchCacheContext,
 } from '../response-cache'
-import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
 
@@ -911,7 +910,7 @@ export function createPatchedFetcher(
                   // make sure we still exclude them from prerenders if
                   // cacheComponents is on so we introduce an artificial task boundary
                   // here.
-                  await waitAtLeastOneReactRenderTask()
+                  await getTimeoutBoundary()
                   break
                 case 'prerender-ppr':
                 case 'prerender-legacy':
@@ -1190,4 +1189,17 @@ export function patchFetch(options: PatchableModule) {
 
   // Set the global fetch to the patched fetch.
   globalThis.fetch = createPatchedFetcher(original, options)
+}
+
+let currentTimeoutBoundary: null | Promise<void> = null
+function getTimeoutBoundary() {
+  if (!currentTimeoutBoundary) {
+    currentTimeoutBoundary = new Promise((r) => {
+      setTimeout(() => {
+        currentTimeoutBoundary = null
+        r()
+      }, 0)
+    })
+  }
+  return currentTimeoutBoundary
 }

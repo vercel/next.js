@@ -24,7 +24,7 @@ describe('production - app dir - build output', () => {
       'Creating an optimized production build'
     )
     const indexOfLinting = output.indexOf(
-      'Linting and checking validity of types'
+      'Running ESLint and TypeScript concurrently'
     )
     expect(indexOfVersion).toBeLessThan(indexOfLinting)
     expect(indexOfStartCompiling).toBeLessThan(indexOfLinting)

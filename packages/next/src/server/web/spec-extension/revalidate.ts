@@ -44,7 +44,6 @@ export function updateTag(tag: string) {
         'See more info here: https://nextjs.org/docs/app/api-reference/functions/updateTag'
     )
   }
-
   // updateTag uses immediate expiration (no profile) without deprecation warning
   return revalidate([tag], `updateTag ${tag}`, undefined)
 }
@@ -62,7 +61,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     return
   }
 
-  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath}`
+  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath || '/'}`
 
   if (type) {
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
@@ -71,11 +70,15 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
       `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
     )
   }
-  return revalidate(
-    [normalizedPath],
-    `revalidatePath ${originalPath}`,
-    undefined
-  )
+
+  const tags = [normalizedPath]
+  if (normalizedPath === `${NEXT_CACHE_IMPLICIT_TAG_ID}/`) {
+    tags.push(`${NEXT_CACHE_IMPLICIT_TAG_ID}/index`)
+  } else if (normalizedPath === `${NEXT_CACHE_IMPLICIT_TAG_ID}/index`) {
+    tags.push(`${NEXT_CACHE_IMPLICIT_TAG_ID}/`)
+  }
+
+  return revalidate(tags, `revalidatePath ${originalPath}`)
 }
 
 function revalidate(tags: string[], expression: string, profile?: string) {

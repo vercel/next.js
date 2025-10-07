@@ -28,7 +28,7 @@ describe('use-cache-custom-handler', () => {
     expect(cliOutput).toContain('ModernCustomCacheHandler::refreshTags')
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/' \]/
+      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
     )
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
@@ -52,7 +52,7 @@ describe('use-cache-custom-handler', () => {
     // to compare the cache entries timestamp with the expiration of the
     // implicit tags.
     expect(next.cliOutput.slice(outputIndex)).toContain(
-      `ModernCustomCacheHandler::getExpiration ["_N_T_/layout","_N_T_/page","_N_T_/"]`
+      `ModernCustomCacheHandler::getExpiration ["_N_T_/layout","_N_T_/page","_N_T_/","_N_T_/index"]`
     )
 
     // Because we use a low `revalidate` value for the "use cache" function, new

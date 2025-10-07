@@ -287,6 +287,7 @@ interface ParsedRequestHeaders {
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
   readonly previouslyRevalidatedTags: string[]
+  readonly requestId: string | undefined
   readonly htmlRequestId: string | undefined
 }
 
@@ -332,10 +333,25 @@ function parseRequestHeaders(
     options.previewModeId
   )
 
-  const htmlRequestId =
-    typeof headers[NEXT_HTML_REQUEST_ID_HEADER] === 'string'
-      ? headers[NEXT_HTML_REQUEST_ID_HEADER]
-      : undefined
+  let requestId: string | undefined
+  let htmlRequestId: string | undefined
+
+  if (process.env.NODE_ENV !== 'production') {
+    // The request IDs are only used in development mode to send debug
+    // information to the matching client (identified by the HTML request ID
+    // that was sent to the client with the HTML document) for the current
+    // request (identified by the request ID, as defined by the client).
+
+    requestId =
+      typeof headers[NEXT_REQUEST_ID_HEADER] === 'string'
+        ? headers[NEXT_REQUEST_ID_HEADER]
+        : undefined
+
+    htmlRequestId =
+      typeof headers[NEXT_HTML_REQUEST_ID_HEADER] === 'string'
+        ? headers[NEXT_HTML_REQUEST_ID_HEADER]
+        : undefined
+  }
 
   return {
     flightRouterState,
@@ -347,6 +363,7 @@ function parseRequestHeaders(
     isDevWarmupRequest,
     nonce,
     previouslyRevalidatedTags,
+    requestId,
     htmlRequestId,
   }
 }
@@ -1632,22 +1649,7 @@ async function renderToHTMLOrFlightImpl(
   const { isStaticGeneration } = workStore
 
   let requestId: string
-
-  if (isStaticGeneration) {
-    requestId = Buffer.from(
-      await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
-    ).toString('hex')
-  } else if (process.env.NEXT_RUNTIME === 'edge') {
-    requestId = crypto.randomUUID()
-  } else {
-    requestId = (
-      require('next/dist/compiled/nanoid') as typeof import('next/dist/compiled/nanoid')
-    ).nanoid()
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    res.setHeader(NEXT_REQUEST_ID_HEADER, requestId)
-  }
+  let htmlRequestId: string
 
   const {
     flightRouterState,
@@ -1657,8 +1659,32 @@ async function renderToHTMLOrFlightImpl(
     isDevWarmupRequest,
     isHmrRefresh,
     nonce,
-    htmlRequestId = requestId,
   } = parsedRequestHeaders
+
+  if (parsedRequestHeaders.requestId) {
+    // If the client has provided a request ID (in development mode), we use it.
+    requestId = parsedRequestHeaders.requestId
+  } else {
+    // Otherwise we generate a new request ID.
+    if (isStaticGeneration) {
+      requestId = Buffer.from(
+        await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
+      ).toString('hex')
+    } else if (process.env.NEXT_RUNTIME === 'edge') {
+      requestId = crypto.randomUUID()
+    } else {
+      requestId = (
+        require('next/dist/compiled/nanoid') as typeof import('next/dist/compiled/nanoid')
+      ).nanoid()
+    }
+  }
+
+  // If the client has provided an HTML request ID, we use it to associate the
+  // request with the HTML document from which it originated, which is used to
+  // send debug information to the associated WebSocket client. Otherwise, this
+  // is the request for the HTML document, so we use the request ID also as the
+  // HTML request ID.
+  htmlRequestId = parsedRequestHeaders.htmlRequestId || requestId
 
   /**
    * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
