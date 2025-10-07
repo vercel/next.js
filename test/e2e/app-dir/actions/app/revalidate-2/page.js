@@ -1,4 +1,4 @@
-import { revalidateTag } from 'next/cache'
+import { updateTag } from 'next/cache'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 
@@ -26,7 +26,7 @@ export default async function Page() {
           id="revalidate-tag"
           formAction={async () => {
             'use server'
-            revalidateTag('thankyounext')
+            updateTag('thankyounext')
           }}
         >
           revalidate thankyounext

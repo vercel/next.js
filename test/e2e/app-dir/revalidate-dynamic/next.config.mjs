@@ -1,6 +1,5 @@
-module.exports = {
+const nextConfig = {
   experimental: {
-    ppr: true,
     cacheLife: {
       expireNow: {
         stale: 0,
@@ -10,3 +9,4 @@ module.exports = {
     },
   },
 }
+export default nextConfig

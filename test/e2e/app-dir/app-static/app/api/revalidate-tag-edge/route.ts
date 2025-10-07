@@ -6,6 +6,6 @@ export const runtime = 'edge'
 
 export async function GET(req) {
   const tag = req.nextUrl.searchParams.get('tag')
-  revalidateTag(tag)
+  revalidateTag(tag, 'expireNow')
   return NextResponse.json({ revalidated: true, now: Date.now() })
 }

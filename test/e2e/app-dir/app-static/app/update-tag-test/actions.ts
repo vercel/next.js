@@ -18,7 +18,7 @@ export async function revalidateAction() {
 
 export async function deprecatedRevalidateAction() {
   // This should show deprecation warning
-  revalidateTag('test-update-tag')
+  updateTag('test-update-tag')
 
   return { revalidated: true, timestamp: Date.now() }
 }

@@ -9,7 +9,7 @@ const RevalidateViaPage = async ({
   searchParams: Promise<{ tag: string }>
 }) => {
   const { tag } = await searchParams
-  revalidateTag(tag)
+  revalidateTag(tag, 'max')
 
   return (
     <div className="flex flex-col items-center justify-center h-screen">
