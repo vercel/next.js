@@ -57,6 +57,18 @@ function normalizeNextConfigZodErrors(
         // We exit the build when encountering an error in the images config
         shouldExit = true
       }
+      if (
+        issue.code === 'unrecognized_keys' &&
+        issue.path[0] === 'experimental' &&
+        message.includes('turbopackPersistentCaching')
+      ) {
+        // We exit the build when encountering an error in the turbopackPersistentCaching config
+        shouldExit = true
+        message +=
+          "\nUse 'experimental.turbopackPersistentCachingForDev' instead."
+        message +=
+          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackPersistentCaching'
+      }
 
       return message
     }),
@@ -1965,7 +1977,7 @@ async function validateConfigSchema(
     )
     // ident list item
     for (const error of errorMessages) {
-      messages.push(`    ${error}`)
+      messages.push(`    ${error.split('\n').join('\n    ')}`)
     }
 
     // error message footer

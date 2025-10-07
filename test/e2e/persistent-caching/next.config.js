@@ -16,7 +16,6 @@ const nextConfig = {
     },
   },
   experimental: {
-    turbopackPersistentCaching: true,
     turbopackPersistentCachingForDev: true,
     turbopackPersistentCachingForBuild: true,
   },
