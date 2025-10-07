@@ -155,26 +155,16 @@ function revalidate(tags: string[], expression: string, profile?: string) {
   if (!store.pendingRevalidatedTags) {
     store.pendingRevalidatedTags = []
   }
-  if (!store.pendingRevalidatedTagsWithProfile) {
-    store.pendingRevalidatedTagsWithProfile = []
-  }
 
   for (const tag of tags) {
-    if (!store.pendingRevalidatedTags.includes(tag)) {
-      store.pendingRevalidatedTags.push(tag)
-    }
-
-    // Also store with profile information
-    if (profile) {
-      const existingIndex = store.pendingRevalidatedTagsWithProfile.findIndex(
-        (item) => item.tag === tag && item.profile === profile
-      )
-      if (existingIndex === -1) {
-        store.pendingRevalidatedTagsWithProfile.push({
-          tag,
-          profile,
-        })
-      }
+    const existingIndex = store.pendingRevalidatedTags.findIndex(
+      (item) => item.tag === tag && item.profile === profile
+    )
+    if (existingIndex === -1) {
+      store.pendingRevalidatedTags.push({
+        tag,
+        profile,
+      })
     }
   }
 

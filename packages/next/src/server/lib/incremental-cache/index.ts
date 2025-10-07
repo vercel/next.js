@@ -489,7 +489,7 @@ export class IncrementalCache implements IncrementalCacheType {
         combinedTags.some(
           (tag) =>
             this.revalidatedTags?.includes(tag) ||
-            workStore?.pendingRevalidatedTags?.includes(tag)
+            workStore?.pendingRevalidatedTags?.some((item) => item.tag === tag)
         )
       ) {
         if (IncrementalCache.debug) {

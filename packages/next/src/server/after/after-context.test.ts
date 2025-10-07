@@ -545,7 +545,6 @@ const createMockWorkStore = (afterContext: AfterContext): WorkStore => {
     pendingRevalidatedTags: [],
     pendingRevalidates: undefined,
     pendingRevalidateWrites: undefined,
-    pendingRevalidatedTagsWithProfile: undefined,
     incrementalCache: undefined,
   }
 

@@ -28,10 +28,7 @@ export async function withExecuteRevalidates<T>(
 type RevalidationState = Required<
   Pick<
     WorkStore,
-    | 'pendingRevalidatedTags'
-    | 'pendingRevalidates'
-    | 'pendingRevalidateWrites'
-    | 'pendingRevalidatedTagsWithProfile'
+    'pendingRevalidatedTags' | 'pendingRevalidates' | 'pendingRevalidateWrites'
   >
 >
 
@@ -39,9 +36,6 @@ function cloneRevalidationState(store: WorkStore): RevalidationState {
   return {
     pendingRevalidatedTags: store.pendingRevalidatedTags
       ? [...store.pendingRevalidatedTags]
-      : [],
-    pendingRevalidatedTagsWithProfile: store.pendingRevalidatedTagsWithProfile
-      ? [...store.pendingRevalidatedTagsWithProfile]
       : [],
     pendingRevalidates: { ...store.pendingRevalidates },
     pendingRevalidateWrites: store.pendingRevalidateWrites
@@ -54,21 +48,16 @@ function diffRevalidationState(
   prev: RevalidationState,
   curr: RevalidationState
 ): RevalidationState {
-  const prevTags = new Set(prev.pendingRevalidatedTags)
   const prevTagsWithProfile = new Set(
-    prev.pendingRevalidatedTagsWithProfile.map(
+    prev.pendingRevalidatedTags.map(
       (item) => `${item.tag}:${item.profile || ''}`
     )
   )
   const prevRevalidateWrites = new Set(prev.pendingRevalidateWrites)
   return {
     pendingRevalidatedTags: curr.pendingRevalidatedTags.filter(
-      (tag) => !prevTags.has(tag)
+      (item) => !prevTagsWithProfile.has(`${item.tag}:${item.profile || ''}`)
     ),
-    pendingRevalidatedTagsWithProfile:
-      curr.pendingRevalidatedTagsWithProfile.filter(
-        (item) => !prevTagsWithProfile.has(`${item.tag}:${item.profile || ''}`)
-      ),
     pendingRevalidates: Object.fromEntries(
       Object.entries(curr.pendingRevalidates).filter(
         ([key]) => !(key in prev.pendingRevalidates)
@@ -81,68 +70,58 @@ function diffRevalidationState(
 }
 
 async function revalidateTags(
-  tags: string[],
+  tagsWithProfile: Array<{ tag: string; profile?: string }>,
   incrementalCache: IncrementalCache | undefined,
-  tagsWithProfile?: Array<{ tag: string; profile?: string }>,
   workStore?: WorkStore
 ): Promise<void> {
-  if (tags.length === 0 && (!tagsWithProfile || tagsWithProfile.length === 0)) {
+  if (tagsWithProfile.length === 0) {
     return
   }
 
   const handlers = getCacheHandlers()
   const promises: Promise<void>[] = []
 
-  if (tagsWithProfile && tagsWithProfile.length > 0) {
-    // Group tags by profile for batch processing
-    const tagsByProfile = new Map<string | undefined, string[]>()
+  // Group tags by profile for batch processing
+  const tagsByProfile = new Map<string | undefined, string[]>()
 
-    for (const item of tagsWithProfile) {
-      const profile = item.profile
-      if (!tagsByProfile.has(profile)) {
-        tagsByProfile.set(profile, [])
-      }
-      tagsByProfile.get(profile)!.push(item.tag)
+  for (const item of tagsWithProfile) {
+    const profile = item.profile
+    if (!tagsByProfile.has(profile)) {
+      tagsByProfile.set(profile, [])
     }
+    tagsByProfile.get(profile)!.push(item.tag)
+  }
 
-    // Process each profile group
-    for (const [profile, tagsForProfile] of tagsByProfile) {
-      // Look up the cache profile from workStore if available
-      let durations: { expire?: number } | undefined
+  // Process each profile group
+  for (const [profile, tagsForProfile] of tagsByProfile) {
+    // Look up the cache profile from workStore if available
+    let durations: { expire?: number } | undefined
 
+    if (profile) {
+      const cacheLife = workStore?.cacheLifeProfiles?.[profile]
+
+      if (!cacheLife) {
+        throw new Error(
+          `Invalid profile provided "${profile}" must be configured under cacheLife in next.config or be "max"`
+        )
+      }
+      durations = {
+        expire: cacheLife.expire,
+      }
+    }
+    // If profile is not found and not 'max', durations will be undefined
+    // which will trigger immediate expiration in the cache handler
+
+    for (const handler of handlers || []) {
       if (profile) {
-        const cacheLife = workStore?.cacheLifeProfiles?.[profile]
-
-        if (!cacheLife) {
-          throw new Error(
-            `Invalid profile provided "${profile}" must be configured under cacheLife in next.config or be "max"`
-          )
-        }
-        durations = {
-          expire: cacheLife.expire,
-        }
-      }
-      // If profile is not found and not 'max', durations will be undefined
-      // which will trigger immediate expiration in the cache handler
-
-      for (const handler of handlers || []) {
         promises.push(handler.updateTags(tagsForProfile, durations))
-      }
-
-      if (incrementalCache) {
-        promises.push(incrementalCache.revalidateTag(tagsForProfile, durations))
+      } else {
+        promises.push(handler.updateTags(tagsForProfile))
       }
     }
-  }
 
-  if (incrementalCache && tags.length > 0) {
-    // Fallback to old behavior for compatibility
-    promises.push(incrementalCache.revalidateTag(tags))
-  }
-
-  if (handlers) {
-    for (const handler of handlers) {
-      promises.push(handler.updateTags(tags))
+    if (incrementalCache) {
+      promises.push(incrementalCache.revalidateTag(tagsForProfile, durations))
     }
   }
 
@@ -156,11 +135,6 @@ export async function executeRevalidates(
   const pendingRevalidatedTags =
     state?.pendingRevalidatedTags ?? workStore.pendingRevalidatedTags ?? []
 
-  const pendingRevalidatedTagsWithProfile =
-    state?.pendingRevalidatedTagsWithProfile ??
-    workStore.pendingRevalidatedTagsWithProfile ??
-    []
-
   const pendingRevalidates =
     state?.pendingRevalidates ?? workStore.pendingRevalidates ?? {}
 
@@ -171,7 +145,6 @@ export async function executeRevalidates(
     revalidateTags(
       pendingRevalidatedTags,
       workStore.incrementalCache,
-      pendingRevalidatedTagsWithProfile,
       workStore
     ),
     ...Object.values(pendingRevalidates),
