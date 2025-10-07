@@ -2,10 +2,7 @@ use std::mem::take;
 
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use turbo_tasks::{
-    CellId, TaskId, TypedSharedReference,
-    backend::{CellContent, TypedCellContent},
-};
+use turbo_tasks::{CellId, TaskId, TypedSharedReference, backend::CellContent};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
