@@ -229,6 +229,67 @@ describe('Validations for <Link legacyBehavior>', () => {
   })
 
   describe('When rendering from a Client Component', () => {
+    it('errors if there are no children', async () => {
+      const browser = await next.browser('/validations/client/missing-child')
+
+      if (isNextDev) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "No children were passed to <Link> with \`href\` of \`/about\` but one child is required https://nextjs.org/docs/messages/link-no-children",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "app/validations/client/missing-child/page.tsx (6:10) @ Page
+         > 6 |   return <Link href="/about" legacyBehavior></Link>
+             |          ^",
+           "stack": [
+             "Page app/validations/client/missing-child/page.tsx (6:10)",
+           ],
+         }
+        `)
+      } else {
+        const output = getContentBetween({
+          input: newConsoleOutput(),
+          endContent: '   at',
+        })
+
+        expect(output).toMatchInlineSnapshot(
+          `" ⨯ Error: React.Children.only expected to receive a single React element child."`
+        )
+      }
+    })
+
+    it('errors if there are multiple children', async () => {
+      const browser = await next.browser(
+        '/validations/client/multiple-children'
+      )
+
+      if (isNextDev) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Multiple children were passed to <Link> with \`href\` of \`/about\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children 
+         Open your browser's console to view the Component stack trace.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "app/validations/client/multiple-children/page.tsx (7:5) @ Page
+         >  7 |     <Link href="/about" legacyBehavior>
+              |     ^",
+           "stack": [
+             "Page app/validations/client/multiple-children/page.tsx (7:5)",
+           ],
+         }
+        `)
+      } else {
+        const output = getContentBetween({
+          input: newConsoleOutput(),
+          endContent: '   at',
+        })
+
+        expect(output).toMatchInlineSnapshot(
+          `" ⨯ Error: React.Children.only expected to receive a single React element child."`
+        )
+      }
+    })
+
     it('does not warn or throw if you pass a child component', async () => {
       const browser = await next.browser('/validations/client/child-component')
 

@@ -50,6 +50,16 @@ describe('Link with legacyBehavior', () => {
     expect(newConsoleOutput()).toBe('')
   })
 
+  it('errors when calling onClick without the event', async () => {
+    const browser = await next.browser('/invalid-onclick')
+    expect(await browser.elementByCss('#errors').text()).toBe('0')
+    await browser.elementByCss('#custom-button').click()
+    expect(await browser.elementByCss('#errors').text()).toBe('1')
+  })
+
+  it.todo('buggy userspace ref merging test')
+  it.todo('should show a deprecation warning')
+
   describe('passHref', () => {
     it('forwards the href attribute', async () => {
       const $ = await next.render$('/passHref')
