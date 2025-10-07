@@ -37,7 +37,7 @@ export function unstable_expirePath(
     return
   }
 
-  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath}`
+  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath || '/'}`
 
   if (type) {
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
@@ -46,7 +46,13 @@ export function unstable_expirePath(
       `Warning: a dynamic page path "${originalPath}" was passed to "expirePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath`
     )
   }
-  return revalidate([normalizedPath], `unstable_expirePath ${originalPath}`)
+  const tags = [normalizedPath]
+  if (normalizedPath === `${NEXT_CACHE_IMPLICIT_TAG_ID}/`) {
+    tags.push(`${NEXT_CACHE_IMPLICIT_TAG_ID}/index`)
+  } else if (normalizedPath === `${NEXT_CACHE_IMPLICIT_TAG_ID}/index`) {
+    tags.push(`${NEXT_CACHE_IMPLICIT_TAG_ID}/`)
+  }
+  return revalidate(tags, `unstable_expirePath ${originalPath}`)
 }
 
 /**
