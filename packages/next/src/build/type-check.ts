@@ -164,7 +164,7 @@ export async function startTypeChecking({
       typeCheckingAndLintingSpinner.stop()
 
       createSpinner(
-        `Finished TypeScript ${ignoreTypeScriptErrors ? 'config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
+        `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
       )?.stopAndPersist()
       if (lintCheckEnd) {
         createSpinner(
