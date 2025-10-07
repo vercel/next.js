@@ -15,10 +15,63 @@ describe('getImplicitTags()', () => {
       expectedTags: ['_N_T_/layout', '_N_T_/layout', '_N_T_/', '_N_T_/index'],
     },
     {
+      page: '',
+      url: { pathname: '/', search: '' },
+      fallbackRouteParams: null,
+      expectedTags: ['_N_T_/layout', '_N_T_/', '_N_T_/index'],
+    },
+    {
+      page: '/',
+      url: { pathname: '', search: '' },
+      fallbackRouteParams: null,
+      expectedTags: ['_N_T_/layout', '_N_T_/layout'],
+    },
+    {
+      page: '/page',
+      url: { pathname: '', search: '' },
+      fallbackRouteParams: null,
+      expectedTags: ['_N_T_/layout', '_N_T_/page'],
+    },
+    {
+      page: '/page',
+      url: { pathname: '/', search: '' },
+      fallbackRouteParams: null,
+      expectedTags: ['_N_T_/layout', '_N_T_/page', '_N_T_/', '_N_T_/index'],
+    },
+    {
+      page: '/page',
+      url: { pathname: '/page', search: '' },
+      fallbackRouteParams: null,
+      expectedTags: ['_N_T_/layout', '_N_T_/page', '_N_T_/page'],
+    },
+    {
+      page: '/index',
+      url: { pathname: '/', search: '' },
+      fallbackRouteParams: null,
+      expectedTags: [
+        '_N_T_/layout',
+        '_N_T_/index/layout',
+        '_N_T_/',
+        '_N_T_/index',
+      ],
+    },
+    {
       page: '/hello',
       url: { pathname: '/hello', search: '' },
       fallbackRouteParams: null,
       expectedTags: ['_N_T_/layout', '_N_T_/hello/layout', '_N_T_/hello'],
+    },
+    {
+      page: '/foo/bar/baz',
+      url: { pathname: '/foo/bar/baz', search: '' },
+      fallbackRouteParams: null,
+      expectedTags: [
+        '_N_T_/layout',
+        '_N_T_/foo/layout',
+        '_N_T_/foo/bar/layout',
+        '_N_T_/foo/bar/baz/layout',
+        '_N_T_/foo/bar/baz',
+      ],
     },
   ])(
     'for page $page with url $url and $fallback',
