@@ -1,17 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Link with legacyBehavior', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
-  let previousOutputIndex
-  beforeEach(() => {
-    previousOutputIndex = next.cliOutput.length
-  })
-
-  function newConsoleOutput() {
-    return next.cliOutput.slice(previousOutputIndex)
-  }
 
   describe('if the child is an <a> tag', () => {
     it('forwards the href attribute', async () => {
@@ -28,7 +20,6 @@ describe('Link with legacyBehavior', () => {
       const title = await browser.elementByCss('#about-page').text()
 
       expect(title).toBe('About Page')
-      expect(newConsoleOutput()).toBe('')
     })
   })
 
@@ -38,7 +29,6 @@ describe('Link with legacyBehavior', () => {
     const title = await browser.elementByCss('h1').text()
 
     expect(title).toBe('About Page')
-    expect(newConsoleOutput()).toBe('')
   })
 
   it('works if the child is a string', async () => {
@@ -47,7 +37,6 @@ describe('Link with legacyBehavior', () => {
     const title = await browser.elementByCss('h1').text()
 
     expect(title).toBe('About Page')
-    expect(newConsoleOutput()).toBe('')
   })
 
   it('errors when calling onClick without the event', async () => {
@@ -57,8 +46,20 @@ describe('Link with legacyBehavior', () => {
     expect(await browser.elementByCss('#errors').text()).toBe('1')
   })
 
-  it.todo('buggy userspace ref merging test')
-  it.todo('should show a deprecation warning')
+  it('should show a deprecation warning', async () => {
+    const browser = await next.browser('/')
+    const logs = await browser.log()
+
+    const errors = logs.filter(
+      (log) =>
+        log.source === 'error' &&
+        log.message.includes(
+          '`legacyBehavior` is deprecated and will be removed in a future release.'
+        )
+    )
+
+    expect(errors.length).toBe(isNextDev ? 1 : 0)
+  })
 
   describe('passHref', () => {
     it('forwards the href attribute', async () => {
@@ -75,7 +76,6 @@ describe('Link with legacyBehavior', () => {
       const title = await browser.elementByCss('h1').text()
 
       expect(title).toBe('About Page')
-      expect(newConsoleOutput()).toBe('')
     })
   })
 })

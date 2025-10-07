@@ -23,17 +23,34 @@ describe('Validations for <Link legacyBehavior>', () => {
 
         if (isNextDev) {
           await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.",
-             "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": "app/validations/rsc-that-renders-link/synchronous/page.tsx (7:7) @ Page
+           [
+             {
+               "description": "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/validations/rsc-that-renders-link/synchronous/page.tsx (7:7) @ Page
            >  7 |       <Link href="/about" legacyBehavior>
                 |       ^",
-             "stack": [
-               "Page app/validations/rsc-that-renders-link/synchronous/page.tsx (7:7)",
-             ],
-           }
+               "stack": [
+                 "Page app/validations/rsc-that-renders-link/synchronous/page.tsx (7:7)",
+               ],
+             },
+             {
+               "description": "\`legacyBehavior\` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:
+
+           npx @next/codemod@latest new-link .
+
+           Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components",
+               "environmentLabel": null,
+               "label": "Console Error",
+               "source": "app/validations/rsc-that-renders-link/synchronous/page.tsx (7:7) @ Page
+           >  7 |       <Link href="/about" legacyBehavior>
+                |       ^",
+               "stack": [
+                 "Page app/validations/rsc-that-renders-link/synchronous/page.tsx (7:7)",
+               ],
+             },
+           ]
           `)
         } else {
           expect(newConsoleOutput()).toMatchInlineSnapshot(`

@@ -22,6 +22,7 @@ import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
 } from '../components/segment-cache'
+import { errorOnce } from '../../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -700,6 +701,14 @@ export default function LinkComponent(
   let link: React.ReactNode
 
   if (legacyBehavior) {
+    if (process.env.NODE_ENV === 'development') {
+      errorOnce(
+        '`legacyBehavior` is deprecated and will be removed in a future ' +
+          'release. A codemod is available to upgrade your components:\n\n' +
+          'npx @next/codemod@latest new-link .\n\n' +
+          'Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components'
+      )
+    }
     link = React.cloneElement(child, childProps)
   } else {
     link = (
