@@ -146,9 +146,16 @@ impl EcmascriptChunkItem for JsonChunkItem {
                 let source_code = source_code.into();
                 let source_map = serde_json::json!({
                     "version": 3,
+                    // TODO: Encode using `urlencoding`, so that these
+                    // are valid URLs. However, `project_trace_source_operation` (and
+                    // `uri_from_file`) need to handle percent encoding correctly first.
+                    //
+                    // See turbopack/crates/turbopack-core/src/source_map/utils.rs as well
                     "sources": [format!("turbopack:///{}", self.module.ident().path().to_string().await?)],
                     "sourcesContent": [&data_str],
                     "names": [],
+                    // Maps 0:0 in the output code to 0:0 in the `source_code`. Sufficient for
+                    // bundle analyzers to attribute the bytes in the output chunks
                     "mappings": "AAAA",
                 })
                 .to_string()
