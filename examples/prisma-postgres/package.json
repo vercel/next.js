@@ -4,7 +4,6 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
     "postinstall": "prisma generate --no-engine"
   },
   "prisma": {
@@ -15,15 +14,14 @@
     "@prisma/client": "latest",
     "@prisma/extension-accelerate": "latest",
     "next": "latest",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.14",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "postcss": "^8",
     "prisma": "latest",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.19.2",
