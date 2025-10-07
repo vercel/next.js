@@ -851,5 +851,6 @@
   "850": "metadataBase is not a valid URL: %s",
   "851": "Pass either `webpack` or `turbopack`, not both.",
   "852": "Only custom servers can pass `webpack`, `turbo`, or `turbopack`.",
-  "853": "Turbopack build failed"
+  "853": "Turbopack build failed",
+  "854": "Expected a %s request header."
 }

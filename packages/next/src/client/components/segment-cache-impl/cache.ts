@@ -1432,7 +1432,7 @@ export async function fetchRouteOnCacheMiss(
       )
       const serverData = await (createFromNextReadableStream(
         prefetchStream,
-        response.headers
+        headers
       ) as Promise<RootTreePrefetch>)
       if (serverData.buildId !== getAppBuildId()) {
         // The server build does not match the client. Treat as a 404. During
@@ -1484,7 +1484,7 @@ export async function fetchRouteOnCacheMiss(
       )
       const serverData = await (createFromNextReadableStream(
         prefetchStream,
-        response.headers
+        headers
       ) as Promise<NavigationFlightResponse>)
       if (serverData.b !== getAppBuildId()) {
         // The server build does not match the client. Treat as a 404. During
@@ -1630,7 +1630,7 @@ export async function fetchSegmentOnCacheMiss(
     )
     const serverData = await (createFromNextReadableStream(
       prefetchStream,
-      response.headers
+      headers
     ) as Promise<SegmentPrefetch>)
     if (serverData.buildId !== getAppBuildId()) {
       // The server build does not match the client. Treat as a 404. During
@@ -1750,7 +1750,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     )
     const serverData = await (createFromNextReadableStream(
       prefetchStream,
-      response.headers
+      headers
     ) as Promise<NavigationFlightResponse>)
 
     const isResponsePartial =
