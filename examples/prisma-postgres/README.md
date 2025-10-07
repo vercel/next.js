@@ -67,7 +67,7 @@ bun install
 Run the following command to create a Prisma Postgres database and append the `DATABASE_URL` to your `.env`:
 
 ```
-npx create-db >> .env
+npx create-db@latest --env >> .env
 ```
 
 ### 3. Setup your `.env` file

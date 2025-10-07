@@ -11,6 +11,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^6.16.3",
     "@prisma/client": "latest",
     "@prisma/extension-accelerate": "latest",
     "next": "latest",
