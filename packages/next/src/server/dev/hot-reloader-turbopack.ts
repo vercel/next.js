@@ -758,12 +758,13 @@ export async function createHotReloaderTurbopack(
     }),
     ...(nextConfig.experimental.mcpServer
       ? [
-          getMcpMiddleware(
+          getMcpMiddleware({
             projectPath,
             distDir,
-            (message) => hotReloader.send(message),
-            () => clients.size
-          ),
+            sendHmrMessage: (message) => hotReloader.send(message),
+            getActiveConnectionCount: () => clients.size,
+            getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+          }),
         ]
       : []),
   ]
