@@ -1350,6 +1350,7 @@
   "test/development/basic/hmr/error-recovery-yes-base-path-no-asset-prefix.test.ts": {
     "passed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
@@ -1364,7 +1365,6 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should show the error on all pages"
     ],
     "failed": [
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
     ],
     "pending": [],
@@ -1953,6 +1953,7 @@
   },
   "test/development/mcp-server/mcp-server-get-page-metadata.test.ts": {
     "passed": [
+      "mcp-server get_page_metadata tool app router should count multiple browser tabs with the same URL separately",
       "mcp-server get_page_metadata tool app router should handle multiple browser sessions",
       "mcp-server get_page_metadata tool app router should return metadata for basic page",
       "mcp-server get_page_metadata tool app router should return metadata for parallel routes",
@@ -3711,7 +3712,7 @@
       "app dir - basic searchParams prop server component should have the correct search params",
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -3770,7 +3771,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -8161,25 +8162,23 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global-with-app/invalid-global-with-app.test.ts": {
-    "passed": ["Invalid Global CSS with Custom App should fail to build"],
+    "passed": ["Invalid Global CSS with Custom App should show a build error"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global/invalid-global.test.ts": {
-    "passed": ["Invalid Global CSS should fail to build"],
+    "passed": ["Invalid Global CSS should show a build error"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-module-document/invalid-module-document.test.ts": {
-    "passed": [],
+    "passed": ["Invalid SCSS in _document should show a build error"],
     "failed": [],
-    "pending": [
-      "Invalid SCSS in _document production only should fail to build"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8268,10 +8267,8 @@
   },
   "test/e2e/app-dir/scss/npm-import-bad/npm-import-bad.test.ts": {
     "passed": [],
-    "failed": [],
-    "pending": [
-      "CSS Import from node_modules production only should fail the build"
-    ],
+    "failed": ["CSS Import from node_modules should show a build error"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8394,7 +8391,7 @@
   },
   "test/e2e/app-dir/scss/valid-and-invalid-global/valid-and-invalid-global.test.ts": {
     "passed": [
-      "Valid and Invalid Global CSS with Custom App should fail to build"
+      "Valid and Invalid Global CSS with Custom App should show a build error"
     ],
     "failed": [],
     "pending": [],
