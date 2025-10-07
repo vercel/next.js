@@ -309,9 +309,9 @@ export async function createFetch(
     // Create a new request ID for the server action request. The server uses
     // this to tag debug information sent via WebSocket to the client, which
     // then routes those chunks to the debug channel associated with this ID.
-    headers[NEXT_REQUEST_ID_HEADER] = (
-      require('next/dist/compiled/nanoid') as typeof import('next/dist/compiled/nanoid')
-    ).nanoid()
+    headers[NEXT_REQUEST_ID_HEADER] = crypto
+      .getRandomValues(new Uint32Array(1))[0]
+      .toString(16)
   }
 
   const fetchOptions: RequestInit = {
