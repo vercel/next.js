@@ -7,6 +7,8 @@ import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
 
 const urlsError = 'Please use only absolute URLs'
 
+console.log('noop, see if this passes in CI')
+
 describe('Middleware Runtime', () => {
   const isNodeMiddleware = Boolean(process.env.TEST_NODE_MIDDLEWARE)
 
