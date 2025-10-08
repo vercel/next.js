@@ -74,7 +74,7 @@ export async function recursiveDeleteSyncWithAsyncRetries(
   dir: string,
   /** Exclude based on relative file path */
   exclude?: RegExp,
-  /** Ensures that parameter dir exists, this is not passed recursively */
+  /** Relative path to the directory being deleted, used for exclude */
   previousPath: string = ''
 ): Promise<void> {
   let result

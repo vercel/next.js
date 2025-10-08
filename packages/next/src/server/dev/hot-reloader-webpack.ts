@@ -1632,12 +1632,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }),
       ...(this.config.experimental.mcpServer
         ? [
-            getMcpMiddleware(
-              this.dir,
-              this.distDir,
-              (message) => this.send(message),
-              () => this.webpackHotMiddleware?.getClientCount() ?? 0
-            ),
+            getMcpMiddleware({
+              projectPath: this.dir,
+              distDir: this.distDir,
+              sendHmrMessage: (message) => this.send(message),
+              getActiveConnectionCount: () =>
+                this.webpackHotMiddleware?.getClientCount() ?? 0,
+              getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+            }),
           ]
         : []),
     ]

@@ -1,14 +1,14 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
-describe('mcp-server get_project_path tool', () => {
+describe('mcp-server get_project_metadata tool', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
   })
-  it('should return correct project path via get_project_path tool', async () => {
+  it('should return correct project metadata via get_project_metadata tool', async () => {
     const mcpEndpoint = `${next.url}/_next/mcp`
 
-    // Call get_project_path tool
+    // Call get_project_metadata tool
     const callToolResponse = await fetch(mcpEndpoint, {
       method: 'POST',
       headers: {
@@ -20,7 +20,7 @@ describe('mcp-server get_project_path tool', () => {
         id: 'call-tool-1',
         method: 'tools/call',
         params: {
-          name: 'get_project_path',
+          name: 'get_project_metadata',
           arguments: {},
         },
       }),
@@ -38,12 +38,23 @@ describe('mcp-server get_project_path tool', () => {
     expect(content).toBeInstanceOf(Array)
     expect(content?.[0]?.type).toBe('text')
 
-    const actualProjectPath = content?.[0]?.text
+    const metadataText = content?.[0]?.text
+    expect(metadataText).toBeTruthy()
 
-    // Verify it's an absolute path
-    expect(path.isAbsolute(actualProjectPath)).toBe(true)
+    const metadata = JSON.parse(metadataText)
 
-    // Should match the test directory
-    expect(actualProjectPath).toBe(next.testDir)
+    // Verify projectPath
+    expect(metadata.projectPath).toBeTruthy()
+    expect(path.isAbsolute(metadata.projectPath)).toBe(true)
+    expect(metadata.projectPath).toBe(next.testDir)
+
+    // Verify devServerUrl
+    expect(metadata.devServerUrl).toBeTruthy()
+    expect(metadata.devServerUrl).toMatch(/^https?:\/\//)
+    expect(metadata.devServerUrl).toContain('localhost')
+
+    // The devServerUrl should match the next.url (base URL without path)
+    const expectedBaseUrl = next.url
+    expect(metadata.devServerUrl).toBe(expectedBaseUrl)
   })
 })

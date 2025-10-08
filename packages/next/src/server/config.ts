@@ -57,6 +57,18 @@ function normalizeNextConfigZodErrors(
         // We exit the build when encountering an error in the images config
         shouldExit = true
       }
+      if (
+        issue.code === 'unrecognized_keys' &&
+        issue.path[0] === 'experimental' &&
+        message.includes('turbopackPersistentCaching')
+      ) {
+        // We exit the build when encountering an error in the turbopackPersistentCaching config
+        shouldExit = true
+        message +=
+          "\nUse 'experimental.turbopackPersistentCachingForDev' instead."
+        message +=
+          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackPersistentCaching'
+      }
 
       return message
     }),
@@ -119,6 +131,15 @@ function checkDeprecations(
     `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
     silent
   )
+
+  if (userConfig.images?.domains?.length) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'images.domains',
+      `\`images.domains\` is deprecated in favor of \`images.remotePatterns\`. Please update ${configFileName} to protect your application from malicious users.`,
+      silent
+    )
+  }
 
   // i18n deprecation for App Router
   if (userConfig.i18n) {
@@ -1965,7 +1986,7 @@ async function validateConfigSchema(
     )
     // ident list item
     for (const error of errorMessages) {
-      messages.push(`    ${error}`)
+      messages.push(`    ${error.split('\n').join('\n    ')}`)
     }
 
     // error message footer

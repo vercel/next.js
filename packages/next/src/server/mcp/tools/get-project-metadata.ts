@@ -1,14 +1,15 @@
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 
-export function registerGetProjectPathTool(
+export function registerGetProjectMetadataTool(
   server: McpServer,
-  projectPath: string
+  projectPath: string,
+  getDevServerUrl: () => string | undefined
 ) {
   server.registerTool(
-    'get_project_path',
+    'get_project_metadata',
     {
       description:
-        'Returns the absolute path of the root directory for this Next.js project.',
+        'Returns the the metadata of this Next.js project, including project path, dev server URL, etc.',
       inputSchema: {},
     },
     async (_request) => {
@@ -24,11 +25,16 @@ export function registerGetProjectPathTool(
           }
         }
 
+        const devServerUrl = getDevServerUrl()
+
         return {
           content: [
             {
               type: 'text',
-              text: projectPath,
+              text: JSON.stringify({
+                projectPath,
+                devServerUrl,
+              }),
             },
           ],
         }
