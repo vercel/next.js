@@ -124,6 +124,7 @@ export interface StartServerOptions {
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
+  accessLog?: string
   keepAliveTimeout?: number
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
@@ -178,6 +179,7 @@ export async function startServer(
     allowRetry,
     keepAliveTimeout,
     selfSignedCertificate,
+    accessLog,
   } = serverOptions
   let { port } = serverOptions
 
@@ -223,6 +225,26 @@ export async function startServer(
   }
 
   async function requestListener(req: IncomingMessage, res: ServerResponse) {
+    if (accessLog) {
+      try {
+        let remoteAddress
+
+        if (req.headers['x-forwarded-for']) {
+          remoteAddress = req.headers['x-forwarded-for'].split(',')[0]
+        } else {
+          remoteAddress = req.socket.remoteAddress
+        }
+        res.on('finish', () => {
+          fs.appendFileSync(
+            accessLog,
+            `${remoteAddress} ${new Date().toISOString()} ${req.method} ${res.statusCode} ${req.url} ${req.headers['user-agent']}\n`
+          )
+        })
+      } catch (err) {
+        Log.error(`Failed to write to access log: ${accessLog}`)
+        console.error(err)
+      }
+    }
     try {
       if (handlersPromise) {
         await handlersPromise
