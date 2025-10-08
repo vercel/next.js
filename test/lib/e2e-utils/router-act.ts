@@ -19,8 +19,6 @@ type PendingRSCRequest = {
   didProcess: boolean
 }
 
-let currentBatch: Batch | null = null
-
 type ExpectedResponseConfig = {
   includes: string
   block?: boolean | 'reject'
@@ -59,6 +57,8 @@ type ActConfig =
 export function createRouterAct(
   page: Playwright.Page
 ): <T>(scope: () => Promise<T> | T, config?: ActConfig) => Promise<T> {
+  let currentBatch: Batch | null = null
+
   /**
    * Test utility for requests initiated by the Next.js Router, such as
    * prefetches and navigations. Calls the given async function then intercepts
