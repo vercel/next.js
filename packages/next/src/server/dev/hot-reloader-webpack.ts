@@ -87,7 +87,7 @@ import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
-import { checkPersistentCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
+import { checkFileSystemCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
 import {
   receiveBrowserLogsWebpack,
   handleClientFileLogs,
@@ -1188,7 +1188,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     await Promise.all(
       Array.from(getCacheDirectories(this.activeWebpackConfigs)).map(
-        checkPersistentCacheInvalidationAndCleanup
+        checkFileSystemCacheInvalidationAndCleanup
       )
     )
     this.multiCompiler = getWebpackBundler()(

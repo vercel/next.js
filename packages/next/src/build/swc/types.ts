@@ -255,7 +255,7 @@ export interface Project {
     eventTypes?: string[]
   ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
 
-  invalidatePersistentCache(): Promise<void>
+  invalidateFileSystemCache(): Promise<void>
 
   shutdown(): Promise<void>
 

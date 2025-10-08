@@ -65,9 +65,9 @@ function normalizeNextConfigZodErrors(
         // We exit the build when encountering an error in the turbopackPersistentCaching config
         shouldExit = true
         message +=
-          "\nUse 'experimental.turbopackPersistentCachingForDev' instead."
+          "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
         message +=
-          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackPersistentCaching'
+          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
       }
 
       return message
@@ -361,9 +361,9 @@ function assignDefaultsAndValidate(
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.cacheComponents) {
       throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
-    } else if (result.experimental?.turbopackPersistentCachingForBuild) {
+    } else if (result.experimental?.turbopackFileSystemCacheForBuild) {
       throw new CanaryOnlyError({
-        feature: 'experimental.turbopackPersistentCachingForBuild',
+        feature: 'experimental.turbopackFileSystemCacheForBuild',
       })
     }
   }

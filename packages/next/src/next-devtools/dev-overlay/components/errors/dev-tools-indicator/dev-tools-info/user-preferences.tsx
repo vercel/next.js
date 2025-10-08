@@ -202,7 +202,7 @@ export function UserPreferencesBody({
               data-restart-dev-server
               className="action-button"
               onClick={() =>
-                restartServer({ invalidatePersistentCache: false })
+                restartServer({ invalidateFileSystemCache: false })
               }
               disabled={isPending}
             >
@@ -229,7 +229,7 @@ export function UserPreferencesBody({
                 data-reset-bundler-cache
                 className="action-button"
                 onClick={() =>
-                  restartServer({ invalidatePersistentCache: true })
+                  restartServer({ invalidateFileSystemCache: true })
                 }
                 disabled={isPending}
               >

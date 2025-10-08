@@ -11495,19 +11495,19 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/persistent-caching/persistent-caching.test.ts": {
+  "test/e2e/filesystem-cache/filesystem-cache.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped (loader change)",
-      "persistent-caching should allow to change files while stopped (next config change)"
+      "filesystem-cache should allow to change files while stopped (loader change)",
+      "filesystem-cache should allow to change files while stopped (next config change)"
     ],
     "failed": [
-      "persistent-caching should allow to change files while stopped (Pages change)",
-      "persistent-caching should allow to change files while stopped (RCC change)",
-      "persistent-caching should allow to change files while stopped (RSC change)",
-      "persistent-caching should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
-      "persistent-caching should allow to change files while stopped (env var change)",
-      "persistent-caching should allow to change files while stopped (rename app page)",
-      "persistent-caching should persistent cache loaders"
+      "filesystem-cache should allow to change files while stopped (Pages change)",
+      "filesystem-cache should allow to change files while stopped (RCC change)",
+      "filesystem-cache should allow to change files while stopped (RSC change)",
+      "filesystem-cache should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "filesystem-cache should allow to change files while stopped (env var change)",
+      "filesystem-cache should allow to change files while stopped (rename app page)",
+      "filesystem-cache should filesystem cache loaders"
     ],
     "pending": [],
     "flakey": [],
@@ -21031,8 +21031,8 @@
       "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
       "config telemetry production mode emits telemetry for middleware related options",
-      "config telemetry production mode emits telemetry for persistent cache in build mode",
-      "config telemetry production mode emits telemetry for persistent cache in dev mode",
+      "config telemetry production mode emits telemetry for filesystem cache in build mode",
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
       "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",

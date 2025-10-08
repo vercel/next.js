@@ -116,7 +116,7 @@ where
     println!("Stopping TurboTasks took {:?}", start.elapsed());
     for i in 10..20 {
         let tt = registration.create_turbo_tasks(&name, false);
-        println!("Run #{i} (with persistent cache if available, new TurboTasks instance)");
+        println!("Run #{i} (with filesystem cache if available, new TurboTasks instance)");
         let start = std::time::Instant::now();
         let third = fut(tt.clone()).await?;
         println!("Run #{i} took {:?}", start.elapsed());

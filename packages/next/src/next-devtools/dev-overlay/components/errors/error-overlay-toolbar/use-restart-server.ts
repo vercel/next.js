@@ -4,14 +4,14 @@ export function useRestartServer() {
   const [isPending, setIsPending] = useState(false)
 
   const restartServer = async ({
-    invalidatePersistentCache,
+    invalidateFileSystemCache,
   }: {
-    invalidatePersistentCache: boolean
+    invalidateFileSystemCache: boolean
   }): Promise<void> => {
     setIsPending(true)
 
-    const url = invalidatePersistentCache
-      ? '/__nextjs_restart_dev?invalidatePersistentCache=1'
+    const url = invalidateFileSystemCache
+      ? '/__nextjs_restart_dev?invalidateFileSystemCache=1'
       : '/__nextjs_restart_dev'
 
     let serverRestarted = false

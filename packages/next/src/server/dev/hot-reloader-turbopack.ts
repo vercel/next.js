@@ -84,7 +84,7 @@ import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
-  isPersistentCachingEnabledForDev,
+  isFileSystemCacheEnabledForDev,
   isWellKnownError,
   processIssues,
   renderStyledStringToErrorAnsi,
@@ -273,7 +273,7 @@ export async function createHotReloaderTurbopack(
       currentNodeJsVersion,
     },
     {
-      persistentCaching: isPersistentCachingEnabledForDev(opts.nextConfig),
+      persistentCaching: isFileSystemCacheEnabledForDev(opts.nextConfig),
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
       isShortSession: false,
     }

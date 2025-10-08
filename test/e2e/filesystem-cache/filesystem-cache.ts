@@ -29,7 +29,7 @@ describe('persistent-caching', () => {
 
   async function stop() {
     if (isNextDev) {
-      // Give Persistent Cache time to write to disk
+      // Give FileSystem Cache time to write to disk
       // Turbopack has an idle timeout of 2s
       // Webpack has an idle timeout (after large changes) of 1s
       // and we give time a bit more to allow writing to disk
@@ -42,7 +42,7 @@ describe('persistent-caching', () => {
     await next.start()
   }
 
-  it('should persistent cache loaders', async () => {
+  it('should filesystem cache loaders', async () => {
     let appTimestamp, unchangedTimestamp, appClientTimestamp, pagesTimestamp
     {
       const browser = await next.browser('/')

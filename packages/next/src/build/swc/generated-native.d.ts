@@ -221,10 +221,10 @@ export declare function projectUpdate(
   options: NapiPartialProjectOptions
 ): Promise<void>
 /**
- * Invalidates the persistent cache so that it will be deleted next time that a turbopack project
+ * Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
  * is created with persistent caching enabled.
  */
-export declare function projectInvalidatePersistentCache(project: {
+export declare function projectInvalidateFileSystemCache(project: {
   __napiType: 'Project'
 }): Promise<void>
 /**

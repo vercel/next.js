@@ -21,14 +21,14 @@ describe('persistent-caching-migration', () => {
       let { exitCode, cliOutput } = await next.build()
       expect(exitCode).toBe(1)
       expect(cliOutput).toContain(
-        "Use 'experimental.turbopackPersistentCachingForDev' instead."
+        "Use 'experimental.turbopackFileSystemCacheForDev' instead."
       )
     })
   } else {
     it('success on new option', async () => {
       await expect(next.start()).toReject()
       expect(next.cliOutput).toContain(
-        "Use 'experimental.turbopackPersistentCachingForDev' instead."
+        "Use 'experimental.turbopackFileSystemCacheForDev' instead."
       )
     })
   }

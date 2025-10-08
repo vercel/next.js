@@ -1188,7 +1188,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if new_items {
             let elapsed = start.elapsed();
             turbo_tasks().send_compilation_event(Arc::new(TimingEvent::new(
-                "Finished writing to persistent cache".to_string(),
+                "Finished writing to filesystem cache".to_string(),
                 elapsed,
             )));
         }
