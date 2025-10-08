@@ -2,7 +2,6 @@ import { defineRule } from '../utils/define-rule'
 import * as path from 'path'
 import * as fs from 'fs'
 import { getRootDirs } from '../utils/get-root-dirs'
-
 import {
   getUrlFromPagesDirectories,
   normalizeURL,
@@ -18,11 +17,10 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 })
 
 // Cache for fs.existsSync lookup.
-// Prevent multiple blocking IO requests that have already been calculated.
-const fsExistsSyncCache = {}
+const fsExistsSyncCache: Record<string, boolean> = {}
 
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
-  const cache = {}
+  const cache: Record<string, T> = {}
   return (...args: any[]): T => {
     const key = JSON.stringify(args)
     if (cache[key] === undefined) {
@@ -101,7 +99,7 @@ export default defineRule({
       return fsExistsSyncCache[dir]
     })
 
-    // warn if there are no pages and app directories
+    // Warn if no directories found
     if (foundPagesDirs.length === 0 && foundAppDirs.length === 0) {
       pagesDirWarning(pagesDirs)
       return {}
@@ -110,6 +108,24 @@ export default defineRule({
     const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
     const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
+
+    // --- NEW CODE START: Support for custom pageExtensions ---
+    let pageExtensions: string[] = ['js', 'jsx', 'ts', 'tsx']
+
+    try {
+      const nextConfigPath = path.join(process.cwd(), 'next.config.js')
+      if (fs.existsSync(nextConfigPath)) {
+        const nextConfig = require(nextConfigPath)
+        if (nextConfig.pageExtensions && Array.isArray(nextConfig.pageExtensions)) {
+          pageExtensions = nextConfig.pageExtensions
+        }
+      }
+    } catch {
+      // ignore config errors
+    }
+
+    const allowedExtRegex = new RegExp(`\\.(${pageExtensions.join('|')})$`)
+    // --- NEW CODE END ---
 
     return {
       JSXOpeningElement(node) {
@@ -125,7 +141,7 @@ export default defineRule({
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'target'
         )
 
-        if (target && target.value.value === '_blank') {
+        if (target && target.value && target.value.value === '_blank') {
           return
         }
 
@@ -149,6 +165,11 @@ export default defineRule({
         const hrefPath = normalizeURL(href.value.value)
         // Outgoing links are ignored
         if (/^(https?:\/\/|\/\/)/.test(hrefPath)) {
+          return
+        }
+
+        // --- NEW CODE: skip internal links with allowed extensions ---
+        if (allowedExtRegex.test(hrefPath)) {
           return
         }
 
