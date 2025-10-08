@@ -20,6 +20,8 @@ import {
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
   INSTRUMENTATION_HOOK_FILENAME,
+  PROXY_FILENAME,
+  MIDDLEWARE_FILENAME,
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -950,8 +952,9 @@ export async function createEntrypoints(
           } else if (isMiddlewareFile(page)) {
             server[
               serverBundlePath
-                // proxy.js still uses middleware.js for bundle path
-                .replace('proxy', 'middleware')
+                // proxy.js still uses middleware.js for bundle path for now.
+                // TODO: Revisit when we remove middleware.js.
+                .replace(PROXY_FILENAME, MIDDLEWARE_FILENAME)
                 .replace('src/', '')
             ] = getEdgeServerEntry({
               ...params,
