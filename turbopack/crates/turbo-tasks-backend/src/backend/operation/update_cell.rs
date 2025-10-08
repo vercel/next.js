@@ -64,6 +64,15 @@ impl UpdateCellOperation {
                 // To avoid a race condition, we need to remove the old content first,
                 // then invalidate dependent tasks and only then update the cell content.
 
+                // The reason behind this is that we consider tasks that haven't the dirty flag set
+                // as "recomputing" tasks. Recomputing tasks won't invalidate
+                // dependent tasks, when a cell is changed. This would cause missing invalidating if
+                // a task is recomputing while a dependency is in the middle of a cell update (where
+                // the value has been changed, but the dependent tasks have not be flagged dirty
+                // yet). So to avoid that we first remove the cell content, invalidate all dependent
+                // tasks and after that set the new cell content. When the cell content is unset,
+                // readers will wait for it to be set via InProgressCell.
+
                 let old_content = task.remove(&CachedDataItemKey::CellData { cell });
 
                 drop(task);
