@@ -96,7 +96,7 @@ export default nextConfig
 
 Typechecking may require a lot of memory, especially in large projects.
 However, most projects have a dedicated CI runner that already handles these tasks.
-When the build produces out-of-memory issues during the "Linting and checking validity of types" step, you can disable these task during builds:
+When the build produces out-of-memory issues during the "Running TypeScript" step, you can disable these task during builds:
 
 ```js filename="next.config.mjs"
 /** @type {import('next').NextConfig} */
