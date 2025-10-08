@@ -167,7 +167,7 @@ describe('Validations for <Link legacyBehavior>', () => {
             endContent: '   at',
           })
           expect(output).toMatchInlineSnapshot(`
-           "Using a Lazy Component as a direct child of a Server Component that renders \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Lazy Component in a Client Component that renders the Link's \`<a>\` tag.
+           "Using a Lazy Component as a direct child of \`<Link legacyBehavior>\` from a Server Component is not supported. If you need legacyBehavior, wrap your Lazy Component in a Client Component that renders the Link's \`<a>\` tag.
             ⨯ Error: \`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag."
           `)
         }
