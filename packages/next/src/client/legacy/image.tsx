@@ -617,7 +617,7 @@ const ImageElement = ({
 }
 
 /**
- * @deprecated The `next/legacy/image` component is deprecated and will be removed in a future version of Next.js. Please use next/image instead.
+ * @deprecated The `next/legacy/image` component is deprecated and will be removed in a future version of Next.js. Please use `next/image` instead.
  */
 export default function Image({
   src,
