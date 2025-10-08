@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('Link with legacyBehavior', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -48,17 +49,25 @@ describe('Link with legacyBehavior', () => {
 
   it('should show a deprecation warning', async () => {
     const browser = await next.browser('/')
-    const logs = await browser.log()
 
-    const errors = logs.filter(
-      (log) =>
-        log.source === 'error' &&
-        log.message.includes(
-          '`legacyBehavior` is deprecated and will be removed in a future release.'
-        )
-    )
+    await retry(async () => {
+      const logs = await browser.log()
+      const errors = logs.filter((log) => log.source === 'error')
 
-    expect(errors.length).toBe(isNextDev ? 1 : 0)
+      if (isNextDev) {
+        expect(errors).toEqual([
+          {
+            message:
+              '`legacyBehavior` is deprecated and will be removed in a future release. A codemod is available to upgrade your components:\n\n' +
+              'npx @next/codemod@latest new-link .\n\n' +
+              'Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components',
+            source: 'error',
+          },
+        ])
+      } else {
+        expect(errors).toEqual([])
+      }
+    })
   })
 
   describe('passHref', () => {
