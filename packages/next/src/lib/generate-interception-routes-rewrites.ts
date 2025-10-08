@@ -10,7 +10,7 @@ import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import {
   getSegmentParam,
   isCatchAll,
-} from '../server/app-render/get-segment-param'
+} from '../shared/lib/router/utils/get-segment-param'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 
@@ -140,6 +140,96 @@ function hasCatchallSiblingAtLevel(
   })
 }
 
+/**
+ * Generates the appropriate header regex based on the interception marker type.
+ * @param marker The interception route marker (e.g., '(.)', '(..)'))
+ * @param interceptingRoute The route that intercepts (e.g., '/templates')
+ * @param headerReference The reference mapping from param names to prefixed keys
+ * @param appPaths All app paths (used for catchall sibling detection)
+ * @param defaultHeaderRegex The default regex to use if no marker-specific logic applies
+ * @returns The header regex pattern to match against the Next-URL header
+ */
+function generateInterceptionHeaderRegex(
+  marker: (typeof INTERCEPTION_ROUTE_MARKERS)[number] | undefined,
+  interceptingRoute: string,
+  headerReference: Record<string, string>,
+  appPaths: string[],
+  defaultHeaderRegex: string
+): string {
+  // Generate the appropriate header regex based on the marker type
+  let headerRegex: string
+  if (marker === '(.)') {
+    // For same-level interception, match routes at the same level as the intercepting route
+    // Use header.reference which has the param -> prefixedKey mapping
+    headerRegex = generateSameLevelHeaderRegex(
+      interceptingRoute,
+      headerReference
+    )
+  } else if (marker === '(..)') {
+    // For parent-level interception, match routes at the intercepting route level
+    // Check if there's a catchall sibling at the intercepting route level
+    const hasCatchallSibling = hasCatchallSiblingAtLevel(
+      appPaths,
+      interceptingRoute
+    )
+
+    // Build regex pattern that handles dynamic segments correctly
+    const patterns: string[] = []
+    const optionalIndices: number[] = []
+
+    const segments = interceptingRoute.split('/').filter(Boolean)
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i]
+      const param = getSegmentParam(segment)
+      if (param) {
+        // Dynamic segment - use named capture group from header.reference
+        const key = headerReference[param.param]
+        if (!key) {
+          throw new InvariantError(
+            `No reference found for param: ${param.param} in reference: ${JSON.stringify(headerReference)}`
+          )
+        }
+
+        // Check if this is a catchall (repeat) parameter
+        if (isCatchAll(param.type)) {
+          patterns.push(`(?<${key}>.+?)`)
+          // Track optional catchall segments so we can wrap them later
+          if (param.type === 'optional-catchall') {
+            optionalIndices.push(i)
+          }
+        } else {
+          patterns.push(`(?<${key}>[^/]+?)`)
+        }
+      } else {
+        // Static segment
+        patterns.push(escapeStringRegexp(segment))
+      }
+    }
+
+    // Build the header regex, wrapping optional catchall segments
+    let headerPattern = ''
+    for (let i = 0; i < patterns.length; i++) {
+      if (optionalIndices.includes(i)) {
+        // Optional catchall: wrap the segment with its leading / in an optional group
+        headerPattern += `(?:/${patterns[i]})?`
+      } else {
+        headerPattern += `/${patterns[i]}`
+      }
+    }
+
+    // Note: Don't add ^ and $ anchors - matchHas() will add them automatically
+    // If there's a catchall sibling, match the level and its children (catchall paths)
+    // Otherwise, only match the exact level
+    headerRegex = `${headerPattern}${hasCatchallSibling ? '(/.+)?' : ''}`
+  } else {
+    // For other markers, use the default behavior (match exact intercepting route)
+    // Strip ^ and $ anchors since matchHas() will add them automatically
+    headerRegex = defaultHeaderRegex
+  }
+
+  return headerRegex
+}
+
 export function generateInterceptionRoutesRewrites(
   appPaths: string[],
   basePath = ''
@@ -155,13 +245,17 @@ export function generateInterceptionRoutesRewrites(
       const marker = getInterceptionMarker(appPath)
 
       // The Next-Url header does not contain the base path, so just use the
-      // intercepting route.
+      // intercepting route. We don't handle duplicate keys here with the
+      // backreferenceDuplicateKeys option because it's not a valid pathname
+      // with them in this case.
       const header = getNamedRouteRegex(interceptingRoute, {
         prefixRouteKeys: true,
       })
 
       // The source is the intercepted route with the base path, it's matched by
       // the router. Generate this first to get the correct parameter prefixes.
+      // We don't handle duplicate keys here with the backreferenceDuplicateKeys
+      // option because it's not a valid pathname with them in this case.
       const source = getNamedRouteRegex(basePath + interceptedRoute, {
         prefixRouteKeys: true,
       })
@@ -169,82 +263,22 @@ export function generateInterceptionRoutesRewrites(
       // The destination should use the same parameter reference as the source
       // so that parameter substitution works correctly. This ensures that when
       // the router extracts params from the source, they can be substituted
-      // into the destination.
+      // into the destination. We don't handle duplicate keys here with the
+      // backreferenceDuplicateKeys option because we don't use the regexp
+      // itself in this case, only the pathToRegexpPattern.
       const destination = getNamedRouteRegex(basePath + appPath, {
         prefixRouteKeys: true,
         reference: source.reference,
       })
 
-      // Generate the appropriate header regex based on the marker type
-      let headerRegex: string
-      if (marker === '(.)') {
-        // For same-level interception, match routes at the same level as the intercepting route
-        // Use header.reference which has the param -> prefixedKey mapping
-        headerRegex = generateSameLevelHeaderRegex(
-          interceptingRoute,
-          header.reference
-        )
-      } else if (marker === '(..)') {
-        // For parent-level interception, match routes at the intercepting route level
-        // Check if there's a catchall sibling at the intercepting route level
-        const hasCatchallSibling = hasCatchallSiblingAtLevel(
-          appPaths,
-          interceptingRoute
-        )
-
-        // Build regex pattern that handles dynamic segments correctly
-        const patterns: string[] = []
-        const optionalIndices: number[] = []
-
-        const segments = interceptingRoute.split('/').filter(Boolean)
-        for (let i = 0; i < segments.length; i++) {
-          const segment = segments[i]
-          const param = getSegmentParam(segment)
-          if (param) {
-            // Dynamic segment - use named capture group from header.reference
-            const key = header.reference[param.param]
-            if (!key) {
-              throw new InvariantError(
-                `No reference found for param: ${param.param} in reference: ${JSON.stringify(header.reference)}`
-              )
-            }
-
-            // Check if this is a catchall (repeat) parameter
-            if (isCatchAll(param.type)) {
-              patterns.push(`(?<${key}>.+?)`)
-              // Track optional catchall segments so we can wrap them later
-              if (param.type === 'optional-catchall') {
-                optionalIndices.push(i)
-              }
-            } else {
-              patterns.push(`(?<${key}>[^/]+?)`)
-            }
-          } else {
-            // Static segment
-            patterns.push(escapeStringRegexp(segment))
-          }
-        }
-
-        // Build the header regex, wrapping optional catchall segments
-        let headerPattern = ''
-        for (let i = 0; i < patterns.length; i++) {
-          if (optionalIndices.includes(i)) {
-            // Optional catchall: wrap the segment with its leading / in an optional group
-            headerPattern += `(?:/${patterns[i]})?`
-          } else {
-            headerPattern += `/${patterns[i]}`
-          }
-        }
-
-        // Note: Don't add ^ and $ anchors - matchHas() will add them automatically
-        // If there's a catchall sibling, match the level and its children (catchall paths)
-        // Otherwise, only match the exact level
-        headerRegex = `${headerPattern}${hasCatchallSibling ? '(/.+)?' : ''}`
-      } else {
-        // For other markers, use the default behavior (match exact intercepting route)
-        // Strip ^ and $ anchors since matchHas() will add them automatically
-        headerRegex = header.namedRegex.replace(/^\^/, '').replace(/\$$/, '')
-      }
+      // Generate the header regex based on the interception marker type
+      const headerRegex = generateInterceptionHeaderRegex(
+        marker,
+        interceptingRoute,
+        header.reference,
+        appPaths,
+        header.namedRegex.replace(/^\^/, '').replace(/\$$/, '')
+      )
 
       rewrites.push({
         source: source.pathToRegexpPattern,

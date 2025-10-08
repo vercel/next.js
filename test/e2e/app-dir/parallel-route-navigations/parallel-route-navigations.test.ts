@@ -83,10 +83,7 @@ describe('parallel-route-navigations', () => {
 
     // If it's PPR or Cache Components, we'll see an immediate transition for
     // the client component.
-    if (
-      process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ||
-      process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
-    ) {
+    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true') {
       await browser.waitForElementByCss(
         '[data-file="/[teamID]/sub/other-folder/page.tsx"]'
       )
@@ -106,19 +103,9 @@ describe('parallel-route-navigations', () => {
 
     // Wait for the dynamic RSC request to lock, then unlock that request.
     await stable(async () => {
-      if (
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ||
-        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' ||
-        process.env.__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE === 'true'
-      ) {
-        // When we're in PPR or Cache Components, we'll see one dynamic
-        // request.
-        expect(hadLocked).toBe(1)
-      } else {
-        // When we're not in PPR or Cache Components, we'll see two dynamic
-        // requests. One made to refetch each of the slots.
-        expect(hadLocked).toBe(2)
-      }
+      // As Client Segment Cache is the default, we should see one dynamic
+      // request.
+      expect(hadLocked).toBe(1)
     })
     unlock()
 
