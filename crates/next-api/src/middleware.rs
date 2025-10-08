@@ -55,7 +55,7 @@ fn get_default_middleware_matcher(
         // route starts with underscore.
         MiddlewareMatcher {
             regexp: Some(rcstr!("^(?!.*\\/\\_next\\/(?!data\\/)).*")),
-            original_source: rcstr!("/:path*"),
+            original_source: rcstr!("'/((?!_next/(?!data/))[^]*)*'"),
             ..Default::default()
         }
     } else {
