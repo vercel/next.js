@@ -1,12 +1,5 @@
-import Link from 'next/link'
-
 export default function Page({ slug }: { slug: string }) {
-  return (
-    <p>
-      hello world {slug} <Link href="/gssp">to /gssp</Link>
-      <Link href="/">to /</Link>
-    </p>
-  )
+  return <p>hello world {slug}</p>
 }
 
 export const getStaticPaths = async () => {

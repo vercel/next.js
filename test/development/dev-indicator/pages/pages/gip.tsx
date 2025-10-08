@@ -1,11 +1,5 @@
-import Link from 'next/link'
-
 export default function Page() {
-  return (
-    <p>
-      hello world <Link href="/">to /</Link>
-    </p>
-  )
+  return <p>hello world</p>
 }
 
 Page.getInitialProps = async () => {
