@@ -717,5 +717,8 @@
   "716": "NEXT_DEVTOOLS_SIMULATED_ERROR",
   "717": "Unsupported environment condition \"%s\" and react condition \"%s\". This is a bug in Next.js.",
   "718": "Invariant: projectDir is required for node runtime",
-  "719": "Failed to get source map for '%s'. This is a bug in Next.js"
+  "719": "Failed to get source map for '%s'. This is a bug in Next.js",
+  "720": "Client Max Body Size must be a valid number (bytes) or filesize format string (e.g., \"5mb\")",
+  "721": "Client Max Body Size must be larger than 0 bytes",
+  "722": "Request body exceeded %s"
 }
