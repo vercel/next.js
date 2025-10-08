@@ -10,12 +10,6 @@ This is especially helpful when automated tools (for example, AI agents) run `ne
 
 This feature is **enabled by default** to keep development and production outputs separate and prevent conflicts.
 
-## How it Works
-
-- During `next dev`, artifacts are written to `.next/dev/` (e.g., compiled pages, HMR bundles).
-- During `next build`, artifacts continue to be written to `.next/`.
-- The directories are independent, so starting or stopping one does not affect the other.
-
 ## Configuration
 
 To opt out of this feature, set `isolatedDevBuild` to `false` in your configuration:
