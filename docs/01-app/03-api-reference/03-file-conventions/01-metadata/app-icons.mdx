@@ -199,11 +199,11 @@ export default async function Icon({ params }) {
 }
 ```
 
-| Route                           | URL         | `params`                  |
-| ------------------------------- | ----------- | ------------------------- |
-| `app/shop/icon.js`              | `/shop`     | `undefined`               |
-| `app/shop/[slug]/icon.js`       | `/shop/1`   | `{ slug: '1' }`           |
-| `app/shop/[tag]/[item]/icon.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
+| Route                           | URL         | `params`                           |
+| ------------------------------- | ----------- | ---------------------------------- |
+| `app/shop/icon.js`              | `/shop`     | `Promise<undefined>`               |
+| `app/shop/[slug]/icon.js`       | `/shop/1`   | `Promise<{ slug: '1' >}`           |
+| `app/shop/[tag]/[item]/icon.js` | `/shop/1/2` | `Promise<{ tag: '1', item: '2' >}` |
 
 ### Returns
 
