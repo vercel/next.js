@@ -84,7 +84,7 @@ import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
-  isPersistentCachingEnabledForDev,
+  isFileSystemCacheEnabledForDev,
   isWellKnownError,
   processIssues,
   renderStyledStringToErrorAnsi,
@@ -96,7 +96,7 @@ import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers } from '../../build/utils'
+import { getSupportedBrowsers, printBuildErrors } from '../../build/utils'
 import {
   receiveBrowserLogsTurbopack,
   handleClientFileLogs,
@@ -230,7 +230,7 @@ export async function createHotReloaderTurbopack(
   // TODO: Implement
   let clientRouterFilters: any
   if (nextConfig.experimental.clientRouterFilter) {
-    // TODO this need to be set correctly for persistent caching to work
+    // TODO this need to be set correctly for filesystem cache to work
   }
 
   const supportedBrowsers = getSupportedBrowsers(projectPath, dev)
@@ -273,7 +273,7 @@ export async function createHotReloaderTurbopack(
       currentNodeJsVersion,
     },
     {
-      persistentCaching: isPersistentCachingEnabledForDev(opts.nextConfig),
+      persistentCaching: isFileSystemCacheEnabledForDev(opts.nextConfig),
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
       isShortSession: false,
     }
@@ -627,25 +627,34 @@ export async function createHotReloaderTurbopack(
         )
       }
 
+      // Always process issues/diagnostics, even if there are no entrypoints yet
+      processTopLevelIssues(currentTopLevelIssues, entrypoints)
+
+      // Certain crtical issues prevent any entrypoints from being constructed so return early
+      if (!('routes' in entrypoints)) {
+        printBuildErrors(entrypoints, true)
+
+        currentEntriesHandlingResolve!()
+        currentEntriesHandlingResolve = undefined
+        continue
+      }
+
+      const routes = entrypoints.routes
       const existingRoutes = [
         ...currentEntrypoints.app.keys(),
         ...currentEntrypoints.page.keys(),
       ]
-      const newRoutes = [...entrypoints.routes.keys()]
+      const newRoutes = [...routes.keys()]
 
       const addedRoutes = newRoutes.filter(
         (route) =>
           !currentEntrypoints.app.has(route) &&
           !currentEntrypoints.page.has(route)
       )
-      const removedRoutes = existingRoutes.filter(
-        (route) => !entrypoints.routes.has(route)
-      )
-
-      processTopLevelIssues(currentTopLevelIssues, entrypoints)
+      const removedRoutes = existingRoutes.filter((route) => !routes.has(route))
 
       await handleEntrypoints({
-        entrypoints,
+        entrypoints: entrypoints as any,
 
         currentEntrypoints,
 
@@ -749,12 +758,13 @@ export async function createHotReloaderTurbopack(
     }),
     ...(nextConfig.experimental.mcpServer
       ? [
-          getMcpMiddleware(
+          getMcpMiddleware({
             projectPath,
             distDir,
-            (message) => hotReloader.send(message),
-            () => clients.size
-          ),
+            sendHmrMessage: (message) => hotReloader.send(message),
+            getActiveConnectionCount: () => clients.size,
+            getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+          }),
         ]
       : []),
   ]

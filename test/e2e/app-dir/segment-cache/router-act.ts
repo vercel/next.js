@@ -21,7 +21,11 @@ type PendingRSCRequest = {
 
 let currentBatch: Batch | null = null
 
-type ExpectedResponseConfig = { includes: string; block?: boolean | 'reject' }
+type ExpectedResponseConfig = {
+  includes: string
+  block?: boolean | 'reject'
+  allowMultipleResponses?: boolean
+}
 
 /**
  * Represents the expected responses sent by the server to fulfill requests
@@ -159,7 +163,7 @@ export function createRouterAct(
             // `act` controls the timing of when responses reach the client,
             // but it should not affect the timing of when requests reach the
             // server; we pass the request to the server the immediately.
-            result: new Promise(async (resolve) => {
+            result: (async () => {
               const originalResponse = await page.request.fetch(request, {
                 maxRedirects: 0,
               })
@@ -172,13 +176,13 @@ export function createRouterAct(
               const headers = originalResponse.headers()
               delete headers['transfer-encoding']
 
-              resolve({
+              return {
                 text: await originalResponse.text(),
                 body: await originalResponse.body(),
                 headers,
                 status: originalResponse.status(),
-              })
-            }),
+              }
+            })(),
             didProcess: false,
           })
           if (onDidIssueFirstRequest !== null) {
@@ -334,7 +338,8 @@ ${fulfilled.body}
                   // error message.
                   const otherResponse = alreadyMatched.get(includes)
                   if (otherResponse !== undefined) {
-                    error.message = `
+                    if (!expectedResponse.allowMultipleResponses) {
+                      error.message = `
 Received multiple responses containing the same expected substring.
 
 Expected substring:
@@ -348,13 +353,15 @@ ${fulfilled.body}
 
 Choose a more specific substring to assert on.
 `
-                    throw error
-                  }
-                  alreadyMatched.set(includes, fulfilled.body)
-                  if (actualResponses === null) {
-                    actualResponses = [expectedResponse]
+                      throw error
+                    }
                   } else {
-                    actualResponses.push(expectedResponse)
+                    alreadyMatched.set(includes, fulfilled.body)
+                    if (actualResponses === null) {
+                      actualResponses = [expectedResponse]
+                    } else {
+                      actualResponses.push(expectedResponse)
+                    }
                   }
                   if (block) {
                     shouldBlock = true
@@ -417,14 +424,14 @@ ${fulfilled.body}
                     batch.pendingRequests.add({
                       url: req.url(),
                       route: null,
-                      result: new Promise(async (resolve) => {
-                        resolve({
+                      result: (async () => {
+                        return {
                           text: await res.text(),
                           body: await res.body(),
                           headers: res.headers(),
                           status: res.status(),
-                        })
-                      }),
+                        }
+                      })(),
                       didProcess: false,
                     })
                     page.off('response', handleResponse)

@@ -95,7 +95,7 @@ describe('adapter-config', () => {
       if (output.filePath.endsWith('.html')) {
         expect(output.pathname.endsWith('.html')).toBe(false)
       } else {
-        expect(output.pathname).toStartWith('/_next/static')
+        expect(output.pathname).toStartWith('/docs/_next/static')
       }
 
       const stats = await fs.promises.stat(output.filePath)
@@ -153,6 +153,15 @@ describe('adapter-config', () => {
         expect(route.config).toBeObject()
         expect(route.pathname).toBeString()
         expect(route.runtime).toBe('edge')
+        expect(route.config.env).toEqual(
+          expect.objectContaining({
+            NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: expect.toBeString(),
+            __NEXT_BUILD_ID: expect.toBeString(),
+            __NEXT_PREVIEW_MODE_ENCRYPTION_KEY: expect.toBeString(),
+            __NEXT_PREVIEW_MODE_ID: expect.toBeString(),
+            __NEXT_PREVIEW_MODE_SIGNING_KEY: expect.toBeString(),
+          })
+        )
 
         const stats = await fs.promises.stat(route.filePath)
         expect(stats.isFile()).toBe(true)

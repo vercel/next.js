@@ -52,6 +52,15 @@ export type NextServerOptions = Omit<
 > &
   Partial<Pick<ServerOptions | DevServerOptions, 'conf'>>
 
+export type NextBundlerOptions = {
+  /** @deprecated Use `turbopack` instead */
+  turbo?: boolean
+  /** Selects Turbopack as the bundler */
+  turbopack?: boolean
+  /** Selects Webpack as the bundler */
+  webpack?: boolean
+}
+
 export type RequestHandler = (
   req: IncomingMessage,
   res: ServerResponse,
@@ -531,18 +540,30 @@ class NextCustomServer implements NextWrapperServer {
 
 // This file is used for when users run `require('next')`
 function createServer(
-  options: NextServerOptions & {
-    turbo?: boolean
-    turbopack?: boolean
-  }
+  options: NextServerOptions & NextBundlerOptions
 ): NextWrapperServer {
-  if (
-    options &&
-    (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
-  ) {
-    // Configure TURBOPACK if it isn't already set
-    process.env.TURBOPACK ??= '1'
+  // next sets customServer to false when calling this function, in that case we don't want to modify the environment variables
+  const isCustomServer = options?.customServer ?? true
+  if (isCustomServer) {
+    const selectTurbopack =
+      options &&
+      (options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST)
+    const selectWebpack =
+      options && (options.webpack || process.env.IS_WEBPACK_TEST)
+    if (selectTurbopack && selectWebpack) {
+      throw new Error('Pass either `webpack` or `turbopack`, not both.')
+    }
+    if (selectTurbopack || !selectWebpack) {
+      process.env.TURBOPACK ??= selectTurbopack ? '1' : 'auto'
+    }
+  } else {
+    if (options && (options.webpack || options.turbo || options.turbopack)) {
+      throw new Error(
+        'Only custom servers can pass `webpack`, `turbo`, or `turbopack`.'
+      )
+    }
   }
+
   // The package is used as a TypeScript plugin.
   if (
     options &&

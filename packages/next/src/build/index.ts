@@ -47,7 +47,7 @@ import type {
   RouteHas,
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
-import { recursiveDelete } from '../lib/recursive-delete'
+import { recursiveDeleteSyncWithAsyncRetries } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import {
   BUILD_ID_FILE,
@@ -206,10 +206,10 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 
 import { turbopackBuild } from './turbopack-build'
-import { isPersistentCachingEnabledForBuild } from '../shared/lib/turbopack/utils'
+import { isFileSystemCacheEnabledForBuild } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
-import { durationToString } from './duration-to-string'
+import { durationToString, hrtimeDurationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
 import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
@@ -1016,6 +1016,34 @@ export default async function build(
       NextBuildContext.originalRewrites = config._originalRewrites
       NextBuildContext.originalRedirects = config._originalRedirects
 
+      const distDirCreated = await nextBuildSpan
+        .traceChild('create-dist-dir')
+        .traceAsyncFn(async () => {
+          try {
+            await fs.mkdir(distDir, { recursive: true })
+            return true
+          } catch (err) {
+            if (isError(err) && err.code === 'EPERM') {
+              return false
+            }
+            throw err
+          }
+        })
+
+      if (!distDirCreated || !(await isWriteable(distDir))) {
+        throw new Error(
+          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
+        )
+      }
+
+      if (config.cleanDistDir && !isGenerateMode) {
+        await nextBuildSpan
+          .traceChild('clean')
+          .traceAsyncFn(() =>
+            recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev)/)
+          )
+      }
+
       const cacheDir = getCacheDir(distDir)
 
       const telemetry = new Telemetry({ distDir })
@@ -1100,30 +1128,6 @@ export default async function build(
         nextBuildSpan,
         config,
         cacheDir,
-      }
-
-      const distDirCreated = await nextBuildSpan
-        .traceChild('create-dist-dir')
-        .traceAsyncFn(async () => {
-          try {
-            await fs.mkdir(distDir, { recursive: true })
-            return true
-          } catch (err) {
-            if (isError(err) && err.code === 'EPERM') {
-              return false
-            }
-            throw err
-          }
-        })
-
-      if (!distDirCreated || !(await isWriteable(distDir))) {
-        throw new Error(
-          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
-        )
-      }
-
-      if (config.cleanDistDir && !isGenerateMode) {
-        await recursiveDelete(distDir, /^(cache|dev)/)
       }
 
       if (appDir && 'exportPathMap' in config) {
@@ -1842,6 +1846,7 @@ export default async function build(
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
+      const collectingPageDataStart = process.hrtime()
       const postCompileSpinner = createSpinner('Collecting page data')
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
@@ -2409,7 +2414,13 @@ export default async function build(
         return returnValue
       })
 
-      if (postCompileSpinner) postCompileSpinner.stopAndPersist()
+      if (postCompileSpinner) {
+        const collectingPageDataEnd = process.hrtime(collectingPageDataStart)
+        postCompileSpinner.setText(
+          `Collecting page data in ${hrtimeDurationToString(collectingPageDataEnd)}`
+        )
+        postCompileSpinner.stopAndPersist()
+      }
       traceMemoryUsage('Finished collecting page data', nextBuildSpan)
 
       if (customAppGetInitialProps) {
@@ -2717,8 +2728,8 @@ export default async function build(
           invocationCount: config.experimental.ppr ? 1 : 0,
         },
         {
-          featureName: 'turbopackPersistentCaching',
-          invocationCount: isPersistentCachingEnabledForBuild(config) ? 1 : 0,
+          featureName: 'turbopackFileSystemCache',
+          invocationCount: isFileSystemCacheEnabledForBuild(config) ? 1 : 0,
         },
       ]
       telemetry.record(
@@ -3785,7 +3796,7 @@ export default async function build(
                       dataRoute: path.posix.join(
                         '/_next/data',
                         buildId,
-                        `${file}.json`
+                        `${localePage}.json`
                       ),
                       prefetchDataRoute: undefined,
                       allowHeader: ALLOWED_HEADERS,
@@ -3886,9 +3897,12 @@ export default async function build(
           .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
       }
 
+      const finalizingPageOptimizationStart = process.hrtime()
       const postBuildSpinner = createSpinner('Finalizing page optimization')
       let buildTracesSpinner
+      let buildTracesStart
       if (buildTracesPromise) {
+        buildTracesStart = process.hrtime()
         buildTracesSpinner = createSpinner('Collecting build traces')
       }
 
@@ -4040,6 +4054,12 @@ export default async function build(
       await buildTracesPromise
 
       if (buildTracesSpinner) {
+        if (buildTracesStart) {
+          const buildTracesEnd = process.hrtime(buildTracesStart)
+          buildTracesSpinner.setText(
+            `Collecting build traces in ${hrtimeDurationToString(buildTracesEnd)}`
+          )
+        }
         buildTracesSpinner.stopAndPersist()
         buildTracesSpinner = undefined
       }
@@ -4065,6 +4085,9 @@ export default async function build(
           })
       }
 
+      // This should come after output: export handling but before
+      // output: standalone, in the future output: standalone might
+      // not be allowed if an adapter with onBuildComplete is configured
       const adapterPath = config.experimental.adapterPath
       if (adapterPath) {
         await nextBuildSpan
@@ -4074,6 +4097,7 @@ export default async function build(
               dir,
               distDir,
               config,
+              configOutDir: path.join(dir, configOutDir),
               staticPages,
               nextVersion: process.env.__NEXT_VERSION as string,
               tracingRoot: outputFileTracingRoot,
@@ -4113,7 +4137,15 @@ export default async function build(
           })
       }
 
-      if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+      if (postBuildSpinner) {
+        const finalizingPageOptimizationEnd = process.hrtime(
+          finalizingPageOptimizationStart
+        )
+        postBuildSpinner.setText(
+          `Finalizing page optimization in ${hrtimeDurationToString(finalizingPageOptimizationEnd)}`
+        )
+        postBuildSpinner.stopAndPersist()
+      }
       console.log()
 
       if (debugOutput) {

@@ -1,9 +1,9 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 
 // Share the instance module in the next-shared layer
-import { devLogsAsyncStorageInstance } from './dev-logs-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import { consoleAsyncStorageInstance } from './console-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 
-export interface DevLogsStore {
+export interface ConsoleStore {
   /**
    * if true the color of logs output will be dimmed to indicate the log is
    * from a repeat or validation render that is not typically relevant to
@@ -12,6 +12,6 @@ export interface DevLogsStore {
   readonly dim: boolean
 }
 
-export type DevLogsAsyncStorage = AsyncLocalStorage<DevLogsStore>
+export type ConsoleAsyncStorage = AsyncLocalStorage<ConsoleStore>
 
-export { devLogsAsyncStorageInstance as devLogsAsyncStorage }
+export { consoleAsyncStorageInstance as consoleAsyncStorage }

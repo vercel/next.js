@@ -1,19 +1,22 @@
 import { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
-import { registerGetProjectPathTool } from './tools/get-project-path'
+import { registerGetProjectMetadataTool } from './tools/get-project-metadata'
 import { registerGetErrorsTool } from './tools/get-errors'
 import { registerGetPageMetadataTool } from './tools/get-page-metadata'
 import { registerGetLogsTool } from './tools/get-logs'
 import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 
+export interface McpServerOptions {
+  projectPath: string
+  distDir: string
+  sendHmrMessage: (message: HmrMessageSentToBrowser) => void
+  getActiveConnectionCount: () => number
+  getDevServerUrl: () => string | undefined
+}
+
 let mcpServer: McpServer | undefined
 
-export const getOrCreateMcpServer = (
-  projectPath: string,
-  distDir: string,
-  sendHmrMessage: (message: HmrMessageSentToBrowser) => void,
-  getActiveConnectionCount: () => number
-) => {
+export const getOrCreateMcpServer = (options: McpServerOptions) => {
   if (mcpServer) {
     return mcpServer
   }
@@ -23,15 +26,23 @@ export const getOrCreateMcpServer = (
     version: '0.1.0',
   })
 
-  registerGetProjectPathTool(mcpServer, projectPath)
-  registerGetErrorsTool(mcpServer, sendHmrMessage, getActiveConnectionCount)
+  registerGetProjectMetadataTool(
+    mcpServer,
+    options.projectPath,
+    options.getDevServerUrl
+  )
+  registerGetErrorsTool(
+    mcpServer,
+    options.sendHmrMessage,
+    options.getActiveConnectionCount
+  )
   registerGetPageMetadataTool(
     mcpServer,
-    sendHmrMessage,
-    getActiveConnectionCount
+    options.sendHmrMessage,
+    options.getActiveConnectionCount
   )
-  registerGetLogsTool(mcpServer, distDir)
-  registerGetActionByIdTool(mcpServer, distDir)
+  registerGetLogsTool(mcpServer, options.distDir)
+  registerGetActionByIdTool(mcpServer, options.distDir)
 
   return mcpServer
 }

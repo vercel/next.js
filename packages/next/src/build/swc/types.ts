@@ -225,9 +225,11 @@ export interface Project {
 
   writeAllEntrypointsToDisk(
     appDirOnly: boolean
-  ): Promise<TurbopackResult<RawEntrypoints>>
+  ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
 
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints>>
+  entrypointsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<RawEntrypoints | {}>
+  >
 
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
 
@@ -253,7 +255,7 @@ export interface Project {
     eventTypes?: string[]
   ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
 
-  invalidatePersistentCache(): Promise<void>
+  invalidateFileSystemCache(): Promise<void>
 
   shutdown(): Promise<void>
 

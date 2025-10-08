@@ -9,6 +9,7 @@ import { verifyAndLint } from '../lib/verifyAndLint'
 import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'
 import isError from '../lib/is-error'
+import { hrtimeDurationToString } from './duration-to-string'
 
 /**
  * typescript will be loaded in "next/lib/verify-typescript-setup" and
@@ -109,11 +110,11 @@ export async function startTypeChecking({
 
   if (!ignoreTypeScriptErrors && shouldLint) {
     typeCheckingAndLintingSpinnerPrefixText =
-      'Linting and checking validity of types'
+      'Running ESLint and TypeScript concurrently'
   } else if (!ignoreTypeScriptErrors) {
-    typeCheckingAndLintingSpinnerPrefixText = 'Checking validity of types'
+    typeCheckingAndLintingSpinnerPrefixText = 'Running TypeScript'
   } else if (shouldLint) {
-    typeCheckingAndLintingSpinnerPrefixText = 'Linting'
+    typeCheckingAndLintingSpinnerPrefixText = 'Running ESLint'
   }
 
   // we will not create a spinner if both ignoreTypeScriptErrors and ignoreESLint are
@@ -124,10 +125,10 @@ export async function startTypeChecking({
     )
   }
 
-  const typeCheckStart = process.hrtime()
+  const typeCheckAndLintStart = process.hrtime()
 
   try {
-    const [[verifyResult, typeCheckEnd]] = await Promise.all([
+    const [[verifyResult, typeCheckEnd], lintCheckEnd] = await Promise.all([
       nextBuildSpan.traceChild('run-typescript').traceAsyncFn(() =>
         verifyTypeScriptSetup(
           dir,
@@ -141,7 +142,7 @@ export async function startTypeChecking({
           !!appDir,
           !!pagesDir
         ).then((resolved) => {
-          const checkEnd = process.hrtime(typeCheckStart)
+          const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const
         })
       ),
@@ -154,9 +155,23 @@ export async function startTypeChecking({
             config.experimental.workerThreads,
             telemetry
           )
+          const checkEnd = process.hrtime(typeCheckAndLintStart)
+          return checkEnd
         }),
     ])
-    typeCheckingAndLintingSpinner?.stopAndPersist()
+
+    if (typeCheckingAndLintingSpinner) {
+      typeCheckingAndLintingSpinner.stop()
+
+      createSpinner(
+        `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
+      )?.stopAndPersist()
+      if (lintCheckEnd) {
+        createSpinner(
+          `Finished ESLint in ${hrtimeDurationToString(lintCheckEnd)}`
+        )?.stopAndPersist()
+      }
+    }
 
     if (!ignoreTypeScriptErrors && verifyResult) {
       telemetry.record(

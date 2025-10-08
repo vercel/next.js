@@ -1226,11 +1226,11 @@ function readJson(path: string) {
 }
 
 export function getBuildManifest(dir: string) {
-  return readJson(path.join(dir, '.next/build-manifest.json'))
+  return readJson(path.join(dir, getDistDir(), 'build-manifest.json'))
 }
 
 export function getImagesManifest(dir: string) {
-  return readJson(path.join(dir, '.next/images-manifest.json'))
+  return readJson(path.join(dir, getDistDir(), 'images-manifest.json'))
 }
 
 export function getPageFilesFromBuildManifest(dir: string, page: string) {
@@ -1250,7 +1250,7 @@ export function getContentOfPageFilesFromBuildManifest(
   const pageFiles = getPageFilesFromBuildManifest(dir, page)
 
   return pageFiles
-    .map((file) => readFileSync(path.join(dir, '.next', file), 'utf8'))
+    .map((file) => readFileSync(path.join(dir, getDistDir(), file), 'utf8'))
     .join('\n')
 }
 
@@ -1271,17 +1271,17 @@ export function getPageFileFromBuildManifest(dir: string, page: string) {
 
 export function readNextBuildClientPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromBuildManifest(appDir, page)
-  return readFileSync(path.join(appDir, '.next', pageFile), 'utf8')
+  return readFileSync(path.join(appDir, getDistDir(), pageFile), 'utf8')
 }
 
 export function getPagesManifest(dir: string) {
-  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+  const serverFile = path.join(dir, getDistDir(), 'server/pages-manifest.json')
 
   return readJson(serverFile)
 }
 
 export function updatePagesManifest(dir: string, content: any) {
-  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+  const serverFile = path.join(dir, getDistDir(), 'server/pages-manifest.json')
 
   return writeFile(serverFile, content)
 }
@@ -1298,13 +1298,16 @@ export function getPageFileFromPagesManifest(dir: string, page: string) {
 
 export function readNextBuildServerPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
-  return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
+  return readFileSync(
+    path.join(appDir, getDistDir(), 'server', pageFile),
+    'utf8'
+  )
 }
 
 export function getClientBuildManifest(dir: string) {
-  let buildId = readFileSync(path.join(dir, '.next/BUILD_ID'), 'utf8')
+  let buildId = readFileSync(path.join(dir, getDistDir(), 'BUILD_ID'), 'utf8')
   let code = readFileSync(
-    path.join(dir, '.next/static', buildId, '_buildManifest.js'),
+    path.join(dir, getDistDir(), 'static', buildId, '_buildManifest.js'),
     'utf8'
   )
   // eslint-disable-next-line no-eval
@@ -1887,11 +1890,10 @@ export function normalizeManifest<T>(
   )
 }
 
-export function getDistDir(isNextDev?: boolean): '.next' | '.next/dev' {
+export function getDistDir(): '.next' | '.next/dev' {
   // global.isNextDev is set in e2e/development/production tests.
-  // TODO: If a test utils that are used in integration/unit tests can set
-  // global.isNextDev flag, we could possibly remove the parameter.
-  return (isNextDev ?? (global as any).isNextDev) &&
+  // NEXT_TEST_MODE is set in CI or local test-* commands.
+  return ((global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev') &&
     // Flag for incremental rollout of isolated dev build, set in CI.
     process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true'
     ? '.next/dev'

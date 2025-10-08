@@ -52,6 +52,8 @@ ${
     : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
+import type { PrefetchForTypeCheckInternal } from 'next/dist/build/segment-config/app/app-segment-config.js'
+
 type TEntry = typeof import('${relativePath}.js')
 
 type SegmentParams<T extends Object = any> = T extends Record<string, any>
@@ -67,7 +69,7 @@ checkFields<Diff<{
   }
   config?: {}
   generateStaticParams?: Function
-  unstable_prefetch?: 'unstable_static' | 'unstable_runtime'
+  unstable_prefetch?: PrefetchForTypeCheckInternal
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean

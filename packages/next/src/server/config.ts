@@ -57,6 +57,26 @@ function normalizeNextConfigZodErrors(
         // We exit the build when encountering an error in the images config
         shouldExit = true
       }
+      if (
+        issue.code === 'unrecognized_keys' &&
+        issue.path[0] === 'experimental'
+      ) {
+        if (message.includes('turbopackPersistentCachingForBuild')) {
+          // We exit the build when encountering an error in the turbopackPersistentCaching config
+          shouldExit = true
+          message +=
+            "\nUse 'experimental.turbopackFileSystemCacheForBuild' instead."
+          message +=
+            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+        } else if (message.includes('turbopackPersistentCaching')) {
+          // We exit the build when encountering an error in the turbopackPersistentCaching config
+          shouldExit = true
+          message +=
+            "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
+          message +=
+            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+        }
+      }
 
       return message
     }),
@@ -119,6 +139,15 @@ function checkDeprecations(
     `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
     silent
   )
+
+  if (userConfig.images?.domains?.length) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'images.domains',
+      `\`images.domains\` is deprecated in favor of \`images.remotePatterns\`. Please update ${configFileName} to protect your application from malicious users.`,
+      silent
+    )
+  }
 
   // i18n deprecation for App Router
   if (userConfig.i18n) {
@@ -340,9 +369,9 @@ function assignDefaultsAndValidate(
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.cacheComponents) {
       throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
-    } else if (result.experimental?.turbopackPersistentCachingForBuild) {
+    } else if (result.experimental?.turbopackFileSystemCacheForBuild) {
       throw new CanaryOnlyError({
-        feature: 'experimental.turbopackPersistentCachingForBuild',
+        feature: 'experimental.turbopackFileSystemCacheForBuild',
       })
     }
   }
@@ -1116,6 +1145,13 @@ function assignDefaultsAndValidate(
     result.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
+  if (
+    typeof result.experimental.mcpServer === 'undefined' &&
+    process.env.__NEXT_EXPERIMENTAL_MCP_SERVER === 'true'
+  ) {
+    result.experimental.mcpServer = true
+  }
+
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
   // we transfer the value for cacheComponents to the explicit useCache flag to ensure
   // backwards compatibility.
@@ -1785,6 +1821,25 @@ function enforceExperimentalFeatures(
     }
   }
 
+  // TODO: Remove this once using the debug channel is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.reactDebugChannel === undefined ||
+      (isDefaultConfig && !config.experimental.reactDebugChannel))
+  ) {
+    config.experimental.reactDebugChannel = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'reactDebugChannel',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`'
+      )
+    }
+  }
+
   // TODO: Remove this once we've made RDC for Navigations the default for PPR.
   if (
     process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
@@ -1939,7 +1994,7 @@ async function validateConfigSchema(
     )
     // ident list item
     for (const error of errorMessages) {
-      messages.push(`    ${error}`)
+      messages.push(`    ${error.split('\n').join('\n    ')}`)
     }
 
     // error message footer

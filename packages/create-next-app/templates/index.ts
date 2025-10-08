@@ -10,7 +10,7 @@ import { cyan, bold } from "picocolors";
 import { Sema } from "async-sema";
 import pkg from "../package.json";
 
-import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
+import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
@@ -45,8 +45,7 @@ export const installTemplate = async ({
   srcDir,
   importAlias,
   skipInstall,
-  turbopack,
-  rspack,
+  bundler,
   reactCompiler,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
@@ -82,7 +81,7 @@ export const installTemplate = async ({
     },
   });
 
-  if (rspack) {
+  if (bundler === Bundler.Rspack) {
     const nextConfigFile = path.join(
       root,
       mode === "js" ? "next.config.mjs" : "next.config.ts",
@@ -207,6 +206,7 @@ export const installTemplate = async ({
 
   /** Copy the version from package.json or override for tests. */
   const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version;
+  const bundlerFlags = `${bundler === Bundler.Turbopack ? " --turbopack" : ""}${bundler === Bundler.Webpack ? " --webpack" : ""}`;
 
   /** Create a package.json for the new project and write it to disk. */
   const packageJson: any = {
@@ -214,8 +214,8 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: `next dev${turbopack ? " --turbopack" : ""}`,
-      build: `next build${turbopack ? " --turbopack" : ""}`,
+      dev: `next dev${bundlerFlags}`,
+      build: `next build${bundlerFlags}`,
       start: "next start",
       ...(eslint && { lint: "eslint" }),
       ...(biome && { lint: "biome check", format: "biome format --write" }),
@@ -231,7 +231,7 @@ export const installTemplate = async ({
     devDependencies: {},
   };
 
-  if (rspack) {
+  if (bundler === Bundler.Rspack) {
     const NEXT_PRIVATE_TEST_VERSION = process.env.NEXT_PRIVATE_TEST_VERSION;
     if (
       NEXT_PRIVATE_TEST_VERSION &&

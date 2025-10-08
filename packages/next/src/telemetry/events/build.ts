@@ -194,7 +194,7 @@ export type EventBuildFeatureUsage = {
     | 'esmExternals'
     | 'webpackPlugins'
     | UseCacheTrackerKey
-    | 'turbopackPersistentCaching'
+    | 'turbopackFileSystemCache'
     | 'runAfterProductionCompile'
   invocationCount: number
 }

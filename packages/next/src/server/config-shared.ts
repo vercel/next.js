@@ -425,14 +425,14 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * Enable persistent caching for the turbopack dev server.
+   * Enable filesystem cache for the turbopack dev server.
    */
-  turbopackPersistentCachingForDev?: boolean
+  turbopackFileSystemCacheForDev?: boolean
 
   /**
-   * Enable persistent caching for the turbopack build.
+   * Enable filesystem cache for the turbopack build.
    */
-  turbopackPersistentCachingForBuild?: boolean
+  turbopackFileSystemCacheForBuild?: boolean
 
   /**
    * Enable source maps. Defaults to true.
@@ -653,7 +653,7 @@ export interface ExperimentalConfig {
   useLightningcss?: boolean
 
   /**
-   * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
+   * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.
    */
   viewTransition?: boolean
 
@@ -1512,7 +1512,6 @@ export const defaultConfig = Object.freeze({
     browserDebugInfoInTerminal: false,
     isolatedDevBuild:
       process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true',
-    mcpServer: !!process.env.__NEXT_EXPERIMENTAL_MCP_SERVER,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

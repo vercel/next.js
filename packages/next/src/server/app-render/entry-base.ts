@@ -32,12 +32,7 @@ export {
 export * as serverHooks from '../../client/components/hooks-server-context'
 export { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
 export { createMetadataComponents } from '../../lib/metadata/metadata'
-export {
-  MetadataBoundary,
-  ViewportBoundary,
-  OutletBoundary,
-  RootLayoutBoundary,
-} from '../../lib/framework/boundary-components'
+export { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
 export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 export { Postpone } from './rsc/postpone'
