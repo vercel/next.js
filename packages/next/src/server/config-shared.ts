@@ -43,13 +43,6 @@ export interface DomainLocale {
   locales?: readonly string[]
 }
 
-export interface ESLintConfig {
-  /** Only run ESLint on these directories with `next lint` and `next build`. */
-  dirs?: string[]
-  /** Do not run ESLint during production builds (`next build`). */
-  ignoreDuringBuilds?: boolean
-}
-
 export interface TypeScriptConfig {
   /** Do not run TypeScript during production builds (`next build`). */
   ignoreBuildErrors?: boolean
@@ -911,12 +904,6 @@ export interface NextConfig {
   i18n?: I18NConfig | null
 
   /**
-   * @since version 11
-   * @see [ESLint configuration](https://nextjs.org/docs/app/api-reference/config/eslint)
-   */
-  eslint?: ESLintConfig
-
-  /**
    * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/api-reference/config/typescript)
    */
   typescript?: TypeScriptConfig
@@ -1334,9 +1321,6 @@ export interface NextConfig {
 export const defaultConfig = Object.freeze({
   env: {},
   webpack: null,
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
   typescript: {
     ignoreBuildErrors: false,
     tsconfigPath: undefined,

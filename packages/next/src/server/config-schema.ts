@@ -466,12 +466,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     distDir: z.string().min(1).optional(),
     env: z.record(z.string(), z.union([z.string(), z.undefined()])).optional(),
-    eslint: z
-      .strictObject({
-        dirs: z.array(z.string().min(1)).optional(),
-        ignoreDuringBuilds: z.boolean().optional(),
-      })
-      .optional(),
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z.strictObject(experimentalSchema).optional(),
     exportPathMap: z
