@@ -616,6 +616,9 @@ const ImageElement = ({
   )
 }
 
+/**
+ * @deprecated The `next/legacy/image` component is deprecated and will be removed in a future version of Next.js. Please use next/image instead.
+ */
 export default function Image({
   src,
   sizes,
@@ -636,6 +639,9 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
+  warnOnce(
+    `Image with src "${src}" is using next/legacy/image which is deprecated and will be removed in a future version of Next.js.`
+  )
   const configContext = useContext(ImageConfigContext)
   const config: ImageConfig = useMemo(() => {
     const c = configEnv || configContext || imageConfigDefault
