@@ -2027,7 +2027,17 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
         ...externals,
         './index': './index.js',
         'schema-utils': externals['schema-utils3'],
-        'webpack-sources': externals['webpack-sources1'],
+      },
+    })
+    .target('src/compiled/mini-css-extract-plugin')
+  await task
+    .source(relative(__dirname, require.resolve('mini-css-extract-plugin')))
+    .ncc({
+      packageName: 'mini-css-extract-plugin',
+      externals: {
+        ...externals,
+        './index': './index.js',
+        'schema-utils': externals['schema-utils3'],
       },
     })
     .target('src/compiled/mini-css-extract-plugin')
@@ -2046,17 +2056,6 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
         ...externals,
         './hmr': './hmr',
         'schema-utils': 'next/dist/compiled/schema-utils3',
-      },
-    })
-    .target('src/compiled/mini-css-extract-plugin/hmr')
-  await task
-    .source(relative(__dirname, require.resolve('mini-css-extract-plugin')))
-    .ncc({
-      packageName: 'mini-css-extract-plugin',
-      externals: {
-        ...externals,
-        './index': './index.js',
-        'schema-utils': externals['schema-utils3'],
       },
     })
     .target('src/compiled/mini-css-extract-plugin')
