@@ -557,8 +557,7 @@ function pingRoute(now: number, task: PrefetchTask): PrefetchTaskExitStatus {
     // a wildcard lookup method to the TupleMap implementation. This is
     // non-trivial to implement because it needs to account for things like
     // fallback route entries, hence this temporary workaround.
-    const url = new URL(key.href)
-    url.search = ''
+    const url = new URL(key.pathname, location.origin)
     const keyWithoutSearch = createCacheKey(url.href, key.nextUrl)
     const routeWithoutSearch = readOrCreateRouteCacheEntry(
       now,

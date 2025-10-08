@@ -2,14 +2,14 @@
 type Opaque<K, T> = T & { __brand: K }
 
 // Only functions in this module should be allowed to create CacheKeys.
-export type NormalizedHref = Opaque<'NormalizedHref', string>
+export type NormalizedPathname = Opaque<'NormalizedPathname', string>
 export type NormalizedSearch = Opaque<'NormalizedSearch', string>
 export type NormalizedNextUrl = Opaque<'NormalizedNextUrl', string>
 
 export type RouteCacheKey = Opaque<
   'RouteCacheKey',
   {
-    href: NormalizedHref
+    pathname: NormalizedPathname
     search: NormalizedSearch
     nextUrl: NormalizedNextUrl | null
 
@@ -22,9 +22,8 @@ export function createCacheKey(
   nextUrl: string | null
 ): RouteCacheKey {
   const originalUrl = new URL(originalHref)
-  originalUrl.hash = ''
   const cacheKey = {
-    href: originalHref as NormalizedHref,
+    pathname: originalUrl.pathname as NormalizedPathname,
     search: originalUrl.search as NormalizedSearch,
     nextUrl: nextUrl as NormalizedNextUrl | null,
   } as RouteCacheKey

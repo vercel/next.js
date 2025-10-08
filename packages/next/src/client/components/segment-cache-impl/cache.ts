@@ -39,7 +39,7 @@ import {
 import { getAppBuildId } from '../../app-build-id'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import type {
-  NormalizedHref,
+  NormalizedPathname,
   NormalizedNextUrl,
   NormalizedSearch,
   RouteCacheKey,
@@ -284,7 +284,8 @@ function getStaleTimeMs(staleTimeSeconds: number): number {
 // first level is keyed by href, the second level is keyed by Next-Url, and so
 // on (if were to add more levels).
 type RouteCacheKeypath = [
-  NormalizedHref,
+  NormalizedPathname,
+  NormalizedSearch,
   NormalizedNextUrl | null | FallbackType,
 ]
 let routeCacheMap: CacheMap<RouteCacheKeypath, RouteCacheEntry> =
@@ -398,7 +399,7 @@ export function readRouteCacheEntry(
   now: number,
   key: RouteCacheKey
 ): RouteCacheEntry | null {
-  const keypath: RouteCacheKeypath = [key.href, key.nextUrl]
+  const keypath: RouteCacheKeypath = [key.pathname, key.search, key.nextUrl]
   return getFromCacheMap(now, getCurrentCacheVersion(), routeCacheMap, keypath)
 }
 
@@ -525,7 +526,7 @@ export function readOrCreateRouteCacheEntry(
     version: getCurrentCacheVersion(),
     revalidating: null,
   }
-  const keypath: RouteCacheKeypath = [key.href, key.nextUrl]
+  const keypath: RouteCacheKeypath = [key.pathname, key.search, key.nextUrl]
   setInCacheMap(routeCacheMap, keypath, pendingEntry)
   return pendingEntry
 }
@@ -1203,7 +1204,8 @@ export async function fetchRouteOnCacheMiss(
   // fetch that gets issued on a cache miss. Notice it writes the result to the
   // cache entry directly, rather than return data that is then written by
   // the caller.
-  const href = key.href
+  const pathname = key.pathname
+  const search = key.search
   const nextUrl = key.nextUrl
   const segmentPath = '/_tree' as SegmentRequestKey
 
@@ -1217,6 +1219,7 @@ export async function fetchRouteOnCacheMiss(
   }
 
   try {
+    const url = new URL(pathname + search, location.origin)
     let response
     let urlAfterRedirects
     if (isOutputExportMode) {
@@ -1247,8 +1250,7 @@ export async function fetchRouteOnCacheMiss(
       // NOTE: We could embed the route tree into the HTML document, to avoid
       // a second request. We're not doing that currently because it would make
       // the HTML document larger and affect normal page loads.
-      const url = new URL(href)
-      const htmlResponse = await fetch(href, {
+      const htmlResponse = await fetch(url, {
         headers: {
           Range: DOC_PREFETCH_RANGE_HEADER_VALUE,
         },
@@ -1272,7 +1274,6 @@ export async function fetchRouteOnCacheMiss(
       // TODO: The eventual plan is to get rid of our custom request headers and
       // encode everything into the URL, using a similar strategy to the
       // "output: export" block above.
-      const url = new URL(href)
       response = await fetchPrefetchResponse(url, headers)
       urlAfterRedirects =
         response !== null && response.redirected ? new URL(response.url) : url
@@ -1433,7 +1434,7 @@ export async function fetchRouteOnCacheMiss(
       // TODO: Treat this as an upsert — should check if an entry already
       // exists at the new keypath, and if so, whether we should keep that
       // one instead.
-      const newKeypath: RouteCacheKeypath = [href, Fallback]
+      const newKeypath: RouteCacheKeypath = [pathname, search, Fallback]
       setInCacheMap(routeCacheMap, newKeypath, entry)
     }
     // Return a promise that resolves when the network connection closes, so
@@ -1465,7 +1466,7 @@ export async function fetchSegmentOnCacheMiss(
   // are usually the same, but the canonical URL will be different if the route
   // tree response was redirected. To avoid an extra waterfall on every segment
   // request, we pass the redirected URL instead of the original one.
-  const url = new URL(route.canonicalUrl, routeKey.href)
+  const url = new URL(route.canonicalUrl, location.origin)
   const nextUrl = routeKey.nextUrl
 
   const requestKey = tree.requestKey
@@ -1574,8 +1575,9 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
   dynamicRequestTree: FlightRouterState,
   spawnedEntries: Map<SegmentCacheKey, PendingSegmentCacheEntry>
 ): Promise<PrefetchSubtaskResult<null> | null> {
-  const url = new URL(route.canonicalUrl, task.key.href)
-  const nextUrl = task.key.nextUrl
+  const key = task.key
+  const url = new URL(route.canonicalUrl, location.origin)
+  const nextUrl = key.nextUrl
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
     [NEXT_ROUTER_STATE_TREE_HEADER]:
