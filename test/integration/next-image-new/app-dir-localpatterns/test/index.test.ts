@@ -80,7 +80,7 @@ function runTests(mode: 'dev' | 'server') {
           disableStaticImages: false,
           domains: [],
           formats: ['image/webp'],
-          imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+          imageSizes: [32, 48, 64, 96, 128, 256, 384],
           loader: 'default',
           loaderFile: '',
           remotePatterns: [],

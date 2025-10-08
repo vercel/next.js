@@ -254,6 +254,120 @@ describe('getImageProps()', () => {
       ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
   })
+  it('should handle 16px image', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 16,
+      height: 16,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 16],
+      ['height', 16],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['srcSet', '/_next/image?url=%2Ftest.png&w=32&q=75 1x'],
+      ['src', '/_next/image?url=%2Ftest.png&w=32&q=75'],
+    ])
+  })
+  it('should handle 32px image', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 32,
+      height: 32,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 32],
+      ['height', 32],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=32&q=75 1x, /_next/image?url=%2Ftest.png&w=64&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=64&q=75'],
+    ])
+  })
+  it('should handle 256px image', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 256,
+      height: 256,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 256],
+      ['height', 256],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=256&q=75 1x, /_next/image?url=%2Ftest.png&w=640&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=640&q=75'],
+    ])
+  })
+  it('should handle 512px image', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 512,
+      height: 512,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 512],
+      ['height', 512],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=1080&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=1080&q=75'],
+    ])
+  })
+  it('should handle 3072px image', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 3072,
+      height: 3072,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
+      ['width', 3072],
+      ['height', 3072],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['srcSet', '/_next/image?url=%2Ftest.png&w=3840&q=75 1x'],
+      ['src', '/_next/image?url=%2Ftest.png&w=3840&q=75'],
+    ])
+  })
   it('should handle sizes', async () => {
     const { props } = getImageProps({
       alt: 'a nice desc',

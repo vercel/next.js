@@ -465,7 +465,7 @@ impl Default for ImageConfig {
         // https://github.com/vercel/next.js/blob/327634eb/packages/next/shared/lib/image-config.ts#L100-L114
         Self {
             device_sizes: vec![640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-            image_sizes: vec![16, 32, 48, 64, 96, 128, 256, 384],
+            image_sizes: vec![32, 48, 64, 96, 128, 256, 384],
             path: "/_next/image".to_string(),
             loader: ImageLoader::Default,
             loader_file: None,
