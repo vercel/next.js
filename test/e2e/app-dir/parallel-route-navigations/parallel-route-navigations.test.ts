@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { setTimeout } from 'node:timers/promises'
 
 async function stable(action: () => Promise<void>, stableForMS: number = 1000) {
   // Wait for it to reach the initial state.
@@ -10,7 +11,7 @@ async function stable(action: () => Promise<void>, stableForMS: number = 1000) {
   // Wait for the stableForMS to ensure that it doesn't change.
   for (let i = 0; i < 10; i++) {
     await action()
-    await new Promise((resolve) => setTimeout(resolve, stableForMS / 10))
+    await setTimeout(stableForMS / 10)
   }
 }
 
@@ -107,7 +108,8 @@ describe('parallel-route-navigations', () => {
     await stable(async () => {
       if (
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ||
-        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' ||
+        process.env.__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE === 'true'
       ) {
         // When we're in PPR or Cache Components, we'll see one dynamic
         // request.
