@@ -109,10 +109,6 @@ export function getCloneableBody<T extends IncomingMessage>(
           p2.push(null)
         }
       })
-      input.on('error', (err) => {
-        p1.destroy(err)
-        p2.destroy(err)
-      })
       buffered = p2
       return p1
     },

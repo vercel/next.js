@@ -701,17 +701,18 @@ function assignDefaultsAndValidate(
     }
   }
 
-  // Normalize & validate experimental.clientMaxBodySize
-  if (typeof result.experimental?.clientMaxBodySize !== 'undefined') {
-    const clientMaxBodySize = result.experimental.clientMaxBodySize
+  // Normalize & validate experimental.middlewareClientMaxBodySize
+  if (typeof result.experimental?.middlewareClientMaxBodySize !== 'undefined') {
+    const middlewareClientMaxBodySize =
+      result.experimental.middlewareClientMaxBodySize
     let normalizedValue: number
 
-    if (typeof clientMaxBodySize === 'string') {
+    if (typeof middlewareClientMaxBodySize === 'string') {
       const bytes =
         require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
-      normalizedValue = bytes.parse(clientMaxBodySize)
-    } else if (typeof clientMaxBodySize === 'number') {
-      normalizedValue = clientMaxBodySize
+      normalizedValue = bytes.parse(middlewareClientMaxBodySize)
+    } else if (typeof middlewareClientMaxBodySize === 'number') {
+      normalizedValue = middlewareClientMaxBodySize
     } else {
       throw new Error(
         'Client Max Body Size must be a valid number (bytes) or filesize format string (e.g., "5mb")'
@@ -723,7 +724,7 @@ function assignDefaultsAndValidate(
     }
 
     // Store the normalized value as a number
-    result.experimental.clientMaxBodySize = normalizedValue
+    result.experimental.middlewareClientMaxBodySize = normalizedValue
   }
 
   warnOptionHasBeenMovedOutOfExperimental(

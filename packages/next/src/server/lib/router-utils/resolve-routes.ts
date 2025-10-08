@@ -175,7 +175,7 @@ export function getResolveRoutes(
     addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      const bodySizeLimit = config.experimental.clientMaxBodySize as
+      const bodySizeLimit = config.experimental.middlewareClientMaxBodySize as
         | number
         | undefined
       addRequestMeta(req, 'clonableBody', getCloneableBody(req, bodySizeLimit))

@@ -1950,9 +1950,8 @@ export default class NextNodeServer extends BaseServer<
     addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      const bodySizeLimit = this.nextConfig.experimental?.clientMaxBodySize as
-        | number
-        | undefined
+      const bodySizeLimit = this.nextConfig.experimental
+        ?.middlewareClientMaxBodySize as number | undefined
       addRequestMeta(
         req,
         'clonableBody',

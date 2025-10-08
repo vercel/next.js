@@ -3,9 +3,13 @@ import { fetchViaHTTP } from 'next-test-utils'
 
 describe('client-max-body-size', () => {
   describe('default 10MB limit', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
+      // Deployed environment has it's own configured limits.
+      skipDeployment: true,
     })
+
+    if (skipped) return
 
     it('should reject request body over 10MB by default', async () => {
       const bodySize = 11 * 1024 * 1024 // 11MB
@@ -65,14 +69,17 @@ describe('client-max-body-size', () => {
   })
 
   describe('custom limit with string format', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
+      skipDeployment: true,
       nextConfig: {
         experimental: {
-          clientMaxBodySize: '5mb',
+          middlewareClientMaxBodySize: '5mb',
         },
       },
     })
+
+    if (skipped) return
 
     it('should reject request body over custom 5MB limit', async () => {
       const bodySize = 6 * 1024 * 1024 // 6MB
@@ -113,14 +120,17 @@ describe('client-max-body-size', () => {
   })
 
   describe('custom limit with number format', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
+      skipDeployment: true,
       nextConfig: {
         experimental: {
-          clientMaxBodySize: 2 * 1024 * 1024, // 2MB in bytes
+          middlewareClientMaxBodySize: 2 * 1024 * 1024, // 2MB in bytes
         },
       },
     })
+
+    if (skipped) return
 
     it('should reject request body over custom 2MB limit', async () => {
       const bodySize = 3 * 1024 * 1024 // 3MB
@@ -161,14 +171,17 @@ describe('client-max-body-size', () => {
   })
 
   describe('large custom limit', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
+      skipDeployment: true,
       nextConfig: {
         experimental: {
-          clientMaxBodySize: '50mb',
+          middlewareClientMaxBodySize: '50mb',
         },
       },
     })
+
+    if (skipped) return
 
     it('should accept request body up to 50MB with custom limit', async () => {
       const bodySize = 20 * 1024 * 1024 // 20MB
