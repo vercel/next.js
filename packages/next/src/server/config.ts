@@ -120,6 +120,15 @@ function checkDeprecations(
     silent
   )
 
+  if (userConfig.images?.domains?.length) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'images.domains',
+      `\`images.domains\` is deprecated in favor of \`images.remotePatterns\`. Please update ${configFileName} to protect your application from malicious users.`,
+      silent
+    )
+  }
+
   // i18n deprecation for App Router
   if (userConfig.i18n) {
     const hasAppDir = Boolean(findDir(dir, 'app'))
@@ -498,11 +507,6 @@ function assignDefaultsAndValidate(
       if (!Array.isArray(images.domains)) {
         throw new Error(
           `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-      if (images.domains.length > 0) {
-        Log.warnOnce(
-          '`images.domains` is deprecated. Use `images.remotePatterns` instead to protect your application from malicious users. https://nextjs.org/docs/app/api-reference/components/image#domains'
         )
       }
     }

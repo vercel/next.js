@@ -29,7 +29,7 @@ function runTests(getOutput: () => string) {
 
   it('should warn when using images.domains config', async () => {
     expect(getOutput()).toContain(
-      '`images.domains` is deprecated. Use `images.remotePatterns` instead to protect'
+      '`images.domains` is deprecated in favor of `images.remotePatterns`. Please update next.config.js to protect your application from malicious users.'
     )
   })
 }
