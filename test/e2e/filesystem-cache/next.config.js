@@ -16,8 +16,8 @@ const nextConfig = {
     },
   },
   experimental: {
-    turbopackPersistentCachingForDev: true,
-    turbopackPersistentCachingForBuild: true,
+    turbopackFileSystemCacheForDev: true,
+    turbopackFileSystemCacheForBuild: true,
   },
   env: {
     NEXT_PUBLIC_CONFIG_ENV: 'hello world',
@@ -32,7 +32,7 @@ const nextConfig = {
       use: ['./my-loader.js'],
     })
     if (dev) {
-      // Make webpack consider the build as large change which makes it persistent cache it sooner
+      // Make webpack consider the build as large change which makes it filesystem cache it sooner
       config.plugins.push((compiler) => {
         compiler.__extra_delay = true
       })

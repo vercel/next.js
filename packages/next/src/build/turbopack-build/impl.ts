@@ -1,6 +1,6 @@
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { isPersistentCachingEnabledForBuild } from '../../shared/lib/turbopack/utils'
+import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, loadBindings } from '../swc'
 import {
@@ -47,7 +47,7 @@ export async function turbopackBuild(): Promise<{
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
-  const persistentCaching = isPersistentCachingEnabledForBuild(config)
+  const persistentCaching = isFileSystemCacheEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
   const project = await bindings.turbo.createProject(
     {

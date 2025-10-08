@@ -59,15 +59,23 @@ function normalizeNextConfigZodErrors(
       }
       if (
         issue.code === 'unrecognized_keys' &&
-        issue.path[0] === 'experimental' &&
-        message.includes('turbopackPersistentCaching')
+        issue.path[0] === 'experimental'
       ) {
-        // We exit the build when encountering an error in the turbopackPersistentCaching config
-        shouldExit = true
-        message +=
-          "\nUse 'experimental.turbopackPersistentCachingForDev' instead."
-        message +=
-          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackPersistentCaching'
+        if (message.includes('turbopackPersistentCachingForBuild')) {
+          // We exit the build when encountering an error in the turbopackPersistentCaching config
+          shouldExit = true
+          message +=
+            "\nUse 'experimental.turbopackFileSystemCacheForBuild' instead."
+          message +=
+            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+        } else if (message.includes('turbopackPersistentCaching')) {
+          // We exit the build when encountering an error in the turbopackPersistentCaching config
+          shouldExit = true
+          message +=
+            "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
+          message +=
+            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+        }
       }
 
       return message
@@ -361,9 +369,9 @@ function assignDefaultsAndValidate(
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.cacheComponents) {
       throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
-    } else if (result.experimental?.turbopackPersistentCachingForBuild) {
+    } else if (result.experimental?.turbopackFileSystemCacheForBuild) {
       throw new CanaryOnlyError({
-        feature: 'experimental.turbopackPersistentCachingForBuild',
+        feature: 'experimental.turbopackFileSystemCacheForBuild',
       })
     }
   }

@@ -29,7 +29,7 @@ describe('persistent-caching', () => {
 
   async function stop() {
     if (isNextDev) {
-      // Give Persistent Cache time to write to disk
+      // Give FileSystem Cache time to write to disk
       // Turbopack has an idle timeout of 2s
       // Webpack has an idle timeout (after large changes) of 1s
       // and we give time a bit more to allow writing to disk
@@ -42,7 +42,7 @@ describe('persistent-caching', () => {
     await next.start()
   }
 
-  it('should persistent cache loaders', async () => {
+  it('should filesystem cache loaders', async () => {
     let appTimestamp, unchangedTimestamp, appClientTimestamp, pagesTimestamp
     {
       const browser = await next.browser('/')
@@ -107,7 +107,7 @@ describe('persistent-caching', () => {
       await next.patchFile(
         file,
         (content) => {
-          return content.replace('hello world', 'hello persistent caching')
+          return content.replace('hello world', 'hello filesystem cache')
         },
         inner
       )
@@ -119,17 +119,17 @@ describe('persistent-caching', () => {
     'RSC change': {
       checkInitial: makeTextCheck('/', 'hello world'),
       withChange: makeFileEdit('app/page.tsx'),
-      checkChanged: makeTextCheck('/', 'hello persistent caching'),
+      checkChanged: makeTextCheck('/', 'hello filesystem cache'),
     },
     'RCC change': {
       checkInitial: makeTextCheck('/client', 'hello world'),
       withChange: makeFileEdit('app/client/page.tsx'),
-      checkChanged: makeTextCheck('/client', 'hello persistent caching'),
+      checkChanged: makeTextCheck('/client', 'hello filesystem cache'),
     },
     'Pages change': {
       checkInitial: makeTextCheck('/pages', 'hello world'),
       withChange: makeFileEdit('pages/pages.tsx'),
-      checkChanged: makeTextCheck('/pages', 'hello persistent caching'),
+      checkChanged: makeTextCheck('/pages', 'hello filesystem cache'),
     },
     'rename app page': {
       checkInitial: makeTextCheck('/remove-me', 'hello world'),
@@ -154,8 +154,8 @@ describe('persistent-caching', () => {
             },
             withChange: makeFileEdit('my-loader.js'),
             async checkChanged() {
-              await textCheck('/loader', 'hello persistent caching')
-              await textCheck('/loader/client', 'hello persistent caching')
+              await textCheck('/loader', 'hello filesystem cache')
+              await textCheck('/loader/client', 'hello filesystem cache')
             },
             fullInvalidation: !isTurbopack,
           },
@@ -167,8 +167,8 @@ describe('persistent-caching', () => {
       },
       withChange: makeFileEdit('next.config.js'),
       async checkChanged() {
-        await textCheck('/next-config', 'hello persistent caching')
-        await textCheck('/next-config/client', 'hello persistent caching')
+        await textCheck('/next-config', 'hello filesystem cache')
+        await textCheck('/next-config/client', 'hello filesystem cache')
       },
       fullInvalidation: !isTurbopack,
     },
@@ -178,7 +178,7 @@ describe('persistent-caching', () => {
         await textCheck('/env/client', 'hello world')
       },
       async withChange(inner) {
-        process.env.NEXT_PUBLIC_ENV_VAR = 'hello persistent caching'
+        process.env.NEXT_PUBLIC_ENV_VAR = 'hello filesystem cache'
         try {
           await inner()
         } finally {
@@ -186,8 +186,8 @@ describe('persistent-caching', () => {
         }
       },
       async checkChanged() {
-        await textCheck('/env', 'hello persistent caching')
-        await textCheck('/env/client', 'hello persistent caching')
+        await textCheck('/env', 'hello filesystem cache')
+        await textCheck('/env/client', 'hello filesystem cache')
       },
     },
   }

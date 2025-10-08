@@ -3,7 +3,7 @@ module.exports = async function myLoader(source) {
   if (this._compiler && this._compiler.__extra_delay) {
     if (!this._compilation.__extra_delay) {
       this._compilation.__extra_delay = true
-      // Make webpack consider the build as large change which makes it persistent cache it sooner
+      // Make webpack consider the build as large change which makes it filesystem cache it sooner
       await new Promise((resolve) => setTimeout(resolve, 2000))
     }
   }

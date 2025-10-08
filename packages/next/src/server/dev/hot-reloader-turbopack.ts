@@ -84,7 +84,7 @@ import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
   formatIssue,
-  isPersistentCachingEnabledForDev,
+  isFileSystemCacheEnabledForDev,
   isWellKnownError,
   processIssues,
   renderStyledStringToErrorAnsi,
@@ -230,7 +230,7 @@ export async function createHotReloaderTurbopack(
   // TODO: Implement
   let clientRouterFilters: any
   if (nextConfig.experimental.clientRouterFilter) {
-    // TODO this need to be set correctly for persistent caching to work
+    // TODO this need to be set correctly for filesystem cache to work
   }
 
   const supportedBrowsers = getSupportedBrowsers(projectPath, dev)
@@ -273,7 +273,7 @@ export async function createHotReloaderTurbopack(
       currentNodeJsVersion,
     },
     {
-      persistentCaching: isPersistentCachingEnabledForDev(opts.nextConfig),
+      persistentCaching: isFileSystemCacheEnabledForDev(opts.nextConfig),
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
       isShortSession: false,
     }

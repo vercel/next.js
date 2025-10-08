@@ -138,12 +138,12 @@ describe('loadConfig', () => {
         loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
           customConfig: {
             experimental: {
-              turbopackPersistentCachingForBuild: true,
+              turbopackFileSystemCacheForBuild: true,
             },
           },
         })
       ).rejects.toThrow(
-        /The experimental feature "experimental.turbopackPersistentCachingForBuild" can only be enabled when using the latest canary version of Next.js./
+        /The experimental feature "experimental.turbopackFileSystemCacheForBuild" can only be enabled when using the latest canary version of Next.js./
       )
     })
   })
