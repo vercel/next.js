@@ -117,6 +117,19 @@ function checkDeprecations(
   silent: boolean,
   dir: string
 ) {
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'publicRuntimeConfig',
+    `Runtime config is deprecated and the \`publicRuntimeConfig\` configuration option will be removed in Next.js 16.`,
+    silent
+  )
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'serverRuntimeConfig',
+    `Runtime config is deprecated and the \`serverRuntimeConfig\` configuration option will be removed in Next.js 16.`,
+    silent
+  )
+
   if (userConfig.experimental?.dynamicIO !== undefined) {
     warnOptionHasBeenDeprecated(
       userConfig,

@@ -344,7 +344,9 @@ export const experimentalSchema = {
       }),
     ])
     .optional(),
+  lockDistDir: z.boolean().optional(),
 }
+
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
     allowedDevOrigins: z.array(z.string()).optional(),

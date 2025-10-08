@@ -9,6 +9,8 @@ import type {
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
+export type Lockfile = { __napiType: 'Lockfile' }
+
 export interface Binding {
   isWasm: boolean
   turbo: {
@@ -63,6 +65,11 @@ export interface Binding {
     injections: Record<string, string>,
     imports: Record<string, string | null>
   ): string
+
+  lockfileTryAcquire(path: string): Promise<Lockfile | null>
+  lockfileTryAcquireSync(path: string): Lockfile | null
+  lockfileUnlock(lockfile: Lockfile): Promise<void>
+  lockfileUnlockSync(lockfile: Lockfile): void
 }
 
 export type StyledString =
