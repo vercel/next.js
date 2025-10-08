@@ -500,6 +500,11 @@ function assignDefaultsAndValidate(
           `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
         )
       }
+      if (images.domains.length > 0) {
+        Log.warnOnce(
+          '`images.domains` is deprecated. Use `images.remotePatterns` instead to protect your application from malicious users. https://nextjs.org/docs/app/api-reference/components/image#domains'
+        )
+      }
     }
 
     if (!images.loader) {
