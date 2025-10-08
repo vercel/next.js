@@ -112,16 +112,25 @@ describe('app dir client cache with parallel routes', () => {
       await browser.eval(fastForwardTo, 5 * 60 * 1000)
 
       // Toggle the link to the other page again, assert on prefetch content
-      await act(
+      const linkAfterExpiry = await act(
         async () => {
           const reveal = await browser.elementByCss(
             '[data-link-accordion="/0"]'
           )
           await reveal.click()
-          await browser.elementByCss('[href="/0"]')
+          return await browser.elementByCss('[href="/0"]')
         },
         { includes: 'random-number' }
       )
+
+      // Navigate to the page and verify the content is fresh (different from cached)
+      const newNumber = await act(async () => {
+        await linkAfterExpiry.click()
+        await browser.waitForElementByCss('#random-number')
+        return await browser.elementByCss('#random-number').text()
+      }, 'no-requests')
+
+      expect(newNumber).not.toBe(randomNumber)
     })
   })
 })
