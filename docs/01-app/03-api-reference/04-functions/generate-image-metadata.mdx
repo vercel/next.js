@@ -34,11 +34,11 @@ export function generateImageMetadata({ params }) {
 }
 ```
 
-| Route                           | URL         | `params`                           |
-| ------------------------------- | ----------- | ---------------------------------- |
-| `app/shop/icon.js`              | `/shop`     | `undefined`                        |
-| `app/shop/[slug]/icon.js`       | `/shop/1`   | `Promise<{ slug: '1' }>`           |
-| `app/shop/[tag]/[item]/icon.js` | `/shop/1/2` | `Promise<{ tag: '1', item: '2' }>` |
+| Route                           | URL         | `params`                  |
+| ------------------------------- | ----------- | ------------------------- |
+| `app/shop/icon.js`              | `/shop`     | `undefined`               |
+| `app/shop/[slug]/icon.js`       | `/shop/1`   | `{ slug: '1' }`           |
+| `app/shop/[tag]/[item]/icon.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
 
 ## Returns
 
@@ -267,8 +267,8 @@ export default async function Image({ params, id }) {
 
 ## Version History
 
-| Version   | Changes                                                     |
-| --------- | ----------------------------------------------------------- |
-| `v16.0.0` | `id` is now a promise that resolves to `string` or `number` |
-| `v16.0.0` | `params` is now a promise that resolves to an object        |
-| `v13.3.0` | `generateImageMetadata` introduced.                         |
+| Version   | Changes                                                                                             |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| `v16.0.0` | `id` passed to the Image generation function is now a promise that resolves to `string` or `number` |
+| `v16.0.0` | `params` passed to the Image generation function is now a promise that resolves to an object        |
+| `v13.3.0` | `generateImageMetadata` introduced.                                                                 |
