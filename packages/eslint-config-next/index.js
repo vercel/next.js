@@ -57,7 +57,7 @@ module.exports = {
   extends: [
     'plugin:react/recommended',
     'plugin:react-hooks/recommended-latest-legacy',
-    'plugin:@next/next/recommended',
+    'plugin:@next/next/recommended-legacy',
   ],
   plugins: ['import', 'react', 'jsx-a11y'],
   rules: {
