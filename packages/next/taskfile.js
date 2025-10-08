@@ -1275,6 +1275,14 @@ export async function ncc_is_animated(task, opts) {
     .target('src/compiled/is-animated')
 }
 // eslint-disable-next-line camelcase
+externals['is-local-address'] = 'next/dist/compiled/is-local-address'
+export async function ncc_is_local_address(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('is-local-address')))
+    .ncc({ packageName: 'is-local-address', externals })
+    .target('src/compiled/is-local-address')
+}
+// eslint-disable-next-line camelcase
 externals['is-docker'] = 'next/dist/compiled/is-docker'
 export async function ncc_is_docker(task, opts) {
   await task
@@ -2349,6 +2357,7 @@ export async function ncc(task, opts) {
         'ncc_http_proxy',
         'ncc_ignore_loader',
         'ncc_is_animated',
+        'ncc_is_local_address',
         'ncc_is_docker',
         'ncc_is_wsl',
         'ncc_json5',

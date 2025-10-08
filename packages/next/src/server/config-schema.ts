@@ -551,6 +551,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         contentSecurityPolicy: z.string().optional(),
         contentDispositionType: z.enum(['inline', 'attachment']).optional(),
         dangerouslyAllowSVG: z.boolean().optional(),
+        dangerouslyAllowPrivateIP: z.boolean().optional(),
         deviceSizes: z
           .array(z.number().int().gte(1).lte(10000))
           .max(25)

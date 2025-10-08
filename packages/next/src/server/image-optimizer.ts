@@ -6,7 +6,7 @@ import contentDisposition from 'next/dist/compiled/content-disposition'
 import imageSizeOf from 'next/dist/compiled/image-size'
 import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
-import isLocalAddress from 'is-local-address' // TODO: compile?
+import isLocalAddress from 'next/dist/compiled/is-local-address'
 import { join } from 'path'
 import nodeUrl, { type UrlWithParsedQuery } from 'url'
 
@@ -31,6 +31,9 @@ import isError from '../lib/is-error'
 import { parseUrl } from '../lib/url'
 import type { CacheControl } from './lib/cache-control'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { lookup } from 'dns/promises'
+import { isIP } from 'net'
+import { ALL } from 'dns'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -706,9 +709,32 @@ function isRedirect(statusCode: number) {
 }
 
 export async function fetchExternalImage(
+  nextConfig: NextConfigComplete,
   href: string,
   count = 3
 ): Promise<ImageUpstream> {
+  if (!nextConfig.images.dangerouslyAllowPrivateIP) {
+    const { hostname } = new URL(href)
+    let ips = [hostname]
+    if (!isIP(hostname)) {
+      const records = await lookup(hostname, {
+        family: 0,
+        all: true,
+        hints: ALL,
+      })
+      ips = records.map((record) => record.address)
+    }
+    const privateIps = ips.filter((ip) => isLocalAddress(ip))
+    if (privateIps.length > 0) {
+      Log.error(
+        'upstream image',
+        href,
+        'resolved to private ip',
+        JSON.stringify(privateIps)
+      )
+      throw new ImageError(400, '"url" parameter is not allowed')
+    }
+  }
   const res = await fetch(href, {
     signal: AbortSignal.timeout(7_000),
     redirect: 'manual',
@@ -744,11 +770,7 @@ export async function fetchExternalImage(
       throw new ImageError(508, 'Too Many Redirects')
     }
     const nextURL = new URL(locationHeader, href)
-    const nextHref = nextURL.href
-    if (nextURL.origin !== new URL(href).origin && isLocalAddress(nextHref)) {
-      throw new ImageError(400, 'Cannot redirect to local address')
-    }
-    return fetchExternalImage(nextHref, count - 1)
+    return fetchExternalImage(nextConfig, nextURL.href, count - 1)
   }
 
   const buffer = Buffer.from(await res.arrayBuffer())
