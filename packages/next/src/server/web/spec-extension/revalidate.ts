@@ -171,7 +171,12 @@ function revalidate(tags: string[], expression: string, profile?: string) {
   // if profile is provided and this is a stale-while-revalidate
   // update we do not mark the path as revalidated so that server
   // actions don't pull their own writes
-  if (!profile) {
+  const cacheLife =
+    profile && store?.cacheLifeProfiles?.[profile]
+      ? store.cacheLifeProfiles[profile]
+      : undefined
+
+  if (!profile || cacheLife?.expire === 0) {
     // TODO: only revalidate if the path matches
     store.pathWasRevalidated = true
   }

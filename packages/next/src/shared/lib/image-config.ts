@@ -133,6 +133,9 @@ export const imageConfigDefault: ImageConfigComplete = {
   path: '/_next/image',
   loader: 'default',
   loaderFile: '',
+  /**
+   * @deprecated Use `remotePatterns` instead to protect your application from malicious users.
+   */
   domains: [],
   disableStaticImages: false,
   minimumCacheTTL: 14400, // 4 hours

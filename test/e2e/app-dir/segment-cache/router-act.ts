@@ -21,7 +21,11 @@ type PendingRSCRequest = {
 
 let currentBatch: Batch | null = null
 
-type ExpectedResponseConfig = { includes: string; block?: boolean | 'reject' }
+type ExpectedResponseConfig = {
+  includes: string
+  block?: boolean | 'reject'
+  allowMultipleResponses?: boolean
+}
 
 /**
  * Represents the expected responses sent by the server to fulfill requests
@@ -334,7 +338,8 @@ ${fulfilled.body}
                   // error message.
                   const otherResponse = alreadyMatched.get(includes)
                   if (otherResponse !== undefined) {
-                    error.message = `
+                    if (!expectedResponse.allowMultipleResponses) {
+                      error.message = `
 Received multiple responses containing the same expected substring.
 
 Expected substring:
@@ -348,13 +353,15 @@ ${fulfilled.body}
 
 Choose a more specific substring to assert on.
 `
-                    throw error
-                  }
-                  alreadyMatched.set(includes, fulfilled.body)
-                  if (actualResponses === null) {
-                    actualResponses = [expectedResponse]
+                      throw error
+                    }
                   } else {
-                    actualResponses.push(expectedResponse)
+                    alreadyMatched.set(includes, fulfilled.body)
+                    if (actualResponses === null) {
+                      actualResponses = [expectedResponse]
+                    } else {
+                      actualResponses.push(expectedResponse)
+                    }
                   }
                   if (block) {
                     shouldBlock = true

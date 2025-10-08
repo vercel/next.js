@@ -227,7 +227,8 @@ async function run(): Promise<void> {
    * If the user does not provide the necessary flags, prompt them for their
    * preferences, unless `--yes` option was specified, or when running in CI.
    */
-  const skipPrompt = ciInfo.isCI || opts.yes
+  let skipPrompt = ciInfo.isCI || opts.yes
+  let useRecommendedDefaults = false
 
   if (!example) {
     const defaults: typeof preferences = {
@@ -244,8 +245,124 @@ async function run(): Promise<void> {
       disableGit: false,
       reactCompiler: false,
     }
-    const getPrefOrDefault = (field: string) =>
-      preferences[field] ?? defaults[field]
+
+    type DisplayConfigItem = {
+      key: keyof typeof defaults
+      values?: Record<string, string>
+    }
+
+    const displayConfig: DisplayConfigItem[] = [
+      {
+        key: 'typescript',
+        values: { true: 'TypeScript', false: 'JavaScript' },
+      },
+      { key: 'linter', values: { eslint: 'ESLint', biome: 'Biome' } },
+      { key: 'reactCompiler', values: { true: 'React Compiler' } },
+      { key: 'tailwind', values: { true: 'Tailwind CSS' } },
+      { key: 'srcDir', values: { true: 'src/ dir' } },
+      { key: 'app', values: { true: 'App Router', false: 'Pages Router' } },
+      { key: 'turbopack', values: { true: 'Turbopack' } },
+    ]
+
+    // Helper to format settings for display based on displayConfig
+    const formatSettingsDescription = (
+      settings: Record<string, boolean | string>
+    ) => {
+      const descriptions: string[] = []
+
+      for (const config of displayConfig) {
+        const value = settings[config.key]
+
+        if (config.values) {
+          // Look up the display label for this value
+          const label = config.values[String(value)]
+          if (label) {
+            descriptions.push(label)
+          }
+        }
+      }
+
+      return descriptions.join(', ')
+    }
+
+    // Check if we have saved preferences
+    const hasSavedPreferences = Object.keys(preferences).length > 0
+
+    // Check if user provided any configuration flags
+    // If they did, skip the "recommended defaults" prompt and go straight to
+    // individual prompts for any missing options
+    const hasProvidedOptions = process.argv.some((arg) => arg.startsWith('--'))
+
+    // Only show the "recommended defaults" prompt if:
+    // - Not in CI and not using --yes flag
+    // - User hasn't provided any custom options
+    if (!skipPrompt && !hasProvidedOptions) {
+      const choices: Array<{
+        title: string
+        value: string
+        description?: string
+      }> = [
+        {
+          title: 'Yes, use recommended defaults',
+          value: 'recommended',
+          description: formatSettingsDescription(defaults),
+        },
+        {
+          title: 'No, customize settings',
+          value: 'customize',
+          description: 'Choose your own preferences',
+        },
+      ]
+
+      // Add "reuse previous settings" option if we have saved preferences
+      if (hasSavedPreferences) {
+        const prefDescription = formatSettingsDescription(preferences)
+        choices.splice(1, 0, {
+          title: 'No, reuse previous settings',
+          value: 'reuse',
+          description: prefDescription,
+        })
+      }
+
+      const { setupChoice } = await prompts(
+        {
+          type: 'select',
+          name: 'setupChoice',
+          message: 'Would you like to use the recommended Next.js defaults?',
+          choices,
+          initial: 0,
+        },
+        {
+          onCancel: () => {
+            console.error('Exiting.')
+            process.exit(1)
+          },
+        }
+      )
+
+      if (setupChoice === 'recommended') {
+        useRecommendedDefaults = true
+        skipPrompt = true
+      } else if (setupChoice === 'reuse') {
+        skipPrompt = true
+      }
+    }
+
+    // If using recommended defaults, populate preferences with defaults
+    // This ensures they are saved for reuse next time
+    if (useRecommendedDefaults) {
+      Object.assign(preferences, defaults)
+    }
+
+    const getPrefOrDefault = (field: string) => {
+      // If using recommended defaults, always use hardcoded defaults
+      if (useRecommendedDefaults) {
+        return defaults[field]
+      }
+
+      // If not using the recommended template, we prefer saved preferences, otherwise defaults.
+      return preferences[field] ?? defaults[field]
+    }
 
     if (!opts.typescript && !opts.javascript) {
       if (skipPrompt) {

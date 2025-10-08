@@ -8287,12 +8287,12 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/persistent-caching/persistent-caching.test.ts": {
+  "test/e2e/filesystem-cache/filesystem-cache.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped (run 1)",
-      "persistent-caching should allow to change files while stopped (run 2)",
-      "persistent-caching should allow to change files while stopped (run 3)",
-      "persistent-caching should persistent cache loaders"
+      "filesystem-cache should allow to change files while stopped (run 1)",
+      "filesystem-cache should allow to change files while stopped (run 2)",
+      "filesystem-cache should allow to change files while stopped (run 3)",
+      "filesystem-cache should filesystem cache loaders"
     ],
     "failed": [],
     "pending": [],
@@ -17702,8 +17702,8 @@
       "config telemetry production mode emits telemetry for lint during build",
       "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
-      "config telemetry production mode emits telemetry for persistent cache in build mode",
-      "config telemetry production mode emits telemetry for persistent cache in dev mode",
+      "config telemetry production mode emits telemetry for filesystem cache in build mode",
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",
       "config telemetry production mode emits telemetry for usage of `nextScriptWorkers`",
       "config telemetry production mode emits telemetry for usage of `optimizeCss`",

@@ -425,14 +425,14 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * Enable persistent caching for the turbopack dev server.
+   * Enable filesystem cache for the turbopack dev server.
    */
-  turbopackPersistentCachingForDev?: boolean
+  turbopackFileSystemCacheForDev?: boolean
 
   /**
-   * Enable persistent caching for the turbopack build.
+   * Enable filesystem cache for the turbopack build.
    */
-  turbopackPersistentCachingForBuild?: boolean
+  turbopackFileSystemCacheForBuild?: boolean
 
   /**
    * Enable source maps. Defaults to true.
@@ -1438,7 +1438,7 @@ export const defaultConfig = Object.freeze({
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    clientSegmentCache: false,
+    clientSegmentCache: true,
     rdcForNavigations: false,
     clientParamParsing: false,
     clientParamParsingOrigins: undefined,

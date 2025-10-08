@@ -758,8 +758,8 @@ function bindingToApi(
       )
     }
 
-    invalidatePersistentCache(): Promise<void> {
-      return binding.projectInvalidatePersistentCache(this._nativeProject)
+    invalidateFileSystemCache(): Promise<void> {
+      return binding.projectInvalidateFileSystemCache(this._nativeProject)
     }
 
     shutdown(): Promise<void> {

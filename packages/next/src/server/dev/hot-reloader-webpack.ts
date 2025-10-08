@@ -87,7 +87,7 @@ import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
-import { checkPersistentCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
+import { checkFileSystemCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
 import {
   receiveBrowserLogsWebpack,
   handleClientFileLogs,
@@ -1188,7 +1188,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     await Promise.all(
       Array.from(getCacheDirectories(this.activeWebpackConfigs)).map(
-        checkPersistentCacheInvalidationAndCleanup
+        checkFileSystemCacheInvalidationAndCleanup
       )
     )
     this.multiCompiler = getWebpackBundler()(
@@ -1632,12 +1632,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }),
       ...(this.config.experimental.mcpServer
         ? [
-            getMcpMiddleware(
-              this.dir,
-              this.distDir,
-              (message) => this.send(message),
-              () => this.webpackHotMiddleware?.getClientCount() ?? 0
-            ),
+            getMcpMiddleware({
+              projectPath: this.dir,
+              distDir: this.distDir,
+              sendHmrMessage: (message) => this.send(message),
+              getActiveConnectionCount: () =>
+                this.webpackHotMiddleware?.getClientCount() ?? 0,
+              getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+            }),
           ]
         : []),
     ]

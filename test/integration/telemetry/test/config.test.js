@@ -762,9 +762,9 @@ describe('config telemetry', () => {
         }
       )
 
-      it('emits telemetry for persistent cache in build mode', async () => {
+      it('emits telemetry for filesystem cache in build mode', async () => {
         await fs.rename(
-          path.join(appDir, 'next.config.persistent-cache'),
+          path.join(appDir, 'next.config.filesystem-cache'),
           path.join(appDir, 'next.config.js')
         )
 
@@ -780,7 +780,7 @@ describe('config telemetry', () => {
               'NEXT_BUILD_FEATURE_USAGE'
             )
             expect(featureUsageEvents).toContainEqual({
-              featureName: 'turbopackPersistentCaching',
+              featureName: 'turbopackFileSystemCache',
               invocationCount: 1,
             })
           } catch (err) {
@@ -790,14 +790,14 @@ describe('config telemetry', () => {
         } finally {
           await fs.rename(
             path.join(appDir, 'next.config.js'),
-            path.join(appDir, 'next.config.persistent-cache')
+            path.join(appDir, 'next.config.filesystem-cache')
           )
         }
       })
 
-      it('emits telemetry for persistent cache in dev mode', async () => {
+      it('emits telemetry for filesystem cache in dev mode', async () => {
         await fs.rename(
-          path.join(appDir, 'next.config.persistent-cache'),
+          path.join(appDir, 'next.config.filesystem-cache'),
           path.join(appDir, 'next.config.js')
         )
 
@@ -820,7 +820,7 @@ describe('config telemetry', () => {
           )
 
           expect(featureUsageEvents).toContainEqual({
-            featureName: 'turbopackPersistentCaching',
+            featureName: 'turbopackFileSystemCache',
             invocationCount: 1,
           })
         } catch (err) {
@@ -832,7 +832,7 @@ describe('config telemetry', () => {
           }
           await fs.rename(
             path.join(appDir, 'next.config.js'),
-            path.join(appDir, 'next.config.persistent-cache')
+            path.join(appDir, 'next.config.filesystem-cache')
           )
         }
       })

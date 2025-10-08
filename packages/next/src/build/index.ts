@@ -206,7 +206,7 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 
 import { turbopackBuild } from './turbopack-build'
-import { isPersistentCachingEnabledForBuild } from '../shared/lib/turbopack/utils'
+import { isFileSystemCacheEnabledForBuild } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString, hrtimeDurationToString } from './duration-to-string'
@@ -1016,6 +1016,34 @@ export default async function build(
       NextBuildContext.originalRewrites = config._originalRewrites
       NextBuildContext.originalRedirects = config._originalRedirects
 
+      const distDirCreated = await nextBuildSpan
+        .traceChild('create-dist-dir')
+        .traceAsyncFn(async () => {
+          try {
+            await fs.mkdir(distDir, { recursive: true })
+            return true
+          } catch (err) {
+            if (isError(err) && err.code === 'EPERM') {
+              return false
+            }
+            throw err
+          }
+        })
+
+      if (!distDirCreated || !(await isWriteable(distDir))) {
+        throw new Error(
+          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
+        )
+      }
+
+      if (config.cleanDistDir && !isGenerateMode) {
+        await nextBuildSpan
+          .traceChild('clean')
+          .traceAsyncFn(() =>
+            recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev)/)
+          )
+      }
+
       const cacheDir = getCacheDir(distDir)
 
       const telemetry = new Telemetry({ distDir })
@@ -1100,34 +1128,6 @@ export default async function build(
         nextBuildSpan,
         config,
         cacheDir,
-      }
-
-      const distDirCreated = await nextBuildSpan
-        .traceChild('create-dist-dir')
-        .traceAsyncFn(async () => {
-          try {
-            await fs.mkdir(distDir, { recursive: true })
-            return true
-          } catch (err) {
-            if (isError(err) && err.code === 'EPERM') {
-              return false
-            }
-            throw err
-          }
-        })
-
-      if (!distDirCreated || !(await isWriteable(distDir))) {
-        throw new Error(
-          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
-        )
-      }
-
-      if (config.cleanDistDir && !isGenerateMode) {
-        await nextBuildSpan
-          .traceChild('clean')
-          .traceAsyncFn(() =>
-            recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev)/)
-          )
       }
 
       if (appDir && 'exportPathMap' in config) {
@@ -2728,8 +2728,8 @@ export default async function build(
           invocationCount: config.experimental.ppr ? 1 : 0,
         },
         {
-          featureName: 'turbopackPersistentCaching',
-          invocationCount: isPersistentCachingEnabledForBuild(config) ? 1 : 0,
+          featureName: 'turbopackFileSystemCache',
+          invocationCount: isFileSystemCacheEnabledForBuild(config) ? 1 : 0,
         },
       ]
       telemetry.record(
@@ -3796,7 +3796,7 @@ export default async function build(
                       dataRoute: path.posix.join(
                         '/_next/data',
                         buildId,
-                        `${file}.json`
+                        `${localePage}.json`
                       ),
                       prefetchDataRoute: undefined,
                       allowHeader: ALLOWED_HEADERS,
@@ -4085,6 +4085,9 @@ export default async function build(
           })
       }
 
+      // This should come after output: export handling but before
+      // output: standalone, in the future output: standalone might
+      // not be allowed if an adapter with onBuildComplete is configured
       const adapterPath = config.experimental.adapterPath
       if (adapterPath) {
         await nextBuildSpan
@@ -4094,6 +4097,7 @@ export default async function build(
               dir,
               distDir,
               config,
+              configOutDir: path.join(dir, configOutDir),
               staticPages,
               nextVersion: process.env.__NEXT_VERSION as string,
               tracingRoot: outputFileTracingRoot,

@@ -7,9 +7,6 @@ const cacheComponentsEnabled =
 
 const pprEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
-const clientSegmentCacheEnabled =
-  process.env.__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE === 'true'
-
 const isRspack = !!process.env.NEXT_RSPACK
 
 describe('build-output-prerender', () => {
@@ -30,7 +27,6 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
@@ -42,7 +38,6 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
@@ -56,7 +51,6 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)"
@@ -67,32 +61,9 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)"
-            `)
-          }
-        } else if (clientSegmentCacheEnabled) {
-          if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
-                - Experiments (use with caution):
-                  ✓ cacheComponents
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE\`)
-                  ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
-                  ✓ ppr (enabled by \`experimental.cacheComponents\`)
-                  ✓ rdcForNavigations (enabled by \`experimental.ppr\`)"
-            `)
-          } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack)
-                - Experiments (use with caution):
-                  ✓ cacheComponents
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE\`)
-                  ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
-                  ✓ ppr (enabled by \`experimental.cacheComponents\`)
-                  ✓ rdcForNavigations (enabled by \`experimental.ppr\`)"
             `)
           }
         } else {
@@ -177,7 +148,6 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -193,7 +163,6 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -211,7 +180,6 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -226,41 +194,10 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ⨯ serverMinification (disabled by \`--debug-prerender\`)
-                  ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
-            `)
-          }
-        } else if (clientSegmentCacheEnabled) {
-          if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-                ▲ Next.js x.y.z (Turbopack)
-                - Experiments (use with caution):
-                  ✓ cacheComponents
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE\`)
-                  ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
-                  ✓ ppr (enabled by \`experimental.cacheComponents\`)
-                  ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
-                  ✓ rdcForNavigations (enabled by \`experimental.ppr\`)
-                  ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-                  ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
-            `)
-          } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-                ▲ Next.js x.y.z (webpack)
-                - Experiments (use with caution):
-                  ✓ cacheComponents
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE\`)
-                  ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
-                  ✓ ppr (enabled by \`experimental.cacheComponents\`)
-                  ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
-                  ✓ rdcForNavigations (enabled by \`experimental.ppr\`)
                   ⨯ serverMinification (disabled by \`--debug-prerender\`)
                   ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
@@ -357,7 +294,6 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
@@ -369,7 +305,6 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
@@ -382,7 +317,6 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (Turbopack)
                 - Experiments (use with caution):
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)"
             `)
@@ -391,23 +325,8 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)"
-            `)
-          }
-        } else if (clientSegmentCacheEnabled) {
-          if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
-                - Experiments (use with caution):
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE\`)"
-            `)
-          } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack)
-                - Experiments (use with caution):
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE\`)"
             `)
           }
         } else {
@@ -446,7 +365,6 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -462,7 +380,6 @@ describe('build-output-prerender', () => {
                 - Experiments (use with caution):
                   ✓ cacheComponents (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -479,7 +396,6 @@ describe('build-output-prerender', () => {
                 ▲ Next.js x.y.z (Turbopack)
                 - Experiments (use with caution):
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
@@ -493,35 +409,10 @@ describe('build-output-prerender', () => {
                 ▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ✓ ppr (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                   ✓ rdcForNavigations (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
-                  ⨯ serverMinification (disabled by \`--debug-prerender\`)
-                  ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
-            `)
-          }
-        } else if (clientSegmentCacheEnabled) {
-          if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-                ▲ Next.js x.y.z (Turbopack)
-                - Experiments (use with caution):
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE\`)
-                  ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
-                  ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
-                  ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-                  ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
-            `)
-          } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-                ▲ Next.js x.y.z (webpack)
-                - Experiments (use with caution):
-                  ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE\`)
-                  ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
-                  ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                   ⨯ serverMinification (disabled by \`--debug-prerender\`)
                   ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)

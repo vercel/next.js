@@ -751,7 +751,8 @@ describe('app-dir action handling', () => {
     expect(newRandom).not.toBe(initialRandom)
   })
 
-  it('should reset the form state when the action redirects to itself', async () => {
+  // TODO(client-segment-cache): re-enable when this optimization is added back
+  it.skip('should reset the form state when the action redirects to itself', async () => {
     const browser = await next.browser('/self-redirect')
     const requests = []
     browser.on('request', async (req) => {

@@ -1188,7 +1188,23 @@
             ((cancelled = !0),
             request.status === ABORTING
               ? emitDebugHaltChunk(request, id)
-              : emitOutlinedDebugModelChunk(request, id, counter, value),
+              : (isArrayImpl(value) && 200 < value.length) ||
+                  ((value instanceof ArrayBuffer ||
+                    value instanceof Int8Array ||
+                    value instanceof Uint8Array ||
+                    value instanceof Uint8ClampedArray ||
+                    value instanceof Int16Array ||
+                    value instanceof Uint16Array ||
+                    value instanceof Int32Array ||
+                    value instanceof Uint32Array ||
+                    value instanceof Float32Array ||
+                    value instanceof Float64Array ||
+                    value instanceof BigInt64Array ||
+                    value instanceof BigUint64Array ||
+                    value instanceof DataView) &&
+                    1e3 < value.byteLength)
+                ? emitDebugHaltChunk(request, id)
+                : emitOutlinedDebugModelChunk(request, id, counter, value),
             enqueueFlush(request));
         },
         function (reason) {
@@ -2234,6 +2250,8 @@
       return serializeByValueID(bufferId);
     }
     function serializeDebugTypedArray(request, tag, typedArray) {
+      if (1e3 < typedArray.byteLength && !doNotLimit.has(typedArray))
+        return serializeDeferredObject(request, typedArray);
       request.pendingDebugChunks++;
       var bufferId = request.nextChunkId++;
       emitTypedArrayChunk(request, bufferId, tag, typedArray, !0);
@@ -3165,7 +3183,11 @@
         }
         if ("function" === typeof value.then)
           return serializeDebugThenable(request, counter, value);
-        if (isArrayImpl(value)) return value;
+        if (isArrayImpl(value))
+          return 200 < value.length && !doNotLimit.has(value)
+            ? serializeDeferredObject(request, value)
+            : value;
+        if (value instanceof Date) return "$D" + value.toJSON();
         if (value instanceof Map) {
           value = Array.from(value);
           counter.objectLimit++;
@@ -3268,11 +3290,6 @@
         return value;
       }
       if ("string" === typeof value) {
-        if (
-          "Z" === value[value.length - 1] &&
-          parent[parentPropertyName] instanceof Date
-        )
-          return "$D" + value;
         if (1024 <= value.length) {
           if (0 >= counter.objectLimit)
             return serializeDeferredObject(request, value);
@@ -3334,19 +3351,17 @@
       }
       return "bigint" === typeof value
         ? "$n" + value.toString(10)
-        : value instanceof Date
-          ? "$D" + value.toJSON()
-          : "unknown type " + typeof value;
+        : "unknown type " + typeof value;
     }
     function serializeDebugModel(request, objectLimit, model) {
-      function replacer(parentPropertyName, value) {
+      function replacer(parentPropertyName) {
         try {
           return renderDebugModel(
             request,
             counter,
             this,
             parentPropertyName,
-            value
+            this[parentPropertyName]
           );
         } catch (x) {
           return (
@@ -3370,14 +3385,14 @@
       }
     }
     function emitOutlinedDebugModelChunk(request, id, counter, model) {
-      function replacer(parentPropertyName, value) {
+      function replacer(parentPropertyName) {
         try {
           return renderDebugModel(
             request,
             counter,
             this,
             parentPropertyName,
-            value
+            this[parentPropertyName]
           );
         } catch (x) {
           return (

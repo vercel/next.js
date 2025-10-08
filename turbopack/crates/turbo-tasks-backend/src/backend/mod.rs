@@ -831,7 +831,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return Ok(Err(self.listen_to_cell(&mut task, task_id, reader, cell).0));
         }
         let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
-        let is_scheduled = matches!(in_progress, Some(InProgressState::Scheduled { .. }));
 
         // Check cell index range (cell might not exist at all)
         let max_id = get!(
@@ -875,14 +874,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Schedule the task, if not already scheduled
         if is_cancelled {
             bail!("{} was canceled", ctx.get_task_description(task_id));
-        } else if !is_scheduled
-            && task.add(CachedDataItem::new_scheduled(
-                TaskExecutionReason::CellNotAvailable,
-                || self.get_task_desc_fn(task_id),
-            ))
-        {
-            ctx.schedule_task(task);
         }
+        task.add_new(CachedDataItem::new_scheduled(
+            TaskExecutionReason::CellNotAvailable,
+            || self.get_task_desc_fn(task_id),
+        ));
+        ctx.schedule_task(task);
 
         Ok(Err(listener))
     }
@@ -1188,7 +1185,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if new_items {
             let elapsed = start.elapsed();
             turbo_tasks().send_compilation_event(Arc::new(TimingEvent::new(
-                "Finished writing to persistent cache".to_string(),
+                "Finished writing to filesystem cache".to_string(),
                 elapsed,
             )));
         }
@@ -1750,7 +1747,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return true;
         };
 
-        // When restoring from persistent caching the following might not be executed (since we can
+        // When restoring from filesystem cache the following might not be executed (since we can
         // suspend in `CleanupOldEdgesOperation`), but that's ok as the task is still dirty and
         // would be executed again.
 
