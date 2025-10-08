@@ -26,7 +26,7 @@ describe('Validations for <Link legacyBehavior>', () => {
            [
              {
                "description": "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.",
-               "environmentLabel": "Server",
+               "environmentLabel": "Prerender",
                "label": "Console Error",
                "source": "app/validations/rsc-that-renders-link/synchronous/page.tsx (7:7) @ Page
            >  7 |       <Link href="/about" legacyBehavior>
@@ -70,7 +70,7 @@ describe('Validations for <Link legacyBehavior>', () => {
            [
              {
                "description": "Using a Server Component as a direct child of \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Server Component in a Client Component that renders the Link's \`<a>\` tag.",
-               "environmentLabel": "Server",
+               "environmentLabel": "Prerender",
                "label": "Console Error",
                "source": "app/validations/rsc-that-renders-link/asynchronous/page.tsx (7:7) @ Page
            >  7 |       <Link href="/about" legacyBehavior>
@@ -139,7 +139,7 @@ describe('Validations for <Link legacyBehavior>', () => {
            [
              {
                "description": "Using a Lazy Component as a direct child of \`<Link legacyBehavior>\` from a Server Component is not supported. If you need legacyBehavior, wrap your Lazy Component in a Client Component that renders the Link's \`<a>\` tag.",
-               "environmentLabel": "Server",
+               "environmentLabel": "Prerender",
                "label": "Console Error",
                "source": "app/validations/rsc-that-renders-link/lazy/page.tsx (9:7) @ Page
            >  9 |       <Link href="/about" legacyBehavior passHref>
