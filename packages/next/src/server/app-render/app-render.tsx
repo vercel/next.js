@@ -1716,7 +1716,9 @@ async function renderToHTMLOrFlightImpl(
     const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
     const devValidatingFallbackParams =
       getRequestMeta(req, 'devValidatingFallbackParams') || null
-    const requestStore = createRequestStoreForRender(
+
+    const createRequestStore = createRequestStoreForRender.bind(
+      null,
       req,
       res,
       url,
@@ -1729,6 +1731,7 @@ async function renderToHTMLOrFlightImpl(
       renderResumeDataCache,
       devValidatingFallbackParams
     )
+    const requestStore = createRequestStore()
 
     if (
       process.env.NODE_ENV === 'development' &&
@@ -1801,7 +1804,8 @@ async function renderToHTMLOrFlightImpl(
             formState,
             postponedState,
             metadata,
-            devValidatingFallbackParams
+            devValidatingFallbackParams,
+            createRequestStore
           )
 
           return new RenderResult(stream, {
@@ -1828,6 +1832,8 @@ async function renderToHTMLOrFlightImpl(
     }
 
     const stream = await renderToStreamWithTracing(
+      // NOTE: in Cache Components (dev), if the render is restarted, it will use a different requestStore
+      // than the one that we're passing in here.
       requestStore,
       req,
       res,
@@ -1836,7 +1842,8 @@ async function renderToHTMLOrFlightImpl(
       formState,
       postponedState,
       metadata,
-      devValidatingFallbackParams
+      devValidatingFallbackParams,
+      createRequestStore
     )
 
     // Invalid dynamic usages should only error the request in development.
@@ -2035,7 +2042,8 @@ async function renderToStream(
   formState: any,
   postponedState: PostponedState | null,
   metadata: AppPageRenderResultMetadata,
-  devValidatingFallbackParams: OpaqueFallbackRouteParams | null
+  devValidatingFallbackParams: OpaqueFallbackRouteParams | null,
+  createRequestStore: () => RequestStore
 ): Promise<ReadableStream<Uint8Array>> {
   const { assetPrefix, htmlRequestId, nonce, pagePath, renderOpts, requestId } =
     ctx
@@ -2296,8 +2304,7 @@ async function renderToStream(
 
         // The initial render acted as a prospective render to warm the caches.
         // Now, we need to do another render.
-
-        // TODO(restart-on-cache-miss): we should use a separate request store for this instead
+        requestStore = createRequestStore()
 
         // We've filled the caches, so now we can render as usual.
         requestStore.prerenderResumeDataCache = null
@@ -2305,10 +2312,6 @@ async function renderToStream(
           prerenderResumeDataCache
         )
         requestStore.cacheSignal = null
-
-        // Reset mutable fields.
-        requestStore.prerenderPhase = undefined
-        requestStore.usedDynamic = undefined
 
         // The initial render already wrote to its debug channel. We're not using it,
         // so we need to create a new one.
