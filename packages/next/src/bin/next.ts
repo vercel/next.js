@@ -16,7 +16,6 @@ import {
 } from '../cli/next-test.js'
 import type { NextTelemetryOptions } from '../cli/next-telemetry.js'
 import type { NextStartOptions } from '../cli/next-start.js'
-import type { NextLintOptions } from '../cli/next-lint.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
@@ -319,11 +318,6 @@ program
   .option(
     '--error-on-unmatched-pattern',
     'Reports errors when any file patterns are unmatched.'
-  )
-  .action((directory: string, options: NextLintOptions) =>
-    import('../cli/next-lint.js').then((mod) =>
-      mod.nextLint(options, directory)
-    )
   )
   .usage('[directory] [options]')
 
