@@ -70,15 +70,13 @@ const MenuPanel = () => {
                 value: <LoadingIcon />,
               }
             : {
-                title: `Current route is ${state.staticIndicator ? 'static' : 'dynamic'}.`,
+                title: `Current route is ${state.staticIndicator}.`,
                 label: 'Route',
                 value:
                   state.staticIndicator === 'static' ? 'Static' : 'Dynamic',
                 onClick: () => setPanel('route-type'),
                 attributes: {
-                  'data-nextjs-route-type': state.staticIndicator
-                    ? 'static'
-                    : 'dynamic',
+                  'data-nextjs-route-type': state.staticIndicator,
                 },
               },
         !!process.env.TURBOPACK
@@ -193,7 +191,7 @@ export const PanelRouter = () => {
               closeOnClickOutside
               header={
                 <DevToolsHeader
-                  title={`${state.staticIndicator ? 'Static' : 'Dynamic'} Route`}
+                  title={`${state.staticIndicator === 'static' ? 'Static' : 'Dynamic'} Route`}
                 />
               }
             >
