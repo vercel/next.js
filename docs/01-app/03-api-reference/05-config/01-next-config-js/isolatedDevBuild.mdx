@@ -4,13 +4,21 @@ description: Use isolated build outputs for development server to prevent confli
 version: experimental
 ---
 
-The experimental `isolatedDevBuild` option separates development and production build outputs into different directories. When enabled, development builds use `.next/dev` instead of `.next`, preventing conflicts when running `next dev` and `next build` concurrently.
+The experimental `isolatedDevBuild` option separates development and production build outputs into different directories. When enabled, the development server (`next dev`) writes its output to `.next/dev` instead of `.next`, preventing conflicts when running `next dev` and `next build` concurrently.
 
-This helps when you're running AI agents when it wants to run `next build` to verify changes it no longer breaks your development server.
+This is especially helpful when automated tools (for example, AI agents) run `next build` to validate changes while your development server is running, ensuring the dev server is not affected by changes made by the build process.
 
-This feature is **enabled by default** to provide better build isolation and prevent potential issues from mixed build artifacts.
+This feature is **enabled by default** to keep development and production outputs separate and prevent conflicts.
 
-To opt out of this feature, set `isolatedDevBuild` to `false` in your `next.config.ts`:
+## How it Works
+
+- During `next dev`, artifacts are written to `.next/dev/` (e.g., compiled pages, HMR bundles).
+- During `next build`, artifacts continue to be written to `.next/`.
+- The directories are independent, so starting or stopping one does not affect the other.
+
+## Configuration
+
+To opt out of this feature, set `isolatedDevBuild` to `false` in your configuration:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -34,3 +42,9 @@ const nextConfig = {
 
 export default nextConfig
 ```
+
+## Version History
+
+| Version   | Changes                                        |
+| --------- | ---------------------------------------------- |
+| `v16.0.0` | `experimental.isolatedDevBuild` is introduced. |
