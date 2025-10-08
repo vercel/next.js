@@ -238,7 +238,7 @@ pub struct NapiDefineEnv {
 
 #[napi(object)]
 pub struct NapiTurboEngineOptions {
-    /// Use the new backend with persistent caching enabled.
+    /// Use the new backend with filesystem cache enabled.
     pub persistent_caching: Option<bool>,
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
@@ -602,10 +602,10 @@ pub async fn project_update(
         .await
 }
 
-/// Invalidates the persistent cache so that it will be deleted next time that a turbopack project
-/// is created with persistent caching enabled.
+/// Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
+/// is created with filesystem cache enabled.
 #[napi]
-pub async fn project_invalidate_persistent_cache(
+pub async fn project_invalidate_file_system_cache(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<()> {
     tokio::task::spawn_blocking(move || {
@@ -619,7 +619,7 @@ pub async fn project_invalidate_persistent_cache(
             .invalidate(invalidation_reasons::USER_REQUEST)
     })
     .await
-    .context("panicked while invalidating persistent cache")??;
+    .context("panicked while invalidating filesystem cache")??;
     Ok(())
 }
 

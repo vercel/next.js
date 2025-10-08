@@ -71,6 +71,7 @@ import type { LoadComponentsReturnType } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from './web/utils'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
+import { getDefaultMiddlewareMatcher } from '../shared/lib/router/utils/get-default-middleware-matcher'
 import { loadEnvConfig } from '@next/env'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
@@ -1455,13 +1456,13 @@ export default class NextNodeServer extends BaseServer<
       const middlewareModule = await this.loadNodeMiddleware()
 
       if (middlewareModule) {
+        const matchers = middlewareModule.config?.matchers || [
+          getDefaultMiddlewareMatcher(this.nextConfig),
+        ]
         return {
-          match: getMiddlewareRouteMatcher(
-            middlewareModule.config?.matchers || [
-              { regexp: '.*', originalSource: '/:path*' },
-            ]
-          ),
+          match: getMiddlewareRouteMatcher(matchers),
           page: '/',
+          matchers,
         }
       }
 
@@ -1471,6 +1472,7 @@ export default class NextNodeServer extends BaseServer<
     return {
       match: getMiddlewareMatcher(middleware),
       page: '/',
+      matchers: middleware.matchers,
     }
   }
 

@@ -1698,12 +1698,11 @@ enum SingleModuleGraphBuilderNode {
 
 impl SingleModuleGraphBuilderNode {
     async fn new_module(emit_spans: bool, module: ResolvedVc<Box<dyn Module>>) -> Result<Self> {
-        let ident = module.ident();
         Ok(Self::Module {
             module,
             ident: if emit_spans {
                 // INVALIDATION: we don't need to invalidate when the span name changes
-                Some(ident.to_string().untracked().await?)
+                Some(module.ident_string().untracked().await?)
             } else {
                 None
             },

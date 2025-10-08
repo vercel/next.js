@@ -48,6 +48,7 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { getDefaultMiddlewareMatcher } from '../../../shared/lib/router/utils/get-default-middleware-matcher'
 
 import {
   isMiddlewareFile,
@@ -69,7 +70,7 @@ import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
-  isPersistentCachingEnabledForDev,
+  isFileSystemCacheEnabledForDev,
   ModuleBuildError,
 } from '../../../shared/lib/turbopack/utils'
 import { getDefineEnv } from '../../../build/define-env'
@@ -127,7 +128,7 @@ export type ServerFields = {
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
   >[]
-  setIsrStatus?: (key: string, value: boolean) => void
+  setIsrStatus?: (key: string, value: boolean | undefined) => void
   resetFetch?: () => void
 }
 
@@ -472,7 +473,7 @@ async function startWatcher(
             serverFields.actualMiddlewareFile
           )
           middlewareMatchers = staticInfo.middleware?.matchers || [
-            { regexp: '^/.*$', originalSource: '/:path*' },
+            getDefaultMiddlewareMatcher(opts.nextConfig),
           ]
           continue
         }
@@ -1238,10 +1239,8 @@ export async function setupDevBundler(opts: SetupOpts) {
   opts.telemetry.record({
     eventName: EVENT_BUILD_FEATURE_USAGE,
     payload: {
-      featureName: 'turbopackPersistentCaching',
-      invocationCount: isPersistentCachingEnabledForDev(opts.nextConfig)
-        ? 1
-        : 0,
+      featureName: 'turbopackFileSystemCache',
+      invocationCount: isFileSystemCacheEnabledForDev(opts.nextConfig) ? 1 : 0,
     },
   })
 

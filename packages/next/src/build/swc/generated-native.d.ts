@@ -34,18 +34,30 @@ export declare class ExternalObject<T> {
     [K: symbol]: T
   }
 }
-export interface TransformOutput {
-  code: string
-  map?: string
-  output?: string
-  diagnostics: Array<string>
-}
+export declare function lockfileTryAcquireSync(
+  path: string
+): { __napiType: 'Lockfile' } | null
+export declare function lockfileTryAcquire(
+  path: string
+): Promise<{ __napiType: 'Lockfile' } | null>
+export declare function lockfileUnlockSync(lockfile: {
+  __napiType: 'Lockfile'
+}): void
+export declare function lockfileUnlock(lockfile: {
+  __napiType: 'Lockfile'
+}): Promise<void>
 export declare function mdxCompile(
   value: string,
   option: Buffer,
   signal?: AbortSignal | undefined | null
 ): Promise<unknown>
 export declare function mdxCompileSync(value: string, option: Buffer): string
+export interface TransformOutput {
+  code: string
+  map?: string
+  output?: string
+  diagnostics: Array<string>
+}
 export declare function minify(
   input: Buffer,
   opts: Buffer,
@@ -200,7 +212,7 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** Use the new backend with persistent caching enabled. */
+  /** Use the new backend with filesystem cache enabled. */
   persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
@@ -221,10 +233,10 @@ export declare function projectUpdate(
   options: NapiPartialProjectOptions
 ): Promise<void>
 /**
- * Invalidates the persistent cache so that it will be deleted next time that a turbopack project
- * is created with persistent caching enabled.
+ * Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
+ * is created with filesystem cache enabled.
  */
-export declare function projectInvalidatePersistentCache(project: {
+export declare function projectInvalidateFileSystemCache(project: {
   __napiType: 'Project'
 }): Promise<void>
 /**

@@ -425,14 +425,14 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * Enable persistent caching for the turbopack dev server.
+   * Enable filesystem cache for the turbopack dev server.
    */
-  turbopackPersistentCachingForDev?: boolean
+  turbopackFileSystemCacheForDev?: boolean
 
   /**
-   * Enable persistent caching for the turbopack build.
+   * Enable filesystem cache for the turbopack build.
    */
-  turbopackPersistentCachingForBuild?: boolean
+  turbopackFileSystemCacheForBuild?: boolean
 
   /**
    * Enable source maps. Defaults to true.
@@ -490,6 +490,13 @@ export interface ExperimentalConfig {
    * configuration is enabled by default.
    */
   turbopackUseBuiltinSass?: boolean
+
+  /**
+   * The module ID strategy to use for Turbopack.
+   * If not set, the default is `'named'` for development and `'deterministic'`
+   * for production.
+   */
+  turbopackModuleIds?: 'named' | 'deterministic'
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
@@ -800,11 +807,17 @@ export interface ExperimentalConfig {
   mcpServer?: boolean
 
   /**
-   * The module ID strategy to use for Turbopack.
-   * If not set, the default is `'named'` for development and `'deterministic'`
-   * for production.
+   * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
+   * build`. Failing to acquire the lock causes the process to exit with an
+   * error message.
+   *
+   * This is because if multiple processes write to the same `distDir` at the
+   * same time, it can mangle the state of the directory. Disabling this option
+   * is not recommended.
+   *
+   * @default true
    */
-  turbopackModuleIds?: 'named' | 'deterministic'
+  lockDistDir?: boolean
 }
 
 export type ExportPathMap = {
@@ -1116,20 +1129,6 @@ export interface NextConfig {
   reactMaxHeadersLength?: number
 
   /**
-   * Add public (in browser) runtime configuration to your app
-   *
-   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
-   */
-  publicRuntimeConfig?: { [key: string]: any }
-
-  /**
-   * Add server runtime configuration to your app
-   *
-   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
-   */
-  serverRuntimeConfig?: { [key: string]: any }
-
-  /**
    * Next.js enables HTTP Keep-Alive by default.
    * You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
    *
@@ -1235,6 +1234,12 @@ export interface NextConfig {
   turbopack?: TurbopackOptions
 
   skipMiddlewareUrlNormalize?: boolean
+
+  /**
+   * Skip Next.js internals route `/_next` from middleware.
+   * @default true
+   */
+  skipMiddlewareNextInternalRoutes?: boolean
 
   skipTrailingSlashRedirect?: boolean
 
@@ -1364,9 +1369,6 @@ export const defaultConfig = Object.freeze({
   i18n: null,
   productionBrowserSourceMaps: false,
   excludeDefaultMomentLocales: true,
-  serverRuntimeConfig: {},
-  publicRuntimeConfig: {},
-  reactCompiler: undefined,
   reactProductionProfiling: false,
   reactStrictMode: null,
   reactMaxHeadersLength: 6000,
@@ -1438,7 +1440,7 @@ export const defaultConfig = Object.freeze({
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    clientSegmentCache: false,
+    clientSegmentCache: true,
     rdcForNavigations: false,
     clientParamParsing: false,
     clientParamParsingOrigins: undefined,
@@ -1510,11 +1512,12 @@ export const defaultConfig = Object.freeze({
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: false,
-    isolatedDevBuild:
-      process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true',
+    lockDistDir: true,
+    isolatedDevBuild: true,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
+  skipMiddlewareNextInternalRoutes: true,
 } satisfies NextConfig)
 
 export async function normalizeConfig(phase: string, config: any) {

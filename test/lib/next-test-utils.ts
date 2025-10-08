@@ -1053,35 +1053,37 @@ export async function assertNoDevToolsIndicator(browser: Playwright) {
   }
 }
 
-export async function getRouteTypeFromDevToolsIndicator(
-  browser: Playwright
-): Promise<'Static' | 'Dynamic'> {
+export async function assertStaticIndicator(
+  browser: Playwright,
+  expectedRouteType: 'Static' | 'Dynamic' | undefined
+): Promise<void> {
   await openDevToolsIndicatorPopover(browser)
 
-  return browser.eval(() => {
+  const routeType = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
 
-    const root = portal?.shadowRoot
-
-    // 'Route\nStatic' || 'Route\nDynamic'
-    const routeTypeText = root?.querySelector(
-      '[data-nextjs-route-type]'
-    )?.innerText
-
-    if (!routeTypeText) {
-      throw new Error('No Route Type Text Found')
-    }
-
-    // 'Static' || 'Dynamic'
-    const routeType = routeTypeText.split('\n').pop()
-    if (routeType !== 'Static' && routeType !== 'Dynamic') {
-      throw new Error(`Invalid Route Type: ${routeType}`)
-    }
-
-    return routeType as 'Static' | 'Dynamic'
+    return (
+      portal?.shadowRoot
+        // 'Route\nStatic' || 'Route\nDynamic'
+        ?.querySelector('[data-nextjs-route-type]')
+        ?.innerText.split('\n')
+        .pop()
+    )
   })
+
+  if (routeType !== expectedRouteType) {
+    if (expectedRouteType) {
+      throw new Error(
+        `Expected static indicator with route type ${expectedRouteType}, found ${routeType} instead.`
+      )
+    } else {
+      throw new Error(
+        `Expected no static indicator, found ${routeType} instead.`
+      )
+    }
+  }
 }
 
 export function getRedboxHeader(browser: Playwright): Promise<string | null> {
@@ -1893,9 +1895,7 @@ export function normalizeManifest<T>(
 export function getDistDir(): '.next' | '.next/dev' {
   // global.isNextDev is set in e2e/development/production tests.
   // NEXT_TEST_MODE is set in CI or local test-* commands.
-  return ((global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev') &&
-    // Flag for incremental rollout of isolated dev build, set in CI.
-    process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true'
+  return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev'
     ? '.next/dev'
     : '.next'
 }

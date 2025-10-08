@@ -565,7 +565,7 @@ type HandleEntrypointsHooks = {
 type HandleEntrypointsDevOpts = {
   assetMapper: AssetMapper
   changeSubscriptions: ChangeSubscriptions
-  clients: Set<ws>
+  clients: Array<ws>
   clientStates: ClientStateMap
   serverFields: ServerFields
 

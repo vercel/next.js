@@ -150,6 +150,7 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getDefaultMiddlewareMatcher } from '../shared/lib/router/utils/get-default-middleware-matcher'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -206,7 +207,7 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 
 import { turbopackBuild } from './turbopack-build'
-import { isPersistentCachingEnabledForBuild } from '../shared/lib/turbopack/utils'
+import { isFileSystemCacheEnabledForBuild } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString, hrtimeDurationToString } from './duration-to-string'
@@ -226,6 +227,7 @@ import {
   writeRouteTypesManifest,
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
+import { Lockfile } from './lockfile'
 
 type Fallback = null | boolean | string
 
@@ -1036,11 +1038,20 @@ export default async function build(
         )
       }
 
+      if (config.experimental.lockDistDir) {
+        // This leaks the lock file descriptor. That's okay, it'll be cleaned up by the OS upon
+        // process exit.
+        await Lockfile.acquireWithRetriesOrExit(
+          path.join(distDir, 'lock'),
+          'next build'
+        )
+      }
+
       if (config.cleanDistDir && !isGenerateMode) {
         await nextBuildSpan
           .traceChild('clean')
           .traceAsyncFn(() =>
-            recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev)/)
+            recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev|lock)/)
           )
       }
 
@@ -1914,9 +1925,7 @@ export default async function build(
           }
         }
 
-        const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
-          config
-        const runtimeEnvConfig = { publicRuntimeConfig, serverRuntimeConfig }
+        const { configFileName } = config
         const sriEnabled = Boolean(config.experimental.sri?.algorithm)
 
         const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
@@ -1929,7 +1938,6 @@ export default async function build(
               (await worker.hasCustomGetInitialProps({
                 page: '/_error',
                 distDir,
-                runtimeEnvConfig,
                 checkingApp: false,
                 sriEnabled,
               }))
@@ -1943,7 +1951,6 @@ export default async function build(
               page: '/_error',
               distDir,
               configFileName,
-              runtimeEnvConfig,
               cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
@@ -1963,7 +1970,6 @@ export default async function build(
           ? worker.hasCustomGetInitialProps({
               page: appPageToCheck,
               distDir,
-              runtimeEnvConfig,
               checkingApp: true,
               sriEnabled,
             })
@@ -1973,7 +1979,6 @@ export default async function build(
           ? worker.getDefinedNamedExports({
               page: appPageToCheck,
               distDir,
-              runtimeEnvConfig,
               sriEnabled,
             })
           : Promise.resolve([])
@@ -2157,7 +2162,6 @@ export default async function build(
                             originalAppPath,
                             distDir,
                             configFileName,
-                            runtimeEnvConfig,
                             httpAgentOptions: config.httpAgentOptions,
                             locales: config.i18n?.locales,
                             defaultLocale: config.i18n?.defaultLocale,
@@ -2580,10 +2584,7 @@ export default async function build(
           functionsConfigManifest.functions['/_middleware'] = {
             runtime: staticInfo.runtime,
             matchers: staticInfo.middleware?.matchers ?? [
-              {
-                regexp: '^.*$',
-                originalSource: '/:path*',
-              },
+              getDefaultMiddlewareMatcher(config),
             ],
           }
 
@@ -2728,8 +2729,12 @@ export default async function build(
           invocationCount: config.experimental.ppr ? 1 : 0,
         },
         {
-          featureName: 'turbopackPersistentCaching',
-          invocationCount: isPersistentCachingEnabledForBuild(config) ? 1 : 0,
+          featureName: 'experimental/isolatedDevBuild',
+          invocationCount: config.experimental.isolatedDevBuild ? 1 : 0,
+        },
+        {
+          featureName: 'turbopackFileSystemCache',
+          invocationCount: isFileSystemCacheEnabledForBuild(config) ? 1 : 0,
         },
       ]
       telemetry.record(

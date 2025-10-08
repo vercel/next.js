@@ -38,12 +38,7 @@ describe('config', () => {
 
   it('Should assign object defaults deeply to user config', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
-    // In isolatedDevBuild, the default distDir is ".next/dev" during PHASE_DEVELOPMENT_SERVER.
-    if (process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true') {
-      expect(config.distDir).toEqual('.next/dev')
-    } else {
-      expect(config.distDir).toEqual('.next')
-    }
+    expect(config.distDir.replace(/\\/g, '/')).toEqual('.next/dev')
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
 

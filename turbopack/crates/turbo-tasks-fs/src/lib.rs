@@ -487,7 +487,7 @@ impl DiskFileSystem {
     ///
     /// Assumes `self` is the `DiskFileSystem` contained in `vc_self`. This API is a bit awkward
     /// because:
-    /// - [`Path`]/[`PathBuf`] should not be stored in the persistent cache, so the function cannot
+    /// - [`Path`]/[`PathBuf`] should not be stored in the filesystem cache, so the function cannot
     ///   be a [`turbo_tasks::function`].
     /// - It's a little convenient for this function to be sync.
     pub fn try_from_sys_path(
