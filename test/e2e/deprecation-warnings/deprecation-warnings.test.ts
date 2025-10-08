@@ -35,6 +35,14 @@ describe('deprecation-warnings', () => {
       // Should warn about experimental.instrumentationHook
       expect(logs).toContain('experimental.instrumentationHook')
       expect(logs).toContain('no longer needed')
+
+      // Should warn about publicRuntimeConfig
+      expect(logs).toContain('publicRuntimeConfig')
+      expect(logs).toContain('will be removed in Next.js 16')
+
+      // Should warn about serverRuntimeConfig
+      expect(logs).toContain('serverRuntimeConfig')
+      expect(logs).toContain('will be removed in Next.js 16')
     })
   })
 })
