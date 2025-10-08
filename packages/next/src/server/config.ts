@@ -477,6 +477,14 @@ function assignDefaultsAndValidate(
           search: '',
         })
       }
+    } else {
+      // All paths are not allowed for a search query by default.
+      images.localPatterns = [
+        {
+          pathname: '**',
+          search: '',
+        },
+      ]
     }
 
     if (images.remotePatterns) {
