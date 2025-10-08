@@ -701,6 +701,32 @@ function assignDefaultsAndValidate(
     }
   }
 
+  // Normalize & validate experimental.middlewareClientMaxBodySize
+  if (typeof result.experimental?.middlewareClientMaxBodySize !== 'undefined') {
+    const middlewareClientMaxBodySize =
+      result.experimental.middlewareClientMaxBodySize
+    let normalizedValue: number
+
+    if (typeof middlewareClientMaxBodySize === 'string') {
+      const bytes =
+        require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+      normalizedValue = bytes.parse(middlewareClientMaxBodySize)
+    } else if (typeof middlewareClientMaxBodySize === 'number') {
+      normalizedValue = middlewareClientMaxBodySize
+    } else {
+      throw new Error(
+        'Client Max Body Size must be a valid number (bytes) or filesize format string (e.g., "5mb")'
+      )
+    }
+
+    if (isNaN(normalizedValue) || normalizedValue < 1) {
+      throw new Error('Client Max Body Size must be larger than 0 bytes')
+    }
+
+    // Store the normalized value as a number
+    result.experimental.middlewareClientMaxBodySize = normalizedValue
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'transpilePackages',

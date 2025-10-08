@@ -62,9 +62,6 @@ describe('required server files i18n', () => {
           locales: ['en', 'fr'],
           defaultLocale: 'en',
         },
-        eslint: {
-          ignoreDuringBuilds: true,
-        },
         output: 'standalone',
         async rewrites() {
           return [

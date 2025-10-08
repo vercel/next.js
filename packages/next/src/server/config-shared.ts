@@ -43,13 +43,6 @@ export interface DomainLocale {
   locales?: readonly string[]
 }
 
-export interface ESLintConfig {
-  /** Only run ESLint on these directories with `next lint` and `next build`. */
-  dirs?: string[]
-  /** Do not run ESLint during production builds (`next build`). */
-  ignoreDuringBuilds?: boolean
-}
-
 export interface TypeScriptConfig {
   /** Do not run TypeScript during production builds (`next build`). */
   ignoreBuildErrors?: boolean
@@ -798,6 +791,12 @@ export interface ExperimentalConfig {
   isolatedDevBuild?: boolean
 
   /**
+   * Body size limit for request bodies with middleware configured.
+   * Defaults to 10MB. Can be specified as a number (bytes) or string (e.g. '5mb').
+   */
+  middlewareClientMaxBodySize?: SizeLimit
+
+  /**
    * Enable the Model Context Protocol (MCP) server for AI-assisted development.
    * When enabled, Next.js will expose an MCP server at `/_next/mcp` that provides
    * code intelligence and project context to AI assistants.
@@ -909,12 +908,6 @@ export interface NextConfig {
    * @see [Internationalization docs](https://nextjs.org/docs/advanced-features/i18n-routing)
    */
   i18n?: I18NConfig | null
-
-  /**
-   * @since version 11
-   * @see [ESLint configuration](https://nextjs.org/docs/app/api-reference/config/eslint)
-   */
-  eslint?: ESLintConfig
 
   /**
    * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/api-reference/config/typescript)
@@ -1334,9 +1327,6 @@ export interface NextConfig {
 export const defaultConfig = Object.freeze({
   env: {},
   webpack: null,
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
   typescript: {
     ignoreBuildErrors: false,
     tsconfigPath: undefined,

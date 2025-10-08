@@ -26,7 +26,7 @@ describe('distDir', () => {
         beforeAll(async () => {
           await fs.remove(join(appDir, '.next'))
           await fs.remove(join(appDir, 'dist'))
-          await nextBuild(appDir, [], { lint: true })
+          await nextBuild(appDir, [])
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
         })
@@ -87,7 +87,6 @@ describe('distDir', () => {
         await fs.writeFile(nextConfig, `module.exports = { distDir: '' }`)
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          lint: true,
         })
         await fs.writeFile(nextConfig, origNextConfig)
 
@@ -100,11 +99,10 @@ describe('distDir', () => {
         const origNextConfig = await fs.readFile(nextConfig, 'utf8')
         await fs.writeFile(
           nextConfig,
-          `module.exports = { distDir: undefined, eslint: { ignoreDuringBuilds: true } }`
+          `module.exports = { distDir: undefined }`
         )
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          lint: true,
         })
         await fs.writeFile(nextConfig, origNextConfig)
 
