@@ -639,9 +639,6 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  warnOnce(
-    `Image with src "${src}" is using next/legacy/image which is deprecated and will be removed in a future version of Next.js.`
-  )
   const configContext = useContext(ImageConfigContext)
   const config: ImageConfig = useMemo(() => {
     const c = configEnv || configContext || imageConfigDefault
@@ -702,6 +699,10 @@ export default function Image({
     }
   }
   src = typeof src === 'string' ? src : staticSrc
+
+  warnOnce(
+    `Image with src "${src}" is using next/legacy/image which is deprecated and will be removed in a future version of Next.js.`
+  )
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
