@@ -1,4 +1,10 @@
-use std::{cmp::max, path::PathBuf, sync::Arc, thread::available_parallelism, time::Instant};
+use std::{
+    cmp::max,
+    path::PathBuf,
+    sync::Arc,
+    thread::available_parallelism,
+    time::{Duration, Instant},
+};
 
 use anyhow::{Ok, Result};
 use parking_lot::Mutex;
@@ -135,8 +141,11 @@ fn do_compact(
     })?;
     if ran {
         let elapsed = start.elapsed();
-        turbo_tasks()
-            .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
+        // avoid spamming the event queue with information about fast operations
+        if elapsed > Duration::from_secs(10) {
+            turbo_tasks()
+                .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
+        }
     }
     Ok(())
 }
