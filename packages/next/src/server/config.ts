@@ -117,19 +117,6 @@ function checkDeprecations(
   silent: boolean,
   dir: string
 ) {
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'publicRuntimeConfig',
-    `Runtime config is deprecated and the \`publicRuntimeConfig\` configuration option will be removed in Next.js 16.`,
-    silent
-  )
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'serverRuntimeConfig',
-    `Runtime config is deprecated and the \`serverRuntimeConfig\` configuration option will be removed in Next.js 16.`,
-    silent
-  )
-
   if (userConfig.experimental?.dynamicIO !== undefined) {
     warnOptionHasBeenDeprecated(
       userConfig,
@@ -712,6 +699,32 @@ function assignDefaultsAndValidate(
         'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit'
       )
     }
+  }
+
+  // Normalize & validate experimental.middlewareClientMaxBodySize
+  if (typeof result.experimental?.middlewareClientMaxBodySize !== 'undefined') {
+    const middlewareClientMaxBodySize =
+      result.experimental.middlewareClientMaxBodySize
+    let normalizedValue: number
+
+    if (typeof middlewareClientMaxBodySize === 'string') {
+      const bytes =
+        require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+      normalizedValue = bytes.parse(middlewareClientMaxBodySize)
+    } else if (typeof middlewareClientMaxBodySize === 'number') {
+      normalizedValue = middlewareClientMaxBodySize
+    } else {
+      throw new Error(
+        'Client Max Body Size must be a valid number (bytes) or filesize format string (e.g., "5mb")'
+      )
+    }
+
+    if (isNaN(normalizedValue) || normalizedValue < 1) {
+      throw new Error('Client Max Body Size must be larger than 0 bytes')
+    }
+
+    // Store the normalized value as a number
+    result.experimental.middlewareClientMaxBodySize = normalizedValue
   }
 
   warnOptionHasBeenMovedOutOfExperimental(

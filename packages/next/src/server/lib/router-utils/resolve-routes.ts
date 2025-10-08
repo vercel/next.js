@@ -175,7 +175,10 @@ export function getResolveRoutes(
     addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, 'clonableBody', getCloneableBody(req))
+      const bodySizeLimit = config.experimental.middlewareClientMaxBodySize as
+        | number
+        | undefined
+      addRequestMeta(req, 'clonableBody', getCloneableBody(req, bodySizeLimit))
     }
 
     const maybeAddTrailingSlash = (pathname: string) => {

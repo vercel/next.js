@@ -186,8 +186,8 @@ In addition, a number of built-in conditions are supported:
 
 - `browser`: Matches code that will execute on the client. Server code can be matched using `{not: 'browser'}`.
 - `foreign`: Matches code in `node_modules`, as well as some Next.js internals. Usually you'll want to restrict loaders to `{not: 'foreign'}`. This can improve performance by reducing the number of files the loader is invoked on.
-- `development`: Matches when using `next dev --turbopack`.
-- `production`: Matches when using `next build --turbopack`.
+- `development`: Matches when using `next dev`.
+- `production`: Matches when using `next build`.
 - `node`: Matches code that will run on the default Node.js runtime.
 - `edge-light`: Matches code that will run on the [Edge runtime](/docs/app/api-reference/edge).
 

@@ -798,6 +798,12 @@ export interface ExperimentalConfig {
   isolatedDevBuild?: boolean
 
   /**
+   * Body size limit for request bodies with middleware configured.
+   * Defaults to 10MB. Can be specified as a number (bytes) or string (e.g. '5mb').
+   */
+  middlewareClientMaxBodySize?: SizeLimit
+
+  /**
    * Enable the Model Context Protocol (MCP) server for AI-assisted development.
    * When enabled, Next.js will expose an MCP server at `/_next/mcp` that provides
    * code intelligence and project context to AI assistants.
@@ -1129,22 +1135,6 @@ export interface NextConfig {
   reactMaxHeadersLength?: number
 
   /**
-   * Add public (in browser) runtime configuration to your app
-   *
-   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration)
-   * @deprecated Runtime config is deprecated and will be removed in Next.js 16.
-   */
-  publicRuntimeConfig?: { [key: string]: any }
-
-  /**
-   * Add server runtime configuration to your app
-   *
-   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration)
-   * @deprecated Runtime config is deprecated and will be removed in Next.js 16.
-   */
-  serverRuntimeConfig?: { [key: string]: any }
-
-  /**
    * Next.js enables HTTP Keep-Alive by default.
    * You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
    *
@@ -1250,6 +1240,12 @@ export interface NextConfig {
   turbopack?: TurbopackOptions
 
   skipMiddlewareUrlNormalize?: boolean
+
+  /**
+   * Skip Next.js internals route `/_next` from middleware.
+   * @default true
+   */
+  skipMiddlewareNextInternalRoutes?: boolean
 
   skipTrailingSlashRedirect?: boolean
 
@@ -1379,9 +1375,6 @@ export const defaultConfig = Object.freeze({
   i18n: null,
   productionBrowserSourceMaps: false,
   excludeDefaultMomentLocales: true,
-  serverRuntimeConfig: {},
-  publicRuntimeConfig: {},
-  reactCompiler: undefined,
   reactProductionProfiling: false,
   reactStrictMode: null,
   reactMaxHeadersLength: 6000,
@@ -1525,12 +1518,12 @@ export const defaultConfig = Object.freeze({
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: false,
-    isolatedDevBuild:
-      process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true',
     lockDistDir: true,
+    isolatedDevBuild: true,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
+  skipMiddlewareNextInternalRoutes: true,
 } satisfies NextConfig)
 
 export async function normalizeConfig(phase: string, config: any) {

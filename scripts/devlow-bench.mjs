@@ -482,6 +482,7 @@ const nextDevWorkflow =
         const cacheLocation = join(
           benchmarkDir,
           '.next',
+          'dev',
           'cache',
           'webpack',
           'client-development'

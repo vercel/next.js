@@ -18,19 +18,31 @@ We built Turbopack to push the performance of Next.js, including:
 
 ## Getting started
 
-To enable Turbopack in your Next.js project, add the `--turbopack` flag to the `dev` and `build` scripts in your `package.json` file:
+Turbopack is now the **default bundler** in Next.js. No configuration is needed to use Turbopack:
 
 ```json filename="package.json" highlight={3}
 {
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start"
   }
 }
 ```
 
-Currently, Turbopack for `dev` is stable, while `build` is in beta. We are actively working on production support as Turbopack moves closer to stability.
+### Using Webpack instead
+
+If you need to use Webpack instead of Turbopack, you can opt-in with the `--webpack` flag:
+
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start"
+  }
+}
+```
 
 ## Supported features
 
@@ -204,7 +216,7 @@ For more in-depth configuration examples, see the [Turbopack config documentatio
 If you encounter performance or memory issues and want to help the Next.js team diagnose them, you can generate a trace file by appending `NEXT_TURBOPACK_TRACING=1` to your dev command:
 
 ```bash
-NEXT_TURBOPACK_TRACING=1 next dev --turbopack
+NEXT_TURBOPACK_TRACING=1 next dev
 ```
 
 This will produce a `.next/trace-turbopack` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
@@ -213,13 +225,11 @@ This will produce a `.next/trace-turbopack` file. Include that file when creatin
 
 Turbopack is a **Rust-based**, **incremental** bundler designed to make local development and builds fast—especially for large applications. It is integrated into Next.js, offering zero-config CSS, React, and TypeScript support.
 
-Stay tuned for more updates as we continue to improve Turbopack and add production build support. In the meantime, give it a try with `next dev --turbopack` and let us know your feedback.
-
 ## Version Changes
 
-| Version   | Changes                                                        |
-| --------- | -------------------------------------------------------------- |
-| `v16.0.0` | Automatic support for Babel when a configuration file is found |
-| `v15.5.0` | Turbopack support for `build` beta                             |
-| `v15.3.0` | Experimental support for `build`                               |
-| `v15.0.0` | Turbopack for `dev` stable                                     |
+| Version   | Changes                                                                                                           |
+| --------- | ----------------------------------------------------------------------------------------------------------------- |
+| `v16.0.0` | Turbopack becomes the default bundler for Next.js. Automatic support for Babel when a configuration file is found |
+| `v15.5.0` | Turbopack support for `build` beta                                                                                |
+| `v15.3.0` | Experimental support for `build`                                                                                  |
+| `v15.0.0` | Turbopack for `dev` stable                                                                                        |
