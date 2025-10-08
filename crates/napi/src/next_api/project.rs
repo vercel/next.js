@@ -238,7 +238,7 @@ pub struct NapiDefineEnv {
 
 #[napi(object)]
 pub struct NapiTurboEngineOptions {
-    /// Use the new backend with persistent caching enabled.
+    /// Use the new backend with filesystem cache enabled.
     pub persistent_caching: Option<bool>,
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
@@ -603,7 +603,7 @@ pub async fn project_update(
 }
 
 /// Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
-/// is created with persistent caching enabled.
+/// is created with filesystem cache enabled.
 #[napi]
 pub async fn project_invalidate_file_system_cache(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,

@@ -1750,7 +1750,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return true;
         };
 
-        // When restoring from persistent caching the following might not be executed (since we can
+        // When restoring from filesystem cache the following might not be executed (since we can
         // suspend in `CleanupOldEdgesOperation`), but that's ok as the task is still dirty and
         // would be executed again.
 

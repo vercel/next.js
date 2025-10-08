@@ -200,7 +200,7 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** Use the new backend with persistent caching enabled. */
+  /** Use the new backend with filesystem cache enabled. */
   persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
@@ -222,7 +222,7 @@ export declare function projectUpdate(
 ): Promise<void>
 /**
  * Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
- * is created with persistent caching enabled.
+ * is created with filesystem cache enabled.
  */
 export declare function projectInvalidateFileSystemCache(project: {
   __napiType: 'Project'

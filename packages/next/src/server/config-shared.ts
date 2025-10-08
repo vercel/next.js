@@ -425,12 +425,12 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * Enable persistent caching for the turbopack dev server.
+   * Enable filesystem cache for the turbopack dev server.
    */
   turbopackFileSystemCacheForDev?: boolean
 
   /**
-   * Enable persistent caching for the turbopack build.
+   * Enable filesystem cache for the turbopack build.
    */
   turbopackFileSystemCacheForBuild?: boolean
 
