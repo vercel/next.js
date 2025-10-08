@@ -49,15 +49,23 @@ function diffRevalidationState(
   curr: RevalidationState
 ): RevalidationState {
   const prevTagsWithProfile = new Set(
-    prev.pendingRevalidatedTags.map(
-      (item) => `${item.tag}:${item.profile || ''}`
-    )
+    prev.pendingRevalidatedTags.map((item) => {
+      const profileKey =
+        typeof item.profile === 'object'
+          ? JSON.stringify(item.profile)
+          : item.profile || ''
+      return `${item.tag}:${profileKey}`
+    })
   )
   const prevRevalidateWrites = new Set(prev.pendingRevalidateWrites)
   return {
-    pendingRevalidatedTags: curr.pendingRevalidatedTags.filter(
-      (item) => !prevTagsWithProfile.has(`${item.tag}:${item.profile || ''}`)
-    ),
+    pendingRevalidatedTags: curr.pendingRevalidatedTags.filter((item) => {
+      const profileKey =
+        typeof item.profile === 'object'
+          ? JSON.stringify(item.profile)
+          : item.profile || ''
+      return !prevTagsWithProfile.has(`${item.tag}:${profileKey}`)
+    }),
     pendingRevalidates: Object.fromEntries(
       Object.entries(curr.pendingRevalidates).filter(
         ([key]) => !(key in prev.pendingRevalidates)
@@ -70,7 +78,10 @@ function diffRevalidationState(
 }
 
 async function revalidateTags(
-  tagsWithProfile: Array<{ tag: string; profile?: string }>,
+  tagsWithProfile: Array<{
+    tag: string
+    profile?: string | { expire?: number }
+  }>,
   incrementalCache: IncrementalCache | undefined,
   workStore?: WorkStore
 ): Promise<void> {
@@ -82,14 +93,45 @@ async function revalidateTags(
   const promises: Promise<void>[] = []
 
   // Group tags by profile for batch processing
-  const tagsByProfile = new Map<string | undefined, string[]>()
+  const tagsByProfile = new Map<
+    | string
+    | { stale?: number; revalidate?: number; expire?: number }
+    | undefined,
+    string[]
+  >()
 
   for (const item of tagsWithProfile) {
     const profile = item.profile
-    if (!tagsByProfile.has(profile)) {
-      tagsByProfile.set(profile, [])
+    // Find existing profile by comparing values
+    let existingKey = undefined
+    for (const [key] of tagsByProfile) {
+      if (
+        typeof key === 'string' &&
+        typeof profile === 'string' &&
+        key === profile
+      ) {
+        existingKey = key
+        break
+      }
+      if (
+        typeof key === 'object' &&
+        typeof profile === 'object' &&
+        JSON.stringify(key) === JSON.stringify(profile)
+      ) {
+        existingKey = key
+        break
+      }
+      if (key === profile) {
+        existingKey = key
+        break
+      }
     }
-    tagsByProfile.get(profile)!.push(item.tag)
+
+    const profileKey = existingKey || profile
+    if (!tagsByProfile.has(profileKey)) {
+      tagsByProfile.set(profileKey, [])
+    }
+    tagsByProfile.get(profileKey)!.push(item.tag)
   }
 
   // Process each profile group
@@ -98,15 +140,28 @@ async function revalidateTags(
     let durations: { expire?: number } | undefined
 
     if (profile) {
-      const cacheLife = workStore?.cacheLifeProfiles?.[profile]
+      let cacheLife:
+        | { stale?: number; revalidate?: number; expire?: number }
+        | undefined
 
-      if (!cacheLife) {
-        throw new Error(
-          `Invalid profile provided "${profile}" must be configured under cacheLife in next.config or be "max"`
-        )
+      if (typeof profile === 'object') {
+        // Profile is already a cacheLife configuration object
+        cacheLife = profile
+      } else if (typeof profile === 'string') {
+        // Profile is a string key, look it up in workStore
+        cacheLife = workStore?.cacheLifeProfiles?.[profile]
+
+        if (!cacheLife) {
+          throw new Error(
+            `Invalid profile provided "${profile}" must be configured under cacheLife in next.config or be "max"`
+          )
+        }
       }
-      durations = {
-        expire: cacheLife.expire,
+
+      if (cacheLife) {
+        durations = {
+          expire: cacheLife.expire,
+        }
       }
     }
     // If profile is not found and not 'max', durations will be undefined
@@ -114,9 +169,9 @@ async function revalidateTags(
 
     for (const handler of handlers || []) {
       if (profile) {
-        promises.push(handler.updateTags(tagsForProfile, durations))
+        promises.push(handler.updateTags?.(tagsForProfile, durations))
       } else {
-        promises.push(handler.updateTags(tagsForProfile))
+        promises.push(handler.updateTags?.(tagsForProfile))
       }
     }
 

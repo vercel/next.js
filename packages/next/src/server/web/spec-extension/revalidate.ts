@@ -12,12 +12,16 @@ import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.e
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 
+type CacheLifeConfig = {
+  expire?: number
+}
+
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  */
-export function revalidateTag(tag: string, profile: string) {
+export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
   if (!profile) {
     console.warn(
       '"revalidateTag" without the second argument is now deprecated, add second argument of "max" or use "updateTag". See more info here: https://nextjs.org/docs/messages/revalidate-tag-single-arg'
@@ -81,7 +85,11 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
   return revalidate(tags, `revalidatePath ${originalPath}`)
 }
 
-function revalidate(tags: string[], expression: string, profile?: string) {
+function revalidate(
+  tags: string[],
+  expression: string,
+  profile?: string | CacheLifeConfig
+) {
   const store = workAsyncStorage.getStore()
   if (!store || !store.incrementalCache) {
     throw new Error(
@@ -157,9 +165,17 @@ function revalidate(tags: string[], expression: string, profile?: string) {
   }
 
   for (const tag of tags) {
-    const existingIndex = store.pendingRevalidatedTags.findIndex(
-      (item) => item.tag === tag && item.profile === profile
-    )
+    const existingIndex = store.pendingRevalidatedTags.findIndex((item) => {
+      if (item.tag !== tag) return false
+      // Compare profiles: both strings, both objects, or both undefined
+      if (typeof item.profile === 'string' && typeof profile === 'string') {
+        return item.profile === profile
+      }
+      if (typeof item.profile === 'object' && typeof profile === 'object') {
+        return JSON.stringify(item.profile) === JSON.stringify(profile)
+      }
+      return item.profile === profile
+    })
     if (existingIndex === -1) {
       store.pendingRevalidatedTags.push({
         tag,
@@ -172,9 +188,13 @@ function revalidate(tags: string[], expression: string, profile?: string) {
   // update we do not mark the path as revalidated so that server
   // actions don't pull their own writes
   const cacheLife =
-    profile && store?.cacheLifeProfiles?.[profile]
-      ? store.cacheLifeProfiles[profile]
-      : undefined
+    profile && typeof profile === 'object'
+      ? profile
+      : profile &&
+          typeof profile === 'string' &&
+          store?.cacheLifeProfiles?.[profile]
+        ? store.cacheLifeProfiles[profile]
+        : undefined
 
   if (!profile || cacheLife?.expire === 0) {
     // TODO: only revalidate if the path matches
