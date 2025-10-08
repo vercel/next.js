@@ -1,4 +1,5 @@
 import icon from '../public/vercel.png'
+const url = new URL('../public/vercel.png', import.meta.url).toString()
 
 export default function manifest() {
   return {
@@ -11,5 +12,6 @@ export default function manifest() {
         sizes: '512x512',
       },
     ],
+    description: url,
   }
 }
