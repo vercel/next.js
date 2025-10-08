@@ -13,10 +13,7 @@ describe('middleware-static-rewrite', () => {
     return
   }
 
-  if (
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' ||
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-  ) {
+  if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true') {
     // Here we're validating that the correct fallback shell was used for
     // rendering.
     it('should use the correct fallback route', async () => {

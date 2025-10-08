@@ -16,8 +16,6 @@ import { PrerenderManifest } from 'next/dist/build'
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
-const withPPR = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 const withCacheComponents =
   process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
 
@@ -451,7 +449,7 @@ describe('use-cache', () => {
 
       let prerenderedRoutes = Object.entries(prerenderManifest.routes)
 
-      if (withPPR || withCacheComponents) {
+      if (withCacheComponents) {
         // For the purpose of this test we don't consider an incomplete shell.
         prerenderedRoutes = prerenderedRoutes.filter(([pathname, route]) => {
           const filename = pathname.replace(/^\//, '').replace(/^$/, 'index')
@@ -508,7 +506,7 @@ describe('use-cache', () => {
     })
 
     it('should match the expected revalidate and expire configs on the prerender manifest', async () => {
-      const { version, routes, dynamicRoutes } = JSON.parse(
+      const { version, routes } = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
       ) as PrerenderManifest
 
@@ -525,14 +523,6 @@ describe('use-cache', () => {
         expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(
           300
         )
-      } else if (withPPR) {
-        // We don't exclude dynamic caches for the legacy PPR prerendering.
-        expect(
-          routes['/cache-life-with-dynamic'].initialRevalidateSeconds
-        ).toBe(99)
-        expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(
-          299
-        )
       }
 
       // default expireTime
@@ -541,12 +531,6 @@ describe('use-cache', () => {
       // The revalidate config from the fetch call should lower the revalidate
       // config for the page.
       expect(routes['/cache-tag'].initialRevalidateSeconds).toBe(42)
-
-      if (withPPR) {
-        // cache life profile "weeks"
-        expect(dynamicRoutes['/[id]'].fallbackRevalidate).toBe(604800)
-        expect(dynamicRoutes['/[id]'].fallbackExpire).toBe(2592000)
-      }
     })
 
     it('should match the expected stale config in the page header', async () => {
@@ -561,14 +545,6 @@ describe('use-cache', () => {
         )
         expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
           '19'
-        )
-      } else if (withPPR) {
-        const cacheLifeWithDynamicMeta = JSON.parse(
-          await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
-        )
-        // We don't exclude dynamic caches for the legacy PPR prerendering.
-        expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
-          '18'
         )
       }
     })
@@ -1020,7 +996,7 @@ describe('use-cache', () => {
     })
   }
 
-  if (isNextStart && withPPR) {
+  if (isNextStart && withCacheComponents) {
     it('should exclude inner caches and omitted caches from the resume data cache (RDC)', async () => {
       await next.fetch('/rdc')
 

@@ -862,5 +862,6 @@
   "861": "Client Max Body Size must be larger than 0 bytes",
   "862": "Request body exceeded %s",
   "863": "\\`<Link legacyBehavior>\\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \\`<a>\\` tag.",
-  "864": "Missing value for segment key: \"%s\" with dynamic param type: %s"
+  "864": "Missing value for segment key: \"%s\" with dynamic param type: %s",
+  "865": "`experimental.rdcForNavigations` is enabled, but `experimental.cacheComponents` is not."
 }

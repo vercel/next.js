@@ -13,7 +13,7 @@ import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
-import { isStableBuild } from '../shared/lib/canary-only'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 
 export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
@@ -573,8 +573,8 @@ export interface ExperimentalConfig {
   clientTraceMetadata?: string[]
 
   /**
-   * Enables experimental Partial Prerendering feature of Next.js.
-   * Using this feature will enable the `react@experimental` for the `app` directory.
+   * @deprecated This configuration option has been merged into `experimental.cacheComponents`.
+   * The Partial Prerendering feature is still available via `experimental.cacheComponents`.
    */
   ppr?: ExperimentalPPRConfig
 
