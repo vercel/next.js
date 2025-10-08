@@ -1031,21 +1031,25 @@ export async function createEntrypoints(
                   : undefined,
               }).import
             }
-            edgeServer[serverBundlePath.replace('proxy', 'middleware')] =
-              getEdgeServerEntry({
-                ...params,
-                rootDir,
-                absolutePagePath: absolutePagePath,
-                bundlePath: clientBundlePath,
-                isDev: false,
-                isServerComponent,
-                page,
-                middleware: staticInfo?.middleware,
-                pagesType,
-                appDirLoader,
-                preferredRegion: staticInfo.preferredRegion,
-                middlewareConfig: staticInfo.middleware,
-              })
+            const edgeServerBundlePath = isMiddlewareFile(page)
+              ? serverBundlePath
+                  .replace(PROXY_FILENAME, MIDDLEWARE_FILENAME)
+                  .replace('src/', '')
+              : serverBundlePath
+            edgeServer[edgeServerBundlePath] = getEdgeServerEntry({
+              ...params,
+              rootDir,
+              absolutePagePath: absolutePagePath,
+              bundlePath: clientBundlePath,
+              isDev: false,
+              isServerComponent,
+              page,
+              middleware: staticInfo?.middleware,
+              pagesType,
+              appDirLoader,
+              preferredRegion: staticInfo.preferredRegion,
+              middlewareConfig: staticInfo.middleware,
+            })
           }
         },
       })
