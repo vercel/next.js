@@ -489,12 +489,6 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
-  // If the build hasn't requested it to be linted explicitly, disable linting
-  // if it's not already disabled.
-  if (!opts.lint && !args.includes('--no-lint')) {
-    args.push('--no-lint')
-  }
-
   return runNextCommand(['build', dir, ...args], opts)
 }
 

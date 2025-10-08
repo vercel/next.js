@@ -100,11 +100,10 @@ describe('distDir', () => {
         const origNextConfig = await fs.readFile(nextConfig, 'utf8')
         await fs.writeFile(
           nextConfig,
-          `module.exports = { distDir: undefined, eslint: { ignoreDuringBuilds: true } }`
+          `module.exports = { distDir: undefined }`
         )
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          lint: true,
         })
         await fs.writeFile(nextConfig, origNextConfig)
 

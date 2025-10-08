@@ -217,29 +217,6 @@ describe('config telemetry', () => {
         })
       })
 
-      it(`emits telemetry for lint during build when 'ignoreDuringBuilds' is specified`, async () => {
-        const nextConfig = path.join(appDir, 'next.config.js')
-        await fs.writeFile(
-          nextConfig,
-          `module.exports = { eslint: { ignoreDuringBuilds: true } }`
-        )
-        const { stderr } = await nextBuild(appDir, [], {
-          stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
-          lint: true,
-        })
-        await fs.remove(nextConfig)
-
-        const events = findAllTelemetryEvents(
-          stderr,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(events).toContainEqual({
-          featureName: 'build-lint',
-          invocationCount: 0,
-        })
-      })
-
       // Turbopack intentionally does not support these events
       ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemery for usage of image, script & dynamic',
