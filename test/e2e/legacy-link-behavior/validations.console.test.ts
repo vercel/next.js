@@ -138,7 +138,7 @@ describe('Validations for <Link legacyBehavior>', () => {
           await expect(browser).toDisplayRedbox(`
            [
              {
-               "description": "Using a Lazy Component as a direct child of a Server Component that renders \`<Link legacyBehavior>\` is not supported. If you need legacyBehavior, wrap your Lazy Component in a Client Component that renders the Link's \`<a>\` tag.",
+               "description": "Using a Lazy Component as a direct child of \`<Link legacyBehavior>\` from a Server Component is not supported. If you need legacyBehavior, wrap your Lazy Component in a Client Component that renders the Link's \`<a>\` tag.",
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": "app/validations/rsc-that-renders-link/lazy/page.tsx (9:7) @ Page
