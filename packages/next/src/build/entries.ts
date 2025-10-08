@@ -45,6 +45,7 @@ import {
   isInstrumentationHookFilename,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
+import { getDefaultMiddlewareMatcher } from '../shared/lib/router/utils/get-default-middleware-matcher'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import type { ServerRuntime } from '../types'
@@ -898,7 +899,7 @@ export async function createEntrypoints(
 
       if (isMiddlewareFile(page)) {
         middlewareMatchers = staticInfo.middleware?.matchers ?? [
-          { regexp: '.*', originalSource: '/:path*' },
+          getDefaultMiddlewareMatcher(params.config),
         ]
       }
 

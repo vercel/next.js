@@ -424,7 +424,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     req: IncomingMessage,
     _socket: Duplex,
     head: Buffer,
-    callback: (client: ws.WebSocket) => void
+    callback: (
+      client: ws.WebSocket,
+      context: { isLegacyClient: boolean }
+    ) => void
   ) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       const requestId = req.url
@@ -437,7 +440,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
       this.webpackHotMiddleware.onHMR(client, requestId)
       this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
-      callback(client)
+
+      // Clients with a request ID are inferred App Router clients. If Cache
+      // Components is not enabled, we consider those legacy clients. Pages
+      // Router clients are also considered legacy clients. TODO: Maybe mark
+      // clients as App Router / Pages Router clients explicitly, instead of
+      // inferring it from the presence of a request ID.
+      const isLegacyClient =
+        !requestId || !this.config.experimental.cacheComponents
+
+      callback(client, { isLegacyClient })
 
       client.addEventListener('message', async ({ data }) => {
         data = typeof data !== 'string' ? data.toString() : data
@@ -1562,6 +1574,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.multiCompiler.compilers,
       this.versionInfo,
       this.devtoolsFrontendUrl,
+      this.config,
       initialDevToolsConfig
     )
 
@@ -1702,6 +1715,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
   public sendToClient(client: ws, message: HmrMessageSentToBrowser): void {
     this.webpackHotMiddleware!.publishToClient(client, message)
+  }
+
+  public sendToLegacyClients(message: HmrMessageSentToBrowser): void {
+    this.webpackHotMiddleware!.publishToLegacyClients(message)
   }
 
   public setReactDebugChannel(

@@ -31,6 +31,7 @@ import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { getDefaultMiddlewareMatcher } from '../../../shared/lib/router/utils/get-default-middleware-matcher'
 import {
   APP_PATH_ROUTES_MANIFEST,
   BUILD_ID_FILE,
@@ -314,7 +315,7 @@ export async function setupFsCheck(opts: {
     } else if (functionsConfigManifest?.functions['/_middleware']) {
       middlewareMatcher = getMiddlewareRouteMatcher(
         functionsConfigManifest.functions['/_middleware'].matchers ?? [
-          { regexp: '.*', originalSource: '/:path*' },
+          getDefaultMiddlewareMatcher(opts.config),
         ]
       )
     }

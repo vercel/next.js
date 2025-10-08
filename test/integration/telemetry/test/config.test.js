@@ -836,6 +836,59 @@ describe('config telemetry', () => {
           )
         }
       })
+
+      it('emits telemetry for isolatedDevBuild enabled by default', async () => {
+        let stderr
+        try {
+          const app = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+          stderr = app.stderr
+
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'experimental/isolatedDevBuild',
+            invocationCount: 1,
+          })
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        }
+      })
+
+      it('emits telemetry for isolatedDevBuild disabled', async () => {
+        await fs.writeFile(
+          path.join(appDir, 'next.config.js'),
+          `module.exports = { experimental: { isolatedDevBuild: false } }`
+        )
+
+        let stderr
+        try {
+          const app = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+          stderr = app.stderr
+
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'experimental/isolatedDevBuild',
+            invocationCount: 0,
+          })
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        } finally {
+          await fs.remove(path.join(appDir, 'next.config.js'))
+        }
+      })
     }
   )
 })

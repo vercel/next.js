@@ -1502,6 +1502,7 @@ async function renderToHTMLOrFlightImpl(
     serverActions,
     assetPrefix = '',
     enableTainting,
+    experimental,
   } = renderOpts
 
   // We need to expose the bundled `require` API globally for
@@ -1566,10 +1567,18 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = __next_chunk_load__
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    // reset isr status at start of request
+  if (
+    process.env.NODE_ENV === 'development' &&
+    renderOpts.setIsrStatus &&
+    !experimental.cacheComponents
+  ) {
+    // Reset the ISR status at start of request.
     const { pathname } = new URL(req.url || '/', 'http://n')
-    renderOpts.setIsrStatus?.(pathname, false)
+    renderOpts.setIsrStatus(
+      pathname,
+      // Only pages using the Node runtime can use ISR, Edge is always dynamic.
+      process.env.NEXT_RUNTIME === 'edge' ? false : undefined
+    )
   }
 
   if (
@@ -1844,19 +1853,19 @@ async function renderToHTMLOrFlightImpl(
     if (
       process.env.NODE_ENV === 'development' &&
       renderOpts.setIsrStatus &&
+      !experimental.cacheComponents &&
+      // Only pages using the Node runtime can use ISR, so we only need to
+      // update the status for those.
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
       process.env.NEXT_RUNTIME !== 'edge' &&
-      isNodeNextRequest(req) &&
-      !isDevWarmupRequest
+      isNodeNextRequest(req)
     ) {
       const setIsrStatus = renderOpts.setIsrStatus
       req.originalRequest.on('end', () => {
-        if (!requestStore.usedDynamic && !workStore.forceDynamic) {
-          // only node can be ISR so we only need to update the status here
-          const { pathname } = new URL(req.url || '/', 'http://n')
-          setIsrStatus(pathname, true)
-        }
+        const { pathname } = new URL(req.url || '/', 'http://n')
+        const isStatic = !requestStore.usedDynamic && !workStore.forceDynamic
+        setIsrStatus(pathname, isStatic)
       })
     }
 

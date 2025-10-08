@@ -4,10 +4,4 @@ module.exports = {
   experimental: {
     instrumentationHook: true,
   },
-  publicRuntimeConfig: {
-    foo: 'bar',
-  },
-  serverRuntimeConfig: {
-    foo: 'bar',
-  },
 }
