@@ -200,7 +200,6 @@ import {
   trackPendingChunkLoad,
   trackPendingImport,
   trackPendingModules,
-  trackPendingModulesInRender,
 } from './module-loading/track-module-loading.external'
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
@@ -736,7 +735,7 @@ async function prospectiveRuntimeServerPrerender(
 
   // The cacheSignal helps us track whether caches are still filling or we are ready
   // to cut the render off.
-  const cacheSignal = new CacheSignal()
+  const cacheSignal = new CacheSignal('prerender')
 
   const initialServerPrerenderStore: PrerenderStoreModernRuntime = {
     type: 'prerender-runtime',
@@ -2212,12 +2211,12 @@ async function renderToStream(
 
       // This render might end up being used as a prospective render (if there's cache misses),
       // so we need to set it up for filling caches.
-      const cacheSignal = new CacheSignal()
+      const cacheSignal = new CacheSignal('render')
 
       // If we encounter async modules that delay rendering, we'll also need to restart.
       // TODO(restart-on-cache-miss): technically, we only need to wait for pending *server* modules here,
       // but `trackPendingModules` doesn't distinguish between client and server.
-      trackPendingModulesInRender(cacheSignal)
+      trackPendingModules(cacheSignal)
 
       const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
@@ -2293,11 +2292,7 @@ async function renderToStream(
         // Ideally we'd only wait for caches that are needed in the static stage.
         // This will be optimized in the future by not allowing runtime/dynamic APIs to resolve.
 
-        // During a render, React pings pending tasks using `setImmediate`,
-        // and only waiting for a single `cacheReady` can make us stop filling caches too soon.
-        // To avoid this, we await `cacheReady` repeatedly with an extra delay to let React try render new content
-        // (and potentially discover more caches).
-        await cacheSignal.cacheReadyInRender()
+        await cacheSignal.cacheReady()
         initialRenderReactController.abort()
 
         //===============================================
@@ -2836,7 +2831,7 @@ async function spawnDynamicValidationInDev(
 
   // The cacheSignal helps us track whether caches are still filling or we are
   // ready to cut the render off.
-  const cacheSignal = new CacheSignal()
+  const cacheSignal = new CacheSignal('prerender')
 
   const captureOwnerStackClient = React.captureOwnerStack
   const captureOwnerStackServer = ComponentMod.captureOwnerStack
@@ -3578,7 +3573,7 @@ async function prerenderToStream(
 
       // The cacheSignal helps us track whether caches are still filling or we are ready
       // to cut the render off.
-      const cacheSignal = new CacheSignal()
+      const cacheSignal = new CacheSignal('prerender')
 
       let resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache
       let renderResumeDataCache: RenderResumeDataCache | null = null

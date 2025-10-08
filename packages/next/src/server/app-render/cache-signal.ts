@@ -8,6 +8,8 @@
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
+type CacheSignalMode = 'prerender' | 'render'
+
 export class CacheSignal {
   private count = 0
   private earlyListeners: Array<() => void> = []
@@ -17,7 +19,7 @@ export class CacheSignal {
 
   private subscribedSignals: Set<CacheSignal> | null = null
 
-  constructor() {
+  constructor(private mode: CacheSignalMode) {
     if (process.env.NEXT_RUNTIME === 'edge') {
       // we rely on `process.nextTick`, which is not supported in edge
       throw new InvariantError(
@@ -71,30 +73,29 @@ export class CacheSignal {
    * if there are no inflight cache reads then we wait at least one task to allow initial
    * cache reads to be initiated.
    */
-  cacheReady() {
+  async cacheReady(): Promise<void> {
+    if (this.mode === 'prerender') {
+      return await this.cacheReadyImpl()
+    } else {
+      // During a render, React pings pending tasks (that are waiting for something async to resolve) using `setImmediate`.
+      // This is unlike a prerender, where they are pinged in a microtask.
+      // This means that, if we're warming caches via a render (not a prerender),
+      // we need to give React more time to continue rendering after a cache has resolved
+      // in order to make sure we've discovered all the caches needed for the current render.
+      do {
+        await this.cacheReadyImpl()
+        await waitAtLeastOneReactRenderTask()
+      } while (this.hasPendingReads())
+    }
+  }
+
+  private cacheReadyImpl() {
     return new Promise<void>((resolve) => {
       this.listeners.push(resolve)
       if (this.count === 0) {
         this.noMorePendingCaches()
       }
     })
-  }
-
-  /**
-   * Like `cacheReady`, but for use when rendering (not prerendering).
-   * React schedules work differently between these two, which affects the timing
-   * of waiting for all caches to be discovered.
-   **/
-  async cacheReadyInRender() {
-    // During a render, React pings pending tasks (that are waiting for something async to resolve) using `setImmediate`.
-    // This is unlike a prerender, where they are pinged in a microtask.
-    // This means that, if we're warming caches via a render (not a prerender),
-    // we need to give React more time to continue rendering after a cache has resolved
-    // in order to make sure we've discovered all the caches needed for the current render.
-    do {
-      await this.cacheReady()
-      await waitAtLeastOneReactRenderTask()
-    } while (this.hasPendingReads())
   }
 
   beginRead() {
