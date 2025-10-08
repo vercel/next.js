@@ -1,15 +1,24 @@
 import { connection } from 'next/server'
+import { ReactNode, Suspense } from 'react'
 
 export default async function Root({
   children,
 }: {
   children: React.ReactNode
 }) {
-  await connection()
-
   return (
     <html>
-      <body>{children}</body>
+      <Suspense>
+        <Connection>
+          <body>{children}</body>
+        </Connection>
+      </Suspense>
     </html>
   )
+}
+
+async function Connection({ children }: { children: ReactNode }) {
+  await connection()
+
+  return children
 }
