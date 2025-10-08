@@ -2,11 +2,15 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { assertNoRedbox } from 'next-test-utils'
 
 describe('Validations for <Link legacyBehavior>', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
+  if (isNextDeploy) {
+    return it('should skip deploy', () => {})
+  }
   let previousOutputIndex
+
   beforeEach(() => {
     previousOutputIndex = next.cliOutput.length
   })

@@ -7,9 +7,14 @@ describe('Link with legacyBehavior', () => {
     return
   }
 
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return it('should skip', () => {})
+  }
 
   describe('if the child is an <a> tag', () => {
     it('forwards the href attribute', async () => {
