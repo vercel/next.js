@@ -1067,7 +1067,7 @@ function runTests(mode) {
       expect(warnings[2]).toMatch(
         'Image with src "/test.png" was detected as the Largest Contentful Paint (LCP).'
       )
-      expect(warnings.length).toBe(2)
+      expect(warnings.length).toBe(3)
     })
   } else {
     //server-only tests
