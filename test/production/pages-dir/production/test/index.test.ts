@@ -936,19 +936,6 @@ describe('Production Usage', () => {
       })
     }
 
-    it('should have default runtime values when not defined', async () => {
-      const html = await renderViaHTTP(next.appPort, '/runtime-config')
-      expect(html).toMatch(/found public config/)
-      expect(html).toMatch(/found server config/)
-    })
-
-    it('should not have runtimeConfig in __NEXT_DATA__', async () => {
-      const html = await renderViaHTTP(next.appPort, '/runtime-config')
-      const $ = cheerio.load(html)
-      const script = $('#__NEXT_DATA__').html()
-      expect(script).not.toMatch(/runtimeConfig/)
-    })
-
     it('should add autoExport for auto pre-rendered pages', async () => {
       for (const page of ['/about']) {
         const html = await renderViaHTTP(next.appPort, page)
