@@ -86,7 +86,7 @@ export class Lockfile {
       if (nativeLockfile != null) {
         const jsLockfile = new Lockfile(bindings, nativeLockfile)
         if (unlockOnExit) {
-          function exitListener() {
+          const exitListener = () => {
             // Best-Effort: If we don't do this, the operating system will
             // release the lock for us. This gives an opportunity to delete the
             // unlocked lockfile (which is not otherwise deleted on POSIX).
