@@ -5,7 +5,6 @@ import {
   killApp,
   launchApp,
   nextBuild,
-  nextLint,
   waitFor,
 } from 'next-test-utils'
 import fs from 'fs-extra'
