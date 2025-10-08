@@ -103,17 +103,10 @@ export const installTemplate = async ({
     );
     let configContent = await fs.readFile(nextConfigFile, "utf8");
 
-    if (mode === "ts") {
-      configContent = configContent.replace(
-        "const nextConfig: NextConfig = {\n  /* config options here */\n};",
-        `const nextConfig: NextConfig = {\n  reactCompiler: true,\n};`,
-      );
-    } else {
-      configContent = configContent.replace(
-        "const nextConfig = {};",
-        `const nextConfig = {\n  reactCompiler: true,\n};`,
-      );
-    }
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      "/* config options here */\n  reactCompiler: true,\n",
+    );
 
     await fs.writeFile(nextConfigFile, configContent);
   }
