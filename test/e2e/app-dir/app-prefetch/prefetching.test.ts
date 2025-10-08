@@ -2,7 +2,7 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import { waitFor, retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
-import { createRouterAct } from './router-act'
+import { createRouterAct } from 'router-act'
 import { createTimeController } from './test-utils'
 import { join } from 'path'
 

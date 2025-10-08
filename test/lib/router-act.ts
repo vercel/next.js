@@ -212,7 +212,7 @@ export function createRouterAct(
       batch.pendingRequests = new Set()
       batch.pendingRequestChecks = new Set()
       await Promise.all(
-        Array.from(orphanedRequests).map((item) => item.route.continue())
+        Array.from(orphanedRequests).map((item) => item.route?.continue())
       )
       didHardNavigate = true
     }
