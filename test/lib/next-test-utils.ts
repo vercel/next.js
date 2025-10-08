@@ -232,12 +232,6 @@ export interface NextOptions {
   stdout?: true | 'log'
   ignoreFail?: boolean
 
-  /**
-   * If true, this enables the linting step in the build process. If false or
-   * undefined, it adds a `--no-lint` flag to the build command.
-   */
-  lint?: boolean
-
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
 }

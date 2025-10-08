@@ -26,7 +26,7 @@ describe('distDir', () => {
         beforeAll(async () => {
           await fs.remove(join(appDir, '.next'))
           await fs.remove(join(appDir, 'dist'))
-          await nextBuild(appDir, [], { lint: true })
+          await nextBuild(appDir, [])
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
         })
@@ -87,7 +87,6 @@ describe('distDir', () => {
         await fs.writeFile(nextConfig, `module.exports = { distDir: '' }`)
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          lint: true,
         })
         await fs.writeFile(nextConfig, origNextConfig)
 
