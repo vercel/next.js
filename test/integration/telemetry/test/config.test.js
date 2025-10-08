@@ -241,33 +241,6 @@ describe('config telemetry', () => {
         })
       })
 
-      it('emits telemetry for `next lint`', async () => {
-        await fs.writeFile(
-          path.join(appDir, '.eslintrc'),
-          `{ "root": true, "extends": "next" }`
-        )
-        const { stderr } = await nextLint(appDir, [], {
-          stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
-        })
-        await fs.remove(path.join(appDir, '.eslintrc'))
-
-        const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S]+?)^}/m
-          .exec(stderr)
-          .pop()
-
-        expect(event1).toMatch(/"durationInSeconds": [\d]{1,}/)
-        expect(event1).toMatch(/"eslintVersion": ".*?\..*?\..*?"/)
-        expect(event1).toMatch(/"lintedFilesCount": [\d]{1,}/)
-        expect(event1).toMatch(/"lintFix": false/)
-        expect(event1).toMatch(/"buildLint": false/)
-        expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
-        expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
-        expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
-        expect(event1).toMatch(`"nextRulesEnabled": {`)
-        expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
-      })
-
       // Turbopack intentionally does not support these events
       ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemery for usage of image, script & dynamic',

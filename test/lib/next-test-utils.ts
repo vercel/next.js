@@ -498,14 +498,6 @@ export function nextBuild(
   return runNextCommand(['build', dir, ...args], opts)
 }
 
-export function nextLint(
-  dir: string,
-  args: string[] = [],
-  opts: NextOptions = {}
-) {
-  return runNextCommand(['lint', dir, ...args], opts)
-}
-
 export function nextTest(
   dir: string,
   args: string[] = [],
