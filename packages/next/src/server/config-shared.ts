@@ -492,6 +492,13 @@ export interface ExperimentalConfig {
   turbopackUseBuiltinSass?: boolean
 
   /**
+   * The module ID strategy to use for Turbopack.
+   * If not set, the default is `'named'` for development and `'deterministic'`
+   * for production.
+   */
+  turbopackModuleIds?: 'named' | 'deterministic'
+
+  /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
    */
@@ -800,11 +807,17 @@ export interface ExperimentalConfig {
   mcpServer?: boolean
 
   /**
-   * The module ID strategy to use for Turbopack.
-   * If not set, the default is `'named'` for development and `'deterministic'`
-   * for production.
+   * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
+   * build`. Failing to acquire the lock causes the process to exit with an
+   * error message.
+   *
+   * This is because if multiple processes write to the same `distDir` at the
+   * same time, it can mangle the state of the directory. Disabling this option
+   * is not recommended.
+   *
+   * @default true
    */
-  turbopackModuleIds?: 'named' | 'deterministic'
+  lockDistDir?: boolean
 }
 
 export type ExportPathMap = {
@@ -1118,14 +1131,16 @@ export interface NextConfig {
   /**
    * Add public (in browser) runtime configuration to your app
    *
-   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration)
+   * @deprecated Runtime config is deprecated and will be removed in Next.js 16.
    */
   publicRuntimeConfig?: { [key: string]: any }
 
   /**
    * Add server runtime configuration to your app
    *
-   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration)
+   * @deprecated Runtime config is deprecated and will be removed in Next.js 16.
    */
   serverRuntimeConfig?: { [key: string]: any }
 
@@ -1438,7 +1453,7 @@ export const defaultConfig = Object.freeze({
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    clientSegmentCache: false,
+    clientSegmentCache: true,
     rdcForNavigations: false,
     clientParamParsing: false,
     clientParamParsingOrigins: undefined,
@@ -1512,6 +1527,7 @@ export const defaultConfig = Object.freeze({
     browserDebugInfoInTerminal: false,
     isolatedDevBuild:
       process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true',
+    lockDistDir: true,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

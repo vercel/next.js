@@ -117,6 +117,19 @@ function checkDeprecations(
   silent: boolean,
   dir: string
 ) {
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'publicRuntimeConfig',
+    `Runtime config is deprecated and the \`publicRuntimeConfig\` configuration option will be removed in Next.js 16.`,
+    silent
+  )
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'serverRuntimeConfig',
+    `Runtime config is deprecated and the \`serverRuntimeConfig\` configuration option will be removed in Next.js 16.`,
+    silent
+  )
+
   if (userConfig.experimental?.dynamicIO !== undefined) {
     warnOptionHasBeenDeprecated(
       userConfig,
@@ -1722,44 +1735,6 @@ function enforceExperimentalFeatures(
         'ppr',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_PPR`'
-      )
-    }
-  }
-
-  // TODO: Remove this once we've made Client Segment Cache the default.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.clientSegmentCache === undefined ||
-      (isDefaultConfig && !config.experimental.clientSegmentCache))
-  ) {
-    config.experimental.clientSegmentCache = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'clientSegmentCache',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
-      )
-    }
-  }
-
-  // TODO: Remove this once we've made Client Segment Cache the default.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE === 'true' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.clientSegmentCache === undefined ||
-      (isDefaultConfig && !config.experimental.clientSegmentCache))
-  ) {
-    config.experimental.clientSegmentCache = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'clientSegmentCache',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE`'
       )
     }
   }

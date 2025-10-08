@@ -2,8 +2,11 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    ppr: true,
+  publicRuntimeConfig: {
+    foo: 'bar',
+  },
+  serverRuntimeConfig: {
+    foo: 'bar',
   },
 }
 

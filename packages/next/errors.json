@@ -852,5 +852,10 @@
   "851": "Pass either `webpack` or `turbopack`, not both.",
   "852": "Only custom servers can pass `webpack`, `turbo`, or `turbopack`.",
   "853": "Turbopack build failed",
-  "854": "Expected a %s request header."
+  "854": "Expected a %s request header.",
+  "855": "`lockfileTryAcquire` is not supported by the wasm bindings.",
+  "856": "`lockfileTryAcquireSync` is not supported by the wasm bindings.",
+  "857": "`lockfileUnlock` is not supported by the wasm bindings.",
+  "858": "`lockfileUnlockSync` is not supported by the wasm bindings.",
+  "859": "An IO error occurred while attempting to create and acquire the lockfile"
 }

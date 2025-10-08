@@ -689,7 +689,7 @@ ${ENDGROUP}`)
 
       // we only restrict 1 test per directory for
       // legacy integration tests
-      if (test.file.startsWith('test/integration') && dirSema === undefined) {
+      if (/^test[/\\]integration/.test(test.file) && dirSema === undefined) {
         directorySemas.set(dirName, (dirSema = new Sema(1)))
       }
       if (dirSema) await dirSema.acquire()
@@ -734,7 +734,7 @@ ${ENDGROUP}`)
               // if test is nested in a test folder traverse up a dir to ensure
               // we clean up relevant test files
               if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
-                testDir = path.join(testDir, '../')
+                testDir = path.join(testDir, '..')
               }
               console.log('Cleaning test files at', testDir)
               await exec(`git clean -fdx "${testDir}"`)
