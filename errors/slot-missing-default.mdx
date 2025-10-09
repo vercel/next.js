@@ -75,10 +75,6 @@ export default function Default() {
 
 You need a `default.js` file for each parallel route slot (directories starting with `@`) at each route segment.
 
-You also can add a `default.js` in the children slot if you want to make those routes accessible. For example, if `@team` has a `/settings` page but your children slot doesn't, you need a `default.js` at the root to handle what renders in the children slot when navigating to `/settings`.
-
-Without the appropriate `default.js` files, navigating between routes with different slot structures will result in a 404 error or a build failure.
-
 ## Useful Links
 
 - [Parallel Routes Documentation](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes#defaultjs)
