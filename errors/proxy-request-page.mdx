@@ -1,15 +1,15 @@
 ---
-title: Removed page from Middleware API
+title: Removed page from Proxy API
 ---
 
 ## Why This Error Occurred
 
 Your application is interacting with `request.page` which has been deprecated.
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextRequest, NextResponse } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { params } = event.request.page
   const { locale, slug } = params
 
@@ -25,7 +25,7 @@ export function middleware(request: NextRequest) {
 
 You can use [URLPattern](https://developer.mozilla.org/docs/Web/API/URLPattern) instead to have the same behavior:
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextRequest, NextResponse } from 'next/server'
 
 const PATTERNS = [
@@ -49,7 +49,7 @@ const params = (url) => {
   return result
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { locale, slug } = params(request.url)
 
   if (locale && slug) {

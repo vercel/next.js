@@ -1,15 +1,15 @@
 ---
-title: Deprecated Middleware API Signature
+title: Deprecated Proxy API Signature
 ---
 
 ## Why This Error Occurred
 
-Your application is using a Middleware function that is using parameters from the deprecated API.
+Your application is using a Proxy function that is using parameters from the deprecated API.
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextResponse } from 'next/server'
 
-export function middleware(event) {
+export function proxy(event) {
   if (event.request.nextUrl.pathname === '/blocked') {
     event.respondWith(
       new NextResponse(null, {
@@ -22,12 +22,12 @@ export function middleware(event) {
 
 ## Possible Ways to Fix It
 
-Update to use the new API for Middleware:
+Update to use the new API for Proxy:
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextResponse } from 'next/server'
 
-export function middleware(request) {
+export function proxy(request) {
   if (request.nextUrl.pathname === '/blocked') {
     return new NextResponse(null, {
       status: 403,

@@ -1,15 +1,15 @@
 ---
-title: Removed req.ua from Middleware API
+title: Removed req.ua from Proxy API
 ---
 
 ## Why This Error Occurred
 
-Your middleware is interacting with `req.ua` and this feature needs to opt-in.
+Your proxy is interacting with `req.ua` and this feature needs to opt-in.
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextRequest, NextResponse } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const url = request.nextUrl
   const viewport = request.ua.device.type === 'mobile' ? 'mobile' : 'desktop'
   url.searchParams.set('viewport', viewport)
@@ -21,10 +21,10 @@ export function middleware(request: NextRequest) {
 
 To parse the user agent, import `userAgent` function from `next/server` and give it your request:
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextRequest, NextResponse, userAgent } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const url = request.nextUrl
   const { device } = userAgent(request)
   const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
