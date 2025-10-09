@@ -40,18 +40,17 @@ describe('build-output-ssg-bailout', () => {
     // - /ssg-bailout-partial/[id] is marked (SSG) and has 2,3 listed.
     // - /ssg-bailout/[id] is marked (Dynamic) and has nothing listed.
     expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-     "Route (app)                      Size  First Load JS
-     ┌ ○ /_not-found                N/A kB         N/A kB
-     ├ ƒ /ssg-bailout-partial/[id]  N/A kB         N/A kB
-     ├ ● /ssg-bailout-partial/[id]  N/A kB         N/A kB
+     "Route (app)
+     ┌ ○ /_not-found
+     ├ ƒ /ssg-bailout-partial/[id]
+     ├ ● /ssg-bailout-partial/[id]
      ├   ├ /ssg-bailout-partial/2
      ├   └ /ssg-bailout-partial/3
-     ├ ƒ /ssg-bailout/[id]          N/A kB         N/A kB
-     └ ● /ssg/[id]                  N/A kB         N/A kB
+     ├ ƒ /ssg-bailout/[id]
+     └ ● /ssg/[id]
          ├ /ssg/1
          ├ /ssg/2
          └ /ssg/3
-     + First Load JS shared by all  N/A kB
 
 
      ○  (Static)   prerendered as static content
