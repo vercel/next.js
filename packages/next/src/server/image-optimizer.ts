@@ -721,7 +721,7 @@ export async function fetchExternalImage(
         family: 0,
         all: true,
         hints: ALL,
-      })
+      }).catch((_) => [{ address: hostname }])
       ips = records.map((record) => record.address)
     }
     const privateIps = ips.filter((ip) => isLocalAddress(ip))
