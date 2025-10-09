@@ -108,11 +108,6 @@ export const MiddlewareConfigInputSchema = z.object({
    * files. The globs are relative to your application root folder.
    */
   unstable_allowDynamic: z.union([GlobSchema, z.array(GlobSchema)]).optional(),
-  /**
-   * Specify the runtime for the middleware.
-   * Can be 'nodejs' or 'edge'.
-   */
-  runtime: z.union([z.literal('nodejs'), z.literal('edge')]).optional(),
 })
 
 export type MiddlewareConfigInput = {
@@ -141,11 +136,6 @@ export type MiddlewareConfigInput = {
    * files. The globs are relative to your application root folder.
    */
   unstable_allowDynamic?: string | string[]
-  /**
-   * Specify the runtime for the middleware.
-   * Can be 'nodejs' or 'edge'.
-   */
-  runtime?: 'nodejs' | 'edge'
 }
 
 /**
