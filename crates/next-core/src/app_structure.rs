@@ -1191,6 +1191,18 @@ async fn directory_tree_to_loader_tree_internal(
 
         if let Some(subtree) = subtree {
             if let Some(key) = parallel_route_key {
+                // Validate that parallel routes (except "children") have a default.js file
+                if key != "children" && subdirectory.modules.default.is_none() {
+                    missing_default_parallel_route_issue(
+                        app_dir.clone(),
+                        app_page.clone(),
+                        key.into(),
+                    )
+                    .to_resolved()
+                    .await?
+                    .emit();
+                }
+
                 tree.parallel_routes.insert(key.into(), subtree);
                 continue;
             }
