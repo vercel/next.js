@@ -735,7 +735,7 @@ async function prospectiveRuntimeServerPrerender(
 
   // The cacheSignal helps us track whether caches are still filling or we are ready
   // to cut the render off.
-  const cacheSignal = new CacheSignal('prerender')
+  const cacheSignal = new CacheSignal()
 
   const initialServerPrerenderStore: PrerenderStoreModernRuntime = {
     type: 'prerender-runtime',
@@ -2221,7 +2221,7 @@ async function renderToStream(
 
       // This render might end up being used as a prospective render (if there's cache misses),
       // so we need to set it up for filling caches.
-      const cacheSignal = new CacheSignal('render')
+      const cacheSignal = new CacheSignal()
 
       // If we encounter async modules that delay rendering, we'll also need to restart.
       // TODO(restart-on-cache-miss): technically, we only need to wait for pending *server* modules here,
@@ -2841,7 +2841,7 @@ async function spawnDynamicValidationInDev(
 
   // The cacheSignal helps us track whether caches are still filling or we are
   // ready to cut the render off.
-  const cacheSignal = new CacheSignal('prerender')
+  const cacheSignal = new CacheSignal()
 
   const captureOwnerStackClient = React.captureOwnerStack
   const captureOwnerStackServer = ComponentMod.captureOwnerStack
@@ -3583,7 +3583,7 @@ async function prerenderToStream(
 
       // The cacheSignal helps us track whether caches are still filling or we are ready
       // to cut the render off.
-      const cacheSignal = new CacheSignal('prerender')
+      const cacheSignal = new CacheSignal()
 
       let resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache
       let renderResumeDataCache: RenderResumeDataCache | null = null

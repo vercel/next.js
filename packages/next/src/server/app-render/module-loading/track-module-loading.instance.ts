@@ -8,9 +8,7 @@ import { isThenable } from '../../../shared/lib/is-thenable'
 let _moduleLoadingSignal: CacheSignal | null
 function getModuleLoadingSignal() {
   if (!_moduleLoadingSignal) {
-    // The mode doesn't really matter here, because we never wait for `cacheReady()` on this signal,
-    // only other signals that subscribe to it via `trackPendingModules`.
-    _moduleLoadingSignal = new CacheSignal('prerender')
+    _moduleLoadingSignal = new CacheSignal()
   }
   return _moduleLoadingSignal
 }
