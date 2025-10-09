@@ -412,18 +412,18 @@ pub fn project_new(
         let trace_file;
         let (trace_writer, trace_writer_guard) = match compress {
             Compression::None => {
-                trace_file = internal_dir.join("diagnostics/trace-turbopack");
+                trace_file = internal_dir.join("trace-turbopack");
                 let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 TraceWriter::new(trace_writer)
             }
             Compression::GzipFast => {
-                trace_file = internal_dir.join("diagnostics/trace-turbopack.gz");
+                trace_file = internal_dir.join("trace-turbopack");
                 let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::fast());
                 TraceWriter::new(trace_writer)
             }
             Compression::GzipBest => {
-                trace_file = internal_dir.join("diagnostics/trace-turbopack.gz");
+                trace_file = internal_dir.join("trace-turbopack");
                 let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::best());
                 TraceWriter::new(trace_writer)
