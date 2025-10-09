@@ -33,7 +33,11 @@ The `@next/mdx` package, and related packages, are used to configure Next.js so 
 Install these packages to render MDX with Next.js:
 
 ```bash filename="Terminal"
-npm install @next/mdx @mdx-js/loader @mdx-js/react @types/mdx
+npm install @next/mdx @mdx-js/loader @mdx-js/react
+```
+
+```bash filename="Terminal"
+npm install --save-dev @types/mdx
 ```
 
 ## Configure `next.config.mjs`
@@ -43,8 +47,7 @@ Update the `next.config.mjs` file at your project's root to configure it to use 
 ```js filename="next.config.mjs"
 import createMDX from '@next/mdx'
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfig: NextConfig = {
   // Configure `pageExtensions` to include markdown and MDX files
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   // Optionally, add any other Next.js config below
@@ -869,18 +872,29 @@ When using `@next/mdx` as shown above, you **do not** need to use `remark` or `r
 
 Next.js supports a new MDX compiler written in Rust. This compiler is still experimental and is not recommended for production use. To use the new compiler, you need to configure `next.config.js` when you pass it to `withMDX`:
 
-```js filename="next.config.js"
-module.exports = withMDX({
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   experimental: {
     mdxRs: true,
   },
-})
+}
+```
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from "next";
+import createMDX from "@next/mdx";
+
+const nextConfig: NextConfig = {
+  experimental: {
+    mdxRs: true,
+  },
+}
 ```
 
 `mdxRs` also accepts an object to configure how to transform mdx files.
 
-```js filename="next.config.js"
-module.exports = withMDX({
+```js filename="next.config.[js|ts]"
   experimental: {
     mdxRs: {
       jsxRuntime?: string            // Custom jsx runtime
@@ -888,7 +902,6 @@ module.exports = withMDX({
       mdxType?: 'gfm' | 'commonmark' // Configure what kind of mdx syntax will be used to parse & transform
     },
   },
-})
 ```
 
 ## Helpful Links
