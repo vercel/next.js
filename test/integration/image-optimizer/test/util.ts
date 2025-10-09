@@ -46,20 +46,18 @@ export async function serveSlowImage() {
     const parsedUrl = new URL(req.url, 'http://localhost')
     const delay = Number(parsedUrl.searchParams.get('delay')) || 0
     const status = Number(parsedUrl.searchParams.get('status')) || 200
-    const location = Number(parsedUrl.searchParams.get('location'))
+    const location = parsedUrl.searchParams.get('location')
 
     console.log('delaying image for', delay)
     await waitFor(delay)
 
     res.statusCode = status
 
-    if (status === 301) {
-      if (!location) {
-        res.end('invariant - redirect must have location')
-        return
-      }
-      res.setHeader('Location', location)
+    if (status === 301 && location) {
+      console.log('redirecting to location', location)
+      res.setHeader('location', location)
       res.end()
+      return
     }
 
     if (status === 399) {
@@ -207,11 +205,18 @@ export function runTests(ctx: RunTestsCtx) {
 
   if (domains.length > 0) {
     it('should follow redirect from http to https', async () => {
-      const url = `http://image-optimization-one.vercel.app/frog.png`
+      const url = `http://image-optimization-test.vercel.app/frog.png`
       const query = { url, w: ctx.w, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/png')
+    })
+
+    it('should follow redirect when dangerouslyAllowPrivateIP enabled', async () => {
+      const url = `http://localhost:${slowImageServer.port}/slow.png?status=301&location=%2Fslow.png`
+      const query = { url, w: ctx.w, q: ctx.q }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(dangerouslyAllowPrivateIP ? 200 : 400)
     })
   }
 
@@ -1120,7 +1125,7 @@ export function runTests(ctx: RunTestsCtx) {
       expect(await res.text()).toBe(`"url" parameter is invalid`)
     })
 
-    if (domains.length > 0 && dangerouslyAllowPrivateIP) {
+    if (domains.length > 0) {
       it('should pass with absolute next image url', async () => {
         const fullUrl =
           'https://image-optimization-test.vercel.app/_next/image?url=%2Ffrog.jpg&w=1024&q=75'
