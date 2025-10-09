@@ -840,6 +840,83 @@ impl Issue for DuplicateParallelRouteIssue {
     }
 }
 
+#[turbo_tasks::value(shared)]
+struct MissingDefaultParallelRouteIssue {
+    app_dir: FileSystemPath,
+    app_page: AppPage,
+    slot_name: RcStr,
+}
+
+#[turbo_tasks::function]
+fn missing_default_parallel_route_issue(
+    app_dir: FileSystemPath,
+    app_page: AppPage,
+    slot_name: RcStr,
+) -> Vc<MissingDefaultParallelRouteIssue> {
+    MissingDefaultParallelRouteIssue {
+        app_dir,
+        app_page,
+        slot_name,
+    }
+    .cell()
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for MissingDefaultParallelRouteIssue {
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self
+            .app_dir
+            .join(&self.app_page.to_string())?
+            .join(&format!("@{}", self.slot_name))?
+            .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::AppStructure.cell()
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Vc<StyledString> {
+        StyledString::Text(
+            format!(
+                "Missing required default.js file for parallel route at {}/@{}",
+                self.app_page, self.slot_name
+            )
+            .into(),
+        )
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(
+                format!(
+                    "The parallel route slot \"@{}\" is missing a default.js file. When using \
+                     parallel routes, each slot must have a default.js file to serve as a \
+                     fallback.\n\nCreate a default.js file at: {}/@{}/default.js",
+                    self.slot_name, self.app_page, self.slot_name
+                )
+                .into(),
+            )
+            .resolved_cell(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn documentation_link(&self) -> Vc<RcStr> {
+        Vc::cell(rcstr!(
+            "https://nextjs.org/docs/app/building-your-application/routing/parallel-routes#defaultjs"
+        ))
+    }
+}
+
 fn page_path_except_parallel(loader_tree: &AppPageLoaderTree) -> Option<AppPage> {
     if loader_tree.page.iter().any(|v| {
         matches!(
@@ -1173,8 +1250,22 @@ async fn directory_tree_to_loader_tree_internal(
                 None
             };
 
+            // Only emit the issue if this is not the children slot and there's no default
+            // component. The children slot is implicit and doesn't require a default.js
+            // file.
+            if default.is_none() && key != "children" {
+                missing_default_parallel_route_issue(
+                    app_dir.clone(),
+                    app_page.clone(),
+                    key.clone(),
+                )
+                .to_resolved()
+                .await?
+                .emit();
+            }
+
             tree.parallel_routes.insert(
-                key,
+                key.clone(),
                 default_route_tree(app_dir.clone(), global_metadata, app_page.clone(), default)
                     .await?,
             );

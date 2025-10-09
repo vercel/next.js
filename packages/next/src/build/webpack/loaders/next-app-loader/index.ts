@@ -37,6 +37,7 @@ import type { PageExtensions } from '../../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../../client/components/builtin/default'
 import type { Compilation } from 'webpack'
 import { createAppRouteCode } from './create-app-route-code'
+import { MissingDefaultParallelRouteError } from '../../../../shared/lib/errors/missing-default-parallel-route-error'
 
 export type AppLoaderOptions = {
   name: string
@@ -539,11 +540,21 @@ async function createTreeCodeFromPath(
             ? ''
             : `/${adjacentParallelSegment}`
 
-        // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
-        const defaultPath =
-          (await resolver(
-            `${appDirPrefix}${segmentPath}${actualSegment}/default`
-          )) ?? PARALLEL_ROUTE_DEFAULT_PATH
+        // if a default is found, use that. Otherwise use the fallback, which
+        // will trigger a `notFound()`
+        let defaultPath = await resolver(
+          `${appDirPrefix}${segmentPath}${actualSegment}/default`
+        )
+        if (!defaultPath) {
+          if (adjacentParallelSegment === 'children') {
+            defaultPath = PARALLEL_ROUTE_DEFAULT_PATH
+          } else {
+            throw new MissingDefaultParallelRouteError(
+              segmentPath,
+              adjacentParallelSegment
+            )
+          }
+        }
 
         const varName = `default${nestedCollectedDeclarations.length}`
         nestedCollectedDeclarations.push([varName, defaultPath])
