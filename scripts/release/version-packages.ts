@@ -96,6 +96,13 @@ async function versionPackages() {
       })
       break
     }
+    case 'beta': {
+      // Enter pre mode as "beta" tag.
+      await execa('pnpm', ['changeset', 'pre', 'enter', 'beta'], {
+        stdio: 'inherit',
+      })
+      break
+    }
     case 'stable': {
       // No additional steps needed for 'stable' releases since we've already
       // exited any pre-release mode. Only need to run `changeset version` after.
