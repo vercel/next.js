@@ -25,6 +25,7 @@ export type NextBuildOptions = {
   experimentalTurbo?: boolean
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env'
   experimentalUploadTrace?: string
+  experimentalNextConfigStripTypes?: boolean
 }
 
 const nextBuild = (options: NextBuildOptions, directory?: string) => {
