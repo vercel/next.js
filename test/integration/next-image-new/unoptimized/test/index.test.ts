@@ -109,7 +109,13 @@ function runTests(url: string, mode: 'dev' | 'server') {
           loader: 'default',
           loaderFile: '',
           remotePatterns: [],
-          localPatterns: undefined,
+          localPatterns: [
+            {
+              pathname:
+                '^(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)\\/?)$',
+              search: '',
+            },
+          ],
           minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [75],
