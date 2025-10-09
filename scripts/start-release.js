@@ -19,7 +19,9 @@ async function main() {
     releaseType !== 'release-candidate' &&
     releaseType !== 'beta'
   ) {
-    console.log(`Invalid release type ${releaseType}, must be stable, canary, release-candidate, or beta`)
+    console.log(
+      `Invalid release type ${releaseType}, must be stable, canary, release-candidate, or beta`
+    )
     return
   }
   if (!isCanary && !SEMVER_TYPES.includes(semverType)) {
