@@ -62,8 +62,13 @@ export function unstable_expirePath(
  */
 export function refresh() {
   const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (!workStore || workStore.page.endsWith('/route')) {
+  if (
+    !workStore ||
+    workStore.page.endsWith('/route') ||
+    workUnitStore?.phase !== 'action'
+  ) {
     throw new Error(
       'refresh can only be called from within a Server Action. ' +
         'See more info here: https://nextjs.org/docs/app/api-reference/functions/refresh'
