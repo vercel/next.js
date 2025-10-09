@@ -61,10 +61,10 @@ impl ModuleReference for FileSourceReference {
             let num_matches = result.await?.primary.len();
             if num_matches > TOO_MANY_MATCHES_LIMIT {
                 TooManyMatchesWarning {
-                    source: self.issue_source.clone(),
+                    source: self.issue_source,
                     context_dir: self.context_dir.clone(),
                     results: num_matches,
-                    pattern: self.path.clone(),
+                    pattern: self.path,
                 }
                 .resolved_cell()
                 .emit();
@@ -127,7 +127,7 @@ impl Issue for TooManyMatchesWarning {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source.clone()))
+        Vc::cell(Some(self.source))
     }
 }
 
