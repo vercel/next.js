@@ -1,0 +1,34 @@
+---
+title: Renaming Middleware to Proxy
+---
+
+## Why This Error Occurred
+
+You are using the `middleware` file convention, which is deprecated and has been renamed to [`proxy`](/docs/app/api-reference/file-conventions/proxy).
+
+## Possible Ways to Fix It
+
+Next.js provides a codemod to migrate from `middleware` to `proxy`. You can run the following command to migrate:
+
+```bash
+npx @next/codemod@canary middleware-to-proxy .
+```
+
+We recommend users avoid relying on Middleware unless no other options exist. Our goal is to give them APIs with better ergonomics so they can achieve their goals without Middleware.
+
+The term “middleware” often confuses users with Express.js middleware, which can encourage misuse. To clarify our direction, we are renaming the file convention to “proxy.” This highlights that we are moving away from Middleware, breaking down its overloaded features, and making the Proxy clear in its purpose.
+
+Next.js provides a codemod to migrate from `middleware.ts` to `proxy.ts`. You can run the following command to migrate:
+
+```bash
+npx @next/codemod@canary middleware-to-proxy .
+```
+
+The codemod will rename the file and the function name from `middleware` to `proxy`.
+
+```diff
+// middleware.ts -> proxy.ts
+
+- export function middleware() {
++ export function proxy() {
+```
