@@ -1,6 +1,7 @@
 use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
+use flate2::write::GzEncoder;
 use futures_util::TryFutureExt;
 use napi::{
     Env, JsFunction, JsObject, Status,
@@ -363,21 +364,33 @@ pub fn project_new(
     }
 
     if let Some(mut trace) = trace {
-        // Trace presets
-        match trace.as_str() {
-            "overview" | "1" => {
-                trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
-            }
-            "next" => {
-                trace = TRACING_NEXT_TARGETS.join(",");
-            }
-            "turbopack" => {
-                trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
-            }
-            "turbo-tasks" => {
-                trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
-            }
-            _ => {}
+        trace = trace
+            .split(",")
+            .map(|item| {
+                // Trace presets
+                match item {
+                    "overview" | "1" => Cow::Owned(TRACING_NEXT_OVERVIEW_TARGETS.join(",")),
+                    "next" => Cow::Owned(TRACING_NEXT_TARGETS.join(",")),
+                    "turbopack" => Cow::Owned(TRACING_NEXT_TURBOPACK_TARGETS.join(",")),
+                    "turbo-tasks" => Cow::Owned(TRACING_NEXT_TURBO_TASKS_TARGETS.join(",")),
+                    _ => Cow::Borrowed(item),
+                }
+            })
+            .intersperse_with(|| Cow::Borrowed(","))
+            .collect::<String>();
+
+        enum Compression {
+            None,
+            GzipFast,
+            GzipBest,
+        }
+        let mut compress = Compression::None;
+        if trace.ends_with(",gz") {
+            trace.drain(trace.len() - 3..);
+            compress = Compression::GzipFast;
+        } else if trace.ends_with(",gz-best") {
+            trace.drain(trace.len() - 8..);
+            compress = Compression::GzipBest;
         }
 
         let subscriber = Registry::default();
@@ -396,9 +409,25 @@ pub fn project_new(
         std::fs::create_dir_all(&internal_dir)
             .context("Unable to create .next directory")
             .unwrap();
-        let trace_file = internal_dir.join("trace-turbopack");
-        let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-        let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
+        let (trace_writer, trace_writer_guard) = match compress {
+            Compression::None => {
+                let trace_file = internal_dir.join("diagnostics/trace-turbopack");
+                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+                TraceWriter::new(trace_writer)
+            }
+            Compression::GzipFast => {
+                let trace_file = internal_dir.join("diagnostics/trace-turbopack.gz");
+                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+                let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::fast());
+                TraceWriter::new(trace_writer)
+            }
+            Compression::GzipBest => {
+                let trace_file = internal_dir.join("diagnostics/trace-turbopack.gz");
+                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+                let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::best());
+                TraceWriter::new(trace_writer)
+            }
+        };
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         exit.on_exit(async move {
