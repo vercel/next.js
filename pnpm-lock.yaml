@@ -929,8 +929,8 @@ importers:
         specifier: ^7.37.0
         version: 7.37.1(eslint@9.12.0(jiti@2.5.1))
       eslint-plugin-react-hooks:
-        specifier: ^5.0.0
-        version: 5.0.0(eslint@9.12.0(jiti@2.5.1))
+        specifier: ^7.0.0
+        version: 7.0.0(eslint@9.12.0(jiti@2.5.1))
       typescript:
         specifier: '>=3.3.1'
         version: 5.6.3
@@ -9299,6 +9299,12 @@ packages:
   eslint-plugin-react-hooks@5.0.0:
     resolution: {integrity: sha512-hIOwI+5hYGpJEc4uPRmz2ulCjAGD/N13Lukkh8cLV0i2IRk/bdZDYjgLVHj+U9Z704kLIdIO6iueGvxNur0sgw==}
     engines: {node: '>=10'}
+    peerDependencies:
+      eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0
+
+  eslint-plugin-react-hooks@7.0.0:
+    resolution: {integrity: sha512-fNXaOwvKwq2+pXiRpXc825Vd63+KM4DLL40Rtlycb8m7fYpp6efrTp1sa6ZbP/Ap58K2bEKFXRmhURE+CJAQWw==}
+    engines: {node: '>=18'}
     peerDependencies:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0
 
@@ -27075,6 +27081,17 @@ snapshots:
   eslint-plugin-react-hooks@5.0.0(eslint@9.12.0(jiti@2.5.1)):
     dependencies:
       eslint: 9.12.0(jiti@2.5.1)
+
+  eslint-plugin-react-hooks@7.0.0(eslint@9.12.0(jiti@2.5.1)):
+    dependencies:
+      '@babel/core': 7.26.10
+      '@babel/parser': 7.27.0
+      eslint: 9.12.0(jiti@2.5.1)
+      hermes-parser: 0.25.1
+      zod: 3.25.76
+      zod-validation-error: 3.4.0(zod@3.25.76)
+    transitivePeerDependencies:
+      - supports-color
 
   eslint-plugin-react@7.35.0(eslint@9.12.0(jiti@2.5.1)):
     dependencies:
