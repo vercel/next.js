@@ -47,6 +47,7 @@ describe('cache-components-dev-warmup', () => {
         const logs = await browser.log()
         assertLog(logs, 'after cache read - layout', 'Prerender')
         assertLog(logs, 'after cache read - page', 'Prerender')
+        assertLog(logs, 'after successive cache reads - page', 'Prerender')
         assertLog(logs, 'after cached fetch - layout', 'Prerender')
         assertLog(logs, 'after cached fetch - page', 'Prerender')
 
@@ -83,6 +84,7 @@ describe('cache-components-dev-warmup', () => {
         // so they shouldn't resolve in the static stage.
         assertLog(logs, 'after private cache read - page', 'Server') // TODO: 'Runtime Prerender'
         assertLog(logs, 'after private cache read - layout', 'Server') // TODO: 'Runtime Prerender'
+        assertLog(logs, 'after successive private cache reads - page', 'Server') // TODO: 'Runtime Prerender'
 
         assertLog(logs, 'after uncached fetch - layout', 'Server')
         assertLog(logs, 'after uncached fetch - page', 'Server')

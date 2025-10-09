@@ -32,6 +32,39 @@ export async function CachedData({
   )
 }
 
+export async function SuccessiveCachedData({
+  label,
+  cacheKey,
+}: {
+  label: string
+  cacheKey: string
+}) {
+  // This components tests if we correctly handle the case where resolving a cache
+  // reveals another cache in the children. When we're filling caches, we should fill both.
+  const data1 = await getCachedData(`${cacheKey}-successive-1`)
+  return (
+    <dl>
+      <dt>Cached Data (successive reads)</dt>
+      <dd>{data1}</dd>
+      <dd>
+        <SuccessiveCachedDataChild label={label} cacheKey={cacheKey} />
+      </dd>
+    </dl>
+  )
+}
+
+async function SuccessiveCachedDataChild({
+  label,
+  cacheKey,
+}: {
+  label: string
+  cacheKey: string
+}) {
+  const data2 = await getCachedData(`${cacheKey}-successive-2`)
+  console.log(`after successive cache reads - ${label}`)
+  return <>{data2}</>
+}
+
 export async function CachedFetch({
   label,
   cacheKey,

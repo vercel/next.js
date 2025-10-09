@@ -1,5 +1,10 @@
 import { Suspense } from 'react'
-import { CachedData, CachedFetch, UncachedFetch } from '../data-fetching'
+import {
+  CachedData,
+  CachedFetch,
+  SuccessiveCachedData,
+  UncachedFetch,
+} from '../data-fetching'
 
 const CACHE_KEY = __dirname + '/__PAGE__'
 
@@ -16,6 +21,7 @@ export default async function Page() {
       </p>
 
       <CachedData label="page" cacheKey={CACHE_KEY} />
+      <SuccessiveCachedData label="page" cacheKey={CACHE_KEY} />
 
       <CachedFetch label="page" cacheKey={CACHE_KEY} />
 
