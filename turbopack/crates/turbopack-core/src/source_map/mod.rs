@@ -274,16 +274,20 @@ impl SourceMap {
         EMPTY_SOURCE_MAP_ROPE.clone()
     }
 
-    pub fn sections_to_rope(sections: impl IntoIterator<Item = (SourcePos, Rope)>) -> Result<Rope> {
+    pub fn sections_to_rope(
+        sections: impl IntoIterator<Item = (SourcePos, Rope)>,
+        debug_id: Option<RcStr>,
+    ) -> Rope {
         let mut sections = sections.into_iter().peekable();
 
         let mut first = sections.next();
         if let Some((offset, map)) = &mut first
             && sections.peek().is_none()
             && *offset == (0, 0)
+            && debug_id.is_none()
         {
             // There is just a single sourcemap that starts at the beginning of the file.
-            return Ok(std::mem::take(map));
+            return std::mem::take(map);
         }
 
         // My kingdom for a decent dedent macro with interpolation!
@@ -293,8 +297,12 @@ impl SourceMap {
             r#"{
   "version": 3,
   "sources": [],
-  "sections": ["#,
+"#,
         );
+        if let Some(debug_id) = debug_id {
+            writeln!(rope, r#"  "debugId": "{debug_id}","#).unwrap();
+        }
+        rope += "  \"sections\": [";
 
         let mut first_section = true;
         for (offset, section_map) in first.into_iter().chain(sections) {
@@ -308,7 +316,8 @@ impl SourceMap {
                 r#"
     {{"offset": {{"line": {}, "column": {}}}, "map": "#,
                 offset.line, offset.column,
-            )?;
+            )
+            .unwrap();
 
             rope += &section_map;
 
@@ -319,7 +328,7 @@ impl SourceMap {
 
         rope += "\n}";
 
-        Ok(rope.build())
+        rope.build()
     }
 
     /// Stringifies the source map into JSON bytes.

@@ -47,7 +47,7 @@ import type {
   RouteHas,
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
-import { recursiveDelete } from '../lib/recursive-delete'
+import { recursiveDeleteSyncWithAsyncRetries } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import {
   BUILD_ID_FILE,
@@ -83,6 +83,7 @@ import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../shared/lib/entry-constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
+import { Bundler, finalizeBundlerFromConfig } from '../lib/bundler'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
@@ -149,6 +150,7 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getDefaultMiddlewareMatcher } from '../shared/lib/router/utils/get-default-middleware-matcher'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -205,10 +207,10 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 
 import { turbopackBuild } from './turbopack-build'
-import { isPersistentCachingEnabledForBuild } from '../shared/lib/turbopack/utils'
+import { isFileSystemCacheEnabledForBuild } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
-import { durationToString } from './duration-to-string'
+import { durationToString, hrtimeDurationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
 import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
@@ -225,6 +227,7 @@ import {
   writeRouteTypesManifest,
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
+import { Lockfile } from './lockfile'
 
 type Fallback = null | boolean | string
 
@@ -898,10 +901,9 @@ export default async function build(
   reactProductionProfiling = false,
   debugOutput = false,
   debugPrerender = false,
-  runLint = true,
   noMangling = false,
   appDirOnly = false,
-  isTurbopack = false,
+  bundler = Bundler.Turbopack,
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined
 ): Promise<void> {
@@ -914,7 +916,6 @@ export default async function build(
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: experimentalBuildMode,
-      isTurboBuild: String(isTurbopack),
       version: process.env.__NEXT_VERSION as string,
     })
 
@@ -949,6 +950,10 @@ export default async function build(
         )
       loadedConfig = config
 
+      // Reading the config can modify environment variables that influence the bundler selection.
+      bundler = finalizeBundlerFromConfig(bundler)
+      nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
+
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 
@@ -971,7 +976,7 @@ export default async function build(
       NextBuildContext.buildId = buildId
 
       if (experimentalBuildMode === 'generate-env') {
-        if (isTurbopack) {
+        if (bundler === Bundler.Turbopack) {
           Log.warn('generate-env is not needed with turbopack')
           process.exit(0)
         }
@@ -1011,6 +1016,43 @@ export default async function build(
       NextBuildContext.hasRewrites = hasRewrites
       NextBuildContext.originalRewrites = config._originalRewrites
       NextBuildContext.originalRedirects = config._originalRedirects
+
+      const distDirCreated = await nextBuildSpan
+        .traceChild('create-dist-dir')
+        .traceAsyncFn(async () => {
+          try {
+            await fs.mkdir(distDir, { recursive: true })
+            return true
+          } catch (err) {
+            if (isError(err) && err.code === 'EPERM') {
+              return false
+            }
+            throw err
+          }
+        })
+
+      if (!distDirCreated || !(await isWriteable(distDir))) {
+        throw new Error(
+          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
+        )
+      }
+
+      if (config.experimental.lockDistDir) {
+        // This leaks the lock file descriptor. That's okay, it'll be cleaned up by the OS upon
+        // process exit.
+        await Lockfile.acquireWithRetriesOrExit(
+          path.join(distDir, 'lock'),
+          'next build'
+        )
+      }
+
+      if (config.cleanDistDir && !isGenerateMode) {
+        await nextBuildSpan
+          .traceChild('clean')
+          .traceAsyncFn(() =>
+            recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev|lock)/)
+          )
+      }
 
       const cacheDir = getCacheDir(distDir)
 
@@ -1082,44 +1124,14 @@ export default async function build(
         logBundler: true,
       })
 
-      const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
-      const shouldLint = !ignoreESLint && runLint
-
       const typeCheckingOptions: Parameters<typeof startTypeChecking>[0] = {
         dir,
         appDir,
         pagesDir,
-        runLint,
-        shouldLint,
-        ignoreESLint,
         telemetry,
         nextBuildSpan,
         config,
         cacheDir,
-      }
-
-      const distDirCreated = await nextBuildSpan
-        .traceChild('create-dist-dir')
-        .traceAsyncFn(async () => {
-          try {
-            await fs.mkdir(distDir, { recursive: true })
-            return true
-          } catch (err) {
-            if (isError(err) && err.code === 'EPERM') {
-              return false
-            }
-            throw err
-          }
-        })
-
-      if (!distDirCreated || !(await isWriteable(distDir))) {
-        throw new Error(
-          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
-        )
-      }
-
-      if (config.cleanDistDir && !isGenerateMode) {
-        await recursiveDelete(distDir, /^(cache|dev)/)
       }
 
       if (appDir && 'exportPathMap' in config) {
@@ -1129,15 +1141,6 @@ export default async function build(
         await telemetry.flush()
         process.exit(1)
       }
-
-      const buildLintEvent: EventBuildFeatureUsage = {
-        featureName: 'build-lint',
-        invocationCount: shouldLint ? 1 : 0,
-      }
-      telemetry.record({
-        eventName: EVENT_BUILD_FEATURE_USAGE,
-        payload: buildLintEvent,
-      })
 
       const validFileMatcher = createValidFileMatcher(
         config.pageExtensions,
@@ -1398,7 +1401,7 @@ export default async function build(
         })
 
       // Turbopack already handles conflicting app and page routes.
-      if (!isTurbopack) {
+      if (bundler !== Bundler.Turbopack) {
         const numConflictingAppPaths = conflictingAppPagePaths.length
         if (mappedAppPages && numConflictingAppPaths > 0) {
           Log.error(
@@ -1681,7 +1684,7 @@ export default async function build(
 
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
-        if (isTurbopack) {
+        if (bundler === Bundler.Turbopack) {
           const {
             duration: compilerDuration,
             shutdownPromise: p,
@@ -1747,7 +1750,6 @@ export default async function build(
                           new Map()
                         ),
                         staticPages: [],
-                        hasSsrAmpPages: false,
                         buildTraceContext,
                         outputFileTracingRoot,
                       })
@@ -1796,7 +1798,7 @@ export default async function build(
 
             telemetry.record(
               eventBuildCompleted(pagesPaths, {
-                bundler: getBundlerForTelemetry(isTurbopack),
+                bundler: getBundlerForTelemetry(bundler),
                 durationInSeconds,
                 totalAppPagesCount,
               })
@@ -1812,7 +1814,7 @@ export default async function build(
 
             telemetry.record(
               eventBuildCompleted(pagesPaths, {
-                bundler: getBundlerForTelemetry(isTurbopack),
+                bundler: getBundlerForTelemetry(bundler),
                 durationInSeconds: compilerDuration,
                 totalAppPagesCount,
               })
@@ -1839,6 +1841,7 @@ export default async function build(
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
+      const collectingPageDataStart = process.hrtime()
       const postCompileSpinner = createSpinner('Collecting page data')
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
@@ -1852,7 +1855,6 @@ export default async function build(
       const ssgBlockingFallbackPages = new Set<string>()
       const staticPages = new Set<string>()
       const invalidPages = new Set<string>()
-      const hybridAmpPages = new Set<string>()
       const serverPropsPages = new Set<string>()
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
@@ -1896,7 +1898,6 @@ export default async function build(
         customAppGetInitialProps,
         namedExports,
         isNextImageImported,
-        hasSsrAmpPages,
         hasNonStaticErrorPage,
       } = await staticCheckSpan.traceAsyncFn(async () => {
         if (isCompileMode) {
@@ -1904,14 +1905,11 @@ export default async function build(
             customAppGetInitialProps: false,
             namedExports: [],
             isNextImageImported: true,
-            hasSsrAmpPages: !!pagesDir,
             hasNonStaticErrorPage: hasUserPagesRoutes,
           }
         }
 
-        const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
-          config
-        const runtimeEnvConfig = { publicRuntimeConfig, serverRuntimeConfig }
+        const { configFileName } = config
         const sriEnabled = Boolean(config.experimental.sri?.algorithm)
 
         const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
@@ -1924,7 +1922,6 @@ export default async function build(
               (await worker.hasCustomGetInitialProps({
                 page: '/_error',
                 distDir,
-                runtimeEnvConfig,
                 checkingApp: false,
                 sriEnabled,
               }))
@@ -1938,7 +1935,6 @@ export default async function build(
               page: '/_error',
               distDir,
               configFileName,
-              runtimeEnvConfig,
               cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
@@ -1958,7 +1954,6 @@ export default async function build(
           ? worker.hasCustomGetInitialProps({
               page: appPageToCheck,
               distDir,
-              runtimeEnvConfig,
               checkingApp: true,
               sriEnabled,
             })
@@ -1968,15 +1963,12 @@ export default async function build(
           ? worker.getDefinedNamedExports({
               page: appPageToCheck,
               distDir,
-              runtimeEnvConfig,
               sriEnabled,
             })
           : Promise.resolve([])
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
         let isNextImageImported: boolean | undefined
-        // eslint-disable-next-line @typescript-eslint/no-shadow
-        let hasSsrAmpPages = false
 
         const middlewareManifest: MiddlewareManifest = require(
           path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
@@ -2040,7 +2032,6 @@ export default async function build(
                 let isSSG = false
                 let isStatic = false
                 let isServerComponent = false
-                let isHybridAmp = false
                 let ssgPageRoutes: string[] | null = null
                 let pagePath = ''
 
@@ -2155,7 +2146,6 @@ export default async function build(
                             originalAppPath,
                             distDir,
                             configFileName,
-                            runtimeEnvConfig,
                             httpAgentOptions: config.httpAgentOptions,
                             locales: config.i18n?.locales,
                             defaultLocale: config.i18n?.defaultLocale,
@@ -2285,18 +2275,6 @@ export default async function build(
                           workerResult.hasStaticProps = false
                         }
 
-                        if (
-                          workerResult.isStatic === false &&
-                          (workerResult.isHybridAmp || workerResult.isAmpOnly)
-                        ) {
-                          hasSsrAmpPages = true
-                        }
-
-                        if (workerResult.isHybridAmp) {
-                          isHybridAmp = true
-                          hybridAmpPages.add(page)
-                        }
-
                         if (workerResult.isNextImageImported) {
                           isNextImageImported = true
                         }
@@ -2398,7 +2376,6 @@ export default async function build(
                   isStatic,
                   isSSG,
                   isRoutePPREnabled,
-                  isHybridAmp,
                   ssgPageRoutes,
                   initialCacheControl: undefined,
                   runtime: pageRuntime,
@@ -2419,14 +2396,19 @@ export default async function build(
           customAppGetInitialProps: await customAppGetInitialPropsPromise,
           namedExports: await namedExportsPromise,
           isNextImageImported,
-          hasSsrAmpPages,
           hasNonStaticErrorPage: nonStaticErrorPage,
         }
 
         return returnValue
       })
 
-      if (postCompileSpinner) postCompileSpinner.stopAndPersist()
+      if (postCompileSpinner) {
+        const collectingPageDataEnd = process.hrtime(collectingPageDataStart)
+        postCompileSpinner.setText(
+          `Collecting page data in ${hrtimeDurationToString(collectingPageDataEnd)}`
+        )
+        postCompileSpinner.stopAndPersist()
+      }
       traceMemoryUsage('Finished collecting page data', nextBuildSpan)
 
       if (customAppGetInitialProps) {
@@ -2450,7 +2432,10 @@ export default async function build(
         )
         // If there's edge routes, append the edge instrumentation hook
         // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
-        if (!isTurbopack && (edgeRuntimeAppCount || edgeRuntimePagesCount)) {
+        if (
+          bundler !== Bundler.Turbopack &&
+          (edgeRuntimeAppCount || edgeRuntimePagesCount)
+        ) {
           instrumentationHookEntryFiles.push(
             path.join(
               SERVER_DIRECTORY,
@@ -2503,7 +2488,7 @@ export default async function build(
               path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              ...(!isTurbopack
+              ...(bundler !== Bundler.Turbopack
                 ? [
                     path.join(
                       SERVER_DIRECTORY,
@@ -2538,7 +2523,7 @@ export default async function build(
                     ),
                   ]
                 : []),
-              ...(pagesDir && !isTurbopack
+              ...(pagesDir && bundler !== Bundler.Turbopack
                 ? [
                     DYNAMIC_CSS_MANIFEST + '.json',
                     path.join(SERVER_DIRECTORY, DYNAMIC_CSS_MANIFEST + '.js'),
@@ -2557,22 +2542,6 @@ export default async function build(
 
           return serverFilesManifest
         })
-
-      if (!hasSsrAmpPages) {
-        requiredServerFilesManifest.ignore.push(
-          path.relative(
-            dir,
-            path.join(
-              path.dirname(
-                require.resolve(
-                  'next/dist/compiled/@ampproject/toolbox-optimizer'
-                )
-              ),
-              '**/*'
-            )
-          )
-        )
-      }
 
       const middlewareFile = rootPaths.find((p) =>
         p.includes(MIDDLEWARE_FILENAME)
@@ -2599,14 +2568,11 @@ export default async function build(
           functionsConfigManifest.functions['/_middleware'] = {
             runtime: staticInfo.runtime,
             matchers: staticInfo.middleware?.matchers ?? [
-              {
-                regexp: '^.*$',
-                originalSource: '/:path*',
-              },
+              getDefaultMiddlewareMatcher(config),
             ],
           }
 
-          if (isTurbopack) {
+          if (bundler === Bundler.Turbopack) {
             await writeManifest(
               path.join(
                 distDir,
@@ -2622,7 +2588,11 @@ export default async function build(
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
-      if (!isTurbopack && !isGenerateMode && !buildTracesPromise) {
+      if (
+        bundler !== Bundler.Turbopack &&
+        !isGenerateMode &&
+        !buildTracesPromise
+      ) {
         buildTracesPromise = nextBuildSpan
           .traceChild('collect-build-traces')
           .traceAsyncFn(() => {
@@ -2633,7 +2603,6 @@ export default async function build(
               edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
               staticPages: [...staticPages],
               nextBuildSpan,
-              hasSsrAmpPages,
               buildTraceContext,
               outputFileTracingRoot,
             }).catch((err) => {
@@ -2744,8 +2713,12 @@ export default async function build(
           invocationCount: config.experimental.ppr ? 1 : 0,
         },
         {
-          featureName: 'turbopackPersistentCaching',
-          invocationCount: isPersistentCachingEnabledForBuild(config) ? 1 : 0,
+          featureName: 'experimental/isolatedDevBuild',
+          invocationCount: config.experimental.isolatedDevBuild ? 1 : 0,
+        },
+        {
+          featureName: 'turbopackFileSystemCache',
+          invocationCount: isFileSystemCacheEnabledForBuild(config) ? 1 : 0,
         },
       ]
       telemetry.record(
@@ -2764,7 +2737,7 @@ export default async function build(
 
       // we don't need to inline for turbopack build as
       // it will handle it's own caching separate of compile
-      if (isGenerateMode && !isTurbopack) {
+      if (isGenerateMode && bundler !== Bundler.Turbopack) {
         Log.info('Inlining static env ...')
 
         await nextBuildSpan
@@ -3760,7 +3733,6 @@ export default async function build(
             const isSsg = ssgPages.has(page)
             const isStaticSsgFallback = ssgStaticFallbackPages.has(page)
             const isDynamic = isDynamicRoute(page)
-            const hasAmp = hybridAmpPages.has(page)
             const file = normalizePagePath(page)
 
             const pageInfo = pageInfos.get(page)
@@ -3791,15 +3763,6 @@ export default async function build(
               await moveExportedPage(page, page, file, isSsg, 'html')
             }
 
-            if (hasAmp && (!isSsg || (isSsg && !isDynamic))) {
-              const ampPage = `${file}.amp`
-              await moveExportedPage(page, ampPage, ampPage, isSsg, 'html')
-
-              if (isSsg) {
-                await moveExportedPage(page, ampPage, ampPage, isSsg, 'json')
-              }
-            }
-
             if (isSsg) {
               // For a non-dynamic SSG page, we must copy its data file
               // from export, we already moved the HTML file above
@@ -3822,7 +3785,7 @@ export default async function build(
                       dataRoute: path.posix.join(
                         '/_next/data',
                         buildId,
-                        `${file}.json`
+                        `${localePage}.json`
                       ),
                       prefetchDataRoute: undefined,
                       allowHeader: ALLOWED_HEADERS,
@@ -3874,26 +3837,6 @@ export default async function build(
                     true
                   )
 
-                  if (hasAmp) {
-                    const ampPage = `${pageFile}.amp`
-                    await moveExportedPage(
-                      page,
-                      ampPage,
-                      ampPage,
-                      isSsg,
-                      'html',
-                      true
-                    )
-                    await moveExportedPage(
-                      page,
-                      ampPage,
-                      ampPage,
-                      isSsg,
-                      'json',
-                      true
-                    )
-                  }
-
                   const cacheControl = getCacheControl(route.pathname)
 
                   prerenderManifest.routes[route.pathname] = {
@@ -3943,9 +3886,12 @@ export default async function build(
           .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
       }
 
+      const finalizingPageOptimizationStart = process.hrtime()
       const postBuildSpinner = createSpinner('Finalizing page optimization')
       let buildTracesSpinner
+      let buildTracesStart
       if (buildTracesPromise) {
+        buildTracesStart = process.hrtime()
         buildTracesSpinner = createSpinner('Collecting build traces')
       }
 
@@ -4097,6 +4043,12 @@ export default async function build(
       await buildTracesPromise
 
       if (buildTracesSpinner) {
+        if (buildTracesStart) {
+          const buildTracesEnd = process.hrtime(buildTracesStart)
+          buildTracesSpinner.setText(
+            `Collecting build traces in ${hrtimeDurationToString(buildTracesEnd)}`
+          )
+        }
         buildTracesSpinner.stopAndPersist()
         buildTracesSpinner = undefined
       }
@@ -4122,6 +4074,9 @@ export default async function build(
           })
       }
 
+      // This should come after output: export handling but before
+      // output: standalone, in the future output: standalone might
+      // not be allowed if an adapter with onBuildComplete is configured
       const adapterPath = config.experimental.adapterPath
       if (adapterPath) {
         await nextBuildSpan
@@ -4131,6 +4086,7 @@ export default async function build(
               dir,
               distDir,
               config,
+              configOutDir: path.join(dir, configOutDir),
               staticPages,
               nextVersion: process.env.__NEXT_VERSION as string,
               tracingRoot: outputFileTracingRoot,
@@ -4170,7 +4126,15 @@ export default async function build(
           })
       }
 
-      if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+      if (postBuildSpinner) {
+        const finalizingPageOptimizationEnd = process.hrtime(
+          finalizingPageOptimizationStart
+        )
+        postBuildSpinner.setText(
+          `Finalizing page optimization in ${hrtimeDurationToString(finalizingPageOptimizationEnd)}`
+        )
+        postBuildSpinner.stopAndPersist()
+      }
       console.log()
 
       if (debugOutput) {
@@ -4200,7 +4164,7 @@ export default async function build(
     if (telemetry) {
       telemetry.record(
         eventBuildFailed({
-          bundler: getBundlerForTelemetry(isTurbopack),
+          bundler: getBundlerForTelemetry(bundler),
           errorCode: getErrorCodeForTelemetry(e),
           durationInSeconds: Math.floor((Date.now() - buildStartTime) / 1000),
         })
@@ -4221,7 +4185,7 @@ export default async function build(
         mode: 'build',
         projectDir: dir,
         distDir: loadedConfig.distDir,
-        isTurboSession: isTurbopack,
+        isTurboSession: bundler === Bundler.Turbopack,
         sync: true,
       })
     }
@@ -4235,16 +4199,17 @@ function errorFromUnsupportedSegmentConfig(): never {
   process.exit(1)
 }
 
-function getBundlerForTelemetry(isTurbopack: boolean) {
-  if (isTurbopack) {
-    return 'turbopack'
+function getBundlerForTelemetry(bundler: Bundler) {
+  switch (bundler) {
+    case Bundler.Turbopack:
+      return 'turbopack'
+    case Bundler.Rspack:
+      return 'rspack'
+    case Bundler.Webpack:
+      return 'webpack'
+    default:
+      throw new Error(`unknown bundler: ${bundler}`)
   }
-
-  if (process.env.NEXT_RSPACK) {
-    return 'rspack'
-  }
-
-  return 'webpack'
 }
 
 function getErrorCodeForTelemetry(err: unknown) {

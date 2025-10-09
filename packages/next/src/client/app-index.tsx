@@ -260,7 +260,7 @@ export function hydrate(
     const { createWebSocket } =
       require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
 
-    staticIndicatorState = { pathname: null, appIsrManifest: {} }
+    staticIndicatorState = { pathname: null, appIsrManifest: null }
     webSocket = createWebSocket(assetPrefix, staticIndicatorState)
   }
 

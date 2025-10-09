@@ -120,6 +120,16 @@ pub enum ModuleType {
         #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
+    EcmascriptExtensionless {
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
+        #[turbo_tasks(trace_ignore)]
+        options: ResolvedVc<EcmascriptOptions>,
+    },
     Json,
     Raw,
     NodeAddon,

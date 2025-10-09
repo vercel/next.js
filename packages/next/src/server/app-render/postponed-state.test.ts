@@ -45,7 +45,7 @@ describe('getDynamicHTMLPostponedState', () => {
     )
 
     const state = await getDynamicHTMLPostponedState(
-      { [key]: key, nested: { [key]: key } },
+      { [key]: key, nested: { [key]: key } } as any,
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
       prerenderResumeDataCache,
@@ -86,7 +86,7 @@ describe('getDynamicHTMLPostponedState', () => {
 
   it('serializes a HTML postponed state without fallback params', async () => {
     const state = await getDynamicHTMLPostponedState(
-      { key: 'value' },
+      { key: 'value' } as any,
       DynamicHTMLPreludeState.Full,
       null,
       createPrerenderResumeDataCache(),
@@ -101,7 +101,7 @@ describe('getDynamicHTMLPostponedState', () => {
       slug: [key, 'd'],
     })
     const state = await getDynamicHTMLPostponedState(
-      { [key]: key },
+      { [key]: key } as any,
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
       createPrerenderResumeDataCache(),

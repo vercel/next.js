@@ -79,13 +79,13 @@ export async function getImplicitTags(
   },
   fallbackRouteParams: null | OpaqueFallbackRouteParams
 ): Promise<ImplicitTags> {
-  const tags: string[] = []
+  const tags = new Set<string>()
 
   // Add the derived tags from the page.
   const derivedTags = getDerivedTags(page)
   for (let tag of derivedTags) {
     tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
-    tags.push(tag)
+    tags.add(tag)
   }
 
   // Add the tags from the pathname. If the route has unknown params, we don't
@@ -95,11 +95,20 @@ export async function getImplicitTags(
     (!fallbackRouteParams || fallbackRouteParams.size === 0)
   ) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${url.pathname}`
-    tags.push(tag)
+    tags.add(tag)
   }
 
+  if (tags.has(`${NEXT_CACHE_IMPLICIT_TAG_ID}/`)) {
+    tags.add(`${NEXT_CACHE_IMPLICIT_TAG_ID}/index`)
+  }
+
+  if (tags.has(`${NEXT_CACHE_IMPLICIT_TAG_ID}/index`)) {
+    tags.add(`${NEXT_CACHE_IMPLICIT_TAG_ID}/`)
+  }
+
+  const tagsArray = Array.from(tags)
   return {
-    tags,
-    expirationsByCacheKind: createTagsExpirationsByCacheKind(tags),
+    tags: tagsArray,
+    expirationsByCacheKind: createTagsExpirationsByCacheKind(tagsArray),
   }
 }

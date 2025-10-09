@@ -1,0 +1,31 @@
+---
+title: Invalid Prefetch Configuration
+---
+
+## Why This Message Occurred
+
+You provided an invalid configuration for `export const unstable_prefetch` in a Layout or Page file.
+
+### Example of Correct Usage
+
+#### Static Prefetching
+
+```tsx filename="app/.../layout.tsx"
+export const unstable_prefetch = {
+  mode: 'static',
+}
+```
+
+#### Runtime Prefetching
+
+```tsx filename="app/[slug]/page.tsx"
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [
+    {
+      cookies: [{ name: 'experiment', value: 'A' }],
+      params: { slug: 'example' },
+    },
+  ],
+}
+```

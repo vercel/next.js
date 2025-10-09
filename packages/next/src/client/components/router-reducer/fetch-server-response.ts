@@ -21,6 +21,7 @@ import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
+  NEXT_REQUEST_ID_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
@@ -41,7 +42,10 @@ let createDebugChannel:
   | typeof import('../../dev/debug-channel').createDebugChannel
   | undefined
 
-if (process.env.NODE_ENV !== 'production') {
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEBUG_CHANNEL
+) {
   createDebugChannel = (
     require('../../dev/debug-channel') as typeof import('../../dev/debug-channel')
   ).createDebugChannel
@@ -74,6 +78,7 @@ export type RequestHeaders = {
   // A header that is only added in test mode to assert on fetch priority
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
   [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
+  [NEXT_REQUEST_ID_HEADER]?: string // dev-only
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
@@ -227,7 +232,7 @@ export async function fetchServerResponse(
       : res.body
     const response = await (createFromNextReadableStream(
       flightStream,
-      res.headers
+      headers
     ) as Promise<NavigationFlightResponse>)
 
     if (getAppBuildId() !== response.b) {
@@ -296,8 +301,17 @@ export async function createFetch(
     headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
   }
 
-  if (process.env.NODE_ENV !== 'production' && self.__next_r) {
-    headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
+  if (process.env.NODE_ENV !== 'production') {
+    if (self.__next_r) {
+      headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
+    }
+
+    // Create a new request ID for the server action request. The server uses
+    // this to tag debug information sent via WebSocket to the client, which
+    // then routes those chunks to the debug channel associated with this ID.
+    headers[NEXT_REQUEST_ID_HEADER] = crypto
+      .getRandomValues(new Uint32Array(1))[0]
+      .toString(16)
   }
 
   const fetchOptions: RequestInit = {
@@ -401,12 +415,12 @@ export async function createFetch(
 
 export function createFromNextReadableStream(
   flightStream: ReadableStream<Uint8Array>,
-  responseHeaders: Headers
+  requestHeaders: RequestHeaders
 ): Promise<unknown> {
   return createFromReadableStream(flightStream, {
     callServer,
     findSourceMapURL,
-    debugChannel: createDebugChannel && createDebugChannel(responseHeaders),
+    debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
   })
 }
 

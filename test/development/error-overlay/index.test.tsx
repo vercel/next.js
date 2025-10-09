@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { assertHasRedbox, retry } from 'next-test-utils'
 
 describe('DevErrorOverlay', () => {
   const { next } = nextTestSetup({
@@ -33,15 +33,17 @@ describe('DevErrorOverlay', () => {
     await browser.elementByCss('button').click() // clicked "break on client"
     await browser.getByRole('button', { name: 'Mark as helpful' }).click()
 
-    expect(
-      await browser
-        .getByRole('region', { name: 'Error feedback' })
-        .getByRole('status')
-        .textContent()
-    ).toEqual('Thanks for your feedback!')
-    expect(feedbackRequests).toEqual([
-      '/__nextjs_error_feedback?errorCode=E794&wasHelpful=true',
-    ])
+    await retry(async () => {
+      expect(
+        await browser
+          .getByRole('region', { name: 'Error feedback' })
+          .getByRole('status')
+          .textContent()
+      ).toEqual('Thanks for your feedback!')
+      expect(feedbackRequests).toEqual([
+        '/__nextjs_error_feedback?errorCode=E794&wasHelpful=true',
+      ])
+    })
   })
 
   it('sends feedback when clicking not helpful button', async () => {
@@ -60,15 +62,17 @@ describe('DevErrorOverlay', () => {
     await browser.elementByCss('button').click() // clicked "break on client"
     await browser.getByRole('button', { name: 'Mark as not helpful' }).click()
 
-    expect(
-      await browser
-        .getByRole('region', { name: 'Error feedback' })
-        .getByRole('status')
-        .textContent()
-    ).toEqual('Thanks for your feedback!')
-    expect(feedbackRequests).toEqual([
-      '/__nextjs_error_feedback?errorCode=E794&wasHelpful=false',
-    ])
+    await retry(async () => {
+      expect(
+        await browser
+          .getByRole('region', { name: 'Error feedback' })
+          .getByRole('status')
+          .textContent()
+      ).toEqual('Thanks for your feedback!')
+      expect(feedbackRequests).toEqual([
+        '/__nextjs_error_feedback?errorCode=E794&wasHelpful=false',
+      ])
+    })
   })
 
   it('loads fonts successfully', async () => {

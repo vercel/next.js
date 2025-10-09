@@ -43,8 +43,10 @@ turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
+twox-hash = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
+uuid = { workspace = true}
 
 
 [dev-dependencies]

@@ -7,7 +7,6 @@ describe('Cache Components Errors', () => {
     skipDeployment: true,
     skipStart: !isNextDev,
     env: {
-      NEXT_USE_UNHANDLED_REJECTION_FILTER: 'enabled',
       NODE_OPTIONS: '--require ./patch-console.js',
     },
   })

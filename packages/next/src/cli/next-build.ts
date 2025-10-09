@@ -10,15 +10,16 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
+import { parseBundlerArgs } from '../lib/bundler'
 
 export type NextBuildOptions = {
   debug?: boolean
   debugPrerender?: boolean
   profile?: boolean
-  lint: boolean
   mangling: boolean
   turbo?: boolean
   turbopack?: boolean
+  webpack?: boolean
   experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
@@ -35,7 +36,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     debugPrerender,
     experimentalDebugMemoryUsage,
     profile,
-    lint,
     mangling,
     experimentalAppOnly,
     experimentalBuildMode,
@@ -45,10 +45,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
   let traceUploadUrl: string | undefined
   if (experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
     traceUploadUrl = experimentalUploadTrace
-  }
-
-  if (!lint) {
-    warn('Linting is disabled.')
   }
 
   if (!mangling) {
@@ -82,22 +78,16 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  const isTurbopack = Boolean(
-    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
-  )
-  if (isTurbopack) {
-    process.env.TURBOPACK = '1'
-  }
+  const bundler = parseBundlerArgs(options)
 
   return build(
     dir,
     profile,
     debug || Boolean(process.env.NEXT_DEBUG_BUILD),
     debugPrerender,
-    lint,
     !mangling,
     experimentalAppOnly,
-    isTurbopack,
+    bundler,
     experimentalBuildMode,
     traceUploadUrl
   )

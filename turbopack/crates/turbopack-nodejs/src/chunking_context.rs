@@ -112,6 +112,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn debug_ids(mut self, debug_ids: bool) -> Self {
+        self.chunking_context.debug_ids = debug_ids;
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -160,6 +165,8 @@ pub struct NodeJsChunkingContext {
     should_use_file_source_map_uris: bool,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
+    /// Enable debug IDs for chunks and source maps.
+    debug_ids: bool,
 }
 
 impl NodeJsChunkingContext {
@@ -195,6 +202,7 @@ impl NodeJsChunkingContext {
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 export_usage: None,
                 chunking_configs: Default::default(),
+                debug_ids: false,
             },
         }
     }
@@ -548,5 +556,10 @@ impl ChunkingContext for NodeJsChunkingContext {
             // used.
             Ok(ModuleExportUsage::all())
         }
+    }
+
+    #[turbo_tasks::function]
+    fn debug_ids_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.debug_ids)
     }
 }

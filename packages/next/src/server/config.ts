@@ -57,6 +57,26 @@ function normalizeNextConfigZodErrors(
         // We exit the build when encountering an error in the images config
         shouldExit = true
       }
+      if (
+        issue.code === 'unrecognized_keys' &&
+        issue.path[0] === 'experimental'
+      ) {
+        if (message.includes('turbopackPersistentCachingForBuild')) {
+          // We exit the build when encountering an error in the turbopackPersistentCaching config
+          shouldExit = true
+          message +=
+            "\nUse 'experimental.turbopackFileSystemCacheForBuild' instead."
+          message +=
+            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+        } else if (message.includes('turbopackPersistentCaching')) {
+          // We exit the build when encountering an error in the turbopackPersistentCaching config
+          shouldExit = true
+          message +=
+            "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
+          message +=
+            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+        }
+      }
 
       return message
     }),
@@ -97,20 +117,6 @@ function checkDeprecations(
   silent: boolean,
   dir: string
 ) {
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'amp',
-    `Built-in amp support is deprecated and the \`amp\` configuration option will be removed in Next.js 16.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'experimental.amp',
-    `Built-in amp support is deprecated and the \`experimental.amp\` configuration option will be removed in Next.js 16.`,
-    silent
-  )
-
   if (userConfig.experimental?.dynamicIO !== undefined) {
     warnOptionHasBeenDeprecated(
       userConfig,
@@ -133,6 +139,15 @@ function checkDeprecations(
     `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
     silent
   )
+
+  if (userConfig.images?.domains?.length) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'images.domains',
+      `\`images.domains\` is deprecated in favor of \`images.remotePatterns\`. Please update ${configFileName} to protect your application from malicious users.`,
+      silent
+    )
+  }
 
   // i18n deprecation for App Router
   if (userConfig.i18n) {
@@ -354,13 +369,9 @@ function assignDefaultsAndValidate(
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.cacheComponents) {
       throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
-    } else if (result.experimental?.turbopackPersistentCachingForDev) {
+    } else if (result.experimental?.turbopackFileSystemCacheForBuild) {
       throw new CanaryOnlyError({
-        feature: 'experimental.turbopackPersistentCachingForDev',
-      })
-    } else if (result.experimental?.turbopackPersistentCachingForBuild) {
-      throw new CanaryOnlyError({
-        feature: 'experimental.turbopackPersistentCachingForBuild',
+        feature: 'experimental.turbopackFileSystemCacheForBuild',
       })
     }
   }
@@ -425,10 +436,6 @@ function assignDefaultsAndValidate(
 
       if (result.assetPrefix === '') {
         result.assetPrefix = result.basePath
-      }
-
-      if (result.amp?.canonicalBase === '') {
-        result.amp.canonicalBase = result.basePath
       }
     }
   }
@@ -692,6 +699,32 @@ function assignDefaultsAndValidate(
         'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit'
       )
     }
+  }
+
+  // Normalize & validate experimental.middlewareClientMaxBodySize
+  if (typeof result.experimental?.middlewareClientMaxBodySize !== 'undefined') {
+    const middlewareClientMaxBodySize =
+      result.experimental.middlewareClientMaxBodySize
+    let normalizedValue: number
+
+    if (typeof middlewareClientMaxBodySize === 'string') {
+      const bytes =
+        require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+      normalizedValue = bytes.parse(middlewareClientMaxBodySize)
+    } else if (typeof middlewareClientMaxBodySize === 'number') {
+      normalizedValue = middlewareClientMaxBodySize
+    } else {
+      throw new Error(
+        'Client Max Body Size must be a valid number (bytes) or filesize format string (e.g., "5mb")'
+      )
+    }
+
+    if (isNaN(normalizedValue) || normalizedValue < 1) {
+      throw new Error('Client Max Body Size must be larger than 0 bytes')
+    }
+
+    // Store the normalized value as a number
+    result.experimental.middlewareClientMaxBodySize = normalizedValue
   }
 
   warnOptionHasBeenMovedOutOfExperimental(
@@ -1138,6 +1171,13 @@ function assignDefaultsAndValidate(
     result.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
+  if (
+    typeof result.experimental.mcpServer === 'undefined' &&
+    process.env.__NEXT_EXPERIMENTAL_MCP_SERVER === 'true'
+  ) {
+    result.experimental.mcpServer = true
+  }
+
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
   // we transfer the value for cacheComponents to the explicit useCache flag to ensure
   // backwards compatibility.
@@ -1500,15 +1540,6 @@ export default async function loadConfig(
       )
     }
 
-    if (userConfig.amp?.canonicalBase) {
-      const { canonicalBase } = userConfig.amp || ({} as any)
-      userConfig.amp = userConfig.amp || {}
-      userConfig.amp.canonicalBase =
-        (canonicalBase?.endsWith('/')
-          ? canonicalBase.slice(0, -1)
-          : canonicalBase) || ''
-    }
-
     if (reactProductionProfiling) {
       userConfig.reactProductionProfiling = reactProductionProfiling
     }
@@ -1721,25 +1752,6 @@ function enforceExperimentalFeatures(
     }
   }
 
-  // TODO: Remove this once we've made Client Segment Cache the default.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.clientSegmentCache === undefined ||
-      (isDefaultConfig && !config.experimental.clientSegmentCache))
-  ) {
-    config.experimental.clientSegmentCache = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'clientSegmentCache',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
-      )
-    }
-  }
-
   // TODO: Remove this once we've made Client Param Parsing the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
@@ -1793,6 +1805,25 @@ function enforceExperimentalFeatures(
         'rdcForNavigations',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
+      )
+    }
+  }
+
+  // TODO: Remove this once using the debug channel is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.reactDebugChannel === undefined ||
+      (isDefaultConfig && !config.experimental.reactDebugChannel))
+  ) {
+    config.experimental.reactDebugChannel = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'reactDebugChannel',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`'
       )
     }
   }
@@ -1951,7 +1982,7 @@ async function validateConfigSchema(
     )
     // ident list item
     for (const error of errorMessages) {
-      messages.push(`    ${error}`)
+      messages.push(`    ${error.split('\n').join('\n    ')}`)
     }
 
     // error message footer

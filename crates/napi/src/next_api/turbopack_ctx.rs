@@ -250,7 +250,7 @@ impl CompilationEvent for StartupCacheInvalidationEvent {
             _ => "", // ignore unknown reasons
         };
         format!(
-            "Turbopack's persistent cache has been deleted{reason_msg}. Builds or page loads may \
+            "Turbopack's filesystem cache has been deleted{reason_msg}. Builds or page loads may \
              be slower as a result."
         )
     }

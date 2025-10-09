@@ -35,6 +35,8 @@ import {
   JSON_CONTENT_TYPE_HEADER,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
+import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 
 interface SharedRouteFields {
   /**
@@ -63,6 +65,12 @@ interface SharedRouteFields {
   assets: Record<string, string>
 
   /**
+   * wasmAssets are bundled wasm files with mapping of name
+   * to filePath on disk
+   */
+  wasmAssets?: Record<string, string>
+
+  /**
    * config related to the route
    */
   config: {
@@ -77,6 +85,12 @@ interface SharedRouteFields {
      * region preferences to the provider being used
      */
     preferredRegion?: string | string[]
+
+    /**
+     * env is the environment variables to expose, this is only
+     * populated for edge runtime currently
+     */
+    env?: Record<string, string>
   }
 }
 
@@ -297,9 +311,30 @@ export interface NextAdapter {
   }) => Promise<void> | void
 }
 
+function normalizePathnames(
+  config: NextConfigComplete,
+  outputs: AdapterOutputs
+) {
+  // normalize pathname field with basePath
+  if (config.basePath) {
+    for (const output of [
+      ...outputs.pages,
+      ...outputs.pagesApi,
+      ...outputs.appPages,
+      ...outputs.appRoutes,
+      ...outputs.prerenders,
+      ...outputs.staticFiles,
+      ...(outputs.middleware ? [outputs.middleware] : []),
+    ]) {
+      output.pathname = addPathPrefix(output.pathname, config.basePath)
+    }
+  }
+}
+
 export async function handleBuildComplete({
   dir,
   config,
+  configOutDir,
   distDir,
   pageKeys,
   tracingRoot,
@@ -318,6 +353,7 @@ export async function handleBuildComplete({
 }: {
   dir: string
   distDir: string
+  configOutDir: string
   adapterPath: string
   tracingRoot: string
   nextVersion: string
@@ -341,16 +377,34 @@ export async function handleBuildComplete({
   if (typeof adapterMod.onBuildComplete === 'function') {
     Log.info(`Running onBuildComplete from ${adapterMod.name}`)
 
-    try {
-      const outputs: AdapterOutputs = {
-        pages: [],
-        pagesApi: [],
-        appPages: [],
-        appRoutes: [],
-        prerenders: [],
-        staticFiles: [],
-      }
+    const outputs: AdapterOutputs = {
+      pages: [],
+      pagesApi: [],
+      appPages: [],
+      appRoutes: [],
+      prerenders: [],
+      staticFiles: [],
+    }
 
+    if (config.output === 'export') {
+      // collect export assets and provide as static files
+      const exportFiles = await recursiveReadDir(configOutDir)
+
+      for (const file of exportFiles) {
+        let pathname = (
+          file.endsWith('.html') ? file.replace(/\.html$/, '') : file
+        ).replace(/\\/g, '/')
+
+        pathname = pathname.startsWith('/') ? pathname : `/${pathname}`
+
+        outputs.staticFiles.push({
+          id: file,
+          pathname,
+          filePath: path.join(configOutDir, file),
+          type: AdapterOutputType.STATIC_FILE,
+        } satisfies AdapterOutput['STATIC_FILE'])
+      }
+    } else {
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
       for (const file of staticFiles) {
@@ -460,12 +514,15 @@ export async function handleBuildComplete({
               ''
           ),
           assets: {},
-          config:
-            type === AdapterOutputType.MIDDLEWARE
+          wasmAssets: {},
+          config: {
+            ...(type === AdapterOutputType.MIDDLEWARE
               ? {
                   matchers: page.matchers,
                 }
-              : {},
+              : {}),
+            env: page.env,
+          },
         }
 
         function handleFile(file: string) {
@@ -482,8 +539,14 @@ export async function handleBuildComplete({
         for (const file of page.files) {
           handleFile(file)
         }
-        for (const item of [...(page.wasm || []), ...(page.assets || [])]) {
+        for (const item of [...(page.assets || [])]) {
           handleFile(item.filePath)
+        }
+        for (const item of page.wasm || []) {
+          if (!output.wasmAssets) {
+            output.wasmAssets = {}
+          }
+          output.wasmAssets[item.name] = item.filePath
         }
 
         if (type === AdapterOutputType.MIDDLEWARE) {
@@ -528,12 +591,28 @@ export async function handleBuildComplete({
         // if it's an auto static optimized page it's just
         // a static file
         if (staticPages.has(page)) {
-          outputs.staticFiles.push({
-            id: page,
-            pathname: route,
-            type: AdapterOutputType.STATIC_FILE,
-            filePath: pageFile.replace(/\.js$/, '.html'),
-          } satisfies AdapterOutput['STATIC_FILE'])
+          if (config.i18n) {
+            for (const locale of config.i18n.locales || []) {
+              const localePage =
+                page === '/' ? `/${locale}` : addPathPrefix(page, `/${locale}`)
+              outputs.staticFiles.push({
+                id: localePage,
+                pathname: localePage,
+                type: AdapterOutputType.STATIC_FILE,
+                filePath: path.join(
+                  pagesDistDir,
+                  `${normalizePagePath(localePage)}.html`
+                ),
+              } satisfies AdapterOutput['STATIC_FILE'])
+            }
+          } else {
+            outputs.staticFiles.push({
+              id: page,
+              pathname: route,
+              type: AdapterOutputType.STATIC_FILE,
+              filePath: pageFile.replace(/\.js$/, '.html'),
+            } satisfies AdapterOutput['STATIC_FILE'])
+          }
           continue
         }
 
@@ -639,7 +718,12 @@ export async function handleBuildComplete({
         childRoute: string,
         allowMissing?: boolean
       ) => {
-        const parentOutput = pageOutputMap[srcRoute] || appOutputMap[srcRoute]
+        const normalizedSrcRoute = normalizeLocalePath(
+          srcRoute,
+          config.i18n?.locales || []
+        ).pathname
+        const parentOutput =
+          pageOutputMap[normalizedSrcRoute] || appOutputMap[normalizedSrcRoute]
 
         if (!parentOutput && !allowMissing) {
           console.error({
@@ -966,7 +1050,11 @@ export async function handleBuildComplete({
         }
         prerenderGroupId += 1
       }
+    }
 
+    normalizePathnames(config, outputs)
+
+    try {
       await adapterMod.onBuildComplete({
         routes: {
           dynamicRoutes: routesManifest.dynamicRoutes,

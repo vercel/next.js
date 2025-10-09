@@ -7,6 +7,7 @@ const nextConfig = {
     adapterPath: require.resolve('./my-adapter.mjs'),
     ppr: Boolean(process.env.TEST_PPR),
   },
+  output: process.env.TEST_EXPORT ? 'export' : undefined,
 }
 
 export default nextConfig

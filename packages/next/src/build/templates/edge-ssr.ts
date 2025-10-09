@@ -141,9 +141,7 @@ async function requestHandler(
       ComponentMod: pageMod,
       pageConfig: pageMod.pageConfig,
       routeModule: pageMod.routeModule,
-      canonicalBase: nextConfig.amp.canonicalBase || '',
       previewProps: prerenderManifest.preview,
-      ampOptimizerConfig: nextConfig.experimental.amp?.optimizer,
       basePath: nextConfig.basePath,
       assetPrefix: nextConfig.assetPrefix,
       images: nextConfig.images,
@@ -155,12 +153,6 @@ async function requestHandler(
       distDir: '',
       crossOrigin: nextConfig.crossOrigin ? nextConfig.crossOrigin : undefined,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-      // Only the `publicRuntimeConfig` key is exposed to the client side
-      // It'll be rendered as part of __NEXT_DATA__ on the client side
-      runtimeConfig:
-        Object.keys(nextConfig.publicRuntimeConfig).length > 0
-          ? nextConfig.publicRuntimeConfig
-          : undefined,
 
       isExperimentalCompile: nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format

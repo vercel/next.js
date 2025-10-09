@@ -392,24 +392,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next-codemod/transforms/__tests__/withamp-to-config.test.js": {
-    "passed": [
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-inline\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config-dupe\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config-var\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/hybrid-amp\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/hybrid-amp-with-config\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import-renamed\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import-single\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/build/analysis/get-page-static-info.test.ts": {
     "passed": [
       "get-page-static-infos getMiddlewareMatchers matches /:id and /:id.json",
@@ -4824,50 +4806,6 @@
     "pending": [
       "app dir rendering mixed static and dynamic should generate static data during build and use it"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/generate-static-params.test.ts": {
-    "passed": [
-      "app-root-params - generateStaticParams should be a cache hit for fully prerendered pages",
-      "app-root-params - generateStaticParams should be a cache miss for pages that aren't prerendered",
-      "app-root-params - generateStaticParams should only return rootParams and not other params",
-      "app-root-params - generateStaticParams should return rootParams"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/multiple-roots.test.ts": {
-    "passed": [
-      "app-root-params - multiple roots should have root params on dashboard pages",
-      "app-root-params - multiple roots should not have root params on marketing pages"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/simple.test.ts": {
-    "passed": [
-      "app-root-params - simple should only return rootParams and not other params",
-      "app-root-params - simple should render the not found page without errors",
-      "app-root-params - simple should return rootParams"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/use-cache.test.ts": {
-    "passed": [
-      "app-root-params - cache - at build noop in dev",
-      "app-root-params - cache - at runtime should error when using rootParams within `unstable_cache` - dev",
-      "app-root-params - cache - at runtime should error when using rootParams within a \"use cache\" - dev"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9883,7 +9821,6 @@
       "Document and App - Rendering via HTTP _app should show valid error when thrown in _app getInitialProps",
       "Document and App - Rendering via HTTP _app shows a custom tag",
       "Document and App - Rendering via HTTP _document Document.getInitialProps returns html prop representing app shell",
-      "Document and App - Rendering via HTTP _document adds a timestamp to link tags with preload attribute to invalidate the cache in dev",
       "Document and App - Rendering via HTTP _document adds crossOrigin to all scripts and preload links",
       "Document and App - Rendering via HTTP _document adds nonces to all scripts and preload links",
       "Document and App - Rendering via HTTP _document renders ctx.renderPage with enhanceApp and enhanceComponent correctly",
@@ -9907,10 +9844,7 @@
       "Async modules works with getStaticProps"
     ],
     "failed": [],
-    "pending": [
-      "Async modules can render async AMP pages",
-      "Async modules can render async error page"
-    ],
+    "pending": ["Async modules can render async error page"],
     "flakey": [],
     "runtimeError": false
   },
@@ -9940,7 +9874,6 @@
       "basePath should not add header without basePath without disabling",
       "basePath should redirect trailing slash correctly",
       "basePath should redirect trailing slash on root correctly",
-      "basePath should respect basePath in amphtml link rel",
       "basePath should serve public file with basePath correctly",
       "basePath should show 404 for page not under the /docs prefix",
       "basePath should show the hello page under the /docs prefix",
@@ -11907,12 +11840,12 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/persistent-caching/persistent-caching.test.ts": {
+  "test/e2e/filesystem-cache/filesystem-cache.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped (run 1)",
-      "persistent-caching should allow to change files while stopped (run 2)",
-      "persistent-caching should allow to change files while stopped (run 3)",
-      "persistent-caching should persistent cache loaders"
+      "filesystem-cache should allow to change files while stopped (run 1)",
+      "filesystem-cache should allow to change files while stopped (run 2)",
+      "filesystem-cache should allow to change files while stopped (run 3)",
+      "filesystem-cache should filesystem cache loaders"
     ],
     "failed": [],
     "pending": [],
@@ -12199,9 +12132,7 @@
   "test/e2e/styled-jsx/index.test.ts": {
     "passed": [
       "styled-jsx should contain styled-jsx styles during SSR",
-      "styled-jsx should render styles during CSR",
-      "styled-jsx should render styles during CSR (AMP)",
-      "styled-jsx should render styles during SSR (AMP)"
+      "styled-jsx should render styles during CSR"
     ],
     "failed": [],
     "pending": [],
@@ -12730,116 +12661,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP Validation on Export production mode should have shown errors during build",
-      "AMP Validation on Export production mode shows AMP warning without throwing error",
-      "AMP Validation on Export production mode shows warning and error when throwing error",
-      "AMP Validation on Export production mode throws error on AMP error"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/amphtml-custom-optimizer/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP Custom Optimizer production mode should build and start for dynamic page",
-      "AMP Custom Optimizer production mode should build and start for static page"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/amphtml-custom-validator/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP Custom Validator development mode should run in development mode successfully",
-      "AMP Custom Validator production mode should build and start successfully"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/amphtml-fragment-style/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP Fragment Styles production mode adds styles from fragment in AMP mode correctly"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/amphtml-ssg/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP SSG Support development mode should load a hybrid amp page with query correctly",
-      "AMP SSG Support development mode should load a hybrid amp page without query correctly",
-      "AMP SSG Support development mode should load an amp first page correctly",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with query",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash",
-      "AMP SSG Support export mode production mode should have copied SSG files correctly",
-      "AMP SSG Support production mode should load a hybrid amp page with query correctly",
-      "AMP SSG Support production mode should load a hybrid amp page without query correctly",
-      "AMP SSG Support production mode should load an amp first page correctly",
-      "AMP SSG Support production mode should load dynamic hybrid SSG/AMP page",
-      "AMP SSG Support production mode should load dynamic hybrid SSG/AMP page with query",
-      "AMP SSG Support production mode should load dynamic hybrid SSG/AMP page with trailing slash",
-      "AMP SSG Support production mode should output prerendered files correctly during build"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/amphtml/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP Usage AMP dev no-warn should not warn on valid amp",
-      "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
-      "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
-      "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
-      "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
-      "AMP Usage AMP development mode should detect changes and refresh an AMP page",
-      "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
-      "AMP Usage AMP development mode should detect changes to component and refresh an AMP page",
-      "AMP Usage AMP development mode should detect the changes and display it",
-      "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-      "AMP Usage AMP development mode should not contain missing files warning",
-      "AMP Usage AMP development mode should not reload unless the page is edited for an AMP page",
-      "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
-      "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
-      "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
-      "AMP Usage production mode With AMP context should render the normal page that uses the AMP hook",
-      "AMP Usage production mode With basic AMP usage should auto import extensions",
-      "AMP Usage production mode With basic AMP usage should drop custom scripts",
-      "AMP Usage production mode With basic AMP usage should not drop custom amp scripts",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
-      "AMP Usage production mode With basic AMP usage should optimize clean",
-      "AMP Usage production mode With basic AMP usage should render the page as valid AMP",
-      "AMP Usage production mode With basic AMP usage should render the page without leaving render target",
-      "AMP Usage production mode With basic usage should render the page",
-      "AMP Usage production mode canonical amphtml should allow manually setting amphtml rel",
-      "AMP Usage production mode canonical amphtml should allow manually setting canonical",
-      "AMP Usage production mode canonical amphtml should not render amphtml link tag with no AMP page",
-      "AMP Usage production mode canonical amphtml should remove conflicting amp tags",
-      "AMP Usage production mode canonical amphtml should render a canonical regardless of amp-only status (explicit)",
-      "AMP Usage production mode canonical amphtml should render amphtml from provided rel link",
-      "AMP Usage production mode canonical amphtml should render link rel amphtml",
-      "AMP Usage production mode canonical amphtml should render link rel amphtml with existing query",
-      "AMP Usage production mode canonical amphtml should render the AMP page that uses the AMP hook",
-      "AMP Usage production mode combined styles should combine style tags",
-      "AMP Usage production mode combined styles should remove sourceMaps from styles",
-      "AMP Usage production mode should have amp optimizer in trace",
-      "AMP Usage production mode should not contain missing files warning",
-      "AMP Usage production mode should not have deprecation warning"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/api-body-parser/test/index.test.js": {
     "passed": [
       "should not throw if request body is already parsed in custom middleware",
@@ -13327,7 +13148,6 @@
       "Build Output production mode Custom App Output should not include custom error",
       "Build Output production mode Custom Error Output should not include custom app",
       "Build Output production mode Custom Static Error Output should not specify /404 as lambda when static",
-      "Build Output production mode With AMP Output should not include custom error",
       "Build Output production mode With Parallel Routes should not have duplicate paths that resolve to the same route"
     ],
     "flakey": [],
@@ -14549,16 +14369,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/development-runtime-config/test/index.test.js": {
-    "passed": [
-      "should work with runtime-config in next.config.js empty runtime-config",
-      "should work with runtime-config in next.config.js with runtime-config"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/disable-js/test/index.test.js": {
     "passed": [
       "disabled runtime JS development mode should have a script for each preload link",
@@ -15466,20 +15276,6 @@
       "Export with a page named 404.js production mode should export a custom 404.html instead of default 404.html",
       "Static 404 Export production mode export 404.html and 404/index.html when trailingSlash: true",
       "Static 404 Export production mode only export 404.html when trailingSlash: false"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/export-default-map/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Export with default map production mode should export an amp only page to clean path",
-      "Export with default map production mode should export hybrid amp page correctly",
-      "Export with default map production mode should export hybrid index amp page correctly",
-      "Export with default map production mode should export nested hybrid amp page correctly",
-      "Export with default map production mode should export nested hybrid amp page correctly with folder",
-      "Export with default map production mode should export with folder that has dot in name"
     ],
     "flakey": [],
     "runtimeError": false
@@ -17333,7 +17129,6 @@
       "i18n Support basePath development mode should apply redirects correctly",
       "i18n Support basePath development mode should apply rewrites correctly",
       "i18n Support basePath development mode should apply trailingSlash redirect correctly",
-      "i18n Support basePath development mode should generate AMP pages with all locales",
       "i18n Support basePath development mode should generate auto-export page with all locales",
       "i18n Support basePath development mode should generate fallbacks with all locales",
       "i18n Support basePath development mode should generate non-dynamic GSP page with all locales",
@@ -17407,8 +17202,7 @@
       "i18n Support basePath development mode should use default locale for / without accept-language",
       "i18n Support basePath development mode should use default locale when no locale is in href with locale false",
       "i18n Support basePath development mode should visit API route directly correctly",
-      "i18n Support basePath development mode should visit dynamic API route directly correctly",
-      "i18n Support basePath development mode should work with AMP first page with all locales"
+      "i18n Support basePath development mode should visit dynamic API route directly correctly"
     ],
     "failed": [],
     "pending": [
@@ -17423,7 +17217,6 @@
       "i18n Support basePath production mode should apply redirects correctly",
       "i18n Support basePath production mode should apply rewrites correctly",
       "i18n Support basePath production mode should apply trailingSlash redirect correctly",
-      "i18n Support basePath production mode should generate AMP pages with all locales",
       "i18n Support basePath production mode should generate auto-export page with all locales",
       "i18n Support basePath production mode should generate fallbacks with all locales",
       "i18n Support basePath production mode should generate non-dynamic GSP page with all locales",
@@ -17504,7 +17297,6 @@
       "i18n Support basePath production mode should use default locale when no locale is in href with locale false",
       "i18n Support basePath production mode should visit API route directly correctly",
       "i18n Support basePath production mode should visit dynamic API route directly correctly",
-      "i18n Support basePath production mode should work with AMP first page with all locales",
       "i18n Support basePath with localeDetection disabled production mode should have localeDetection in routes-manifest",
       "i18n Support basePath with localeDetection disabled production mode should not detect locale from accept-language",
       "i18n Support basePath with localeDetection disabled production mode should set locale from detected path"
@@ -17612,7 +17404,6 @@
       "i18n Support development mode should apply redirects correctly",
       "i18n Support development mode should apply rewrites correctly",
       "i18n Support development mode should apply trailingSlash redirect correctly",
-      "i18n Support development mode should generate AMP pages with all locales",
       "i18n Support development mode should generate auto-export page with all locales",
       "i18n Support development mode should generate fallbacks with all locales",
       "i18n Support development mode should generate non-dynamic GSP page with all locales",
@@ -17686,7 +17477,6 @@
       "i18n Support development mode should use default locale when no locale is in href with locale false",
       "i18n Support development mode should visit API route directly correctly",
       "i18n Support development mode should visit dynamic API route directly correctly",
-      "i18n Support development mode should work with AMP first page with all locales",
       "i18n Support with trailingSlash: false development mode should redirect correctly",
       "i18n Support with trailingSlash: true development mode should navigate between pages correctly",
       "i18n Support with trailingSlash: true development mode should redirect correctly",
@@ -17706,7 +17496,6 @@
       "i18n Support production mode should apply redirects correctly",
       "i18n Support production mode should apply rewrites correctly",
       "i18n Support production mode should apply trailingSlash redirect correctly",
-      "i18n Support production mode should generate AMP pages with all locales",
       "i18n Support production mode should generate auto-export page with all locales",
       "i18n Support production mode should generate fallbacks with all locales",
       "i18n Support production mode should generate non-dynamic GSP page with all locales",
@@ -17790,7 +17579,6 @@
       "i18n Support production mode should use default locale when no locale is in href with locale false",
       "i18n Support production mode should visit API route directly correctly",
       "i18n Support production mode should visit dynamic API route directly correctly",
-      "i18n Support production mode should work with AMP first page with all locales",
       "i18n Support with localeDetection disabled production mode should have localeDetection in routes-manifest",
       "i18n Support with localeDetection disabled production mode should ignore the invalid accept-language header",
       "i18n Support with localeDetection disabled production mode should not detect locale from accept-language",
@@ -21439,8 +21227,8 @@
       "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
       "config telemetry production mode emits telemetry for middleware related options",
-      "config telemetry production mode emits telemetry for persistent cache in build mode",
-      "config telemetry production mode emits telemetry for persistent cache in dev mode",
+      "config telemetry production mode emits telemetry for filesystem cache in build mode",
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
       "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",

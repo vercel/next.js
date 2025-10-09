@@ -18,6 +18,7 @@ use turbo_tasks_fs::{FileContent, FileJsonContent, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    code_builder::CodeBuilder,
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -130,7 +131,10 @@ impl EcmascriptChunkItem for JsonChunkItem {
         match &*data {
             FileJsonContent::Content(data) => {
                 let data_str = data.to_string();
-                let inner_code = if data_str.len() > 10_000 {
+
+                let mut code = CodeBuilder::default();
+
+                let source_code = if data_str.len() > 10_000 {
                     // Only use JSON.parse if the content is larger than 10kb
                     // https://v8.dev/blog/cost-of-javascript-2019#json
                     let js_str_content = serde_json::to_string(&data_str)?;
@@ -138,8 +142,30 @@ impl EcmascriptChunkItem for JsonChunkItem {
                 } else {
                     format!("{TURBOPACK_EXPORT_VALUE}({data_str});")
                 };
+
+                let source_code = source_code.into();
+                let source_map = serde_json::json!({
+                    "version": 3,
+                    // TODO: Encode using `urlencoding`, so that these
+                    // are valid URLs. However, `project_trace_source_operation` (and
+                    // `uri_from_file`) need to handle percent encoding correctly first.
+                    //
+                    // See turbopack/crates/turbopack-core/src/source_map/utils.rs as well
+                    "sources": [format!("turbopack:///{}", self.module.ident().path().to_string().await?)],
+                    "sourcesContent": [&data_str],
+                    "names": [],
+                    // Maps 0:0 in the output code to 0:0 in the `source_code`. Sufficient for
+                    // bundle analyzers to attribute the bytes in the output chunks
+                    "mappings": "AAAA",
+                })
+                .to_string()
+                .into();
+                code.push_source(&source_code, Some(source_map));
+
+                let code = code.build();
                 Ok(EcmascriptChunkItemContent {
-                    inner_code: inner_code.into(),
+                    source_map: Some(code.generate_source_map_ref(None)),
+                    inner_code: code.into_source_code(),
                     ..Default::default()
                 }
                 .into())

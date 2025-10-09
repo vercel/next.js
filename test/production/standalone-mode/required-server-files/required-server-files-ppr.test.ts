@@ -59,9 +59,6 @@ describe('required server files app router', () => {
           clientSegmentCache: true,
           clientParamParsing: true,
         },
-        eslint: {
-          ignoreDuringBuilds: true,
-        },
         output: 'standalone',
       },
     })

@@ -1,4 +1,4 @@
-import type { NextConfig } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import loadConfig from '../server/config'
 import * as Log from '../build/output/log'
 import {
@@ -7,10 +7,6 @@ import {
 } from '../shared/lib/constants'
 
 const unsupportedTurbopackNextConfigOptions = [
-  // is this supported?
-  // 'amp',
-  // 'experimental.amp',
-
   // Left to be implemented (priority)
   // 'experimental.clientRouterFilter',
   // 'experimental.optimizePackageImports',
@@ -46,12 +42,7 @@ const unsupportedTurbopackNextConfigOptions = [
   'experimental.slowModuleDetection',
 ]
 
-// The following will need to be supported by `next build --turbopack`
-const unsupportedProductionSpecificTurbopackNextConfigOptions: string[] = [
-  // TODO: Support disabling sourcemaps, currently they're always enabled.
-  // 'productionBrowserSourceMaps',
-]
-
+/**  */
 export async function validateTurboNextConfig({
   dir,
   isDev,
@@ -71,8 +62,8 @@ export async function validateTurboNextConfig({
   let hasWebpackConfig = false
   let hasTurboConfig = false
 
-  let unsupportedConfig: string[] = []
-  let rawNextConfig: NextConfig = {}
+  const unsupportedConfig: string[] = []
+  let rawNextConfig: NextConfigComplete = {} as NextConfigComplete
 
   const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD
   try {
@@ -80,30 +71,33 @@ export async function validateTurboNextConfig({
       await loadConfig(phase, dir, {
         rawConfig: true,
       })
-    ) as NextConfig
+    )
 
     if (typeof rawNextConfig === 'function') {
       rawNextConfig = (rawNextConfig as any)(phase, {
         defaultConfig,
       })
     }
+    hasWebpackConfig = Boolean(rawNextConfig.webpack)
+    hasTurboConfig = Boolean(rawNextConfig.turbopack)
 
     const flattenKeys = (obj: any, prefix: string = ''): string[] => {
       let keys: string[] = []
 
       for (const key in obj) {
-        if (typeof obj?.[key] === 'undefined') {
+        const value = obj?.[key]
+        if (typeof value === 'undefined') {
           continue
         }
 
         const pre = prefix.length ? `${prefix}.` : ''
 
         if (
-          typeof obj[key] === 'object' &&
-          !Array.isArray(obj[key]) &&
-          obj[key] !== null
+          typeof value === 'object' &&
+          !Array.isArray(value) &&
+          value !== null
         ) {
-          keys = keys.concat(flattenKeys(obj[key], pre + key))
+          keys = keys.concat(flattenKeys(value, pre + key))
         } else {
           keys.push(pre + key)
         }
@@ -124,23 +118,13 @@ export async function validateTurboNextConfig({
 
     const customKeys = flattenKeys(rawNextConfig)
 
-    let unsupportedKeys = isDev
-      ? unsupportedTurbopackNextConfigOptions
-      : [
-          ...unsupportedTurbopackNextConfigOptions,
-          ...unsupportedProductionSpecificTurbopackNextConfigOptions,
-        ]
-
     for (const key of customKeys) {
-      if (key.startsWith('webpack') && rawNextConfig.webpack) {
-        hasWebpackConfig = true
-      }
-      if (key.startsWith('turbopack') || key.startsWith('experimental.turbo')) {
+      if (key.startsWith('experimental.turbo')) {
         hasTurboConfig = true
       }
 
-      let isUnsupported =
-        unsupportedKeys.some(
+      const isUnsupported =
+        unsupportedTurbopackNextConfigOptions.some(
           (unsupportedKey) =>
             // Either the key matches (or is a more specific subkey) of
             // unsupportedKey, or the key is the path to a specific subkey.
@@ -162,13 +146,29 @@ export async function validateTurboNextConfig({
     Log.error('Unexpected error occurred while checking config', e)
   }
 
-  if (hasWebpackConfig && !hasTurboConfig) {
-    Log.warn(
-      `Webpack is configured while Turbopack is not, which may cause problems.`
+  // If the build was defaulted to Turbopack, we want to warn about possibly ignored webpack
+  // configuration. Otherwise the user explicitly picked turbopack and thus we expect that
+  // they have configured it correctly.
+  if (process.env.TURBOPACK === 'auto' && hasWebpackConfig && !hasTurboConfig) {
+    const configFile = rawNextConfig.configFileName ?? 'your Next config file'
+    Log.error(
+      `ERROR: This build is using Turbopack, with a \`webpack\` config and no \`turbopack\` config.
+   This may be a mistake.
+
+   As of Next.js 16 Turbopack is enabled by default and
+   custom webpack configurations may need to be migrated to Turbopack.
+
+   NOTE: your \`webpack\` config may have been added by a configuration plugin.
+
+   To configure Turbopack, see https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+
+   TIP: Many applications work fine under Turbopack with no configuration,
+   if that is the case for you, you can silence this error by passing the
+   \`--turbopack\` or \`--webpack\` flag explicitly or simply setting an 
+   empty turbopack config in ${configFile} (e.g. \`turbopack: {}\`).`
     )
-    Log.warn(
-      `See instructions if you need to configure Turbopack:\n  https://nextjs.org/docs/app/api-reference/next-config-js/turbopack\n`
-    )
+
+    process.exit(1)
   }
 
   if (unsupportedConfig.length) {

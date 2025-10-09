@@ -1784,6 +1784,10 @@ impl JsValue {
                         "url",
                         "The Node.js url module: https://nodejs.org/api/url.html",
                     ),
+                    WellKnownObjectKind::ModuleModule | WellKnownObjectKind::ModuleModuleDefault => (
+                        "module",
+                        "The Node.js `module` module: https://nodejs.org/api/module.html",
+                    ),
                     WellKnownObjectKind::ChildProcess | WellKnownObjectKind::ChildProcessDefault => (
                         "child_process",
                         "The Node.js child_process module: https://nodejs.org/api/child_process.html",
@@ -1885,6 +1889,10 @@ impl JsValue {
                     WellKnownFunctionKind::PathToFileUrl => (
                         "url.pathToFileURL".to_string(),
                         "The Node.js url.pathToFileURL method: https://nodejs.org/api/url.html#urlpathtofileurlpath",
+                    ),
+                    WellKnownFunctionKind::CreateRequire => (
+                        "module.createRequire".to_string(),
+                        "The Node.js module.createRequire method: https://nodejs.org/api/module.html#modulecreaterequirefilename",
                     ),
                     WellKnownFunctionKind::ChildProcessSpawnMethod(name) => (
                         format!("child_process.{name}"),
@@ -3456,6 +3464,8 @@ pub enum WellKnownObjectKind {
     FsModulePromises,
     FsExtraModule,
     FsExtraModuleDefault,
+    ModuleModule,
+    ModuleModuleDefault,
     UrlModule,
     UrlModuleDefault,
     ChildProcess,
@@ -3596,6 +3606,7 @@ pub enum WellKnownFunctionKind {
     Define,
     FsReadMethod(Atom),
     PathToFileUrl,
+    CreateRequire,
     ChildProcessSpawnMethod(Atom),
     ChildProcessFork,
     OsArch,
@@ -3684,6 +3695,25 @@ pub mod test_utils {
                 }
                 _ => v.into_unknown(true, "import() non constant"),
             },
+            JsValue::Call(
+                _,
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire),
+                ref args,
+            ) => {
+                if let [
+                    JsValue::Member(
+                        _,
+                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                        box JsValue::Constant(ConstantValue::Str(prop)),
+                    ),
+                ] = &args[..]
+                    && prop.as_str() == "url"
+                {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
+                } else {
+                    v.into_unknown(true, "createRequire() non constant")
+                }
+            }
             JsValue::Call(
                 _,
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),

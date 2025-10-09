@@ -70,41 +70,6 @@ describe('Page Config', () => {
         }
       })
 
-      it('shows error when page config has invalid properties', async () => {
-        const reset = await uncommentExport('invalid/invalid-property.js')
-
-        try {
-          const { stderr } = await nextBuild(appDir, undefined, {
-            stderr: true,
-          })
-          expect(stderr).toContain(
-            "Next.js can't recognize the exported `config`"
-          )
-        } finally {
-          await reset()
-        }
-      })
-
-      // Turbopack ignores the config.amp property
-      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-        'shows error when page config has invalid property value',
-        async () => {
-          const reset = await uncommentExport('invalid/invalid-value.js')
-
-          try {
-            const { stderr } = await nextBuild(appDir, undefined, {
-              stderr: true,
-            })
-            // eslint-disable-next-line jest/no-standalone-expect
-            expect(stderr).toContain(
-              "Next.js can't recognize the exported `config`"
-            )
-          } finally {
-            await reset()
-          }
-        }
-      )
-
       it('shows error when page config is export from', async () => {
         const reset = await uncommentExport('invalid/export-from.js')
 

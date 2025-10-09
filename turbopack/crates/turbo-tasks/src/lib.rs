@@ -240,7 +240,7 @@ macro_rules! fxindexset {
 /// ## `serialization = "..."`
 ///
 /// Affects serialization via [`serde::Serialize`] and [`serde::Deserialize`]. Serialization is
-/// required for persistent caching of tasks to disk.
+/// required for filesystem cache of tasks.
 ///
 /// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
 /// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization
