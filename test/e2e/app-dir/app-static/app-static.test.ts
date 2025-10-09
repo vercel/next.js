@@ -4916,7 +4916,7 @@ describe('app-dir static/dynamic handling', () => {
     expect(await browser.elementByCss('#slug').text()).toBe('hello')
   })
 
-  describe('updateTag', () => {
+  describe('updateTag/revalidateTag', () => {
     it('should throw error when updateTag is called in route handler', async () => {
       const res = await next.fetch('/api/update-tag-error')
       const data = await res.json()
@@ -4944,7 +4944,7 @@ describe('app-dir static/dynamic handling', () => {
       })
     })
 
-    it('should use revalidateTag with max profile in server actions', async () => {
+    it('revalidateTag work with max profile in server actions', async () => {
       // First fetch to get initial data
       const browser = await next.browser('/update-tag-test')
       const initialData = JSON.parse(await browser.elementByCss('#data').text())
@@ -4954,15 +4954,38 @@ describe('app-dir static/dynamic handling', () => {
 
       // The behavior with 'max' profile would be stale-while-revalidate
       // Initial request after revalidation might still show stale data
+      let dataAfterRevalidate
       await retry(async () => {
         await browser.refresh()
-        const dataAfterRevalidate = JSON.parse(
+        dataAfterRevalidate = JSON.parse(
           await browser.elementByCss('#data').text()
         )
 
         expect(dataAfterRevalidate).toBeDefined()
         expect(dataAfterRevalidate).not.toBe(initialData)
       })
+
+      if (isNextStart) {
+        // give second so tag isn't still stale state
+        await waitFor(1000)
+
+        const res1 = await next.fetch('/update-tag-test')
+        const body1 = await res1.text()
+        const cacheHeader1 = res1.headers.get('x-nextjs-cache')
+
+        expect(res1.status).toBe(200)
+        expect(cacheHeader1).toBeDefined()
+        expect(cacheHeader1).not.toBe('MISS')
+
+        const res2 = await next.fetch('/update-tag-test')
+        const body2 = await res2.text()
+        const cacheHeader2 = res2.headers.get('x-nextjs-cache')
+
+        expect(res2.status).toBe(200)
+        expect(cacheHeader2).toBeDefined()
+        expect(cacheHeader2).not.toBe('MISS')
+        expect(body1).toBe(body2)
+      }
     })
 
     // Runtime logs aren't queryable in deploy mode

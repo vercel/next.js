@@ -5,6 +5,7 @@ export const revalidate = 0
 
 export async function GET(req) {
   const tag = req.nextUrl.searchParams.get('tag')
-  revalidateTag(tag, 'expireNow')
+  const profile = req.nextUrl.searchParams.get('profile')
+  revalidateTag(tag, profile || 'expireNow')
   return NextResponse.json({ revalidated: true, now: Date.now() })
 }

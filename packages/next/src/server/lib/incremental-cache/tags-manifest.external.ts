@@ -12,9 +12,15 @@ export const tagsManifest = new Map<string, TagManifestEntry>()
 export const areTagsExpired = (tags: string[], timestamp: Timestamp) => {
   for (const tag of tags) {
     const entry = tagsManifest.get(tag)
+    const expiredAt = entry?.expired
 
-    if (entry) {
-      if (entry.expired && entry.expired >= timestamp) {
+    if (typeof expiredAt === 'number') {
+      const now = Date.now()
+      // For immediate expiration (expiredAt <= now) and tag was invalidated after entry was created
+      // OR for future expiration that has now passed (expiredAt > timestamp && expiredAt <= now)
+      const isImmediatelyExpired = expiredAt <= now && expiredAt > timestamp
+
+      if (isImmediatelyExpired) {
         return true
       }
     }
@@ -26,11 +32,10 @@ export const areTagsExpired = (tags: string[], timestamp: Timestamp) => {
 export const areTagsStale = (tags: string[], timestamp: Timestamp) => {
   for (const tag of tags) {
     const entry = tagsManifest.get(tag)
+    const staleAt = entry?.stale ?? 0
 
-    if (entry) {
-      if (entry.stale && entry.stale >= timestamp) {
-        return true
-      }
+    if (typeof staleAt === 'number' && staleAt > timestamp) {
+      return true
     }
   }
 
