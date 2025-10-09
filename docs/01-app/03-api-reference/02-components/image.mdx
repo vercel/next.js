@@ -826,26 +826,26 @@ module.exports = {
 }
 ```
 
-#### `dangerouslyAllowPrivateIP`
+#### `dangerouslyAllowLocalIP`
 
-In rare cases when self-hosting Next.js on a private network, you may want to allow optimizing images from private IP addresses on the same network. This is not recommended for most users because it could allow malicious users to access content on your internal network.
+In rare cases when self-hosting Next.js on a private network, you may want to allow optimizing images from local IP addresses on the same network. This is not recommended for most users because it could allow malicious users to access content on your internal network.
 
 By default, the value is false.
 
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    dangerouslyAllowPrivateIP: false,
+    dangerouslyAllowLocalIP: false,
   },
 }
 ```
 
-If you need to optimize remote images hosted elsewhere in your private network, you can set the value to true.
+If you need to optimize remote images hosted elsewhere in your local network, you can set the value to true.
 
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    dangerouslyAllowPrivateIP: true,
+    dangerouslyAllowLocalIP: true,
   },
 }
 ```
@@ -1330,7 +1330,7 @@ export default function Home() {
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `v16.0.0`  | `qualities` default configuration changed to `[75]`, `preload` prop added, `priority` prop deprecated, `dangerouslyAllowPrivateIP` config added, `maximumRedirects` config added.                                                                                                                                                                                                                                                                                                          |
+| `v16.0.0`  | `qualities` default configuration changed to `[75]`, `preload` prop added, `priority` prop deprecated, `dangerouslyAllowLocalIP` config added, `maximumRedirects` config added.                                                                                                                                                                                                                                                                                                            |
 | `v15.3.0`  | `remotePatterns` added support for array of `URL` objects.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `v14.2.23` | `qualities` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

@@ -6,7 +6,7 @@ const appDir = join(__dirname, '../app')
 describe('with maximumRedirects 0', () => {
   setupTests({
     nextConfigImages: {
-      dangerouslyAllowPrivateIP: true,
+      dangerouslyAllowLocalIP: true,
       // Configure external domains so we can try out external redirects
       domains: [
         'localhost',

@@ -31,7 +31,7 @@
     "minimumCacheTTL": 60,
     "formats": ["image/avif", "image/webp"],
     "maximumRedirects": 3,
-    "dangerouslyAllowPrivateIP": false,
+    "dangerouslyAllowLocalIP": false,
     "dangerouslyAllowSVG": false,
     "contentSecurityPolicy": "script-src 'none'; frame-src 'none'; sandbox;",
     "contentDispositionType": "inline",

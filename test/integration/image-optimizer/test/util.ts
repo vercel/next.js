@@ -182,7 +182,7 @@ export function runTests(ctx: RunTestsCtx) {
     formats = [],
     minimumCacheTTL = 14400,
     maximumRedirects = 3,
-    dangerouslyAllowPrivateIP,
+    dangerouslyAllowLocalIP,
   } = nextConfigImages || {}
   const avifEnabled = formats[0] === 'image/avif'
   let slowImageServer: Awaited<ReturnType<typeof serveSlowImage>>
@@ -193,7 +193,7 @@ export function runTests(ctx: RunTestsCtx) {
     slowImageServer.stop()
   })
 
-  if (domains.length > 0 && dangerouslyAllowPrivateIP) {
+  if (domains.length > 0 && dangerouslyAllowLocalIP) {
     it('should normalize invalid status codes', async () => {
       const url = `http://localhost:${slowImageServer.port}/slow.png?status=399`
       const query = { url, w: ctx.w, q: ctx.q }
@@ -222,11 +222,11 @@ export function runTests(ctx: RunTestsCtx) {
       expect(res.status).toBe(maximumRedirects > 0 ? 200 : 508)
     })
 
-    it('should follow redirect when dangerouslyAllowPrivateIP enabled', async () => {
+    it('should follow redirect when dangerouslyAllowLocalIP enabled', async () => {
       const url = `http://localhost:${slowImageServer.port}?status=301&location=%2Fslow.png`
       const query = { url, w: ctx.w, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
-      let expectedStatus = dangerouslyAllowPrivateIP ? 200 : 400
+      let expectedStatus = dangerouslyAllowLocalIP ? 200 : 400
       if (maximumRedirects === 0) {
         expectedStatus = 508
       }
@@ -936,7 +936,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
   }
 
-  if (domains.length > 0 && dangerouslyAllowPrivateIP) {
+  if (domains.length > 0 && dangerouslyAllowLocalIP) {
     it('should resize absolute url from localhost', async () => {
       const url = `http://localhost:${ctx.appPort}/test.png`
       const query = { url, w: ctx.w, q: ctx.q }
@@ -1188,7 +1188,7 @@ export function runTests(ctx: RunTestsCtx) {
     )
   })
 
-  if (domains.length > 0 && dangerouslyAllowPrivateIP) {
+  if (domains.length > 0 && dangerouslyAllowLocalIP) {
     it('should fail when url fails to load an image', async () => {
       const url = `http://localhost:${ctx.appPort}/not-an-image`
       const query = { w: ctx.w, url, q: ctx.q }
@@ -1538,7 +1538,7 @@ export function runTests(ctx: RunTestsCtx) {
     expect(await res.text()).toBe("The requested resource isn't a valid image.")
   })
 
-  if (domains.length > 0 && dangerouslyAllowPrivateIP) {
+  if (domains.length > 0 && dangerouslyAllowLocalIP) {
     it('should handle concurrent requests', async () => {
       await cleanImagesDir(ctx.imagesDir)
       const delay = 500
@@ -1663,7 +1663,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       q: 100,
       isDev,
       nextConfigImages: {
-        dangerouslyAllowPrivateIP: true,
+        dangerouslyAllowLocalIP: true,
         domains: [
           'localhost',
           '127.0.0.1',
@@ -1760,7 +1760,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       q: 100,
       isDev,
       nextConfigImages: {
-        dangerouslyAllowPrivateIP: true,
+        dangerouslyAllowLocalIP: true,
         domains: [
           'localhost',
           '127.0.0.1',

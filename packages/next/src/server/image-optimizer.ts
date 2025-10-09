@@ -710,10 +710,10 @@ function isRedirect(statusCode: number) {
 
 export async function fetchExternalImage(
   href: string,
-  dangerouslyAllowPrivateIP: boolean,
+  dangerouslyAllowLocalIP: boolean,
   count = 3
 ): Promise<ImageUpstream> {
-  if (!dangerouslyAllowPrivateIP) {
+  if (!dangerouslyAllowLocalIP) {
     const { hostname } = new URL(href)
     let ips = [hostname]
     if (!isIP(hostname)) {
@@ -766,7 +766,7 @@ export async function fetchExternalImage(
       )
     }
     const redirect = new URL(locationHeader, href).href
-    return fetchExternalImage(redirect, dangerouslyAllowPrivateIP, count - 1)
+    return fetchExternalImage(redirect, dangerouslyAllowLocalIP, count - 1)
   }
 
   if (!res.ok) {
