@@ -1,7 +1,16 @@
 import { useActionState } from 'react'
 
-console.log({ useActionState })
+async function action(prevState, formData) {
+  return 'Action executed'
+}
 
 export default function Page() {
-  return null
+  const [state, formAction] = useActionState(action, null)
+
+  return (
+    <form action={formAction}>
+      <button type="submit">Submit</button>
+      {state && <p>Result: {state}</p>}
+    </form>
+  )
 }

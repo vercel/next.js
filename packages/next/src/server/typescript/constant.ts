@@ -40,7 +40,6 @@ export const DISALLOWED_SERVER_REACT_APIS: string[] = [
   'createFactory',
   'experimental_useOptimistic',
   'useOptimistic',
-  'useActionState',
 ]
 
 export const DISALLOWED_SERVER_REACT_DOM_APIS: string[] = [
