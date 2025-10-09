@@ -61,6 +61,28 @@ describe(`Handle new URL asset references`, () => {
       })
     })
 
+    it('should respond on opengraph-image', async () => {
+      const data = await next
+        .fetch('/opengraph-image')
+        .then((res) => res.ok && res.json())
+
+      expect(data).toEqual({
+        imported: expect.objectContaining({
+          src: expect.stringMatching(
+            /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
+          ),
+        }),
+        // TODO Webpack bug?
+        url: process.env.IS_TURBOPACK_TEST
+          ? expect.stringMatching(
+              /file:.*\/.next\/server\/.*\/vercel\.[0-9a-f]{8}\.png$/
+            )
+          : expect.stringMatching(
+              /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
+            ),
+      })
+    })
+
     for (const page of ['/rsc', '/rsc-edge', '/client', '/client-edge']) {
       let shouldSkip = process.env.IS_TURBOPACK_TEST
         ? false
