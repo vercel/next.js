@@ -42,6 +42,7 @@ describe('build-output-ssg-bailout', () => {
     expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
      "Route (app)                      Size  First Load JS
      ┌ ○ /_not-found                N/A kB         N/A kB
+     ├ ƒ /ssg-bailout-partial/[id]  N/A kB         N/A kB
      ├ ● /ssg-bailout-partial/[id]  N/A kB         N/A kB
      ├   ├ /ssg-bailout-partial/2
      ├   └ /ssg-bailout-partial/3

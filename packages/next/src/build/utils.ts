@@ -255,12 +255,14 @@ export async function printTreeView(
     pageExtensions,
     middlewareManifest,
     useStaticPages404,
+    hasGSPAndRevalidateZero,
   }: {
     pagesDir?: string
     pageExtensions: PageExtensions
     buildManifest: BuildManifest
     middlewareManifest: MiddlewareManifest
     useStaticPages404: boolean
+    hasGSPAndRevalidateZero: Set<string>
   }
 ) {
   // Can be overridden for test purposes to omit the build duration output.
@@ -373,6 +375,23 @@ export async function printTreeView(
         symbol = 'ƒ'
       }
 
+      if (hasGSPAndRevalidateZero.has(item)) {
+        usedSymbols.add('ƒ')
+        messages.push([
+          `${border} ƒ ${item}${
+            totalDuration > MIN_DURATION
+              ? ` (${getPrettyDuration(totalDuration)})`
+              : ''
+          }`,
+          showRevalidate && pageInfo?.initialCacheControl
+            ? formatRevalidate(pageInfo.initialCacheControl)
+            : '',
+          showExpire && pageInfo?.initialCacheControl
+            ? formatExpire(pageInfo.initialCacheControl)
+            : '',
+        ])
+      }
+
       usedSymbols.add(symbol)
 
       messages.push([
@@ -392,6 +411,8 @@ export async function printTreeView(
       if (pageInfo?.ssgPageRoutes?.length) {
         const totalRoutes = pageInfo.ssgPageRoutes.length
         const contSymbol = i === arr.length - 1 ? ' ' : '├'
+
+        // HERE
 
         let routes: { route: string; duration: number; avgDuration?: number }[]
         if (pageInfo.ssgPageDurations?.some((d) => d > MIN_DURATION)) {

@@ -2811,6 +2811,8 @@ export default async function build(
         buildStage: 'static-generation',
       })
 
+      const hasGSPAndRevalidateZero = new Set<string>()
+
       // we need to trigger automatic exporting when we have
       // - static 404/500
       // - getStaticProps paths
@@ -3290,6 +3292,13 @@ export default async function build(
                   // Remove the route from the SSG page routes if it bailed out
                   // during prerendering.
                   ssgPageRoutesSet.delete(route.pathname)
+
+                  // Mark the route as having a GSP and revalidate zero.
+                  if (ssgPageRoutesSet.size === 0) {
+                    hasGSPAndRevalidateZero.delete(page)
+                  } else {
+                    hasGSPAndRevalidateZero.add(page)
+                  }
 
                   pageInfos.set(page, {
                     ...pageInfo,
@@ -4184,6 +4193,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           buildManifest,
           middlewareManifest,
+          hasGSPAndRevalidateZero,
         })
       )
 
