@@ -964,12 +964,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             .map(|op| op.arc().clone())
             .collect::<Vec<_>>();
         drop(snapshot_request);
+        self.storage.start_snapshot();
         let mut persisted_task_cache_log = self
             .persisted_task_cache_log
             .as_ref()
             .map(|l| l.take(|i| i))
             .unwrap_or_default();
-        self.storage.start_snapshot();
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = false;
         self.in_progress_operations
