@@ -94,6 +94,13 @@ function runTests(mode: 'server' | 'dev') {
               search: '',
             },
           ],
+          localPatterns: [
+            {
+              pathname:
+                '^(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)\\/?)$',
+              search: '',
+            },
+          ],
           minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [75],

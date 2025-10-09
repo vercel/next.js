@@ -209,6 +209,8 @@ import {
 import type { ExperimentalConfig } from '../config-shared'
 import type { Params } from '../request/params'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
+import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
+import { imageConfigDefault } from '../../shared/lib/image-config'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1359,12 +1361,14 @@ function App<T>({
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
   nonce,
+  images,
 }: {
   reactServerStream: BinaryStreamOf<T>
   reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
+  images: RenderOpts['images']
   nonce?: string
 }): JSX.Element {
   preinitScripts()
@@ -1404,9 +1408,11 @@ function App<T>({
         nonce,
       }}
     >
-      <ServerInsertedHTMLProvider>
-        <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
-      </ServerInsertedHTMLProvider>
+      <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
+        <ServerInsertedHTMLProvider>
+          <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
+        </ServerInsertedHTMLProvider>
+      </ImageConfigContext.Provider>
     </HeadManagerContext.Provider>
   )
 }
@@ -1421,6 +1427,7 @@ function ErrorApp<T>({
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
   nonce,
+  images,
 }: {
   reactServerStream: BinaryStreamOf<T>
   reactDebugStream: ReadableStream<Uint8Array> | undefined
@@ -1428,6 +1435,7 @@ function ErrorApp<T>({
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
   nonce?: string
+  images: RenderOpts['images']
 }): JSX.Element {
   preinitScripts()
   const response = React.use(
@@ -1457,9 +1465,11 @@ function ErrorApp<T>({
   const actionQueue = createMutableActionQueue(initialState, null)
 
   return (
-    <ServerInsertedHTMLProvider>
-      <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
-    </ServerInsertedHTMLProvider>
+    <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
+      <ServerInsertedHTMLProvider>
+        <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
+      </ServerInsertedHTMLProvider>
+    </ImageConfigContext.Provider>
   )
 }
 
@@ -2422,6 +2432,7 @@ async function renderToStream(
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
+            images={ctx.renderOpts.images}
           />,
           postponed,
           { onError: htmlRendererErrorHandler, nonce }
@@ -2467,6 +2478,7 @@ async function renderToStream(
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
         nonce={nonce}
+        images={ctx.renderOpts.images}
       />,
       {
         onError: htmlRendererErrorHandler,
@@ -2627,6 +2639,7 @@ async function renderToStream(
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               nonce={nonce}
+              images={ctx.renderOpts.images}
             />
           ),
           streamOptions: {
@@ -3010,6 +3023,7 @@ async function spawnDynamicValidationInDev(
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
         nonce={nonce}
+        images={ctx.renderOpts.images}
       />,
       {
         signal: initialClientReactController.signal,
@@ -3239,6 +3253,7 @@ async function spawnDynamicValidationInDev(
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={nonce}
+              images={ctx.renderOpts.images}
             />,
             {
               signal: finalClientReactController.signal,
@@ -3753,6 +3768,7 @@ async function prerenderToStream(
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
+            images={ctx.renderOpts.images}
           />,
           {
             signal: initialClientReactController.signal,
@@ -3987,6 +4003,7 @@ async function prerenderToStream(
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 nonce={nonce}
+                images={ctx.renderOpts.images}
               />,
               {
                 signal: finalClientReactController.signal,
@@ -4151,6 +4168,7 @@ async function prerenderToStream(
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={nonce}
+              images={ctx.renderOpts.images}
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
@@ -4258,6 +4276,7 @@ async function prerenderToStream(
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
+            images={ctx.renderOpts.images}
           />,
           {
             onError: htmlRendererErrorHandler,
@@ -4399,6 +4418,7 @@ async function prerenderToStream(
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={nonce}
+              images={ctx.renderOpts.images}
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
@@ -4483,6 +4503,7 @@ async function prerenderToStream(
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
           nonce={nonce}
+          images={ctx.renderOpts.images}
         />,
         {
           onError: htmlRendererErrorHandler,
@@ -4657,6 +4678,7 @@ async function prerenderToStream(
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               nonce={nonce}
+              images={ctx.renderOpts.images}
             />
           ),
           streamOptions: {
