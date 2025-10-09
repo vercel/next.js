@@ -117,6 +117,7 @@ function runTests(url: string, mode: 'dev' | 'server') {
               search: '',
             },
           ],
+          maximumRedirects: 3,
           minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [75],
