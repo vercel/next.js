@@ -530,7 +530,9 @@ export class IncrementalCache implements IncrementalCacheType {
       let isStale = age > revalidate
       const data = cacheData.value.data
 
-      if (areTagsStale(combinedTags, cacheData.lastModified)) {
+      if (areTagsExpired(combinedTags, cacheData.lastModified)) {
+        return null
+      } else if (areTagsStale(combinedTags, cacheData.lastModified)) {
         isStale = true
       }
 
