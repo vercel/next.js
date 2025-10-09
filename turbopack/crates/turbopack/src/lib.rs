@@ -276,10 +276,11 @@ async fn apply_module_type(
                 .to_resolved()
                 .await?,
         ),
-        ModuleType::StaticUrlCss => {
-            // TODO
-            ResolvedVc::upcast(StaticUrlCssModule::new(*source, None).to_resolved().await?)
-        }
+        ModuleType::StaticUrlCss { tag } => ResolvedVc::upcast(
+            StaticUrlCssModule::new(*source, tag.clone())
+                .to_resolved()
+                .await?,
+        ),
         ModuleType::InlinedBytesJs => {
             ResolvedVc::upcast(InlinedBytesJsModule::new(*source).to_resolved().await?)
         }

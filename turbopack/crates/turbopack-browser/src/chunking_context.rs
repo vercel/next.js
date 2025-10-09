@@ -525,18 +525,15 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn asset_url(&self, ident: FileSystemPath, tag: Option<RcStr>) -> Result<Vc<RcStr>> {
         let asset_path = ident.to_string();
 
-        let client_root = if let Some(p) = tag.as_ref().and_then(|tag| self.client_roots.get(tag)) {
-            p
-        } else {
-            &self.client_root
-        };
+        let client_root = tag
+            .as_ref()
+            .and_then(|tag| self.client_roots.get(tag))
+            .unwrap_or(&self.client_root);
 
-        let asset_base_path =
-            if let Some(p) = tag.as_ref().and_then(|tag| self.asset_base_paths.get(tag)) {
-                Some(p)
-            } else {
-                self.asset_base_path.as_ref()
-            };
+        let asset_base_path = tag
+            .as_ref()
+            .and_then(|tag| self.asset_base_paths.get(tag))
+            .or(self.asset_base_path.as_ref());
 
         let asset_path = asset_path
             .strip_prefix(&format!("{}/", client_root.path))
@@ -589,12 +586,10 @@ impl ChunkingContext for BrowserChunkingContext {
             ),
         };
 
-        let asset_root_path =
-            if let Some(p) = tag.as_ref().and_then(|tag| self.asset_root_paths.get(tag)) {
-                p
-            } else {
-                &self.asset_root_path
-            };
+        let asset_root_path = tag
+            .as_ref()
+            .and_then(|tag| self.asset_root_paths.get(tag))
+            .unwrap_or(&self.asset_root_path);
 
         Ok(asset_root_path.join(&asset_path)?.cell())
     }

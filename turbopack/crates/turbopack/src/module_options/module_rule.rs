@@ -142,7 +142,9 @@ pub enum ModuleType {
     StaticUrlJs {
         tag: Option<RcStr>,
     },
-    StaticUrlCss,
+    StaticUrlCss {
+        tag: Option<RcStr>,
+    },
     InlinedBytesJs,
     WebAssembly {
         source_ty: WebAssemblySourceType,

@@ -325,18 +325,15 @@ impl ChunkingContext for NodeJsChunkingContext {
     async fn asset_url(&self, ident: FileSystemPath, tag: Option<RcStr>) -> Result<Vc<RcStr>> {
         let asset_path = ident.to_string();
 
-        let client_root = if let Some(p) = tag.as_ref().and_then(|tag| self.client_roots.get(tag)) {
-            p
-        } else {
-            &self.client_root
-        };
+        let client_root = tag
+            .as_ref()
+            .and_then(|tag| self.client_roots.get(tag))
+            .unwrap_or(&self.client_root);
 
-        let asset_prefix =
-            if let Some(p) = tag.as_ref().and_then(|tag| self.asset_prefixes.get(tag)) {
-                Some(p)
-            } else {
-                self.asset_prefix.as_ref()
-            };
+        let asset_prefix = tag
+            .as_ref()
+            .and_then(|tag| self.asset_prefixes.get(tag))
+            .or(self.asset_prefix.as_ref());
 
         let asset_path = asset_path
             .strip_prefix(&format!("{}/", client_root.path))
@@ -420,12 +417,10 @@ impl ChunkingContext for NodeJsChunkingContext {
             ),
         };
 
-        let asset_root_path =
-            if let Some(p) = tag.as_ref().and_then(|tag| self.asset_root_paths.get(tag)) {
-                p
-            } else {
-                &self.asset_root_path
-            };
+        let asset_root_path = tag
+            .as_ref()
+            .and_then(|tag| self.asset_root_paths.get(tag))
+            .unwrap_or(&self.asset_root_path);
 
         Ok(asset_root_path.join(&asset_path)?.cell())
     }

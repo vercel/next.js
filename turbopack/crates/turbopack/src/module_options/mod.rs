@@ -454,7 +454,9 @@ impl ModuleOptions {
             ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss {
+                    tag: None,
+                })],
             ),
         ];
 

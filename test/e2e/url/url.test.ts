@@ -84,6 +84,7 @@ describe(`Handle new URL asset references`, () => {
     })
 
     for (const page of ['/rsc', '/rsc-edge', '/client', '/client-edge']) {
+      // TODO Webpack bug?
       let shouldSkip = process.env.IS_TURBOPACK_TEST
         ? false
         : page.includes('edge')
@@ -138,6 +139,7 @@ describe(`Handle new URL asset references`, () => {
       '/pages-edge/static',
       '/pages-edge/ssr',
     ]) {
+      // TODO Webpack bug?
       let shouldSkip = process.env.IS_TURBOPACK_TEST
         ? false
         : page.includes('edge')
