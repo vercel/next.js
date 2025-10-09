@@ -752,25 +752,29 @@ export async function fetchExternalImage(
     throw err
   }
 
-  if (!res.ok) {
-    Log.error('upstream image response failed for', href, res.status)
-    throw new ImageError(
-      res.status,
-      '"url" parameter is valid but upstream response is invalid'
-    )
-  }
-
-  const locationHeader = res.headers.get('location')
+  const locationHeader = res.headers.get('Location')
   if (
     isRedirect(res.status) &&
     locationHeader &&
     URL.canParse(locationHeader, href)
   ) {
     if (count === 0) {
-      throw new ImageError(508, 'Too Many Redirects')
+      Log.error('upstream image response had too many redirects', href)
+      throw new ImageError(
+        508,
+        '"url" parameter is valid but upstream response is invalid'
+      )
     }
-    const nextURL = new URL(locationHeader, href)
-    return fetchExternalImage(nextConfig, nextURL.href, count - 1)
+    const redirect = new URL(locationHeader, href).href
+    return fetchExternalImage(nextConfig, redirect, count - 1)
+  }
+
+  if (!res.ok) {
+    Log.error('upstream image response failed for', href, res.status)
+    throw new ImageError(
+      res.status,
+      '"url" parameter is valid but upstream response is invalid'
+    )
   }
 
   const buffer = Buffer.from(await res.arrayBuffer())

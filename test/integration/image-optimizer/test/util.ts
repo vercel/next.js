@@ -203,9 +203,11 @@ export function runTests(ctx: RunTestsCtx) {
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(504)
     })
+  }
 
-    it('should follow redirect', async () => {
-      const url = `http://localhost:${slowImageServer.port}?status=301&location=%2Ftest.png`
+  if (domains.length > 0) {
+    it('should follow redirect from http to https', async () => {
+      const url = `http://image-optimization-one.vercel.app/frog.png`
       const query = { url, w: ctx.w, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(200)
