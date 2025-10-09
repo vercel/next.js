@@ -480,8 +480,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'reactCompiler',
-          // TODO: Remove "Release Candidate" when React Compiler is stable
-          message: `Would you like to use ${styledReactCompiler} (Release Candidate)?`,
+          message: `Would you like to use ${styledReactCompiler}?`,
           initial: getPrefOrDefault('reactCompiler'),
           active: 'Yes',
           inactive: 'No',

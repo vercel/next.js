@@ -247,8 +247,7 @@ export const installTemplate = async ({
   }
 
   if (reactCompiler) {
-    // TODO: Use "^19" when React Compiler is stable
-    packageJson.devDependencies["babel-plugin-react-compiler"] = "19.1.0-rc.3";
+    packageJson.devDependencies["babel-plugin-react-compiler"] = "1.0.0";
   }
 
   /**
