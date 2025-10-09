@@ -490,7 +490,7 @@ impl Issue for CssGlobalImportIssue {
     }
 
     fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Fatal
+        IssueSeverity::Error
     }
 
     #[turbo_tasks::function]

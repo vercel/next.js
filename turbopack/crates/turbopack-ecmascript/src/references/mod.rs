@@ -1987,6 +1987,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             context_dir,
                             Pattern::new(pat),
                             collect_affecting_sources,
+                            IssueSource::from_swc_offsets(
+                                source,
+                                span.lo.to_u32(),
+                                span.hi.to_u32(),
+                            ),
                         )
                         .to_resolved()
                         .await?,
@@ -2136,6 +2141,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             context_dir,
                             Pattern::new(pat),
                             collect_affecting_sources,
+                            IssueSource::from_swc_offsets(
+                                source,
+                                span.lo.to_u32(),
+                                span.hi.to_u32(),
+                            ),
                         )
                         .to_resolved()
                         .await?,
