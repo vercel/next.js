@@ -1770,6 +1770,7 @@ async function renderToHTMLOrFlightImpl(
       renderToStream
     )
 
+    let didExecuteServerAction = false
     let formState: null | any = null
     if (isPossibleActionRequest) {
       // For action requests, we don't want to use the resume data cache.
@@ -1804,7 +1805,7 @@ async function renderToHTMLOrFlightImpl(
             postponedState,
             metadata,
             devValidatingFallbackParams,
-            createRequestStore
+            undefined // Prevent restartable-render behavior in dev + Cache Components mode
           )
 
           return new RenderResult(stream, {
@@ -1821,6 +1822,7 @@ async function renderToHTMLOrFlightImpl(
         }
       }
 
+      didExecuteServerAction = true
       // Restore the resume data cache
       requestStore.renderResumeDataCache = renderResumeDataCache
     }
@@ -1842,7 +1844,12 @@ async function renderToHTMLOrFlightImpl(
       postponedState,
       metadata,
       devValidatingFallbackParams,
-      createRequestStore
+      // If we're rendering HTML after an action, we don't want restartable-render behavior
+      // because the result should be dynamic, like it is in prod.
+      // Also, the request store might have been mutated by the action (e.g. enabling draftMode)
+      // and we currently we don't copy changes over when creating a new store,
+      // so the restarted render wouldn't be correct.
+      didExecuteServerAction ? undefined : createRequestStore
     )
 
     // Invalid dynamic usages should only error the request in development.
@@ -2042,7 +2049,7 @@ async function renderToStream(
   postponedState: PostponedState | null,
   metadata: AppPageRenderResultMetadata,
   devValidatingFallbackParams: OpaqueFallbackRouteParams | null,
-  createRequestStore: () => RequestStore
+  createRequestStore: (() => RequestStore) | undefined
 ): Promise<ReadableStream<Uint8Array>> {
   const { assetPrefix, htmlRequestId, nonce, pagePath, renderOpts, requestId } =
     ctx
@@ -2162,7 +2169,10 @@ async function renderToStream(
       // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
       process.env.NEXT_RUNTIME !== 'edge' &&
       // We only have a Prerender environment for projects opted into cacheComponents
-      experimental.cacheComponents
+      experimental.cacheComponents &&
+      // We only do this flow if we can safely recreate the store from scratch
+      // (which is not the case for renders after an action)
+      createRequestStore
     ) {
       type RSCPayloadWithValidation = InitialRSCPayload & {
         /** Only available during cacheComponents development builds. Used for logging errors. */
