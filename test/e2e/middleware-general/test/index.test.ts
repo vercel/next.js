@@ -39,8 +39,6 @@ describe('Middleware Runtime', () => {
           ),
         },
         nextConfig: {
-          // This test needs to intercept internal routes /_next/ (skipped by default)
-          skipMiddlewareNextInternalRoutes: false,
           experimental: {
             webpackBuildWorker: true,
           },
@@ -129,7 +127,7 @@ describe('Middleware Runtime', () => {
             runtime: 'nodejs',
             matchers: [
               {
-                regexp: '^/.*$',
+                regexp: '^.*$',
                 originalSource: '/:path*',
               },
             ],
