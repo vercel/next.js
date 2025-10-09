@@ -1,11 +1,14 @@
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-// |         | Pages Client            | Pages Server (SSR,RSC)  | API Routes/Middleware   | Metadata Routes         |
-// |---------|-------------------------|-------------------------|-------------------------|-------------------------|
-// | new URL | /_next/static/media/... | /_next/static/media/... | /server/assets/...      | /_next/static/media/... |
-// | import  | /_next/static/media/... | /_next/static/media/... | /_next/static/media/... | /_next/static/media/... |
-// |---------|-------------------------|-------------------------|-------------------------|-------------------------|
+// |         | Pages Client            | Pages Server (SSR,RSC)  | API Routes/Middleware/Metadata |
+// |---------|-------------------------|-------------------------|--------------------------------|
+// | new URL | /_next/static/media/... | /_next/static/media/... | /server/assets/...             |
+// | import  | /_next/static/media/... | /_next/static/media/... | /_next/static/media/...        |
+// |---------|-------------------------|-------------------------|--------------------------------|
+//
+// Webpack has a (potential?) bug that App Router API routes (and Metadata) return client assets for
+// `new URL`s.
 describe(`Handle new URL asset references`, () => {
   const { next } = nextTestSetup({
     files: __dirname,
