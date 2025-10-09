@@ -4,6 +4,7 @@ export {
   revalidatePath,
   revalidateTag,
   updateTag,
+  refresh,
 } from 'next/dist/server/web/spec-extension/revalidate'
 
 export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
