@@ -135,7 +135,7 @@ export interface TurbopackConnectedMessage {
 
 export interface AppIsrManifestMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST
-  data: Record<string, true>
+  data: Record<string, boolean>
 }
 
 export interface DevToolsConfigMessage {
@@ -213,6 +213,11 @@ export interface NextJsHotReloaderInterface {
   clearHmrServerError(): void
   start(): Promise<void>
   send(action: HmrMessageSentToBrowser): void
+  /**
+   * Send the given action only to legacy clients, i.e. Pages Router clients,
+   * and App Router clients that don't have Cache Components enabled.
+   */
+  sendToLegacyClients(action: HmrMessageSentToBrowser): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,
     htmlRequestId: string,
@@ -223,7 +228,10 @@ export interface NextJsHotReloaderInterface {
     req: IncomingMessage,
     _socket: Duplex,
     head: Buffer,
-    onUpgrade: (client: { send(data: string): void }) => void
+    onUpgrade: (
+      client: { send(data: string): void },
+      context: { isLegacyClient: boolean }
+    ) => void
   ): void
   invalidate({
     reloadAfterInvalidation,

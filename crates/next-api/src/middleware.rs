@@ -42,6 +42,31 @@ use crate::{
     route::{Endpoint, EndpointOutput, EndpointOutputPaths},
 };
 
+/// Rust implementation of the TypeScript getDefaultMiddlewareMatcher function
+/// Generates default middleware matcher patterns that respect skipMiddlewareNextInternalRoutes
+fn get_default_middleware_matcher(
+    skip_middleware_next_internal_routes: Option<bool>,
+) -> MiddlewareMatcher {
+    let skip_internal = skip_middleware_next_internal_routes.unwrap_or(true);
+
+    if skip_internal {
+        // Skip "/_next/" internal routes, except for "/_next/data/" which is needed for
+        // client-side navigation. Do not consider basePath as the user cannot create a
+        // route starts with underscore.
+        MiddlewareMatcher {
+            regexp: Some(rcstr!("^(?!.*\\/\\_next\\/(?!data\\/)).*")),
+            original_source: rcstr!("/((?!_next/(?!data/))[^]*)*"),
+            ..Default::default()
+        }
+    } else {
+        MiddlewareMatcher {
+            regexp: Some(rcstr!("^/.*$")),
+            original_source: rcstr!("/:path*"),
+            ..Default::default()
+        }
+    }
+}
+
 #[turbo_tasks::value]
 pub struct MiddlewareEndpoint {
     project: ResolvedVc<Project>,
@@ -165,6 +190,8 @@ impl MiddlewareEndpoint {
             .map(|i18n| i18n.locales.len() > 1)
             .unwrap_or(false);
         let base_path = next_config.base_path().await?;
+        let skip_middleware_next_internal_routes =
+            next_config.skip_middleware_next_internal_routes().await?;
 
         let matchers = if let Some(matchers) = config.middleware_matcher.as_ref() {
             matchers
@@ -216,11 +243,9 @@ impl MiddlewareEndpoint {
                 })
                 .collect()
         } else {
-            vec![MiddlewareMatcher {
-                regexp: Some(rcstr!("^/.*$")),
-                original_source: rcstr!("/:path*"),
-                ..Default::default()
-            }]
+            vec![get_default_middleware_matcher(
+                *skip_middleware_next_internal_routes,
+            )]
         };
 
         if matches!(runtime, NextRuntime::NodeJs) {

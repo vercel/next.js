@@ -542,9 +542,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
-      afterBuild: |
-        export __NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD=true
-        node run-tests.js --type unit
+      afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
 
     secrets: inherit
@@ -564,6 +562,7 @@ jobs:
     with:
       nodeVersion: ${{ matrix.node }}
       afterBuild: |
+        export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
         NEXT_TEST_MODE=dev NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-dev-${{ matrix.node }}'
 
@@ -584,6 +583,7 @@ jobs:
     with:
       nodeVersion: ${{ matrix.node }}
       afterBuild: |
+        export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
         NEXT_TEST_MODE=start NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-prod-${{ matrix.node }}'
 
@@ -702,7 +702,6 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
@@ -735,7 +734,6 @@ jobs:
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        export __NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD=true
 
         node run-tests.js \
           --timings \
@@ -849,7 +847,6 @@ jobs:
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        export __NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD=true
 
         node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
@@ -889,7 +886,6 @@ jobs:
       afterBuild: |
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        export __NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD=true
 
         node run-tests.js \
           --timings \
@@ -1000,73 +996,6 @@ jobs:
       stepName: 'test-experimental-prod-${{ matrix.group }}'
     secrets: inherit
 
-  test-client-segment-cache-integration:
-    name: test clientSegmentCache integration
-    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 20.9.0
-      afterBuild: |
-        export __NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/client-segment-cache-tests-manifest.json"
-        export IS_WEBPACK_TEST=1
-
-        node run-tests.js \
-          --timings \
-          --type integration
-      stepName: 'test-client-segment-cache-integration'
-    secrets: inherit
-
-  test-client-segment-cache-dev:
-    name: test clientSegmentCache dev
-    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/client-segment-cache-tests-manifest.json"
-        export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
-
-        node run-tests.js \
-          --timings \
-          -g ${{ matrix.group }} \
-          --type development
-      stepName: 'test-client-segment-cache-dev-${{ matrix.group }}'
-    secrets: inherit
-
-  test-client-segment-cache-prod:
-    name: test clientSegmentCache prod
-    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/client-segment-cache-tests-manifest.json"
-        export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
-
-        node run-tests.js \
-          --timings \
-          -g ${{ matrix.group }} \
-          --type production
-      stepName: 'test-client-segment-cache-prod-${{ matrix.group }}'
-    secrets: inherit
-
   tests-pass:
     needs:
       [
@@ -1085,9 +1014,6 @@ jobs:
         'test-experimental-dev',
         'test-experimental-prod',
         'test-experimental-integration',
-        'test-client-segment-cache-dev',
-        'test-client-segment-cache-prod',
-        'test-client-segment-cache-integration',
         'test-cargo-unit',
         'rust-check',
         'rustdoc-check',

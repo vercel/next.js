@@ -20,8 +20,8 @@ pub trait OutputAsset: Asset {
     /// The identifier of the [OutputAsset] as string. It's expected to be unique and
     /// capture all properties of the [OutputAsset].
     #[turbo_tasks::function]
-    async fn path_string(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(self.path().resolve().await?.to_string())
+    fn path_string(self: Vc<Self>) -> Vc<RcStr> {
+        self.path().to_string()
     }
 
     /// Other references [OutputAsset]s from this [OutputAsset].

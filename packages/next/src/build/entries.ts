@@ -20,6 +20,8 @@ import {
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
   INSTRUMENTATION_HOOK_FILENAME,
+  PROXY_FILENAME,
+  MIDDLEWARE_FILENAME,
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -45,6 +47,7 @@ import {
   isInstrumentationHookFilename,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
+import { getDefaultMiddlewareMatcher } from '../shared/lib/router/utils/get-default-middleware-matcher'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import type { ServerRuntime } from '../types'
@@ -898,7 +901,7 @@ export async function createEntrypoints(
 
       if (isMiddlewareFile(page)) {
         middlewareMatchers = staticInfo.middleware?.matchers ?? [
-          { regexp: '.*', originalSource: '/:path*' },
+          getDefaultMiddlewareMatcher(params.config),
         ]
       }
 
@@ -947,7 +950,13 @@ export async function createEntrypoints(
                 isDev: false,
               })
           } else if (isMiddlewareFile(page)) {
-            server[serverBundlePath.replace('src/', '')] = getEdgeServerEntry({
+            server[
+              serverBundlePath
+                // proxy.js still uses middleware.js for bundle path for now.
+                // TODO: Revisit when we remove middleware.js.
+                .replace(PROXY_FILENAME, MIDDLEWARE_FILENAME)
+                .replace('src/', '')
+            ] = getEdgeServerEntry({
               ...params,
               rootDir,
               absolutePagePath: absolutePagePath,
@@ -1022,7 +1031,12 @@ export async function createEntrypoints(
                   : undefined,
               }).import
             }
-            edgeServer[serverBundlePath] = getEdgeServerEntry({
+            const edgeServerBundlePath = isMiddlewareFile(page)
+              ? serverBundlePath
+                  .replace(PROXY_FILENAME, MIDDLEWARE_FILENAME)
+                  .replace('src/', '')
+              : serverBundlePath
+            edgeServer[edgeServerBundlePath] = getEdgeServerEntry({
               ...params,
               rootDir,
               absolutePagePath: absolutePagePath,

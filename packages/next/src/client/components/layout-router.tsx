@@ -389,7 +389,14 @@ function InnerLayoutRouter({
         new URL(url, location.origin),
         {
           flightRouterState: refetchTree,
-          nextUrl: includeNextUrl ? context.nextUrl : null,
+          nextUrl: includeNextUrl
+            ? // We always send the last next-url, not the current when
+              // performing a dynamic request. This is because we update
+              // the next-url after a navigation, but we want the same
+              // interception route to be matched that used the last
+              // next-url.
+              context.previousNextUrl || context.nextUrl
+            : null,
         }
       ).then((serverResponse) => {
         startTransition(() => {

@@ -1057,13 +1057,17 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .filter((log) => log.startsWith('Image with src'))
+
       expect(warnings[0]).toMatch(
-        'Image with src "/test.png" has "sizes" property but it will be ignored.'
+        'Image with src "/test.png" is using next/legacy/image which is deprecated and will be removed in a future version of Next.js.'
       )
       expect(warnings[1]).toMatch(
+        'Image with src "/test.png" has "sizes" property but it will be ignored.'
+      )
+      expect(warnings[2]).toMatch(
         'Image with src "/test.png" was detected as the Largest Contentful Paint (LCP).'
       )
-      expect(warnings.length).toBe(2)
+      expect(warnings.length).toBe(3)
     })
   } else {
     //server-only tests

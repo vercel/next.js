@@ -35,7 +35,7 @@ const DELETION_PREFIX: &str = "__stale_";
 ///
 /// **Environment Variables**
 /// - `TURBO_ENGINE_VERSION`: Forces use of a specific database version.
-/// - `TURBO_ENGINE_IGNORE_DIRTY`: Enable persistent caching in a dirty git repository. Otherwise a
+/// - `TURBO_ENGINE_IGNORE_DIRTY`: Enable filesystem cache in a dirty git repository. Otherwise a
 ///   temporary directory is created.
 /// - `TURBO_ENGINE_DISABLE_VERSIONING`: Ignores versioning and always uses the same "unversioned"
 ///   database when set.
@@ -60,7 +60,7 @@ pub fn handle_db_versioning(
     } else if ignore_dirty {
         println!(
             "WARNING: The git repository is dirty, but Persistent Caching is still enabled. \
-             Manual removal of the persistent caching database might be required."
+             Manual removal of the filesystem cache database might be required."
         );
         Some(version_info.describe)
     } else {

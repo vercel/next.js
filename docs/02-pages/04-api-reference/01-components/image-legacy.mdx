@@ -6,7 +6,7 @@ version: legacy
 
 Starting with Next.js 13, the `next/image` component was rewritten to improve both the performance and developer experience. In order to provide a backwards compatible upgrade solution, the old `next/image` was renamed to `next/legacy/image`.
 
-View the **new** [`next/image` API Reference](/docs/pages/api-reference/components/image)
+> **Warning**: `next/legacy/image` is deprecated and will be removed in a future version of Next.js. Please use [`next/image`](/docs/app/api-reference/components/image) instead.
 
 ## Comparison
 
@@ -642,6 +642,7 @@ Auto-detection for animated files is best-effort and supports GIF, APNG, and Web
 
 ## Version History
 
-| Version   | Changes                                     |
-| --------- | ------------------------------------------- |
-| `v13.0.0` | `next/image` renamed to `next/legacy/image` |
+| Version   | Changes                                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------------------------- |
+| `v16.0.0` | `next/legacy/image` deprecated and will be removed in a future version of Next.js. Please use `next/image` instead. |
+| `v13.0.0` | `next/image` renamed to `next/legacy/image`                                                                         |

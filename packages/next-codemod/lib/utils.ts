@@ -121,4 +121,9 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'next-lint-to-eslint-cli',
     version: '16.0.0',
   },
+  {
+    title: 'Migrate from deprecated `middleware` convention to `proxy`',
+    value: 'middleware-to-proxy',
+    version: '16.0.0',
+  },
 ]

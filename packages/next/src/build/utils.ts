@@ -22,6 +22,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   WEBPACK_LAYERS,
+  PROXY_FILENAME,
 } from '../lib/constants'
 import type {
   AppPageModule,
@@ -96,7 +97,12 @@ export function difference<T>(
 }
 
 export function isMiddlewareFilename(file?: string | null) {
-  return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+  return (
+    file === MIDDLEWARE_FILENAME ||
+    file === `src/${MIDDLEWARE_FILENAME}` ||
+    file === PROXY_FILENAME ||
+    file === `src/${PROXY_FILENAME}`
+  )
 }
 
 export function isInstrumentationHookFilename(file?: string | null) {
@@ -489,7 +495,7 @@ export async function printTreeView(
   const middlewareInfo = middlewareManifest.middleware?.['/']
   if (middlewareInfo?.files.length > 0) {
     messages.push([])
-    messages.push(['ƒ Middleware'])
+    messages.push(['ƒ Proxy (Middleware)'])
   }
 
   print(
@@ -626,7 +632,6 @@ export async function isPageStatic({
   page,
   distDir,
   configFileName,
-  runtimeEnvConfig,
   httpAgentOptions,
   locales,
   defaultLocale,
@@ -653,7 +658,6 @@ export async function isPageStatic({
   cacheComponents: boolean
   authInterrupts: boolean
   configFileName: string
-  runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: readonly string[]
   defaultLocale?: string
@@ -701,9 +705,6 @@ export async function isPageStatic({
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async (): Promise<PageIsStaticResult> => {
-      ;(
-        require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
-      ).setConfig(runtimeEnvConfig)
       setHttpClientAndAgentOptions({
         httpAgentOptions,
       })
@@ -1003,20 +1004,14 @@ export function reduceAppConfig(
 export async function hasCustomGetInitialProps({
   page,
   distDir,
-  runtimeEnvConfig,
   checkingApp,
   sriEnabled,
 }: {
   page: string
   distDir: string
-  runtimeEnvConfig: any
   checkingApp: boolean
   sriEnabled: boolean
 }): Promise<boolean> {
-  ;(
-    require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
-  ).setConfig(runtimeEnvConfig)
-
   const { ComponentMod } = await loadComponents({
     distDir,
     page: page,
@@ -1039,17 +1034,12 @@ export async function hasCustomGetInitialProps({
 export async function getDefinedNamedExports({
   page,
   distDir,
-  runtimeEnvConfig,
   sriEnabled,
 }: {
   page: string
   distDir: string
-  runtimeEnvConfig: any
   sriEnabled: boolean
 }): Promise<ReadonlyArray<string>> {
-  ;(
-    require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
-  ).setConfig(runtimeEnvConfig)
   const { ComponentMod } = await loadComponents({
     distDir,
     page: page,
@@ -1391,7 +1381,10 @@ export function isCustomErrorPage(page: string) {
 
 export function isMiddlewareFile(file: string) {
   return (
-    file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+    file === `/${MIDDLEWARE_FILENAME}` ||
+    file === `/src/${MIDDLEWARE_FILENAME}` ||
+    file === `/${PROXY_FILENAME}` ||
+    file === `/src/${PROXY_FILENAME}`
   )
 }
 
@@ -1421,9 +1414,10 @@ export function getPossibleMiddlewareFilenames(
   folder: string,
   extensions: string[]
 ) {
-  return extensions.map((extension) =>
-    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`)
-  )
+  return extensions.flatMap((extension) => [
+    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
+    path.join(folder, `${PROXY_FILENAME}.${extension}`),
+  ])
 }
 
 export class NestedMiddlewareError extends Error {

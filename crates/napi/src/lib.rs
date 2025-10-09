@@ -43,8 +43,10 @@ use swc_core::{
     base::{Compiler, TransformOutput},
     common::{FilePathMapping, SourceMap},
 };
+
 #[cfg(not(target_arch = "wasm32"))]
 pub mod css;
+pub mod lockfile;
 pub mod mdx;
 pub mod minify;
 #[cfg(not(target_arch = "wasm32"))]
