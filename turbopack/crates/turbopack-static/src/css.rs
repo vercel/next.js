@@ -1,4 +1,4 @@
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -16,13 +16,14 @@ use crate::output_asset::StaticOutputAsset;
 #[derive(Clone)]
 pub struct StaticUrlCssModule {
     pub source: ResolvedVc<Box<dyn Source>>,
+    tag: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticUrlCssModule {
     #[turbo_tasks::function]
-    pub fn new(source: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
-        Self::cell(StaticUrlCssModule { source })
+    pub fn new(source: ResolvedVc<Box<dyn Source>>, tag: Option<RcStr>) -> Vc<Self> {
+        Self::cell(StaticUrlCssModule { source, tag })
     }
 
     #[turbo_tasks::function]
@@ -30,7 +31,7 @@ impl StaticUrlCssModule {
         &self,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<StaticOutputAsset> {
-        StaticOutputAsset::new(*chunking_context, *self.source)
+        StaticOutputAsset::new(*chunking_context, *self.source, self.tag.clone())
     }
 }
 

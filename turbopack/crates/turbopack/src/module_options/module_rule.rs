@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -138,7 +139,9 @@ pub enum ModuleType {
         ty: CssModuleAssetType,
         environment: Option<ResolvedVc<Environment>>,
     },
-    StaticUrlJs,
+    StaticUrlJs {
+        tag: Option<RcStr>,
+    },
     StaticUrlCss,
     InlinedBytesJs,
     WebAssembly {

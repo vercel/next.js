@@ -210,7 +210,7 @@ pub struct EdgeChunkingContextOptions {
 pub async fn get_edge_chunking_context_with_client_assets(
     options: EdgeChunkingContextOptions,
     client_root: FileSystemPath,
-    asset_prefix: ResolvedVc<Option<RcStr>>,
+    asset_prefix: Option<RcStr>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let EdgeChunkingContextOptions {
         mode,
@@ -237,7 +237,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
-    .asset_base_path(asset_prefix.owned().await?)
+    .asset_base_path(asset_prefix)
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -279,6 +279,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context(
     options: EdgeChunkingContextOptions,
+    client_root: FileSystemPath,
+    asset_prefix: Option<RcStr>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let EdgeChunkingContextOptions {
         mode,
@@ -305,6 +307,9 @@ pub async fn get_edge_chunking_context(
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
+    .client_roots_override(rcstr!("client"), client_root.clone())
+    .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
+    .asset_base_path_override(rcstr!("client"), asset_prefix.unwrap())
     // Since one can't read files in edge directly, any asset need to be fetched
     // instead. This special blob url is handled by the custom fetch
     // implementation in the edge sandbox. It will respond with the

@@ -434,11 +434,23 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".webp".to_string()),
                     RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
                 ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
+                    tag: None,
+                })],
             ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
+                    tag: None,
+                })],
+            ),
+            ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::Url(
+                    UrlReferenceSubType::EcmaScriptNewUrl,
+                )),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
+                    tag: None,
+                })],
             ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
