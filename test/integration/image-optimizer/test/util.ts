@@ -181,6 +181,7 @@ export function runTests(ctx: RunTestsCtx) {
     domains = [],
     formats = [],
     minimumCacheTTL = 14400,
+    maximumRedirects = 3,
     dangerouslyAllowPrivateIP,
   } = nextConfigImages || {}
   const avifEnabled = formats[0] === 'image/avif'
@@ -214,19 +215,22 @@ export function runTests(ctx: RunTestsCtx) {
   }
 
   if (domains.length > 0) {
-    it('should follow redirect from http to https', async () => {
+    it('should follow redirect from http to https when maximumRedirects > 0', async () => {
       const url = `http://image-optimization-test.vercel.app/frog.png`
       const query = { url, w: ctx.w, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
-      expect(res.status).toBe(200)
-      expect(res.headers.get('Content-Type')).toBe('image/png')
+      expect(res.status).toBe(maximumRedirects > 0 ? 200 : 508)
     })
 
     it('should follow redirect when dangerouslyAllowPrivateIP enabled', async () => {
       const url = `http://localhost:${slowImageServer.port}?status=301&location=%2Fslow.png`
       const query = { url, w: ctx.w, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
-      expect(res.status).toBe(dangerouslyAllowPrivateIP ? 200 : 400)
+      let expectedStatus = dangerouslyAllowPrivateIP ? 200 : 400
+      if (maximumRedirects === 0) {
+        expectedStatus = 508
+      }
+      expect(res.status).toBe(expectedStatus)
     })
 
     it('should return 508 after redirecting too many times', async () => {
