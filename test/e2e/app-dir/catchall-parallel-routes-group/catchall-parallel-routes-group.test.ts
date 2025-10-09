@@ -1,8 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-// TODO: resolve build error associated with this case
-describe.skip('catchall-parallel-routes-group', () => {
+describe('catchall-parallel-routes-group', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

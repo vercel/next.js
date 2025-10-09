@@ -116,6 +116,9 @@ export type AppDirModules = {
 const normalizeParallelKey = (key: string) =>
   key.startsWith('@') ? key.slice(1) : key
 
+const isCatchAllSegment = (segment: string) =>
+  segment.startsWith('[...') || segment.startsWith('[[...')
+
 const isDirectory = async (pathname: string) => {
   try {
     const stat = await fs.stat(pathname)
@@ -550,10 +553,20 @@ async function createTreeCodeFromPath(
           if (adjacentParallelSegment === 'children') {
             defaultPath = PARALLEL_ROUTE_DEFAULT_PATH
           } else {
-            throw new MissingDefaultParallelRouteError(
-              fullSegmentPath,
-              adjacentParallelSegment
-            )
+            // Check if we're inside a catch-all route (i.e., the parallel route is a child
+            // of a catch-all segment). Only skip validation if the slot is UNDER a catch-all.
+            // For example:
+            //   /[...catchAll]/@slot - isInsideCatchAll = true (skip validation) ✓
+            //   /@slot/[...catchAll] - isInsideCatchAll = false (require default) ✓
+            // The catch-all provides fallback behavior, so default.js is not required.
+            const isInsideCatchAll = segments.some(isCatchAllSegment)
+            if (!isInsideCatchAll) {
+              throw new MissingDefaultParallelRouteError(
+                fullSegmentPath,
+                adjacentParallelSegment
+              )
+            }
+            defaultPath = PARALLEL_ROUTE_DEFAULT_PATH
           }
         }
 

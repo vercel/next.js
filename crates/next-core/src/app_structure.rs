@@ -1191,8 +1191,19 @@ async fn directory_tree_to_loader_tree_internal(
 
         if let Some(subtree) = subtree {
             if let Some(key) = parallel_route_key {
-                // Validate that parallel routes (except "children") have a default.js file
-                if key != "children" && subdirectory.modules.default.is_none() {
+                let is_inside_catchall = app_page.is_catchall();
+
+                // Validate that parallel routes (except "children") have a default.js file.
+                // Skip this validation if the slot is UNDER a catch-all route (i.e., the
+                // parallel route is a child of a catch-all segment).
+                // For example:
+                //   /[...catchAll]/@slot - is_inside_catchall = true (skip validation) ✓
+                //   /@slot/[...catchAll] - is_inside_catchall = false (require default) ✓
+                // The catch-all provides fallback behavior, so default.js is not required.
+                if key != "children"
+                    && subdirectory.modules.default.is_none()
+                    && !is_inside_catchall
+                {
                     missing_default_parallel_route_issue(
                         app_dir.clone(),
                         app_page.clone(),
@@ -1262,10 +1273,12 @@ async fn directory_tree_to_loader_tree_internal(
                 None
             };
 
+            let is_inside_catchall = app_page.is_catchall();
+
             // Only emit the issue if this is not the children slot and there's no default
             // component. The children slot is implicit and doesn't require a default.js
-            // file.
-            if default.is_none() && key != "children" {
+            // file. Also skip validation if the slot is UNDER a catch-all route.
+            if default.is_none() && key != "children" && !is_inside_catchall {
                 missing_default_parallel_route_issue(
                     app_dir.clone(),
                     app_page.clone(),
