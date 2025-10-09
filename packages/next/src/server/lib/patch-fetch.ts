@@ -17,7 +17,6 @@ import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
 import {
   getCacheSignal,
-  type RequestStore,
   type RevalidateStore,
   type WorkUnitAsyncStorage,
 } from '../app-render/work-unit-async-storage.external'
@@ -30,7 +29,6 @@ import {
 } from '../response-cache'
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
-import { InvariantError } from '../../shared/lib/invariant-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -573,7 +571,7 @@ export function createPatchedFetcher(
                   cacheSignal = null
                 }
                 // TODO(restart-on-cache-miss): block dynamic when filling caches
-                await dynamicInDevStagedRendering(workUnitStore)
+                await getTimeoutBoundary()
               }
               break
             case 'prerender-ppr':
@@ -698,7 +696,7 @@ export function createPatchedFetcher(
                       cacheSignal = null
                     }
                     // TODO(restart-on-cache-miss): block dynamic when filling caches
-                    await dynamicInDevStagedRendering(workUnitStore)
+                    await getTimeoutBoundary()
                   }
                   break
                 case 'prerender-ppr':
@@ -968,7 +966,7 @@ export function createPatchedFetcher(
                     process.env.NODE_ENV === 'development' &&
                     isStagedRenderingInDev
                   ) {
-                    await dynamicInDevStagedRendering(workUnitStore)
+                    await getTimeoutBoundary()
                   }
                   break
                 case 'prerender-ppr':
@@ -1089,7 +1087,7 @@ export function createPatchedFetcher(
                       cacheSignal = null
                     }
                     // TODO(restart-on-cache-miss): block dynamic when filling caches
-                    await dynamicInDevStagedRendering(workUnitStore)
+                    await getTimeoutBoundary()
                   }
                   break
                 case 'prerender-ppr':
@@ -1134,7 +1132,7 @@ export function createPatchedFetcher(
                       isStagedRenderingInDev
                     ) {
                       // TODO(restart-on-cache-miss): block dynamic when filling caches
-                      await dynamicInDevStagedRendering(workUnitStore)
+                      await getTimeoutBoundary()
                     }
                     break
                   case 'cache':
@@ -1285,30 +1283,4 @@ function getTimeoutBoundary() {
     })
   }
   return currentTimeoutBoundary
-}
-
-async function dynamicInDevStagedRendering(requestStore: RequestStore) {
-  if (
-    process.env.NODE_ENV === 'development' &&
-    process.env.__NEXT_CACHE_COMPONENTS
-  ) {
-    if (requestStore.cacheSignal) {
-      // TODO(restart-on-cache-miss): block dynamic more effectively.
-      // Ideally, we'd hang here -- if the render acts as a warmup, there's no need to execute dynamic requests.
-      // But we can *only* hang if the render ends up being a warmup and gets discarded --
-      // if it's used as is, we have to resolve the fetch eventually.
-      // This coordination mechanism will be implemented in a follow-up,
-      // for now it's enough to delay.
-      await getTimeoutBoundary()
-      await getTimeoutBoundary()
-    } else {
-      // We don't have a cacheSignal, so this is the final (restarted) render.
-      // Don't block, but delay to prevent this from resolving in the static stage.
-      await getTimeoutBoundary()
-    }
-  } else {
-    throw new InvariantError(
-      'dynamicInDevStagedRendering should only be used in development mode and when Cache Components is enabled.'
-    )
-  }
 }
