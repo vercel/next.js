@@ -68,7 +68,7 @@ describe('Required Server Files', () => {
         expect(Array.isArray(requiredFilesManifest.files)).toBe(true)
         expect(Array.isArray(requiredFilesManifest.ignore)).toBe(true)
         expect(requiredFilesManifest.files.length).toBeGreaterThan(0)
-        expect(requiredFilesManifest.ignore.length).toBeGreaterThan(0)
+        expect(requiredFilesManifest.ignore.length).toBe(0)
         expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
         expect(typeof requiredFilesManifest.config.trailingSlash).toBe(
           'boolean'

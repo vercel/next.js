@@ -50,10 +50,6 @@ import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
-
-const envConfig =
-  require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
-
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
@@ -75,13 +71,11 @@ async function exportPageImpl(
     distDir,
     pagesDataDir,
     buildExport = false,
-    serverRuntimeConfig,
     subFolders = false,
     optimizeCss,
     disableOptimizedLoading,
     debugOutput = false,
     enableExperimentalReact,
-    ampValidatorPath,
     trailingSlash,
     sriEnabled,
     renderOpts: commonRenderOpts,
@@ -128,8 +122,6 @@ async function exportPageImpl(
   const outDir = isAppDir ? join(distDir, 'server/app') : commonOutDir
 
   const filePath = normalizePagePath(path)
-  const ampPath = `${filePath}.amp`
-  let renderAmpPath = ampPath
 
   let updatedPath = exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
@@ -140,10 +132,6 @@ async function exportPageImpl(
     if (localePathResult.detectedLocale) {
       updatedPath = localePathResult.pathname
       locale = localePathResult.detectedLocale
-
-      if (locale === commonRenderOpts.defaultLocale) {
-        renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
-      }
     }
   }
 
@@ -195,11 +183,6 @@ async function exportPageImpl(
   ) {
     addRequestMeta(req, 'isLocaleDomain', true)
   }
-
-  envConfig.setConfig({
-    serverRuntimeConfig,
-    publicRuntimeConfig: commonRenderOpts.runtimeConfig,
-  })
 
   const getHtmlFilename = (p: string) =>
     subFolders ? `${p}${sep}index.html` : `${p}.html`
@@ -263,7 +246,6 @@ async function exportPageImpl(
   const renderOpts: WorkerRenderOpts = {
     ...components,
     ...commonRenderOpts,
-    ampPath: renderAmpPath,
     params,
     optimizeCss,
     disableOptimizedLoading,
@@ -324,10 +306,6 @@ async function exportPageImpl(
     params,
     htmlFilepath,
     htmlFilename,
-    ampPath,
-    subFolders,
-    outDir,
-    ampValidatorPath,
     pagesDataDir,
     buildExport,
     isDynamic,
@@ -413,10 +391,7 @@ export async function exportPages(
             outDir,
             pagesDataDir,
             renderOpts,
-            ampValidatorPath:
-              nextConfig.experimental.amp?.validator || undefined,
             trailingSlash: nextConfig.trailingSlash,
-            serverRuntimeConfig: nextConfig.serverRuntimeConfig,
             subFolders: nextConfig.trailingSlash && !options.buildExport,
             buildExport: options.buildExport,
             optimizeCss: nextConfig.experimental.optimizeCss,

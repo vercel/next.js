@@ -1,5 +1,4 @@
 import createStore from 'next/dist/compiled/unistore'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { type Span, flushAllTraces, trace } from '../../trace'
 import { teardownTraceSubscriber } from '../swc'
 import * as Log from './log'
@@ -135,19 +134,6 @@ store.subscribe((state) => {
     // Log compilation errors
     Log.error(state.errors[0])
 
-    const cleanError = stripAnsi(state.errors[0])
-    if (cleanError.indexOf('SyntaxError') > -1) {
-      const matches = cleanError.match(/\[.*\]=/)
-      if (matches) {
-        for (const match of matches) {
-          const prop = (match.split(']').shift() || '').slice(1)
-          console.log(
-            `AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://nextjs.org/docs/messages/amp-bind-jsx-alt`
-          )
-        }
-        return
-      }
-    }
     startTime = 0
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()

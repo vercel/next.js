@@ -271,7 +271,7 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
 
             let code = code.build();
             let source_map = if code.has_source_map() {
-                let source_map = code.generate_source_map_ref()?;
+                let source_map = code.generate_source_map_ref(None);
 
                 static SECTIONS_REGEX: Lazy<Regex> =
                     Lazy::new(|| Regex::new(r#"sections"[\s\n]*:"#).unwrap());

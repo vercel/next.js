@@ -249,11 +249,6 @@ export interface RequestMeta {
   params?: ParsedUrlQuery
 
   /**
-   * The AMP validator to use in development
-   */
-  ampValidator?: (html: string, pathname: string) => Promise<void>
-
-  /**
    * ErrorOverlay component to use in development for pages router
    */
   PagesErrorDebug?: PagesDevOverlayBridgeType
@@ -348,10 +343,7 @@ type NextQueryMetadata = {
   [NEXT_RSC_UNION_QUERY]?: string
 }
 
-export type NextParsedUrlQuery = ParsedUrlQuery &
-  NextQueryMetadata & {
-    amp?: '1'
-  }
+export type NextParsedUrlQuery = ParsedUrlQuery & NextQueryMetadata
 
 export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
   query: NextParsedUrlQuery

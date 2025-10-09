@@ -177,25 +177,33 @@ The default export function receives the following props:
 
 #### `params` (optional)
 
-An object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `icon` or `apple-icon` is colocated in.
+A promise that resolves to an object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `icon` or `apple-icon` is colocated in.
+
+> **Good to know**: If you use [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata), the function will also receive an `id` prop that is a promise resolving to the `id` value from one of the items returned by `generateImageMetadata`.
 
 ```tsx filename="app/shop/[slug]/icon.tsx" switcher
-export default function Icon({ params }: { params: { slug: string } }) {
+export default async function Icon({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
   // ...
 }
 ```
 
 ```jsx filename="app/shop/[slug]/icon.js" switcher
-export default function Icon({ params }) {
+export default async function Icon({ params }) {
+  const { slug } = await params
   // ...
 }
 ```
 
-| Route                           | URL         | `params`                  |
-| ------------------------------- | ----------- | ------------------------- |
-| `app/shop/icon.js`              | `/shop`     | `undefined`               |
-| `app/shop/[slug]/icon.js`       | `/shop/1`   | `{ slug: '1' }`           |
-| `app/shop/[tag]/[item]/icon.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
+| Route                           | URL         | `params`                           |
+| ------------------------------- | ----------- | ---------------------------------- |
+| `app/shop/icon.js`              | `/shop`     | `undefined`                        |
+| `app/shop/[slug]/icon.js`       | `/shop/1`   | `Promise<{ slug: '1' }>`           |
+| `app/shop/[tag]/[item]/icon.js` | `/shop/1/2` | `Promise<{ tag: '1', item: '2' }>` |
 
 ### Returns
 
@@ -254,6 +262,7 @@ export default function Icon() {}
 
 ## Version History
 
-| Version   | Changes                                      |
-| --------- | -------------------------------------------- |
-| `v13.3.0` | `favicon` `icon` and `apple-icon` introduced |
+| Version   | Changes                                              |
+| --------- | ---------------------------------------------------- |
+| `v16.0.0` | `params` is now a promise that resolves to an object |
+| `v13.3.0` | `favicon` `icon` and `apple-icon` introduced         |

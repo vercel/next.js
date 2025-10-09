@@ -398,6 +398,9 @@ function runTests(mode: 'dev' | 'server') {
       expect(warnings).not.toMatch(
         /was detected as the Largest Contentful Paint/gm
       )
+      expect(warnings).not.toMatch(
+        'using next/legacy/image which is deprecated and will be removed in a future version'
+      )
       expect(warnings).not.toMatch(/React does not recognize the (.+) prop/gm)
     } finally {
       if (browser) {

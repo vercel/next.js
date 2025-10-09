@@ -21,6 +21,8 @@ export function createCacheKey(
   originalHref: string,
   nextUrl: string | null
 ): RouteCacheKey {
+  // TODO: We should remove the hash from the href and track that separately.
+  // There's no reason to vary route entries by hash.
   const originalUrl = new URL(originalHref)
   const cacheKey = {
     href: originalHref as NormalizedHref,

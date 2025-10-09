@@ -6,11 +6,7 @@ import {
   getTs,
   removeStringQuotes,
 } from '../utils'
-import {
-  NEXT_TS_ERRORS,
-  ALLOWED_EXPORTS,
-  LEGACY_CONFIG_EXPORT,
-} from '../constant'
+import { NEXT_TS_ERRORS, ALLOWED_EXPORTS } from '../constant'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
 
@@ -163,12 +159,12 @@ const API_DOCS: Record<
   unstable_prefetch: {
     description: `Specifies the default prefetching behavior for this segment. This configuration is currently under development and will change.`,
     link: '(docs coming soon)',
-    options: {
-      '"unstable_static"':
-        'Only static and cached parts of the page will be prefetched. (default)',
-      '"unstable_runtime"':
-        'Parts of the page that use route params, search params, or cookies will also be prefetched.',
-    } satisfies DocsOptionsObject<FullAppSegmentConfig['unstable_prefetch']>,
+    type: 'object',
+    // TODO: ideally, we'd validate the config object somehow, but this is difficult to do
+    // with the way this plugin is currently structured.
+    // For now, since we don't provide an `options` here, we won't do any validation in
+    // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
+    insertText: 'unstable_prefetch = { mode: "static" };',
   },
 }
 
@@ -614,28 +610,6 @@ const config = {
                   start: value.getStart(),
                   length: value.getWidth(),
                 })
-              }
-            }
-          } else if (name.text === LEGACY_CONFIG_EXPORT) {
-            // export const config = { ... }
-            // Error if using `amp: ...`
-            const value = declaration.initializer
-            if (value && ts.isObjectLiteralExpression(value)) {
-              for (const prop of value.properties) {
-                if (
-                  ts.isPropertyAssignment(prop) &&
-                  ts.isIdentifier(prop.name) &&
-                  prop.name.text === 'amp'
-                ) {
-                  diagnostics.push({
-                    file: source,
-                    category: ts.DiagnosticCategory.Error,
-                    code: NEXT_TS_ERRORS.INVALID_CONFIG_OPTION,
-                    messageText: `AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.`,
-                    start: prop.getStart(),
-                    length: prop.getWidth(),
-                  })
-                }
               }
             }
           }

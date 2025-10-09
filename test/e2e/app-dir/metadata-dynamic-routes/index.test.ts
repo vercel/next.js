@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import imageSize from 'image-size'
-import { check } from 'next-test-utils'
+import { check, getDistDir } from 'next-test-utils'
 
 const CACHE_HEADERS = {
   NONE: 'no-cache, no-store',
@@ -228,12 +228,12 @@ describe('app dir - metadata dynamic routes', () => {
 
       if (isNextDev) {
         await check(async () => {
-          next.hasFile('.next/server/app-paths-manifest.json')
+          next.hasFile(`${getDistDir()}/server/app-paths-manifest.json`)
           return 'success'
         }, /success/)
 
         const appPathsManifest = JSON.parse(
-          await next.readFile('.next/server/app-paths-manifest.json')
+          await next.readFile(`${getDistDir()}/server/app-paths-manifest.json`)
         )
         const entryKeys = Object.keys(appPathsManifest)
         // Only has one route for twitter-image with catch-all routes in dev

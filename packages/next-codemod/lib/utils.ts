@@ -43,11 +43,6 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     version: '6.0.0',
   },
   {
-    title: 'Transforms the withAmp HOC into Next.js 9 page configuration',
-    value: 'withamp-to-config',
-    version: '8.0.0',
-  },
-  {
     title:
       'Transforms anonymous components into named components to make sure they work with Fast Refresh',
     value: 'name-default-component',
@@ -124,6 +119,11 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
   {
     title: 'Migrate from `next lint` to the ESLint CLI',
     value: 'next-lint-to-eslint-cli',
+    version: '16.0.0',
+  },
+  {
+    title: 'Migrate from deprecated `middleware` convention to `proxy`',
+    value: 'middleware-to-proxy',
     version: '16.0.0',
   },
 ]

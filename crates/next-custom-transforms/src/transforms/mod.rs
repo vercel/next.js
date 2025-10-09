@@ -1,4 +1,3 @@
-pub mod amp_attributes;
 pub mod cjs_finder;
 pub mod cjs_optimizer;
 pub mod debug_fn_name;

@@ -4,7 +4,7 @@
 const nextConfig = {
   experimental: {
     useCache: true,
-    ppr: true,
+    cacheComponents: true,
   },
 }
 

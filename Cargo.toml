@@ -254,6 +254,10 @@ inherits = "release"
 debug-assertions = true
 overflow-checks = true
 
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+
 [workspace.dependencies]
 # Workspace crates
 next-api = { path = "crates/next-api" }
@@ -308,7 +312,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "36.0.1", features = [
+swc_core = { version = "44.0.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
@@ -319,13 +323,13 @@ testing = "15.0.0"
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"
 mdxjs = "1.0.3"
-modularize_imports = "0.94.0"
-styled_components = "0.122.0"
-styled_jsx = "0.98.0"
-swc_emotion = "0.98.0"
-swc_relay = "0.68.0"
-react_remove_properties = "0.48.0"
-remove_console = "0.49.0"
+modularize_imports = "0.98.0"
+styled_components = "0.126.0"
+styled_jsx = "0.102.0"
+swc_emotion = "0.102.0"
+swc_relay = "0.72.0"
+react_remove_properties = "0.52.0"
+remove_console = "0.53.0"
 preset_env_base = "5.0.0"
 
 
@@ -371,13 +375,13 @@ image = { version = "0.25.0", default-features = false }
 indexmap = "2.7.1"
 indoc = "2.0.0"
 itertools = "0.10.5"
-lightningcss = { version = "1.0.0-alpha.67", features = [
+lightningcss = { version = "1.0.0-alpha.68", features = [
   "serde",
   "visitor",
   "into_owned",
   "browserslist",
 ] }
-lightningcss-napi = { version = "0.4.4", default-features = false, features = [
+lightningcss-napi = { version = "0.4.5", default-features = false, features = [
   "visitor",
 ] }
 markdown = "1.0.0-alpha.18"
@@ -414,7 +418,7 @@ ringmap = "0.1.3"
 roaring = "0.10.10"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
-twox-hash = { version = "2.0.1", features = ["xxhash64"] }
+twox-hash = { version = "2.1.0", features = ["xxhash64", "xxhash3_128"] }
 semver = "1.0.16"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
@@ -443,13 +447,11 @@ triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable
 unsize = "1.1.0"
 url = "2.2.2"
 urlencoding = "2.1.2"
+uuid = "1.18.1"
 vergen = { version = "9.0.6", features = ["cargo"] }
 vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "0.8.7"
 inventory = "0.3.21"
 
 [patch.crates-io]
-hyper = { git = "https://github.com/bgw/hyper-rs.git", branch = "v1.6.0-with-macos-intel-miscompilation-workaround" }
 mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }
-lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
-parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }

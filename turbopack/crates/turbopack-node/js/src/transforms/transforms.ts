@@ -30,12 +30,17 @@ export type IpcInfoMessage =
       }>
     }
 
-export type IpcRequestMessage = {
-  type: 'resolve'
-  options: any
-  lookupPath: string
-  request: string
-}
+export type IpcRequestMessage =
+  | {
+      type: 'resolve'
+      options: any
+      lookupPath: string
+      request: string
+    }
+  | {
+      type: 'trackFileRead'
+      file: string
+    }
 
 export type TransformIpc = Ipc<IpcInfoMessage, IpcRequestMessage>
 
