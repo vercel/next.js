@@ -912,7 +912,7 @@ impl Issue for MissingDefaultParallelRouteIssue {
     #[turbo_tasks::function]
     fn documentation_link(&self) -> Vc<RcStr> {
         Vc::cell(rcstr!(
-            "https://nextjs.org/docs/app/building-your-application/routing/parallel-routes#defaultjs"
+            "https://nextjs.org/docs/messages/slot-missing-default"
         ))
     }
 }
