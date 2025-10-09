@@ -391,7 +391,12 @@ export function navigateReducer(
                   new URL(updatedCanonicalUrl, url.origin),
                   {
                     flightRouterState: dynamicRequestTree,
-                    nextUrl: state.nextUrl,
+                    // We always send the last next-url, not the current when
+                    // performing a dynamic request. This is because we update
+                    // the next-url after a navigation, but we want the same
+                    // interception route to be matched that used the last
+                    // next-url.
+                    nextUrl: state.previousNextUrl || state.nextUrl,
                   }
                 )
 

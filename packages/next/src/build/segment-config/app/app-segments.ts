@@ -12,7 +12,7 @@ import {
   isAppPageRouteModule,
 } from '../../../server/route-modules/checks'
 import { isClientReference } from '../../../lib/client-and-server-references'
-import { getSegmentParam } from '../../../server/app-render/get-segment-param'
+import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
 import {
   getLayoutOrPageModule,
   type LoaderTree,

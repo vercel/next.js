@@ -863,5 +863,11 @@
   "862": "Request body exceeded %s",
   "863": "\\`<Link legacyBehavior>\\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \\`<a>\\` tag.",
   "864": "updateTag can only be called from within a Server Action. To invalidate cache tags in Route Handlers or other contexts, use revalidateTag instead. See more info here: https://nextjs.org/docs/app/api-reference/functions/updateTag",
-  "865": "Invalid profile provided \"%s\" must be configured under cacheLife in next.config or be \"max\""
+  "865": "Invalid profile provided \"%s\" must be configured under cacheLife in next.config or be \"max\"",
+  "866": "Missing value for segment key: \"%s\" with dynamic param type: %s",
+  "867": "`experimental.rdcForNavigations` is enabled, but `experimental.cacheComponents` is not.",
+  "868": "Both \"%s\" and \"%s\" files are detected. Please use \"%s\" instead.",
+  "869": "The %s \"%s\" must export a %s or a \\`default\\` function",
+  "870": "No reference found for param: %s in reference: %s",
+  "871": "No reference found for segment: %s with reference: %s"
 }

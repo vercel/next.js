@@ -22,6 +22,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   WEBPACK_LAYERS,
+  PROXY_FILENAME,
 } from '../lib/constants'
 import type {
   AppPageModule,
@@ -96,7 +97,12 @@ export function difference<T>(
 }
 
 export function isMiddlewareFilename(file?: string | null) {
-  return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+  return (
+    file === MIDDLEWARE_FILENAME ||
+    file === `src/${MIDDLEWARE_FILENAME}` ||
+    file === PROXY_FILENAME ||
+    file === `src/${PROXY_FILENAME}`
+  )
 }
 
 export function isInstrumentationHookFilename(file?: string | null) {
@@ -249,12 +255,14 @@ export async function printTreeView(
     pageExtensions,
     middlewareManifest,
     useStaticPages404,
+    hasGSPAndRevalidateZero,
   }: {
     pagesDir?: string
     pageExtensions: PageExtensions
     buildManifest: BuildManifest
     middlewareManifest: MiddlewareManifest
     useStaticPages404: boolean
+    hasGSPAndRevalidateZero: Set<string>
   }
 ) {
   // Can be overridden for test purposes to omit the build duration output.
@@ -367,6 +375,23 @@ export async function printTreeView(
         symbol = 'ƒ'
       }
 
+      if (hasGSPAndRevalidateZero.has(item)) {
+        usedSymbols.add('ƒ')
+        messages.push([
+          `${border} ƒ ${item}${
+            totalDuration > MIN_DURATION
+              ? ` (${getPrettyDuration(totalDuration)})`
+              : ''
+          }`,
+          showRevalidate && pageInfo?.initialCacheControl
+            ? formatRevalidate(pageInfo.initialCacheControl)
+            : '',
+          showExpire && pageInfo?.initialCacheControl
+            ? formatExpire(pageInfo.initialCacheControl)
+            : '',
+        ])
+      }
+
       usedSymbols.add(symbol)
 
       messages.push([
@@ -386,6 +411,8 @@ export async function printTreeView(
       if (pageInfo?.ssgPageRoutes?.length) {
         const totalRoutes = pageInfo.ssgPageRoutes.length
         const contSymbol = i === arr.length - 1 ? ' ' : '├'
+
+        // HERE
 
         let routes: { route: string; duration: number; avgDuration?: number }[]
         if (pageInfo.ssgPageDurations?.some((d) => d > MIN_DURATION)) {
@@ -489,7 +516,7 @@ export async function printTreeView(
   const middlewareInfo = middlewareManifest.middleware?.['/']
   if (middlewareInfo?.files.length > 0) {
     messages.push([])
-    messages.push(['ƒ Middleware'])
+    messages.push(['ƒ Proxy (Middleware)'])
   }
 
   print(
@@ -1375,7 +1402,10 @@ export function isCustomErrorPage(page: string) {
 
 export function isMiddlewareFile(file: string) {
   return (
-    file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+    file === `/${MIDDLEWARE_FILENAME}` ||
+    file === `/src/${MIDDLEWARE_FILENAME}` ||
+    file === `/${PROXY_FILENAME}` ||
+    file === `/src/${PROXY_FILENAME}`
   )
 }
 
@@ -1405,9 +1435,10 @@ export function getPossibleMiddlewareFilenames(
   folder: string,
   extensions: string[]
 ) {
-  return extensions.map((extension) =>
-    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`)
-  )
+  return extensions.flatMap((extension) => [
+    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
+    path.join(folder, `${PROXY_FILENAME}.${extension}`),
+  ])
 }
 
 export class NestedMiddlewareError extends Error {

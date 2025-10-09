@@ -6616,19 +6616,18 @@
   },
   "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
     "passed": [
+      "layout sharing in non-static prefetches full prefetches should include layouts that were only prefetched with a runtime prefetch",
+      "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches full prefetches should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
       "layout sharing in non-static prefetches navigations should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches navigations should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
       "layout sharing in non-static prefetches runtime prefetches should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches runtime prefetches should omit layouts that were already prefetched with a runtime prefetch",
       "layout sharing in non-static prefetches segment-level prefetch config does not unnecessarily use a runtime prefetch for sub-pages of runtime-prefetchable layouts",
-      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available"
-    ],
-    "failed": [
-      "layout sharing in non-static prefetches full prefetches should include layouts that were only prefetched with a runtime prefetch",
-      "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
+      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available",
       "layout sharing in non-static prefetches segment-level prefetch config uses a runtime prefetch for sub-pages of runtime-prefetchable layouts if requested"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7379,6 +7378,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-resolve/webpack-loader-resolve.test.ts": {
+    "passed": [
+      "webpack-loader-resolve should support resolving absolute path via loader getResolve"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/webpack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
     "passed": ["webpack-loader-resource-query should pass query to loader"],
     "failed": [],
@@ -7397,7 +7405,7 @@
   },
   "test/e2e/app-dir/webpack-loader-ts-transform/webpack-loader-ts-transform.test.ts": {
     "passed": [
-      "webpack-loader-ts-transform should only run the test in turbopack"
+      "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
     ],
     "failed": [],
     "pending": [],
@@ -10569,6 +10577,7 @@
   },
   "test/integration/api-catch-all/test/index.test.js": {
     "passed": [
+      "API routes dev support should return data when catch-all",
       "API routes dev support should return data when catch-all with index and no trailing slash",
       "API routes dev support should return data when catch-all with index and trailing slash",
       "API routes dev support should return redirect when catch-all with index and trailing slash",
@@ -10577,7 +10586,7 @@
       "API routes production mode should return data when catch-all with index and trailing slash",
       "API routes production mode should return redirect when catch-all with index and trailing slash"
     ],
-    "failed": ["API routes dev support should return data when catch-all"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11471,7 +11480,9 @@
       "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
       "create-next-app prompts should prompt user for choice if --tailwind is absent",
       "create-next-app prompts should prompt user for choice if directory name is absent",
-      "create-next-app prompts should prompt user to confirm reset preferences"
+      "create-next-app prompts should prompt user to confirm reset preferences",
+      "create-next-app prompts should show reuse previous settings option when preferences exist",
+      "create-next-app prompts should use recommended defaults when user selects that option"
     ],
     "failed": [],
     "pending": [],
@@ -11897,12 +11908,11 @@
     "passed": [
       "Custom _error development mode 1 should not warn with /_error and /404 when rendering error first",
       "Custom _error development mode 2 should not warn with /_error and /404",
+      "Custom _error development mode 2 should warn on custom /_error without custom /404",
       "Custom _error production mode renders custom _error successfully",
       "Custom _error production mode should not contain /_error in build output"
     ],
-    "failed": [
-      "Custom _error development mode 2 should warn on custom /_error without custom /404"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -14916,11 +14926,11 @@
     "runtimeError": false
   },
   "test/integration/gssp-redirect-with-rewrites/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "getServerSideProps redirects should fallback to browser navigation for an unknown URL",
       "getServerSideProps redirects should use a client-side navigation for a rewritten URL"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16836,11 +16846,10 @@
   },
   "test/integration/jsconfig-paths-wildcard/test/index.test.js": {
     "passed": [
+      "jsconfig paths wildcard default behavior should resolve a wildcard alias",
       "jsconfig paths without baseurl wildcard default behavior should resolve a wildcard alias"
     ],
-    "failed": [
-      "jsconfig paths wildcard default behavior should resolve a wildcard alias"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17909,7 +17918,9 @@
   "test/integration/next-image-new/image-from-node-modules/test/index.test.ts": {
     "passed": [
       "Image Component from node_modules development mode should apply image config for node_modules",
-      "Image Component from node_modules prod mode production mode should apply image config for node_modules"
+      "Image Component from node_modules development mode should warn when using images.domains config",
+      "Image Component from node_modules prod mode production mode should apply image config for node_modules",
+      "Image Component from node_modules prod mode production mode should warn when using images.domains config"
     ],
     "failed": [],
     "pending": [],
@@ -18049,15 +18060,14 @@
   },
   "test/integration/next-image-new/unoptimized/test/index.test.ts": {
     "passed": [
+      "Unoptimized Image Tests development mode - component should not optimize any image",
+      "Unoptimized Image Tests development mode - getImageProps should not optimize any image",
       "Unoptimized Image Tests production mode - component should build correct images-manifest.json",
       "Unoptimized Image Tests production mode - component should not optimize any image",
       "Unoptimized Image Tests production mode - getImageProps should build correct images-manifest.json",
       "Unoptimized Image Tests production mode - getImageProps should not optimize any image"
     ],
-    "failed": [
-      "Unoptimized Image Tests development mode - component should not optimize any image",
-      "Unoptimized Image Tests development mode - getImageProps should not optimize any image"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18569,9 +18579,10 @@
   "test/integration/read-only-source-hmr/test/index.test.js": {
     "passed": [
       "Read-only source HMR should detect a new page",
+      "Read-only source HMR should detect changes to a page",
       "Read-only source HMR should handle page deletion and subsequent recreation"
     ],
-    "failed": ["Read-only source HMR should detect changes to a page"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -19641,6 +19652,15 @@
     "passed": [
       "500-page - mixed-router-with-custom-pages-error should generate 500.html with pages builtin _error",
       "500-page - mixed-router-with-custom-pages-error should not override 500.html with app router global-error when pages _error.tsx exists"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/adapter-config/adapter-config-export.test.ts": {
+    "passed": [
+      "adapter-config export should call onBuildComplete with correct context"
     ],
     "failed": [],
     "pending": [],

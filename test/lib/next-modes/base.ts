@@ -403,9 +403,6 @@ export class NextInstance {
           }
 
           // alias experimental feature flags for deployment compatibility
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_PPR) {
-            process.env.__NEXT_EXPERIMENTAL_PPR = process.env.NEXT_PRIVATE_EXPERIMENTAL_PPR
-          }
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
             process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
           }
