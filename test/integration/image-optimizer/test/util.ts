@@ -44,15 +44,25 @@ export async function serveSlowImage() {
   const port = await findPort()
   const server = http.createServer(async (req, res) => {
     const parsedUrl = new URL(req.url, 'http://localhost')
-    const delay = Number(parsedUrl.searchParams.get('delay')) || 500
+    const delay = Number(parsedUrl.searchParams.get('delay')) || 0
     const status = Number(parsedUrl.searchParams.get('status')) || 200
+    const location = Number(parsedUrl.searchParams.get('location'))
 
     console.log('delaying image for', delay)
     await waitFor(delay)
 
     res.statusCode = status
 
-    if (status === 308) {
+    if (status === 301) {
+      if (!location) {
+        res.end('invariant - redirect must have location')
+        return
+      }
+      res.setHeader('Location', location)
+      res.end()
+    }
+
+    if (status === 399) {
       res.end('invalid status')
       return
     }
@@ -163,6 +173,7 @@ export function runTests(ctx: RunTestsCtx) {
     domains = [],
     formats = [],
     minimumCacheTTL = 14400,
+    dangerouslyAllowPrivateIP,
   } = nextConfigImages || {}
   const avifEnabled = formats[0] === 'image/avif'
   let slowImageServer: Awaited<ReturnType<typeof serveSlowImage>>
@@ -173,9 +184,9 @@ export function runTests(ctx: RunTestsCtx) {
     slowImageServer.stop()
   })
 
-  if (domains.length > 0) {
+  if (domains.length > 0 && dangerouslyAllowPrivateIP) {
     it('should normalize invalid status codes', async () => {
-      const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${1}&status=308`
+      const url = `http://localhost:${slowImageServer.port}/slow.png?status=399`
       const query = { url, w: ctx.w, q: ctx.q }
       const opts: RequestInit = {
         headers: { accept: 'image/webp' },
@@ -191,6 +202,14 @@ export function runTests(ctx: RunTestsCtx) {
       const query = { url, w: ctx.w, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(504)
+    })
+
+    it('should follow redirect', async () => {
+      const url = `http://localhost:${slowImageServer.port}?status=301&location=%2Ftest.png`
+      const query = { url, w: ctx.w, q: ctx.q }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/png')
     })
   }
 
@@ -887,7 +906,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
   }
 
-  if (domains.length > 0) {
+  if (domains.length > 0 && dangerouslyAllowPrivateIP) {
     it('should resize absolute url from localhost', async () => {
       const url = `http://localhost:${ctx.appPort}/test.png`
       const query = { url, w: ctx.w, q: ctx.q }
@@ -1043,7 +1062,7 @@ export function runTests(ctx: RunTestsCtx) {
   }
 
   it('should fail when url has file protocol', async () => {
-    const url = `file://localhost:${ctx.appPort}/test.png`
+    const url = `file://example.vercel.sh:${ctx.appPort}/test.png`
     const query = { url, w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
@@ -1052,7 +1071,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should fail when url has ftp protocol', async () => {
-    const url = `ftp://localhost:${ctx.appPort}/test.png`
+    const url = `ftp://example.vercel.sh:${ctx.appPort}/test.png`
     const query = { url, w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
@@ -1068,7 +1087,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should fail when url is protocol relative', async () => {
-    const query = { url: `//example.com`, w: ctx.w, q: ctx.q }
+    const query = { url: `//example.vercel.sh`, w: ctx.w, q: ctx.q }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
@@ -1099,7 +1118,7 @@ export function runTests(ctx: RunTestsCtx) {
       expect(await res.text()).toBe(`"url" parameter is invalid`)
     })
 
-    if (domains.length > 0) {
+    if (domains.length > 0 && dangerouslyAllowPrivateIP) {
       it('should pass with absolute next image url', async () => {
         const fullUrl =
           'https://image-optimization-test.vercel.app/_next/image?url=%2Ffrog.jpg&w=1024&q=75'
@@ -1139,7 +1158,7 @@ export function runTests(ctx: RunTestsCtx) {
     )
   })
 
-  if (domains.length > 0) {
+  if (domains.length > 0 && dangerouslyAllowPrivateIP) {
     it('should fail when url fails to load an image', async () => {
       const url = `http://localhost:${ctx.appPort}/not-an-image`
       const query = { w: ctx.w, url, q: ctx.q }
@@ -1489,7 +1508,7 @@ export function runTests(ctx: RunTestsCtx) {
     expect(await res.text()).toBe("The requested resource isn't a valid image.")
   })
 
-  if (domains.length > 0) {
+  if (domains.length > 0 && dangerouslyAllowPrivateIP) {
     it('should handle concurrent requests', async () => {
       await cleanImagesDir(ctx.imagesDir)
       const delay = 500
@@ -1614,6 +1633,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       q: 100,
       isDev,
       nextConfigImages: {
+        dangerouslyAllowPrivateIP: true,
         domains: [
           'localhost',
           '127.0.0.1',
@@ -1710,6 +1730,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       q: 100,
       isDev,
       nextConfigImages: {
+        dangerouslyAllowPrivateIP: true,
         domains: [
           'localhost',
           '127.0.0.1',
