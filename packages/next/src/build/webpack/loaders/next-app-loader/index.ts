@@ -540,17 +540,18 @@ async function createTreeCodeFromPath(
             ? ''
             : `/${adjacentParallelSegment}`
 
-        // if a default is found, use that. Otherwise use the fallback, which
-        // will trigger a `notFound()`
-        let defaultPath = await resolver(
-          `${appDirPrefix}${segmentPath}${actualSegment}/default`
-        )
+        // Use the default path if it's found, otherwise if it's a children
+        // slot, then use the fallback (which triggers a `notFound()`). If this
+        // isn't a children slot, then throw an error, as it produces a silent
+        // 404 if we'd used the fallback.
+        const fullSegmentPath = `${appDirPrefix}${segmentPath}${actualSegment}`
+        let defaultPath = await resolver(`${fullSegmentPath}/default`)
         if (!defaultPath) {
           if (adjacentParallelSegment === 'children') {
             defaultPath = PARALLEL_ROUTE_DEFAULT_PATH
           } else {
             throw new MissingDefaultParallelRouteError(
-              segmentPath,
+              fullSegmentPath,
               adjacentParallelSegment
             )
           }

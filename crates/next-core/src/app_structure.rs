@@ -840,7 +840,7 @@ impl Issue for DuplicateParallelRouteIssue {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value]
 struct MissingDefaultParallelRouteIssue {
     app_dir: FileSystemPath,
     app_page: AppPage,
