@@ -874,12 +874,20 @@ When using `@next/mdx` as shown above, you **do not** need to use `remark` or `r
 Next.js supports a new MDX compiler written in Rust. This compiler is still experimental and is not recommended for production use. To use the new compiler, you need to configure `next.config.js` when you pass it to `withMDX`:
 
 ```js filename="next.config.js" switcher
+import createMDX from '@next/mdx'
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
     mdxRs: true,
   },
 }
+
+const withMDX = createMDX({
+  // Add markdown plugins here, as desired
+})
+
+export default withMDX(nextConfig)
 ```
 
 ```ts filename="next.config.ts" switcher
@@ -891,6 +899,12 @@ const nextConfig: NextConfig = {
     mdxRs: true,
   },
 }
+
+const withMDX = createMDX({
+  // Add markdown plugins here, as desired
+});
+
+export default withMDX(nextConfig);
 ```
 
 `mdxRs` also accepts an object to configure how to transform mdx files.
