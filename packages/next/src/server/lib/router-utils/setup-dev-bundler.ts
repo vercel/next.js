@@ -432,11 +432,11 @@ async function startWatcher(
             const cwd = process.cwd()
 
             throw new Error(
-              `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, middlewareFilePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, proxyFilePath)}" are detected. Please use "./${path.relative(cwd, proxyFilePath)}" only.`
+              `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, middlewareFilePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, proxyFilePath)}" are detected. Please use "./${path.relative(cwd, proxyFilePath)}" only.  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
             )
           }
           Log.warnOnce(
-            `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
+            `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
           )
         }
 
