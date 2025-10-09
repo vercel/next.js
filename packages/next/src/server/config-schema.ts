@@ -569,6 +569,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         loader: z.enum(VALID_LOADERS).optional(),
         loaderFile: z.string().optional(),
+        maximumRedirects: z.number().int().min(0).max(20).optional(),
         minimumCacheTTL: z.number().int().gte(0).optional(),
         path: z.string().optional(),
         qualities: z

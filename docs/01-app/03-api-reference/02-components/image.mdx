@@ -804,6 +804,28 @@ module.exports = {
 }
 ```
 
+#### `maximumRedirects`
+
+The default image optimization loader will follow HTTP redirects when fetching remote images up to 3 times.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumRedirects: 3,
+  },
+}
+```
+
+You can configure the number of redirects to follow when fetching remote images. Setting the value to `0` will disable following redirects.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumRedirects: 0,
+  },
+}
+```
+
 #### `dangerouslyAllowPrivateIP`
 
 In rare cases when self-hosting Next.js on a private network, you may want to allow optimizing images from private IP addresses on the same network. This is not recommended for most users because it could allow malicious users to access content on your internal network.
@@ -1308,7 +1330,7 @@ export default function Home() {
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `v16.0.0`  | `qualities` default configuration changed to `[75]`, `preload` prop added, `priority` prop deprecated, `dangerouslyAllowPrivateIP` config added.                                                                                                                                                                                                                                                                                                                                           |
+| `v16.0.0`  | `qualities` default configuration changed to `[75]`, `preload` prop added, `priority` prop deprecated, `dangerouslyAllowPrivateIP` config added. `maximumRedirects` config added.                                                                                                                                                                                                                                                                                                          |
 | `v15.3.0`  | `remotePatterns` added support for array of `URL` objects.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `v14.2.23` | `qualities` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

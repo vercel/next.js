@@ -103,6 +103,9 @@ export type ImageConfigComplete = {
   /** @see [Acceptable formats](https://nextjs.org/docs/api-reference/next/image#acceptable-formats) */
   formats: ImageFormat[]
 
+  /** @see [Maximum Redirects](https://nextjs.org/docs/api-reference/next/image#maximumredirects) */
+  maximumRedirects: number
+
   /** @see [Dangerously Allow Private IP](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-private-ip) */
   dangerouslyAllowPrivateIP: boolean
 
@@ -143,6 +146,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   disableStaticImages: false,
   minimumCacheTTL: 14400, // 4 hours
   formats: ['image/webp'],
+  maximumRedirects: 3,
   dangerouslyAllowPrivateIP: false,
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,

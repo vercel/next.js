@@ -709,11 +709,11 @@ function isRedirect(statusCode: number) {
 }
 
 export async function fetchExternalImage(
-  nextConfig: NextConfigComplete,
   href: string,
+  dangerouslyAllowPrivateIP: boolean,
   count = 3
 ): Promise<ImageUpstream> {
-  if (!nextConfig.images.dangerouslyAllowPrivateIP) {
+  if (!dangerouslyAllowPrivateIP) {
     const { hostname } = new URL(href)
     let ips = [hostname]
     if (!isIP(hostname)) {
@@ -766,7 +766,7 @@ export async function fetchExternalImage(
       )
     }
     const redirect = new URL(locationHeader, href).href
-    return fetchExternalImage(nextConfig, redirect, count - 1)
+    return fetchExternalImage(redirect, dangerouslyAllowPrivateIP, count - 1)
   }
 
   if (!res.ok) {

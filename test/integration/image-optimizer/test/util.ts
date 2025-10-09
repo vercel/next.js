@@ -223,7 +223,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
 
     it('should follow redirect when dangerouslyAllowPrivateIP enabled', async () => {
-      const url = `http://localhost:${slowImageServer.port}/slow.png?status=301&location=%2Fslow.png`
+      const url = `http://localhost:${slowImageServer.port}?status=301&location=%2Fslow.png`
       const query = { url, w: ctx.w, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(dangerouslyAllowPrivateIP ? 200 : 400)
