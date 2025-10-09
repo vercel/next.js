@@ -1498,6 +1498,7 @@ export const defaultConfig = Object.freeze({
     browserDebugInfoInTerminal: false,
     lockDistDir: true,
     isolatedDevBuild: true,
+    middlewareClientMaxBodySize: 10_485_760, // 10MB
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
