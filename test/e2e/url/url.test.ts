@@ -61,7 +61,7 @@ describe(`Handle new URL asset references`, () => {
       })
     })
 
-    for (const page of ['/rsc', '/client']) {
+    for (const page of ['/rsc', '/rsc-edge', '/client', '/client-edge']) {
       it(`should render the ${page} page`, async () => {
         const $ = await next.render$(page)
         expect($('main').text()).toMatch(expectedPage)
@@ -99,7 +99,13 @@ describe(`Handle new URL asset references`, () => {
   })
 
   describe('pages router', () => {
-    for (const page of ['/pages/static', '/pages/ssr', '/pages/ssg']) {
+    for (const page of [
+      '/pages/static',
+      '/pages/ssr',
+      '/pages/ssg',
+      '/pages-edge/static',
+      '/pages-edge/ssr',
+    ]) {
       it(`should render the ${page} page`, async () => {
         const $ = await next.render$(page)
         expect($('main').text()).toMatch(expectedPage)
@@ -130,6 +136,21 @@ describe(`Handle new URL asset references`, () => {
           /file:.*\/.next\/server\/.*\/vercel\.[0-9a-f]{8}\.png$/
         ),
         size: 30079,
+      })
+    })
+
+    it('should respond on edge API', async () => {
+      const data = await next
+        .fetch('/api/pages-edge/')
+        .then((res) => res.ok && res.json())
+
+      expect(data).toEqual({
+        imported: expect.objectContaining({
+          src: expect.stringMatching(
+            /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
+          ),
+        }),
+        url: expect.stringMatching(/^blob:.*vercel\.[0-9a-f]{8,}\.png$/),
       })
     })
   })
