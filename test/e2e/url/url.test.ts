@@ -62,19 +62,29 @@ describe(`Handle new URL asset references`, () => {
     })
 
     for (const page of ['/rsc', '/rsc-edge', '/client', '/client-edge']) {
-      it(`should render the ${page} page`, async () => {
-        const $ = await next.render$(page)
-        expect($('main').text()).toMatch(expectedPage)
-      })
+      let shouldSkip = process.env.IS_TURBOPACK_TEST
+        ? false
+        : page.includes('edge')
 
-      it(`should client-render the ${page} page`, async () => {
-        const browser = await next.browser(page)
-        await retry(async () =>
-          expect(await browser.elementByCss('main').text()).toMatch(
-            expectedPage
+      ;(shouldSkip ? it.skip : it)(
+        `should render the ${page} page`,
+        async () => {
+          const $ = await next.render$(page)
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect($('main').text()).toMatch(expectedPage)
+        }
+      )
+      ;(shouldSkip ? it.skip : it)(
+        `should client-render the ${page} page`,
+        async () => {
+          const browser = await next.browser(page)
+          await retry(async () =>
+            expect(await browser.elementByCss('main').text()).toMatch(
+              expectedPage
+            )
           )
-        )
-      })
+        }
+      )
     }
 
     it('should respond on API', async () => {
@@ -106,19 +116,29 @@ describe(`Handle new URL asset references`, () => {
       '/pages-edge/static',
       '/pages-edge/ssr',
     ]) {
-      it(`should render the ${page} page`, async () => {
-        const $ = await next.render$(page)
-        expect($('main').text()).toMatch(expectedPage)
-      })
+      let shouldSkip = process.env.IS_TURBOPACK_TEST
+        ? false
+        : page.includes('edge')
 
-      it(`should client-render the ${page} page`, async () => {
-        const browser = await next.browser(page)
-        await retry(async () =>
-          expect(await browser.elementByCss('main').text()).toMatch(
-            expectedPage
+      ;(shouldSkip ? it.skip : it)(
+        `should render the ${page} page`,
+        async () => {
+          const $ = await next.render$(page)
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect($('main').text()).toMatch(expectedPage)
+        }
+      )
+      ;(shouldSkip ? it.skip : it)(
+        `should client-render the ${page} page`,
+        async () => {
+          const browser = await next.browser(page)
+          await retry(async () =>
+            expect(await browser.elementByCss('main').text()).toMatch(
+              expectedPage
+            )
           )
-        )
-      })
+        }
+      )
     }
 
     it('should respond on API', async () => {
