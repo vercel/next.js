@@ -232,7 +232,7 @@ impl ServerActionsGraph {
                 })
                 .try_flat_join()
                 .await?;
-            Ok(Vc::cell(actions.into_iter().collect()))
+            Ok(Vc::cell(actions))
         }
         .instrument(span)
         .await
@@ -730,7 +730,7 @@ impl GlobalBuildInformation {
                     .try_flat_join()
                     .await?;
 
-                Ok(Vc::cell(result.into_iter().collect()))
+                Ok(Vc::cell(result))
             }
         }
         .instrument(span)
