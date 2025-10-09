@@ -101,7 +101,6 @@
     "@next/env": "15.6.0-canary.54",
     "@swc/helpers": "0.5.15",
     "caniuse-lite": "^1.0.30001579",
-    "is-local-address": "2.2.2",
     "postcss": "8.4.31",
     "styled-jsx": "5.1.6"
   },
@@ -271,6 +270,7 @@
     "ignore-loader": "0.1.2",
     "image-size": "1.2.1",
     "is-docker": "2.0.0",
+    "is-local-address": "2.2.2",
     "is-wsl": "2.2.0",
     "jest-worker": "27.5.1",
     "json5": "2.2.3",
