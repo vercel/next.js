@@ -36,6 +36,7 @@ type RunTestsCtx = SetupTestsCtx & {
   nextOutput?: string
 }
 
+let infiniteRedirect = 0
 const largeSize = 1080 // defaults defined in server/config.ts
 const animatedWarnText =
   'is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.'
@@ -52,6 +53,15 @@ export async function serveSlowImage() {
     await waitFor(delay)
 
     res.statusCode = status
+
+    if (infiniteRedirect > 0 && infiniteRedirect < 1000) {
+      infiniteRedirect++
+      res.statusCode = 308
+      console.log('infinite redirect', location)
+      res.setHeader('location', '/')
+      res.end()
+      return
+    }
 
     if (status === 301 && location) {
       console.log('redirecting to location', location)
@@ -217,6 +227,15 @@ export function runTests(ctx: RunTestsCtx) {
       const query = { url, w: ctx.w, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(dangerouslyAllowPrivateIP ? 200 : 400)
+    })
+
+    it('should return 508 after redirecting too many times', async () => {
+      infiniteRedirect = 1
+      const url = `http://localhost:${slowImageServer.port}`
+      const query = { url, w: ctx.w, q: ctx.q }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(508)
+      infiniteRedirect = 0
     })
   }
 
