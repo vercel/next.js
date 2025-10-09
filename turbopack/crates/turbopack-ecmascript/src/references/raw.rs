@@ -63,7 +63,7 @@ impl ModuleReference for FileSourceReference {
                 TooManyMatchesWarning {
                     source: self.issue_source,
                     context_dir: self.context_dir.clone(),
-                    results: num_matches,
+                    num_matches,
                     pattern: self.path,
                 }
                 .resolved_cell()
@@ -82,7 +82,7 @@ const TOO_MANY_MATCHES_LIMIT: usize = 10000;
 struct TooManyMatchesWarning {
     source: IssueSource,
     context_dir: FileSystemPath,
-    results: usize,
+    num_matches: usize,
     pattern: ResolvedVc<Pattern>,
 }
 
@@ -92,10 +92,10 @@ impl Issue for TooManyMatchesWarning {
     async fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Text(
             format!(
-                "Resolving {pattern} in {context_dir} leads to {results} results",
+                "The file pattern {pattern} matches {num_matches} files in {context_dir}",
                 pattern = self.pattern.to_string().await?,
                 context_dir = self.context_dir.value_to_string().await?,
-                results = self.results
+                num_matches = self.num_matches
             )
             .into(),
         )
@@ -104,11 +104,12 @@ impl Issue for TooManyMatchesWarning {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        let description = StyledString::Text(rcstr!(
-            "Overly broad patterns can lead to performance issues and over bundling."
+        Vc::cell(Some(
+            StyledString::Text(rcstr!(
+                "Overly broad patterns can lead to build performance issues and over bundling."
+            ))
+            .resolved_cell(),
         ))
-        .resolved_cell();
-        Vc::cell(Some(description))
     }
 
     #[turbo_tasks::function]
