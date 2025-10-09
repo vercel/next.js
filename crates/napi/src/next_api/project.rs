@@ -409,20 +409,21 @@ pub fn project_new(
         std::fs::create_dir_all(&internal_dir)
             .context("Unable to create .next directory")
             .unwrap();
+        let trace_file;
         let (trace_writer, trace_writer_guard) = match compress {
             Compression::None => {
-                let trace_file = internal_dir.join("diagnostics/trace-turbopack");
+                trace_file = internal_dir.join("diagnostics/trace-turbopack");
                 let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 TraceWriter::new(trace_writer)
             }
             Compression::GzipFast => {
-                let trace_file = internal_dir.join("diagnostics/trace-turbopack.gz");
+                trace_file = internal_dir.join("diagnostics/trace-turbopack.gz");
                 let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::fast());
                 TraceWriter::new(trace_writer)
             }
             Compression::GzipBest => {
-                let trace_file = internal_dir.join("diagnostics/trace-turbopack.gz");
+                trace_file = internal_dir.join("diagnostics/trace-turbopack.gz");
                 let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::best());
                 TraceWriter::new(trace_writer)
