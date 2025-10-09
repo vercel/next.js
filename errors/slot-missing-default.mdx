@@ -11,7 +11,7 @@ You're using [parallel routes](https://nextjs.org/docs/app/api-reference/file-co
 When using parallel routes, Next.js needs to know what to render in each slot when:
 
 - Navigating between pages that have different slot structures
-- A slot doesn't match the current navigation (soft navigation)
+- A slot doesn't match the current navigation (only during hard navigation)
 - After a page refresh when Next.js cannot determine the active state for a slot
 
 The `default.js` file serves as a fallback to render when Next.js cannot determine the active state of a slot based on the current URL. Without this file, the build will fail.
@@ -33,13 +33,13 @@ app/
     └── page.js
 ```
 
-You need to add `default.js` files for each slot, including the root (children slot):
+You need to add `default.js` files for each slot, excluding the children slot:
 
 ```
 app/
 ├── layout.js
 ├── page.js
-├── default.js         // Add this (for children slot)
+├── default.js         // Optiona: add this (for children slot)
 ├── @team/
 │   ├── default.js     // Add this
 │   └── settings/
@@ -73,12 +73,9 @@ export default function Default() {
 
 ### When you need `default.js`
 
-You need a `default.js` file for:
+You need a `default.js` file for each parallel route slot (directories starting with `@`) at each route segment.
 
-- **Each parallel route slot** (directories starting with `@`) at each route segment
-- **The root level** (children slot) when parallel routes have pages at different paths
-
-For example, if `@team` has a `/settings` page but your main app doesn't, you need a `default.js` at the root to handle what renders in the children slot when navigating to `/settings`.
+You also can add a `default.js` in the children slot if you want to make those routes accessible. For example, if `@team` has a `/settings` page but your children slot doesn't, you need a `default.js` at the root to handle what renders in the children slot when navigating to `/settings`.
 
 Without the appropriate `default.js` files, navigating between routes with different slot structures will result in a 404 error or a build failure.
 
