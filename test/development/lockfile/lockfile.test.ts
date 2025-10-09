@@ -6,6 +6,7 @@ describe('lockfile', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   it('only allows a single instance of `next dev` to run at a time', async () => {
     const browser = await next.browser('/')
@@ -13,7 +14,11 @@ describe('lockfile', () => {
 
     const { stdout, stderr, exitCode } = await execa(
       'pnpm',
-      ['next', 'dev', isTurbopack ? '--turbopack' : '--webpack'],
+      [
+        'next',
+        'dev',
+        isTurbopack ? '--turbopack' : isRspack ? '' : '--webpack',
+      ],
       {
         cwd: next.testDir,
         env: next.env as NodeJS.ProcessEnv,
