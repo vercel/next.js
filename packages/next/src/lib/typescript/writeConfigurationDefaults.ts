@@ -51,13 +51,8 @@ function getDesiredCompilerOptions(
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },
     strict: { suggested: false },
-    ...(semver.lt(typescriptVersion, '5.0.0')
-      ? { forceConsistentCasingInFileNames: { suggested: true } }
-      : undefined),
     noEmit: { suggested: true },
-    ...(semver.gte(typescriptVersion, '4.4.2')
-      ? { incremental: { suggested: true } }
-      : undefined),
+    incremental: { suggested: true },
 
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config

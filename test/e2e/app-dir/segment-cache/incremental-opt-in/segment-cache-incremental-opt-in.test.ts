@@ -485,6 +485,11 @@ describe('segment cache (incremental opt in)', () => {
       // prefetch the title, even though it's dynamic.
       {
         includes: 'Dynamic Title: yay',
+        // TODO: Due to a race condition, the metadata is sometimes fetched twice
+        // instead of once (though not more than that). The planned fix is to
+        // cache metadata separate from the route tree. Then we can remove
+        // this option.
+        allowMultipleResponses: true,
       }
     )
 

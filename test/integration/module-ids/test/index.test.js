@@ -8,10 +8,11 @@ import {
   launchApp,
   nextBuild,
   renderViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-
+const originalIsNextDev = global.isNextDev
 let appPort
 let app
 
@@ -23,9 +24,11 @@ describe('minified module ids', () => {
     let staticBundles = ''
 
     beforeAll(async () => {
+      // getDistDir depends on global.isNextDev
+      global.isNextDev = false
       await nextBuild(appDir, [])
 
-      const ssrPath = join(appDir, '.next/server/chunks/ssr/')
+      const ssrPath = join(appDir, `${getDistDir()}/server/chunks/ssr/`)
       const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
         p.match(/\.js$/)
       )
@@ -34,7 +37,7 @@ describe('minified module ids', () => {
         ssrBundles += output
       }
 
-      const staticPath = join(appDir, '.next/static/chunks/')
+      const staticPath = join(appDir, `${getDistDir()}/static/chunks/`)
       const staticBundleBasenames = (await fs.readdir(staticPath)).filter((p) =>
         p.match(/\.js$/)
       )
@@ -42,6 +45,9 @@ describe('minified module ids', () => {
         const output = await fs.readFile(join(staticPath, basename), 'utf8')
         staticBundles += output
       }
+    })
+    afterAll(() => {
+      global.isNextDev = originalIsNextDev
     })
 
     it('should have no long module ids for basic modules', async () => {
@@ -72,12 +78,14 @@ describe('minified module ids', () => {
     let staticBundles = ''
 
     beforeAll(async () => {
+      // getDistDir depends on global.isNextDev
+      global.isNextDev = true
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
 
       await renderViaHTTP(appPort, '/')
 
-      const ssrPath = join(appDir, '.next/server/chunks/ssr/')
+      const ssrPath = join(appDir, `${getDistDir()}/server/chunks/ssr/`)
       const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
         p.match(/\.js$/)
       )
@@ -86,7 +94,7 @@ describe('minified module ids', () => {
         ssrBundles += output
       }
 
-      const staticPath = join(appDir, '.next/static/chunks/')
+      const staticPath = join(appDir, `${getDistDir()}/static/chunks/`)
       const staticBundleBasenames = (await fs.readdir(staticPath)).filter((p) =>
         p.match(/\.js$/)
       )
@@ -95,7 +103,10 @@ describe('minified module ids', () => {
         staticBundles += output
       }
     })
-    afterAll(() => killApp(app))
+    afterAll(() => {
+      global.isNextDev = originalIsNextDev
+      killApp(app)
+    })
 
     it('should have long module ids for basic modules', async () => {
       expect(ssrBundles).toContain('module-with-long-name')

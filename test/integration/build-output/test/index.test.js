@@ -215,34 +215,6 @@ describe('Build Output', () => {
         })
       })
 
-      // AMP is not supported with Turbopack.
-      ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-        'With AMP Output',
-        () => {
-          const appDir = join(fixturesDir, 'with-amp')
-
-          beforeAll(async () => {
-            await remove(join(appDir, '.next'))
-          })
-
-          it('should not include custom error', async () => {
-            const { stdout } = await nextBuild(appDir, [], {
-              stdout: true,
-            })
-
-            expect(stdout).toMatch(/\//)
-            expect(stdout).toMatch(/\/amp (.* )?AMP/)
-            expect(stdout).toMatch(/\/hybrid (.* )?/)
-
-            expect(stdout).not.toContain(' /_document')
-            expect(stdout).not.toContain(' /_error')
-            expect(stdout).not.toContain('<buildId>')
-
-            expect(stdout).toContain('○ /')
-          })
-        }
-      )
-
       describe('Custom Error Output', () => {
         const appDir = join(fixturesDir, 'with-error')
 

@@ -1,0 +1,11 @@
+moduleRequire (const after eval) = FreeVar(require)("module")
+
+req_fail1 (const after eval) = moduleRequire["createRequire"](FreeVar(globalThis)["foo"])
+
+req_ok1 (const after eval) = module<node:module, {}>["createRequire"](import.meta*0*["url"])
+- *0* import.meta: The import.meta object
+
+req_ok2 (const after eval) = moduleRequire["createRequire"](import.meta*0*["url"])
+- *0* import.meta: The import.meta object
+
+req_ok3 (const after eval) = moduleRequire["createRequire"](FreeVar(__filename))

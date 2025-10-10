@@ -760,6 +760,7 @@ impl AsyncRead for RopeReader {
 }
 
 impl BufRead for RopeReader {
+    /// Never returns an error.
     fn fill_buf(&mut self) -> IoResult<&[u8]> {
         // Returns the full buffer without coping any data. The same bytes will
         // continue to be returned until [consume] is called.

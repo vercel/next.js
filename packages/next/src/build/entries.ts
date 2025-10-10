@@ -29,7 +29,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import {
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
@@ -46,6 +45,7 @@ import {
   isInstrumentationHookFilename,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
+import { getDefaultMiddlewareMatcher } from '../shared/lib/router/utils/get-default-middleware-matcher'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import type { ServerRuntime } from '../types'
@@ -899,7 +899,7 @@ export async function createEntrypoints(
 
       if (isMiddlewareFile(page)) {
         middlewareMatchers = staticInfo.middleware?.matchers ?? [
-          { regexp: '.*', originalSource: '/:path*' },
+          getDefaultMiddlewareMatcher(params.config),
         ]
       }
 
@@ -1144,7 +1144,6 @@ export function finalizeEntrypoint({
         name !== CLIENT_STATIC_FILES_RUNTIME_POLYFILLS &&
         name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
         name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
-        name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
         name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
       ) {
         if (isAppLayer) {

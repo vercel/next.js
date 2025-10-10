@@ -8,7 +8,7 @@ export {
 } from 'react-server-dom-webpack/server'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-export { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
+export { prerender } from 'react-server-dom-webpack/static'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 export { captureOwnerStack } from 'react'
@@ -32,12 +32,7 @@ export {
 export * as serverHooks from '../../client/components/hooks-server-context'
 export { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
 export { createMetadataComponents } from '../../lib/metadata/metadata'
-export {
-  MetadataBoundary,
-  ViewportBoundary,
-  OutletBoundary,
-  RootLayoutBoundary,
-} from '../../lib/framework/boundary-components'
+export { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
 export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 export { Postpone } from './rsc/postpone'

@@ -175,11 +175,7 @@ async fn build_manifest(
         // TODO: Add `suffix` to the manifest for React to use.
         // entry_manifest.module_loading.prefix = prefix_path;
 
-        entry_manifest.module_loading.cross_origin = next_config
-            .await?
-            .cross_origin
-            .as_ref()
-            .map(|p| p.to_owned());
+        entry_manifest.module_loading.cross_origin = next_config.cross_origin().owned().await?;
         let ClientReferencesChunks {
             client_component_client_chunks,
             layout_segment_client_chunks,
@@ -442,8 +438,7 @@ async fn build_manifest(
                 cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied())
                     .await?;
             // Inlining breaks HMR so it is always disabled in dev.
-            let inlined_css =
-                next_config.await?.experimental.inline_css.unwrap_or(false) && mode.is_production();
+            let inlined_css = *next_config.inline_css().await? && mode.is_production();
 
             for (chunk, chunk_path) in client_chunks_with_path {
                 if let Some(path) = client_relative_path.get_path_to(&chunk_path) {

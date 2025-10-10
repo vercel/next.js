@@ -568,11 +568,11 @@ export function waitForSegmentCacheEntry(
  */
 export function readOrCreateRouteCacheEntry(
   now: number,
-  task: PrefetchTask
+  task: PrefetchTask,
+  key: RouteCacheKey
 ): RouteCacheEntry {
   attachInvalidationListener(task)
 
-  const key = task.key
   const existingEntry = readRouteCacheEntry(now, key)
   if (existingEntry !== null) {
     return existingEntry
@@ -649,27 +649,16 @@ export function requestOptimisticRouteCacheEntry(
     // string is in the cache. So we can bail out here.
     return null
   }
+  const urlWithoutSearchParams = new URL(requestedUrl)
+  urlWithoutSearchParams.search = ''
   const routeWithNoSearchParams = readRouteCacheEntry(
     now,
-    createPrefetchRequestKey(
-      requestedUrl.origin + requestedUrl.pathname,
-      nextUrl
-    )
+    createPrefetchRequestKey(urlWithoutSearchParams.href, nextUrl)
   )
 
   if (
     routeWithNoSearchParams === null ||
-    routeWithNoSearchParams.status !== EntryStatus.Fulfilled ||
-    // There's no point constructing an optimistic route tree if the metadata
-    // isn't fully available, because we'll have to do a blocking
-    // navigation anyway.
-    routeWithNoSearchParams.isHeadPartial ||
-    // We cannot reuse this route if it has dynamic metadata.
-    // TODO: Move the metadata out of the route cache entry so the route
-    // tree is reusable separately from the metadata. Then we can remove
-    // these checks.
-    routeWithNoSearchParams.TODO_metadataStatus !== EntryStatus.Empty ||
-    routeWithNoSearchParams.TODO_isHeadDynamic
+    routeWithNoSearchParams.status !== EntryStatus.Fulfilled
   ) {
     // Bail out of constructing an optimistic route tree. This will result in
     // a blocking, unprefetched navigation.
@@ -677,6 +666,36 @@ export function requestOptimisticRouteCacheEntry(
   }
 
   // Now we have a base route tree we can "patch" with our optimistic values.
+
+  const TODO_isHeadDynamic = routeWithNoSearchParams.TODO_isHeadDynamic
+  let head
+  let isHeadPartial
+  let TODO_metadataStatus: EntryStatus.Empty | EntryStatus.Fulfilled
+  if (TODO_isHeadDynamic) {
+    // If the head was fetched via dynamic request, then we don't know
+    // whether it accessed search params. So we must be conservative — we
+    // cannot reuse it. The head will stream in during the dynamic navigation.
+    // TODO: When Cache Components is enabled, we should track whether the
+    // head varied on search params.
+    // TODO: Because we're rendering a `null` viewport as the partial state, the
+    // viewport will not block the navigation; it will stream in later,
+    // alongside the metadata. Viewport is supposed to be blocking. This is
+    // a subtle bug in the old implementation that we've preserved here. It's
+    // rare enough that we're not going to fix it for apps that don't enable
+    // Cache Components; when Cache Components is enabled, though, we should
+    // use an infinite promise here to block the navigation. But only if the
+    // entry actually varies on search params.
+    head = [null, null]
+    // Setting this to `true` ensures that on navigation, the head is requested.
+    isHeadPartial = true
+    TODO_metadataStatus = EntryStatus.Empty
+  } else {
+    // The head was fetched via a static/PPR request. So it's guaranteed to
+    // not contain search params. We can reuse it.
+    head = routeWithNoSearchParams.head
+    isHeadPartial = routeWithNoSearchParams.isHeadPartial
+    TODO_metadataStatus = EntryStatus.Empty
+  }
 
   // Optimistically assume that redirects for the requested pathname do
   // not vary on the search string. Therefore, if the base route was
@@ -720,8 +739,8 @@ export function requestOptimisticRouteCacheEntry(
     // This isn't cloned because it's instance-specific
     blockedTasks: null,
     tree: routeWithNoSearchParams.tree,
-    head: routeWithNoSearchParams.head,
-    isHeadPartial: routeWithNoSearchParams.isHeadPartial,
+    head,
+    isHeadPartial,
     staleAt: routeWithNoSearchParams.staleAt,
     couldBeIntercepted: routeWithNoSearchParams.couldBeIntercepted,
     isPPREnabled: routeWithNoSearchParams.isPPREnabled,
@@ -729,8 +748,8 @@ export function requestOptimisticRouteCacheEntry(
     // Override the rendered search with the optimistic value.
     renderedSearch: optimisticRenderedSearch,
 
-    TODO_metadataStatus: routeWithNoSearchParams.TODO_metadataStatus,
-    TODO_isHeadDynamic: routeWithNoSearchParams.TODO_isHeadDynamic,
+    TODO_metadataStatus,
+    TODO_isHeadDynamic,
 
     // LRU-related fields
     keypath: null,
@@ -1288,13 +1307,13 @@ export function convertRouteTreeToFlightRouterState(
 
 export async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
-  task: PrefetchTask
+  task: PrefetchTask,
+  key: RouteCacheKey
 ): Promise<PrefetchSubtaskResult<null> | null> {
   // This function is allowed to use async/await because it contains the actual
   // fetch that gets issued on a cache miss. Notice it writes the result to the
   // cache entry directly, rather than return data that is then written by
   // the caller.
-  const key = task.key
   const href = key.href
   const nextUrl = key.nextUrl
   const segmentPath = '/_tree' as SegmentRequestKey
@@ -1432,7 +1451,7 @@ export async function fetchRouteOnCacheMiss(
       )
       const serverData = await (createFromNextReadableStream(
         prefetchStream,
-        response.headers
+        headers
       ) as Promise<RootTreePrefetch>)
       if (serverData.buildId !== getAppBuildId()) {
         // The server build does not match the client. Treat as a 404. During
@@ -1484,7 +1503,7 @@ export async function fetchRouteOnCacheMiss(
       )
       const serverData = await (createFromNextReadableStream(
         prefetchStream,
-        response.headers
+        headers
       ) as Promise<NavigationFlightResponse>)
       if (serverData.b !== getAppBuildId()) {
         // The server build does not match the client. Treat as a 404. During
@@ -1630,7 +1649,7 @@ export async function fetchSegmentOnCacheMiss(
     )
     const serverData = await (createFromNextReadableStream(
       prefetchStream,
-      response.headers
+      headers
     ) as Promise<SegmentPrefetch>)
     if (serverData.buildId !== getAppBuildId()) {
       // The server build does not match the client. Treat as a 404. During
@@ -1750,7 +1769,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     )
     const serverData = await (createFromNextReadableStream(
       prefetchStream,
-      response.headers
+      headers
     ) as Promise<NavigationFlightResponse>)
 
     const isResponsePartial =
@@ -2203,7 +2222,7 @@ function addSegmentPathToUrlInOutputExportMode(
     // path. Instead, we append it to the end of the pathname.
     const staticUrl = new URL(url)
     const routeDir = staticUrl.pathname.endsWith('/')
-      ? staticUrl.pathname.substring(0, -1)
+      ? staticUrl.pathname.slice(0, -1)
       : staticUrl.pathname
     const staticExportFilename =
       convertSegmentPathToStaticExportFilename(segmentPath)

@@ -71,6 +71,7 @@ import type { LoadComponentsReturnType } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from './web/utils'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
+import { getDefaultMiddlewareMatcher } from '../shared/lib/router/utils/get-default-middleware-matcher'
 import { loadEnvConfig } from '@next/env'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
@@ -893,12 +894,6 @@ export default class NextNodeServer extends BaseServer<
     url?: string
   }): Promise<FindComponentsResult | null> {
     const pagePaths: string[] = [page]
-    if (query.amp) {
-      // try serving a static AMP version first
-      pagePaths.unshift(
-        (isAppPath ? normalizeAppPath(page) : normalizePagePath(page)) + '.amp'
-      )
-    }
 
     if (locale) {
       pagePaths.unshift(
@@ -933,9 +928,7 @@ export default class NextNodeServer extends BaseServer<
           query: {
             ...(!this.renderOpts.isExperimentalCompile &&
             components.getStaticProps
-              ? ({
-                  amp: query.amp,
-                } as NextParsedUrlQuery)
+              ? {}
               : query),
             // For appDir params is excluded.
             ...((isAppPath ? {} : params) || {}),
@@ -1463,13 +1456,13 @@ export default class NextNodeServer extends BaseServer<
       const middlewareModule = await this.loadNodeMiddleware()
 
       if (middlewareModule) {
+        const matchers = middlewareModule.config?.matchers || [
+          getDefaultMiddlewareMatcher(this.nextConfig),
+        ]
         return {
-          match: getMiddlewareRouteMatcher(
-            middlewareModule.config?.matchers || [
-              { regexp: '.*', originalSource: '/:path*' },
-            ]
-          ),
+          match: getMiddlewareRouteMatcher(matchers),
           page: '/',
+          matchers,
         }
       }
 
@@ -1479,6 +1472,7 @@ export default class NextNodeServer extends BaseServer<
     return {
       match: getMiddlewareMatcher(middleware),
       page: '/',
+      matchers: middleware.matchers,
     }
   }
 
@@ -1958,7 +1952,13 @@ export default class NextNodeServer extends BaseServer<
     addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, 'clonableBody', getCloneableBody(req.originalRequest))
+      const bodySizeLimit = this.nextConfig.experimental
+        ?.middlewareClientMaxBodySize as number | undefined
+      addRequestMeta(
+        req,
+        'clonableBody',
+        getCloneableBody(req.originalRequest, bodySizeLimit)
+      )
     }
   }
 

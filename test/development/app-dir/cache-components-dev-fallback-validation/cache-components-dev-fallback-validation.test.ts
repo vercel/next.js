@@ -55,11 +55,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/partial/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31) @ Page
-       > 1 | export default async function Page(props: {
-           |                               ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
+       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+           |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
            "LogSafely <anonymous>",
          ],
        }
@@ -70,11 +70,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/partial/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31) @ Page
-       > 1 | export default async function Page(props: {
-           |                               ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
+       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+           |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
            "LogSafely <anonymous>",
          ],
        }
@@ -88,11 +88,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/partial/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31) @ Page
-       > 1 | export default async function Page(props: {
-           |                               ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
+       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+           |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
            "LogSafely <anonymous>",
          ],
        }
@@ -103,11 +103,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/partial/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31) @ Page
-       > 1 | export default async function Page(props: {
-           |                               ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
+       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+           |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
            "LogSafely <anonymous>",
          ],
        }
@@ -121,11 +121,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/partial/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31) @ Page
-       > 1 | export default async function Page(props: {
-           |                               ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
+       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+           |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
            "LogSafely <anonymous>",
          ],
        }
@@ -136,11 +136,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/partial/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31) @ Page
-       > 1 | export default async function Page(props: {
-           |                               ^",
+         "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
+       > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
+           |                          ^",
          "stack": [
-           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (1:31)",
+           "Page app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26)",
            "LogSafely <anonymous>",
          ],
        }
@@ -158,11 +158,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/wrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/wrapped/layout.tsx (3:31) @ Layout
-       > 3 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
+       > 10 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/wrapped/layout.tsx (3:31)",
+           "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
            "LogSafely <anonymous>",
          ],
        }
@@ -173,11 +173,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/wrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/wrapped/layout.tsx (3:31) @ Layout
-       > 3 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
+       > 10 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/wrapped/layout.tsx (3:31)",
+           "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
            "LogSafely <anonymous>",
          ],
        }
@@ -191,11 +191,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/wrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/wrapped/layout.tsx (3:31) @ Layout
-       > 3 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
+       > 10 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/wrapped/layout.tsx (3:31)",
+           "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
            "LogSafely <anonymous>",
          ],
        }
@@ -206,11 +206,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/wrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/wrapped/layout.tsx (3:31) @ Layout
-       > 3 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
+       > 10 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/wrapped/layout.tsx (3:31)",
+           "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
            "LogSafely <anonymous>",
          ],
        }
@@ -224,11 +224,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/wrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/wrapped/layout.tsx (3:31) @ Layout
-       > 3 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
+       > 10 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/wrapped/layout.tsx (3:31)",
+           "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
            "LogSafely <anonymous>",
          ],
        }
@@ -239,11 +239,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/wrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/wrapped/layout.tsx (3:31) @ Layout
-       > 3 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
+       > 10 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/wrapped/layout.tsx (3:31)",
+           "Layout app/none/[top]/wrapped/layout.tsx (10:3)",
            "LogSafely <anonymous>",
          ],
        }
@@ -257,11 +257,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/unwrapped/layout.tsx (1:31) @ Layout
-       > 1 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
+       >  8 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/unwrapped/layout.tsx (1:31)",
+           "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
            "LogSafely <anonymous>",
          ],
        }
@@ -272,11 +272,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/unwrapped/layout.tsx (1:31) @ Layout
-       > 1 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
+       >  8 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/unwrapped/layout.tsx (1:31)",
+           "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
            "LogSafely <anonymous>",
          ],
        }
@@ -290,11 +290,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/unwrapped/layout.tsx (1:31) @ Layout
-       > 1 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
+       >  8 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/unwrapped/layout.tsx (1:31)",
+           "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
            "LogSafely <anonymous>",
          ],
        }
@@ -305,11 +305,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/unwrapped/layout.tsx (1:31) @ Layout
-       > 1 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
+       >  8 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/unwrapped/layout.tsx (1:31)",
+           "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
            "LogSafely <anonymous>",
          ],
        }
@@ -323,11 +323,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/unwrapped/layout.tsx (1:31) @ Layout
-       > 1 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
+       >  8 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/unwrapped/layout.tsx (1:31)",
+           "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
            "LogSafely <anonymous>",
          ],
        }
@@ -338,11 +338,11 @@ describe('Cache Components Fallback Validation', () => {
          "description": "Route "/none/[top]/unwrapped/[bottom]": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": "app/none/[top]/unwrapped/layout.tsx (1:31) @ Layout
-       > 1 | export default async function Layout({
-           |                               ^",
+         "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
+       >  8 |   await params
+            |   ^",
          "stack": [
-           "Layout app/none/[top]/unwrapped/layout.tsx (1:31)",
+           "Layout app/none/[top]/unwrapped/layout.tsx (8:3)",
            "LogSafely <anonymous>",
          ],
        }

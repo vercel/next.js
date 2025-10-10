@@ -7198,6 +7198,7 @@ function flushSegment(request, destination, segment, hoistableState) {
   var boundary = segment.boundary;
   if (null === boundary)
     return flushSubtree(request, destination, segment, hoistableState);
+  segment.boundary = null;
   boundary.parentFlushed = !0;
   if (4 === boundary.status) {
     var row = boundary.row;
@@ -7827,12 +7828,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-experimental-df38ac9a-20250926" !== isomorphicReactPackageVersion)
+  if ("19.3.0-experimental-3025aa39-20251007" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.2.0-experimental-df38ac9a-20250926"
+        "19.3.0-experimental-3025aa39-20251007"
       )
     );
 }
@@ -8044,7 +8045,7 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
       postponedState,
       createRenderState(
         postponedState.resumableState,
-        options ? options.nonce : void 0,
+        void 0,
         void 0,
         void 0,
         void 0,
@@ -8087,4 +8088,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-df38ac9a-20250926";
+exports.version = "19.3.0-experimental-3025aa39-20251007";

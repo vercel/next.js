@@ -616,6 +616,9 @@ const ImageElement = ({
   )
 }
 
+/**
+ * @deprecated The `next/legacy/image` component is deprecated and will be removed in a future version of Next.js. Please use `next/image` instead.
+ */
 export default function Image({
   src,
   sizes,
@@ -696,6 +699,10 @@ export default function Image({
     }
   }
   src = typeof src === 'string' ? src : staticSrc
+
+  warnOnce(
+    `Image with src "${src}" is using next/legacy/image which is deprecated and will be removed in a future version of Next.js.`
+  )
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')

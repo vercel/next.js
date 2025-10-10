@@ -174,7 +174,7 @@ import {
   workUnitAsyncStorage,
   type PrerenderStore,
 } from './work-unit-async-storage.external'
-import { devLogsAsyncStorage } from './dev-logs-async-storage.external'
+import { consoleAsyncStorage } from './console-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -287,6 +287,7 @@ interface ParsedRequestHeaders {
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
   readonly previouslyRevalidatedTags: string[]
+  readonly requestId: string | undefined
   readonly htmlRequestId: string | undefined
 }
 
@@ -332,10 +333,25 @@ function parseRequestHeaders(
     options.previewModeId
   )
 
-  const htmlRequestId =
-    typeof headers[NEXT_HTML_REQUEST_ID_HEADER] === 'string'
-      ? headers[NEXT_HTML_REQUEST_ID_HEADER]
-      : undefined
+  let requestId: string | undefined
+  let htmlRequestId: string | undefined
+
+  if (process.env.NODE_ENV !== 'production') {
+    // The request IDs are only used in development mode to send debug
+    // information to the matching client (identified by the HTML request ID
+    // that was sent to the client with the HTML document) for the current
+    // request (identified by the request ID, as defined by the client).
+
+    requestId =
+      typeof headers[NEXT_REQUEST_ID_HEADER] === 'string'
+        ? headers[NEXT_REQUEST_ID_HEADER]
+        : undefined
+
+    htmlRequestId =
+      typeof headers[NEXT_HTML_REQUEST_ID_HEADER] === 'string'
+        ? headers[NEXT_HTML_REQUEST_ID_HEADER]
+        : undefined
+  }
 
   return {
     flightRouterState,
@@ -347,6 +363,7 @@ function parseRequestHeaders(
     isDevWarmupRequest,
     nonce,
     previouslyRevalidatedTags,
+    requestId,
     htmlRequestId,
   }
 }
@@ -448,11 +465,8 @@ async function generateDynamicRSCPayload(
         userland: { loaderTree },
       },
       createMetadataComponents,
-      MetadataBoundary,
-      ViewportBoundary,
     },
     getDynamicParamFromSegment,
-    appUsingSizeAdjustment,
     query,
     requestId,
     flightRouterState,
@@ -465,22 +479,13 @@ async function generateDynamicRSCPayload(
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
 
-    const {
-      ViewportTree,
-      MetadataTree,
-      getViewportReady,
-      getMetadataReady,
-      StreamingMetadataOutlet,
-    } = createMetadataComponents({
+    const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
       tree: loaderTree,
       parsedQuery: query,
       pathname: url.pathname,
       metadataContext: createMetadataContext(ctx.renderOpts),
       getDynamicParamFromSegment,
-      appUsingSizeAdjustment,
       workStore,
-      MetadataBoundary,
-      ViewportBoundary,
       serveStreamingMetadata,
     })
 
@@ -500,18 +505,16 @@ async function generateDynamicRSCPayload(
               isPossibleServerAction={ctx.isPossibleServerAction}
             />
             {/* Adding requestId as react key to make metadata remount for each render */}
-            <ViewportTree key={getFlightViewportKey(requestId)} />
-            <MetadataTree key={getFlightMetadataKey(requestId)} />
+            <Viewport key={getFlightViewportKey(requestId)} />
+            <Metadata key={getFlightMetadataKey(requestId)} />
           </React.Fragment>
         ),
         injectedCSS: new Set(),
         injectedJS: new Set(),
         injectedFontPreloadTags: new Set(),
         rootLayoutIncluded: false,
-        getViewportReady,
-        getMetadataReady,
         preloadCallbacks,
-        StreamingMetadataOutlet,
+        MetadataOutlet,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -1119,11 +1122,7 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
-    componentMod: {
-      createMetadataComponents,
-      MetadataBoundary,
-      ViewportBoundary,
-    },
+    componentMod: { createMetadataComponents },
     url,
     workStore,
   } = ctx
@@ -1136,13 +1135,7 @@ async function getRSCPayload(
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const hasGlobalNotFound = !!tree[2]['global-not-found']
 
-  const {
-    ViewportTree,
-    MetadataTree,
-    getViewportReady,
-    getMetadataReady,
-    StreamingMetadataOutlet,
-  } = createMetadataComponents({
+  const { Viewport, Metadata, MetadataOutlet } = createMetadataComponents({
     tree,
     // When it's using global-not-found, metadata errorType is undefined, which will retrieve the
     // metadata from the page.
@@ -1154,10 +1147,7 @@ async function getRSCPayload(
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     getDynamicParamFromSegment,
-    appUsingSizeAdjustment,
     workStore,
-    MetadataBoundary,
-    ViewportBoundary,
     serveStreamingMetadata,
   })
 
@@ -1171,12 +1161,10 @@ async function getRSCPayload(
     injectedJS,
     injectedFontPreloadTags,
     rootLayoutIncluded: false,
-    getViewportReady,
-    getMetadataReady,
     missingSlots,
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
-    StreamingMetadataOutlet,
+    MetadataOutlet,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -1193,8 +1181,12 @@ async function getRSCPayload(
         statusCode={ctx.res.statusCode}
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
-      <ViewportTree />
-      <MetadataTree />
+      <Viewport />
+      <Metadata />
+      {/* This meta tag is for next/font which is still required to be blocking. */}
+      {appUsingSizeAdjustment ? (
+        <meta name="next-size-adjust" content="" />
+      ) : null}
     </React.Fragment>
   )
 
@@ -1255,28 +1247,20 @@ async function getErrorRSCPayload(
   const {
     getDynamicParamFromSegment,
     query,
-    appUsingSizeAdjustment,
-    componentMod: {
-      createMetadataComponents,
-      MetadataBoundary,
-      ViewportBoundary,
-    },
+    componentMod: { createMetadataComponents },
     url,
     workStore,
   } = ctx
 
   const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
-  const { MetadataTree, ViewportTree } = createMetadataComponents({
+  const { Viewport, Metadata } = createMetadataComponents({
     tree,
     parsedQuery: query,
     pathname: url.pathname,
     metadataContext: createMetadataContext(ctx.renderOpts),
     errorType,
     getDynamicParamFromSegment,
-    appUsingSizeAdjustment,
     workStore,
-    MetadataBoundary,
-    ViewportBoundary,
     serveStreamingMetadata: serveStreamingMetadata,
   })
 
@@ -1287,11 +1271,11 @@ async function getErrorRSCPayload(
         statusCode={ctx.res.statusCode}
         isPossibleServerAction={ctx.isPossibleServerAction}
       />
-      <ViewportTree />
+      <Viewport />
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
-      <MetadataTree />
+      <Metadata />
     </React.Fragment>
   )
 
@@ -1518,6 +1502,7 @@ async function renderToHTMLOrFlightImpl(
     serverActions,
     assetPrefix = '',
     enableTainting,
+    experimental,
   } = renderOpts
 
   // We need to expose the bundled `require` API globally for
@@ -1582,10 +1567,18 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = __next_chunk_load__
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    // reset isr status at start of request
+  if (
+    process.env.NODE_ENV === 'development' &&
+    renderOpts.setIsrStatus &&
+    !experimental.cacheComponents
+  ) {
+    // Reset the ISR status at start of request.
     const { pathname } = new URL(req.url || '/', 'http://n')
-    renderOpts.setIsrStatus?.(pathname, false)
+    renderOpts.setIsrStatus(
+      pathname,
+      // Only pages using the Node runtime can use ISR, Edge is always dynamic.
+      process.env.NEXT_RUNTIME === 'edge' ? false : undefined
+    )
   }
 
   if (
@@ -1665,22 +1658,7 @@ async function renderToHTMLOrFlightImpl(
   const { isStaticGeneration } = workStore
 
   let requestId: string
-
-  if (isStaticGeneration) {
-    requestId = Buffer.from(
-      await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
-    ).toString('hex')
-  } else if (process.env.NEXT_RUNTIME === 'edge') {
-    requestId = crypto.randomUUID()
-  } else {
-    requestId = (
-      require('next/dist/compiled/nanoid') as typeof import('next/dist/compiled/nanoid')
-    ).nanoid()
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    res.setHeader(NEXT_REQUEST_ID_HEADER, requestId)
-  }
+  let htmlRequestId: string
 
   const {
     flightRouterState,
@@ -1690,8 +1668,32 @@ async function renderToHTMLOrFlightImpl(
     isDevWarmupRequest,
     isHmrRefresh,
     nonce,
-    htmlRequestId = requestId,
   } = parsedRequestHeaders
+
+  if (parsedRequestHeaders.requestId) {
+    // If the client has provided a request ID (in development mode), we use it.
+    requestId = parsedRequestHeaders.requestId
+  } else {
+    // Otherwise we generate a new request ID.
+    if (isStaticGeneration) {
+      requestId = Buffer.from(
+        await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
+      ).toString('hex')
+    } else if (process.env.NEXT_RUNTIME === 'edge') {
+      requestId = crypto.randomUUID()
+    } else {
+      requestId = (
+        require('next/dist/compiled/nanoid') as typeof import('next/dist/compiled/nanoid')
+      ).nanoid()
+    }
+  }
+
+  // If the client has provided an HTML request ID, we use it to associate the
+  // request with the HTML document from which it originated, which is used to
+  // send debug information to the associated WebSocket client. Otherwise, this
+  // is the request for the HTML document, so we use the request ID also as the
+  // HTML request ID.
+  htmlRequestId = parsedRequestHeaders.htmlRequestId || requestId
 
   /**
    * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
@@ -1851,19 +1853,19 @@ async function renderToHTMLOrFlightImpl(
     if (
       process.env.NODE_ENV === 'development' &&
       renderOpts.setIsrStatus &&
+      !experimental.cacheComponents &&
+      // Only pages using the Node runtime can use ISR, so we only need to
+      // update the status for those.
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
       process.env.NEXT_RUNTIME !== 'edge' &&
-      isNodeNextRequest(req) &&
-      !isDevWarmupRequest
+      isNodeNextRequest(req)
     ) {
       const setIsrStatus = renderOpts.setIsrStatus
       req.originalRequest.on('end', () => {
-        if (!requestStore.usedDynamic && !workStore.forceDynamic) {
-          // only node can be ISR so we only need to update the status here
-          const { pathname } = new URL(req.url || '/', 'http://n')
-          setIsrStatus(pathname, true)
-        }
+        const { pathname } = new URL(req.url || '/', 'http://n')
+        const isStatic = !requestStore.usedDynamic && !workStore.forceDynamic
+        setIsrStatus(pathname, isStatic)
       })
     }
 
@@ -2206,6 +2208,13 @@ async function renderToStream(
     page
   )
 
+  // In development mode, set the request ID as a global variable, before the
+  // bootstrap script is executed, which depends on it during hydration.
+  const bootstrapScriptContent =
+    process.env.NODE_ENV !== 'production'
+      ? `self.__next_r=${JSON.stringify(requestId)}`
+      : undefined
+
   const reactServerErrorsByDigest: Map<string, DigestedError> = new Map()
   const silenceLogger = false
   function onHTMLRenderRSCError(err: DigestedError) {
@@ -2309,7 +2318,7 @@ async function renderToStream(
         }
       )
 
-      devLogsAsyncStorage.run(
+      consoleAsyncStorage.run(
         { dim: true },
         spawnDynamicValidationInDev,
         resolveValidation,
@@ -2377,8 +2386,7 @@ async function renderToStream(
         const inlinedReactServerDataStream = createInlinedDataReadableStream(
           reactServerResult.tee(),
           nonce,
-          formState,
-          requestId
+          formState
         )
 
         return chainStreams(
@@ -2425,8 +2433,7 @@ async function renderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consume(),
             nonce,
-            formState,
-            requestId
+            formState
           ),
           getServerInsertedHTML,
           getServerInsertedMetadata,
@@ -2459,6 +2466,7 @@ async function renderToStream(
           })
         },
         maxHeadersLength: reactMaxHeadersLength,
+        bootstrapScriptContent,
         bootstrapScripts: [bootstrapScript],
         formState,
       }
@@ -2479,7 +2487,7 @@ async function renderToStream(
      *
      *    2.) If dynamic HTML support is requested, we must honor that request
      *        or throw an error. It is the sole responsibility of the caller to
-     *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+     *        ensure they aren't e.g. requesting dynamic HTML for a static page.
      *
      *   3.) If `shouldWaitOnAllReady` is true, which indicates we need to
      *       resolve all suspenses and generate a full HTML. e.g. when it's a
@@ -2495,8 +2503,7 @@ async function renderToStream(
       inlinedDataStream: createInlinedDataReadableStream(
         reactServerResult.consume(),
         nonce,
-        formState,
-        requestId
+        formState
       ),
       isStaticGeneration: generateStaticHTML,
       isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
@@ -2613,6 +2620,7 @@ async function renderToStream(
           ),
           streamOptions: {
             nonce,
+            bootstrapScriptContent,
             // Include hydration scripts in the HTML
             bootstrapScripts: [errorBootstrapScript],
             formState,
@@ -2628,7 +2636,7 @@ async function renderToStream(
        *
        *    2.) If dynamic HTML support is requested, we must honor that request
        *        or throw an error. It is the sole responsibility of the caller to
-       *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+       *        ensure they aren't e.g. requesting dynamic HTML for a static page.
        *    3.) If `shouldWaitOnAllReady` is true, which indicates we need to
        *        resolve all suspenses and generate a full HTML. e.g. when it's a
        *        html limited bot requests, we produce the full HTML content.
@@ -2645,8 +2653,7 @@ async function renderToStream(
           // render
           reactServerResult.consume(),
           nonce,
-          formState,
-          requestId
+          formState
         ),
         isStaticGeneration: generateStaticHTML,
         isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
@@ -3362,7 +3369,6 @@ async function prerenderToStream(
     nonce,
     pagePath,
     renderOpts,
-    requestId,
     workStore,
   } = ctx
 
@@ -4154,8 +4160,7 @@ async function prerenderToStream(
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
               nonce,
-              formState,
-              requestId
+              formState
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
@@ -4403,8 +4408,7 @@ async function prerenderToStream(
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
               nonce,
-              formState,
-              requestId
+              formState
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
@@ -4501,8 +4505,7 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consumeAsStream(),
             nonce,
-            formState,
-            requestId
+            formState
           ),
           isStaticGeneration: true,
           isBuildTimePrerendering:
@@ -4680,8 +4683,7 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             flightStream,
             nonce,
-            formState,
-            requestId
+            formState
           ),
           isStaticGeneration: true,
           isBuildTimePrerendering:
@@ -4833,7 +4835,8 @@ async function collectSegmentData(
     serverModuleMap: getServerModuleMap(),
   }
 
-  const staleTime = prerenderStore.stale
+  const selectStaleTime = createSelectStaleTime(renderOpts.experimental)
+  const staleTime = selectStaleTime(prerenderStore.stale)
   return await ComponentMod.collectSegmentData(
     renderOpts.experimental.clientParamParsing,
     fullPageDataBuffer,

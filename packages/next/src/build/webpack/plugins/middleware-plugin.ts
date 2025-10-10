@@ -5,6 +5,7 @@ import type {
 import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
 import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
+import { getDefaultMiddlewareMatcher } from '../../../shared/lib/router/utils/get-default-middleware-matcher'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
@@ -36,6 +37,7 @@ import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import { getDynamicCodeEvaluationError } from './wellknown-errors-plugin/parse-dynamic-code-evaluation-error'
 import { getModuleReferencesInOrder } from '../utils'
+import type { NextConfigComplete } from '../../../server/config-shared'
 
 const KNOWN_SAFE_DYNAMIC_PACKAGES =
   require('../../../lib/known-edge-safe-packages.json') as string[]
@@ -195,21 +197,29 @@ function getCreateAssets(params: {
         continue
       }
 
-      const matcherSource = metadata.edgeSSR?.isAppDir
-        ? normalizeAppPath(page)
-        : page
-
-      const catchAll = !metadata.edgeSSR && !metadata.edgeApiFunction
-
-      const { namedRegex } = getNamedMiddlewareRegex(matcherSource, {
-        catchAll,
-      })
-      const matchers = metadata?.edgeMiddleware?.matchers ?? [
-        {
-          regexp: namedRegex,
-          originalSource: page === '/' && catchAll ? '/:path*' : matcherSource,
-        },
-      ]
+      let matchers: MiddlewareMatcher[]
+      if (metadata?.edgeMiddleware?.matchers) {
+        matchers = metadata.edgeMiddleware.matchers
+      } else {
+        // For middleware at root with no explicit matchers, use getDefaultMiddlewareMatcher
+        // which respects skipMiddlewareNextInternalRoutes config
+        const catchAll = !metadata.edgeSSR && !metadata.edgeApiFunction
+        if (page === '/' && catchAll) {
+          matchers = [getDefaultMiddlewareMatcher(opts.nextConfig)]
+        } else {
+          const matcherSource = metadata.edgeSSR?.isAppDir
+            ? normalizeAppPath(page)
+            : page
+          matchers = [
+            {
+              regexp: getNamedMiddlewareRegex(matcherSource, {
+                catchAll,
+              }).namedRegex,
+              originalSource: matcherSource,
+            },
+          ]
+        }
+      }
 
       const isEdgeFunction = !!(metadata.edgeApiFunction || metadata.edgeSSR)
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
@@ -818,6 +828,7 @@ interface Options {
   sriEnabled: boolean
   rewrites: CustomRoutes['rewrites']
   edgeEnvironments: EdgeRuntimeEnvironments
+  nextConfig: NextConfigComplete
 }
 
 export default class MiddlewarePlugin {
@@ -825,12 +836,20 @@ export default class MiddlewarePlugin {
   private readonly sriEnabled: Options['sriEnabled']
   private readonly rewrites: Options['rewrites']
   private readonly edgeEnvironments: EdgeRuntimeEnvironments
+  private readonly nextConfig: Options['nextConfig']
 
-  constructor({ dev, sriEnabled, rewrites, edgeEnvironments }: Options) {
+  constructor({
+    dev,
+    sriEnabled,
+    rewrites,
+    edgeEnvironments,
+    nextConfig,
+  }: Options) {
     this.dev = dev
     this.sriEnabled = sriEnabled
     this.rewrites = rewrites
     this.edgeEnvironments = edgeEnvironments
+    this.nextConfig = nextConfig
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -886,6 +905,7 @@ export default class MiddlewarePlugin {
             rewrites: this.rewrites,
             edgeEnvironments: this.edgeEnvironments,
             dev: this.dev,
+            nextConfig: this.nextConfig,
           },
         })
       )

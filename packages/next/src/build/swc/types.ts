@@ -9,6 +9,8 @@ import type {
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
+export type Lockfile = { __napiType: 'Lockfile' }
+
 export interface Binding {
   isWasm: boolean
   turbo: {
@@ -63,6 +65,11 @@ export interface Binding {
     injections: Record<string, string>,
     imports: Record<string, string | null>
   ): string
+
+  lockfileTryAcquire(path: string): Promise<Lockfile | null>
+  lockfileTryAcquireSync(path: string): Lockfile | null
+  lockfileUnlock(lockfile: Lockfile): Promise<void>
+  lockfileUnlockSync(lockfile: Lockfile): void
 }
 
 export type StyledString =
@@ -225,9 +232,11 @@ export interface Project {
 
   writeAllEntrypointsToDisk(
     appDirOnly: boolean
-  ): Promise<TurbopackResult<RawEntrypoints>>
+  ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
 
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints>>
+  entrypointsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<RawEntrypoints | {}>
+  >
 
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
 
@@ -253,7 +262,7 @@ export interface Project {
     eventTypes?: string[]
   ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
 
-  invalidatePersistentCache(): Promise<void>
+  invalidateFileSystemCache(): Promise<void>
 
   shutdown(): Promise<void>
 

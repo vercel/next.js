@@ -43,9 +43,6 @@
     "maxInactiveAge": 60000,
     "pagesBufferLength": 5
   },
-  "amp": {
-    "canonicalBase": ""
-  },
   "basePath": "",
   "sassOptions": {},
   "trailingSlash": false,
@@ -53,8 +50,6 @@
   "productionBrowserSourceMaps": false,
   "optimizeFonts": true,
   "excludeDefaultMomentLocales": true,
-  "serverRuntimeConfig": {},
-  "publicRuntimeConfig": {},
   "reactProductionProfiling": false,
   "reactStrictMode": true,
   "httpAgentOptions": {

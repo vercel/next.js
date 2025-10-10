@@ -18,7 +18,6 @@ import {
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
@@ -41,7 +40,6 @@ import MiddlewarePlugin, {
 } from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
-import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
@@ -482,14 +480,14 @@ export default async function getBaseWebpackConfig(
     (appDir || pagesDir)!,
     dev,
     isClient,
-    config.experimental?.reactCompiler,
+    config.reactCompiler,
     codeCondition.exclude
   )
 
   const reactCompilerLoader = babelLoader
     ? undefined
     : getReactCompilerLoader(
-        config.experimental?.reactCompiler,
+        config.reactCompiler,
         dir,
         isNodeOrEdgeCompilation,
         codeCondition.exclude,
@@ -711,14 +709,6 @@ export default async function getBaseWebpackConfig(
         ...(dev
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: reactRefreshEntry,
-              [CLIENT_STATIC_FILES_RUNTIME_AMP]:
-                `./` +
-                path
-                  .relative(
-                    dir,
-                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
-                  )
-                  .replace(/\\/g, '/'),
             }
           : {}),
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
@@ -2027,8 +2017,6 @@ export default async function getBaseWebpackConfig(
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
-      // rspack doesn't support the parser hooks used here
-      !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
       isNodeServer &&
         !dev &&
         new ((
@@ -2093,6 +2081,7 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           rewrites,
+          nextConfig: config,
           edgeEnvironments: {
             __NEXT_BUILD_ID: buildId,
             NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: encryptionKey,

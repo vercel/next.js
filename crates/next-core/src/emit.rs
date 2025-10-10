@@ -2,7 +2,7 @@ use anyhow::Result;
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
 };
 use turbo_tasks_fs::{FileSystemPath, rebase};
@@ -161,7 +161,9 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
                         Ok((
                             *asset,
                             if emit_spans {
-                                Some(asset.path().to_string().await?)
+                                // INVALIDATION: we don't need to invalidate when the span name
+                                // changes
+                                Some(asset.path_string().untracked().await?)
                             } else {
                                 None
                             },
@@ -195,7 +197,9 @@ async fn get_referenced_assets(
             Ok((
                 *asset,
                 if emit_spans {
-                    Some(asset.path().to_string().await?)
+                    // INVALIDATION: we don't need to invalidate the list of assets when the span
+                    // name changes
+                    Some(asset.path_string().untracked().await?)
                 } else {
                     None
                 },

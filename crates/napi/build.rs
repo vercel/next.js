@@ -33,7 +33,7 @@ fn main() -> anyhow::Result<()> {
     let cargo = vergen_gitcl::CargoBuilder::default()
         .target_triple(true)
         .build()?;
-    // We use the git dirty state to disable persistent caching (persistent caching relies on a
+    // We use the git dirty state to disable filesystem cache (filesystem cache relies on a
     // commit hash to be safe). One tradeoff of this is that we must invalidate the rust build more
     // often.
     //
@@ -46,7 +46,7 @@ fn main() -> anyhow::Result<()> {
     //
     // However, in practice that shouldn't be much of an issue: If no other dependency of this
     // top-level crate has changed (which would've triggered our rebuild), then the resulting binary
-    // must be equivalent to a clean build anyways. Therefore, persistent caching using the HEAD
+    // must be equivalent to a clean build anyways. Therefore, filesystem cache using the HEAD
     // commit hash as a version is okay.
     let git = vergen_gitcl::GitclBuilder::default()
         .dirty(/* include_untracked */ true)

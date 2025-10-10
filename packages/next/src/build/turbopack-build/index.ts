@@ -23,7 +23,7 @@ async function turbopackBuildWithWorker() {
     })
 
     // destroy worker when Turbopack has shutdown so it's not sticking around using memory
-    // We need to wait for shutdown to make sure persistent cache is flushed
+    // We need to wait for shutdown to make sure filesystem cache is flushed
     result.shutdownPromise = worker.waitForShutdown().then(() => {
       worker.end()
     })

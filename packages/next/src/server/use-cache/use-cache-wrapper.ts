@@ -11,7 +11,7 @@ import {
   encodeReply,
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client'
-import { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
+import { prerender } from 'react-server-dom-webpack/static'
 /* eslint-enable import/no-extraneous-dependencies */
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
@@ -91,20 +91,20 @@ type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
   | [buildId: string, id: string, args: unknown[], hmrRefreshHash: string]
 
-interface UseCacheInnerPageComponentProps {
+interface UseCachePageInnerProps {
   params: Promise<Params>
   searchParams?: Promise<SearchParams>
 }
 
-export interface UseCachePageComponentProps {
+export interface UseCachePageProps {
   params: Promise<Params>
   searchParams: Promise<SearchParams>
-  $$isPageComponent: true
+  $$isPage: true
 }
 
-export type UseCacheLayoutComponentProps = {
+export type UseCacheLayoutProps = {
   params: Promise<Params>
-  $$isLayoutComponent: true
+  $$isLayout: true
 } & {
   // The value type should be React.ReactNode. But such an index signature would
   // be incompatible with the other two props.
@@ -995,25 +995,29 @@ export function cache(
         }
       }
 
-      let isPageOrLayout = false
+      let isPageOrLayoutSegmentFunction = false
 
-      // For page and layout components, the cache function is overwritten,
-      // which allows us to apply special handling for params and searchParams.
-      // For pages and layouts we're using the outer params prop, and not the
-      // inner one that was serialized/deserialized. While it's not generally
-      // true for "use cache" args, in the case of `params` the inner and outer
-      // object are essentially equivalent, so this is safe to do (including
-      // fallback params that are hanging promises). It allows us to avoid
-      // waiting for the timeout, when prerendering a fallback shell of a cached
-      // page or layout that awaits params.
-      if (isPageComponent(args)) {
-        isPageOrLayout = true
+      // For page and layout segment functions (i.e. the page/layout component,
+      // or generateMetadata/generateViewport), the cache function is
+      // overwritten, which allows us to apply special handling for params and
+      // searchParams. For pages and layouts we're using the outer params prop,
+      // and not the inner one that was serialized/deserialized. While it's not
+      // generally true for "use cache" args, in the case of `params` the inner
+      // and outer object are essentially equivalent, so this is safe to do
+      // (including fallback params that are hanging promises). It allows us to
+      // avoid waiting for the timeout, when prerendering a fallback shell of a
+      // cached page or layout that awaits params.
+      if (isPageSegmentFunction(args)) {
+        isPageOrLayoutSegmentFunction = true
 
-        const [{ params: outerParams, searchParams: outerSearchParams }] = args
+        const [
+          { params: outerParams, searchParams: outerSearchParams },
+          ...otherOuterArgs
+        ] = args
 
-        const props: UseCacheInnerPageComponentProps = {
+        const props: UseCachePageInnerProps = {
           params: outerParams,
-          // Omit searchParams and $$isPageComponent.
+          // Omit searchParams and $$isPage.
         }
 
         if (isPrivate) {
@@ -1022,13 +1026,16 @@ export function cache(
           props.searchParams = outerSearchParams
         }
 
-        args = [props]
+        args = [props, ...otherOuterArgs]
 
         fn = {
-          [name]: async ({
-            params: _innerParams,
-            searchParams: innerSearchParams,
-          }: UseCacheInnerPageComponentProps) =>
+          [name]: async (
+            {
+              params: _innerParams,
+              searchParams: innerSearchParams,
+            }: UseCachePageInnerProps,
+            ...otherInnerArgs: unknown[]
+          ) =>
             originalFn.apply(null, [
               {
                 params: outerParams,
@@ -1043,22 +1050,36 @@ export function cache(
                   // need to ensure that an error is shown.
                   makeErroringSearchParamsForUseCache(workStore),
               },
+              ...otherInnerArgs,
             ]),
         }[name] as (...args: unknown[]) => Promise<unknown>
-      } else if (isLayoutComponent(args)) {
-        isPageOrLayout = true
+      } else if (isLayoutSegmentFunction(args)) {
+        isPageOrLayoutSegmentFunction = true
 
-        const [{ params: outerParams, $$isLayoutComponent, ...outerSlots }] =
-          args
-        // Overwrite the props to omit $$isLayoutComponent.
-        args = [{ params: outerParams, ...outerSlots }]
+        const [
+          { params: outerParams, $$isLayout, ...outerSlots },
+          ...otherOuterArgs
+        ] = args
+
+        // Overwrite the props to omit $$isLayout. Note that slots are only
+        // passed to the layout component (if any are defined), and not to
+        // generateMetadata nor generateViewport. For those functions,
+        // outerSlots/innerSlots is an empty object, which is fine because we're
+        // just spreading it into the props.
+        args = [{ params: outerParams, ...outerSlots }, ...otherOuterArgs]
 
         fn = {
-          [name]: async ({
-            params: _innerParams,
-            ...innerSlots
-          }: Omit<UseCacheLayoutComponentProps, '$$isLayoutComponent'>) =>
-            originalFn.apply(null, [{ params: outerParams, ...innerSlots }]),
+          [name]: async (
+            {
+              params: _innerParams,
+              ...innerSlots
+            }: Omit<UseCacheLayoutProps, '$$isLayout'>,
+            ...otherInnerArgs: unknown[]
+          ) =>
+            originalFn.apply(null, [
+              { params: outerParams, ...innerSlots },
+              ...otherInnerArgs,
+            ]),
         }[name] as (...args: unknown[]) => Promise<unknown>
       }
 
@@ -1120,14 +1141,14 @@ export function cache(
         //
         // fallthrough
         case 'prerender':
-          if (!isPageOrLayout) {
-            // If the "use cache" function is not a page or a layout, we need to
-            // track dynamic access already when encoding the arguments. If
-            // params are passed explicitly into a "use cache" function (as
-            // opposed to receiving them automatically in a page or layout), we
-            // assume that the params are also accessed. This allows us to abort
-            // early, and treat the function as dynamic, instead of waiting for
-            // the timeout to be reached.
+          if (!isPageOrLayoutSegmentFunction) {
+            // If the "use cache" function is not a page or layout segment
+            // function, we need to track dynamic access already when encoding
+            // the arguments. If params are passed explicitly into a "use cache"
+            // function (as opposed to receiving them automatically in a page or
+            // layout), we assume that the params are also accessed. This allows
+            // us to abort early, and treat the function as dynamic, instead of
+            // waiting for the timeout to be reached.
             const dynamicAccessAbortController = new AbortController()
 
             encodedCacheKeyParts = await dynamicAccessAsyncStorage.run(
@@ -1600,37 +1621,35 @@ export function cache(
   return React.cache(cachedFn)
 }
 
-function isPageComponent(
+/**
+ * Returns `true` if the `'use cache'` function is the page component itself,
+ * or `generateMetadata`/`generateViewport` in a page file.
+ */
+function isPageSegmentFunction(
   args: any[]
-): args is [UseCachePageComponentProps, undefined] {
-  if (args.length !== 2) {
-    return false
-  }
-
-  const [props, ref] = args
+): args is [UseCachePageProps, ...unknown[]] {
+  const [maybeProps] = args
 
   return (
-    ref === undefined && // server components receive an undefined ref arg
-    props !== null &&
-    typeof props === 'object' &&
-    (props as UseCachePageComponentProps).$$isPageComponent
+    maybeProps !== null &&
+    typeof maybeProps === 'object' &&
+    (maybeProps as UseCachePageProps).$$isPage === true
   )
 }
 
-function isLayoutComponent(
+/**
+ * Returns `true` if the `'use cache'` function is the layout component itself,
+ * or `generateMetadata`/`generateViewport` in a layout file.
+ */
+function isLayoutSegmentFunction(
   args: any[]
-): args is [UseCacheLayoutComponentProps, undefined] {
-  if (args.length !== 2) {
-    return false
-  }
-
-  const [props, ref] = args
+): args is [UseCacheLayoutProps, ...unknown[]] {
+  const [maybeProps] = args
 
   return (
-    ref === undefined && // server components receive an undefined ref arg
-    props !== null &&
-    typeof props === 'object' &&
-    (props as UseCacheLayoutComponentProps).$$isLayoutComponent
+    maybeProps !== null &&
+    typeof maybeProps === 'object' &&
+    (maybeProps as UseCacheLayoutProps).$$isLayout === true
   )
 }
 

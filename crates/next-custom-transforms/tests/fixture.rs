@@ -6,21 +6,19 @@ use std::{
 
 use bytes_str::BytesStr;
 use next_custom_transforms::transforms::{
-    amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
     debug_fn_name::debug_fn_name,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::{next_font_loaders, Config as FontLoaderConfig},
+    dynamic::{NextDynamicMode, next_dynamic},
+    fonts::{Config as FontLoaderConfig, next_font_loaders},
     named_import_transform::named_import_transform,
     next_ssg::next_ssg,
     optimize_barrel::optimize_barrel,
     optimize_server_react::{self, optimize_server_react},
-    page_config::page_config_test,
     pure::pure_magic,
     react_server_components::server_components,
-    server_actions::{self, server_actions, ServerActionsMode},
-    shake_exports::{shake_exports, Config as ShakeExportsConfig},
-    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    server_actions::{self, ServerActionsMode, server_actions},
+    shake_exports::{Config as ShakeExportsConfig, shake_exports},
+    strip_page_exports::{ExportFilter, next_transform_strip_page_exports},
     track_dynamic_imports::track_dynamic_imports,
     warn_for_edge_runtime::warn_for_edge_runtime,
 };
@@ -28,20 +26,20 @@ use rustc_hash::FxHashSet;
 use serde::de::DeserializeOwned;
 use swc_core::{
     atoms::atom,
-    common::{comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
+    common::{FileName, Mark, SyntaxContext, comments::SingleThreadedComments},
     ecma::{
         ast::Pass,
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
             react::jsx,
-            testing::{test_fixture, FixtureTestConfig},
+            testing::{FixtureTestConfig, test_fixture},
         },
         utils::ExprCtx,
-        visit::{visit_mut_pass, visit_pass, Visit},
+        visit::{Visit, visit_mut_pass, visit_pass},
     },
 };
-use swc_relay::{relay, RelayLanguageConfig};
+use swc_relay::{RelayLanguageConfig, relay};
 use testing::fixture;
 
 fn syntax() -> Syntax {
@@ -50,18 +48,6 @@ fn syntax() -> Syntax {
         import_attributes: true,
         ..Default::default()
     })
-}
-
-#[fixture("tests/fixture/amp/**/input.js")]
-fn amp_attributes_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| amp_attributes(),
-        &input,
-        &output,
-        Default::default(),
-    );
 }
 
 #[fixture("tests/fixture/next-dynamic/**/input.js")]
@@ -382,18 +368,6 @@ fn next_ssg_fixture(input: PathBuf) {
                 jsx,
             )
         },
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/page-config/**/input.js")]
-fn page_config_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| page_config_test(),
         &input,
         &output,
         Default::default(),
