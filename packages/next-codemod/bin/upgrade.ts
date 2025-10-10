@@ -4,6 +4,7 @@ import fs from 'fs'
 import {
   satisfies as satisfiesVersionRange,
   compare as compareVersions,
+  major,
 } from 'semver'
 import { execSync } from 'child_process'
 import path from 'path'
@@ -60,20 +61,22 @@ async function loadHighestNPMVersionMatching(query: string) {
   return versionOrVersions
 }
 
-function endMessage() {
+function endMessage(targetNextVersion: string) {
   console.log()
-  console.log(
-    pc.white(
-      pc.bold(
-        `Please review the local changes and read the Next.js 15 migration guide to complete the migration.`
+  if (major(targetNextVersion) === 15) {
+    console.log(
+      pc.white(
+        pc.bold(
+          `Please review the local changes and read the Next.js 15 migration guide to complete the migration.`
+        )
       )
     )
-  )
-  console.log(
-    pc.underline(
-      'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
+    console.log(
+      pc.underline(
+        'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
+      )
     )
-  )
+  }
 }
 
 const cwd = process.cwd()
@@ -118,14 +121,14 @@ export async function runUpgrade(
     console.log(
       `${pc.green('✓')} Current Next.js version is already on the target version "v${targetNextVersion}".`
     )
-    endMessage()
+    endMessage(targetNextVersion)
     return
   }
   if (compareVersions(installedNextVersion, targetNextVersion) > 0) {
     console.log(
       `${pc.green('✓')} Current Next.js version is higher than the target version "v${targetNextVersion}".`
     )
-    endMessage()
+    endMessage(targetNextVersion)
     return
   }
 
@@ -361,7 +364,7 @@ export async function runUpgrade(
 
   warnDependenciesOutOfRange(appPackageJson, versionMapping)
 
-  endMessage()
+  endMessage(targetNextVersion)
 }
 
 function getInstalledNextVersion(): string {
