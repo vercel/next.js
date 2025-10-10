@@ -147,7 +147,7 @@ impl TraceReader {
         let path = &self.path.to_string_lossy();
         let mut file = BufReader::with_capacity(
             // zstd max block size (1 << 17) + block header (3) + magic bytes (4)
-            1 << 17 + 7,
+            (1 << 17) + 7,
             file,
         );
         let magic_bytes = file.peek(4)?;
