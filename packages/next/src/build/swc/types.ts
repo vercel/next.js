@@ -144,6 +144,7 @@ export type TurbopackResult<T = {}> = T & {
 
 export interface Middleware {
   endpoint: Endpoint
+  isProxy: boolean
 }
 
 export interface Instrumentation {
