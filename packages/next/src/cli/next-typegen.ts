@@ -60,6 +60,7 @@ const nextTypegen = async (
     disableStaticImages: nextConfig.images.disableStaticImages,
     hasAppDir: !!appDir,
     hasPagesDir: !!pagesDir,
+    isolatedDevBuild: nextConfig.experimental.isolatedDevBuild,
   })
 
   console.log('Generating route types...')
