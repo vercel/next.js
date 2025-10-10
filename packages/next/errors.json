@@ -860,5 +860,16 @@
   "859": "An IO error occurred while attempting to create and acquire the lockfile",
   "860": "Client Max Body Size must be a valid number (bytes) or filesize format string (e.g., \"5mb\")",
   "861": "Client Max Body Size must be larger than 0 bytes",
-  "862": "Request body exceeded %s"
+  "862": "Request body exceeded %s",
+  "863": "\\`<Link legacyBehavior>\\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \\`<a>\\` tag.",
+  "864": "Missing value for segment key: \"%s\" with dynamic param type: %s",
+  "865": "`experimental.rdcForNavigations` is enabled, but `experimental.cacheComponents` is not.",
+  "866": "Both \"%s\" and \"%s\" files are detected. Please use \"%s\" instead.",
+  "867": "The %s \"%s\" must export a %s or a \\`default\\` function",
+  "868": "No reference found for param: %s in reference: %s",
+  "869": "No reference found for segment: %s with reference: %s",
+  "870": "refresh can only be called from within a Server Action. See more info here: https://nextjs.org/docs/app/api-reference/functions/refresh",
+  "871": "Image with src \"%s\" is using a query string which is not configured in images.localPatterns.\\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns",
+  "872": "updateTag can only be called from within a Server Action. To invalidate cache tags in Route Handlers or other contexts, use revalidateTag instead. See more info here: https://nextjs.org/docs/app/api-reference/functions/updateTag",
+  "873": "Invalid profile provided \"%s\" must be configured under cacheLife in next.config or be \"max\""
 }

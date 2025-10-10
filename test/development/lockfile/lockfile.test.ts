@@ -3,7 +3,7 @@ import execa from 'execa'
 import stripAnsi from 'strip-ansi'
 
 describe('lockfile', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -13,7 +13,11 @@ describe('lockfile', () => {
 
     const { stdout, stderr, exitCode } = await execa(
       'pnpm',
-      ['next', 'dev', isTurbopack ? '--turbopack' : '--webpack'],
+      [
+        'next',
+        'dev',
+        ...(isRspack ? [] : [isTurbopack ? '--turbopack' : '--webpack']),
+      ],
       {
         cwd: next.testDir,
         env: next.env as NodeJS.ProcessEnv,

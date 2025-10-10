@@ -40,6 +40,9 @@ const unsupportedTurbopackNextConfigOptions = [
   'experimental.fullySpecified',
   'experimental.urlImports',
   'experimental.slowModuleDetection',
+
+  // We always use lightningcss
+  'experimental.useLightningcss',
 ]
 
 /**  */

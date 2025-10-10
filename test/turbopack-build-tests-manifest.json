@@ -162,8 +162,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -225,7 +225,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -294,8 +294,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -357,7 +357,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -4776,7 +4776,7 @@
   },
   "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts": {
     "passed": [
-      "app-dir revalidate-dynamic should correctly mark a route handler that uses unstable_expireTag as dynamic",
+      "app-dir revalidate-dynamic should correctly mark a route handler that uses revalidateTag as dynamic",
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-path",
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-tag"
     ],
@@ -4787,8 +4787,8 @@
   },
   "test/e2e/app-dir/revalidatetag-rsc/revalidatetag-rsc.test.ts": {
     "passed": [
-      "unstable_expireTag-rsc should error if unstable_expireTag is called during render",
-      "unstable_expireTag-rsc should revalidate fetch cache if unstable_expireTag invoked via server action"
+      "revalidateTag-rsc should error if revalidateTag is called during render",
+      "revalidateTag-rsc should revalidate fetch cache if revalidateTag invoked via server action"
     ],
     "failed": [],
     "pending": [],
@@ -5950,7 +5950,7 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
-      "use-cache-custom-handler should not call expireTags for a normal invocation",
+      "use-cache-custom-handler should not call updateTags for a normal invocation",
       "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
@@ -6052,7 +6052,7 @@
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache shares caches between the page/layout and generateMetadata",
-      "use-cache should be able to revalidate a page using unstable_expireTag",
+      "use-cache should be able to revalidate a page using revalidateTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
       "use-cache should cache results",
@@ -6079,7 +6079,7 @@
       "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should send an SWR cache-control header based on the revalidate and expire values",
       "use-cache should store a fetch response without no-store in the incremental cache handler during build",
-      "use-cache should update after unstable_expireTag correctly",
+      "use-cache should update after revalidateTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
       "use-cache usage in node_modules should cache results when using a directive without a handler",
@@ -18427,7 +18427,7 @@
   },
   "test/production/app-dir/global-default-cache-handler/global-default-cache-handler.test.ts": {
     "passed": [
-      "global-default-cache-handler should call expireTags on global default cache handler",
+      "global-default-cache-handler should call updateTags on global default cache handler",
       "global-default-cache-handler should call refreshTags on global default cache handler",
       "global-default-cache-handler should use global symbol for default cache handler"
     ],

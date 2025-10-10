@@ -110,7 +110,7 @@
     "test-storybook": "turbo run test-storybook",
     "with-rspack": "cross-env NEXT_RSPACK=1 NEXT_TEST_USE_RSPACK=1",
     "with-webpack": "cross-env IS_WEBPACK_TEST=1",
-    "with-experimental": "cross-env __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true"
+    "with-experimental": "cross-env __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true  __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",

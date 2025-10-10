@@ -21,6 +21,7 @@ import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
+  PROXY_FILENAME,
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
   RSC_PREFETCH_SUFFIX,
@@ -150,7 +151,6 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { getDefaultMiddlewareMatcher } from '../shared/lib/router/utils/get-default-middleware-matcher'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -901,7 +901,6 @@ export default async function build(
   reactProductionProfiling = false,
   debugOutput = false,
   debugPrerender = false,
-  runLint = true,
   noMangling = false,
   appDirOnly = false,
   bundler = Bundler.Turbopack,
@@ -1125,16 +1124,10 @@ export default async function build(
         logBundler: true,
       })
 
-      const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
-      const shouldLint = !ignoreESLint && runLint
-
       const typeCheckingOptions: Parameters<typeof startTypeChecking>[0] = {
         dir,
         appDir,
         pagesDir,
-        runLint,
-        shouldLint,
-        ignoreESLint,
         telemetry,
         nextBuildSpan,
         config,
@@ -1148,15 +1141,6 @@ export default async function build(
         await telemetry.flush()
         process.exit(1)
       }
-
-      const buildLintEvent: EventBuildFeatureUsage = {
-        featureName: 'build-lint',
-        invocationCount: shouldLint ? 1 : 0,
-      }
-      telemetry.record({
-        eventName: EVENT_BUILD_FEATURE_USAGE,
-        payload: buildLintEvent,
-      })
 
       const validFileMatcher = createValidFileMatcher(
         config.pageExtensions,
@@ -1179,6 +1163,10 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
+      const proxyDetectionRegExp = new RegExp(
+        `^${PROXY_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
+      )
+
       const instrumentationHookDetectionRegExp = new RegExp(
         `^${INSTRUMENTATION_HOOK_FILENAME}\\.(?:${config.pageExtensions.join(
           '|'
@@ -1188,6 +1176,7 @@ export default async function build(
       const rootDir = path.join((pagesDir || appDir)!, '..')
       const includes = [
         middlewareDetectionRegExp,
+        proxyDetectionRegExp,
         instrumentationHookDetectionRegExp,
       ]
 
@@ -1202,6 +1191,17 @@ export default async function build(
       const hasMiddlewareFile = rootPaths.some((p) =>
         p.includes(MIDDLEWARE_FILENAME)
       )
+      const hasProxyFile = rootPaths.some((p) => p.includes(PROXY_FILENAME))
+      if (hasMiddlewareFile) {
+        if (hasProxyFile) {
+          throw new Error(
+            `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
+          )
+        }
+        Log.warn(
+          `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
+        )
+      }
 
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
@@ -2559,8 +2559,8 @@ export default async function build(
           return serverFilesManifest
         })
 
-      const middlewareFile = rootPaths.find((p) =>
-        p.includes(MIDDLEWARE_FILENAME)
+      const middlewareFile = rootPaths.find(
+        (p) => p.includes(MIDDLEWARE_FILENAME) || p.includes(PROXY_FILENAME)
       )
       let hasNodeMiddleware = false
 
@@ -2584,7 +2584,10 @@ export default async function build(
           functionsConfigManifest.functions['/_middleware'] = {
             runtime: staticInfo.runtime,
             matchers: staticInfo.middleware?.matchers ?? [
-              getDefaultMiddlewareMatcher(config),
+              {
+                regexp: '^.*$',
+                originalSource: '/:path*',
+              },
             ],
           }
 
@@ -2809,6 +2812,8 @@ export default async function build(
       await updateBuildDiagnostics({
         buildStage: 'static-generation',
       })
+
+      const hasGSPAndRevalidateZero = new Set<string>()
 
       // we need to trigger automatic exporting when we have
       // - static 404/500
@@ -3086,6 +3091,8 @@ export default async function build(
             const appConfig = appDefaultConfigs.get(originalAppPath)
             if (!appConfig) throw new InvariantError('App config not found')
 
+            const ssgPageRoutesSet = new Set(pageInfos.get(page)?.ssgPageRoutes)
+
             let hasRevalidateZero =
               appConfig.revalidate === 0 ||
               getCacheControl(page).revalidate === 0
@@ -3281,13 +3288,35 @@ export default async function build(
                 }
               } else {
                 hasRevalidateZero = true
-                // we might have determined during prerendering that this page
-                // used dynamic data
-                pageInfos.set(route.pathname, {
-                  ...(pageInfos.get(route.pathname) as PageInfo),
-                  isSSG: false,
-                  isStatic: false,
-                })
+
+                if (ssgPageRoutesSet.has(route.pathname)) {
+                  const pageInfo = pageInfos.get(page) as PageInfo
+                  // Remove the route from the SSG page routes if it bailed out
+                  // during prerendering.
+                  ssgPageRoutesSet.delete(route.pathname)
+
+                  // Mark the route as having a GSP and revalidate zero.
+                  if (ssgPageRoutesSet.size === 0) {
+                    hasGSPAndRevalidateZero.delete(page)
+                  } else {
+                    hasGSPAndRevalidateZero.add(page)
+                  }
+
+                  pageInfos.set(page, {
+                    ...pageInfo,
+                    ssgPageRoutes: Array.from(ssgPageRoutesSet),
+                    // If there are no SSG page routes left, then the page is not SSG.
+                    isSSG: ssgPageRoutesSet.size === 0 ? false : pageInfo.isSSG,
+                  })
+                } else {
+                  // we might have determined during prerendering that this page
+                  // used dynamic data
+                  pageInfos.set(route.pathname, {
+                    ...(pageInfos.get(route.pathname) as PageInfo),
+                    isSSG: false,
+                    isStatic: false,
+                  })
+                }
               }
             }
 
@@ -3934,7 +3963,7 @@ export default async function build(
           rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
-          middlewareCount: hasMiddlewareFile ? 1 : 0,
+          middlewareCount: hasMiddlewareFile || hasProxyFile ? 1 : 0,
           totalAppPagesCount,
           staticAppPagesCount,
           serverAppPagesCount,
@@ -4166,6 +4195,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           buildManifest,
           middlewareManifest,
+          hasGSPAndRevalidateZero,
         })
       )
 

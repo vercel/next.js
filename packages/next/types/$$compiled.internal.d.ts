@@ -856,6 +856,10 @@ declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
 }
 
+declare module 'next/dist/compiled/is-local-address' {
+  export default function isLocalAddress(ip: string): boolean
+}
+
 declare module 'next/dist/compiled/@opentelemetry/api' {
   import * as m from '@opentelemetry/api'
   export = m

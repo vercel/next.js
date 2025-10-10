@@ -221,8 +221,8 @@
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_cache is allowed",
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_cacheLife is not allowed",
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_cacheTag is not allowed",
-      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_expirePath is not allowed",
-      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_expireTag is not allowed",
+      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component revalidatePath is not allowed",
+      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component revalidateTag is not allowed",
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_noStore is allowed",
       "Error overlay - RSC build errors next/root-params importing 'next/root-params' in a client component",
       "Error overlay - RSC build errors next/root-params importing 'next/root-params' in a client component in a way that bypasses import analysis",
@@ -467,8 +467,8 @@
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_cache is allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_cacheLife is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_cacheTag is not allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_expirePath is not allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_expireTag is not allowed",
+      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages revalidatePath is not allowed",
+      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages revalidateTag is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_noStore is allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/headers' in pages",
       "Error Overlay for server components compiler errors in pages importing 'next/root-params' in pages",
@@ -2613,8 +2613,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -2675,7 +2675,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -2742,8 +2742,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -2804,7 +2804,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -7733,8 +7733,8 @@
   },
   "test/e2e/app-dir/revalidatetag-rsc/revalidatetag-rsc.test.ts": {
     "passed": [
-      "unstable_expireTag-rsc should error if unstable_expireTag is called during render",
-      "unstable_expireTag-rsc should revalidate fetch cache if unstable_expireTag invoked via server action"
+      "revalidateTag-rsc should error if revalidateTag is called during render",
+      "revalidateTag-rsc should revalidate fetch cache if revalidateTag invoked via server action"
     ],
     "failed": [],
     "pending": [],
@@ -8984,7 +8984,7 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
-      "use-cache-custom-handler should not call expireTags for a normal invocation",
+      "use-cache-custom-handler should not call updateTags for a normal invocation",
       "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
@@ -9122,7 +9122,7 @@
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache replays logs from \"use cache\" functions",
       "use-cache shares caches between the page/layout and generateMetadata",
-      "use-cache should be able to revalidate a page using unstable_expireTag",
+      "use-cache should be able to revalidate a page using revalidateTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
       "use-cache should cache results",
@@ -9145,7 +9145,7 @@
       "use-cache should revalidate caches after redirect",
       "use-cache should revalidate caches during on-demand revalidation",
       "use-cache should revalidate caches nested in unstable_cache",
-      "use-cache should update after unstable_expireTag correctly",
+      "use-cache should update after revalidateTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
       "use-cache usage in node_modules should cache results when using a directive without a handler",

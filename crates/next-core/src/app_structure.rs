@@ -840,6 +840,83 @@ impl Issue for DuplicateParallelRouteIssue {
     }
 }
 
+#[turbo_tasks::value]
+struct MissingDefaultParallelRouteIssue {
+    app_dir: FileSystemPath,
+    app_page: AppPage,
+    slot_name: RcStr,
+}
+
+#[turbo_tasks::function]
+fn missing_default_parallel_route_issue(
+    app_dir: FileSystemPath,
+    app_page: AppPage,
+    slot_name: RcStr,
+) -> Vc<MissingDefaultParallelRouteIssue> {
+    MissingDefaultParallelRouteIssue {
+        app_dir,
+        app_page,
+        slot_name,
+    }
+    .cell()
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for MissingDefaultParallelRouteIssue {
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self
+            .app_dir
+            .join(&self.app_page.to_string())?
+            .join(&format!("@{}", self.slot_name))?
+            .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::AppStructure.cell()
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Vc<StyledString> {
+        StyledString::Text(
+            format!(
+                "Missing required default.js file for parallel route at {}/@{}",
+                self.app_page, self.slot_name
+            )
+            .into(),
+        )
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(
+                format!(
+                    "The parallel route slot \"@{}\" is missing a default.js file. When using \
+                     parallel routes, each slot must have a default.js file to serve as a \
+                     fallback.\n\nCreate a default.js file at: {}/@{}/default.js",
+                    self.slot_name, self.app_page, self.slot_name
+                )
+                .into(),
+            )
+            .resolved_cell(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn documentation_link(&self) -> Vc<RcStr> {
+        Vc::cell(rcstr!(
+            "https://nextjs.org/docs/messages/slot-missing-default"
+        ))
+    }
+}
+
 fn page_path_except_parallel(loader_tree: &AppPageLoaderTree) -> Option<AppPage> {
     if loader_tree.page.iter().any(|v| {
         matches!(
@@ -1114,6 +1191,29 @@ async fn directory_tree_to_loader_tree_internal(
 
         if let Some(subtree) = subtree {
             if let Some(key) = parallel_route_key {
+                let is_inside_catchall = app_page.is_catchall();
+
+                // Validate that parallel routes (except "children") have a default.js file.
+                // Skip this validation if the slot is UNDER a catch-all route (i.e., the
+                // parallel route is a child of a catch-all segment).
+                // For example:
+                //   /[...catchAll]/@slot - is_inside_catchall = true (skip validation) ✓
+                //   /@slot/[...catchAll] - is_inside_catchall = false (require default) ✓
+                // The catch-all provides fallback behavior, so default.js is not required.
+                if key != "children"
+                    && subdirectory.modules.default.is_none()
+                    && !is_inside_catchall
+                {
+                    missing_default_parallel_route_issue(
+                        app_dir.clone(),
+                        app_page.clone(),
+                        key.into(),
+                    )
+                    .to_resolved()
+                    .await?
+                    .emit();
+                }
+
                 tree.parallel_routes.insert(key.into(), subtree);
                 continue;
             }
@@ -1173,8 +1273,24 @@ async fn directory_tree_to_loader_tree_internal(
                 None
             };
 
+            let is_inside_catchall = app_page.is_catchall();
+
+            // Only emit the issue if this is not the children slot and there's no default
+            // component. The children slot is implicit and doesn't require a default.js
+            // file. Also skip validation if the slot is UNDER a catch-all route.
+            if default.is_none() && key != "children" && !is_inside_catchall {
+                missing_default_parallel_route_issue(
+                    app_dir.clone(),
+                    app_page.clone(),
+                    key.clone(),
+                )
+                .to_resolved()
+                .await?
+                .emit();
+            }
+
             tree.parallel_routes.insert(
-                key,
+                key.clone(),
                 default_route_tree(app_dir.clone(), global_metadata, app_page.clone(), default)
                     .await?,
             );

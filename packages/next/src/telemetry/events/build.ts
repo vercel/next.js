@@ -186,7 +186,6 @@ export type EventBuildFeatureUsage = {
     | 'swcEmotion'
     | `swc/target/${SWC_TARGET_TRIPLE}`
     | 'turbotrace'
-    | 'build-lint'
     | 'vercelImageGeneration'
     | 'transpilePackages'
     | 'skipMiddlewareUrlNormalize'

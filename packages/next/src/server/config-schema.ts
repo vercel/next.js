@@ -230,6 +230,7 @@ export const experimentalSchema = {
   linkNoTouchStart: z.boolean().optional(),
   manualClientBasePath: z.boolean().optional(),
   middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
+  middlewareClientMaxBodySize: zSizeLimit.optional(),
   multiZoneDraftMode: z.boolean().optional(),
   cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
   nextScriptWorkers: z.boolean().optional(),
@@ -466,12 +467,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     distDir: z.string().min(1).optional(),
     env: z.record(z.string(), z.union([z.string(), z.undefined()])).optional(),
-    eslint: z
-      .strictObject({
-        dirs: z.array(z.string().min(1)).optional(),
-        ignoreDuringBuilds: z.boolean().optional(),
-      })
-      .optional(),
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z.strictObject(experimentalSchema).optional(),
     exportPathMap: z
@@ -557,6 +552,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         contentSecurityPolicy: z.string().optional(),
         contentDispositionType: z.enum(['inline', 'attachment']).optional(),
         dangerouslyAllowSVG: z.boolean().optional(),
+        dangerouslyAllowLocalIP: z.boolean().optional(),
         deviceSizes: z
           .array(z.number().int().gte(1).lte(10000))
           .max(25)
@@ -574,6 +570,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         loader: z.enum(VALID_LOADERS).optional(),
         loaderFile: z.string().optional(),
+        maximumRedirects: z.number().int().min(0).max(20).optional(),
         minimumCacheTTL: z.number().int().gte(0).optional(),
         path: z.string().optional(),
         qualities: z
@@ -675,7 +672,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     serverExternalPackages: z.array(z.string()).optional(),
     skipMiddlewareUrlNormalize: z.boolean().optional(),
-    skipMiddlewareNextInternalRoutes: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),
     staticPageGenerationTimeout: z.number().optional(),
     expireTime: z.number().optional(),

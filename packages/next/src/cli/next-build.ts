@@ -16,7 +16,6 @@ export type NextBuildOptions = {
   debug?: boolean
   debugPrerender?: boolean
   profile?: boolean
-  lint: boolean
   mangling: boolean
   turbo?: boolean
   turbopack?: boolean
@@ -26,6 +25,7 @@ export type NextBuildOptions = {
   experimentalTurbo?: boolean
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env'
   experimentalUploadTrace?: string
+  experimentalNextConfigStripTypes?: boolean
 }
 
 const nextBuild = (options: NextBuildOptions, directory?: string) => {
@@ -37,7 +37,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     debugPrerender,
     experimentalDebugMemoryUsage,
     profile,
-    lint,
     mangling,
     experimentalAppOnly,
     experimentalBuildMode,
@@ -47,10 +46,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
   let traceUploadUrl: string | undefined
   if (experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
     traceUploadUrl = experimentalUploadTrace
-  }
-
-  if (!lint) {
-    warn('Linting is disabled.')
   }
 
   if (!mangling) {
@@ -91,7 +86,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     profile,
     debug || Boolean(process.env.NEXT_DEBUG_BUILD),
     debugPrerender,
-    lint,
     !mangling,
     experimentalAppOnly,
     bundler,

@@ -64,7 +64,7 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
-import { getPreviouslyRevalidatedTags, getServerUtils } from './server-utils'
+import { getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -141,7 +141,6 @@ import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segmen
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
-import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
@@ -1438,29 +1437,6 @@ export default abstract class Server<
         // This is needed for pages router to leverage unstable_cache
         // TODO: re-work this handling to not use global and use a AsyncStore
         ;(globalThis as any).__incrementalCache = incrementalCache
-      }
-
-      const cacheHandlers = getCacheHandlers()
-
-      if (cacheHandlers) {
-        await Promise.all(
-          [...cacheHandlers].map(async (cacheHandler) => {
-            if ('refreshTags' in cacheHandler) {
-              // Note: cacheHandler.refreshTags() is called lazily before the
-              // first cache entry is retrieved. It allows us to skip the
-              // refresh request if no caches are read at all.
-            } else {
-              const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
-                req.headers,
-                this.getPrerenderManifest().preview.previewModeId
-              )
-
-              await cacheHandler.receiveExpiredTags(
-                ...previouslyRevalidatedTags
-              )
-            }
-          })
-        )
       }
 
       // set server components HMR cache to request meta so it can be passed

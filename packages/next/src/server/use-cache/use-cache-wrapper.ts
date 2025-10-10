@@ -1394,7 +1394,7 @@ export function cache(
               implicitTagsExpiration
             )
           ) {
-            debug?.('discarding stale entry', serializedCacheKey)
+            debug?.('discarding expired entry', serializedCacheKey)
             entry = undefined
           }
         }
@@ -1755,7 +1755,7 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
   // In this case the revalidation might not have been fully propagated by a
   // remote cache handler yet, so we read it from the pending tags in the work
   // store.
-  if (pendingRevalidatedTags?.includes(tag)) {
+  if (pendingRevalidatedTags?.some((item) => item.tag === tag)) {
     debug?.('tag', tag, 'was just revalidated')
 
     return true

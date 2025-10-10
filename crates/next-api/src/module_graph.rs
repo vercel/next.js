@@ -232,7 +232,7 @@ impl ServerActionsGraph {
                 })
                 .try_flat_join()
                 .await?;
-            Ok(Vc::cell(actions.into_iter().collect()))
+            Ok(Vc::cell(actions))
         }
         .instrument(span)
         .await
@@ -490,7 +490,7 @@ impl Issue for CssGlobalImportIssue {
     }
 
     fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Fatal
+        IssueSeverity::Error
     }
 
     #[turbo_tasks::function]
@@ -730,7 +730,7 @@ impl GlobalBuildInformation {
                     .try_flat_join()
                     .await?;
 
-                Ok(Vc::cell(result.into_iter().collect()))
+                Ok(Vc::cell(result))
             }
         }
         .instrument(span)

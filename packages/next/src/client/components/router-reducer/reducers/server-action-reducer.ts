@@ -257,8 +257,14 @@ export function serverActionReducer(
   // Otherwise the server action might be intercepted with the wrong action id
   // (ie, one that corresponds with the intercepted route)
   const nextUrl =
-    state.nextUrl && hasInterceptionRouteInCurrentTree(state.tree)
-      ? state.nextUrl
+    // We always send the last next-url, not the current when
+    // performing a dynamic request. This is because we update
+    // the next-url after a navigation, but we want the same
+    // interception route to be matched that used the last
+    // next-url.
+    (state.previousNextUrl || state.nextUrl) &&
+    hasInterceptionRouteInCurrentTree(state.tree)
+      ? state.previousNextUrl || state.nextUrl
       : null
 
   const navigatedAt = Date.now()

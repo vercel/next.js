@@ -86,7 +86,7 @@ import {
   getDigestForWellKnownError,
 } from './create-error-handler'
 import { dynamicParamTypes } from './get-short-dynamic-param-type'
-import { getSegmentParam } from './get-segment-param'
+import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
@@ -181,7 +181,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 
 import { HTML_CONTENT_TYPE_HEADER, INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
-import { parseLoaderTree } from './parse-loader-tree'
+import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
 import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,
@@ -202,10 +202,15 @@ import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
 import { getRequestMeta } from '../request-meta'
-import { getDynamicParam } from '../../shared/lib/router/utils/get-dynamic-param'
+import {
+  getDynamicParam,
+  interpolateParallelRouteParams,
+} from '../../shared/lib/router/utils/get-dynamic-param'
 import type { ExperimentalConfig } from '../config-shared'
 import type { Params } from '../request/params'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
+import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
+import { imageConfigDefault } from '../../shared/lib/image-config'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -394,8 +399,7 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
  * Returns a function that parses the dynamic segment and return the associated value.
  */
 function makeGetDynamicParamFromSegment(
-  params: { [key: string]: any },
-  pagePath: string,
+  interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
@@ -409,10 +413,9 @@ function makeGetDynamicParamFromSegment(
     const segmentKey = segmentParam.param
     const dynamicParamType = dynamicParamTypes[segmentParam.type]
     return getDynamicParam(
-      params,
+      interpolatedParams,
       segmentKey,
       dynamicParamType,
-      pagePath,
       fallbackRouteParams
     )
   }
@@ -1358,12 +1361,14 @@ function App<T>({
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
   nonce,
+  images,
 }: {
   reactServerStream: BinaryStreamOf<T>
   reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
+  images: RenderOpts['images']
   nonce?: string
 }): JSX.Element {
   preinitScripts()
@@ -1403,9 +1408,11 @@ function App<T>({
         nonce,
       }}
     >
-      <ServerInsertedHTMLProvider>
-        <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
-      </ServerInsertedHTMLProvider>
+      <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
+        <ServerInsertedHTMLProvider>
+          <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
+        </ServerInsertedHTMLProvider>
+      </ImageConfigContext.Provider>
     </HeadManagerContext.Provider>
   )
 }
@@ -1420,6 +1427,7 @@ function ErrorApp<T>({
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
   nonce,
+  images,
 }: {
   reactServerStream: BinaryStreamOf<T>
   reactDebugStream: ReadableStream<Uint8Array> | undefined
@@ -1427,6 +1435,7 @@ function ErrorApp<T>({
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
   nonce?: string
+  images: RenderOpts['images']
 }): JSX.Element {
   preinitScripts()
   const response = React.use(
@@ -1456,9 +1465,11 @@ function ErrorApp<T>({
   const actionQueue = createMutableActionQueue(initialState, null)
 
   return (
-    <ServerInsertedHTMLProvider>
-      <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
-    </ServerInsertedHTMLProvider>
+    <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
+      <ServerInsertedHTMLProvider>
+        <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
+      </ServerInsertedHTMLProvider>
+    </ImageConfigContext.Provider>
   )
 }
 
@@ -1481,6 +1492,7 @@ async function renderToHTMLOrFlightImpl(
   postponedState: PostponedState | null,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   sharedContext: AppSharedContext,
+  interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ) {
   const isNotFoundPath = pagePath === '/404'
@@ -1695,14 +1707,8 @@ async function renderToHTMLOrFlightImpl(
   // HTML request ID.
   htmlRequestId = parsedRequestHeaders.htmlRequestId || requestId
 
-  /**
-   * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
-   */
-  const params = renderOpts.params ?? {}
-
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
-    params,
-    pagePath,
+    interpolatedParams,
     fallbackRouteParams
   )
 
@@ -2032,6 +2038,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   const { isPrefetchRequest, previouslyRevalidatedTags, nonce } =
     parsedRequestHeaders
 
+  let interpolatedParams: Params
   let postponedState: PostponedState | null = null
 
   // If provided, the postpone state should be parsed so it can be provided to
@@ -2043,10 +2050,23 @@ export const renderToHTMLOrFlight: AppPageRender = (
       )
     }
 
+    interpolatedParams = interpolateParallelRouteParams(
+      renderOpts.ComponentMod.routeModule.userland.loaderTree,
+      renderOpts.params ?? {},
+      pagePath,
+      fallbackRouteParams
+    )
+
     postponedState = parsePostponedState(
       renderOpts.postponed,
+      interpolatedParams
+    )
+  } else {
+    interpolatedParams = interpolateParallelRouteParams(
+      renderOpts.ComponentMod.routeModule.userland.loaderTree,
+      renderOpts.params ?? {},
       pagePath,
-      renderOpts.params
+      fallbackRouteParams
     )
   }
 
@@ -2085,6 +2105,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     postponedState,
     serverComponentsHmrCache,
     sharedContext,
+    interpolatedParams,
     fallbackRouteParams
   )
 }
@@ -2411,6 +2432,7 @@ async function renderToStream(
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
+            images={ctx.renderOpts.images}
           />,
           postponed,
           { onError: htmlRendererErrorHandler, nonce }
@@ -2456,6 +2478,7 @@ async function renderToStream(
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
         nonce={nonce}
+        images={ctx.renderOpts.images}
       />,
       {
         onError: htmlRendererErrorHandler,
@@ -2616,6 +2639,7 @@ async function renderToStream(
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               nonce={nonce}
+              images={ctx.renderOpts.images}
             />
           ),
           streamOptions: {
@@ -2999,6 +3023,7 @@ async function spawnDynamicValidationInDev(
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
         nonce={nonce}
+        images={ctx.renderOpts.images}
       />,
       {
         signal: initialClientReactController.signal,
@@ -3228,6 +3253,7 @@ async function spawnDynamicValidationInDev(
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={nonce}
+              images={ctx.renderOpts.images}
             />,
             {
               signal: finalClientReactController.signal,
@@ -3742,6 +3768,7 @@ async function prerenderToStream(
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
+            images={ctx.renderOpts.images}
           />,
           {
             signal: initialClientReactController.signal,
@@ -3976,6 +4003,7 @@ async function prerenderToStream(
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 nonce={nonce}
+                images={ctx.renderOpts.images}
               />,
               {
                 signal: finalClientReactController.signal,
@@ -4140,6 +4168,7 @@ async function prerenderToStream(
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={nonce}
+              images={ctx.renderOpts.images}
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
@@ -4247,6 +4276,7 @@ async function prerenderToStream(
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
+            images={ctx.renderOpts.images}
           />,
           {
             onError: htmlRendererErrorHandler,
@@ -4388,6 +4418,7 @@ async function prerenderToStream(
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={nonce}
+              images={ctx.renderOpts.images}
             />,
             JSON.parse(JSON.stringify(postponed)),
             {
@@ -4472,6 +4503,7 @@ async function prerenderToStream(
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
           nonce={nonce}
+          images={ctx.renderOpts.images}
         />,
         {
           onError: htmlRendererErrorHandler,
@@ -4646,6 +4678,7 @@ async function prerenderToStream(
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               nonce={nonce}
+              images={ctx.renderOpts.images}
             />
           ),
           streamOptions: {

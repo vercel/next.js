@@ -165,8 +165,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -228,7 +228,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -299,8 +299,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -362,7 +362,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -5729,7 +5729,7 @@
   },
   "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts": {
     "passed": [
-      "app-dir revalidate-dynamic should correctly mark a route handler that uses unstable_expireTag as dynamic",
+      "app-dir revalidate-dynamic should correctly mark a route handler that uses revalidateTag as dynamic",
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-path",
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-tag"
     ],
@@ -5740,8 +5740,8 @@
   },
   "test/e2e/app-dir/revalidatetag-rsc/revalidatetag-rsc.test.ts": {
     "passed": [
-      "unstable_expireTag-rsc should error if unstable_expireTag is called during render",
-      "unstable_expireTag-rsc should revalidate fetch cache if unstable_expireTag invoked via server action"
+      "revalidateTag-rsc should error if revalidateTag is called during render",
+      "revalidateTag-rsc should revalidate fetch cache if revalidateTag invoked via server action"
     ],
     "failed": [],
     "pending": [],
@@ -6616,19 +6616,18 @@
   },
   "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
     "passed": [
+      "layout sharing in non-static prefetches full prefetches should include layouts that were only prefetched with a runtime prefetch",
+      "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches full prefetches should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
       "layout sharing in non-static prefetches navigations should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches navigations should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
       "layout sharing in non-static prefetches runtime prefetches should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches runtime prefetches should omit layouts that were already prefetched with a runtime prefetch",
       "layout sharing in non-static prefetches segment-level prefetch config does not unnecessarily use a runtime prefetch for sub-pages of runtime-prefetchable layouts",
-      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available"
-    ],
-    "failed": [
-      "layout sharing in non-static prefetches full prefetches should include layouts that were only prefetched with a runtime prefetch",
-      "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
+      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available",
       "layout sharing in non-static prefetches segment-level prefetch config uses a runtime prefetch for sub-pages of runtime-prefetchable layouts if requested"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7133,7 +7132,7 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
-      "use-cache-custom-handler should not call expireTags for a normal invocation",
+      "use-cache-custom-handler should not call updateTags for a normal invocation",
       "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
@@ -7261,7 +7260,7 @@
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache shares caches between the page/layout and generateMetadata",
-      "use-cache should be able to revalidate a page using unstable_expireTag",
+      "use-cache should be able to revalidate a page using revalidateTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
       "use-cache should cache results",
@@ -7291,7 +7290,7 @@
       "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should send an SWR cache-control header based on the revalidate and expire values",
       "use-cache should store a fetch response without no-store in the incremental cache handler during build",
-      "use-cache should update after unstable_expireTag correctly",
+      "use-cache should update after revalidateTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
       "use-cache usage in node_modules should cache results when using a directive without a handler",
@@ -7379,6 +7378,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-resolve/webpack-loader-resolve.test.ts": {
+    "passed": [
+      "webpack-loader-resolve should support resolving absolute path via loader getResolve"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/webpack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
     "passed": ["webpack-loader-resource-query should pass query to loader"],
     "failed": [],
@@ -7397,7 +7405,7 @@
   },
   "test/e2e/app-dir/webpack-loader-ts-transform/webpack-loader-ts-transform.test.ts": {
     "passed": [
-      "webpack-loader-ts-transform should only run the test in turbopack"
+      "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
     ],
     "failed": [],
     "pending": [],
@@ -10569,6 +10577,7 @@
   },
   "test/integration/api-catch-all/test/index.test.js": {
     "passed": [
+      "API routes dev support should return data when catch-all",
       "API routes dev support should return data when catch-all with index and no trailing slash",
       "API routes dev support should return data when catch-all with index and trailing slash",
       "API routes dev support should return redirect when catch-all with index and trailing slash",
@@ -10577,7 +10586,7 @@
       "API routes production mode should return data when catch-all with index and trailing slash",
       "API routes production mode should return redirect when catch-all with index and trailing slash"
     ],
-    "failed": ["API routes dev support should return data when catch-all"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11471,7 +11480,9 @@
       "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
       "create-next-app prompts should prompt user for choice if --tailwind is absent",
       "create-next-app prompts should prompt user for choice if directory name is absent",
-      "create-next-app prompts should prompt user to confirm reset preferences"
+      "create-next-app prompts should prompt user to confirm reset preferences",
+      "create-next-app prompts should show reuse previous settings option when preferences exist",
+      "create-next-app prompts should use recommended defaults when user selects that option"
     ],
     "failed": [],
     "pending": [],
@@ -11897,12 +11908,11 @@
     "passed": [
       "Custom _error development mode 1 should not warn with /_error and /404 when rendering error first",
       "Custom _error development mode 2 should not warn with /_error and /404",
+      "Custom _error development mode 2 should warn on custom /_error without custom /404",
       "Custom _error production mode renders custom _error successfully",
       "Custom _error production mode should not contain /_error in build output"
     ],
-    "failed": [
-      "Custom _error development mode 2 should warn on custom /_error without custom /404"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -14916,11 +14926,11 @@
     "runtimeError": false
   },
   "test/integration/gssp-redirect-with-rewrites/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "getServerSideProps redirects should fallback to browser navigation for an unknown URL",
       "getServerSideProps redirects should use a client-side navigation for a rewritten URL"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16836,11 +16846,10 @@
   },
   "test/integration/jsconfig-paths-wildcard/test/index.test.js": {
     "passed": [
+      "jsconfig paths wildcard default behavior should resolve a wildcard alias",
       "jsconfig paths without baseurl wildcard default behavior should resolve a wildcard alias"
     ],
-    "failed": [
-      "jsconfig paths wildcard default behavior should resolve a wildcard alias"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -17909,7 +17918,9 @@
   "test/integration/next-image-new/image-from-node-modules/test/index.test.ts": {
     "passed": [
       "Image Component from node_modules development mode should apply image config for node_modules",
-      "Image Component from node_modules prod mode production mode should apply image config for node_modules"
+      "Image Component from node_modules development mode should warn when using images.domains config",
+      "Image Component from node_modules prod mode production mode should apply image config for node_modules",
+      "Image Component from node_modules prod mode production mode should warn when using images.domains config"
     ],
     "failed": [],
     "pending": [],
@@ -18049,15 +18060,14 @@
   },
   "test/integration/next-image-new/unoptimized/test/index.test.ts": {
     "passed": [
+      "Unoptimized Image Tests development mode - component should not optimize any image",
+      "Unoptimized Image Tests development mode - getImageProps should not optimize any image",
       "Unoptimized Image Tests production mode - component should build correct images-manifest.json",
       "Unoptimized Image Tests production mode - component should not optimize any image",
       "Unoptimized Image Tests production mode - getImageProps should build correct images-manifest.json",
       "Unoptimized Image Tests production mode - getImageProps should not optimize any image"
     ],
-    "failed": [
-      "Unoptimized Image Tests development mode - component should not optimize any image",
-      "Unoptimized Image Tests development mode - getImageProps should not optimize any image"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18569,9 +18579,10 @@
   "test/integration/read-only-source-hmr/test/index.test.js": {
     "passed": [
       "Read-only source HMR should detect a new page",
+      "Read-only source HMR should detect changes to a page",
       "Read-only source HMR should handle page deletion and subsequent recreation"
     ],
-    "failed": ["Read-only source HMR should detect changes to a page"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -19647,6 +19658,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/adapter-config/adapter-config-export.test.ts": {
+    "passed": [
+      "adapter-config export should call onBuildComplete with correct context"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/adapter-config/adapter-config-ppr.test.ts": {
     "passed": [
       "adapter-config should apply modifyConfig from adapter",
@@ -19979,7 +19999,7 @@
   },
   "test/production/app-dir/global-default-cache-handler/global-default-cache-handler.test.ts": {
     "passed": [
-      "global-default-cache-handler should call expireTags on global default cache handler",
+      "global-default-cache-handler should call updateTags on global default cache handler",
       "global-default-cache-handler should call refreshTags on global default cache handler",
       "global-default-cache-handler should use global symbol for default cache handler"
     ],

@@ -48,7 +48,6 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
-import { getDefaultMiddlewareMatcher } from '../../../shared/lib/router/utils/get-default-middleware-matcher'
 
 import {
   isMiddlewareFile,
@@ -76,7 +75,11 @@ import {
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
-import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
+import {
+  JSON_CONTENT_TYPE_HEADER,
+  MIDDLEWARE_FILENAME,
+  PROXY_FILENAME,
+} from '../../../lib/constants'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -387,6 +390,29 @@ async function startWatcher(
         sortByPageExts(nextConfig.pageExtensions)
       )
 
+      let hasMiddlewareFile = false
+      let hasProxyFile = false
+      for (const fileName of sortedKnownFiles) {
+        const { name } = path.parse(fileName)
+        if (name === MIDDLEWARE_FILENAME) {
+          hasMiddlewareFile = true
+        }
+        if (name === PROXY_FILENAME) {
+          hasProxyFile = true
+        }
+      }
+
+      if (hasMiddlewareFile) {
+        if (hasProxyFile) {
+          throw new Error(
+            `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
+          )
+        }
+        Log.warn(
+          `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
+        )
+      }
+
       for (const fileName of sortedKnownFiles) {
         if (
           !files.includes(fileName) &&
@@ -467,13 +493,14 @@ async function startWatcher(
             continue
           }
           serverFields.actualMiddlewareFile = rootFile
+
           await propagateServerField(
             opts,
             'actualMiddlewareFile',
             serverFields.actualMiddlewareFile
           )
           middlewareMatchers = staticInfo.middleware?.matchers || [
-            getDefaultMiddlewareMatcher(opts.nextConfig),
+            { regexp: '^/.*$', originalSource: '/:path*' },
           ]
           continue
         }

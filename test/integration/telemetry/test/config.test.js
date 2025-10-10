@@ -5,7 +5,6 @@ import {
   killApp,
   launchApp,
   nextBuild,
-  nextLint,
   waitFor,
 } from 'next-test-utils'
 import fs from 'fs-extra'
@@ -161,113 +160,6 @@ describe('config telemetry', () => {
         }
       })
 
-      it('emits telemetry for lint during build', async () => {
-        await fs.writeFile(
-          path.join(appDir, '.eslintrc'),
-          `{ "root": true, "extends": "next" }`
-        )
-        const { stderr } = await nextBuild(appDir, [], {
-          stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
-          lint: true,
-        })
-        await fs.remove(path.join(appDir, '.eslintrc'))
-
-        try {
-          const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S}]+?)^}/m
-            .exec(stderr)
-            .pop()
-
-          expect(event1).toMatch(/"durationInSeconds": [\d]{1,}/)
-          expect(event1).toMatch(/"eslintVersion": ".*?\..*?\..*?"/)
-          expect(event1).toMatch(/"lintedFilesCount": [\d]{1,}/)
-          expect(event1).toMatch(/"lintFix": false/)
-          expect(event1).toMatch(/"buildLint": true/)
-          expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
-          expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
-          expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
-          expect(event1).toMatch(`"nextRulesEnabled": {`)
-          expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
-
-          const featureUsageEvents = findAllTelemetryEvents(
-            stderr,
-            'NEXT_BUILD_FEATURE_USAGE'
-          )
-          expect(featureUsageEvents).toContainEqual({
-            featureName: 'build-lint',
-            invocationCount: 1,
-          })
-        } catch (err) {
-          require('console').error('failing stderr', stderr, err)
-          throw err
-        }
-      })
-
-      it(`emits telemetry for lint during build when '--no-lint' is specified`, async () => {
-        const { stderr } = await nextBuild(appDir, ['--no-lint'], {
-          stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
-        })
-        const events = findAllTelemetryEvents(
-          stderr,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(events).toContainEqual({
-          featureName: 'build-lint',
-          invocationCount: 0,
-        })
-      })
-
-      it(`emits telemetry for lint during build when 'ignoreDuringBuilds' is specified`, async () => {
-        const nextConfig = path.join(appDir, 'next.config.js')
-        await fs.writeFile(
-          nextConfig,
-          `module.exports = { eslint: { ignoreDuringBuilds: true } }`
-        )
-        const { stderr } = await nextBuild(appDir, [], {
-          stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
-          lint: true,
-        })
-        await fs.remove(nextConfig)
-
-        const events = findAllTelemetryEvents(
-          stderr,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(events).toContainEqual({
-          featureName: 'build-lint',
-          invocationCount: 0,
-        })
-      })
-
-      it('emits telemetry for `next lint`', async () => {
-        await fs.writeFile(
-          path.join(appDir, '.eslintrc'),
-          `{ "root": true, "extends": "next" }`
-        )
-        const { stderr } = await nextLint(appDir, [], {
-          stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
-        })
-        await fs.remove(path.join(appDir, '.eslintrc'))
-
-        const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S]+?)^}/m
-          .exec(stderr)
-          .pop()
-
-        expect(event1).toMatch(/"durationInSeconds": [\d]{1,}/)
-        expect(event1).toMatch(/"eslintVersion": ".*?\..*?\..*?"/)
-        expect(event1).toMatch(/"lintedFilesCount": [\d]{1,}/)
-        expect(event1).toMatch(/"lintFix": false/)
-        expect(event1).toMatch(/"buildLint": false/)
-        expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
-        expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
-        expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
-        expect(event1).toMatch(`"nextRulesEnabled": {`)
-        expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
-      })
-
       // Turbopack intentionally does not support these events
       ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'emits telemery for usage of image, script & dynamic',
@@ -275,7 +167,6 @@ describe('config telemetry', () => {
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: 1 },
-            lint: true,
           })
           const featureUsageEvents = findAllTelemetryEvents(
             stderr,

@@ -386,8 +386,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       'revalidateTag',
       'unstable_cacheLife',
       'unstable_cacheTag',
-      'unstable_expirePath',
-      'unstable_expireTag',
+      'revalidatePath',
+      'revalidateTag',
     ])('%s is not allowed', async (api) => {
       await using sandbox = await createSandbox(next, initialFiles)
       const { session } = sandbox

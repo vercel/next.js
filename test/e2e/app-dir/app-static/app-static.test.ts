@@ -40,7 +40,7 @@ describe('app-dir static/dynamic handling', () => {
     }
   })
 
-  if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+  if (!process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
     it('should respond correctly for dynamic route with dynamicParams false in layout', async () => {
       const res = await next.fetch('/partial-params-false/en/another')
       expect(res.status).toBe(200)
@@ -169,7 +169,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(data1).not.toBe(data2)
       })
 
-      it('should not fetch from memory cache after unstable_expireTag is used', async () => {
+      it('should not fetch from memory cache after revalidateTag is used', async () => {
         const res1 = await next.fetch('/specify-new-tags/one-tag')
         expect(res1.status).toBe(200)
 
@@ -783,7 +783,7 @@ describe('app-dir static/dynamic handling', () => {
 
   if (isNextStart) {
     it('should not encode dynamic parameters as search parameters in RSC data', async () => {
-      const data = process.env.__NEXT_EXPERIMENTAL_PPR
+      const data = process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS
         ? await next.readFile('.next/server/app/blog/seb.prefetch.rsc')
         : await next.readFile('.next/server/app/blog/seb.rsc')
 
@@ -1162,6 +1162,12 @@ describe('app-dir static/dynamic handling', () => {
            "unstable-cache/fetch/no-store.segments/unstable-cache/fetch.segment.rsc",
            "unstable-cache/fetch/no-store.segments/unstable-cache/fetch/no-store.segment.rsc",
            "unstable-cache/fetch/no-store.segments/unstable-cache/fetch/no-store/__PAGE__.segment.rsc",
+           "update-tag-test.html",
+           "update-tag-test.rsc",
+           "update-tag-test.segments/_index.segment.rsc",
+           "update-tag-test.segments/_tree.segment.rsc",
+           "update-tag-test.segments/update-tag-test.segment.rsc",
+           "update-tag-test.segments/update-tag-test/__PAGE__.segment.rsc",
            "variable-config-revalidate/revalidate-3.html",
            "variable-config-revalidate/revalidate-3.rsc",
            "variable-config-revalidate/revalidate-3.segments/_index.segment.rsc",
@@ -2557,6 +2563,31 @@ describe('app-dir static/dynamic handling', () => {
            "prefetchDataRoute": null,
            "srcRoute": "/unstable-cache/fetch/no-store",
          },
+         "/update-tag-test": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/update-tag-test.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "prefetchDataRoute": null,
+           "srcRoute": "/update-tag-test",
+         },
          "/variable-config-revalidate/revalidate-3": {
            "allowHeader": [
              "host",
@@ -3307,7 +3338,7 @@ describe('app-dir static/dynamic handling', () => {
     for (let i = 0; i < 5; i++) {
       const res = await next.fetch('/articles/non-existent')
 
-      if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev) {
+      if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS && !isNextDev) {
         expect(res.status).toBe(200)
       } else {
         expect(res.status).toBe(404)
@@ -3522,7 +3553,7 @@ describe('app-dir static/dynamic handling', () => {
     })
   } else {
     // TODO: re-implement this in a way that'll support PFPR
-    if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+    if (!process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
       it('should not error with dynamic server usage with force-static', async () => {
         const res = await next.fetch(
           '/static-to-dynamic-error-forced/static-bailout-1'
@@ -3563,7 +3594,7 @@ describe('app-dir static/dynamic handling', () => {
       )
     })
 
-    if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+    if (!process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
       it('should properly error when dynamic = "error" page uses dynamic', async () => {
         const res = await next.fetch('/dynamic-error/static-bailout-1')
         const outputIndex = next.cliOutput.length
@@ -4460,7 +4491,7 @@ describe('app-dir static/dynamic handling', () => {
     expect(html).toInclude('"noindex"')
     expect(html).toInclude('This page could not be found.')
 
-    if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev) {
+    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS && !isNextDev) {
       expect(res.status).toBe(200)
     } else {
       expect(res.status).toBe(404)
@@ -4883,5 +4914,96 @@ describe('app-dir static/dynamic handling', () => {
   it('should build dynamic param with edge runtime correctly', async () => {
     const browser = await next.browser('/dynamic-param-edge/hello')
     expect(await browser.elementByCss('#slug').text()).toBe('hello')
+  })
+
+  describe('updateTag/revalidateTag', () => {
+    it('should throw error when updateTag is called in route handler', async () => {
+      const res = await next.fetch('/api/update-tag-error')
+      const data = await res.json()
+
+      expect(data.error).toContain(
+        'updateTag can only be called from within a Server Action'
+      )
+    })
+
+    it('should successfully update tag when called from server action', async () => {
+      // First fetch to get initial data
+      const browser = await next.browser('/update-tag-test')
+      const initialData = JSON.parse(await browser.elementByCss('#data').text())
+
+      await retry(async () => {
+        // Click update button to trigger server action with updateTag
+        await browser.elementByCss('#update-button').click()
+
+        // Refresh the page to see if cache was invalidated
+        await browser.refresh()
+        const newData = JSON.parse(await browser.elementByCss('#data').text())
+
+        // Data should be different after updateTag (immediate expiration)
+        expect(newData).not.toEqual(initialData)
+      })
+    })
+
+    it('revalidateTag work with max profile in server actions', async () => {
+      // First fetch to get initial data
+      const browser = await next.browser('/update-tag-test')
+      const initialData = JSON.parse(await browser.elementByCss('#data').text())
+
+      // Click revalidate button to trigger server action with revalidateTag(..., 'max')
+      await browser.elementByCss('#revalidate-button').click()
+
+      // The behavior with 'max' profile would be stale-while-revalidate
+      // Initial request after revalidation might still show stale data
+      let dataAfterRevalidate
+      await retry(async () => {
+        await browser.refresh()
+        dataAfterRevalidate = JSON.parse(
+          await browser.elementByCss('#data').text()
+        )
+
+        expect(dataAfterRevalidate).toBeDefined()
+        expect(dataAfterRevalidate).not.toBe(initialData)
+      })
+
+      if (isNextStart) {
+        // give second so tag isn't still stale state
+        await waitFor(1000)
+
+        const res1 = await next.fetch('/update-tag-test')
+        const body1 = await res1.text()
+        const cacheHeader1 = res1.headers.get('x-nextjs-cache')
+
+        expect(res1.status).toBe(200)
+        expect(cacheHeader1).toBeDefined()
+        expect(cacheHeader1).not.toBe('MISS')
+
+        const res2 = await next.fetch('/update-tag-test')
+        const body2 = await res2.text()
+        const cacheHeader2 = res2.headers.get('x-nextjs-cache')
+
+        expect(res2.status).toBe(200)
+        expect(cacheHeader2).toBeDefined()
+        expect(cacheHeader2).not.toBe('MISS')
+        expect(body1).toBe(body2)
+      }
+    })
+
+    // Runtime logs aren't queryable in deploy mode
+    if (!isNextDeploy) {
+      it('should show deprecation warning for revalidateTag without second argument', async () => {
+        const cliOutputStart = next.cliOutput.length
+
+        const browser = await next.browser('/update-tag-test')
+
+        await retry(async () => {
+          // Click deprecated button to trigger server action with revalidateTag (no second arg)
+          await browser.elementByCss('#deprecated-button').click()
+          const output = next.cliOutput.substring(cliOutputStart)
+          expect(output).toContain(
+            '"revalidateTag" without the second argument is now deprecated'
+          )
+        })
+      })
+    }
   })
 })

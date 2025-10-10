@@ -103,7 +103,6 @@ pub struct NextConfig {
     asset_prefix: Option<RcStr>,
     base_path: Option<RcStr>,
     skip_middleware_url_normalize: Option<bool>,
-    skip_middleware_next_internal_routes: Option<bool>,
     skip_trailing_slash_redirect: Option<bool>,
     i18n: Option<I18NConfig>,
     cross_origin: Option<CrossOriginConfig>,
@@ -466,7 +465,7 @@ impl Default for ImageConfig {
         // https://github.com/vercel/next.js/blob/327634eb/packages/next/shared/lib/image-config.ts#L100-L114
         Self {
             device_sizes: vec![640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-            image_sizes: vec![16, 32, 48, 64, 96, 128, 256, 384],
+            image_sizes: vec![32, 48, 64, 96, 128, 256, 384],
             path: "/_next/image".to_string(),
             loader: ImageLoader::Default,
             loader_file: None,
@@ -1342,11 +1341,6 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn base_path(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.base_path.clone())
-    }
-
-    #[turbo_tasks::function]
-    pub fn skip_middleware_next_internal_routes(&self) -> Vc<Option<bool>> {
-        Vc::cell(self.skip_middleware_next_internal_routes)
     }
 
     #[turbo_tasks::function]

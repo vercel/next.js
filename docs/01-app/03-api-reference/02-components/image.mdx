@@ -528,6 +528,8 @@ module.exports = {
 
 The example above will ensure the `src` property of `next/image` must start with `/assets/images/` and must not have a query string. Attempting to optimize any other path will respond with `400` Bad Request error.
 
+> **Good to know**: Omitting the `search` property allows all search parameters which could allow malicious actors to optimize URLs you did not intend. Try using a specific value like `search: '?v=2'` to ensure an exact match.
+
 #### `remotePatterns`
 
 Use `remotePatterns` in your `next.config.js` file to allow images from specific external paths and block all others. This ensures that only external images from your account can be served.
@@ -684,7 +686,7 @@ If no configuration is provided, the default below is used:
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    imageSizes: [32, 48, 64, 96, 128, 256, 384],
   },
 }
 ```
@@ -798,6 +800,52 @@ You can disable static image imports inside your `next.config.js`:
 module.exports = {
   images: {
     disableStaticImages: true,
+  },
+}
+```
+
+#### `maximumRedirects`
+
+The default image optimization loader will follow HTTP redirects when fetching remote images up to 3 times.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumRedirects: 3,
+  },
+}
+```
+
+You can configure the number of redirects to follow when fetching remote images. Setting the value to `0` will disable following redirects.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumRedirects: 0,
+  },
+}
+```
+
+#### `dangerouslyAllowLocalIP`
+
+In rare cases when self-hosting Next.js on a private network, you may want to allow optimizing images from local IP addresses on the same network. This is not recommended for most users because it could allow malicious users to access content on your internal network.
+
+By default, the value is false.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    dangerouslyAllowLocalIP: false,
+  },
+}
+```
+
+If you need to optimize remote images hosted elsewhere in your local network, you can set the value to true.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    dangerouslyAllowLocalIP: true,
   },
 }
 ```
@@ -1282,7 +1330,7 @@ export default function Home() {
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `v16.0.0`  | `qualities` default configuration changed to `[75]`, `preload` prop added, `priority` prop deprecated.                                                                                                                                                                                                                                                                                                                                                                                     |
+| `v16.0.0`  | `qualities` default configuration changed to `[75]`, `preload` prop added, `priority` prop deprecated, `dangerouslyAllowLocalIP` config added, `maximumRedirects` config added.                                                                                                                                                                                                                                                                                                            |
 | `v15.3.0`  | `remotePatterns` added support for array of `URL` objects.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `v14.2.23` | `qualities` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
