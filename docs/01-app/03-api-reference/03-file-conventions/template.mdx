@@ -60,7 +60,7 @@ Template accepts a `children` prop.
 ## Behavior
 
 - **Server Components**: By default, templates are Server Components.
-- **On Navigation**: Templates receive a unique key for their own segment level. They remount when that segment (including its dynamic params) changes. Navigations within deeper segments do not remount higher-level templates. Search params do not trigger remounts.
+- **With navigation**: Templates receive a unique key for their own segment level. They remount when that segment (including its dynamic params) changes. Navigations within deeper segments do not remount higher-level templates. Search params do not trigger remounts.
 - **State reset**: Any Client Component inside the template will reset its state on navigation.
 - **Effect re-run**: Effects like `useEffect` will re-synchronize as the component remounts.
 - **DOM reset**: DOM elements inside the template are fully recreated.
