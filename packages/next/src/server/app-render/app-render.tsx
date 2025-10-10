@@ -301,7 +301,6 @@ function parseRequestHeaders(
   headers: IncomingHttpHeaders,
   options: ParseRequestHeadersOptions
 ): ParsedRequestHeaders {
-  // dev warmup requests are treated as prefetch RSC requests
   // runtime prefetch requests are *not* treated as prefetch requests
   // (TODO: this is confusing, we should refactor this to express this better)
   const isPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
@@ -310,7 +309,6 @@ function parseRequestHeaders(
 
   const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
 
-  // dev warmup requests are treated as prefetch RSC requests
   const isRSCRequest = headers[RSC_HEADER] !== undefined
 
   const shouldProvideFlightRouterState =

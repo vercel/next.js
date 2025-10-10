@@ -283,7 +283,6 @@ export function createPatchedFetcher(
     const workStore = workAsyncStorage.getStore()
     const workUnitStore = workUnitAsyncStorage.getStore()
 
-    // During static generation we track cache reads so we can reason about when they fill
     let cacheSignal = workUnitStore ? getCacheSignal(workUnitStore) : null
     if (cacheSignal) {
       cacheSignal.beginRead()
