@@ -105,6 +105,8 @@ jobs:
           fetch-depth: 25
 
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
+      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+
       - run: npm dist-tag add create-next-app@15.5.4 latest
       - run: npm dist-tag add eslint-config-next@15.5.4 latest
       - run: npm dist-tag add @next/eslint-plugin-next@15.5.4 latest
