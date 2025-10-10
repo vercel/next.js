@@ -3,10 +3,13 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "webpack-bundle-analyzer": "^4.6.1",
-    "webpack-stats-plugin": "^1.1.0",
+    "@tailwindcss/postcss": "^4.1.13",
+    "clsx": "2.1.1",
     "next": "workspace:*",
-    "next-minimal-server": "workspace:*"
+    "next-minimal-server": "workspace:*",
+    "tailwindcss": "^4.1.13",
+    "webpack-bundle-analyzer": "^4.6.1",
+    "webpack-stats-plugin": "^1.1.0"
   },
   "scripts": {
     "build-application": "next build",

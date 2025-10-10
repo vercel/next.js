@@ -673,12 +673,21 @@ importers:
 
   bench/app-router-server:
     dependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.1.13
+        version: 4.1.13
+      clsx:
+        specifier: 2.1.1
+        version: 2.1.1
       next:
         specifier: workspace:*
         version: link:../../packages/next
       next-minimal-server:
         specifier: workspace:*
         version: link:../next-minimal-server
+      tailwindcss:
+        specifier: ^4.1.13
+        version: 4.1.13
       webpack-bundle-analyzer:
         specifier: ^4.6.1
         version: 4.7.0
