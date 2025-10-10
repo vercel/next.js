@@ -86,7 +86,7 @@ import {
   getDigestForWellKnownError,
 } from './create-error-handler'
 import { dynamicParamTypes } from './get-short-dynamic-param-type'
-import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
+import { getSegmentParam } from './get-segment-param'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
@@ -181,7 +181,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 
 import { HTML_CONTENT_TYPE_HEADER, INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
-import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
+import { parseLoaderTree } from './parse-loader-tree'
 import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,
@@ -202,10 +202,7 @@ import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
 import { getRequestMeta } from '../request-meta'
-import {
-  getDynamicParam,
-  interpolateParallelRouteParams,
-} from '../../shared/lib/router/utils/get-dynamic-param'
+import { getDynamicParam } from '../../shared/lib/router/utils/get-dynamic-param'
 import type { ExperimentalConfig } from '../config-shared'
 import type { Params } from '../request/params'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
@@ -399,7 +396,8 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
  * Returns a function that parses the dynamic segment and return the associated value.
  */
 function makeGetDynamicParamFromSegment(
-  interpolatedParams: Params,
+  params: { [key: string]: any },
+  pagePath: string,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
@@ -413,9 +411,10 @@ function makeGetDynamicParamFromSegment(
     const segmentKey = segmentParam.param
     const dynamicParamType = dynamicParamTypes[segmentParam.type]
     return getDynamicParam(
-      interpolatedParams,
+      params,
       segmentKey,
       dynamicParamType,
+      pagePath,
       fallbackRouteParams
     )
   }
@@ -1492,7 +1491,6 @@ async function renderToHTMLOrFlightImpl(
   postponedState: PostponedState | null,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   sharedContext: AppSharedContext,
-  interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ) {
   const isNotFoundPath = pagePath === '/404'
@@ -1707,8 +1705,14 @@ async function renderToHTMLOrFlightImpl(
   // HTML request ID.
   htmlRequestId = parsedRequestHeaders.htmlRequestId || requestId
 
+  /**
+   * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
+   */
+  const params = renderOpts.params ?? {}
+
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
-    interpolatedParams,
+    params,
+    pagePath,
     fallbackRouteParams
   )
 
@@ -2038,7 +2042,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
   const { isPrefetchRequest, previouslyRevalidatedTags, nonce } =
     parsedRequestHeaders
 
-  let interpolatedParams: Params
   let postponedState: PostponedState | null = null
 
   // If provided, the postpone state should be parsed so it can be provided to
@@ -2050,23 +2053,10 @@ export const renderToHTMLOrFlight: AppPageRender = (
       )
     }
 
-    interpolatedParams = interpolateParallelRouteParams(
-      renderOpts.ComponentMod.routeModule.userland.loaderTree,
-      renderOpts.params ?? {},
-      pagePath,
-      fallbackRouteParams
-    )
-
     postponedState = parsePostponedState(
       renderOpts.postponed,
-      interpolatedParams
-    )
-  } else {
-    interpolatedParams = interpolateParallelRouteParams(
-      renderOpts.ComponentMod.routeModule.userland.loaderTree,
-      renderOpts.params ?? {},
       pagePath,
-      fallbackRouteParams
+      renderOpts.params
     )
   }
 
@@ -2105,7 +2095,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
     postponedState,
     serverComponentsHmrCache,
     sharedContext,
-    interpolatedParams,
     fallbackRouteParams
   )
 }
