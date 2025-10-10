@@ -152,9 +152,9 @@ We are planning to offer an equivalent to the Inner Graph Optimization in Turbop
 
 ### Build Caching
 
-Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to speed up builds. We are planning to support an analogous feature in Turbopack but it is not ready yet. On the `next@canary` release you can experiment with our solution by enabling the [`experimental.turbopackFileSystemCacheForDev`/`experimental.turbopackFileSystemCacheForBuild` flags](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache).
+Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to speed up builds. We have an analagus feature currently releases as Beta so it is currently opt-in. On Next 16 you can try our solution by enabling the [`experimental.turbopackFileSystemCacheForDev`/`experimental.turbopackFileSystemCacheForBuild` flags](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache).
 
-> **Good to know:** For this reason, when comparing webpack and Turbopack performance, make sure to delete the `.next` folder between builds to see a fair comparison.
+> **Good to know:** For this reason, when comparing webpack and Turbopack performance, make sure to delete the `.next` folder between builds to see a fair comparison or enable the turbopack filesystem cache feature.
 
 ### Webpack plugins
 
