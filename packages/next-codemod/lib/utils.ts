@@ -39,6 +39,7 @@ export function onCancel() {
  * When adding a new codemod, ensure to set the target canary version
  * instead of the stable version. This is for `@next/codemod upgrade`
  * to correctly pick up the codemod for the next pre-release version.
+ * This is also essential for correctly upgrading from canary to canary.
  */
 export const TRANSFORMER_INQUIRER_CHOICES = [
   {
