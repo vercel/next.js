@@ -7,12 +7,23 @@ import { nextTestSetup } from 'e2e-utils'
 // | import  | /_next/static/media/... | /_next/static/media/... | /_next/static/media/...        |
 // |---------|-------------------------|-------------------------|--------------------------------|
 //
-// Webpack has a (potential?) bug that App Router API routes (and Metadata) return client assets for
-// `new URL`s.
+// Webpack has
+// - a bug where App Router API routes (and Metadata) return client assets for `new URL`s.
+// - a bug where Edge Page routes return client assets for `new URL`s.
 describe(`Handle new URL asset references`, () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
+
+  const serverFilePath = expect.stringMatching(
+    /file:.*\/.next(\/dev)?\/server\/.*\/vercel\.[0-9a-f]{8}\.png$/
+  )
+  const serverEdgeUrl = expect.stringMatching(
+    /^blob:.*vercel\.[0-9a-f]{8,}\.png$/
+  )
+  const clientFilePath = expect.stringMatching(
+    /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
+  )
 
   it('should respond on middleware api', async () => {
     const data = await next
@@ -21,11 +32,9 @@ describe(`Handle new URL asset references`, () => {
 
     expect(data).toEqual({
       imported: expect.objectContaining({
-        src: expect.stringMatching(
-          /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
-        ),
+        src: clientFilePath,
       }),
-      url: expect.stringMatching(/^blob:.*vercel\.[0-9a-f]{8,}\.png$/),
+      url: serverEdgeUrl,
     })
   })
 
@@ -43,21 +52,15 @@ describe(`Handle new URL asset references`, () => {
         name: 'Next.js',
         icons: [
           {
-            src: expect.stringMatching(
-              /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
-            ),
+            src: clientFilePath,
             type: 'image/png',
             sizes: '512x512',
           },
         ],
         // TODO Webpack bug?
         description: process.env.IS_TURBOPACK_TEST
-          ? expect.stringMatching(
-              /file:.*\/.next\/server\/.*\/vercel\.[0-9a-f]{8}\.png$/
-            )
-          : expect.stringMatching(
-              /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
-            ),
+          ? serverFilePath
+          : clientFilePath,
       })
     })
 
@@ -68,18 +71,10 @@ describe(`Handle new URL asset references`, () => {
 
       expect(data).toEqual({
         imported: expect.objectContaining({
-          src: expect.stringMatching(
-            /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
-          ),
+          src: clientFilePath,
         }),
         // TODO Webpack bug?
-        url: process.env.IS_TURBOPACK_TEST
-          ? expect.stringMatching(
-              /file:.*\/.next\/server\/.*\/vercel\.[0-9a-f]{8}\.png$/
-            )
-          : expect.stringMatching(
-              /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
-            ),
+        url: process.env.IS_TURBOPACK_TEST ? serverFilePath : clientFilePath,
       })
     })
 
@@ -115,18 +110,10 @@ describe(`Handle new URL asset references`, () => {
 
       expect(data).toEqual({
         imported: expect.objectContaining({
-          src: expect.stringMatching(
-            /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
-          ),
+          src: clientFilePath,
         }),
         // TODO Webpack bug?
-        url: process.env.IS_TURBOPACK_TEST
-          ? expect.stringMatching(
-              /file:.*\/.next\/server\/.*\/vercel\.[0-9a-f]{8}\.png$/
-            )
-          : expect.stringMatching(
-              /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
-            ),
+        url: process.env.IS_TURBOPACK_TEST ? serverFilePath : clientFilePath,
       })
     })
   })
@@ -172,13 +159,9 @@ describe(`Handle new URL asset references`, () => {
 
       expect(data).toEqual({
         imported: expect.objectContaining({
-          src: expect.stringMatching(
-            /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
-          ),
+          src: clientFilePath,
         }),
-        url: expect.stringMatching(
-          /file:.*\/.next\/server\/.*\/vercel\.[0-9a-f]{8}\.png$/
-        ),
+        url: serverFilePath,
         size: 30079,
       })
     })
@@ -190,11 +173,9 @@ describe(`Handle new URL asset references`, () => {
 
       expect(data).toEqual({
         imported: expect.objectContaining({
-          src: expect.stringMatching(
-            /^\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png$/
-          ),
+          src: clientFilePath,
         }),
-        url: expect.stringMatching(/^blob:.*vercel\.[0-9a-f]{8,}\.png$/),
+        url: serverEdgeUrl,
       })
     })
   })
