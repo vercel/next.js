@@ -35,6 +35,11 @@ export function onCancel() {
   process.exit(1)
 }
 
+/**
+ * When adding a new codemod, ensure to set the target canary version
+ * instead of the stable version. This is for `@next/codemod upgrade`
+ * to correctly pick up the codemod for the next pre-release version.
+ */
 export const TRANSFORMER_INQUIRER_CHOICES = [
   {
     title:
@@ -114,16 +119,16 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
   {
     title: 'Updates `next.config.js` to use the new `turbopack` configuration',
     value: 'next-experimental-turbo-to-turbopack',
-    version: '10.0.0',
+    version: '15.4.2-canary.21',
   },
   {
     title: 'Migrate from `next lint` to the ESLint CLI',
     value: 'next-lint-to-eslint-cli',
-    version: '16.0.0',
+    version: '15.4.2-canary.55',
   },
   {
     title: 'Migrate from deprecated `middleware` convention to `proxy`',
     value: 'middleware-to-proxy',
-    version: '16.0.0',
+    version: '15.6.0-canary.54',
   },
 ]
