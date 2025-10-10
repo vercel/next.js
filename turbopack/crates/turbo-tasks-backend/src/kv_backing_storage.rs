@@ -504,7 +504,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             task_type: &CachedTaskType,
         ) -> Result<Option<TaskId>> {
             let mut task_type_bytes = Vec::new();
-            serialize_task_type(&task_type, &mut task_type_bytes, None)?;
+            serialize_task_type(task_type, &mut task_type_bytes, None)?;
             let Some(bytes) = database.get(tx, KeySpace::ForwardTaskCache, &task_type_bytes)?
             else {
                 return Ok(None);
@@ -659,7 +659,7 @@ fn serialize_task_type(
 ) -> Result<()> {
     task_type_bytes.clear();
     POT_CONFIG
-        .serialize_into(&*task_type, &mut task_type_bytes)
+        .serialize_into(task_type, &mut task_type_bytes)
         .with_context(|| {
             if let Some(task_id) = task_id {
                 anyhow!("Unable to serialize task {task_id} cache key {task_type:?}")
