@@ -1507,6 +1507,7 @@ export const defaultConfig = {
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
     strictNextHead: true,
+    middlewareClientMaxBodySize: 10_485_760, // 10MB
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
