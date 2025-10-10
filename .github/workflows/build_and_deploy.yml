@@ -105,31 +105,35 @@ jobs:
           fetch-depth: 25
 
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
-      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-      - run: npm dist-tag add @next/codemod@16.0.0-beta.0 beta
-      - run: npm dist-tag add eslint-config-next@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/bundle-analyzer@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/mdx@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/polyfill-nomodule@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/third-parties@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/eslint-plugin-internal@16.0.0-beta.0 beta
-      - run: npm dist-tag add next-rspack@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/react-refresh-utils@16.0.0-beta.0 beta
-      - run: npm dist-tag add create-next-app@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/env@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/polyfill-module@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/codemod@15.5.4 latest
-      - run: npm dist-tag add eslint-config-next@15.5.4 latest
-      - run: npm dist-tag add @next/bundle-analyzer@15.5.4 latest
-      - run: npm dist-tag add @next/mdx@15.5.4 latest
-      - run: npm dist-tag add @next/polyfill-nomodule@15.5.4 latest
-      - run: npm dist-tag add @next/third-parties@15.5.4 latest
-      - run: npm dist-tag add @next/eslint-plugin-internal@15.5.4 latest
-      - run: npm dist-tag add next-rspack@15.5.4 latest
-      - run: npm dist-tag add @next/react-refresh-utils@15.5.4 latest
       - run: npm dist-tag add create-next-app@15.5.4 latest
+      - run: npm dist-tag add eslint-config-next@15.5.4 latest
+      - run: npm dist-tag add @next/eslint-plugin-next@15.5.4 latest
+      - run: npm dist-tag add @next/bundle-analyzer@15.5.4 latest
+      - run: npm dist-tag add @next/codemod@15.5.4 latest
       - run: npm dist-tag add @next/env@15.5.4 latest
+      - run: npm dist-tag add @next/mdx@15.5.4 latest
+      - run: npm dist-tag add @next/plugin-storybook@15.5.4 latest
       - run: npm dist-tag add @next/polyfill-module@15.5.4 latest
+      - run: npm dist-tag add @next/polyfill-nomodule@15.5.4 latest
+      - run: npm dist-tag add next-rspack@15.5.4 latest
+      - run: npm dist-tag add next@15.5.4 latest
+      - run: npm dist-tag add @next/react-refresh-utils@15.5.4 latest
+      - run: npm dist-tag add @next/third-parties@15.5.4 latest
+
+      - run: npm dist-tag add create-next-app@16.0.0-beta.0 beta
+      - run: npm dist-tag add eslint-config-next@16.0.0-beta.0 beta
+      - run: npm dist-tag add @next/eslint-plugin-next@16.0.0-beta.0 beta
+      - run: npm dist-tag add @next/bundle-analyzer@16.0.0-beta.0 beta
+      - run: npm dist-tag add @next/codemod@16.0.0-beta.0 beta
+      - run: npm dist-tag add @next/env@16.0.0-beta.0 beta
+      - run: npm dist-tag add @next/mdx@16.0.0-beta.0 beta
+      - run: npm dist-tag add @next/plugin-storybook@16.0.0-beta.0 beta
+      - run: npm dist-tag add @next/polyfill-module@16.0.0-beta.0 beta
+      - run: npm dist-tag add @next/polyfill-nomodule@16.0.0-beta.0 beta
+      - run: npm dist-tag add next-rspack@16.0.0-beta.0 beta
+      - run: npm dist-tag add next@16.0.0-beta.0 beta
+      - run: npm dist-tag add @next/react-refresh-utils@16.0.0-beta.0 beta
+      - run: npm dist-tag add @next/third-parties@16.0.0-beta.0 beta
 
       # - id: get-store-path
       #   run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
