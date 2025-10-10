@@ -651,6 +651,13 @@ where
     Ok(())
 }
 
+// DO NOT REMOVE THE `inline(never)` ATTRIBUTE!
+// `pot` uses the pointer address of `&'static str` to deduplicate Symbols.
+// If this function is inlined into multiple different callsites it might inline the Serialize
+// implementation too, which can pull a `&'static str` from another crate into this crate.
+// Since string deduplication between crates is not guaranteed, it can lead to behavior changes due
+// to the pointer addresses. This can lead to lookup path and store path creating different
+// serialization of the same task type, which breaks task cache lookups.
 #[inline(never)]
 fn serialize_task_type(
     task_type: &CachedTaskType,
