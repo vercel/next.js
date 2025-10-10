@@ -399,7 +399,6 @@ async function exportAppImpl(
         nextConfig.experimental.clientSegmentCache === 'client-only'
           ? 'client-only'
           : Boolean(nextConfig.experimental.clientSegmentCache),
-      clientParamParsing: nextConfig.experimental.clientParamParsing ?? false,
       clientParamParsingOrigins:
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,

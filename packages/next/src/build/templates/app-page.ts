@@ -296,11 +296,7 @@ export async function handler(
   const supportsRSCForNavigations =
     isRoutePPREnabled &&
     nextConfig.experimental.rdcForNavigations === true &&
-    // Temporarily we require that clientParamParsing is enabled for
-    // RDC for Navigations. This is due to a builder configuration
-    // bug that manifests as invalid query params being passed to
-    // the resume lambdas.
-    nextConfig.experimental.clientParamParsing === true
+    nextConfig.experimental.cacheComponents === true
 
   // In development, we always want to generate dynamic HTML.
   const supportsDynamicResponse: boolean =
@@ -558,9 +554,6 @@ export async function handler(
             clientSegmentCache: Boolean(
               nextConfig.experimental.clientSegmentCache
             ),
-            clientParamParsing: Boolean(
-              nextConfig.experimental.clientParamParsing
-            ),
             dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
@@ -739,14 +732,14 @@ export async function handler(
           throw new NoFallbackError()
         }
 
-        // When client param parsing is enabled, we can use the fallback
+        // When cacheComponents is enabled, we can use the fallback
         // response if the request is not a dynamic RSC request because the
         // RSC data when this feature flag is enabled does not contain any
         // param references. Without this feature flag enabled, the RSC data
         // contains param references, and therefore we can't use the fallback.
         if (
           isRoutePPREnabled &&
-          (nextConfig.experimental.clientParamParsing
+          (nextConfig.experimental.cacheComponents
             ? !isDynamicRSCRequest
             : !isRSCRequest)
         ) {
@@ -1203,9 +1196,7 @@ export async function handler(
         if (typeof cachedData.rscData === 'undefined') {
           // If the response is not an RSC response, then we can't serve it.
           if (cachedData.html.contentType !== RSC_CONTENT_TYPE_HEADER) {
-            if (nextConfig.experimental.clientParamParsing) {
-              // If client param parsing is enabled, then we can return a 404.
-              // This was likely an old prefetch request.
+            if (nextConfig.experimental.cacheComponents) {
               res.statusCode = 404
               return sendRenderResult({
                 req,

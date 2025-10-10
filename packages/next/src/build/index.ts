@@ -468,8 +468,8 @@ export type RoutesManifest = {
     prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
 
     /**
-     * Whether the client param parsing is enabled. This is only relevant for
-     * app pages when PPR is enabled.
+     * Whether the client param parsing is enabled. This is automatically enabled when
+     * cacheComponents is enabled.
      */
     clientParamParsing: boolean
 
@@ -1582,24 +1582,13 @@ export default async function build(
               prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
               prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
               prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
-              clientParamParsing:
-                // NOTE: once this is the default for `clientSegmentCache`, this
-                // should exclusively be based on the `clientSegmentCache` flag.
-                config.experimental.clientParamParsing ?? false,
-              clientParamParsingOrigins: config.experimental.clientParamParsing
-                ? config.experimental.clientParamParsingOrigins
-                : undefined,
+              clientParamParsing: config.experimental.cacheComponents ?? false,
+              clientParamParsingOrigins:
+                config.experimental.clientParamParsingOrigins,
               dynamicRSCPrerender:
-                // Only enable RDC for Navigations if the feature is enabled.
-                // Once we've made RDC for Navigations the default for PPR, we
-                // can remove the check for `config.experimental.rdcForNavigations`.
                 isAppPPREnabled &&
                 config.experimental.rdcForNavigations === true &&
-                // Temporarily we require that clientParamParsing is enabled for
-                // RDC for Navigations. This is due to a builder configuration
-                // bug that manifests as invalid query params being passed to
-                // the resume lambdas.
-                config.experimental.clientParamParsing === true,
+                config.experimental.cacheComponents === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -2943,7 +2932,7 @@ export default async function build(
                     // completely static.
                     !(
                       config.experimental.clientSegmentCache &&
-                      config.experimental.clientParamParsing
+                      config.experimental.cacheComponents
                     )
                   ) {
                     return
@@ -3259,7 +3248,7 @@ export default async function build(
                   // this route.
                   !(
                     config.experimental.clientSegmentCache &&
-                    config.experimental.clientParamParsing &&
+                    config.experimental.cacheComponents &&
                     isRoutePPREnabled
                   )
                 ) {
@@ -3369,7 +3358,7 @@ export default async function build(
                     // this case. This only applies if we have PPR enabled for
                     // this route.
                     !config.experimental.clientSegmentCache ||
-                    !config.experimental.clientParamParsing ||
+                    !config.experimental.cacheComponents ||
                     !isRoutePPREnabled
                   ) {
                     prefetchDataRoute = path.posix.join(

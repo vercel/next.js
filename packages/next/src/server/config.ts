@@ -1245,18 +1245,6 @@ function assignDefaultsAndValidate(
     )
   }
 
-  // We require clientSegmentCache to be enabled if clientParamParsing is
-  // enabled. This is because clientParamParsing is only relevant when
-  // clientSegmentCache is enabled.
-  if (
-    result.experimental.clientParamParsing &&
-    !result.experimental.clientSegmentCache
-  ) {
-    throw new Error(
-      `\`experimental.clientParamParsing\` can not be \`true\` when \`experimental.clientSegmentCache\` is \`false\`. Client param parsing is only relevant when client segment cache is enabled.`
-    )
-  }
-
   if (
     phase === PHASE_DEVELOPMENT_SERVER &&
     result.experimental?.isolatedDevBuild
@@ -1740,25 +1728,6 @@ function enforceExperimentalFeatures(
       false,
       configuredExperimentalFeatures
     )
-  }
-
-  // TODO: Remove this once we've made Client Param Parsing the default.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.clientParamParsing === undefined ||
-      (isDefaultConfig && !config.experimental.clientParamParsing))
-  ) {
-    config.experimental.clientParamParsing = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'clientParamParsing',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
-      )
-    }
   }
 
   // TODO: Remove this once we've made Cache Components the default.

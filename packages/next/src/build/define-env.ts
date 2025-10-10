@@ -199,9 +199,6 @@ export function getDefineEnv({
     'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
       config.experimental.clientSegmentCache
     ),
-    'process.env.__NEXT_CLIENT_PARAM_PARSING': Boolean(
-      config.experimental.clientParamParsing
-    ),
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),

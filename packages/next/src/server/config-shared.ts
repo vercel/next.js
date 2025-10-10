@@ -287,7 +287,6 @@ export interface ExperimentalConfig {
    * Partial Prerendering is enabled.
    */
   rdcForNavigations?: boolean
-  clientParamParsing?: boolean
 
   /**
    * The origins that are allowed to write the rewritten headers when
@@ -1434,7 +1433,6 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientSegmentCache: true,
     rdcForNavigations: false,
-    clientParamParsing: false,
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
     preloadEntriesOnStart: true,

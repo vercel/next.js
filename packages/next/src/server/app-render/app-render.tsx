@@ -4996,7 +4996,7 @@ async function collectSegmentData(
   const selectStaleTime = createSelectStaleTime(renderOpts.experimental)
   const staleTime = selectStaleTime(prerenderStore.stale)
   return await ComponentMod.collectSegmentData(
-    renderOpts.experimental.clientParamParsing,
+    renderOpts.experimental.cacheComponents,
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,
