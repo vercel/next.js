@@ -118,6 +118,7 @@ For type completion of `params` and `searchParams`, you can type the first argum
 `generateMetadata` function accepts the following parameters:
 
 - `props` - An object containing the parameters of the current route:
+
   - `params` - An object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `generateMetadata` is called from. Examples:
 
     | Route                           | URL         | `params`                  |
@@ -286,9 +287,11 @@ export const metadata = {
 > **Good to know**:
 >
 > - `layout.js`
+>
 >   - `title` (string) and `title.default` define the default title for child segments (that do not define their own `title`). It will augment `title.template` from the closest parent segment if it exists.
 >   - `title.absolute` defines the default title for child segments. It ignores `title.template` from parent segments.
 >   - `title.template` defines a new title template for child segments.
+>
 > - `page.js`
 >   - If a page does not define its own title the closest parents resolved title will be used.
 >   - `title` (string) defines the routes title. It will augment `title.template` from the closest parent segment if it exists.
