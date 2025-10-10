@@ -107,7 +107,6 @@ jobs:
       - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: npm dist-tag add @next/codemod@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/swc@16.0.0-beta.0 beta
       - run: npm dist-tag add eslint-config-next@16.0.0-beta.0 beta
       - run: npm dist-tag add @next/bundle-analyzer@16.0.0-beta.0 beta
       - run: npm dist-tag add @next/mdx@16.0.0-beta.0 beta
@@ -117,11 +116,9 @@ jobs:
       - run: npm dist-tag add next-rspack@16.0.0-beta.0 beta
       - run: npm dist-tag add @next/react-refresh-utils@16.0.0-beta.0 beta
       - run: npm dist-tag add create-next-app@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/font@16.0.0-beta.0 beta
       - run: npm dist-tag add @next/env@16.0.0-beta.0 beta
       - run: npm dist-tag add @next/polyfill-module@16.0.0-beta.0 beta
       - run: npm dist-tag add @next/codemod@15.5.4 latest
-      - run: npm dist-tag add @next/swc@15.5.4 latest
       - run: npm dist-tag add eslint-config-next@15.5.4 latest
       - run: npm dist-tag add @next/bundle-analyzer@15.5.4 latest
       - run: npm dist-tag add @next/mdx@15.5.4 latest
@@ -131,7 +128,6 @@ jobs:
       - run: npm dist-tag add next-rspack@15.5.4 latest
       - run: npm dist-tag add @next/react-refresh-utils@15.5.4 latest
       - run: npm dist-tag add create-next-app@15.5.4 latest
-      - run: npm dist-tag add @next/font@15.5.4 latest
       - run: npm dist-tag add @next/env@15.5.4 latest
       - run: npm dist-tag add @next/polyfill-module@15.5.4 latest
 
