@@ -122,6 +122,11 @@ impl ServerContextType {
 }
 
 #[turbo_tasks::function]
+pub async fn should_use_next_js_condition(next_config: Vc<NextConfig>) -> Result<Vc<bool>> {
+    Ok(Vc::cell(*next_config.enable_cache_components().await?))
+}
+
+#[turbo_tasks::function]
 pub async fn get_server_resolve_options_context(
     project_path: FileSystemPath,
     ty: ServerContextType,
@@ -212,6 +217,10 @@ pub async fn get_server_resolve_options_context(
 
     if ty.should_use_react_server_condition() {
         custom_conditions.push(rcstr!("react-server"));
+    };
+
+    if *should_use_next_js_condition(next_config).await? {
+        custom_conditions.push(rcstr!("next-js"));
     };
 
     let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {

@@ -1388,6 +1388,17 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        // Add next-js condition if Cache Components is enabled
+        // TODO make this permanent once Cache Components is the only way things work
+        ...(config.experimental?.cacheComponents === true
+          ? [
+              {
+                resolve: {
+                  conditionNames: ['next-js', '...'],
+                },
+              },
+            ]
+          : []),
         // Alias server-only and client-only to proper exports based on bundling layers
         {
           issuerLayer: {
