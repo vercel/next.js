@@ -4,10 +4,6 @@ function types() {
   return require('@babel/types')
 }
 
-function codeFrame() {
-  return require('@babel/code-frame')
-}
-
 function core() {
   return require('@babel/core')
 }
@@ -110,7 +106,6 @@ function presetTypescript() {
 
 module.exports = {
   types,
-  codeFrame,
   core,
   coreLibConfig,
   coreLibNormalizeFile,

@@ -349,7 +349,9 @@
       "test/production/app-dir/subresource-integrity/subresource-integrity.test.ts",
       "test/production/app-dir/typed-routes-with-webpack-worker/typed-routes-with-webpack-worker.test.ts",
       "test/production/app-dir/unexpected-error/unexpected-error.test.ts",
-      "test/production/app-dir/worker-restart/worker-restart.test.ts"
+      "test/production/app-dir/worker-restart/worker-restart.test.ts",
+      "test/production/app-dir/resume-data-cache/resume-data-cache.test.ts",
+      "test/production/app-dir/unstable-cache-foreground-revalidate/unstable-cache-foreground-revalidate.test.ts"
     ]
   }
 }

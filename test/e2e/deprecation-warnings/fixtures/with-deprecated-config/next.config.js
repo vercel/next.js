@@ -1,3 +1,4 @@
+/** @type {import('next').NextConfig} */
 module.exports = {
   // Explicitly configure deprecated options
   amp: {
@@ -5,5 +6,11 @@ module.exports = {
   },
   experimental: {
     instrumentationHook: true,
+  },
+  publicRuntimeConfig: {
+    foo: 'bar',
+  },
+  serverRuntimeConfig: {
+    foo: 'bar',
   },
 }

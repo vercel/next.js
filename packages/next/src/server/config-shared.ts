@@ -906,6 +906,12 @@ export interface ExperimentalConfig {
    * Enable accessing root params via the `next/root-params` module.
    */
   rootParams?: boolean
+
+  /**
+   * Body size limit for request bodies with middleware configured.
+   * Defaults to 10MB. Can be specified as a number (bytes) or string (e.g. '5mb').
+   */
+  middlewareClientMaxBodySize?: SizeLimit
 }
 
 export type ExportPathMap = {
@@ -1235,14 +1241,16 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Add public (in browser) runtime configuration to your app
    *
-   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration)
+   * @deprecated Runtime config is deprecated and will be removed in Next.js 16.
    */
   publicRuntimeConfig?: { [key: string]: any }
 
   /**
    * Add server runtime configuration to your app
    *
-   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration)
+   * @deprecated Runtime config is deprecated and will be removed in Next.js 16.
    */
   serverRuntimeConfig?: { [key: string]: any }
 
@@ -1612,6 +1620,7 @@ export const defaultConfig = Object.freeze({
     devtoolSegmentExplorer: true,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
+    middlewareClientMaxBodySize: 10_485_760, // 10MB
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
