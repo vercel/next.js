@@ -87,8 +87,6 @@ jobs:
       # we build a dev binary for use in CI so skip downloading
       # canary next-swc binaries in the monorepo
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
-
     steps:
       - name: Setup node
         uses: actions/setup-node@v4
@@ -104,70 +102,29 @@ jobs:
         with:
           fetch-depth: 25
 
-      - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
-      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - id: get-store-path
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
-      - run: npm dist-tag add create-next-app@15.5.4 latest
-      - run: npm dist-tag add eslint-config-next@15.5.4 latest
-      - run: npm dist-tag add @next/eslint-plugin-next@15.5.4 latest
-      - run: npm dist-tag add @next/bundle-analyzer@15.5.4 latest
-      - run: npm dist-tag add @next/codemod@15.5.4 latest
-      - run: npm dist-tag add @next/env@15.5.4 latest
-      - run: npm dist-tag add @next/mdx@15.5.4 latest
-      - run: npm dist-tag add @next/plugin-storybook@15.5.4 latest
-      - run: npm dist-tag add @next/polyfill-module@15.5.4 latest
-      - run: npm dist-tag add @next/polyfill-nomodule@15.5.4 latest
-      - run: npm dist-tag add next-rspack@15.5.4 latest
-      - run: npm dist-tag add next@15.5.4 latest
-      - run: npm dist-tag add @next/react-refresh-utils@15.5.4 latest
-      - run: npm dist-tag add @next/third-parties@15.5.4 latest
-      - run: npm dist-tag add @next/swc-darwin-arm64@15.5.4 latest
-      - run: npm dist-tag add @next/swc-darwin-x64@15.5.4 latest
-      - run: npm dist-tag add @next/swc-linux-arm64-gnu@15.5.4 latest
-      - run: npm dist-tag add @next/swc-linux-arm64-musl@15.5.4 latest
-      - run: npm dist-tag add @next/swc-linux-x64-gnu@15.5.4 latest
-      - run: npm dist-tag add @next/swc-linux-x64-musl@15.5.4 latest
-      - run: npm dist-tag add @next/swc-win32-arm64-msvc@15.5.4 latest
-      - run: npm dist-tag add @next/swc-win32-x64-msvc@15.5.4 latest
+      - uses: actions/cache@v4
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-
+            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - run: npm dist-tag add create-next-app@16.0.0-beta.0 beta
-      - run: npm dist-tag add eslint-config-next@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/eslint-plugin-next@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/bundle-analyzer@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/codemod@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/env@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/mdx@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/plugin-storybook@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/polyfill-module@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/polyfill-nomodule@16.0.0-beta.0 beta
-      - run: npm dist-tag add next-rspack@16.0.0-beta.0 beta
-      - run: npm dist-tag add next@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/react-refresh-utils@16.0.0-beta.0 beta
-      - run: npm dist-tag add @next/third-parties@16.0.0-beta.0 beta
+      - run: pnpm install
 
-      # - id: get-store-path
-      #   run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
+      - run: pnpm run build
 
-      # - uses: actions/cache@v4
-      #   timeout-minutes: 5
-      #   id: cache-pnpm-store
-      #   with:
-      #     path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-      #     key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-      #     restore-keys: |
-      #       pnpm-store-
-      #       pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-
-      # - run: pnpm install
-
-      # - run: pnpm run build
-
-      # - uses: actions/cache@v4
-      #   timeout-minutes: 5
-      #   id: cache-build
-      #   with:
-      #     path: ./*
-      #     key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
+      - uses: actions/cache@v4
+        timeout-minutes: 5
+        id: cache-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
   # Build binaries for publishing
   build-native:
