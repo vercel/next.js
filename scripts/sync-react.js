@@ -360,7 +360,7 @@ Or, run this command with no arguments to use the most recently published versio
       /const nextjsReactPeerVersion = "[^"]+";/,
       `const nextjsReactPeerVersion = "${highestPagesRouterReactVersion}";`
     )
-    if (activePagesRouterReact === null && updatedSource === previousSource) {
+    if (updatedSource === previousSource) {
       errors.push(
         new Error(
           `${fileName}: Failed to update ${baseVersionStr} to ${highestPagesRouterReactVersion}. Is this file still referencing the React peer dependency version?`
