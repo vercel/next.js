@@ -2236,10 +2236,9 @@ async function renderToStream(
       requestStore.renderResumeDataCache = null
       requestStore.cacheSignal = cacheSignal
 
-      const initialRenderReactController = new AbortController()
+      const initialReactController = new AbortController()
 
-      const intialRenderDebugChannel =
-        setReactDebugChannel && createDebugChannel()
+      const intialDebugChannel = setReactDebugChannel && createDebugChannel()
 
       const initialRscPayload = await getPayload()
       const maybeInitialServerStream = await workUnitAsyncStorage.run(
@@ -2256,8 +2255,8 @@ async function renderToStream(
                   onError: serverComponentsErrorHandler,
                   environmentName,
                   filterStackFrame,
-                  debugChannel: intialRenderDebugChannel?.serverSide,
-                  signal: initialRenderReactController.signal,
+                  debugChannel: intialDebugChannel?.serverSide,
+                  signal: initialReactController.signal,
                 }
               )
             },
@@ -2287,8 +2286,8 @@ async function renderToStream(
         // No cache misses. We can use the stream as is.
 
         // We're using this render, so we should pass its debug channel to the client render.
-        if (intialRenderDebugChannel) {
-          setDebugChannelForClientRender(intialRenderDebugChannel)
+        if (intialDebugChannel) {
+          setDebugChannelForClientRender(intialDebugChannel)
         }
 
         reactServerResult = new ReactServerResult(maybeInitialServerStream)
@@ -2303,7 +2302,7 @@ async function renderToStream(
         // This will be optimized in the future by not allowing runtime/dynamic APIs to resolve.
 
         await cacheSignal.cacheReady()
-        initialRenderReactController.abort()
+        initialReactController.abort()
 
         //===============================================
 
@@ -2320,11 +2319,10 @@ async function renderToStream(
 
         // The initial render already wrote to its debug channel. We're not using it,
         // so we need to create a new one.
-        const finalRenderDebugChannel =
-          setReactDebugChannel && createDebugChannel()
+        const finalDebugChannel = setReactDebugChannel && createDebugChannel()
         // We know that we won't discard this render, so we can set the debug channel up immediately.
-        if (finalRenderDebugChannel) {
-          setDebugChannelForClientRender(finalRenderDebugChannel)
+        if (finalDebugChannel) {
+          setDebugChannelForClientRender(finalDebugChannel)
         }
 
         const finalRscPayload = await getPayload()
@@ -2341,7 +2339,7 @@ async function renderToStream(
                 onError: serverComponentsErrorHandler,
                 environmentName,
                 filterStackFrame,
-                debugChannel: finalRenderDebugChannel?.serverSide,
+                debugChannel: finalDebugChannel?.serverSide,
               }
             )
           },
