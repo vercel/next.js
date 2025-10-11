@@ -265,15 +265,17 @@ async fn source(
         .into();
 
     let output_fs = output_fs(project_dir);
-    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir, /* watch= */ true);
+    const OUTPUT_DIR: &str = ".turbopack/build";
+    let fs: Vc<Box<dyn FileSystem>> =
+        project_fs(root_dir, /* watch= */ true, rcstr!(OUTPUT_DIR));
     let root_path = fs.root().owned().await?;
     let project_path = root_path.join(&project_relative)?;
 
     let env = load_env(root_path.clone());
-    let build_output_root = output_fs.root().await?.join(".turbopack/build")?;
+    let build_output_root = output_fs.root().await?.join(OUTPUT_DIR)?;
 
     let build_output_root_to_root_path = project_path
-        .join(".turbopack/build")?
+        .join(OUTPUT_DIR)?
         .get_relative_path_to(&root_path)
         .context("Project path is in root path")?;
     let build_output_root_to_root_path = build_output_root_to_root_path;

@@ -96,7 +96,8 @@ pub struct NextConfig {
     react_strict_mode: Option<bool>,
     transpile_packages: Option<Vec<RcStr>>,
     modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
-    dist_dir: Option<RcStr>,
+    dist_dir: RcStr,
+    dist_dir_root: RcStr,
     deployment_id: Option<RcStr>,
     sass_options: Option<serde_json::Value>,
     trailing_slash: Option<bool>,
@@ -1590,8 +1591,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn dist_dir(&self) -> Vc<Option<RcStr>> {
+    pub fn dist_dir(&self) -> Vc<RcStr> {
         Vc::cell(self.dist_dir.clone())
+    }
+    #[turbo_tasks::function]
+    pub fn dist_dir_root(&self) -> Vc<RcStr> {
+        Vc::cell(self.dist_dir_root.clone())
     }
 
     #[turbo_tasks::function]

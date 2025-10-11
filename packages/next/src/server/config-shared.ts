@@ -25,6 +25,10 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
   experimental: ExperimentalConfig
+  // The root directory of the distDir. Generally the same as `distDir` but when `isolatedDevBuild`
+  // is true it is the parent directory of `distDir`.  This is used to ensure that the bundler doesn't
+  // traverse into the output directory.
+  distDirRoot: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
