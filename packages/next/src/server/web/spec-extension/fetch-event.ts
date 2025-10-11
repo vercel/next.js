@@ -2,8 +2,6 @@ import type { WaitUntil } from '../../after/builtin-request-context'
 import { PageSignatureError } from '../error'
 import type { NextRequest } from './request'
 
-const responseSymbol = Symbol('response')
-const passThroughSymbol = Symbol('passThrough')
 const waitUntilSymbol = Symbol('waitUntil')
 
 class FetchEvent {
@@ -11,27 +9,12 @@ class FetchEvent {
   // (this means removing `FetchEventResult.waitUntil` which also requires a builder change)
   readonly [waitUntilSymbol]:
     | { kind: 'internal'; promises: Promise<any>[] }
-    | { kind: 'external'; function: WaitUntil };
-
-  [responseSymbol]?: Promise<Response>;
-  [passThroughSymbol] = false
+    | { kind: 'external'; function: WaitUntil }
 
   constructor(_request: Request, waitUntil?: WaitUntil) {
     this[waitUntilSymbol] = waitUntil
       ? { kind: 'external', function: waitUntil }
       : { kind: 'internal', promises: [] }
-  }
-
-  // TODO: is this dead code? NextFetchEvent never lets this get called
-  respondWith(response: Response | Promise<Response>): void {
-    if (!this[responseSymbol]) {
-      this[responseSymbol] = Promise.resolve(response)
-    }
-  }
-
-  // TODO: is this dead code? passThroughSymbol is unused
-  passThroughOnException(): void {
-    this[passThroughSymbol] = true
   }
 
   waitUntil(promise: Promise<any>): void {
