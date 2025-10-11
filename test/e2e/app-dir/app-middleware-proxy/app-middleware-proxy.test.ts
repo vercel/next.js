@@ -5,9 +5,16 @@ import { nextTestSetup } from 'e2e-utils'
 import type { Response } from 'node-fetch'
 
 describe('app-dir with proxy', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
+
+  if (isNextDev) {
+    it('should log Compiled proxy in', async () => {
+      await next.browser('/')
+      expect(next.cliOutput).toContain('Compiled proxy in')
+    })
+  }
 
   it('should filter correctly after proxy rewrite', async () => {
     const browser = await next.browser('/start')

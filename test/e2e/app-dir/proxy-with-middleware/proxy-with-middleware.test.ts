@@ -13,7 +13,7 @@ describe('proxy-with-middleware', () => {
 
   it('should error when both middleware and proxy files are detected', async () => {
     if (isNextDev) {
-      await next.start()
+      await next.start().catch(() => {})
       expect(next.cliOutput).toContain(
         'Both "middleware" and "proxy" files are detected. Please use "proxy" instead.'
       )

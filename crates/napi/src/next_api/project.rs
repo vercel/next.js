@@ -752,6 +752,7 @@ impl NapiRoute {
 #[napi(object)]
 pub struct NapiMiddleware {
     pub endpoint: External<ExternalEndpoint>,
+    pub is_proxy: bool,
 }
 
 impl NapiMiddleware {
@@ -764,6 +765,7 @@ impl NapiMiddleware {
                 turbopack_ctx.clone(),
                 value.endpoint,
             ))),
+            is_proxy: value.is_proxy,
         })
     }
 }
