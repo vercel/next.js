@@ -765,17 +765,22 @@ async function writeStandaloneDirectory(
         )
       }
 
-      await recursiveCopy(
-        path.join(distDir, SERVER_DIRECTORY, 'pages'),
-        path.join(
-          distDir,
-          STANDALONE_DIRECTORY,
-          path.relative(outputFileTracingRoot, distDir),
-          SERVER_DIRECTORY,
-          'pages'
-        ),
-        { overwrite: true }
-      )
+      const originalPagesDir = path.join(distDir, SERVER_DIRECTORY, 'pages')
+
+      if (existsSync(originalPagesDir)) {
+        await recursiveCopy(
+          originalPagesDir,
+          path.join(
+            distDir,
+            STANDALONE_DIRECTORY,
+            path.relative(outputFileTracingRoot, distDir),
+            SERVER_DIRECTORY,
+            'pages'
+          ),
+          { overwrite: true }
+        )
+      }
+
       if (appDir) {
         const originalServerApp = path.join(distDir, SERVER_DIRECTORY, 'app')
         if (existsSync(originalServerApp)) {
