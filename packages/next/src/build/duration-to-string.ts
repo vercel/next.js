@@ -11,3 +11,12 @@ export function durationToString(compilerDuration: number) {
   }
   return durationString
 }
+
+export function hrtimeToSeconds(hrtime: [number, number]): number {
+  // hrtime is a tuple of [seconds, nanoseconds]
+  return hrtime[0] + hrtime[1] / 1e9
+}
+
+export function hrtimeDurationToString(hrtime: [number, number]): string {
+  return durationToString(hrtimeToSeconds(hrtime))
+}

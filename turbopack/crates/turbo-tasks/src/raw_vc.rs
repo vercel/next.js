@@ -119,7 +119,7 @@ impl RawVc {
     }
 
     /// Returns `true` if the task this `RawVc` reads from cannot be serialized and will not be
-    /// stored in the persistent cache.
+    /// stored in the filesystem cache.
     ///
     /// See [`TaskPersistence`] for more details.
     pub fn is_transient(&self) -> bool {

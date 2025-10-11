@@ -6,12 +6,15 @@ use std::{
 
 use anyhow::Result;
 use tracing::instrument;
-use turbo_tasks::Vc;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::rope::{Rope, RopeBuilder};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMap},
+    debug_id::generate_debug_id,
+    output::OutputAsset,
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMap, SourceMapAsset},
     source_pos::SourcePos,
 };
 
@@ -24,6 +27,7 @@ pub type Mapping = (usize, Option<Rope>);
 pub struct Code {
     code: Rope,
     mappings: Vec<Mapping>,
+    should_generate_debug_id: bool,
 }
 
 impl Code {
@@ -35,10 +39,69 @@ impl Code {
     pub fn has_source_map(&self) -> bool {
         !self.mappings.is_empty()
     }
+    // Whether this code should have a debug id generated for it
+    pub fn should_generate_debug_id(&self) -> bool {
+        self.should_generate_debug_id
+    }
 
     /// Take the source code out of the Code.
     pub fn into_source_code(self) -> Rope {
         self.code
+    }
+
+    // Formats the code with the source map and debug id comments as
+    pub async fn to_rope_with_magic_comments(
+        self: Vc<Self>,
+        source_map_path_fn: impl FnOnce() -> Vc<SourceMapAsset>,
+    ) -> Result<Rope> {
+        let code = self.await?;
+        Ok(
+            if code.has_source_map() || code.should_generate_debug_id() {
+                let mut rope_builder = RopeBuilder::default();
+                let debug_id = self.debug_id().await?;
+                // hand minified version of
+                // ```javascript
+                //  !() => {
+                //    (globalThis ??= {})[new g.Error().stack] = <debug_id>;
+                // }()
+                // ```
+                // But we need to be compatible with older runtimes since this code isn't transpiled
+                // according to a browser list. So we use `var`, `function` and
+                // try-caatch since we cannot rely on `Error.stack` being available.
+                // And finally to ensure it is on one line since that is what the source map
+                // expects.
+                // So like Thanos we have to do it ourselves.
+                if let Some(debug_id) = &*debug_id {
+                    // Test for `globalThis` first since it is available on all platforms released
+                    // since 2018! so it will mostly work
+                    const GLOBALTHIS_EXPR: &str = r#""undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{}"#;
+                    const GLOBAL_VAR_NAME: &str = "_debugIds";
+                    writeln!(
+                        rope_builder,
+                        r#";!function(){{try {{ var e={GLOBALTHIS_EXPR},n=(new e.Error).stack;n&&((e.{GLOBAL_VAR_NAME}|| (e.{GLOBAL_VAR_NAME}={{}}))[n]="{debug_id}")}}catch(e){{}}}}();"#,
+                    )?;
+                }
+
+                rope_builder.concat(&code.code);
+                rope_builder.push_static_bytes(b"\n");
+                // Add debug ID comment if enabled
+                if let Some(debug_id) = &*debug_id {
+                    write!(rope_builder, "\n//# debugId={}", debug_id)?;
+                }
+
+                if code.has_source_map() {
+                    let source_map_path = source_map_path_fn().path().await?;
+                    write!(
+                        rope_builder,
+                        "\n//# sourceMappingURL={}",
+                        urlencoding::encode(source_map_path.file_name())
+                    )?;
+                }
+                rope_builder.build()
+            } else {
+                code.code.clone()
+            },
+        )
     }
 }
 
@@ -46,6 +109,7 @@ impl Code {
 pub struct CodeBuilder {
     code: RopeBuilder,
     mappings: Option<Vec<Mapping>>,
+    should_generate_debug_id: bool,
 }
 
 impl Default for CodeBuilder {
@@ -53,15 +117,17 @@ impl Default for CodeBuilder {
         Self {
             code: RopeBuilder::default(),
             mappings: Some(Vec::new()),
+            should_generate_debug_id: false,
         }
     }
 }
 
 impl CodeBuilder {
-    pub fn new(collect_mappings: bool) -> Self {
+    pub fn new(collect_mappings: bool, should_generate_debug_id: bool) -> Self {
         Self {
             code: RopeBuilder::default(),
             mappings: collect_mappings.then(Vec::new),
+            should_generate_debug_id,
         }
     }
 
@@ -83,6 +149,8 @@ impl CodeBuilder {
 
     /// Copies the Synthetic/Original code of an already constructed Code into
     /// this instance.
+    ///
+    /// This adjusts the source map to be relative to the new code object
     pub fn push_code(&mut self, prebuilt: &Code) {
         if let Some((index, _)) = prebuilt.mappings.first() {
             if *index > 0 {
@@ -140,6 +208,7 @@ impl CodeBuilder {
         Code {
             code: self.code.build(),
             mappings: self.mappings.unwrap_or_default(),
+            should_generate_debug_id: self.should_generate_debug_id,
         }
     }
 }
@@ -186,10 +255,18 @@ impl GenerateSourceMap for Code {
     /// far the simplest way to concatenate the source maps of the multiple
     /// chunk items into a single map file.
     #[turbo_tasks::function]
-    pub fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
-        Ok(Vc::cell(Some(self.generate_source_map_ref()?)))
+    pub async fn generate_source_map(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<OptionStringifiedSourceMap>> {
+        let debug_id = self.debug_id().owned().await?;
+        Ok(Vc::cell(Some(
+            self.await?.generate_source_map_ref(debug_id),
+        )))
     }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionDebugId(Option<RcStr>);
 
 #[turbo_tasks::value_impl]
 impl Code {
@@ -200,12 +277,28 @@ impl Code {
         let hash = hash_xxh3_hash64(code.source_code());
         Vc::cell(hash)
     }
+
+    #[turbo_tasks::function]
+    pub fn debug_id(&self) -> Vc<OptionDebugId> {
+        Vc::cell(if self.should_generate_debug_id {
+            Some(generate_debug_id(self.source_code()))
+        } else {
+            None
+        })
+    }
 }
 
 impl Code {
+    /// Generates a source map from the code's mappings.
     #[instrument(level = "trace", name = "Code::generate_source_map", skip_all)]
-    pub fn generate_source_map_ref(&self) -> Result<Rope> {
-        let mut pos = SourcePos::new();
+    pub fn generate_source_map_ref(&self, debug_id: Option<RcStr>) -> Rope {
+        // A debug id should be passed only if the code should generate a debug id, it is however
+        // allowed to turn it off to access intermediate states of the code (e.g. for minification)
+        debug_assert!(debug_id.is_none() || self.should_generate_debug_id);
+        // If there is a debug id the first line will be modifying the global object. see
+        // `[to_rope_with_magic_comments]` for more details.
+        let mut pos = SourcePos::new(if debug_id.is_some() { 1 } else { 0 });
+
         let mut last_byte_pos = 0;
 
         let mut sections = Vec::with_capacity(self.mappings.len());
@@ -213,7 +306,8 @@ impl Code {
         for (byte_pos, map) in &self.mappings {
             let mut want = byte_pos - last_byte_pos;
             while want > 0 {
-                let buf = read.fill_buf()?;
+                // `fill_buf` never returns an error.
+                let buf = read.fill_buf().unwrap();
                 debug_assert!(!buf.is_empty());
 
                 let end = min(want, buf.len());
@@ -228,16 +322,26 @@ impl Code {
                 sections.push((pos, map.clone()))
             } else {
                 // We don't need an empty source map when column is 0 or the next char is a newline.
-                if pos.column != 0 && read.fill_buf()?.first().is_some_and(|&b| b != b'\n') {
+                if pos.column != 0
+                    && read
+                        .fill_buf()
+                        .unwrap()
+                        .first()
+                        .is_some_and(|&b| b != b'\n')
+                {
                     sections.push((pos, SourceMap::empty_rope()));
                 }
             }
         }
 
-        if sections.len() == 1 && sections[0].0.line == 0 && sections[0].0.column == 0 {
-            Ok(sections.into_iter().next().unwrap().1)
+        if sections.len() == 1
+            && sections[0].0.line == 0
+            && sections[0].0.column == 0
+            && debug_id.is_none()
+        {
+            sections.into_iter().next().unwrap().1
         } else {
-            SourceMap::sections_to_rope(sections)
+            SourceMap::sections_to_rope(sections, debug_id)
         }
     }
 }

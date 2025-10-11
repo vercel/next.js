@@ -774,983 +774,983 @@ export function runTests(ctx) {
           .replace(/\\\\/g, '\\')
           .replace(new RegExp(escapeRegex(ctx.buildId), 'g'), 'BUILD_ID')
       ).toMatchInlineSnapshot(`
-        "{
-          "/do": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/index.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/do-BE": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/index.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/do-BE/404": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/404.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/do-BE/frank": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/frank.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/do-BE/gsp": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/gsp.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/do-BE/gsp/fallback/always": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp/fallback/always.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/do-BE/not-found": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/not-found.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/do/404": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/404.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/do/frank": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/frank.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/do/gsp": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/gsp.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/do/gsp/fallback/always": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/do/gsp/fallback/always.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/do/not-found": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/not-found.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/index.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/index.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/404": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/404.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/frank": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/frank.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/gsp": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/gsp.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/gsp/fallback/always": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/always.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/gsp/fallback/first": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/first.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/gsp/fallback/second": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/second.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/gsp/no-fallback/first": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/no-fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/first.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/gsp/no-fallback/second": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/no-fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/second.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/not-found": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/not-found.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/not-found/blocking-fallback/first": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/not-found/blocking-fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/first.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/not-found/blocking-fallback/second": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/not-found/blocking-fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/second.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/not-found/fallback/first": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/not-found/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/first.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en-US/not-found/fallback/second": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/not-found/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/second.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en/404": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/404.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en/frank": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/frank.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en/gsp": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/gsp.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en/gsp/fallback/always": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/en/gsp/fallback/always.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/en/not-found": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/not-found.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/index.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr-BE": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/index.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr-BE/404": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/404.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr-BE/frank": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/frank.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr-BE/gsp": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/gsp.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr-BE/gsp/fallback/always": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp/fallback/always.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr-BE/not-found": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/not-found.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr/404": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/404.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr/frank": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/frank.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr/gsp": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/gsp.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr/gsp/fallback/always": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/fr/gsp/fallback/always.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/fr/not-found": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/not-found.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/index.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go-BE": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/index.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go-BE/404": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/404.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go-BE/frank": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/frank.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go-BE/gsp": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/gsp.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go-BE/gsp/fallback/always": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp/fallback/always.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go-BE/not-found": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/not-found.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go/404": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/404.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go/frank": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/frank.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go/gsp": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/gsp.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go/gsp/fallback/always": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/go/gsp/fallback/always.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/go/not-found": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/not-found.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/index.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-BE": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/index.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-BE/404": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/404.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-BE/frank": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/frank.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-BE/gsp": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/gsp.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-BE/gsp/fallback/always": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp/fallback/always.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-BE/not-found": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/not-found.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-NL": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/index.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-NL/404": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/404.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-NL/frank": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/frank.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-NL/gsp": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/gsp.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-NL/gsp/fallback/always": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/fallback/always.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-NL/gsp/no-fallback/second": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/no-fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/no-fallback/second.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl-NL/not-found": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/not-found.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl/404": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/404.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl/frank": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/frank.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl/gsp": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/gsp.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl/gsp/fallback/always": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": "/gsp/fallback/[slug]",
-            "dataRoute": "/_next/data/BUILD_ID/nl/gsp/fallback/always.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/nl/not-found": {
-            "initialRevalidateSeconds": false,
-            "srcRoute": null,
-            "dataRoute": "/_next/data/BUILD_ID/not-found.json",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          }
-        }"
+       "{
+         "/do": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/do.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/do-BE": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/do-BE.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/do-BE/404": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/do-BE/404.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/do-BE/frank": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/do-BE/frank.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/do-BE/gsp": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/do-BE/gsp/fallback/always": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp/fallback/always.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/do-BE/not-found": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/do-BE/not-found.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/do/404": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/do/404.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/do/frank": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/do/frank.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/do/gsp": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/do/gsp.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/do/gsp/fallback/always": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/do/gsp/fallback/always.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/do/not-found": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/do/not-found.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/en.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/en-US.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/404": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/en-US/404.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/frank": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/en-US/frank.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/gsp": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/gsp/fallback/always": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/always.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/gsp/fallback/first": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/first.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/gsp/fallback/second": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/second.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/gsp/no-fallback/first": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/no-fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/first.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/gsp/no-fallback/second": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/no-fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/second.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/not-found": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/en-US/not-found.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/not-found/blocking-fallback/first": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/not-found/blocking-fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/first.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/not-found/blocking-fallback/second": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/not-found/blocking-fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/second.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/not-found/fallback/first": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/not-found/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/first.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en-US/not-found/fallback/second": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/not-found/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/second.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en/404": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/en/404.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en/frank": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/en/frank.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en/gsp": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/en/gsp.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en/gsp/fallback/always": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/en/gsp/fallback/always.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/en/not-found": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/en/not-found.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/fr.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr-BE": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/fr-BE.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr-BE/404": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/fr-BE/404.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr-BE/frank": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/fr-BE/frank.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr-BE/gsp": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr-BE/gsp/fallback/always": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp/fallback/always.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr-BE/not-found": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/fr-BE/not-found.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr/404": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/fr/404.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr/frank": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/fr/frank.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr/gsp": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/fr/gsp.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr/gsp/fallback/always": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/fr/gsp/fallback/always.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/fr/not-found": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/fr/not-found.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/go.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go-BE": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/go-BE.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go-BE/404": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/go-BE/404.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go-BE/frank": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/go-BE/frank.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go-BE/gsp": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go-BE/gsp/fallback/always": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp/fallback/always.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go-BE/not-found": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/go-BE/not-found.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go/404": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/go/404.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go/frank": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/go/frank.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go/gsp": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/go/gsp.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go/gsp/fallback/always": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/go/gsp/fallback/always.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/go/not-found": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/go/not-found.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-BE": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl-BE.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-BE/404": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl-BE/404.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-BE/frank": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl-BE/frank.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-BE/gsp": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-BE/gsp/fallback/always": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp/fallback/always.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-BE/not-found": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl-BE/not-found.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-NL": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl-NL.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-NL/404": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl-NL/404.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-NL/frank": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl-NL/frank.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-NL/gsp": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-NL/gsp/fallback/always": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/fallback/always.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-NL/gsp/no-fallback/second": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/no-fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/no-fallback/second.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl-NL/not-found": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl-NL/not-found.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl/404": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl/404.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl/frank": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl/frank.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl/gsp": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl/gsp.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl/gsp/fallback/always": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gsp/fallback/[slug]",
+           "dataRoute": "/_next/data/BUILD_ID/nl/gsp/fallback/always.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/nl/not-found": {
+           "initialRevalidateSeconds": false,
+           "srcRoute": null,
+           "dataRoute": "/_next/data/BUILD_ID/nl/not-found.json",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         }
+       }"
       `)
 
       expect(
@@ -2867,59 +2867,6 @@ export function runTests(ctx) {
         query: {},
       })
       expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-    }
-  })
-
-  it('should generate AMP pages with all locales', async () => {
-    for (const locale of nonDomainLocales) {
-      const localePath = locale !== 'en-US' ? `/${locale}` : ''
-      const html = await renderViaHTTP(
-        ctx.appPort,
-        `${ctx.basePath}${localePath}/amp/amp-hybrid`
-      )
-      const $ = cheerio.load(html)
-      expect($('html').attr('lang')).toBe(locale)
-      expect($('#is-amp').text()).toBe('no')
-      expect($('#router-locale').text()).toBe(locale)
-      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-      expect($('#router-pathname').text()).toBe('/amp/amp-hybrid')
-      expect($('#router-as-path').text()).toBe('/amp/amp-hybrid')
-      expect(JSON.parse($('#router-query').text())).toEqual({})
-
-      const amphtmlPath = `${ctx.basePath}${localePath}/amp/amp-hybrid${
-        ctx.isDev ? '?amp=1' : '.amp'
-      }`
-      expect($('link[rel=amphtml]').attr('href')).toBe(amphtmlPath)
-
-      const html2 = await renderViaHTTP(ctx.appPort, amphtmlPath)
-      const $2 = cheerio.load(html2)
-      expect($2('html').attr('lang')).toBe(locale)
-      expect($2('#is-amp').text()).toBe('yes')
-      expect($2('#router-locale').text()).toBe(locale)
-      expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
-      expect($2('#router-pathname').text()).toBe('/amp/amp-hybrid')
-      expect($2('#router-as-path').text()).toBe('/amp/amp-hybrid')
-      expect(JSON.parse($2('#router-query').text())).toEqual({ amp: '1' })
-      expect($2('link[rel=amphtml]').attr('href')).toBeFalsy()
-    }
-  })
-
-  it('should work with AMP first page with all locales', async () => {
-    for (const locale of nonDomainLocales) {
-      const localePath = locale !== 'en-US' ? `/${locale}` : ''
-      const html = await renderViaHTTP(
-        ctx.appPort,
-        `${ctx.basePath}${localePath}/amp/amp-first`
-      )
-      const $ = cheerio.load(html)
-      expect($('html').attr('lang')).toBe(locale)
-      expect($('#is-amp').text()).toBe('yes')
-      expect($('#router-locale').text()).toBe(locale)
-      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-      expect($('#router-pathname').text()).toBe('/amp/amp-first')
-      expect($('#router-as-path').text()).toBe('/amp/amp-first')
-      expect(JSON.parse($('#router-query').text())).toEqual({})
-      expect($('link[rel=amphtml]').attr('href')).toBeFalsy()
     }
   })
 

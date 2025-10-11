@@ -89,6 +89,8 @@ struct SnapshotOptions {
     scope_hoisting: bool,
     #[serde(default)]
     production_chunking: bool,
+    #[serde(default)]
+    enable_debug_ids: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -118,6 +120,7 @@ impl Default for SnapshotOptions {
             remove_unused_exports: false,
             scope_hoisting: false,
             production_chunking: false,
+            enable_debug_ids: false,
         }
     }
 }
@@ -456,7 +459,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage);
+            .export_usage(export_usage)
+            .debug_ids(options.enable_debug_ids);
 
             if options.production_chunking {
                 builder = builder.chunking_config(
@@ -484,7 +488,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(export_usage);
+            .export_usage(export_usage)
+            .debug_ids(options.enable_debug_ids);
 
             if options.production_chunking {
                 builder = builder.chunking_config(

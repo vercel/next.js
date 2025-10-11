@@ -645,7 +645,7 @@ impl ReactServerComponentValidator {
             ],
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([
-                ("next/server", vec!["after", "unstable_rootParams"]),
+                ("next/server", vec!["after"]),
                 (
                     "next/cache",
                     vec![
@@ -654,8 +654,6 @@ impl ReactServerComponentValidator {
                         // "unstable_cache", // useless in client, but doesn't technically error
                         "unstable_cacheLife",
                         "unstable_cacheTag",
-                        "unstable_expirePath",
-                        "unstable_expireTag",
                         // "unstable_noStore" // no-op in client, but allowed for legacy reasons
                     ],
                 ),

@@ -20,6 +20,8 @@ import {
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
   INSTRUMENTATION_HOOK_FILENAME,
+  PROXY_FILENAME,
+  MIDDLEWARE_FILENAME,
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -29,7 +31,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import {
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
@@ -948,7 +949,13 @@ export async function createEntrypoints(
                 isDev: false,
               })
           } else if (isMiddlewareFile(page)) {
-            server[serverBundlePath.replace('src/', '')] = getEdgeServerEntry({
+            server[
+              serverBundlePath
+                // proxy.js still uses middleware.js for bundle path for now.
+                // TODO: Revisit when we remove middleware.js.
+                .replace(PROXY_FILENAME, MIDDLEWARE_FILENAME)
+                .replace('src/', '')
+            ] = getEdgeServerEntry({
               ...params,
               rootDir,
               absolutePagePath: absolutePagePath,
@@ -1023,7 +1030,12 @@ export async function createEntrypoints(
                   : undefined,
               }).import
             }
-            edgeServer[serverBundlePath] = getEdgeServerEntry({
+            const edgeServerBundlePath = isMiddlewareFile(page)
+              ? serverBundlePath
+                  .replace(PROXY_FILENAME, MIDDLEWARE_FILENAME)
+                  .replace('src/', '')
+              : serverBundlePath
+            edgeServer[edgeServerBundlePath] = getEdgeServerEntry({
               ...params,
               rootDir,
               absolutePagePath: absolutePagePath,
@@ -1144,7 +1156,6 @@ export function finalizeEntrypoint({
         name !== CLIENT_STATIC_FILES_RUNTIME_POLYFILLS &&
         name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
         name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
-        name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
         name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
       ) {
         if (isAppLayer) {

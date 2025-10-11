@@ -32,16 +32,19 @@ export const DEFAULT_METADATA_ROUTE_EXTENSIONS = ['js', 'jsx', 'ts', 'tsx']
 
 // Match the file extension with the dynamic multi-routes extensions
 // e.g. ([xml, js], null) -> can match `/sitemap.xml/route`, `sitemap.js/route`
-// e.g. ([png], [ts]) -> can match `/opengrapg-image.png`, `/opengraph-image.ts`
+// e.g. ([png], [ts]) -> can match `/opengraph-image.png`, `/opengraph-image.ts`
 export const getExtensionRegexString = (
   staticExtensions: readonly string[],
   dynamicExtensions: readonly string[] | null
 ) => {
+  let result: string
   // If there's no possible multi dynamic routes, will not match any <name>[].<ext> files
   if (!dynamicExtensions || dynamicExtensions.length === 0) {
-    return `(\\.(?:${staticExtensions.join('|')}))`
+    result = `(\\.(?:${staticExtensions.join('|')}))`
+  } else {
+    result = `(?:\\.(${staticExtensions.join('|')})|(\\.(${dynamicExtensions.join('|')})))`
   }
-  return `(?:\\.(${staticExtensions.join('|')})|(\\.(${dynamicExtensions.join('|')})))`
+  return result
 }
 
 /**
@@ -51,6 +54,111 @@ export const getExtensionRegexString = (
  */
 export function isStaticMetadataFile(appDirRelativePath: string) {
   return isMetadataRouteFile(appDirRelativePath, [], true)
+}
+
+// Pre-compiled static regexes for common cases
+const FAVICON_REGEX = /^[\\/]favicon\.ico$/
+const ROBOTS_TXT_REGEX = /^[\\/]robots\.txt$/
+const MANIFEST_JSON_REGEX = /^[\\/]manifest\.json$/
+const MANIFEST_WEBMANIFEST_REGEX = /^[\\/]manifest\.webmanifest$/
+const SITEMAP_XML_REGEX = /[\\/]sitemap\.xml$/
+
+// Cache for compiled regex patterns based on parameters
+const compiledRegexCache = new Map<string, RegExp[]>()
+
+// Fast path checks for common metadata files
+function fastPathCheck(normalizedPath: string): boolean | null {
+  // Check favicon.ico first (most common)
+  if (FAVICON_REGEX.test(normalizedPath)) return true
+
+  // Check other common static files
+  if (ROBOTS_TXT_REGEX.test(normalizedPath)) return true
+  if (MANIFEST_JSON_REGEX.test(normalizedPath)) return true
+  if (MANIFEST_WEBMANIFEST_REGEX.test(normalizedPath)) return true
+  if (SITEMAP_XML_REGEX.test(normalizedPath)) return true
+
+  // Quick negative check - if it doesn't contain any metadata keywords, skip
+  if (
+    !normalizedPath.includes('robots') &&
+    !normalizedPath.includes('manifest') &&
+    !normalizedPath.includes('sitemap') &&
+    !normalizedPath.includes('icon') &&
+    !normalizedPath.includes('apple-icon') &&
+    !normalizedPath.includes('opengraph-image') &&
+    !normalizedPath.includes('twitter-image') &&
+    !normalizedPath.includes('favicon')
+  ) {
+    return false
+  }
+
+  return null // Continue with full regex matching
+}
+
+function getCompiledRegexes(
+  pageExtensions: PageExtensions,
+  strictlyMatchExtensions: boolean
+): RegExp[] {
+  // Create cache key
+  const cacheKey = `${pageExtensions.join(',')}|${strictlyMatchExtensions}`
+
+  const cached = compiledRegexCache.get(cacheKey)
+  if (cached) {
+    return cached
+  }
+
+  // Pre-compute common strings
+  const trailingMatcher = strictlyMatchExtensions ? '$' : '?$'
+  const variantsMatcher = '\\d?'
+  const groupSuffix = strictlyMatchExtensions ? '' : '(-\\w{6})?'
+  const suffixMatcher = variantsMatcher + groupSuffix
+
+  // Pre-compute extension arrays to avoid repeated concatenation
+  const robotsExts =
+    pageExtensions.length > 0 ? [...pageExtensions, 'txt'] : ['txt']
+  const manifestExts =
+    pageExtensions.length > 0
+      ? [...pageExtensions, 'webmanifest', 'json']
+      : ['webmanifest', 'json']
+
+  const regexes = [
+    new RegExp(
+      `^[\\\\/]robots${getExtensionRegexString(robotsExts, null)}${trailingMatcher}`
+    ),
+    new RegExp(
+      `^[\\\\/]manifest${getExtensionRegexString(manifestExts, null)}${trailingMatcher}`
+    ),
+    // FAVICON_REGEX removed - already handled in fastPathCheck
+    new RegExp(
+      `[\\\\/]sitemap${getExtensionRegexString(['xml'], pageExtensions)}${trailingMatcher}`
+    ),
+    new RegExp(
+      `[\\\\/]icon${suffixMatcher}${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.icon.extensions,
+        pageExtensions
+      )}${trailingMatcher}`
+    ),
+    new RegExp(
+      `[\\\\/]apple-icon${suffixMatcher}${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.apple.extensions,
+        pageExtensions
+      )}${trailingMatcher}`
+    ),
+    new RegExp(
+      `[\\\\/]opengraph-image${suffixMatcher}${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.openGraph.extensions,
+        pageExtensions
+      )}${trailingMatcher}`
+    ),
+    new RegExp(
+      `[\\\\/]twitter-image${suffixMatcher}${getExtensionRegexString(
+        STATIC_METADATA_IMAGES.twitter.extensions,
+        pageExtensions
+      )}${trailingMatcher}`
+    ),
+  ]
+
+  compiledRegexCache.set(cacheKey, regexes)
+  return regexes
 }
 
 /**
@@ -64,68 +172,31 @@ export function isMetadataRouteFile(
   appDirRelativePath: string,
   pageExtensions: PageExtensions,
   strictlyMatchExtensions: boolean
-) {
-  // End with the extension or optional to have the extension
-  // When strictlyMatchExtensions is true, it's used for match file path;
-  // When strictlyMatchExtensions, the dynamic extension is skipped but
-  // static extension is kept, which is usually used for matching route path.
-  const trailingMatcher = (strictlyMatchExtensions ? '' : '?') + '$'
-  // Match the optional variants like /opengraph-image2, /icon-a102f4.png, etc.
-  const variantsMatcher = '\\d?'
-  // The -\w{6} is the suffix that normalized from group routes;
-  const groupSuffix = strictlyMatchExtensions ? '' : '(-\\w{6})?'
+): boolean {
+  // Early exit for empty or obviously non-metadata paths
+  if (!appDirRelativePath || appDirRelativePath.length < 2) {
+    return false
+  }
 
-  const suffixMatcher = `${variantsMatcher}${groupSuffix}`
+  const normalizedPath = normalizePathSep(appDirRelativePath)
 
-  const metadataRouteFilesRegex = [
-    new RegExp(
-      `^[\\\\/]robots${getExtensionRegexString(
-        pageExtensions.concat('txt'),
-        null
-      )}${trailingMatcher}`
-    ),
-    new RegExp(
-      `^[\\\\/]manifest${getExtensionRegexString(
-        pageExtensions.concat('webmanifest', 'json'),
-        null
-      )}${trailingMatcher}`
-    ),
-    new RegExp(`^[\\\\/]favicon\\.ico$`),
-    new RegExp(
-      `[\\\\/]sitemap${getExtensionRegexString(['xml'], pageExtensions)}${trailingMatcher}`
-    ),
-    new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${suffixMatcher}${getExtensionRegexString(
-        STATIC_METADATA_IMAGES.icon.extensions,
-        pageExtensions
-      )}${trailingMatcher}`
-    ),
-    new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${suffixMatcher}${getExtensionRegexString(
-        STATIC_METADATA_IMAGES.apple.extensions,
-        pageExtensions
-      )}${trailingMatcher}`
-    ),
-    new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}${suffixMatcher}${getExtensionRegexString(
-        STATIC_METADATA_IMAGES.openGraph.extensions,
-        pageExtensions
-      )}${trailingMatcher}`
-    ),
-    new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${suffixMatcher}${getExtensionRegexString(
-        STATIC_METADATA_IMAGES.twitter.extensions,
-        pageExtensions
-      )}${trailingMatcher}`
-    ),
-  ]
+  // Fast path check for common cases
+  const fastResult = fastPathCheck(normalizedPath)
+  if (fastResult !== null) {
+    return fastResult
+  }
 
-  const normalizedAppDirRelativePath = normalizePathSep(appDirRelativePath)
-  const matched = metadataRouteFilesRegex.some((r) =>
-    r.test(normalizedAppDirRelativePath)
-  )
+  // Get compiled regexes from cache
+  const regexes = getCompiledRegexes(pageExtensions, strictlyMatchExtensions)
 
-  return matched
+  // Use for loop instead of .some() for better performance
+  for (let i = 0; i < regexes.length; i++) {
+    if (regexes[i].test(normalizedPath)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 // Check if the route is a static metadata route, with /route suffix

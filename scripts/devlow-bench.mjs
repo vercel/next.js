@@ -53,7 +53,7 @@ const nextBuildWorkflow =
 
       const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
-      // cleanup .next directory to remove persistent cache
+      // cleanup .next directory to remove filesystem cache
       await retry(() =>
         rm(join(benchmarkDir, '.next'), { recursive: true, force: true })
       )
@@ -226,7 +226,7 @@ const nextDevWorkflow =
     try {
       const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
-      // cleanup .next directory to remove persistent cache
+      // cleanup .next directory to remove filesystem cache
       await retry(() =>
         rm(join(benchmarkDir, '.next'), { recursive: true, force: true })
       )
@@ -475,13 +475,14 @@ const nextDevWorkflow =
         await killShell()
         await closeSession()
       } else {
-        // wait for persistent cache to be written
+        // wait for filesystem cache to be written
         const waitPromise = new Promise((resolve) => {
           setTimeout(resolve, 5000)
         })
         const cacheLocation = join(
           benchmarkDir,
           '.next',
+          'dev',
           'cache',
           'webpack',
           'client-development'

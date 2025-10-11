@@ -82,7 +82,8 @@ const expectDirectives = (header: string, directives: string[]) => {
   expect(split.length).toEqual(directives.length)
 }
 
-describe('ppr-full', () => {
+// TODO(NAR-423): Migrate to Cache Components.
+describe.skip('ppr-full', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })

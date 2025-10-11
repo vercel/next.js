@@ -445,14 +445,12 @@ export class TurbopackManifestLoader {
       },
       // Something in next.js depends on these to exist even for app dir rendering
       devFiles: [],
-      ampDevFiles: [],
       polyfillFiles: [],
       lowPriorityFiles: [
         `static/${this.buildId}/_ssgManifest.js`,
         `static/${this.buildId}/_buildManifest.js`,
       ],
       rootMainFiles: [],
-      ampFirstPages: [],
     }
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)

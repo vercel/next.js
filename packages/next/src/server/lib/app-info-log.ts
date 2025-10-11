@@ -1,11 +1,12 @@
 import { loadEnvConfig } from '@next/env'
 import * as Log from '../../build/output/log'
-import { bold, purple } from '../../lib/picocolors'
+import { bold, purple, strikethrough } from '../../lib/picocolors'
 import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
 } from '../../shared/lib/constants'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
+import { experimentalSchema } from '../config-schema'
 
 export function logStartInfo({
   networkUrl,
@@ -47,21 +48,31 @@ export function logStartInfo({
   if (experimentalFeatures?.length) {
     Log.bootstrap(`- Experiments (use with caution):`)
     for (const exp of experimentalFeatures) {
-      const symbol =
-        typeof exp.value === 'boolean'
-          ? exp.value === true
-            ? bold('✓')
-            : bold('⨯')
-          : '·'
+      const isValid = Object.prototype.hasOwnProperty.call(
+        experimentalSchema,
+        exp.key
+      )
+      if (isValid) {
+        const symbol =
+          typeof exp.value === 'boolean'
+            ? exp.value === true
+              ? bold('✓')
+              : bold('⨯')
+            : '·'
 
-      const suffix =
-        typeof exp.value === 'number' || typeof exp.value === 'string'
-          ? `: ${JSON.stringify(exp.value)}`
-          : ''
+        const suffix =
+          typeof exp.value === 'number' || typeof exp.value === 'string'
+            ? `: ${JSON.stringify(exp.value)}`
+            : ''
 
-      const reason = exp.reason ? ` (${exp.reason})` : ''
+        const reason = exp.reason ? ` (${exp.reason})` : ''
 
-      Log.bootstrap(`  ${symbol} ${exp.key}${suffix}${reason}`)
+        Log.bootstrap(`  ${symbol} ${exp.key}${suffix}${reason}`)
+      } else {
+        Log.bootstrap(
+          `  ? ${strikethrough(exp.key)} (invalid experimental key)`
+        )
+      }
     }
   }
 

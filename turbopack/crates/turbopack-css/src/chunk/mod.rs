@@ -74,8 +74,9 @@ impl CssChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
 
-        let mut code = CodeBuilder::new(source_maps);
-        let mut body = CodeBuilder::new(source_maps);
+        // CSS chunks never have debug IDs
+        let mut code = CodeBuilder::new(source_maps, false);
+        let mut body = CodeBuilder::new(source_maps, false);
         let mut external_imports = FxIndexSet::default();
         for css_item in &this.content.await?.chunk_items {
             let content = &css_item.content().await?;

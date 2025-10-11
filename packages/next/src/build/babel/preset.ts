@@ -318,7 +318,6 @@ export default (
           : (require('styled-jsx/babel') as typeof import('styled-jsx/babel')),
         styledJsxOptions(options['styled-jsx']),
       ],
-      require('./plugins/amp-attributes') as typeof import('./plugins/amp-attributes'),
       isProduction && [
         require('next/dist/compiled/babel/plugin-transform-react-remove-prop-types') as typeof import('next/dist/compiled/babel/plugin-transform-react-remove-prop-types'),
         {
