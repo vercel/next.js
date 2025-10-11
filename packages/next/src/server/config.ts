@@ -38,10 +38,14 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
-import { CanaryOnlyError, isStableBuild } from '../shared/lib/canary-only'
+import {
+  CanaryOnlyConfigError,
+  isStableBuild,
+} from '../shared/lib/errors/canary-only-config-error'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
+import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -56,6 +60,26 @@ function normalizeNextConfigZodErrors(
       if (issue.path[0] === 'images') {
         // We exit the build when encountering an error in the images config
         shouldExit = true
+      }
+      if (
+        issue.code === 'unrecognized_keys' &&
+        issue.path[0] === 'experimental'
+      ) {
+        if (message.includes('turbopackPersistentCachingForBuild')) {
+          // We exit the build when encountering an error in the turbopackPersistentCaching config
+          shouldExit = true
+          message +=
+            "\nUse 'experimental.turbopackFileSystemCacheForBuild' instead."
+          message +=
+            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+        } else if (message.includes('turbopackPersistentCaching')) {
+          // We exit the build when encountering an error in the turbopackPersistentCaching config
+          shouldExit = true
+          message +=
+            "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
+          message +=
+            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+        }
       }
 
       return message
@@ -119,6 +143,15 @@ function checkDeprecations(
     `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
     silent
   )
+
+  if (userConfig.images?.domains?.length) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'images.domains',
+      `\`images.domains\` is deprecated in favor of \`images.remotePatterns\`. Please update ${configFileName} to protect your application from malicious users.`,
+      silent
+    )
+  }
 
   // i18n deprecation for App Router
   if (userConfig.i18n) {
@@ -336,15 +369,21 @@ function assignDefaultsAndValidate(
 
   if (isStableBuild()) {
     // Prevents usage of certain experimental features outside of canary
-    if (result.experimental?.ppr) {
-      throw new CanaryOnlyError({ feature: 'experimental.ppr' })
-    } else if (result.experimental?.cacheComponents) {
-      throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
-    } else if (result.experimental?.turbopackPersistentCachingForBuild) {
-      throw new CanaryOnlyError({
-        feature: 'experimental.turbopackPersistentCachingForBuild',
+    if (result.experimental?.cacheComponents) {
+      throw new CanaryOnlyConfigError({
+        feature: 'experimental.cacheComponents',
+      })
+    } else if (result.experimental?.turbopackFileSystemCacheForBuild) {
+      throw new CanaryOnlyConfigError({
+        feature: 'experimental.turbopackFileSystemCacheForBuild',
       })
     }
+  }
+
+  if (result.experimental.ppr) {
+    throw new HardDeprecatedConfigError(
+      `\`experimental.ppr\` has been merged into \`experimental.cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`experimental.cacheComponents\`. Please update your ${configFileName} accordingly.`
+    )
   }
 
   if (result.output === 'export') {
@@ -438,6 +477,14 @@ function assignDefaultsAndValidate(
           search: '',
         })
       }
+    } else {
+      // All paths are not allowed for a search query by default.
+      images.localPatterns = [
+        {
+          pathname: '**',
+          search: '',
+        },
+      ]
     }
 
     if (images.remotePatterns) {
@@ -670,6 +717,32 @@ function assignDefaultsAndValidate(
         'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit'
       )
     }
+  }
+
+  // Normalize & validate experimental.middlewareClientMaxBodySize
+  if (typeof result.experimental?.middlewareClientMaxBodySize !== 'undefined') {
+    const middlewareClientMaxBodySize =
+      result.experimental.middlewareClientMaxBodySize
+    let normalizedValue: number
+
+    if (typeof middlewareClientMaxBodySize === 'string') {
+      const bytes =
+        require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
+      normalizedValue = bytes.parse(middlewareClientMaxBodySize)
+    } else if (typeof middlewareClientMaxBodySize === 'number') {
+      normalizedValue = middlewareClientMaxBodySize
+    } else {
+      throw new Error(
+        'Client Max Body Size must be a valid number (bytes) or filesize format string (e.g., "5mb")'
+      )
+    }
+
+    if (isNaN(normalizedValue) || normalizedValue < 1) {
+      throw new Error('Client Max Body Size must be larger than 0 bytes')
+    }
+
+    // Store the normalized value as a number
+    result.experimental.middlewareClientMaxBodySize = normalizedValue
   }
 
   warnOptionHasBeenMovedOutOfExperimental(
@@ -1116,6 +1189,18 @@ function assignDefaultsAndValidate(
     result.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
+  if (
+    typeof result.experimental.mcpServer === 'undefined' &&
+    process.env.__NEXT_EXPERIMENTAL_MCP_SERVER === 'true'
+  ) {
+    result.experimental.mcpServer = true
+  }
+
+  // TODO: remove once we've finished migrating internally to cacheComponents.
+  if (result.experimental.cacheComponents) {
+    result.experimental.ppr = true
+  }
+
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
   // we transfer the value for cacheComponents to the explicit useCache flag to ensure
   // backwards compatibility.
@@ -1123,39 +1208,10 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.experimental.cacheComponents
   }
 
-  // If cacheComponents is enabled, we also enable PPR.
-  if (result.experimental.cacheComponents) {
-    if (
-      userConfig.experimental?.ppr === false ||
-      userConfig.experimental?.ppr === 'incremental'
-    ) {
-      throw new Error(
-        `\`experimental.ppr\` can not be \`${JSON.stringify(userConfig.experimental?.ppr)}\` when \`experimental.cacheComponents\` is \`true\`. PPR is implicitly enabled when Cache Components is enabled.`
-      )
-    }
-
-    result.experimental.ppr = true
-
-    if (
-      configuredExperimentalFeatures &&
-      // If we've already noted that the `process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`
-      // has enabled the feature, we don't need to note it again.
-      process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS !== 'true' &&
-      process.env.__NEXT_EXPERIMENTAL_PPR !== 'true'
-    ) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'ppr',
-        true,
-        'enabled by `experimental.cacheComponents`'
-      )
-    }
-  }
-
-  // If ppr is enabled and the user hasn't configured rdcForNavigations, we
-  // enable it by default.
+  // If cacheComponents is enabled and the user hasn't configured
+  // rdcForNavigations, we enable it by default.
   if (
-    result.experimental.ppr &&
+    result.experimental.cacheComponents &&
     userConfig.experimental?.rdcForNavigations === undefined
   ) {
     result.experimental.rdcForNavigations = true
@@ -1165,15 +1221,18 @@ function assignDefaultsAndValidate(
         configuredExperimentalFeatures,
         'rdcForNavigations',
         true,
-        'enabled by `experimental.ppr`'
+        'enabled by `experimental.cacheComponents`'
       )
     }
   }
 
-  // If rdcForNavigations is enabled, but ppr is not, we throw an error.
-  if (result.experimental.rdcForNavigations && !result.experimental.ppr) {
+  // If rdcForNavigations is enabled, but cacheComponents is not, we throw an error.
+  if (
+    result.experimental.rdcForNavigations &&
+    !result.experimental.cacheComponents
+  ) {
     throw new Error(
-      '`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not.'
+      '`experimental.rdcForNavigations` is enabled, but `experimental.cacheComponents` is not.'
     )
   }
 
@@ -1652,40 +1711,21 @@ function enforceExperimentalFeatures(
     )
   }
 
-  // TODO: Remove this once we've made Cache Components the default.
+  // TODO: Remove this once we've made Client Param Parsing the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.experimental.ppr === undefined ||
-      (isDefaultConfig && !config.experimental.ppr))
+    (config.experimental.clientParamParsing === undefined ||
+      (isDefaultConfig && !config.experimental.clientParamParsing))
   ) {
-    config.experimental.ppr = true
+    config.experimental.clientParamParsing = true
 
     if (configuredExperimentalFeatures) {
       addConfiguredExperimentalFeature(
         configuredExperimentalFeatures,
-        'ppr',
+        'clientParamParsing',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
-      )
-    }
-  }
-
-  // TODO: Remove this once we've made Cache Components the default.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.ppr === undefined ||
-      (isDefaultConfig && !config.experimental.ppr))
-  ) {
-    config.experimental.ppr = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'ppr',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
       )
     }
   }
@@ -1709,54 +1749,7 @@ function enforceExperimentalFeatures(
     }
   }
 
-  const enabledByPprEnv = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-  const enabledByCacheComponents = config.experimental.cacheComponents === true
-
-  // TODO: Remove this once we've made Client Segment Cache the default.
-  if (
-    (enabledByPprEnv || enabledByCacheComponents) &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.clientSegmentCache === undefined ||
-      (isDefaultConfig && !config.experimental.clientSegmentCache))
-  ) {
-    config.experimental.clientSegmentCache = true
-    const reason = enabledByCacheComponents
-      ? 'enabled by `experimental.cacheComponents`'
-      : 'enabled by `__NEXT_EXPERIMENTAL_PPR`'
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'clientSegmentCache',
-        true,
-        reason
-      )
-    }
-  }
-
-  // TODO: Remove this once we've made Client Param Parsing the default.
-  if (
-    (enabledByPprEnv || enabledByCacheComponents) &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.clientParamParsing === undefined ||
-      (isDefaultConfig && !config.experimental.clientParamParsing))
-  ) {
-    config.experimental.clientParamParsing = true
-    const reason = enabledByCacheComponents
-      ? 'enabled by `experimental.cacheComponents`'
-      : 'enabled by `__NEXT_EXPERIMENTAL_PPR`'
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'clientParamParsing',
-        true,
-        reason
-      )
-    }
-  }
-
-  // TODO: Remove this once we've made RDC for Navigations the default for PPR.
+  // TODO: Remove this once we've made RDC for Navigations the default for cache components.
   if (
     process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
     // We do respect an explicit value in the user config.
@@ -1775,21 +1768,21 @@ function enforceExperimentalFeatures(
     }
   }
 
-  // TODO: Remove this once we've made RDC for Navigations the default for PPR.
+  // TODO: Remove this once using the debug channel is the default.
   if (
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.experimental.rdcForNavigations === undefined ||
-      (isDefaultConfig && !config.experimental.rdcForNavigations))
+    (config.experimental.reactDebugChannel === undefined ||
+      (isDefaultConfig && !config.experimental.reactDebugChannel))
   ) {
-    config.experimental.rdcForNavigations = true
+    config.experimental.reactDebugChannel = true
 
     if (configuredExperimentalFeatures) {
       addConfiguredExperimentalFeature(
         configuredExperimentalFeatures,
-        'rdcForNavigations',
+        'reactDebugChannel',
         true,
-        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+        'enabled by `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`'
       )
     }
   }
@@ -1929,7 +1922,7 @@ async function validateConfigSchema(
     )
     // ident list item
     for (const error of errorMessages) {
-      messages.push(`    ${error}`)
+      messages.push(`    ${error.split('\n').join('\n    ')}`)
     }
 
     // error message footer

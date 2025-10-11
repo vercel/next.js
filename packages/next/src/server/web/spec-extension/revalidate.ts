@@ -12,50 +12,70 @@ import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.e
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 
+type CacheLifeConfig = {
+  expire?: number
+}
+
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  */
-export function revalidateTag(tag: string) {
-  return revalidate([tag], `revalidateTag ${tag}`)
+export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
+  if (!profile) {
+    console.warn(
+      '"revalidateTag" without the second argument is now deprecated, add second argument of "max" or use "updateTag". See more info here: https://nextjs.org/docs/messages/revalidate-tag-single-arg'
+    )
+  }
+  return revalidate([tag], `revalidateTag ${tag}`, profile)
 }
 
 /**
- * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific path.
+ * This function allows you to update [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
+ * This can only be called from within a Server Action to enable read-your-own-writes semantics.
  *
- * Read more: [Next.js Docs: `unstable_expirePath`](https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath)
+ * Read more: [Next.js Docs: `updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag)
  */
-export function unstable_expirePath(
-  originalPath: string,
-  type?: 'layout' | 'page'
-) {
-  if (originalPath.length > NEXT_CACHE_SOFT_TAG_MAX_LENGTH) {
-    console.warn(
-      `Warning: expirePath received "${originalPath}" which exceeded max length of ${NEXT_CACHE_SOFT_TAG_MAX_LENGTH}. See more info here https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath`
-    )
-    return
-  }
+export function updateTag(tag: string) {
+  const workStore = workAsyncStorage.getStore()
 
-  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath}`
-
-  if (type) {
-    normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
-  } else if (isDynamicRoute(originalPath)) {
-    console.warn(
-      `Warning: a dynamic page path "${originalPath}" was passed to "expirePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath`
+  // TODO: change this after investigating why phase: 'action' is
+  // set for route handlers
+  if (!workStore || workStore.page.endsWith('/route')) {
+    throw new Error(
+      'updateTag can only be called from within a Server Action. ' +
+        'To invalidate cache tags in Route Handlers or other contexts, use revalidateTag instead. ' +
+        'See more info here: https://nextjs.org/docs/app/api-reference/functions/updateTag'
     )
   }
-  return revalidate([normalizedPath], `unstable_expirePath ${originalPath}`)
+  // updateTag uses immediate expiration (no profile) without deprecation warning
+  return revalidate([tag], `updateTag ${tag}`, undefined)
 }
 
 /**
- * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
- *
- * Read more: [Next.js Docs: `unstable_expireTag`](https://nextjs.org/docs/app/api-reference/functions/unstable_expireTag)
+ * This function allows you to refresh client cache from server actions.
+ * It's useful as dynamic data can be cached on the client which won't
+ * be refreshed by expireTag
  */
-export function unstable_expireTag(...tags: string[]) {
-  return revalidate(tags, `unstable_expireTag ${tags.join(', ')}`)
+export function refresh() {
+  const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  if (
+    !workStore ||
+    workStore.page.endsWith('/route') ||
+    workUnitStore?.phase !== 'action'
+  ) {
+    throw new Error(
+      'refresh can only be called from within a Server Action. ' +
+        'See more info here: https://nextjs.org/docs/app/api-reference/functions/refresh'
+    )
+  }
+
+  if (workStore) {
+    // TODO: break this to it's own field
+    workStore.pathWasRevalidated = true
+  }
 }
 
 /**
@@ -71,7 +91,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     return
   }
 
-  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath}`
+  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath || '/'}`
 
   if (type) {
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
@@ -80,10 +100,22 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
       `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
     )
   }
-  return revalidate([normalizedPath], `revalidatePath ${originalPath}`)
+
+  const tags = [normalizedPath]
+  if (normalizedPath === `${NEXT_CACHE_IMPLICIT_TAG_ID}/`) {
+    tags.push(`${NEXT_CACHE_IMPLICIT_TAG_ID}/index`)
+  } else if (normalizedPath === `${NEXT_CACHE_IMPLICIT_TAG_ID}/index`) {
+    tags.push(`${NEXT_CACHE_IMPLICIT_TAG_ID}/`)
+  }
+
+  return revalidate(tags, `revalidatePath ${originalPath}`)
 }
 
-function revalidate(tags: string[], expression: string) {
+function revalidate(
+  tags: string[],
+  expression: string,
+  profile?: string | CacheLifeConfig
+) {
   const store = workAsyncStorage.getStore()
   if (!store || !store.incrementalCache) {
     throw new Error(
@@ -159,11 +191,39 @@ function revalidate(tags: string[], expression: string) {
   }
 
   for (const tag of tags) {
-    if (!store.pendingRevalidatedTags.includes(tag)) {
-      store.pendingRevalidatedTags.push(tag)
+    const existingIndex = store.pendingRevalidatedTags.findIndex((item) => {
+      if (item.tag !== tag) return false
+      // Compare profiles: both strings, both objects, or both undefined
+      if (typeof item.profile === 'string' && typeof profile === 'string') {
+        return item.profile === profile
+      }
+      if (typeof item.profile === 'object' && typeof profile === 'object') {
+        return JSON.stringify(item.profile) === JSON.stringify(profile)
+      }
+      return item.profile === profile
+    })
+    if (existingIndex === -1) {
+      store.pendingRevalidatedTags.push({
+        tag,
+        profile,
+      })
     }
   }
 
-  // TODO: only revalidate if the path matches
-  store.pathWasRevalidated = true
+  // if profile is provided and this is a stale-while-revalidate
+  // update we do not mark the path as revalidated so that server
+  // actions don't pull their own writes
+  const cacheLife =
+    profile && typeof profile === 'object'
+      ? profile
+      : profile &&
+          typeof profile === 'string' &&
+          store?.cacheLifeProfiles?.[profile]
+        ? store.cacheLifeProfiles[profile]
+        : undefined
+
+  if (!profile || cacheLife?.expire === 0) {
+    // TODO: only revalidate if the path matches
+    store.pathWasRevalidated = true
+  }
 }

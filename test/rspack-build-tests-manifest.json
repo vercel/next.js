@@ -165,8 +165,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -228,7 +228,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -299,8 +299,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -362,7 +362,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -802,13 +802,9 @@
       "app dir - prefetching dynamic rendering /revalidate-0 should update search params following a link click",
       "app dir - prefetching fetch priority should have an auto priority for all other fetch operations",
       "app dir - prefetching fetch priority should prefetch links in viewport with low priority",
-      "app dir - prefetching fetch priority should prefetch with high priority when navigating to a page without a prefetch entry",
       "app dir - prefetching fetch priority should respect multiple prefetch types to the same URL",
       "app dir - prefetching invalid URLs should not throw when an invalid URL is passed to Link",
       "app dir - prefetching invalid URLs should throw when an invalid URL is passed to router.prefetch",
-      "app dir - prefetching prefetch cache seeding should not re-fetch the initial dynamic page if the same page is prefetched with prefetch={true}",
-      "app dir - prefetching prefetch cache seeding should not re-fetch the initial static page if the same page is prefetched with prefetch={true}",
-      "app dir - prefetching should calculate `_rsc` query based on `Next-Url`",
       "app dir - prefetching should immediately render the loading state for a dynamic segment when fetched from higher up in the tree",
       "app dir - prefetching should navigate when prefetch is false",
       "app dir - prefetching should not fetch again when a static page was prefetched",
@@ -887,53 +883,6 @@
       "app-root-param-getters - cache - at runtime should error when using root params within `unstable_cache` - start",
       "app-root-param-getters - cache - at runtime should error when using root params within a \"use cache\" - start",
       "app-root-param-getters - private cache should allow using root params within a \"use cache: private\" - start"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/generate-static-params.test.ts": {
-    "passed": [
-      "app-root-params - generateStaticParams should be a cache hit for fully prerendered pages",
-      "app-root-params - generateStaticParams should be a cache miss for pages that aren't prerendered",
-      "app-root-params - generateStaticParams should correctly generate types",
-      "app-root-params - generateStaticParams should only return rootParams and not other params",
-      "app-root-params - generateStaticParams should return rootParams"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/multiple-roots.test.ts": {
-    "passed": [
-      "app-root-params - multiple roots should correctly generate types",
-      "app-root-params - multiple roots should have root params on dashboard pages",
-      "app-root-params - multiple roots should not have root params on marketing pages"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/simple.test.ts": {
-    "passed": [
-      "app-root-params - simple should correctly generate types",
-      "app-root-params - simple should only return rootParams and not other params",
-      "app-root-params - simple should render the not found page without errors",
-      "app-root-params - simple should return rootParams"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/use-cache.test.ts": {
-    "passed": [
-      "app-root-params - cache - at build should error when building a project that uses rootParams within `\"use cache\"`",
-      "app-root-params - cache - at runtime should error when using rootParams within `unstable_cache` - start",
-      "app-root-params - cache - at runtime should error when using rootParams within a \"use cache\" - start"
     ],
     "failed": [],
     "pending": [],
@@ -1843,15 +1792,8 @@
       "Cache Components Errors Build With --prerender-debug Static Route should not error the build when all routes are static",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request cookies at runtime should not error the build, but fail at runtime",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request cookies should error the build with a runtime error",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request headers at runtime should not error the build, but fail at runtime",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`",
       "Cache Components Errors Build With --prerender-debug Sync IO - Current Time - Date() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build With --prerender-debug Sync IO - Current Time - Date.now() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build With --prerender-debug Sync IO - Current Time - new Date() should error the build if sync IO is used in a Server Component while prerendering",
@@ -1890,15 +1832,8 @@
       "Cache Components Errors Build Without --prerender-debug Static Route should not error the build when all routes are static",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request cookies at runtime should not error the build, but fail at runtime",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request cookies should error the build with a runtime error",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request headers at runtime should not error the build, but fail at runtime",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`",
       "Cache Components Errors Build Without --prerender-debug Sync IO - Current Time - Date() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build Without --prerender-debug Sync IO - Current Time - Date.now() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build Without --prerender-debug Sync IO - Current Time - new Date() should error the build if sync IO is used in a Server Component while prerendering",
@@ -1966,7 +1901,9 @@
   },
   "test/e2e/app-dir/cache-components/cache-components.console.test.ts": {
     "passed": [
-      "cache-components dims console calls during prospective rendering"
+      "cache-components - Console Dimming - Logging after Abort in Client dims console calls after a prerender has aborted",
+      "cache-components - Console Dimming - Logging after Abort in Server dims console calls after a prerender has aborted",
+      "cache-components - Console Dimming - Validation dims console calls during prospective rendering"
     ],
     "failed": [],
     "pending": [],
@@ -3665,6 +3602,7 @@
   "test/e2e/app-dir/metadata/metadata.test.ts": {
     "passed": [
       "app dir - metadata basic should apply metadata when navigating client-side",
+      "app dir - metadata basic should handle metadataBase as url string",
       "app dir - metadata basic should handle metadataBase for urls resolved as only URL type",
       "app dir - metadata basic should not contain query in canonical url after client navigation",
       "app dir - metadata basic should relative canonical url",
@@ -5791,7 +5729,7 @@
   },
   "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts": {
     "passed": [
-      "app-dir revalidate-dynamic should correctly mark a route handler that uses unstable_expireTag as dynamic",
+      "app-dir revalidate-dynamic should correctly mark a route handler that uses revalidateTag as dynamic",
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-path",
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-tag"
     ],
@@ -5802,8 +5740,8 @@
   },
   "test/e2e/app-dir/revalidatetag-rsc/revalidatetag-rsc.test.ts": {
     "passed": [
-      "unstable_expireTag-rsc should error if unstable_expireTag is called during render",
-      "unstable_expireTag-rsc should revalidate fetch cache if unstable_expireTag invoked via server action"
+      "revalidateTag-rsc should error if revalidateTag is called during render",
+      "revalidateTag-rsc should revalidate fetch cache if revalidateTag invoked via server action"
     ],
     "failed": [],
     "pending": [],
@@ -6244,9 +6182,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-module-document/invalid-module-document.test.ts": {
-    "passed": [
-      "Invalid SCSS in _document production only should fail to build"
-    ],
+    "passed": ["Invalid SCSS in _document should fail to build"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6334,9 +6270,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/npm-import-bad/npm-import-bad.test.ts": {
-    "passed": [
-      "CSS Import from node_modules production only should fail the build"
-    ],
+    "passed": ["CSS Import from node_modules should fail the build"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -7147,6 +7081,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/undefined-default-export/undefined-default-export.test.ts": {
+    "passed": [
+      "Undefined default export errors the build with helpful error messages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts": {
     "passed": [
       "underscore-ignore-app-paths should not serve app path with underscore",
@@ -7189,7 +7132,7 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
-      "use-cache-custom-handler should not call expireTags for a normal invocation",
+      "use-cache-custom-handler should not call updateTags for a normal invocation",
       "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
@@ -7317,7 +7260,7 @@
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache shares caches between the page/layout and generateMetadata",
-      "use-cache should be able to revalidate a page using unstable_expireTag",
+      "use-cache should be able to revalidate a page using revalidateTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
       "use-cache should cache results",
@@ -7347,7 +7290,7 @@
       "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should send an SWR cache-control header based on the revalidate and expire values",
       "use-cache should store a fetch response without no-store in the incremental cache handler during build",
-      "use-cache should update after unstable_expireTag correctly",
+      "use-cache should update after revalidateTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
       "use-cache usage in node_modules should cache results when using a directive without a handler",
@@ -7428,6 +7371,22 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-fs/webpack-loader-fs.test.ts": {
+    "passed": ["webpack-loader-fs should allow reading the input FS"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-resolve/webpack-loader-resolve.test.ts": {
+    "passed": [
+      "webpack-loader-resolve should support resolving absolute path via loader getResolve"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/webpack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
     "passed": ["webpack-loader-resource-query should pass query to loader"],
     "failed": [],
@@ -7446,7 +7405,7 @@
   },
   "test/e2e/app-dir/webpack-loader-ts-transform/webpack-loader-ts-transform.test.ts": {
     "passed": [
-      "webpack-loader-ts-transform should only run the test in turbopack"
+      "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
     ],
     "failed": [],
     "pending": [],
@@ -7802,9 +7761,13 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "config-turbopack when webpack is configured and config.experimental.turbo is set does not warn",
-      "config-turbopack when webpack is configured and config.turbopack is set does not warn",
-      "config-turbopack when webpack is configured but Turbopack is not warns"
+      "config-turbopack when turbopack is auto selected when webpack is configured and config.experimental.turbo is set does not warn",
+      "config-turbopack when turbopack is auto selected when webpack is configured and config.turbopack is set does not warn",
+      "config-turbopack when turbopack is auto selected when webpack is configured but Turbopack is not errors",
+      "config-turbopack when turbopack is auto selected when webpack is configured but Turbopack is not warns",
+      "config-turbopack when turbopack is explicitly configured when webpack is configured and config.experimental.turbo is set does not warn",
+      "config-turbopack when turbopack is explicitly configured when webpack is configured and config.turbopack is set does not warn",
+      "config-turbopack when turbopack is explicitly configured when webpack is configured but Turbopack is not does not warn"
     ],
     "flakey": [],
     "runtimeError": false
@@ -9690,19 +9653,19 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/persistent-caching/persistent-caching.test.ts": {
+  "test/e2e/filesystem-cache/filesystem-cache.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped (loader change)",
-      "persistent-caching should allow to change files while stopped (next config change)"
+      "filesystem-cache should allow to change files while stopped (loader change)",
+      "filesystem-cache should allow to change files while stopped (next config change)"
     ],
     "failed": [
-      "persistent-caching should allow to change files while stopped (Pages change)",
-      "persistent-caching should allow to change files while stopped (RCC change)",
-      "persistent-caching should allow to change files while stopped (RSC change)",
-      "persistent-caching should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
-      "persistent-caching should allow to change files while stopped (env var change)",
-      "persistent-caching should allow to change files while stopped (rename app page)",
-      "persistent-caching should persistent cache loaders"
+      "filesystem-cache should allow to change files while stopped (Pages change)",
+      "filesystem-cache should allow to change files while stopped (RCC change)",
+      "filesystem-cache should allow to change files while stopped (RSC change)",
+      "filesystem-cache should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "filesystem-cache should allow to change files while stopped (env var change)",
+      "filesystem-cache should allow to change files while stopped (rename app page)",
+      "filesystem-cache should filesystem cache loaders"
     ],
     "pending": [],
     "flakey": [],
@@ -9851,13 +9814,11 @@
     "passed": [
       "react-compiler babelrc should memoize Components",
       "react-compiler babelrc should name functions in dev",
-      "react-compiler babelrc should show an experimental warning",
       "react-compiler babelrc should work with a library that uses the react-server condition",
       "react-compiler babelrc should work with a library using use client",
       "react-compiler babelrc throws if the React Compiler is used in a React Server environment",
       "react-compiler default should memoize Components",
       "react-compiler default should name functions in dev",
-      "react-compiler default should show an experimental warning",
       "react-compiler default should work with a library that uses the react-server condition",
       "react-compiler default should work with a library using use client",
       "react-compiler default throws if the React Compiler is used in a React Server environment"
@@ -10292,6 +10253,26 @@
   },
   "test/e2e/turbopack-loader-config/index.test.ts": {
     "passed": ["turbopack-loader-config should only run the test in turbopack"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/twoslash/index.test.ts": {
+    "passed": [
+      "twoslash should annotate twoslash types default",
+      "twoslash should annotate twoslash types esnext"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/twoslash/standalone.test.ts": {
+    "passed": [
+      "output: standalone with twoslash should annotate twoslash types default",
+      "output: standalone with twoslash should annotate twoslash types esnext"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -11499,7 +11480,9 @@
       "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
       "create-next-app prompts should prompt user for choice if --tailwind is absent",
       "create-next-app prompts should prompt user for choice if directory name is absent",
-      "create-next-app prompts should prompt user to confirm reset preferences"
+      "create-next-app prompts should prompt user to confirm reset preferences",
+      "create-next-app prompts should show reuse previous settings option when preferences exist",
+      "create-next-app prompts should use recommended defaults when user selects that option"
     ],
     "failed": [],
     "pending": [],
@@ -11537,54 +11520,54 @@
   },
   "test/integration/create-next-app/templates/matrix.test.ts": {
     "passed": [
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --no-src-dir --tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --src-dir --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --src-dir --no-tailwind",
-      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --no-src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --no-tailwind",
-      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --tailwind"
+      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --react-compiler --tailwind",
+      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --react-compiler --tailwind",
+      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --src-dir --react-compiler --tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --react-compiler --tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --src-dir --react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --js --no-import-alias --eslint --src-dir --react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-react-compiler --tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --no-tailwind",
+      "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --react-compiler --tailwind"
     ],
     "failed": [],
     "pending": [],
@@ -12299,16 +12282,6 @@
   },
   "test/integration/development-hmr-refresh/test/index.test.js": {
     "passed": ["page should not reload when the file is not changed"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/development-runtime-config/test/index.test.js": {
-    "passed": [
-      "should work with runtime-config in next.config.js empty runtime-config",
-      "should work with runtime-config in next.config.js with runtime-config"
-    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -17945,7 +17918,9 @@
   "test/integration/next-image-new/image-from-node-modules/test/index.test.ts": {
     "passed": [
       "Image Component from node_modules development mode should apply image config for node_modules",
-      "Image Component from node_modules prod mode production mode should apply image config for node_modules"
+      "Image Component from node_modules development mode should warn when using images.domains config",
+      "Image Component from node_modules prod mode production mode should apply image config for node_modules",
+      "Image Component from node_modules prod mode production mode should warn when using images.domains config"
     ],
     "failed": [],
     "pending": [],
@@ -18212,13 +18187,12 @@
   },
   "test/integration/ondemand/test/index.test.js": {
     "passed": [
-      "On Demand Entries should compile pages for JSON page requests",
       "On Demand Entries should compile pages for SSR",
       "On Demand Entries should dispose inactive pages",
       "On Demand Entries should navigate to pages with dynamic imports",
       "On Demand Entries should pass"
     ],
-    "failed": [],
+    "failed": ["On Demand Entries should compile pages for JSON page requests"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18239,8 +18213,6 @@
   "test/integration/page-config/test/index.test.js": {
     "passed": [
       "Page Config production mode builds without error when export const config is used outside page",
-      "Page Config production mode shows error when page config has invalid properties",
-      "Page Config production mode shows error when page config has invalid property value",
       "Page Config production mode shows error when page config has spread properties",
       "Page Config production mode shows error when page config is export from",
       "Page Config production mode shows error when page config is imported and exported",
@@ -19036,7 +19008,6 @@
   "test/integration/script-loader/test/index.test.ts": {
     "passed": [
       "Next.js Script - Primary Strategies - Production Mode production mode Does not duplicate inline scripts",
-      "Next.js Script - Primary Strategies - Production Mode production mode Error message is shown if Partytown is not installed locally",
       "Next.js Script - Primary Strategies - Production Mode production mode onReady fires after load event and then on every subsequent re-mount",
       "Next.js Script - Primary Strategies - Production Mode production mode onReady should only fires once after loaded (issue #39993)",
       "Next.js Script - Primary Strategies - Production Mode production mode onload fires correctly",
@@ -19059,7 +19030,9 @@
       "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script should execute",
       "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload"
     ],
-    "failed": [],
+    "failed": [
+      "Next.js Script - Primary Strategies - Production Mode production mode Error message is shown if Partytown is not installed locally"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -19229,8 +19202,8 @@
       "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
       "config telemetry production mode emits telemetry for middleware related options",
-      "config telemetry production mode emits telemetry for persistent cache in build mode",
-      "config telemetry production mode emits telemetry for persistent cache in dev mode",
+      "config telemetry production mode emits telemetry for filesystem cache in build mode",
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
       "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",
@@ -19685,6 +19658,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/adapter-config/adapter-config-export.test.ts": {
+    "passed": [
+      "adapter-config export should call onBuildComplete with correct context"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/adapter-config/adapter-config-ppr.test.ts": {
     "passed": [
       "adapter-config should apply modifyConfig from adapter",
@@ -19967,7 +19949,6 @@
       "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - headers",
       "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - notFound",
       "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - redirect",
-      "production - app dir - build output should fail the build if you use a dynamic API outside of a render context - searchParams",
       "production - app dir - build output should log errors not caught by the worker without terminating the process",
       "production - app dir - build output should match the expected output format",
       "production - app dir - build output should only log app routes"
@@ -20018,7 +19999,7 @@
   },
   "test/production/app-dir/global-default-cache-handler/global-default-cache-handler.test.ts": {
     "passed": [
-      "global-default-cache-handler should call expireTags on global default cache handler",
+      "global-default-cache-handler should call updateTags on global default cache handler",
       "global-default-cache-handler should call refreshTags on global default cache handler",
       "global-default-cache-handler should use global symbol for default cache handler"
     ],
@@ -20586,9 +20567,12 @@
     "runtimeError": false
   },
   "test/production/escheck-output/index.test.ts": {
-    "passed": ["ES Check .next output should emit ES2020 with default"],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "ES Check .next output should downlevel JS according to default browserslist",
+      "ES Check .next output should downlevel JS according to manual browserslist with es2020"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -20883,7 +20867,6 @@
       "Production Usage Misc should handle already finished responses",
       "Production Usage Misc should have default runtime values when not defined",
       "Production Usage Misc should not add autoExport for non pre-rendered pages",
-      "Production Usage Misc should not have runtimeConfig in __NEXT_DATA__",
       "Production Usage Misc should reload the page on page script error",
       "Production Usage Misc should reload the page on page script error with prefetch",
       "Production Usage Runtime errors should call getInitialProps on _error page during a client side component error",
@@ -20956,6 +20939,7 @@
       "Production Usage should navigate to page with CSS and back",
       "Production Usage should not clear custom performance marks",
       "Production Usage should not contain currentScript usage for publicPath",
+      "Production Usage should not contain rsc APIs in main chunk",
       "Production Usage should not emit stats",
       "Production Usage should not expose the compiled page file in development",
       "Production Usage should not put backslashes in pages-manifest.json",
@@ -21295,9 +21279,18 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/standalone-mode/tracing/tracing.test.ts": {
+  "test/production/standalone-mode/tracing-static-files/tracing-static-files.test.ts": {
     "passed": [
-      "standalone mode - tracing should trace process.cwd calls in node_modules"
+      "standalone mode - tracing-static-files should trace process.cwd calls in node_modules"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/standalone-mode/tracing-unparsable/tracing-unparsable.test.ts": {
+    "passed": [
+      "standalone mode - tracing-unparsable should not error when dynamic require includes non-JS files"
     ],
     "failed": [],
     "pending": [],

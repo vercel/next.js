@@ -69,7 +69,7 @@ use crate::{
         },
         utils::{
             DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, get_diagnostics,
-            get_issues, subscribe,
+            get_issues, strongly_consistent_catch_collectables, subscribe,
         },
     },
     util::DhatProfilerGuard,
@@ -238,7 +238,7 @@ pub struct NapiDefineEnv {
 
 #[napi(object)]
 pub struct NapiTurboEngineOptions {
-    /// Use the new backend with persistent caching enabled.
+    /// Use the new backend with filesystem cache enabled.
     pub persistent_caching: Option<bool>,
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
@@ -455,9 +455,10 @@ pub fn project_new(
             }
 
             let options: ProjectOptions = options.into();
+            let is_dev = options.dev;
             let container = turbo_tasks
                 .run(async move {
-                    let project = ProjectContainer::new(rcstr!("next.js"), options.dev);
+                    let project = ProjectContainer::new(rcstr!("next.js"), is_dev);
                     let project = project.to_resolved().await?;
                     project.initialize(options).await?;
                     Ok(project)
@@ -465,24 +466,29 @@ pub fn project_new(
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
 
-            Handle::current().spawn({
-                let tt = turbo_tasks.clone();
-                async move {
-                    let result = tt
-                        .clone()
-                        .run(async move {
-                            benchmark_file_io(tt, container.project().node_root().owned().await?)
+            if is_dev {
+                Handle::current().spawn({
+                    let tt = turbo_tasks.clone();
+                    async move {
+                        let result = tt
+                            .clone()
+                            .run(async move {
+                                benchmark_file_io(
+                                    tt,
+                                    container.project().node_root().owned().await?,
+                                )
                                 .await
-                        })
-                        .await;
-                    if let Err(err) = result {
-                        // TODO Not ideal to print directly to stdout.
-                        // We should use a compilation event instead to report async errors.
-                        println!("Failed to benchmark file I/O: {err}");
+                            })
+                            .await;
+                        if let Err(err) = result {
+                            // TODO Not ideal to print directly to stdout.
+                            // We should use a compilation event instead to report async errors.
+                            println!("Failed to benchmark file I/O: {err}");
+                        }
                     }
-                }
-                .instrument(tracing::info_span!("benchmark file I/O"))
-            });
+                    .instrument(tracing::info_span!("benchmark file I/O"))
+                });
+            }
 
             Ok(External::new(ProjectInstance {
                 turbopack_ctx,
@@ -596,10 +602,10 @@ pub async fn project_update(
         .await
 }
 
-/// Invalidates the persistent cache so that it will be deleted next time that a turbopack project
-/// is created with persistent caching enabled.
+/// Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
+/// is created with filesystem cache enabled.
 #[napi]
-pub async fn project_invalidate_persistent_cache(
+pub async fn project_invalidate_file_system_cache(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<()> {
     tokio::task::spawn_blocking(move || {
@@ -613,7 +619,7 @@ pub async fn project_invalidate_persistent_cache(
             .invalidate(invalidation_reasons::USER_REQUEST)
     })
     .await
-    .context("panicked while invalidating persistent cache")??;
+    .context("panicked while invalidating filesystem cache")??;
     Ok(())
 }
 
@@ -746,6 +752,7 @@ impl NapiRoute {
 #[napi(object)]
 pub struct NapiMiddleware {
     pub endpoint: External<ExternalEndpoint>,
+    pub is_proxy: bool,
 }
 
 impl NapiMiddleware {
@@ -758,6 +765,7 @@ impl NapiMiddleware {
                 turbopack_ctx.clone(),
                 value.endpoint,
             ))),
+            is_proxy: value.is_proxy,
         })
     }
 }
@@ -841,7 +849,7 @@ impl NapiEntrypoints {
 
 #[turbo_tasks::value(serialization = "none")]
 struct EntrypointsWithIssues {
-    entrypoints: ReadRef<EntrypointsOperation>,
+    entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
@@ -853,10 +861,8 @@ async fn get_entrypoints_with_issues_operation(
 ) -> Result<Vc<EntrypointsWithIssues>> {
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
-    let entrypoints = entrypoints_operation.read_strongly_consistent().await?;
-    let issues = get_issues(entrypoints_operation).await?;
-    let diagnostics = get_diagnostics(entrypoints_operation).await?;
-    let effects = Arc::new(get_effects(entrypoints_operation).await?);
+    let (entrypoints, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(entrypoints_operation).await?;
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
@@ -877,7 +883,7 @@ fn project_container_entrypoints_operation(
 
 #[turbo_tasks::value(serialization = "none")]
 struct AllWrittenEntrypointsWithIssues {
-    entrypoints: Option<ReadRef<Entrypoints>>,
+    entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
@@ -888,7 +894,7 @@ struct AllWrittenEntrypointsWithIssues {
 pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
-) -> napi::Result<TurbopackResult<NapiEntrypoints>> {
+) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
     let ctx = &project.turbopack_ctx;
     let container = project.container;
     let tt = ctx.turbo_tasks();
@@ -899,7 +905,7 @@ pub async fn project_write_all_entrypoints_to_disk(
                 get_all_written_entrypoints_with_issues_operation(container, app_dir_only);
 
             // Read and compile the files
-            let EntrypointsWithIssues {
+            let AllWrittenEntrypointsWithIssues {
                 entrypoints,
                 issues,
                 diagnostics,
@@ -917,7 +923,14 @@ pub async fn project_write_all_entrypoints_to_disk(
         .await?;
 
     Ok(TurbopackResult {
-        result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &project.turbopack_ctx)?,
+        result: if let Some(entrypoints) = entrypoints {
+            Some(NapiEntrypoints::from_entrypoints_op(
+                &entrypoints,
+                &project.turbopack_ctx,
+            )?)
+        } else {
+            None
+        },
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
@@ -927,16 +940,14 @@ pub async fn project_write_all_entrypoints_to_disk(
 async fn get_all_written_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
-) -> Result<Vc<EntrypointsWithIssues>> {
+) -> Result<Vc<AllWrittenEntrypointsWithIssues>> {
     let entrypoints_operation = EntrypointsOperation::new(all_entrypoints_write_to_disk_operation(
         container,
         app_dir_only,
     ));
-    let entrypoints = entrypoints_operation.read_strongly_consistent().await?;
-    let issues = get_issues(entrypoints_operation).await?;
-    let diagnostics = get_diagnostics(entrypoints_operation).await?;
-    let effects = Arc::new(get_effects(entrypoints_operation).await?);
-    Ok(EntrypointsWithIssues {
+    let (entrypoints, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(entrypoints_operation).await?;
+    Ok(AllWrittenEntrypointsWithIssues {
         entrypoints,
         issues,
         diagnostics,
@@ -1010,6 +1021,7 @@ pub fn project_entrypoints_subscribe(
                 } = &*entrypoints_with_issues_op
                     .read_strongly_consistent()
                     .await?;
+
                 effects.apply().await?;
                 Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
@@ -1017,9 +1029,16 @@ pub fn project_entrypoints_subscribe(
         },
         move |ctx| {
             let (entrypoints, issues, diags) = ctx.value;
+            let result = match entrypoints {
+                Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(
+                    &entrypoints,
+                    &turbopack_ctx,
+                )?),
+                None => None,
+            };
 
             Ok(vec![TurbopackResult {
-                result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbopack_ctx)?,
+                result,
                 issues: issues
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))

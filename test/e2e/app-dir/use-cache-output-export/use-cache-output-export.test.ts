@@ -10,7 +10,7 @@ describe('use-cache-output-export', () => {
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
 
-  if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+  if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true') {
     return it.skip('for PPR', () => {
       // PPR is not compatible with `output: 'export'`.
     })

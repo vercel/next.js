@@ -530,7 +530,8 @@ async fn analyze_ecmascript_module_internal(
     let analyze_types = match &ty {
         EcmascriptModuleAssetType::Typescript { analyze_types, .. } => *analyze_types,
         EcmascriptModuleAssetType::TypescriptDeclaration => true,
-        EcmascriptModuleAssetType::Ecmascript => false,
+        EcmascriptModuleAssetType::Ecmascript
+        | EcmascriptModuleAssetType::EcmascriptExtensionless => false,
     };
 
     // Split out our module part if we have one.
@@ -1444,7 +1445,7 @@ async fn analyze_ecmascript_module_internal(
 
     analysis.set_successful(true);
 
-    collector.emit().await?;
+    collector.emit(false).await?;
 
     analysis
         .build(
@@ -1986,6 +1987,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             context_dir,
                             Pattern::new(pat),
                             collect_affecting_sources,
+                            IssueSource::from_swc_offsets(
+                                source,
+                                span.lo.to_u32(),
+                                span.hi.to_u32(),
+                            ),
                         )
                         .to_resolved()
                         .await?,
@@ -2135,6 +2141,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             context_dir,
                             Pattern::new(pat),
                             collect_affecting_sources,
+                            IssueSource::from_swc_offsets(
+                                source,
+                                span.lo.to_u32(),
+                                span.hi.to_u32(),
+                            ),
                         )
                         .to_resolved()
                         .await?,

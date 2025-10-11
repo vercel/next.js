@@ -25,6 +25,14 @@ impl Arguments {
             Arguments::Dev(args) => args.common.dir.as_deref(),
         }
     }
+
+    /// The number of worker threads to use. see [CommonArguments]::worker_threads
+    pub fn worker_threads(&self) -> Option<usize> {
+        match self {
+            Arguments::Build(args) => args.common.worker_threads,
+            Arguments::Dev(args) => args.common.worker_threads,
+        }
+    }
 }
 
 #[derive(
@@ -80,13 +88,17 @@ pub struct CommonArguments {
     #[clap(long)]
     pub full_stats: bool,
 
+    /// Whether to build for the `browser` or `node`
+    #[clap(long)]
+    pub target: Option<Target>,
+
+    /// Number of worker threads to use for parallel processing
+    #[clap(long)]
+    pub worker_threads: Option<usize>,
     // Enable experimental garbage collection with the provided memory limit in
     // MB.
     // #[clap(long)]
     // pub memory_limit: Option<usize>,
-    /// Whether to build for the `browser` or `node``
-    #[clap(long)]
-    pub target: Option<Target>,
 }
 
 #[derive(Debug, Args)]

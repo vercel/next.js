@@ -123,6 +123,7 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
+import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
 
 export * from './base-server'
 
@@ -272,6 +273,8 @@ export default class NextNodeServer extends BaseServer<
   constructor(options: Options) {
     // Initialize super class
     super(options)
+
+    installGlobalBehaviors(this.nextConfig)
 
     const isDev = options.dev ?? false
     this.isDev = isDev
@@ -780,7 +783,11 @@ export default class NextNodeServer extends BaseServer<
       const { isAbsolute, href } = paramsResult
 
       const imageUpstream = isAbsolute
-        ? await fetchExternalImage(href)
+        ? await fetchExternalImage(
+            href,
+            this.nextConfig.images.dangerouslyAllowLocalIP,
+            this.nextConfig.images.maximumRedirects
+          )
         : await fetchInternalImage(
             href,
             req.originalRequest,
@@ -1950,7 +1957,13 @@ export default class NextNodeServer extends BaseServer<
     addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, 'clonableBody', getCloneableBody(req.originalRequest))
+      const bodySizeLimit = this.nextConfig.experimental
+        ?.middlewareClientMaxBodySize as number | undefined
+      addRequestMeta(
+        req,
+        'clonableBody',
+        getCloneableBody(req.originalRequest, bodySizeLimit)
+      )
     }
   }
 

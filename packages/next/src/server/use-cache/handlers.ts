@@ -1,5 +1,5 @@
 import DefaultCacheHandler from '../lib/cache-handlers/default.external'
-import type { CacheHandlerCompat } from '../lib/cache-handlers/types'
+import type { CacheHandler } from '../lib/cache-handlers/types'
 
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   ? (message: string, ...args: any[]) => {
@@ -18,11 +18,11 @@ const handlersSetSymbol = Symbol.for('@next/cache-handlers-set')
  */
 const reference: typeof globalThis & {
   [handlersSymbol]?: {
-    RemoteCache?: CacheHandlerCompat
-    DefaultCache?: CacheHandlerCompat
+    RemoteCache?: CacheHandler
+    DefaultCache?: CacheHandler
   }
-  [handlersMapSymbol]?: Map<string, CacheHandlerCompat>
-  [handlersSetSymbol]?: Set<CacheHandlerCompat>
+  [handlersMapSymbol]?: Map<string, CacheHandler>
+  [handlersSetSymbol]?: Set<CacheHandler>
 } = globalThis
 
 /**
@@ -37,11 +37,11 @@ export function initializeCacheHandlers(): boolean {
   }
 
   debug?.('initializing cache handlers')
-  reference[handlersMapSymbol] = new Map<string, CacheHandlerCompat>()
+  reference[handlersMapSymbol] = new Map<string, CacheHandler>()
 
   // Initialize the cache from the symbol contents first.
   if (reference[handlersSymbol]) {
-    let fallback: CacheHandlerCompat
+    let fallback: CacheHandler
     if (reference[handlersSymbol].DefaultCache) {
       debug?.('setting "default" cache handler from symbol')
       fallback = reference[handlersSymbol].DefaultCache
@@ -81,7 +81,7 @@ export function initializeCacheHandlers(): boolean {
  * @returns The cache handler, or `undefined` if it does not exist.
  * @throws If the cache handlers are not initialized.
  */
-export function getCacheHandler(kind: string): CacheHandlerCompat | undefined {
+export function getCacheHandler(kind: string): CacheHandler | undefined {
   // This should never be called before initializeCacheHandlers.
   if (!reference[handlersMapSymbol]) {
     throw new Error('Cache handlers not initialized')
@@ -95,9 +95,7 @@ export function getCacheHandler(kind: string): CacheHandlerCompat | undefined {
  * @returns An iterator over the cache handlers, or `undefined` if they are not
  * initialized.
  */
-export function getCacheHandlers():
-  | SetIterator<CacheHandlerCompat>
-  | undefined {
+export function getCacheHandlers(): SetIterator<CacheHandler> | undefined {
   if (!reference[handlersSetSymbol]) {
     return undefined
   }
@@ -112,7 +110,7 @@ export function getCacheHandlers():
  * @throws If the cache handlers are not initialized.
  */
 export function getCacheHandlerEntries():
-  | MapIterator<[string, CacheHandlerCompat]>
+  | MapIterator<[string, CacheHandler]>
   | undefined {
   if (!reference[handlersMapSymbol]) {
     return undefined
@@ -128,7 +126,7 @@ export function getCacheHandlerEntries():
  */
 export function setCacheHandler(
   kind: string,
-  cacheHandler: CacheHandlerCompat
+  cacheHandler: CacheHandler
 ): void {
   // This should never be called before initializeCacheHandlers.
   if (!reference[handlersMapSymbol] || !reference[handlersSetSymbol]) {

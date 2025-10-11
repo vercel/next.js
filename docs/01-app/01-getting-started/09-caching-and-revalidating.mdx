@@ -9,6 +9,7 @@ related:
     - app/api-reference/functions/unstable_cache
     - app/api-reference/functions/revalidatePath
     - app/api-reference/functions/revalidateTag
+    - app/api-reference/functions/updateTag
 ---
 
 Caching is a technique for storing the result of data fetching and other computations so that future requests for the same data can be served faster, without doing the work again. While revalidation allows you to update cache entries without having to rebuild your entire application.
@@ -19,6 +20,7 @@ Next.js provides a few APIs to handle caching and revalidation. This guide will 
 - [`unstable_cache`](#unstable_cache)
 - [`revalidatePath`](#revalidatepath)
 - [`revalidateTag`](#revalidatetag)
+- [`updateTag`](#updatetag)
 
 ## `fetch`
 
@@ -154,7 +156,12 @@ See the [`unstable_cache` API reference](/docs/app/api-reference/functions/unsta
 
 ## `revalidateTag`
 
-`revalidateTag` is used to revalidate cache entries based on a tag and following an event. To use it with `fetch`, start by tagging the function with the `next.tags` option:
+`revalidateTag` is used to revalidate cache entries based on a tag and following an event. The function now supports two behaviors:
+
+- **With `profile="max"`**: Uses stale-while-revalidate semantics, serving stale content while fetching fresh content in the background
+- **Without the second argument**: Legacy behavior that immediately expires the cache (deprecated)
+
+To use it with `fetch`, start by tagging the function with the `next.tags` option:
 
 ```tsx filename="app/lib/data.ts" highlight={3-5} switcher
 export async function getUserById(id: string) {
@@ -204,21 +211,21 @@ export const getUserById = unstable_cache(
 
 Then, call `revalidateTag` in a [Route Handler](/docs/app/api-reference/file-conventions/route) or Server Action:
 
-```tsx filename="app/lib/actions.ts" highlight={1} switcher
+```tsx filename="app/lib/actions.ts" highlight={1,5} switcher
 import { revalidateTag } from 'next/cache'
 
 export async function updateUser(id: string) {
   // Mutate data
-  revalidateTag('user')
+  revalidateTag('user', 'max') // Recommended: Uses stale-while-revalidate
 }
 ```
 
-```jsx filename="app/lib/actions.js" highlight={1} switcher
+```jsx filename="app/lib/actions.js" highlight={1,5} switcher
 import { revalidateTag } from 'next/cache'
 
 export async function updateUser(id) {
   // Mutate data
-  revalidateTag('user')
+  revalidateTag('user', 'max') // Recommended: Uses stale-while-revalidate
 }
 ```
 
@@ -247,3 +254,56 @@ export async function updateUser(id) {
 ```
 
 See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) to learn more.
+
+## `updateTag`
+
+`updateTag` is specifically designed for Server Actions to immediately expire cached data for read-your-own-writes scenarios. Unlike `revalidateTag`, it can only be used within Server Actions and immediately expires the cache entry.
+
+```tsx filename="app/lib/actions.ts" highlight={1,6} switcher
+import { updateTag } from 'next/cache'
+import { redirect } from 'next/navigation'
+
+export async function createPost(formData: FormData) {
+  // Create post in database
+  const post = await db.post.create({
+    data: {
+      title: formData.get('title'),
+      content: formData.get('content'),
+    },
+  })
+
+  // Immediately expire cache so the new post is visible
+  updateTag('posts')
+  updateTag(`post-${post.id}`)
+
+  redirect(`/posts/${post.id}`)
+}
+```
+
+```jsx filename="app/lib/actions.js" highlight={1,6} switcher
+import { updateTag } from 'next/cache'
+import { redirect } from 'next/navigation'
+
+export async function createPost(formData) {
+  // Create post in database
+  const post = await db.post.create({
+    data: {
+      title: formData.get('title'),
+      content: formData.get('content'),
+    },
+  })
+
+  // Immediately expire cache so the new post is visible
+  updateTag('posts')
+  updateTag(`post-${post.id}`)
+
+  redirect(`/posts/${post.id}`)
+}
+```
+
+The key differences between `revalidateTag` and `updateTag`:
+
+- **`updateTag`**: Only in Server Actions, immediately expires cache, for read-your-own-writes
+- **`revalidateTag`**: In Server Actions and Route Handlers, supports stale-while-revalidate with `profile="max"`
+
+See the [`updateTag` API reference](/docs/app/api-reference/functions/updateTag) to learn more.

@@ -33,10 +33,15 @@ const startServer = async (optEnv = {}, opts) => {
   'On Demand Entries',
   () => {
     it('should pass', () => {})
+    const originalIsNextDev = global.isNextDev
     beforeAll(async () => {
+      // The server.js sets "dev" via process.env.NODE_ENV.
+      // isNextDev is used for getDistDir, where it is used for reading the build manifest files.
+      global.isNextDev = process.env.NODE_ENV !== 'production'
       await startServer()
     })
     afterAll(async () => {
+      global.isNextDev = originalIsNextDev
       await killApp(context.server)
     })
 

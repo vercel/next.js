@@ -15,6 +15,7 @@ import type {
 } from '../../../shared/lib/app-router-types'
 import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
+import { createHrefFromUrl } from './create-href-from-url'
 import { createRouterCacheKey } from './create-router-cache-key'
 import type { FetchServerResponseResult } from './fetch-server-response'
 import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
@@ -91,6 +92,7 @@ export type Task = SPANavigationTask | MPANavigationTask
 // can be reused without initiating a server request.
 export function startPPRNavigation(
   navigatedAt: number,
+  oldUrl: URL,
   oldCacheNode: CacheNode,
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
@@ -103,6 +105,7 @@ export function startPPRNavigation(
   const segmentPath: Array<FlightSegmentPath> = []
   return updateCacheNodeOnNavigation(
     navigatedAt,
+    oldUrl,
     oldCacheNode,
     oldRouterState,
     newRouterState,
@@ -118,6 +121,7 @@ export function startPPRNavigation(
 
 function updateCacheNodeOnNavigation(
   navigatedAt: number,
+  oldUrl: URL,
   oldCacheNode: CacheNode,
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
@@ -230,7 +234,7 @@ function updateCacheNodeOnNavigation(
         // Reuse the existing Router State for this segment. We spawn a "task"
         // just to keep track of the updated router state; unlike most, it's
         // already fulfilled and won't be affected by the dynamic response.
-        taskChild = spawnReusedTask(oldRouterStateChild)
+        taskChild = reuseActiveSegmentInDefaultSlot(oldUrl, oldRouterStateChild)
       } else {
         // There's no currently active segment. Switch to the "create" path.
         taskChild = beginRenderingNewRouteTree(
@@ -299,6 +303,7 @@ function updateCacheNodeOnNavigation(
         // the children.
         taskChild = updateCacheNodeOnNavigation(
           navigatedAt,
+          oldUrl,
           oldCacheNodeChild,
           oldRouterStateChild,
           newRouterStateChild,
@@ -726,9 +731,37 @@ function spawnPendingTask(
   return newTask
 }
 
-function spawnReusedTask(reusedRouterState: FlightRouterState): Task {
-  // Create a task that reuses an existing segment, e.g. when reusing
-  // the current active segment in place of a default route.
+function reuseActiveSegmentInDefaultSlot(
+  oldUrl: URL,
+  oldRouterState: FlightRouterState
+): Task {
+  // This is a "default" segment. These are never sent by the server during a
+  // soft navigation; instead, the client reuses whatever segment was already
+  // active in that slot on the previous route. This means if we later need to
+  // refresh the segment, it will have to be refetched from the previous route's
+  // URL. We store it in the Flight Router State.
+  //
+  // TODO: We also mark the segment with a "refresh" marker but I think we can
+  // get rid of that eventually by making sure we only add URLs to page segments
+  // that are reused. Then the presence of the URL alone is enough.
+  let reusedRouterState
+
+  const oldRefreshMarker = oldRouterState[3]
+  if (oldRefreshMarker === 'refresh') {
+    // This segment was already reused from an even older route. Keep its
+    // existing URL and refresh marker.
+    reusedRouterState = oldRouterState
+  } else {
+    // This segment was not previously reused, and it's not on the new route.
+    // So it must have been delivered in the old route.
+    reusedRouterState = patchRouterStateWithNewChildren(
+      oldRouterState,
+      oldRouterState[1]
+    )
+    reusedRouterState[2] = createHrefFromUrl(oldUrl)
+    reusedRouterState[3] = 'refresh'
+  }
+
   return {
     route: reusedRouterState,
     node: null,

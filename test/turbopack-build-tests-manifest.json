@@ -162,8 +162,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -225,7 +225,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -294,8 +294,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -357,7 +357,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -811,50 +811,6 @@
     "pending": [
       "app dir rendering mixed static and dynamic should generate static data during build and use it"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/generate-static-params.test.ts": {
-    "passed": [
-      "app-root-params - generateStaticParams should be a cache hit for fully prerendered pages",
-      "app-root-params - generateStaticParams should be a cache miss for pages that aren't prerendered",
-      "app-root-params - generateStaticParams should only return rootParams and not other params",
-      "app-root-params - generateStaticParams should return rootParams"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/multiple-roots.test.ts": {
-    "passed": [
-      "app-root-params - multiple roots should have root params on dashboard pages",
-      "app-root-params - multiple roots should not have root params on marketing pages"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/simple.test.ts": {
-    "passed": [
-      "app-root-params - simple should only return rootParams and not other params",
-      "app-root-params - simple should render the not found page without errors",
-      "app-root-params - simple should return rootParams"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/use-cache.test.ts": {
-    "passed": [
-      "app-root-params - cache - at build should error when building a project that uses rootParams within `\"use cache\"`",
-      "app-root-params - cache - at runtime should error when using rootParams within `unstable_cache` - start",
-      "app-root-params - cache - at runtime should error when using rootParams within a \"use cache\" - start"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -4820,7 +4776,7 @@
   },
   "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts": {
     "passed": [
-      "app-dir revalidate-dynamic should correctly mark a route handler that uses unstable_expireTag as dynamic",
+      "app-dir revalidate-dynamic should correctly mark a route handler that uses revalidateTag as dynamic",
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-path",
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-tag"
     ],
@@ -4831,8 +4787,8 @@
   },
   "test/e2e/app-dir/revalidatetag-rsc/revalidatetag-rsc.test.ts": {
     "passed": [
-      "unstable_expireTag-rsc should error if unstable_expireTag is called during render",
-      "unstable_expireTag-rsc should revalidate fetch cache if unstable_expireTag invoked via server action"
+      "revalidateTag-rsc should error if revalidateTag is called during render",
+      "revalidateTag-rsc should revalidate fetch cache if revalidateTag invoked via server action"
     ],
     "failed": [],
     "pending": [],
@@ -5994,7 +5950,7 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
-      "use-cache-custom-handler should not call expireTags for a normal invocation",
+      "use-cache-custom-handler should not call updateTags for a normal invocation",
       "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
@@ -6096,7 +6052,7 @@
       "use-cache can reference server actions in \"use cache\" functions",
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache shares caches between the page/layout and generateMetadata",
-      "use-cache should be able to revalidate a page using unstable_expireTag",
+      "use-cache should be able to revalidate a page using revalidateTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
       "use-cache should cache results",
@@ -6123,7 +6079,7 @@
       "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should send an SWR cache-control header based on the revalidate and expire values",
       "use-cache should store a fetch response without no-store in the incremental cache handler during build",
-      "use-cache should update after unstable_expireTag correctly",
+      "use-cache should update after revalidateTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
       "use-cache usage in node_modules should cache results when using a directive without a handler",
@@ -8331,12 +8287,12 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/persistent-caching/persistent-caching.test.ts": {
+  "test/e2e/filesystem-cache/filesystem-cache.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped (run 1)",
-      "persistent-caching should allow to change files while stopped (run 2)",
-      "persistent-caching should allow to change files while stopped (run 3)",
-      "persistent-caching should persistent cache loaders"
+      "filesystem-cache should allow to change files while stopped (run 1)",
+      "filesystem-cache should allow to change files while stopped (run 2)",
+      "filesystem-cache should allow to change files while stopped (run 3)",
+      "filesystem-cache should filesystem cache loaders"
     ],
     "failed": [],
     "pending": [],
@@ -10883,16 +10839,6 @@
   },
   "test/integration/development-hmr-refresh/test/index.test.js": {
     "passed": ["page should not reload when the file is not changed"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/development-runtime-config/test/index.test.js": {
-    "passed": [
-      "should work with runtime-config in next.config.js empty runtime-config",
-      "should work with runtime-config in next.config.js with runtime-config"
-    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -17746,8 +17692,8 @@
       "config telemetry production mode emits telemetry for lint during build",
       "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
-      "config telemetry production mode emits telemetry for persistent cache in build mode",
-      "config telemetry production mode emits telemetry for persistent cache in dev mode",
+      "config telemetry production mode emits telemetry for filesystem cache in build mode",
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",
       "config telemetry production mode emits telemetry for usage of `nextScriptWorkers`",
       "config telemetry production mode emits telemetry for usage of `optimizeCss`",
@@ -18481,7 +18427,7 @@
   },
   "test/production/app-dir/global-default-cache-handler/global-default-cache-handler.test.ts": {
     "passed": [
-      "global-default-cache-handler should call expireTags on global default cache handler",
+      "global-default-cache-handler should call updateTags on global default cache handler",
       "global-default-cache-handler should call refreshTags on global default cache handler",
       "global-default-cache-handler should use global symbol for default cache handler"
     ],
@@ -19280,7 +19226,6 @@
       "Production Usage Misc should handle already finished responses",
       "Production Usage Misc should have default runtime values when not defined",
       "Production Usage Misc should not add autoExport for non pre-rendered pages",
-      "Production Usage Misc should not have runtimeConfig in __NEXT_DATA__",
       "Production Usage Misc should reload the page on page script error",
       "Production Usage Misc should reload the page on page script error with prefetch",
       "Production Usage Runtime errors should call getInitialProps on _error page during a client side component error",

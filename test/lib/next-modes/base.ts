@@ -217,8 +217,8 @@ export class NextInstance {
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
-          '@types/react': '19.1.14',
-          '@types/react-dom': '19.1.7',
+          '@types/react': '19.2.2',
+          '@types/react-dom': '19.2.1',
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
@@ -403,9 +403,6 @@ export class NextInstance {
           }
 
           // alias experimental feature flags for deployment compatibility
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_PPR) {
-            process.env.__NEXT_EXPERIMENTAL_PPR = process.env.NEXT_PRIVATE_EXPERIMENTAL_PPR
-          }
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
             process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
           }

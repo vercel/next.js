@@ -1619,7 +1619,7 @@ pub fn current_task_for_testing() -> Option<TaskId> {
     CURRENT_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
 }
 
-/// Marks the current task as dirty when restored from persistent cache.
+/// Marks the current task as dirty when restored from filesystem cache.
 pub fn mark_session_dependent() {
     with_turbo_tasks(|tt| {
         tt.mark_own_task_as_session_dependent(current_task("turbo_tasks::mark_session_dependent()"))

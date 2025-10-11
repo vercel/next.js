@@ -1,6 +1,7 @@
 import type { RouteMetadata } from '../../../export/routes/types'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from '.'
 import type { CacheFs } from '../../../shared/lib/utils'
+import type { TagManifestEntry } from './tags-manifest.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -21,7 +22,7 @@ import {
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
 } from '../../../lib/constants'
-import { isStale, tagsManifest } from './tags-manifest.external'
+import { areTagsExpired, tagsManifest } from './tags-manifest.external'
 import { MultiFileWriter } from '../../../lib/multi-file-writer'
 import { getMemoryCache } from './memory-cache.external'
 
@@ -65,22 +66,39 @@ export default class FileSystemCache implements CacheHandler {
   public resetRequestCache(): void {}
 
   public async revalidateTag(
-    ...args: Parameters<CacheHandler['revalidateTag']>
+    tags: string | string[],
+    durations?: { expire?: number }
   ) {
-    let [tags] = args
     tags = typeof tags === 'string' ? [tags] : tags
 
     if (FileSystemCache.debug) {
-      console.log('FileSystemCache: revalidateTag', tags)
+      console.log('FileSystemCache: revalidateTag', tags, durations)
     }
 
     if (tags.length === 0) {
       return
     }
 
+    const now = Date.now()
+
     for (const tag of tags) {
-      if (!tagsManifest.has(tag)) {
-        tagsManifest.set(tag, Date.now())
+      const existingEntry = tagsManifest.get(tag) || {}
+
+      if (durations) {
+        // Use provided durations directly
+        const updates: TagManifestEntry = { ...existingEntry }
+
+        // mark as stale immediately
+        updates.stale = now
+
+        if (durations.expire !== undefined) {
+          updates.expired = now + durations.expire * 1000 // Convert seconds to ms
+        }
+
+        tagsManifest.set(tag, updates)
+      } else {
+        // Update expired field for immediate expiration (default behavior when no durations provided)
+        tagsManifest.set(tag, { ...existingEntry, expired: now })
       }
     }
   }
@@ -297,9 +315,12 @@ export default class FileSystemCache implements CacheHandler {
         // we trigger a blocking validation if an ISR page
         // had a tag revalidated, if we want to be a background
         // revalidation instead we return data.lastModified = -1
-        if (cacheTags.length > 0 && isStale(cacheTags, data.lastModified)) {
+        if (
+          cacheTags.length > 0 &&
+          areTagsExpired(cacheTags, data.lastModified)
+        ) {
           if (FileSystemCache.debug) {
-            console.log('FileSystemCache: stale tags', cacheTags)
+            console.log('FileSystemCache: expired tags', cacheTags)
           }
 
           return null
@@ -321,9 +342,9 @@ export default class FileSystemCache implements CacheHandler {
         return null
       }
 
-      if (isStale(combinedTags, data.lastModified)) {
+      if (areTagsExpired(combinedTags, data.lastModified)) {
         if (FileSystemCache.debug) {
-          console.log('FileSystemCache: stale tags', combinedTags)
+          console.log('FileSystemCache: expired tags', combinedTags)
         }
 
         return null

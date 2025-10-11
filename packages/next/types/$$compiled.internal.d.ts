@@ -264,7 +264,7 @@ declare module 'react-server-dom-webpack/server.node' {
 declare module 'react-server-dom-webpack/static' {
   export type TemporaryReferenceSet = WeakMap<any, string>
 
-  export function unstable_prerender(
+  export function prerender(
     children: any,
     webpackMap: {
       readonly [id: string]: {
@@ -854,6 +854,10 @@ declare module 'next/dist/compiled/watchpack' {
 
 declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
+}
+
+declare module 'next/dist/compiled/is-local-address' {
+  export default function isLocalAddress(ip: string): boolean
 }
 
 declare module 'next/dist/compiled/@opentelemetry/api' {

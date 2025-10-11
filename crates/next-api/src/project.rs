@@ -255,6 +255,7 @@ pub struct DefineEnv {
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct Middleware {
     pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    pub is_proxy: bool,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
@@ -479,8 +480,8 @@ impl ProjectContainer {
         }
 
         let dist_dir = next_config
+            .dist_dir()
             .await?
-            .dist_dir
             .as_ref()
             .map_or_else(|| rcstr!(".next"), |d| d.clone());
 
@@ -722,13 +723,17 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let next_config = self.next_config().await?;
+        let next_config = self.next_config();
         Ok(self
             .client_root()
             .await?
             .join(&format!(
                 "{}/_next",
-                next_config.base_path.clone().unwrap_or_default(),
+                next_config
+                    .base_path()
+                    .await?
+                    .as_deref()
+                    .unwrap_or_default(),
             ))?
             .cell())
     }
@@ -980,8 +985,15 @@ impl Project {
     pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
-            let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
-            let _ = module_graphs_op.take_issues();
+            let module_graphs_vc = if self.next_mode().await?.is_production() {
+                module_graphs_op.connect()
+            } else {
+                // In development mode, we need to to take and drop the issues, otherwise every
+                // route will report all issues.
+                let vc = module_graphs_op.resolve_strongly_consistent().await?;
+                let _ = module_graphs_op.take_issues();
+                *vc
+            };
 
             // At this point all modules have been computed and we can get rid of the node.js
             // process pools
@@ -991,7 +1003,7 @@ impl Project {
                 turbopack_node::evaluate::scale_zero();
             }
 
-            Ok(*module_graphs_vc)
+            Ok(module_graphs_vc)
         }
         .instrument(tracing::info_span!("module graph for app"))
         .await
@@ -1069,6 +1081,7 @@ impl Project {
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            debug_ids: self.next_config().turbopack_debug_ids(),
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(
@@ -1156,26 +1169,38 @@ impl Project {
             *config.persistent_caching_enabled().await?,
         );
 
-        let config = &config.await?;
-
-        emit_event("modularizeImports", config.modularize_imports.is_some());
-        emit_event("transpilePackages", config.transpile_packages.is_some());
+        emit_event(
+            "modularizeImports",
+            !config.modularize_imports().await?.is_empty(),
+        );
+        emit_event(
+            "transpilePackages",
+            !config.transpile_packages().await?.is_empty(),
+        );
         emit_event("turbotrace", false);
 
         // compiler options
-        let compiler_options = config.compiler.as_ref();
-        let swc_relay_enabled = compiler_options.and_then(|c| c.relay.as_ref()).is_some();
+        let compiler_options = config.compiler().await?;
+        let swc_relay_enabled = compiler_options.relay.is_some();
         let styled_components_enabled = compiler_options
-            .and_then(|c| c.styled_components.as_ref().map(|sc| sc.is_enabled()))
+            .styled_components
+            .as_ref()
+            .map(|sc| sc.is_enabled())
             .unwrap_or_default();
         let react_remove_properties_enabled = compiler_options
-            .and_then(|c| c.react_remove_properties.as_ref().map(|rc| rc.is_enabled()))
+            .react_remove_properties
+            .as_ref()
+            .map(|rc| rc.is_enabled())
             .unwrap_or_default();
         let remove_console_enabled = compiler_options
-            .and_then(|c| c.remove_console.as_ref().map(|rc| rc.is_enabled()))
+            .remove_console
+            .as_ref()
+            .map(|rc| rc.is_enabled())
             .unwrap_or_default();
         let emotion_enabled = compiler_options
-            .and_then(|c| c.emotion.as_ref().map(|e| e.is_enabled()))
+            .emotion
+            .as_ref()
+            .map(|e| e.is_enabled())
             .unwrap_or_default();
 
         emit_event("swcRelay", swc_relay_enabled);
@@ -1245,9 +1270,11 @@ impl Project {
         let pages_error_endpoint = self.pages_project().error_endpoint().to_resolved().await?;
 
         let middleware = self.find_middleware();
-        let middleware = if let FindContextFileResult::Found(..) = *middleware.await? {
+        let middleware = if let FindContextFileResult::Found(fs_path, _) = &*middleware.await? {
+            let is_proxy = fs_path.file_stem() == Some("proxy");
             Some(Middleware {
                 endpoint: self.middleware_endpoint().to_resolved().await?,
+                is_proxy,
             })
         } else {
             None

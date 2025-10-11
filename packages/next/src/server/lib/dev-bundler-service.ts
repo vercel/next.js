@@ -12,7 +12,7 @@ import type { ReactDebugChannelForBrowser } from '../dev/debug-channel'
  * bundler while in development.
  */
 export class DevBundlerService {
-  public appIsrManifestInner: InstanceType<typeof LRUCache<true>>
+  public appIsrManifestInner: InstanceType<typeof LRUCache<boolean>>
 
   constructor(
     private readonly bundler: DevBundler,
@@ -24,7 +24,7 @@ export class DevBundlerService {
       function length() {
         return 16
       }
-    ) as any
+    )
   }
 
   public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (
@@ -86,7 +86,7 @@ export class DevBundlerService {
   }
 
   public get appIsrManifest() {
-    const serializableManifest: Record<string, true> = {}
+    const serializableManifest: Record<string, boolean> = {}
 
     for (const [key, value] of this.appIsrManifestInner) {
       serializableManifest[key] = value
@@ -95,13 +95,20 @@ export class DevBundlerService {
     return serializableManifest
   }
 
-  public setIsrStatus(key: string, value: boolean) {
-    if (value === false) {
+  public setIsrStatus(key: string, value: boolean | undefined) {
+    if (value === undefined) {
       this.appIsrManifestInner.remove(key)
     } else {
       this.appIsrManifestInner.set(key, value)
     }
-    this.bundler?.hotReloader?.send({
+
+    // Only send the ISR manifest to legacy clients, i.e. Pages Router clients,
+    // or App Router clients that have Cache Components disabled. The ISR
+    // manifest is only used to inform the static indicator, which currently
+    // does not provide useful information if Cache Components is enabled due to
+    // its binary nature (i.e. it does not support showing info for partially
+    // static pages).
+    this.bundler?.hotReloader?.sendToLegacyClients({
       type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
       data: this.appIsrManifest,
     })
