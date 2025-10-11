@@ -6,7 +6,54 @@ description: Learn how to use and configure the ESLint plugin to catch common is
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next), already bundled within the base configuration that makes it possible to catch common issues and problems in a Next.js application.
+Next.js provides an ESLint plugin, [`@next/eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next), already bundled within the base configuration that makes it possible to catch common issues and problems in a Next.js application.
+
+## Setup ESLint
+
+Get linting working quickly with the ESLint CLI (flat config):
+
+1. Install ESLint and the Next.js config:
+
+   ```bash package="pnpm"
+   pnpm add -D eslint eslint-config-next @eslint/eslintrc
+   ```
+
+   ```bash package="npm"
+   npm i -D eslint eslint-config-next @eslint/eslintrc
+   ```
+
+   ```bash package="yarn"
+   yarn add --dev eslint eslint-config-next @eslint/eslintrc
+   ```
+
+   ```bash package="bun"
+   bun add -d eslint eslint-config-next @eslint/eslintrc
+   ```
+
+2. Create `eslint.config.mjs` with the Next.js config:
+
+   ```js filename="eslint.config.mjs"
+   import { FlatCompat } from '@eslint/eslintrc'
+
+   const compat = new FlatCompat({
+     // import.meta.dirname is available after Node.js v20.11.0
+     baseDirectory: import.meta.dirname,
+   })
+
+   const eslintConfig = [
+     ...compat.config({
+       extends: ['next/core-web-vitals'],
+     }),
+   ]
+
+   export default eslintConfig
+   ```
+
+3. Run ESLint:
+
+   ```bash filename="Terminal"
+   npx eslint .
+   ```
 
 ## Reference
 
@@ -14,9 +61,7 @@ Recommended rule-sets from the following ESLint plugins are all used within `esl
 
 - [`eslint-plugin-react`](https://www.npmjs.com/package/eslint-plugin-react)
 - [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks)
-- [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next)
-
-This will take precedence over the configuration from `next.config.js`.
+- [`@next/eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next)
 
 ### Rules
 
@@ -48,29 +93,20 @@ The full set of rules is as follows:
 
 We recommend using an appropriate [integration](https://eslint.org/docs/user-guide/integrations#editors) to view warnings and errors directly in your code editor during development.
 
+<details>
+  <summary>`next lint` removal</summary>
+
+Starting with Next.js 16, `next lint` is removed.
+
+As part of the removal, the `eslint` option in your Next config file is no longer needed and can be safely removed.
+
+</details>
+
 ## Examples
-
-### Linting custom directories and files
-
-By default, Next.js will run ESLint for all files in the `pages/`, `app/`, `components/`, `lib/`, and `src/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js` for production builds:
-
-```js filename="next.config.js"
-module.exports = {
-  eslint: {
-    dirs: ['pages', 'utils'], // Only run ESLint on the 'pages' and 'utils' directories during production builds (next build)
-  },
-}
-```
-
-Similarly, the `--dir` and `--file` flags can be used for `next lint` to lint specific directories and files:
-
-```bash filename="Terminal"
-next lint --dir pages --dir utils --file bar.js
-```
 
 ### Specifying a root directory within a monorepo
 
-If you're using `eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `eslint-plugin-next` where to find your Next.js application using the `settings` property in your `.eslintrc`:
+If you're using `@next/eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `@next/eslint-plugin-next` where to find your Next.js application using the `settings` property in your `eslint.config.mjs`:
 
 ```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
@@ -96,17 +132,9 @@ export default eslintConfig
 
 `rootDir` can be a path (relative or absolute), a glob (i.e. `"packages/*/"`), or an array of paths and/or globs.
 
-### Disabling the cache
-
-To improve performance, information of files processed by ESLint are cached by default. This is stored in `.next/cache` or in your defined [build directory](/docs/app/api-reference/config/next-config-js/distDir). If you include any ESLint rules that depend on more than the contents of a single source file and need to disable the cache, use the `--no-cache` flag with `next lint`.
-
-```bash filename="Terminal"
-next lint --no-cache
-```
-
 ### Disabling rules
 
-If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `.eslintrc`:
+If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `eslint.config.mjs`:
 
 ```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
@@ -131,7 +159,7 @@ export default eslintConfig
 
 ### With Core Web Vitals
 
-The `next/core-web-vitals` rule set is enabled when `next lint` is run for the first time and the **strict** option is selected.
+Enable the `next/core-web-vitals` rule set by extending it in your ESLint config.
 
 ```js filename="eslint.config.mjs"
 import { FlatCompat } from '@eslint/eslintrc'
@@ -150,7 +178,7 @@ const eslintConfig = [
 export default eslintConfig
 ```
 
-`next/core-web-vitals` updates `eslint-plugin-next` to error on a number of rules that are warnings by default if they affect [Core Web Vitals](https://web.dev/vitals/).
+`next/core-web-vitals` updates `@next/eslint-plugin-next` to error on a number of rules that are warnings by default if they affect [Core Web Vitals](https://web.dev/vitals/).
 
 > The `next/core-web-vitals` entry point is automatically included for new applications built with [Create Next App](/docs/app/api-reference/cli/create-next-app).
 
@@ -215,15 +243,15 @@ export default eslintConfig
 
 ### Running lint on staged files
 
-If you would like to use `next lint` with [lint-staged](https://github.com/okonet/lint-staged) to run the linter on staged git files, you'll have to add the following to the `.lintstagedrc.js` file in the root of your project in order to specify usage of the `--file` flag.
+If you would like to use ESLint with [lint-staged](https://github.com/okonet/lint-staged) to run the linter on staged git files, add the following to the `.lintstagedrc.js` file in the root of your project:
 
 ```js filename=".lintstagedrc.js"
 const path = require('path')
 
 const buildEslintCommand = (filenames) =>
-  `next lint --fix --file ${filenames
-    .map((f) => path.relative(process.cwd(), f))
-    .join(' --file ')}`
+  `eslint --fix ${filenames
+    .map((f) => `"${path.relative(process.cwd(), f)}"`)
+    .join(' ')}`
 
 module.exports = {
   '*.{js,jsx,ts,tsx}': [buildEslintCommand],
@@ -257,7 +285,7 @@ module.exports = {
 }
 ```
 
-The plugin can be installed normally in your project without needing to run `next lint`:
+The plugin can be installed normally in your project:
 
 ```bash filename="Terminal"
 npm install --save-dev @next/eslint-plugin-next
