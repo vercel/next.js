@@ -10,7 +10,7 @@ import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import {
   getSegmentParam,
   isCatchAll,
-} from '../shared/lib/router/utils/get-segment-param'
+} from '../server/app-render/get-segment-param'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 
