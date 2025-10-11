@@ -79,7 +79,7 @@ urlencoding = { workspace = true }
 once_cell = { workspace = true }
 
 swc_core = { workspace = true, features = [
-    "base_node",
+    "base",
     "common_concurrent",
     "ecma_ast",
     "ecma_ast_serde",
@@ -123,6 +123,8 @@ turbopack-trace-utils = { workspace = true }
 turbopack-trace-server = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, optional = true }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = "0.60"
 
 # Dependencies for the wasm32 build.
 [target.'cfg(target_arch = "wasm32")'.dependencies]

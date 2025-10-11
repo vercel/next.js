@@ -8,6 +8,7 @@ export interface LogEntry {
   message: string
 }
 
+// Logging server and browser logs to a file
 export class FileLogger {
   private logFilePath: string = ''
   private isInitialized: boolean = false
@@ -29,12 +30,10 @@ export class FileLogger {
     }
 
     try {
-      // Create the log file if it doesn't exist
-      if (!fs.existsSync(this.logFilePath)) {
-        // ensure the directory exists
-        fs.mkdirSync(path.dirname(this.logFilePath), { recursive: true })
-        fs.writeFileSync(this.logFilePath, '')
-      }
+      // Clean up the log file on each initialization
+      // ensure the directory exists
+      fs.mkdirSync(path.dirname(this.logFilePath), { recursive: true })
+      fs.writeFileSync(this.logFilePath, '')
       this.isInitialized = true
     } catch (error) {
       console.error(error)

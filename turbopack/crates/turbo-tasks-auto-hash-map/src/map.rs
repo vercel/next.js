@@ -840,7 +840,9 @@ where
 {
 }
 
-impl<K: Eq + Hash, V: Eq + Hash, MH: BuildHasher, const I: usize> Hash for AutoMap<K, V, MH, I> {
+impl<K: Eq + Hash, V: Eq + Hash, MH: BuildHasher + Default, const I: usize> Hash
+    for AutoMap<K, V, MH, I>
+{
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         // Hash the length first to distinguish maps of different sizes
         self.len().hash(state);
@@ -849,17 +851,18 @@ impl<K: Eq + Hash, V: Eq + Hash, MH: BuildHasher, const I: usize> Hash for AutoM
         // regardless of iteration order
         let mut combined_hash = 0u64;
 
+        let hash_builder = MH::default();
         for (k, v) in self.iter() {
-            use std::{collections::hash_map::DefaultHasher, hash::Hasher};
+            use std::hash::Hasher;
 
             // Hash each key-value pair independently
-            let mut entry_hasher = DefaultHasher::new();
+            let mut entry_hasher = hash_builder.build_hasher();
             k.hash(&mut entry_hasher);
             v.hash(&mut entry_hasher);
             let entry_hash = entry_hasher.finish();
 
-            // Combine using XOR to make it order-independent
-            combined_hash ^= entry_hash;
+            // Combine using addition to make it order-independent (wrapping_add is commutative)
+            combined_hash = combined_hash.wrapping_add(entry_hash);
         }
 
         // Hash the combined result

@@ -8,10 +8,12 @@
  */
 
 import { LRUCache } from '../lru-cache'
-import type { CacheEntry, CacheHandlerV2 } from './types'
+import type { CacheEntry, CacheHandler } from './types'
 import {
-  isStale,
+  areTagsExpired,
+  areTagsStale,
   tagsManifest,
+  type TagManifestEntry,
 } from '../incremental-cache/tags-manifest.external'
 
 type PrivateCacheEntry = {
@@ -45,7 +47,7 @@ const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   ? console.debug.bind(console, 'DefaultCacheHandler:')
   : undefined
 
-const DefaultCacheHandler: CacheHandlerV2 = {
+const DefaultCacheHandler: CacheHandler = {
   async get(cacheKey) {
     const pendingPromise = pendingSets.get(cacheKey)
 
@@ -74,23 +76,31 @@ const DefaultCacheHandler: CacheHandlerV2 = {
       return undefined
     }
 
-    if (isStale(entry.tags, entry.timestamp)) {
-      debug?.('get', cacheKey, 'had stale tag')
+    let revalidate = entry.revalidate
 
+    if (areTagsExpired(entry.tags, entry.timestamp)) {
+      debug?.('get', cacheKey, 'had expired tag')
       return undefined
     }
+
+    if (areTagsStale(entry.tags, entry.timestamp)) {
+      debug?.('get', cacheKey, 'had stale tag')
+      revalidate = -1
+    }
+
     const [returnStream, newSaved] = entry.value.tee()
     entry.value = newSaved
 
     debug?.('get', cacheKey, 'found', {
       tags: entry.tags,
       timestamp: entry.timestamp,
-      revalidate: entry.revalidate,
       expire: entry.expire,
+      revalidate,
     })
 
     return {
       ...entry,
+      revalidate,
       value: returnStream,
     }
   },
@@ -138,23 +148,45 @@ const DefaultCacheHandler: CacheHandlerV2 = {
     // Nothing to do for an in-memory cache handler.
   },
 
-  async getExpiration(...tags) {
-    const expiration = Math.max(
-      ...tags.map((tag) => tagsManifest.get(tag) ?? 0)
-    )
+  async getExpiration(tags) {
+    const expirations = tags.map((tag) => {
+      const entry = tagsManifest.get(tag)
+      if (!entry) return 0
+      // Return the most recent timestamp (either expired or stale)
+      return entry.expired || 0
+    })
+
+    const expiration = Math.max(...expirations, 0)
 
     debug?.('getExpiration', { tags, expiration })
 
     return expiration
   },
 
-  async expireTags(...tags) {
-    const timestamp = Math.round(performance.timeOrigin + performance.now())
-    debug?.('expireTags', { tags, timestamp })
+  async updateTags(tags, durations) {
+    const now = Math.round(performance.timeOrigin + performance.now())
+    debug?.('updateTags', { tags, timestamp: now })
 
     for (const tag of tags) {
       // TODO: update file-system-cache?
-      tagsManifest.set(tag, timestamp)
+      const existingEntry = tagsManifest.get(tag) || {}
+
+      if (durations) {
+        // Use provided durations directly
+        const updates: TagManifestEntry = { ...existingEntry }
+
+        // mark as stale immediately
+        updates.stale = now
+
+        if (durations.expire !== undefined) {
+          updates.expired = now + durations.expire * 1000 // Convert seconds to ms
+        }
+
+        tagsManifest.set(tag, updates)
+      } else {
+        // Update expired field for immediate expiration (default behavior when no durations provided)
+        tagsManifest.set(tag, { ...existingEntry, expired: now })
+      }
     }
   },
 }

@@ -48,15 +48,21 @@ On macOS, you can disable [Gatekeeper](https://support.apple.com/guide/security/
 
 If you or your employer have configured any other Antivirus solutions on your system, you should inspect the relevant settings for those products.
 
-### 2. Update Next.js and enable Turbopack
+### 2. Update Next.js and use Turbopack
 
 Make sure you're using the latest version of Next.js. Each new version often includes performance improvements.
 
-Turbopack is a new bundler integrated into Next.js that can improve local performance.
+Turbopack is now the default bundler for Next.js development and provides significant performance improvements over webpack.
 
 ```bash
 npm install next@latest
-npm run dev --turbopack
+npm run dev  # Turbopack is used by default
+```
+
+If you need to use Webpack instead of Turbopack, you can opt-in:
+
+```bash
+npm run dev --webpack
 ```
 
 [Learn more about Turbopack](/blog/turbopack-for-development-stable). See our [upgrade guides](/docs/app/guides/upgrading) and codemods for more information.
@@ -146,7 +152,7 @@ Tailwind CSS version 3.4.8 or newer will warn you about settings that might slow
 
 If you've added custom webpack settings, they might be slowing down compilation.
 
-Consider if you really need them for local development. You can optionally only include certain tools for production builds, or explore moving to Turbopack and using [loaders](/docs/app/api-reference/config/next-config-js/turbopack#supported-loaders).
+Consider if you really need them for local development. You can optionally only include certain tools for production builds, or explore using the default Turbopack bundler and configuring [loaders](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders) instead.
 
 ### 6. Optimize memory usage
 

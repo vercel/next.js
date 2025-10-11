@@ -11,7 +11,7 @@ import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-p
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
+import { prerender } from 'react-server-dom-webpack/static'
 
 import {
   streamFromBuffer,

@@ -265,10 +265,10 @@ export function handleStaticIndicator() {
       appComponent?.getInitialProps !== appComponent?.origGetInitialProps
 
     const isPageStatic =
-      window.location.pathname in isrManifest ||
+      isrManifest[window.location.pathname] ||
       (!isDynamicPage && !hasAppGetInitialProps)
 
-    dispatcher.onStaticIndicator(isPageStatic)
+    dispatcher.onStaticIndicator(isPageStatic ? 'static' : 'dynamic')
   }
 }
 

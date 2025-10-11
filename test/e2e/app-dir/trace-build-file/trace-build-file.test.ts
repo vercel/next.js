@@ -140,7 +140,6 @@ describe('trace-build-file', () => {
         expect([...foundEvents].sort()).toMatchInlineSnapshot(`
                 [
                   "next-build",
-                  "run-eslint",
                   "run-turbopack",
                   "run-typescript",
                   "static-check",
@@ -153,7 +152,6 @@ describe('trace-build-file', () => {
          [
            "collect-build-traces",
            "next-build",
-           "run-eslint",
            "run-typescript",
            "run-webpack",
            "static-check",

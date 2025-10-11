@@ -45,14 +45,14 @@ describe('getDynamicHTMLPostponedState', () => {
     )
 
     const state = await getDynamicHTMLPostponedState(
-      { [key]: key, nested: { [key]: key } },
+      { [key]: key, nested: { [key]: key } } as any,
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
       prerenderResumeDataCache,
       isCacheComponentsEnabled
     )
 
-    const parsed = parsePostponedState(state, '/blog/[slug]', { slug: '123' })
+    const parsed = parsePostponedState(state, { slug: '123' })
 
     expect(parsed).toMatchInlineSnapshot(`
      {
@@ -86,7 +86,7 @@ describe('getDynamicHTMLPostponedState', () => {
 
   it('serializes a HTML postponed state without fallback params', async () => {
     const state = await getDynamicHTMLPostponedState(
-      { key: 'value' },
+      { key: 'value' } as any,
       DynamicHTMLPreludeState.Full,
       null,
       createPrerenderResumeDataCache(),
@@ -101,7 +101,7 @@ describe('getDynamicHTMLPostponedState', () => {
       slug: [key, 'd'],
     })
     const state = await getDynamicHTMLPostponedState(
-      { [key]: key },
+      { [key]: key } as any,
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
       createPrerenderResumeDataCache(),
@@ -110,7 +110,7 @@ describe('getDynamicHTMLPostponedState', () => {
 
     const value = 'hello'
     const params = { slug: value }
-    const parsed = parsePostponedState(state, '/blog/[slug]', params)
+    const parsed = parsePostponedState(state, params)
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: [1, { [value]: value }],
@@ -138,7 +138,7 @@ describe('parsePostponedState', () => {
     const params = {
       slug: Math.random().toString(16).slice(3),
     }
-    const parsed = parsePostponedState(state, '/blog/[slug]', params)
+    const parsed = parsePostponedState(state, params)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
@@ -154,7 +154,7 @@ describe('parsePostponedState', () => {
   it('parses a HTML postponed state without fallback params', () => {
     const state = `2:{}null`
     const params = {}
-    const parsed = parsePostponedState(state, '/blog', params)
+    const parsed = parsePostponedState(state, params)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
@@ -166,7 +166,7 @@ describe('parsePostponedState', () => {
 
   it('parses a data postponed state', () => {
     const state = '4:nullnull'
-    const parsed = parsePostponedState(state, '/blog', undefined)
+    const parsed = parsePostponedState(state, {})
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({

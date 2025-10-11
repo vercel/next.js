@@ -455,7 +455,7 @@ Update your `package.json` scripts to use Next.js commands. Also, add `.next` an
 ```json filename="package.json"
 {
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "npx serve@latest ./build"
   }
@@ -526,7 +526,7 @@ const nextConfig: NextConfig = {
 }
 ```
 
-### Custom Webpack / Babel Config
+### Custom Webpack
 
 If you had a custom webpack or Babel configuration in CRA, you can extend Next.js’s config in `next.config.ts`:
 
@@ -543,7 +543,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-> **Note**: This will require disabling Turbopack by removing `--turbopack` from your `dev` script.
+> **Note**: This will require using Webpack by adding `--webpack` to your `dev` script.
 
 ### TypeScript Setup
 
@@ -557,10 +557,16 @@ Next.js automatically sets up TypeScript if you have a `tsconfig.json`. Make sur
 
 ## Bundler Compatibility
 
-Both Create React App and Next.js default to webpack for bundling. Next.js also offers [Turbopack](/docs/app/api-reference/config/next-config-js/turbopack) for faster local development with:
+Create React App uses webpack for bundling. Next.js now defaults to [Turbopack](/docs/app/api-reference/config/next-config-js/turbopack) for faster local development:
 
 ```bash
-next dev --turbopack
+next dev  # Uses Turbopack by default
+```
+
+To use Webpack instead (similar to CRA):
+
+```bash
+next dev --webpack
 ```
 
 You can still provide a [custom webpack configuration](/docs/app/api-reference/config/next-config-js/webpack) if you need to migrate advanced webpack settings from CRA.

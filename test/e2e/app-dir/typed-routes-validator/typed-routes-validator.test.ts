@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('typed-routes-validator', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
@@ -11,7 +12,7 @@ describe('typed-routes-validator', () => {
   }
 
   it('should generate route validation correctly', async () => {
-    const dts = await next.readFile('.next/types/validator.ts')
+    const dts = await next.readFile(`${getDistDir()}/types/validator.ts`)
     // sanity check that dev generation is working
     expect(dts).toContain('const handler = {} as typeof import(')
   })

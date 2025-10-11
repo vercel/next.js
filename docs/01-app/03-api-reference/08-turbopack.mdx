@@ -18,19 +18,31 @@ We built Turbopack to push the performance of Next.js, including:
 
 ## Getting started
 
-To enable Turbopack in your Next.js project, add the `--turbopack` flag to the `dev` and `build` scripts in your `package.json` file:
+Turbopack is now the **default bundler** in Next.js. No configuration is needed to use Turbopack:
 
 ```json filename="package.json" highlight={3}
 {
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start"
   }
 }
 ```
 
-Currently, Turbopack for `dev` is stable, while `build` is in beta. We are actively working on production support as Turbopack moves closer to stability.
+### Using Webpack instead
+
+If you need to use Webpack instead of Turbopack, you can opt-in with the `--webpack` flag:
+
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start"
+  }
+}
+```
 
 ## Supported features
 
@@ -122,7 +134,7 @@ This can lead to subtle rendering changes when adopting Turbopack, if applicatio
 
 ### Bundle Sizes
 
-Turbopack does not yet have an equivalent to the [Inner Graph Optimization](https://webpack.js.org/configuration/optimization/#optimizationinnergraph) in webpack. This optimization is useful to tree shake large modules. For example:
+Turbopack does not yet have an equivalent to the [Inner Graph Optimization](https://webpack.js.org/configuration/optimization/#optimizationinnergraph) in webpack which is enabled by default. This optimization is useful to tree shake large modules. For example:
 
 ```js filename=large.module.js
 import heavy from 'some-heavy-dependency.js'
@@ -134,15 +146,18 @@ export function usesHeavy() {
 export const CONSTANT_VALUE = 3
 ```
 
-If an application only uses `CONSTANT_VALUE` Turbopack will detect this and delete the `usesHeavy` export but not the corresponding `import`. However, with the `optimization.innerGraph = true` option enabled, webpack can delete the `import` too.
+If an application only uses `CONSTANT_VALUE` Turbopack will detect this and delete the `usesHeavy` export but not the corresponding `import`. However, with the Inner Graph Optimization, webpack can delete the `import` too which can drop the dependency as well.
 
-We are planning to offer an equivalent to the `innerGraph` optimization in Turbopack but it is still under development. If you are affected by this gap, consider manually splitting these modules.
+We are planning to offer an equivalent to the Inner Graph Optimization in Turbopack but it is still under development. If you are affected by this gap, consider manually splitting these modules.
 
 ### Build Caching
 
-Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to speed up builds. We are planning to support an analogous feature in Turbopack but it is not ready yet. On the `next@canary` release you can experiment with our solution by enabling the [`experimental.turbopackPersistentCachingForDev`/`experimental.turbopackPersistentCachingForBuild` flags](/docs/app/api-reference/config/next-config-js/turbopackPersistentCaching).
+Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to improve build performance. Turbopack provides a similar opt-in feature, currently in beta. Starting with Next 16, you can enable Turbopack’s filesystem cache by setting the following experimental flags:
 
-> **Good to know:** For this reason, when comparing webpack and Turbopack performance, make sure to delete the `.next` folder between builds to see a fair comparison.
+- [`experimental.turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache)
+- [`experimental.turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache)
+
+> **Good to know:** For this reason, when comparing webpack and Turbopack performance, make sure to delete the `.next` folder between builds to see a fair comparison or enable the turbopack filesystem cache feature.
 
 ### Webpack plugins
 
@@ -160,8 +175,6 @@ Some features are not yet implemented or not planned:
   - `@import` in CSS Modules importing `.css` as a CSS Module. In webpack this would treat the `.css` file as a CSS Module, with Turbopack the `.css` file will always be global. This means that if you want to use `@import` in a CSS Module, you need to change the `.css` file to a `.module.css` file.
 - **`webpack()` configuration** in `next.config.js`
   Turbopack replaces webpack, so `webpack()` configs are not recognized. Use the [`turbopack` config](/docs/app/api-reference/config/next-config-js/turbopack) instead.
-- **AMP**
-  Not planned for Turbopack support in Next.js.
 - **Yarn PnP**
   Not planned for Turbopack support in Next.js.
 - **`experimental.urlImports`**
@@ -206,7 +219,7 @@ For more in-depth configuration examples, see the [Turbopack config documentatio
 If you encounter performance or memory issues and want to help the Next.js team diagnose them, you can generate a trace file by appending `NEXT_TURBOPACK_TRACING=1` to your dev command:
 
 ```bash
-NEXT_TURBOPACK_TRACING=1 next dev --turbopack
+NEXT_TURBOPACK_TRACING=1 next dev
 ```
 
 This will produce a `.next/trace-turbopack` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
@@ -215,13 +228,11 @@ This will produce a `.next/trace-turbopack` file. Include that file when creatin
 
 Turbopack is a **Rust-based**, **incremental** bundler designed to make local development and builds fast—especially for large applications. It is integrated into Next.js, offering zero-config CSS, React, and TypeScript support.
 
-Stay tuned for more updates as we continue to improve Turbopack and add production build support. In the meantime, give it a try with `next dev --turbopack` and let us know your feedback.
-
 ## Version Changes
 
-| Version   | Changes                                                        |
-| --------- | -------------------------------------------------------------- |
-| `v16.0.0` | Automatic support for Babel when a configuration file is found |
-| `v15.5.0` | Turbopack support for `build` beta                             |
-| `v15.3.0` | Experimental support for `build`                               |
-| `v15.0.0` | Turbopack for `dev` stable                                     |
+| Version   | Changes                                                                                                           |
+| --------- | ----------------------------------------------------------------------------------------------------------------- |
+| `v16.0.0` | Turbopack becomes the default bundler for Next.js. Automatic support for Babel when a configuration file is found |
+| `v15.5.0` | Turbopack support for `build` beta                                                                                |
+| `v15.3.0` | Experimental support for `build`                                                                                  |
+| `v15.0.0` | Turbopack for `dev` stable                                                                                        |

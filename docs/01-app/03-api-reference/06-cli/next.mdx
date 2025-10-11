@@ -46,7 +46,8 @@ The following commands are available:
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `-h, --help`                             | Show all available options.                                                                                                                          |
 | `[directory]`                            | A directory in which to build the application. If not provided, current directory is used.                                                           |
-| `--turbopack`                            | Starts development mode using [Turbopack](/docs/app/api-reference/turbopack). Also available as `--turbo`.                                           |
+| `--turbopack`                            | Force enable [Turbopack](/docs/app/api-reference/turbopack) (enabled by default). Also available as `--turbo`.                                       |
+| `--webpack`                              | Use Webpack instead of the default [Turbopack](/docs/app/api-reference/turbopack) bundler for development.                                           |
 | `-p` or `--port <port>`                  | Specify a port number on which to start the application. Default: 3000, env: PORT                                                                    |
 | `-H`or `--hostname <hostname>`           | Specify a hostname on which to start the application. Useful for making the application available for other devices on the network. Default: 0.0.0.0 |
 | `--experimental-https`                   | Starts the server with HTTPS and generates a self-signed certificate.                                                                                |
@@ -60,18 +61,13 @@ The following commands are available:
 `next build` creates an optimized production build of your application. The output displays information about each route. For example:
 
 ```bash filename="Terminal"
-Route (app)                              Size     First Load JS
-┌ ○ /_not-found                          0 B               0 kB
-└ ƒ /products/[id]                       0 B               0 kB
+Route (app)
+┌ ○ /_not-found
+└ ƒ /products/[id]
 
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand
 ```
-
-- **Size**: The size of assets downloaded when navigating to the page client-side. The size for each route only includes its dependencies.
-- **First Load JS**: The size of assets downloaded when visiting the page from the server. The amount of JS shared by all is shown as a separate metric.
-
-Both of these values are [**compressed with gzip**](/docs/app/api-reference/config/next-config-js/compress). The first load is indicated by green, yellow, or red. Aim for green for performant applications.
 
 The following options are available for the `next build` command:
 
@@ -79,7 +75,8 @@ The following options are available for the `next build` command:
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `-h, --help`                       | Show all available options.                                                                                                                                                        |
 | `[directory]`                      | A directory on which to build the application. If not provided, the current directory will be used.                                                                                |
-| `--turbopack`                      | Build using [Turbopack](/docs/app/api-reference/turbopack) (beta). Also available as `--turbo`.                                                                                    |
+| `--turbopack`                      | Force enable [Turbopack](/docs/app/api-reference/turbopack) (enabled by default). Also available as `--turbo`.                                                                     |
+| `--webpack`                        | Build using Webpack.                                                                                                                                                               |
 | `-d` or `--debug`                  | Enables a more verbose build output. With this flag enabled additional build output like rewrites, redirects, and headers will be shown.                                           |
 |                                    |
 | `--profile`                        | Enables production [profiling for React](https://react.dev/reference/react/Profiler).                                                                                              |
@@ -307,5 +304,6 @@ NODE_OPTIONS='--inspect' next
 
 | Version   | Changes                                                                         |
 | --------- | ------------------------------------------------------------------------------- |
+| `v16.0.0` | The JS bundle size metrics have been removed from `next build`                  |
 | `v15.5.0` | Add the `next typegen` command                                                  |
 | `v15.4.0` | Add `--debug-prerender` option for `next build` to help debug prerender errors. |

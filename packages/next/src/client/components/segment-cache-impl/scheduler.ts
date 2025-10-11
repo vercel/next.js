@@ -28,6 +28,7 @@ import {
   canNewFetchStrategyProvideMoreContent,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
+import { createCacheKey } from './cache-key'
 import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
@@ -439,8 +440,7 @@ function processQueueInMicrotask() {
   while (task !== null && hasNetworkBandwidth(task)) {
     task.cacheVersion = getCurrentCacheVersion()
 
-    const route = readOrCreateRouteCacheEntry(now, task)
-    const exitStatus = pingRootRouteTree(now, task, route)
+    const exitStatus = pingRoute(now, task)
 
     // These fields are only valid for a single attempt. Reset them after each
     // iteration of the task queue.
@@ -501,6 +501,57 @@ function background(task: PrefetchTask): boolean {
   return false
 }
 
+function pingRoute(now: number, task: PrefetchTask): PrefetchTaskExitStatus {
+  const key = task.key
+  const route = readOrCreateRouteCacheEntry(now, task, key)
+  const exitStatus = pingRootRouteTree(now, task, route)
+
+  if (exitStatus !== PrefetchTaskExitStatus.InProgress && key.search !== '') {
+    // If the URL has a non-empty search string, also prefetch the pathname
+    // without the search string. We use the searchless route tree as a base for
+    // optimistic routing; see requestOptimisticRouteCacheEntry for details.
+    //
+    // Note that we don't need to prefetch any of the segment data. Just the
+    // route tree.
+    //
+    // TODO: This is a temporary solution; the plan is to replace this by adding
+    // a wildcard lookup method to the TupleMap implementation. This is
+    // non-trivial to implement because it needs to account for things like
+    // fallback route entries, hence this temporary workaround.
+    const url = new URL(key.href)
+    url.search = ''
+    const keyWithoutSearch = createCacheKey(url.href, key.nextUrl)
+    const routeWithoutSearch = readOrCreateRouteCacheEntry(
+      now,
+      task,
+      keyWithoutSearch
+    )
+    switch (routeWithoutSearch.status) {
+      case EntryStatus.Empty: {
+        if (background(task)) {
+          routeWithoutSearch.status = EntryStatus.Pending
+          spawnPrefetchSubtask(
+            fetchRouteOnCacheMiss(routeWithoutSearch, task, keyWithoutSearch)
+          )
+        }
+        break
+      }
+      case EntryStatus.Pending:
+      case EntryStatus.Fulfilled:
+      case EntryStatus.Rejected: {
+        // Either the route tree is already cached, or there's already a
+        // request in progress. Since we don't need to fetch any segment data
+        // for this route, there's nothing left to do.
+        break
+      }
+      default:
+        routeWithoutSearch satisfies never
+    }
+  }
+
+  return exitStatus
+}
+
 function pingRootRouteTree(
   now: number,
   task: PrefetchTask,
@@ -522,7 +573,7 @@ function pingRootRouteTree(
       // behavior if PPR is disabled for a route (via the incremental opt-in).
       //
       // Those cases will be handled here.
-      spawnPrefetchSubtask(fetchRouteOnCacheMiss(route, task))
+      spawnPrefetchSubtask(fetchRouteOnCacheMiss(route, task, task.key))
 
       // If the request takes longer than a minute, a subsequent request should
       // retry instead of waiting for this one. When the response is received,
