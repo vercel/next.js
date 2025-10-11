@@ -8,12 +8,13 @@ use std::{
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects};
 use turbo_tasks_backend::{
     BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
+use turbo_unix_path::join_path;
 use turbopack::{
     css::chunk::CssChunkType, ecmascript::chunk::EcmascriptChunkType,
     global_module_ids::get_global_module_id_strategy,
@@ -196,17 +197,19 @@ async fn build_internal(
 ) -> Result<Vc<()>> {
     let output_fs = output_fs(project_dir.clone());
     const OUTPUT_DIR: &str = "dist";
-    let project_fs = project_fs(
-        root_dir.clone(),
-        /* watch= */ false,
-        rcstr!(OUTPUT_DIR),
-    );
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/")
         .into();
+    let project_fs = project_fs(
+        root_dir.clone(),
+        /* watch= */ false,
+        join_path(project_relative.as_str(), OUTPUT_DIR)
+            .unwrap()
+            .into(),
+    );
     let root_path = project_fs.root().owned().await?;
     let project_path = root_path.join(&project_relative)?;
     let build_output_root = output_fs.root().await?.join(OUTPUT_DIR)?;
