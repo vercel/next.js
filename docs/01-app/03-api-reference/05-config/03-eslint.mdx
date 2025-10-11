@@ -51,8 +51,20 @@ Get linting working quickly with the ESLint CLI (flat config):
 
 3. Run ESLint:
 
-   ```bash filename="Terminal"
+   ```bash package="pnpm"
+   pnpm exec eslint .
+   ```
+
+   ```bash package="npm"
    npx eslint .
+   ```
+
+   ```bash package="yarn"
+   yarn eslint .
+   ```
+
+   ```bash package="bun"
+   bunx eslint .
    ```
 
 ## Reference
@@ -212,14 +224,20 @@ ESLint also contains code formatting rules, which can conflict with your existin
 
 First, install the dependency:
 
-```bash filename="Terminal"
-npm install --save-dev eslint-config-prettier
+```bash package="pnpm"
+pnpm add -D eslint-config-prettier
+```
 
+```bash package="npm"
+npm i -D eslint-config-prettier
+```
+
+```bash package="yarn"
 yarn add --dev eslint-config-prettier
+```
 
-pnpm add --save-dev eslint-config-prettier
-
-bun add --dev eslint-config-prettier
+```bash package="bun"
+bun add -d eslint-config-prettier
 ```
 
 Then, add `prettier` to your existing ESLint config:
@@ -287,14 +305,20 @@ module.exports = {
 
 The plugin can be installed normally in your project:
 
-```bash filename="Terminal"
-npm install --save-dev @next/eslint-plugin-next
+```bash package="pnpm"
+pnpm add -D @next/eslint-plugin-next
+```
 
+```bash package="npm"
+npm i -D @next/eslint-plugin-next
+```
+
+```bash package="yarn"
 yarn add --dev @next/eslint-plugin-next
+```
 
-pnpm add --save-dev @next/eslint-plugin-next
-
-bun add --dev @next/eslint-plugin-next
+```bash package="bun"
+bun add -d @next/eslint-plugin-next
 ```
 
 This eliminates the risk of collisions or errors that can occur due to importing the same plugin or parser across multiple configurations.
