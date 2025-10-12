@@ -211,7 +211,6 @@ const nextBuildWorkflow =
       throw e
     } finally {
       // This must run in order
-
       for (const task of cleanupTasks.reverse()) await task()
       await measureTime('shutdown')
     }
@@ -353,7 +352,6 @@ const nextDevWorkflow =
           await writeFile(path, content, 'utf8')
         })
         let currentContent = content
-
         for (let hmrAttempt = 0; hmrAttempt < 10; hmrAttempt++) {
           if (hmrAttempt > 0) {
             await new Promise((resolve) => {
@@ -531,7 +529,6 @@ const nextDevWorkflow =
       await shell.reportMemUsage('mem usage after open page with cache')
     } finally {
       // This must run in order
-
       for (const task of cleanupTasks.reverse()) await task()
       await measureTime('shutdown')
     }
@@ -590,7 +587,6 @@ async function retry(fn) {
       return
     } catch (e) {
       lastError = e
-
       await new Promise((resolve) => {
         setTimeout(resolve, i)
       })

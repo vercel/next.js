@@ -422,7 +422,6 @@ const manualScrollRestoration =
   !!(function () {
     try {
       let v = '__next'
-
       return (sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true)
     } catch (n) {}
   })()

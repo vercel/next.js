@@ -3,7 +3,6 @@
   Author Tobias Koppers @sokra
 */
 // css base code, injected by the css-loader
-
 module.exports = function (useSourceMap: any) {
   var list: any[] = [] // return the list of modules as css string
 

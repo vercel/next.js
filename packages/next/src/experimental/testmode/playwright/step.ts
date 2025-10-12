@@ -1,5 +1,4 @@
 import type { TestInfo } from '@playwright/test'
-
 import { test } from '@playwright/test'
 
 export interface StepProps {

@@ -155,7 +155,6 @@ describe('app dir - external dependency', () => {
   })
   it('should not apply swc optimizer transform for external packages in browser layer in web worker', async () => {
     const browser = await next.browser('/browser')
-
     expect(await browser.elementByCss('#worker-state').text()).toBe('default')
 
     await browser.elementByCss('button').click()

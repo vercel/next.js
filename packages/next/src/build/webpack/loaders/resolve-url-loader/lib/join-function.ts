@@ -1,5 +1,4 @@
 // TODO: Remove use of `any` type. Fix no-use-before-define violations.
-
 /*
 The MIT License (MIT)
 

@@ -10,26 +10,21 @@ declare const __webpack_require__: any
 // I am keeping the process check explicit so this can be statically optimized
 if (process.env.NEXT_DEPLOYMENT_ID) {
   const suffix = getDeploymentIdQueryOrEmptyString()
-
   const getChunkScriptFilename = __webpack_require__.u
-
   __webpack_require__.u = (...args: any[]) =>
     // We encode the chunk filename because our static server matches against and encoded
     // filename path.
     encodeURIPath(getChunkScriptFilename(...args)) + suffix
 
   const getChunkCssFilename = __webpack_require__.k
-
   __webpack_require__.k = (...args: any[]) =>
     getChunkCssFilename(...args) + suffix
 
   const getMiniCssFilename = __webpack_require__.miniCssF
-
   __webpack_require__.miniCssF = (...args: any[]) =>
     getMiniCssFilename(...args) + suffix
 } else {
   const getChunkScriptFilename = __webpack_require__.u
-
   __webpack_require__.u = (...args: any[]) =>
     // We encode the chunk filename because our static server matches against and encoded
     // filename path.

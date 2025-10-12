@@ -193,7 +193,6 @@ interface EntryType {
 }
 
 // Shadowing check in ESLint does not account for enum
-
 export const enum EntryTypes {
   ENTRY,
   CHILD_ENTRY,

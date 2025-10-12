@@ -1,5 +1,4 @@
 const findUp = require('find-up')
-
 const ncc = require('@vercel/ncc')
 const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join, resolve } = require('path')

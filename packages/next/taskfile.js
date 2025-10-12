@@ -1,9 +1,6 @@
 const { relative, basename, resolve, join, dirname } = require('path')
-
 const glob = require('glob')
-
 const fs = require('fs/promises')
-
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
 const process = require('process')
@@ -77,7 +74,6 @@ const externals = {
   punycode: 'punycode/',
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
-
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
 export async function ncc_node_html_parser(task, opts) {
   await task
@@ -942,7 +938,6 @@ export async function ncc_async_retry(task, opts) {
     })
     .target('src/compiled/async-retry')
 }
-
 externals['async-sema'] = 'next/dist/compiled/async-sema'
 export async function ncc_async_sema(task, opts) {
   await task
@@ -953,7 +948,6 @@ export async function ncc_async_sema(task, opts) {
 
 externals['postcss-plugin-stub-for-cssnano-simple'] =
   'next/dist/compiled/postcss-plugin-stub-for-cssnano-simple'
-
 export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
   await task
     .source('src/bundles/postcss-plugin-stub/index.js')
@@ -1052,7 +1046,6 @@ export async function ncc_babel_bundle_packages(task, opts) {
 }
 
 externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
-
 export async function ncc_cssnano_simple_bundle(task, opts) {
   const bundleExternals = {
     ...externals,
@@ -1074,7 +1067,6 @@ export async function ncc_bytes(task, opts) {
     .ncc({ packageName: 'bytes', externals })
     .target('src/compiled/bytes')
 }
-
 externals['ci-info'] = 'next/dist/compiled/ci-info'
 export async function ncc_ci_info(task, opts) {
   await task
@@ -1082,7 +1074,6 @@ export async function ncc_ci_info(task, opts) {
     .ncc({ packageName: 'ci-info', externals })
     .target('src/compiled/ci-info')
 }
-
 externals['cli-select'] = 'next/dist/compiled/cli-select'
 export async function ncc_cli_select(task, opts) {
   await task
@@ -1104,7 +1095,6 @@ export async function ncc_comment_json(task, opts) {
     .ncc({ packageName: 'comment-json', externals })
     .target('src/compiled/comment-json')
 }
-
 externals['compression'] = 'next/dist/compiled/compression'
 export async function ncc_compression(task, opts) {
   await task
@@ -1112,7 +1102,6 @@ export async function ncc_compression(task, opts) {
     .ncc({ packageName: 'compression', externals })
     .target('src/compiled/compression')
 }
-
 externals['conf'] = 'next/dist/compiled/conf'
 export async function ncc_conf(task, opts) {
   await task
@@ -1120,7 +1109,6 @@ export async function ncc_conf(task, opts) {
     .ncc({ packageName: 'conf', externals })
     .target('src/compiled/conf')
 }
-
 externals['content-disposition'] = 'next/dist/compiled/content-disposition'
 export async function ncc_content_disposition(task, opts) {
   await task
@@ -1128,7 +1116,6 @@ export async function ncc_content_disposition(task, opts) {
     .ncc({ packageName: 'content-disposition', externals })
     .target('src/compiled/content-disposition')
 }
-
 externals['content-type'] = 'next/dist/compiled/content-type'
 export async function ncc_content_type(task, opts) {
   await task
@@ -1136,7 +1123,6 @@ export async function ncc_content_type(task, opts) {
     .ncc({ packageName: 'content-type', externals })
     .target('src/compiled/content-type')
 }
-
 externals['cookie'] = 'next/dist/compiled/cookie'
 export async function ncc_cookie(task, opts) {
   await task
@@ -1144,7 +1130,6 @@ export async function ncc_cookie(task, opts) {
     .ncc({ packageName: 'cookie', externals })
     .target('src/compiled/cookie')
 }
-
 externals['cross-spawn'] = 'next/dist/compiled/cross-spawn'
 export async function ncc_cross_spawn(task, opts) {
   await task
@@ -1152,7 +1137,6 @@ export async function ncc_cross_spawn(task, opts) {
     .ncc({ packageName: 'cross-spawn', externals })
     .target('src/compiled/cross-spawn')
 }
-
 externals['debug'] = 'next/dist/compiled/debug'
 export async function ncc_debug(task, opts) {
   await task
@@ -1160,7 +1144,6 @@ export async function ncc_debug(task, opts) {
     .ncc({ packageName: 'debug', externals })
     .target('src/compiled/debug')
 }
-
 externals['devalue'] = 'next/dist/compiled/devalue'
 export async function ncc_devalue(task, opts) {
   await task
@@ -1176,7 +1159,6 @@ export async function ncc_find_up(task, opts) {
     .ncc({ packageName: 'find-up', externals })
     .target('src/compiled/find-up')
 }
-
 externals['fresh'] = 'next/dist/compiled/fresh'
 export async function ncc_fresh(task, opts) {
   await task
@@ -1184,7 +1166,6 @@ export async function ncc_fresh(task, opts) {
     .ncc({ packageName: 'fresh', externals })
     .target('src/compiled/fresh')
 }
-
 externals['glob'] = 'next/dist/compiled/glob'
 export async function ncc_glob(task, opts) {
   await task
@@ -1192,7 +1173,6 @@ export async function ncc_glob(task, opts) {
     .ncc({ packageName: 'glob', externals })
     .target('src/compiled/glob')
 }
-
 externals['gzip-size'] = 'next/dist/compiled/gzip-size'
 export async function ncc_gzip_size(task, opts) {
   await task
@@ -1200,7 +1180,6 @@ export async function ncc_gzip_size(task, opts) {
     .ncc({ packageName: 'gzip-size', externals })
     .target('src/compiled/gzip-size')
 }
-
 externals['http-proxy'] = 'next/dist/compiled/http-proxy'
 export async function ncc_http_proxy(task, opts) {
   await task
@@ -1208,7 +1187,6 @@ export async function ncc_http_proxy(task, opts) {
     .ncc({ packageName: 'http-proxy', externals })
     .target('src/compiled/http-proxy')
 }
-
 externals['ignore-loader'] = 'next/dist/compiled/ignore-loader'
 export async function ncc_ignore_loader(task, opts) {
   await task
@@ -1216,7 +1194,6 @@ export async function ncc_ignore_loader(task, opts) {
     .ncc({ packageName: 'ignore-loader', externals })
     .target('src/compiled/ignore-loader')
 }
-
 externals['is-animated'] = 'next/dist/compiled/is-animated'
 export async function ncc_is_animated(task, opts) {
   await task
@@ -1224,7 +1201,6 @@ export async function ncc_is_animated(task, opts) {
     .ncc({ packageName: 'is-animated', externals })
     .target('src/compiled/is-animated')
 }
-
 externals['is-local-address'] = 'next/dist/compiled/is-local-address'
 export async function ncc_is_local_address(task, opts) {
   await task
@@ -1232,7 +1208,6 @@ export async function ncc_is_local_address(task, opts) {
     .ncc({ packageName: 'is-local-address', externals })
     .target('src/compiled/is-local-address')
 }
-
 externals['is-docker'] = 'next/dist/compiled/is-docker'
 export async function ncc_is_docker(task, opts) {
   await task
@@ -1240,7 +1215,6 @@ export async function ncc_is_docker(task, opts) {
     .ncc({ packageName: 'is-docker', externals })
     .target('src/compiled/is-docker')
 }
-
 externals['is-wsl'] = 'next/dist/compiled/is-wsl'
 export async function ncc_is_wsl(task, opts) {
   await task
@@ -1248,7 +1222,6 @@ export async function ncc_is_wsl(task, opts) {
     .ncc({ packageName: 'is-wsl', externals })
     .target('src/compiled/is-wsl')
 }
-
 externals['json5'] = 'next/dist/compiled/json5'
 export async function ncc_json5(task, opts) {
   await task
@@ -1256,7 +1229,6 @@ export async function ncc_json5(task, opts) {
     .ncc({ packageName: 'json5', externals })
     .target('src/compiled/json5')
 }
-
 externals['jsonwebtoken'] = 'next/dist/compiled/jsonwebtoken'
 export async function ncc_jsonwebtoken(task, opts) {
   await task
@@ -1270,7 +1242,6 @@ export async function ncc_jsonwebtoken(task, opts) {
     })
     .target('src/compiled/jsonwebtoken')
 }
-
 externals['loader-runner'] = 'next/dist/compiled/loader-runner'
 export async function ncc_loader_runner(task, opts) {
   await task
@@ -1278,7 +1249,6 @@ export async function ncc_loader_runner(task, opts) {
     .ncc({ packageName: 'loader-runner', externals })
     .target('src/compiled/loader-runner')
 }
-
 externals['loader-utils'] = 'error loader-utils version not specified'
 externals['loader-utils2'] = 'next/dist/compiled/loader-utils2'
 export async function ncc_loader_utils2(task, opts) {
@@ -1287,7 +1257,6 @@ export async function ncc_loader_utils2(task, opts) {
     .ncc({ packageName: 'loader-utils2', externals })
     .target('src/compiled/loader-utils2')
 }
-
 externals['loader-utils3'] = 'next/dist/compiled/loader-utils3'
 export async function ncc_loader_utils3(task, opts) {
   await task
@@ -1295,7 +1264,6 @@ export async function ncc_loader_utils3(task, opts) {
     .ncc({ packageName: 'loader-utils3', externals })
     .target('src/compiled/loader-utils3')
 }
-
 externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
 export async function ncc_lodash_curry(task, opts) {
   await task
@@ -1303,7 +1271,6 @@ export async function ncc_lodash_curry(task, opts) {
     .ncc({ packageName: 'lodash.curry', externals })
     .target('src/compiled/lodash.curry')
 }
-
 externals['lru-cache'] = 'next/dist/compiled/lru-cache'
 export async function ncc_lru_cache(task, opts) {
   await task
@@ -1311,7 +1278,6 @@ export async function ncc_lru_cache(task, opts) {
     .ncc({ packageName: 'lru-cache', externals })
     .target('src/compiled/lru-cache')
 }
-
 externals['nanoid'] = 'next/dist/compiled/nanoid'
 export async function ncc_nanoid(task, opts) {
   await task
@@ -1319,7 +1285,6 @@ export async function ncc_nanoid(task, opts) {
     .ncc({ packageName: 'nanoid', externals })
     .target('src/compiled/nanoid')
 }
-
 externals['native-url'] = 'next/dist/compiled/native-url'
 export async function ncc_native_url(task, opts) {
   await task
@@ -1334,7 +1299,6 @@ export async function ncc_native_url(task, opts) {
     })
     .target('src/compiled/native-url')
 }
-
 externals['neo-async'] = 'next/dist/compiled/neo-async'
 export async function ncc_neo_async(task, opts) {
   await task
@@ -1350,7 +1314,6 @@ export async function ncc_ora(task, opts) {
     .ncc({ packageName: 'ora', externals })
     .target('src/compiled/ora')
 }
-
 externals['postcss-flexbugs-fixes'] =
   'next/dist/compiled/postcss-flexbugs-fixes'
 export async function ncc_postcss_flexbugs_fixes(task, opts) {
@@ -1359,14 +1322,12 @@ export async function ncc_postcss_flexbugs_fixes(task, opts) {
     .ncc({ packageName: 'postcss-flexbugs-fixes', externals })
     .target('src/compiled/postcss-flexbugs-fixes')
 }
-
 export async function ncc_postcss_safe_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('postcss-safe-parser')))
     .ncc({ packageName: 'postcss-safe-parser', externals })
     .target('src/compiled/postcss-safe-parser')
 }
-
 externals['postcss-preset-env'] = 'next/dist/compiled/postcss-preset-env'
 export async function ncc_postcss_preset_env(task, opts) {
   await task
@@ -1374,7 +1335,6 @@ export async function ncc_postcss_preset_env(task, opts) {
     .ncc({ packageName: 'postcss-preset-env', externals })
     .target('src/compiled/postcss-preset-env')
 }
-
 externals['postcss-scss'] = 'next/dist/compiled/postcss-scss'
 export async function ncc_postcss_scss(task, opts) {
   await task
@@ -1388,7 +1348,6 @@ export async function ncc_postcss_scss(task, opts) {
     })
     .target('src/compiled/postcss-scss')
 }
-
 externals['postcss-modules-extract-imports'] =
   'next/dist/compiled/postcss-modules-extract-imports'
 export async function ncc_postcss_modules_extract_imports(task, opts) {
@@ -1405,7 +1364,6 @@ export async function ncc_postcss_modules_extract_imports(task, opts) {
     })
     .target('src/compiled/postcss-modules-extract-imports')
 }
-
 externals['postcss-modules-local-by-default'] =
   'next/dist/compiled/postcss-modules-local-by-default'
 export async function ncc_postcss_modules_local_by_default(task, opts) {
@@ -1422,7 +1380,6 @@ export async function ncc_postcss_modules_local_by_default(task, opts) {
     })
     .target('src/compiled/postcss-modules-local-by-default')
 }
-
 externals['postcss-modules-scope'] = 'next/dist/compiled/postcss-modules-scope'
 export async function ncc_postcss_modules_scope(task, opts) {
   await task
@@ -1436,7 +1393,6 @@ export async function ncc_postcss_modules_scope(task, opts) {
     })
     .target('src/compiled/postcss-modules-scope')
 }
-
 externals['postcss-modules-values'] =
   'next/dist/compiled/postcss-modules-values'
 export async function ncc_postcss_modules_values(task, opts) {
@@ -1451,7 +1407,6 @@ export async function ncc_postcss_modules_values(task, opts) {
     })
     .target('src/compiled/postcss-modules-values')
 }
-
 externals['postcss-value-parser'] = 'next/dist/compiled/postcss-value-parser'
 export async function ncc_postcss_value_parser(task, opts) {
   await task
@@ -1465,7 +1420,6 @@ export async function ncc_postcss_value_parser(task, opts) {
     })
     .target('src/compiled/postcss-value-parser')
 }
-
 externals['icss-utils'] = 'next/dist/compiled/icss-utils'
 export async function ncc_icss_utils(task, opts) {
   await task
@@ -1804,7 +1758,6 @@ export async function ncc_rsc_poison_packages(task, opts) {
 }
 
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
-
 export async function ncc_sass_loader(task, opts) {
   const sassLoaderPath = require.resolve('sass-loader')
   const utilsPath = join(dirname(sassLoaderPath), 'utils.js')
@@ -1831,7 +1784,6 @@ export async function ncc_sass_loader(task, opts) {
     })
     .target('src/compiled/sass-loader')
 }
-
 externals['schema-utils'] = 'MISSING_VERSION schema-utils version not specified'
 externals['schema-utils2'] = 'next/dist/compiled/schema-utils2'
 export async function ncc_schema_utils2(task, opts) {
@@ -1844,7 +1796,6 @@ export async function ncc_schema_utils2(task, opts) {
     })
     .target('src/compiled/schema-utils2')
 }
-
 externals['schema-utils3'] = 'next/dist/compiled/schema-utils3'
 export async function ncc_schema_utils3(task, opts) {
   await task
@@ -1863,7 +1814,6 @@ export async function ncc_semver(task, opts) {
     .ncc({ packageName: 'semver', externals })
     .target('src/compiled/semver')
 }
-
 externals['send'] = 'next/dist/compiled/send'
 export async function ncc_send(task, opts) {
   await task
@@ -1871,7 +1821,6 @@ export async function ncc_send(task, opts) {
     .ncc({ packageName: 'send', externals })
     .target('src/compiled/send')
 }
-
 // NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['source-map'] = 'next/dist/compiled/source-map'
@@ -1881,7 +1830,6 @@ export async function ncc_source_map(task, opts) {
     .ncc({ packageName: 'source-map', externals })
     .target('src/compiled/source-map')
 }
-
 // NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['source-map08'] = 'next/dist/compiled/source-map08'
@@ -1897,7 +1845,6 @@ export async function ncc_source_map08(task, opts) {
     })
     .target('src/compiled/source-map08')
 }
-
 externals['string-hash'] = 'next/dist/compiled/string-hash'
 export async function ncc_string_hash(task, opts) {
   await task
@@ -1905,7 +1852,6 @@ export async function ncc_string_hash(task, opts) {
     .ncc({ packageName: 'string-hash', externals })
     .target('src/compiled/string-hash')
 }
-
 externals['strip-ansi'] = 'next/dist/compiled/strip-ansi'
 externals['next/dist/compiled/strip-ansi'] = 'next/dist/compiled/strip-ansi'
 export async function ncc_strip_ansi(task, opts) {
@@ -1914,7 +1860,6 @@ export async function ncc_strip_ansi(task, opts) {
     .ncc({ packageName: 'strip-ansi', externals })
     .target('src/compiled/strip-ansi')
 }
-
 externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
 export async function ncc_nft(task, opts) {
   await task
@@ -1938,7 +1883,6 @@ export async function ncc_terser(task, opts) {
     .ncc({ packageName: 'terser', externals })
     .target('src/compiled/terser')
 }
-
 externals['text-table'] = 'next/dist/compiled/text-table'
 export async function ncc_text_table(task, opts) {
   await task
@@ -1946,7 +1890,6 @@ export async function ncc_text_table(task, opts) {
     .ncc({ packageName: 'text-table', externals })
     .target('src/compiled/text-table')
 }
-
 externals['unistore'] = 'next/dist/compiled/unistore'
 export async function ncc_unistore(task, opts) {
   await task
@@ -1992,7 +1935,6 @@ export async function ncc_web_vitals(task, opts) {
     .ncc({ packageName: 'web-vitals', externals, target: 'es5', esm: false })
     .target('src/compiled/web-vitals')
 }
-
 externals['web-vitals-attribution'] =
   'next/dist/compiled/web-vitals-attribution'
 export async function ncc_web_vitals_attribution(task, opts) {
@@ -2012,7 +1954,6 @@ export async function ncc_web_vitals_attribution(task, opts) {
     })
     .target('src/compiled/web-vitals-attribution')
 }
-
 externals['webpack-sources'] = 'error webpack-sources version not specified'
 externals['webpack-sources1'] = 'next/dist/compiled/webpack-sources1'
 export async function ncc_webpack_sources1(task, opts) {
@@ -2021,7 +1962,6 @@ export async function ncc_webpack_sources1(task, opts) {
     .ncc({ packageName: 'webpack-sources1', externals, target: 'es5' })
     .target('src/compiled/webpack-sources1')
 }
-
 externals['webpack-sources3'] = 'next/dist/compiled/webpack-sources3'
 export async function ncc_webpack_sources3(task, opts) {
   await task
@@ -2096,7 +2036,6 @@ export async function ncc_ua_parser_js(task, opts) {
     .ncc({ packageName: 'ua-parser-js', externals })
     .target('src/compiled/ua-parser-js')
 }
-
 export async function ncc_webpack_bundle5(task, opts) {
   const bundleExternals = {
     ...externals,

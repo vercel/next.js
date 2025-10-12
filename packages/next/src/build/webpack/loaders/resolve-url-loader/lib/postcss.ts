@@ -38,7 +38,6 @@ export default function process(
   postcssPlugin.postcss = true
 
   // prepend file protocol to all sources to avoid problems with source map
-
   return postcss([postcssPlugin])
     .process(sourceContent, {
       from: prepend(sourceFile),

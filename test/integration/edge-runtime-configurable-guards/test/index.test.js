@@ -492,7 +492,6 @@ describe('Edge runtime configurable guards', () => {
       'production mode',
       () => {
         // This checks the unstable_allowDynamic configuration which is not supported in Turbopack.
-
         ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
           'build and does not warn at runtime',
           async () => {

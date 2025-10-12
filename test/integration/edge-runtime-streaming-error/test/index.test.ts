@@ -83,7 +83,6 @@ describe('development mode', () => {
       })
     })
     afterAll(() => killApp(context.app))
-
     it('logs the error correctly', test(context))
   }
 )

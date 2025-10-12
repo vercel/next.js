@@ -263,7 +263,6 @@ function parseDeclaration(
       }
 
       // Do not traverse inside `image-set`
-
       return false
     }
   })
@@ -408,9 +407,7 @@ const plugin = (options: any = {}) => {
             }
 
             item.node.type = 'word'
-
             item.node.value = replacementName
-
             item.declaration.value = item.parsed.toString()
           }
         },

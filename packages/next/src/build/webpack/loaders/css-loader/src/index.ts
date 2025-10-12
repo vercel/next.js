@@ -32,7 +32,6 @@ function getModulesOptions(rawOptions: any, loaderContext: any) {
     localIdentName: '[hash:base64]',
     localIdentContext: loaderContext.rootContext,
     localIdentHashPrefix: '',
-
     localIdentRegExp: undefined,
     namedExport: false,
     exportLocalsConvention: 'asIs',

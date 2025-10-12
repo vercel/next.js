@@ -86,7 +86,6 @@ function modulesToDom(list: any, options: any) {
     } else {
       stylesInDom.push({
         identifier: identifier,
-
         updater: addStyle(obj, options),
         references: 1,
       })

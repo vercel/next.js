@@ -412,7 +412,6 @@ describe('Prerender', () => {
       await goFromAnotherToHome()
 
       // Client-side SSG data caching test
-
       {
         // Let revalidation period lapse
         await waitFor(2000)

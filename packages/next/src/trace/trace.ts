@@ -17,7 +17,6 @@ const RECORD_SPAN_THRESHOLD_MS = parseInt(
 )
 
 // eslint typescript has a bug with TS enums
-
 export enum SpanStatus {
   Started = 'started',
   Stopped = 'stopped',

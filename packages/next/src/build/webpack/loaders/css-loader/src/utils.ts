@@ -33,7 +33,6 @@ function unescape(str: string) {
         ? // BMP codepoint
           String.fromCharCode(high + 0x10000)
         : // Supplemental Plane codepoint (surrogate pair)
-
           String.fromCharCode((high >> 10) | 0xd800, (high & 0x3ff) | 0xdc00)
   })
 }

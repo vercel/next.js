@@ -173,7 +173,6 @@ function networkIdle(
 
     const fullTimeout = setTimeout(() => {
       cleanup()
-
       console.error(
         `Timeout while waiting for network idle. These requests are still pending: ${Array.from(
           requests

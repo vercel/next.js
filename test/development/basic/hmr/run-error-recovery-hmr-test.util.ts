@@ -140,7 +140,6 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         const logOccurrences =
           next.cliOutput.slice(outputIndex).split('getInitialProps called')
             .length - 1
-
         expect(logOccurrences).toBe(0)
       } finally {
         await next.deleteFile(errorPage)

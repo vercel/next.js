@@ -206,7 +206,6 @@ function getBaseSWCOptions({
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isReactServerLayer && {
       emotion: getEmotionOptions(compilerOptions?.emotion, development),
-
       styledComponents: getStyledComponentsOptions(
         compilerOptions?.styledComponents,
         development

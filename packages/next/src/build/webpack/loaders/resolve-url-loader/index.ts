@@ -66,7 +66,6 @@ export default async function resolveUrlLoader(
     sourceMapConsumer: sourceMapConsumer,
   })
     .catch(onFailure)
-
     .then(onSuccess)
 
   function onFailure(error: Error) {
