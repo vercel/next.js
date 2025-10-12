@@ -471,7 +471,7 @@ export function patchErrorInspectNodeJS(
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
 
   // @ts-expect-error -- TODO upstream types
-  // eslint-disable-next-line no-extend-native -- We're not extending but overriding.
+
   errorConstructor.prototype[inspectSymbol] = function (
     depth: number,
     inspectOptions: util.InspectOptions,
@@ -512,7 +512,7 @@ export function patchErrorInspectEdgeLite(
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
 
   // @ts-expect-error -- TODO upstream types
-  // eslint-disable-next-line no-extend-native -- We're not extending but overriding.
+
   errorConstructor.prototype[inspectSymbol] = function ({
     format,
   }: {

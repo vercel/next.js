@@ -209,7 +209,7 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   const prefix: string = initialData.assetPrefix || ''
   // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
   // So, this is how we do it in the client side at runtime
-  ;(self as any).__next_set_public_path__(`${prefix}/_next/`) //eslint-disable-line
+  ;(self as any).__next_set_public_path__(`${prefix}/_next/`)
 
   asPath = getURL()
 
@@ -304,7 +304,7 @@ function AppContainer({
     <Container
       fn={(error) =>
         // TODO: Fix disabled eslint rule
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+
         renderError({ App: CachedApp, err: error }).catch((err) =>
           console.error('Error rendering page: ', err)
         )
@@ -365,7 +365,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
     // We need to render an empty <App> so that the `<ReactDevOverlay>` can
     // render itself.
     // TODO: Fix disabled eslint rule
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+
     return doRender({
       App: () => null,
       props: {},
@@ -421,7 +421,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
           : loadGetInitialProps(App, appCtx)
       ).then((initProps) =>
         // TODO: Fix disabled eslint rule
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+
         doRender({
           ...renderErrorProps,
           err,

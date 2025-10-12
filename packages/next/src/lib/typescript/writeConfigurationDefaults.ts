@@ -262,7 +262,6 @@ export async function writeConfigurationDefaults(
         )
       }
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _: never = check
     }
   }

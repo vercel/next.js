@@ -211,7 +211,7 @@ const nextBuildWorkflow =
       throw e
     } finally {
       // This must run in order
-      // eslint-disable-next-line no-await-in-loop
+
       for (const task of cleanupTasks.reverse()) await task()
       await measureTime('shutdown')
     }
@@ -353,7 +353,7 @@ const nextDevWorkflow =
           await writeFile(path, content, 'utf8')
         })
         let currentContent = content
-        /* eslint-disable no-await-in-loop */
+
         for (let hmrAttempt = 0; hmrAttempt < 10; hmrAttempt++) {
           if (hmrAttempt > 0) {
             await new Promise((resolve) => {
@@ -467,7 +467,6 @@ const nextDevWorkflow =
 
           if (!success) break
         }
-        /* eslint-enable no-await-in-loop */
       }
 
       if (turbopack) {
@@ -532,7 +531,7 @@ const nextDevWorkflow =
       await shell.reportMemUsage('mem usage after open page with cache')
     } finally {
       // This must run in order
-      // eslint-disable-next-line no-await-in-loop
+
       for (const task of cleanupTasks.reverse()) await task()
       await measureTime('shutdown')
     }
@@ -587,12 +586,11 @@ async function retry(fn) {
   let lastError
   for (let i = 100; i < 2000; i += 100) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       await fn()
       return
     } catch (e) {
       lastError = e
-      // eslint-disable-next-line no-await-in-loop
+
       await new Promise((resolve) => {
         setTimeout(resolve, i)
       })

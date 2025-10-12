@@ -32,7 +32,7 @@ function getModulesOptions(rawOptions: any, loaderContext: any) {
     localIdentName: '[hash:base64]',
     localIdentContext: loaderContext.rootContext,
     localIdentHashPrefix: '',
-    // eslint-disable-next-line no-undefined
+
     localIdentRegExp: undefined,
     namedExport: false,
     exportLocalsConvention: 'asIs',
@@ -268,7 +268,6 @@ export default async function loader(
         const { ast } = meta
 
         if (ast && ast.type === 'postcss') {
-          // eslint-disable-next-line no-param-reassign
           content = ast.root
           loaderSpan.setAttribute('astUsed', 'true')
         }

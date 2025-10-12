@@ -1,5 +1,5 @@
 // TODO: Remove use of `any` type. Fix no-use-before-define violations.
-/* eslint-disable @typescript-eslint/no-use-before-define */
+
 /**
  * MIT License
  *
