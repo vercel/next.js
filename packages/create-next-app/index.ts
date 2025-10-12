@@ -244,6 +244,7 @@ async function run(): Promise<void> {
       turbopack: true,
       disableGit: false,
       reactCompiler: false,
+      shadcn: false,
     }
 
     type DisplayConfigItem = {
@@ -262,6 +263,7 @@ async function run(): Promise<void> {
       { key: 'srcDir', values: { true: 'src/ dir' } },
       { key: 'app', values: { true: 'App Router', false: 'Pages Router' } },
       { key: 'turbopack', values: { true: 'Turbopack' } },
+      { key: 'shadcn', values: { true: 'ShadCN UI' } },
     ]
 
     // Helper to format settings for display based on displayConfig
@@ -547,6 +549,25 @@ async function run(): Promise<void> {
       }
     }
 
+    if (!opts.shadcn && !args.includes('--no-shadcn') && !opts.api) {
+      if (skipPrompt) {
+        opts.shadcn = getPrefOrDefault('shadcn')
+      } else {
+        const styledShadcn = blue('ShadCN UI')
+        const { shadcn } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'shadcn',
+          message: `Would you like to install ${styledShadcn}?`,
+          initial: getPrefOrDefault('shadcn'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        opts.shadcn = Boolean(shadcn)
+        preferences.shadcn = Boolean(shadcn)
+      }
+    }
+
     if (
       !opts.turbopack &&
       !args.includes('--no-turbopack') &&
@@ -645,6 +666,7 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      shadcn: opts.shadcn,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -679,6 +701,7 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      shadcn: opts.shadcn,
     })
   }
   conf.set('preferences', preferences)
