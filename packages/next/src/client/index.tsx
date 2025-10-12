@@ -303,7 +303,6 @@ function AppContainer({
   return (
     <Container
       fn={(error) =>
-        // TODO: Fix disabled eslint rule
         renderError({ App: CachedApp, err: error }).catch((err) =>
           console.error('Error rendering page: ', err)
         )
@@ -363,7 +362,6 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 
     // We need to render an empty <App> so that the `<ReactDevOverlay>` can
     // render itself.
-    // TODO: Fix disabled eslint rule
     return doRender({
       App: () => null,
       props: {},
@@ -418,7 +416,6 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
           ? renderErrorProps.props
           : loadGetInitialProps(App, appCtx)
       ).then((initProps) =>
-        // TODO: Fix disabled eslint rule
         doRender({
           ...renderErrorProps,
           err,

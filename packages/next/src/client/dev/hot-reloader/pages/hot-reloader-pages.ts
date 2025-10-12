@@ -1,4 +1,4 @@
-// TODO: Remove use of `any` type. Fix no-use-before-define violations.
+// TODO: Remove use of `any` type.
 /**
  * MIT License
  *
