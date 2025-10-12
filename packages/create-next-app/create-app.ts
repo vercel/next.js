@@ -305,7 +305,7 @@ export async function createApp({
       if (userCancelled || shadcnPackageManager === undefined) {
         console.log(
           yellow(
-            'ShadCN installation skipped. You can add it later by running `npx shadcn-ui@latest init` in your project directory.'
+            'ShadCN installation skipped. You can add it later by running `npx shadcn@latest init` in your project directory.'
           )
         )
         console.log()
