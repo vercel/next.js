@@ -2,7 +2,7 @@
 import retry from 'async-retry'
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
-import { cyan, green, red } from 'picocolors'
+import { cyan, green, red, yellow } from 'picocolors'
 import type { RepoInfo } from './helpers/examples'
 import {
   downloadAndExtractExample,
@@ -271,30 +271,49 @@ export async function createApp({
     console.log('Installing ShadCN UI...')
     console.log()
     try {
-      // Ask which package manager to use for ShadCN
-      const { shadcnPackageManager } = await prompts({
-        type: 'select',
-        name: 'shadcnPackageManager',
-        message: 'Which package manager would you like to use for ShadCN?',
-        choices: [
-          { title: 'npm (npx shadcn@latest init)', value: 'npm' },
-          { title: 'pnpm (pnpm dlx shadcn@latest init)', value: 'pnpm' },
-          { title: 'yarn (yarn shadcn@latest init)', value: 'yarn' },
-          { title: 'bun (bunx --bun shadcn@latest init)', value: 'bun' },
-        ],
-        initial:
-          packageManager === 'npm'
-            ? 0
-            : packageManager === 'pnpm'
-              ? 1
-              : packageManager === 'yarn'
-                ? 2
-                : 3,
-      })
+      let userCancelled = false
 
-      await runShadcnInit(shadcnPackageManager || packageManager)
-      console.log('ShadCN UI installed successfully.')
-      console.log()
+      // Ask which package manager to use for ShadCN
+      const { shadcnPackageManager } = await prompts(
+        {
+          type: 'select',
+          name: 'shadcnPackageManager',
+          message: 'Which package manager would you like to use for ShadCN?',
+          choices: [
+            { title: 'npm (npx shadcn@latest init)', value: 'npm' },
+            { title: 'pnpm (pnpm dlx shadcn@latest init)', value: 'pnpm' },
+            { title: 'yarn (yarn shadcn@latest init)', value: 'yarn' },
+            { title: 'bun (bunx --bun shadcn@latest init)', value: 'bun' },
+          ],
+          initial:
+            packageManager === 'npm'
+              ? 0
+              : packageManager === 'pnpm'
+                ? 1
+                : packageManager === 'yarn'
+                  ? 2
+                  : 3,
+        },
+        {
+          onCancel: () => {
+            userCancelled = true
+          },
+        }
+      )
+
+      // Check if user cancelled the prompt
+      if (userCancelled || shadcnPackageManager === undefined) {
+        console.log(
+          yellow(
+            'ShadCN installation skipped. You can add it later by running `npx shadcn-ui@latest init` in your project directory.'
+          )
+        )
+        console.log()
+      } else {
+        await runShadcnInit(shadcnPackageManager)
+        console.log('ShadCN UI installed successfully.')
+        console.log()
+      }
     } catch (err) {
       console.error('Error installing ShadCN UI:', err)
     }
