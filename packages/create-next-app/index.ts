@@ -273,6 +273,11 @@ async function run(): Promise<void> {
       const descriptions: string[] = []
 
       for (const config of displayConfig) {
+        // Skip ShadCN if Tailwind is not enabled
+        if (config.key === 'shadcn' && !settings.tailwind) {
+          continue
+        }
+
         const value = settings[config.key]
 
         if (config.values) {
@@ -511,6 +516,11 @@ async function run(): Promise<void> {
       }
     }
 
+    // Handle --no-tailwind CLI argument
+    if (args.includes('--no-tailwind')) {
+      opts.tailwind = false
+    }
+
     if (!opts.srcDir && !args.includes('--no-src-dir')) {
       if (skipPrompt) {
         opts.srcDir = getPrefOrDefault('srcDir')
@@ -549,7 +559,11 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!opts.shadcn && !args.includes('--no-shadcn') && !opts.api) {
+    // ShadCN requires Tailwind CSS, so automatically disable it if Tailwind is not enabled
+    if (!opts.tailwind) {
+      opts.shadcn = false
+      preferences.shadcn = false
+    } else if (!opts.shadcn && !args.includes('--no-shadcn') && !opts.api) {
       if (skipPrompt) {
         opts.shadcn = getPrefOrDefault('shadcn')
       } else {
