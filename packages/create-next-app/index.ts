@@ -244,7 +244,7 @@ async function run(): Promise<void> {
       turbopack: true,
       disableGit: false,
       reactCompiler: false,
-      shadcn: false,
+      shadcn: true,
     }
 
     type DisplayConfigItem = {
