@@ -20,6 +20,12 @@ export default function Home() {
         <li>
           <Link href="/image-import">image import page</Link>
         </li>
+        <li>
+          <Link href="/client-dynamic/first">client dynamic first</Link>
+        </li>
+        <li>
+          <Link href="/client-dynamic/second">client dynamic second</Link>
+        </li>
       </ul>
     </main>
   )

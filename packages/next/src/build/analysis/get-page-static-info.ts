@@ -485,6 +485,28 @@ export async function getAppPageStaticInfo({
   page,
 }: GetPageStaticInfoParams): Promise<AppPageStaticInfo> {
   const content = await tryToReadFile(pageFilePath, !isDev)
+
+  //  Get RSC type - first try from runtime labels, then check for 'use client' directive
+  let rsc: RSCModuleType | undefined
+
+  if (content) {
+    const { type: rscFromLabel } = getRSCModuleInformation(content, true)
+
+    // If no runtime label found, check for 'use client' directive in source
+    if (rscFromLabel === 'server' && content.includes("'use client'")) {
+      // Parse to confirm it's actually a directive (not just a string in code)
+      try {
+        const ast = await parseModule(pageFilePath, content)
+        const { directives } = checkExports(ast, AppSegmentConfigSchemaKeys, page)
+        rsc = directives?.has('client') ? 'client' : rscFromLabel
+      } catch {
+        rsc = rscFromLabel
+      }
+    } else {
+      rsc = rscFromLabel
+    }
+  }
+
   if (!content || !PARSE_PATTERN.test(content)) {
     return {
       type: PAGE_TYPES.APP,
@@ -493,6 +515,7 @@ export async function getAppPageStaticInfo({
       preferredRegion: undefined,
       maxDuration: undefined,
       hadUnsupportedValue: false,
+      rsc,
     }
   }
 
@@ -506,7 +529,10 @@ export async function getAppPageStaticInfo({
     directives,
   } = checkExports(ast, AppSegmentConfigSchemaKeys, page)
 
-  const { type: rsc } = getRSCModuleInformation(content, true)
+  // Override rsc if we found 'use client' directive
+  if (directives?.has('client')) {
+    rsc = 'client'
+  }
 
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {

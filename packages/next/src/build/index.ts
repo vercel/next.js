@@ -1862,6 +1862,8 @@ export default async function build(
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
+      // Track client dynamic routes for manifest generation
+      const clientDynamicRoutes = new Set<string>()
       let pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
       const buildManifest = await readManifest<BuildManifest>(buildManifestPath)
 
@@ -2218,18 +2220,23 @@ export default async function build(
                           }
 
                           const appConfig = workerResult.appConfig || {}
+
                           if (appConfig.revalidate !== 0) {
                             const hasGenerateStaticParams =
                               workerResult.prerenderedRoutes &&
                               workerResult.prerenderedRoutes.length > 0
 
+                            const isClientComponent =
+                              staticInfo?.rsc === RSC_MODULE_TYPES.client
+
                             if (
                               config.output === 'export' &&
                               isDynamic &&
-                              !hasGenerateStaticParams
+                              !hasGenerateStaticParams &&
+                              !isClientComponent
                             ) {
                               throw new Error(
-                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config. To use a dynamic route with client-side rendering, add 'use client' to the top of your page.`
                               )
                             }
 
@@ -2237,6 +2244,7 @@ export default async function build(
                             // - It has no dynamic param
                             // - It doesn't have generateStaticParams but `dynamic` is set to
                             //   `error` or `force-static`
+                            // - It's a client component with dynamic route (SPA-style routing)
                             if (!isDynamic) {
                               staticPaths.set(originalAppPath, [
                                 {
@@ -2257,6 +2265,59 @@ export default async function build(
                                 appConfig.dynamic === 'force-static')
                             ) {
                               staticPaths.set(originalAppPath, [])
+                              isStatic = true
+                              isRoutePPREnabled = false
+                            } else if (
+                              isClientComponent &&
+                              isDynamic &&
+                              !hasGenerateStaticParams
+                            ) {
+                              // Allow client components to build as static shells for client-side routing
+                              // For client-side dynamic routes without generateStaticParams,
+                              // generate a single shell HTML using placeholder params
+                              // This shell serves as the template for all dynamic route instances
+
+                              // Track this route for the client dynamic routes manifest
+                              clientDynamicRoutes.add(page)
+
+                              // Extract dynamic segments from the route pattern
+                              const segments = page.split('/').filter(Boolean)
+                              const params: Record<string, string> = {}
+
+                              segments.forEach((segment) => {
+                                if (segment.startsWith('[') && segment.endsWith(']')) {
+                                  const paramName = segment.slice(1, -1)
+                                  // Handle catch-all routes [[...slug]] or [...slug]
+                                  if (paramName.startsWith('...')) {
+                                    const key = paramName.slice(3)
+                                    params[key] = '__shell__'
+                                  } else {
+                                    params[paramName] = '__shell__'
+                                  }
+                                }
+                              })
+
+                              // Build the pathname with shell placeholders
+                              let pathname = page
+                              Object.keys(params).forEach((key) => {
+                                // Replace [param] with the placeholder value
+                                pathname = pathname.replace(
+                                  new RegExp(`\\[(\\.\\.\\.)?${key}\\]`),
+                                  params[key]
+                                )
+                              })
+
+                              staticPaths.set(originalAppPath, [
+                                {
+                                  pathname,
+                                  encodedPathname: pathname,
+                                  params,
+                                  fallbackRouteParams: undefined,
+                                  fallbackMode: undefined,
+                                  fallbackRootParams: undefined,
+                                  throwOnEmptyStaticShell: undefined,
+                                },
+                              ])
                               isStatic = true
                               isRoutePPREnabled = false
                             }
@@ -2411,6 +2472,71 @@ export default async function build(
 
       if (postCompileSpinner) postCompileSpinner.stopAndPersist()
       traceMemoryUsage('Finished collecting page data', nextBuildSpan)
+
+      // Write client dynamic routes manifest immediately after page data collection
+      // This ensures it gets written even if the export phase fails
+      if (config.output === 'export' && clientDynamicRoutes.size > 0) {
+        Log.event(`Writing client dynamic routes manifest (${clientDynamicRoutes.size} routes)`)
+
+        const manifestContent = JSON.stringify({
+          version: 1,
+          routes: Array.from(clientDynamicRoutes).map((route) => {
+            const segments = route.split('/').filter(Boolean)
+            return {
+              pattern: route,
+              segments: segments.map((segment) => {
+                if (segment.startsWith('[') && segment.endsWith(']')) {
+                  const paramName = segment.slice(1, -1)
+                  if (paramName.startsWith('...')) {
+                    return {
+                      type: 'dynamic',
+                      name: paramName.slice(3),
+                      catchAll: true,
+                    }
+                  } else {
+                    return {
+                      type: 'dynamic',
+                      name: paramName,
+                      catchAll: false,
+                    }
+                  }
+                } else {
+                  return {
+                    type: 'static',
+                    value: segment,
+                  }
+                }
+              }),
+            }
+          }),
+        }, null, 2)
+
+        // Write to build directory (.next)
+        const manifestPath = path.join(
+          dir,
+          config.distDir || '.next',
+          'static',
+          buildId,
+          '_clientDynamicRoutesManifest.json'
+        )
+        await fs.mkdir(path.dirname(manifestPath), { recursive: true })
+        await fs.writeFile(manifestPath, manifestContent, 'utf-8')
+
+        // Also write to output directory (out) for static export
+        const configOutDir = config.distDir ? path.join(config.distDir, '..', 'out') : 'out'
+        const outputManifestPath = path.join(
+          dir,
+          configOutDir,
+          '_next',
+          'static',
+          buildId,
+          '_clientDynamicRoutesManifest.json'
+        )
+        await fs.mkdir(path.dirname(outputManifestPath), { recursive: true })
+        await fs.writeFile(outputManifestPath, manifestContent, 'utf-8')
+
+        Log.event(`Client dynamic routes manifest written to build and output directories`)
+      }
 
       if (customAppGetInitialProps) {
         console.warn(
@@ -4063,6 +4189,124 @@ export default async function build(
               appDirOnly
             )
           })
+
+        // Generate SPA-style 404.html for direct URL access to client dynamic routes
+        // This must happen AFTER writeFullyStaticExport to avoid being overwritten
+        if (clientDynamicRoutes.size > 0) {
+          const fallback404Html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Loading...</title>
+  <style>
+    /* Hide content until params are patched to avoid flash of __shell__ */
+    body { visibility: hidden; }
+    body.ready { visibility: visible; }
+  </style>
+  <script>
+    (function() {
+      // Load manifest and redirect to appropriate shell HTML
+      var manifestUrl = '/_next/static/${buildId}/_clientDynamicRoutesManifest.json';
+      fetch(manifestUrl)
+        .then(function(res) { return res.json(); })
+        .then(function(manifest) {
+          var pathname = window.location.pathname;
+          // Remove trailing slash for matching
+          if (pathname.endsWith('/') && pathname !== '/') {
+            pathname = pathname.slice(0, -1);
+          }
+
+          // Try to match against client dynamic route patterns
+          for (var i = 0; i < manifest.routes.length; i++) {
+            var route = manifest.routes[i];
+            var pathSegments = pathname.split('/').filter(Boolean);
+            var routeSegments = route.segments;
+
+            if (pathSegments.length !== routeSegments.length) continue;
+
+            var matches = true;
+            for (var j = 0; j < pathSegments.length; j++) {
+              var routeSeg = routeSegments[j];
+              if (routeSeg.type === 'static' && pathSegments[j] !== routeSeg.value) {
+                matches = false;
+                break;
+              }
+            }
+
+            if (matches) {
+              // Found a match! Extract actual params from URL
+              var actualParams = {};
+              for (var j = 0; j < pathSegments.length; j++) {
+                var routeSeg = routeSegments[j];
+                if (routeSeg.type === 'dynamic') {
+                  actualParams[routeSeg.name] = pathSegments[j];
+                }
+              }
+
+              // Fetch shell HTML and patch params
+              var shellPath = route.pattern.replace(/\\[([^\\]]+)\\]/g, '__shell__');
+
+              // Try without trailing slash first, then with trailing slash
+              var fetchShell = function(url) {
+                return fetch(url).then(function(res) {
+                  if (!res.ok) throw new Error('Not found');
+                  return res.text();
+                });
+              };
+
+              fetchShell(shellPath + '.html')
+                .catch(function() { return fetchShell(shellPath); })
+                .catch(function() { return fetchShell(shellPath + '/'); })
+                .catch(function() { return fetchShell(shellPath + '/index.html'); })
+                .then(function(html) {
+                  // Patch __shell__ params in the HTML with actual URL params
+                  // The RSC data is in script tags like: self.__next_f.push([...])
+                  // We need to replace "__shell__" with actual param values
+
+                  var patchedHtml = html;
+                  for (var paramName in actualParams) {
+                    var paramValue = actualParams[paramName];
+                    // Replace ALL occurrences of __shell__ (with and without quotes)
+                    // This catches: "__shell__", >__shell__<, and other contexts
+                    patchedHtml = patchedHtml.split('__shell__').join(paramValue);
+                  }
+
+                  // Replace document content while preserving the URL
+                  document.open();
+                  document.write(patchedHtml);
+                  document.close();
+                  // Show content after patching to avoid flash
+                  setTimeout(function() {
+                    document.body.classList.add('ready');
+                  }, 0);
+                })
+                .catch(function() {
+                  // Shell HTML not found, show 404
+                  document.write('<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>');
+                });
+              return;
+            }
+          }
+
+          // No match found, show regular 404
+          document.write('<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>');
+        })
+        .catch(function() {
+          // Manifest not found or error loading, show regular 404
+          document.write('<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>');
+        });
+    })();
+  </script>
+</head>
+<body>
+  <p>Loading...</p>
+</body>
+</html>`
+
+          const fallback404Path = path.join(dir, configOutDir, '404.html')
+          await fs.writeFile(fallback404Path, fallback404Html, 'utf-8')
+          Log.event(`Generated SPA fallback 404.html for client dynamic routes`)
+        }
       }
 
       const adapterPath = config.experimental.adapterPath

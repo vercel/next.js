@@ -19,6 +19,7 @@ import type {
   AppPageRouteModule,
 } from '../server/route-modules/app-page/module'
 import type { NextComponentType } from '../shared/lib/utils'
+import type { RSCModuleType } from './analysis/get-page-static-info'
 
 import '../server/require-hook'
 import '../server/node-polyfill-crypto'
@@ -552,6 +553,7 @@ type PageIsStaticResult = {
   traceIncludes?: string[]
   traceExcludes?: string[]
   appConfig?: AppSegmentConfig
+  rsc?: RSCModuleType
 }
 
 export async function isPageStatic({
