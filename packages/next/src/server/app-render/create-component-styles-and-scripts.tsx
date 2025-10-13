@@ -34,7 +34,7 @@ export async function createComponentStylesAndScripts({
           src={`${ctx.assetPrefix}/_next/${encodeURIPath(
             href
           )}${getAssetQueryString(ctx, true)}`}
-          async={true}
+          defer={true}
           key={`script-${index}`}
         />
       ))

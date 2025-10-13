@@ -84,7 +84,7 @@ export function getLayerAssets({
         return (
           <script
             src={fullSrc}
-            async={true}
+            defer={true}
             key={`script-${index}`}
             nonce={ctx.nonce}
           />
