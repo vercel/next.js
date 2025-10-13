@@ -305,7 +305,6 @@ export async function initialize(opts: {
           await initResult?.requestHandler(req, res)
         } catch (err) {
           if (err instanceof NoFallbackError) {
-            // eslint-disable-next-line
             await handleRequest(handleIndex + 1)
             return
           }
