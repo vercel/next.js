@@ -676,7 +676,7 @@ impl Project {
             None => {
                 return Err(anyhow::anyhow!(
                     "Invalid distDirRoot: {dist_dir_root:?}. distDirRoot should not navigate out \
-                     of the the projectPath.",
+                     of the projectPath.",
                     dist_dir_root = self.dist_dir_root
                 ));
             }

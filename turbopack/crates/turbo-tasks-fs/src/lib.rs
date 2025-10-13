@@ -263,7 +263,7 @@ struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     watcher: DiskWatcher,
     /// A root path that we do not allow access to from this filesystem.
-    /// Useful for things like output directories to prevent accidental orobourous situations.
+    /// Useful for things like output directories to prevent accidental ouroboros situations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     denied_path: Option<RcStr>,
 }
