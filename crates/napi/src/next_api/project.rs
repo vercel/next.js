@@ -363,35 +363,35 @@ pub fn project_new(
         trace = Some("overview".to_owned());
     }
 
+    enum Compression {
+        None,
+        GzipFast,
+        GzipBest,
+    }
+    let mut compress = Compression::None;
     if let Some(mut trace) = trace {
         trace = trace
             .split(",")
-            .map(|item| {
+            .filter_map(|item| {
                 // Trace presets
-                match item {
+                Some(match item {
                     "overview" | "1" => Cow::Owned(TRACING_NEXT_OVERVIEW_TARGETS.join(",")),
                     "next" => Cow::Owned(TRACING_NEXT_TARGETS.join(",")),
                     "turbopack" => Cow::Owned(TRACING_NEXT_TURBOPACK_TARGETS.join(",")),
                     "turbo-tasks" => Cow::Owned(TRACING_NEXT_TURBO_TASKS_TARGETS.join(",")),
+                    "gz" => {
+                        compress = Compression::GzipFast;
+                        return None;
+                    }
+                    "gz-best" => {
+                        compress = Compression::GzipBest;
+                        return None;
+                    }
                     _ => Cow::Borrowed(item),
-                }
+                })
             })
             .intersperse_with(|| Cow::Borrowed(","))
             .collect::<String>();
-
-        enum Compression {
-            None,
-            GzipFast,
-            GzipBest,
-        }
-        let mut compress = Compression::None;
-        if trace.ends_with(",gz") {
-            trace.drain(trace.len() - 3..);
-            compress = Compression::GzipFast;
-        } else if trace.ends_with(",gz-best") {
-            trace.drain(trace.len() - 8..);
-            compress = Compression::GzipBest;
-        }
 
         let subscriber = Registry::default();
 

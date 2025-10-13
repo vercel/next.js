@@ -152,7 +152,7 @@ impl TraceReader {
         );
         let magic_bytes = file.peek(4)?;
         Ok(
-            if path.ends_with(".zst") || magic_bytes == [0x27, 0xb5, 0x2f, 0xfd] {
+            if path.ends_with(".zst") || magic_bytes == [0x28, 0xb5, 0x2f, 0xfd] {
                 TraceFile::Zstd(zstd::Decoder::with_buffer(file)?)
             } else if path.ends_with(".gz") || matches!(magic_bytes, [0x1f, 0x8b, _, _]) {
                 TraceFile::Gz(GzDecoder::new(file))
