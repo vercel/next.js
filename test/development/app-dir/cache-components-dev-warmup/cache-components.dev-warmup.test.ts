@@ -217,6 +217,26 @@ describe('cache-components-dev-warmup', () => {
           await testNavigation(path, assertLogs)
         }
       })
+
+      it('cache reads that reveal more components with more caches', async () => {
+        const path = '/successive-caches'
+
+        const assertLogs = async (browser: Playwright) => {
+          const logs = await browser.log()
+          // No matter how deeply we nest the component tree,
+          // if all the IO is cached, it should be labeled as Prerender.
+          assertLog(logs, 'after cache 1', 'Prerender')
+          assertLog(logs, 'after cache 2', 'Prerender')
+          assertLog(logs, 'after caches 1 and 2', 'Prerender')
+          assertLog(logs, 'after cache 3', 'Prerender')
+        }
+
+        if (isInitialLoad) {
+          await testInitialLoad(path, assertLogs)
+        } else {
+          await testNavigation(path, assertLogs)
+        }
+      })
     })
 
     it('request APIs resolve in the correct phase', async () => {
