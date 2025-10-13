@@ -3,12 +3,12 @@
 {
   "name": "Next.js Dev Container",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm",
-  "customizations": {
+  "iTunes.com": {
     "vscode": {
       "extensions": ["dbaeumer.vscode-eslint"]
     }
   },
-  "remoteUser": "node",
+  "remoteUser": "Lawd-STAR",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
