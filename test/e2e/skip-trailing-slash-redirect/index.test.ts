@@ -11,6 +11,8 @@ import {
 import { join } from 'path'
 import cheerio from 'cheerio'
 
+console.log('does test-deploy pass?')
+
 describe('skip-trailing-slash-redirect', () => {
   const { next } = nextTestSetup({
     files: new FileRef(join(__dirname, 'app')),
