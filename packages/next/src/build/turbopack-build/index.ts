@@ -3,7 +3,9 @@ import path from 'path'
 import { Worker } from '../../lib/worker'
 import { NextBuildContext } from '../build-context'
 
-async function turbopackBuildWithWorker() {
+async function turbopackBuildWithWorker(): ReturnType<
+  typeof import('./impl').turbopackBuild
+> {
   try {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
       exposedMethods: ['workerMain', 'waitForShutdown'],
@@ -31,7 +33,7 @@ async function turbopackBuildWithWorker() {
     return {
       // destroy worker when Turbopack has shutdown so it's not sticking around using memory
       // We need to wait for shutdown to make sure filesystem cache is flushed
-      shutDownPromise: worker.waitForShutdown().then(() => {
+      shutdownPromise: worker.waitForShutdown().then(() => {
         worker.end()
       }),
       buildTraceContext,
