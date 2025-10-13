@@ -24,7 +24,6 @@ async function turbopackBuildWithWorker() {
       config: _config,
       ...prunedBuildContext
     } = NextBuildContext
-    console.log('prunedBuildContext', prunedBuildContext)
     const { buildTraceContext, duration } = await worker.workerMain({
       buildContext: prunedBuildContext,
     })
