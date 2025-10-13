@@ -359,7 +359,7 @@
                 });
                 break;
               case "stylesheet":
-                preload(srcSet, "stylesheet", {
+                preload(srcSet, "style", {
                   crossOrigin: props.crossOrigin,
                   integrity: props.integrity,
                   nonce: props.nonce,
@@ -2847,12 +2847,15 @@
     function emitDebugChunk(request, id, debugInfo) {
       var json = serializeDebugModel(request, 500, debugInfo);
       null !== request.debugDestination
-        ? ((debugInfo = request.nextChunkId++),
-          (json = debugInfo.toString(16) + ":" + json + "\n"),
-          request.pendingDebugChunks++,
-          request.completedDebugChunks.push(stringToChunk(json)),
-          (id = id.toString(16) + ':D"$' + debugInfo.toString(16) + '"\n'),
-          request.completedRegularChunks.push(stringToChunk(id)))
+        ? '"' === json[0] && "$" === json[1]
+          ? ((id = id.toString(16) + ":D" + json + "\n"),
+            request.completedRegularChunks.push(stringToChunk(id)))
+          : ((debugInfo = request.nextChunkId++),
+            (json = debugInfo.toString(16) + ":" + json + "\n"),
+            request.pendingDebugChunks++,
+            request.completedDebugChunks.push(stringToChunk(json)),
+            (id = id.toString(16) + ':D"$' + debugInfo.toString(16) + '"\n'),
+            request.completedRegularChunks.push(stringToChunk(id)))
         : ((id = id.toString(16) + ":D" + json + "\n"),
           request.completedRegularChunks.push(stringToChunk(id)));
     }

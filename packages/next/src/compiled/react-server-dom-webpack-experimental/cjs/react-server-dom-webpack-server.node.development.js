@@ -388,7 +388,7 @@
                 });
                 break;
               case "stylesheet":
-                preload(srcSet, "stylesheet", {
+                preload(srcSet, "style", {
                   crossOrigin: props.crossOrigin,
                   integrity: props.integrity,
                   nonce: props.nonce,
@@ -2311,6 +2311,9 @@
             ? "$-Infinity"
             : "$NaN";
     }
+    function serializeRowHeader(tag, id) {
+      return id.toString(16) + ":" + tag;
+    }
     function encodeReferenceChunk(request, id, reference) {
       request = stringify(reference);
       return id.toString(16) + ":" + request + "\n";
@@ -3037,8 +3040,7 @@
         stack = [];
       }
       id =
-        id.toString(16) +
-        ":P" +
+        serializeRowHeader("P", id) +
         stringify({ reason: reason, stack: stack, env: env }) +
         "\n";
       request.completedErrorChunks.push(id);
@@ -3097,14 +3099,14 @@
         env: env,
         owner: error
       };
-      id = id.toString(16) + ":E" + stringify(digest) + "\n";
+      id = serializeRowHeader("E", id) + stringify(digest) + "\n";
       debug
         ? request.completedDebugChunks.push(id)
         : request.completedErrorChunks.push(id);
     }
     function emitImportChunk(request, id, clientReferenceMetadata, debug) {
       clientReferenceMetadata = stringify(clientReferenceMetadata);
-      id = id.toString(16) + ":I" + clientReferenceMetadata + "\n";
+      id = serializeRowHeader("I", id) + clientReferenceMetadata + "\n";
       debug
         ? request.completedDebugChunks.push(id)
         : request.completedImportChunks.push(id);
@@ -3120,13 +3122,20 @@
     function emitDebugChunk(request, id, debugInfo) {
       var json = serializeDebugModel(request, 500, debugInfo);
       null !== request.debugDestination
-        ? ((debugInfo = request.nextChunkId++),
-          (json = debugInfo.toString(16) + ":" + json + "\n"),
-          request.pendingDebugChunks++,
-          request.completedDebugChunks.push(json),
-          (id = id.toString(16) + ':D"$' + debugInfo.toString(16) + '"\n'),
-          request.completedRegularChunks.push(id))
-        : ((id = id.toString(16) + ":D" + json + "\n"),
+        ? '"' === json[0] && "$" === json[1]
+          ? ((id = serializeRowHeader("D", id) + json + "\n"),
+            request.completedRegularChunks.push(id))
+          : ((debugInfo = request.nextChunkId++),
+            (json = debugInfo.toString(16) + ":" + json + "\n"),
+            request.pendingDebugChunks++,
+            request.completedDebugChunks.push(json),
+            (id =
+              serializeRowHeader("D", id) +
+              '"$' +
+              debugInfo.toString(16) +
+              '"\n'),
+            request.completedRegularChunks.push(id))
+        : ((id = serializeRowHeader("D", id) + json + "\n"),
           request.completedRegularChunks.push(id));
     }
     function outlineComponentInfo(request, componentInfo) {
@@ -3847,9 +3856,13 @@
           (json = timestamp.toString(16) + ":" + json + "\n"),
           request.pendingDebugChunks++,
           request.completedDebugChunks.push(json),
-          (id = id.toString(16) + ':D"$' + timestamp.toString(16) + '"\n'),
+          (id =
+            serializeRowHeader("D", id) +
+            '"$' +
+            timestamp.toString(16) +
+            '"\n'),
           request.completedRegularChunks.push(id))
-        : ((id = id.toString(16) + ":D" + json + "\n"),
+        : ((id = serializeRowHeader("D", id) + json + "\n"),
           request.completedRegularChunks.push(id));
     }
     function advanceTaskTime(request, task, timestamp) {
