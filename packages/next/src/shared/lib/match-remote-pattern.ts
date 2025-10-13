@@ -17,7 +17,7 @@ export function matchRemotePattern(
     }
   }
 
-  if (pattern.hostname === undefined || pattern.hostname === '') {
+  if (pattern.hostname === undefined) {
     throw new Error(
       `Pattern should define hostname but found\n${JSON.stringify(pattern)}`
     )
