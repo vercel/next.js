@@ -7,6 +7,7 @@ async function turbopackBuildWithWorker() {
   try {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
       exposedMethods: ['workerMain', 'waitForShutdown'],
+      enableWorkerThreads: true,
       debuggerPortOffset: -1,
       isolatedMemory: false,
       numWorkers: 1,
