@@ -21,6 +21,7 @@ import {
   handleBrowserPageResponse,
   DEFAULT_BROWSER_REQUEST_TIMEOUT_MS,
 } from './utils/browser-communication'
+import { NextInstanceErrorState } from './next-instance-error-state'
 
 export function registerGetErrorsTool(
   server: McpServer,
@@ -55,18 +56,21 @@ export function registerGetErrorsTool(
           DEFAULT_BROWSER_REQUEST_TIMEOUT_MS
         )
 
-        const errorsByUrl = new Map<string, OverlayState>()
+        // The error state for each route
+        // key is the route path, value is the error state
+        const routesErrorState = new Map<string, OverlayState>()
         for (const response of responses) {
           if (response.data) {
-            errorsByUrl.set(response.url, response.data)
+            routesErrorState.set(response.url, response.data)
           }
         }
 
-        const hasErrors = Array.from(errorsByUrl.values()).some(
+        const hasRouteErrors = Array.from(routesErrorState.values()).some(
           (state) => state.errors.length > 0 || !!state.buildError
         )
+        const hasInstanceErrors = NextInstanceErrorState.nextConfig.length > 0
 
-        if (!hasErrors) {
+        if (!hasRouteErrors && !hasInstanceErrors) {
           return {
             content: [
               {
@@ -80,7 +84,10 @@ export function registerGetErrorsTool(
           }
         }
 
-        const output = await formatErrors(errorsByUrl)
+        const output = await formatErrors(
+          routesErrorState,
+          NextInstanceErrorState
+        )
 
         return {
           content: [

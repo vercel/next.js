@@ -46,6 +46,7 @@ import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
+import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -1302,16 +1303,18 @@ function getCacheKey(
   dir: string,
   customConfig?: object | null,
   reactProductionProfiling?: boolean,
-  debugPrerender?: boolean
+  debugPrerender?: boolean,
+  pid?: number
 ): string {
   // The next.config.js is unique per project, so we can use the dir as the major key
-  // to generate the unique config key.
+  // to generate the unique config key. Include PID to invalidate on server restart.
   const keyData = JSON.stringify({
     dir,
     phase,
     hasCustomConfig: Boolean(customConfig),
     reactProductionProfiling: Boolean(reactProductionProfiling),
     debugPrerender: Boolean(debugPrerender),
+    pid: pid || 0,
   })
 
   return djb2Hash(keyData).toString(36)
@@ -1338,12 +1341,14 @@ export default async function loadConfig(
   } = {}
 ): Promise<NextConfigComplete> {
   // Generate cache key based on parameters that affect config output
+  // Include process.pid to invalidate cache on server restart
   const cacheKey = getCacheKey(
     phase,
     dir,
     customConfig,
     reactProductionProfiling,
-    debugPrerender
+    debugPrerender,
+    process.pid
   )
 
   // Check if we have a cached result
@@ -1360,6 +1365,10 @@ export default async function loadConfig(
     }
 
     return cachedResult.config
+  } else {
+    // Reset next.config errors before loading config
+    // This happens on every config load to ensure fresh validation
+    NextInstanceErrorState.nextConfig = []
   }
 
   // Original implementation continues below...
@@ -1486,6 +1495,9 @@ export default async function loadConfig(
         return userConfigModule
       }
     } catch (err) {
+      // Capture the error for MCP tool reporting
+      NextInstanceErrorState.nextConfig.push(err)
+
       // TODO: Modify docs to add cases of failing next.config.ts transformation
       curLog.error(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
@@ -1527,7 +1539,18 @@ export default async function loadConfig(
 
     // Always validate the config against schema in non minimal mode
     if (!process.env.NEXT_MINIMAL && !silent) {
-      validateConfigSchema(userConfig, configFileName, curLog.warn)
+      await validateConfigSchema(
+        userConfig,
+        configFileName,
+        curLog.warn,
+        (messages) => {
+          // Capture validation messages for MCP error reporting
+          if (messages.length > 0) {
+            const fullMessage = messages.join('\n')
+            NextInstanceErrorState.nextConfig.push(new Error(fullMessage))
+          }
+        }
+      )
     }
 
     if ((userConfig as any).target && (userConfig as any).target !== 'server') {
@@ -1906,7 +1929,8 @@ function cloneObject(obj: any): any {
 async function validateConfigSchema(
   userConfig: NextConfig,
   configFileName: string,
-  warn: (message: string) => void
+  warn: (message: string) => void,
+  onValidationMessages?: (messages: string[]) => void
 ) {
   // We only validate the config against schema in non minimal mode
   const { configSchema } =
@@ -1929,6 +1953,11 @@ async function validateConfigSchema(
     messages.push(
       'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
     )
+
+    // Call the callback with validation messages if provided
+    if (onValidationMessages) {
+      onValidationMessages(messages)
+    }
 
     if (shouldExit) {
       for (const message of messages) {
