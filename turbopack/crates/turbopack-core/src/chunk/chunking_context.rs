@@ -298,6 +298,7 @@ pub struct UnusedReferences(FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>);
 pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn name(self: Vc<Self>) -> Vc<RcStr>;
+    /// Whether to use file URIs in source maps.
     #[turbo_tasks::function]
     fn source_map_source_type(self: Vc<Self>) -> Vc<SourceMapSourceType>;
     /// The root path of the project

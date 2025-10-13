@@ -1157,6 +1157,8 @@ pub struct ExperimentalConfig {
     turbopack_server_side_nested_async_chunking: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
     turbopack_import_type_text: Option<bool>,
+    turbopack_use_system_tls_certs: Option<bool>,
+    turbopack_use_whole_app_module_graph_in_dev: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
     turbopack_use_builtin_sass: Option<bool>,
@@ -2200,6 +2202,25 @@ impl NextConfig {
                 .turbopack_import_type_text
                 .unwrap_or(false),
         )
+    }
+    #[turbo_tasks::function]
+    pub async fn turbo_use_whole_app_module_graph(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match *mode.await? {
+            NextMode::Development => self
+                .experimental
+                .turbopack_use_whole_app_module_graph_in_dev
+                .unwrap_or(true),
+            NextMode::Build => true,
+        }))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        let source_maps = self.experimental.turbopack_source_maps;
+        Ok(Vc::cell(source_maps.unwrap_or(match &*mode.await? {
+            NextMode::Development => true,
+            NextMode::Build => self.production_browser_source_maps,
+        })))
     }
 
     #[turbo_tasks::function]

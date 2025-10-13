@@ -1236,7 +1236,12 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) async fn per_page_module_graph(&self) -> Result<Vc<bool>> {
-        Ok(Vc::cell(*self.mode.await? == NextMode::Development))
+        Ok(Vc::cell(
+            !*self
+                .next_config
+                .turbo_use_whole_app_module_graph(*self.mode)
+                .await?,
+        ))
     }
 
     #[turbo_tasks::function]
