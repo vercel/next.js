@@ -41,13 +41,13 @@ describe('cache-components - Console Dimming - Validation', () => {
        :::0:err::: /console: not a template { foo: [32m'just-some-object'[39m }
        Error: :::0:err::: /console: test
            at ConsolePage (app/console/page.tsx:<line>:<col>)
-       [0m [90m 42 |[39m   })
-        [90m 43 |[39m   [36mawait[39m [35m1[39m
-       [31m[1m>[22m[39m[90m 44 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console: test\`[39m))
+       [0m [90m 40 |[39m   })
+        [90m 41 |[39m   [36mawait[39m [35m1[39m
+       [31m[1m>[22m[39m[90m 42 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console: test\`[39m))
         [90m    |[39m                 [31m[1m^[22m[39m
-        [90m 45 |[39m   [36mawait[39m [35m1[39m
-        [90m 46 |[39m   console[33m.[39massert(
-        [90m 47 |[39m     [36mfalse[39m[33m,[39m[0m
+        [90m 43 |[39m   [36mawait[39m [35m1[39m
+        [90m 44 |[39m   console[33m.[39massert(
+        [90m 45 |[39m     [36mfalse[39m[33m,[39m[0m
        Assertion failed: :::0:err::: /console: This is an assert message with a template
        :::0:err::: /console: not a template { foo: [32m'just-some-object'[39m }
        Assertion failed: :::0:err::: /console: This is an assert message with a template
@@ -63,13 +63,13 @@ describe('cache-components - Console Dimming - Validation', () => {
        [2m:::1:err::: /console: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
        [2mError: :::1:err::: /console: test
            at ConsolePage (app/console/page.tsx:<line>:<col>)
-       [0m [90m 42 |[39m   })
-        [90m 43 |[39m   [36mawait[39m [35m1[39m
-       [31m[1m>[22m[39m[90m 44 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console: test\`[39m))
+       [0m [90m 40 |[39m   })
+        [90m 41 |[39m   [36mawait[39m [35m1[39m
+       [31m[1m>[22m[39m[90m 42 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console: test\`[39m))
         [90m    |[39m                 [31m[1m^[22m[39m
-        [90m 45 |[39m   [36mawait[39m [35m1[39m
-        [90m 46 |[39m   console[33m.[39massert(
-        [90m 47 |[39m     [36mfalse[39m[33m,[39m[0m[22m[2m[22m
+        [90m 43 |[39m   [36mawait[39m [35m1[39m
+        [90m 44 |[39m   console[33m.[39massert(
+        [90m 45 |[39m     [36mfalse[39m[33m,[39m[0m[22m[2m[22m
        [2mAssertion failed: [2m:::1:err::: /console: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
        :::1:err::: /console: not a template { foo: [32m'just-some-object'[39m }
        Assertion failed: :::1:err::: /console: This is an assert message with a template
@@ -85,13 +85,13 @@ describe('cache-components - Console Dimming - Validation', () => {
        [2m:::2:err::: /console: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
        [2mError: :::2:err::: /console: test
            at ConsolePage (app/console/page.tsx:<line>:<col>)
-       [0m [90m 42 |[39m   })
-        [90m 43 |[39m   [36mawait[39m [35m1[39m
-       [31m[1m>[22m[39m[90m 44 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console: test\`[39m))
+       [0m [90m 40 |[39m   })
+        [90m 41 |[39m   [36mawait[39m [35m1[39m
+       [31m[1m>[22m[39m[90m 42 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console: test\`[39m))
         [90m    |[39m                 [31m[1m^[22m[39m
-        [90m 45 |[39m   [36mawait[39m [35m1[39m
-        [90m 46 |[39m   console[33m.[39massert(
-        [90m 47 |[39m     [36mfalse[39m[33m,[39m[0m[22m[2m[22m
+        [90m 43 |[39m   [36mawait[39m [35m1[39m
+        [90m 44 |[39m   console[33m.[39massert(
+        [90m 45 |[39m     [36mfalse[39m[33m,[39m[0m[22m[2m[22m
        [2mAssertion failed: [2m:::2:err::: /console: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
        :::2:err::: /console: not a template { foo: [32m'just-some-object'[39m }
        Assertion failed: :::2:err::: /console: This is an assert message with a template
@@ -106,11 +106,11 @@ describe('cache-components - Console Dimming - Validation', () => {
          "description": ":::0:err::: /console: test",
          "environmentLabel": "Prerender",
          "label": "Console Error",
-         "source": "app/console/page.tsx (44:17) @ ConsolePage
-       > 44 |   console.error(new Error(\`\${errBadge} /console: test\`))
+         "source": "app/console/page.tsx (42:17) @ ConsolePage
+       > 42 |   console.error(new Error(\`\${errBadge} /console: test\`))
             |                 ^",
          "stack": [
-           "ConsolePage app/console/page.tsx (44:17)",
+           "ConsolePage app/console/page.tsx (42:17)",
            "ConsolePage <anonymous>",
          ],
        }
@@ -145,13 +145,13 @@ describe('cache-components - Console Dimming - Validation', () => {
          :::0:err::: /console: not a template { foo: [32m'just-some-object'[39m }
          Error: :::0:err::: /console: test
              at e (turbopack:///[project]/app/console/page.tsx:<line>:<col>)
-         [0m [90m 42 |[39m   })
-          [90m 43 |[39m   [36mawait[39m [35m1[39m
-         [31m[1m>[22m[39m[90m 44 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console: test\`[39m))
+         [0m [90m 40 |[39m   })
+          [90m 41 |[39m   [36mawait[39m [35m1[39m
+         [31m[1m>[22m[39m[90m 42 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console: test\`[39m))
           [90m    |[39m                 [31m[1m^[22m[39m
-          [90m 45 |[39m   [36mawait[39m [35m1[39m
-          [90m 46 |[39m   console[33m.[39massert(
-          [90m 47 |[39m     [36mfalse[39m[33m,[39m[0m
+          [90m 43 |[39m   [36mawait[39m [35m1[39m
+          [90m 44 |[39m   console[33m.[39massert(
+          [90m 45 |[39m     [36mfalse[39m[33m,[39m[0m
          Assertion failed: :::0:err::: /console: This is an assert message with a template
          :::0:err::: /console: not a template { foo: [32m'just-some-object'[39m }
          Assertion failed: :::0:err::: /console: This is an assert message with a template
@@ -162,13 +162,13 @@ describe('cache-components - Console Dimming - Validation', () => {
          :::1:err::: /console: not a template { foo: [32m'just-some-object'[39m }
          Error: :::1:err::: /console: test
              at e (turbopack:///[project]/app/console/page.tsx:<line>:<col>)
-         [0m [90m 42 |[39m   })
-          [90m 43 |[39m   [36mawait[39m [35m1[39m
-         [31m[1m>[22m[39m[90m 44 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console: test\`[39m))
+         [0m [90m 40 |[39m   })
+          [90m 41 |[39m   [36mawait[39m [35m1[39m
+         [31m[1m>[22m[39m[90m 42 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console: test\`[39m))
           [90m    |[39m                 [31m[1m^[22m[39m
-          [90m 45 |[39m   [36mawait[39m [35m1[39m
-          [90m 46 |[39m   console[33m.[39massert(
-          [90m 47 |[39m     [36mfalse[39m[33m,[39m[0m
+          [90m 43 |[39m   [36mawait[39m [35m1[39m
+          [90m 44 |[39m   console[33m.[39massert(
+          [90m 45 |[39m     [36mfalse[39m[33m,[39m[0m
          Assertion failed: :::1:err::: /console: This is an assert message with a template
          :::1:err::: /console: not a template { foo: [32m'just-some-object'[39m }
          Assertion failed: :::1:err::: /console: This is an assert message with a template"
@@ -244,13 +244,13 @@ describe('cache-components - Logging after Abort', () => {
          :::0:err::: /console-after-abort/server: not a template { foo: [32m'just-some-object'[39m }
          Error: :::0:err::: /console-after-abort/server: test
              at ConsolePage (app/console-after-abort/server/page.tsx:<line>:<col>)
-         [0m [90m 59 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-          [90m 60 |[39m   })
-         [31m[1m>[22m[39m[90m 61 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
+         [0m [90m 57 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+          [90m 58 |[39m   })
+         [31m[1m>[22m[39m[90m 59 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
           [90m    |[39m                 [31m[1m^[22m[39m
-          [90m 62 |[39m   console[33m.[39massert(
-          [90m 63 |[39m     [36mfalse[39m[33m,[39m
-          [90m 64 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m
+          [90m 60 |[39m   console[33m.[39massert(
+          [90m 61 |[39m     [36mfalse[39m[33m,[39m
+          [90m 62 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m
          Assertion failed: :::0:err::: /console-after-abort/server: This is an assert message with a template
          :::0:err::: /console-after-abort/server: not a template { foo: [32m'just-some-object'[39m }
          Assertion failed: :::0:err::: /console-after-abort/server: This is an assert message with a template
@@ -264,13 +264,13 @@ describe('cache-components - Logging after Abort', () => {
          [2m:::1:err::: /console-after-abort/server: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
          [2mError: :::1:err::: /console-after-abort/server: test
              at ConsolePage (app/console-after-abort/server/page.tsx:<line>:<col>)
-         [0m [90m 59 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-          [90m 60 |[39m   })
-         [31m[1m>[22m[39m[90m 61 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
+         [0m [90m 57 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+          [90m 58 |[39m   })
+         [31m[1m>[22m[39m[90m 59 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
           [90m    |[39m                 [31m[1m^[22m[39m
-          [90m 62 |[39m   console[33m.[39massert(
-          [90m 63 |[39m     [36mfalse[39m[33m,[39m
-          [90m 64 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
+          [90m 60 |[39m   console[33m.[39massert(
+          [90m 61 |[39m     [36mfalse[39m[33m,[39m
+          [90m 62 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
          [2mAssertion failed: [2m:::1:err::: /console-after-abort/server: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
          [2m:::2:out::: /console-after-abort/server: logging before trying await headers()[22m[2m[22m
          [2m:::2:out::: /console-after-abort/server: template(one: one, two: two)[22m[2m[22m
@@ -279,13 +279,13 @@ describe('cache-components - Logging after Abort', () => {
          [2m:::2:err::: /console-after-abort/server: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
          [2mError: :::2:err::: /console-after-abort/server: test
              at ConsolePage (app/console-after-abort/server/page.tsx:<line>:<col>)
-         [0m [90m 59 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-          [90m 60 |[39m   })
-         [31m[1m>[22m[39m[90m 61 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
+         [0m [90m 57 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+          [90m 58 |[39m   })
+         [31m[1m>[22m[39m[90m 59 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
           [90m    |[39m                 [31m[1m^[22m[39m
-          [90m 62 |[39m   console[33m.[39massert(
-          [90m 63 |[39m     [36mfalse[39m[33m,[39m
-          [90m 64 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
+          [90m 60 |[39m   console[33m.[39massert(
+          [90m 61 |[39m     [36mfalse[39m[33m,[39m
+          [90m 62 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
          [2mAssertion failed: [2m:::2:err::: /console-after-abort/server: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
          "
         `)
@@ -295,11 +295,11 @@ describe('cache-components - Logging after Abort', () => {
            "description": ":::0:err::: /console-after-abort/server: test",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/console-after-abort/server/page.tsx (61:17) @ ConsolePage
-         > 61 |   console.error(new Error(\`\${errBadge} /console-after-abort/server: test\`))
+           "source": "app/console-after-abort/server/page.tsx (59:17) @ ConsolePage
+         > 59 |   console.error(new Error(\`\${errBadge} /console-after-abort/server: test\`))
               |                 ^",
            "stack": [
-             "ConsolePage app/console-after-abort/server/page.tsx (61:17)",
+             "ConsolePage app/console-after-abort/server/page.tsx (59:17)",
              "ConsolePage <anonymous>",
            ],
          }
@@ -334,13 +334,13 @@ describe('cache-components - Logging after Abort', () => {
            [2m:::0:err::: /console-after-abort/server: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
            [2mError: :::0:err::: /console-after-abort/server: test
                at g (turbopack:///[project]/app/console-after-abort/server/page.tsx:<line>:<col>)
-           [0m [90m 59 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-            [90m 60 |[39m   })
-           [31m[1m>[22m[39m[90m 61 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
+           [0m [90m 57 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+            [90m 58 |[39m   })
+           [31m[1m>[22m[39m[90m 59 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
             [90m    |[39m                 [31m[1m^[22m[39m
-            [90m 62 |[39m   console[33m.[39massert(
-            [90m 63 |[39m     [36mfalse[39m[33m,[39m
-            [90m 64 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
+            [90m 60 |[39m   console[33m.[39massert(
+            [90m 61 |[39m     [36mfalse[39m[33m,[39m
+            [90m 62 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
            [2mAssertion failed: [2m:::0:err::: /console-after-abort/server: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
            :::1:out::: /console-after-abort/server: logging before trying await headers()
            [2m:::1:out::: /console-after-abort/server: template(one: one, two: two)[22m[2m[22m
@@ -349,13 +349,13 @@ describe('cache-components - Logging after Abort', () => {
            [2m:::1:err::: /console-after-abort/server: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
            [2mError: :::1:err::: /console-after-abort/server: test
                at g (turbopack:///[project]/app/console-after-abort/server/page.tsx:<line>:<col>)
-           [0m [90m 59 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-            [90m 60 |[39m   })
-           [31m[1m>[22m[39m[90m 61 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
+           [0m [90m 57 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+            [90m 58 |[39m   })
+           [31m[1m>[22m[39m[90m 59 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
             [90m    |[39m                 [31m[1m^[22m[39m
-            [90m 62 |[39m   console[33m.[39massert(
-            [90m 63 |[39m     [36mfalse[39m[33m,[39m
-            [90m 64 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
+            [90m 60 |[39m   console[33m.[39massert(
+            [90m 61 |[39m     [36mfalse[39m[33m,[39m
+            [90m 62 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
            [2mAssertion failed: [2m:::1:err::: /console-after-abort/server: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m"
           `)
         } else {
@@ -421,13 +421,13 @@ describe('cache-components - Logging after Abort', () => {
          :::0:err::: /console-after-abort/client: not a template { foo: [32m'just-some-object'[39m }
          Error: :::0:err::: /console-after-abort/client: test
              at log (app/console-after-abort/client/client.tsx:<line>:<col>)
-         [0m [90m 16 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-          [90m 17 |[39m   })
-         [31m[1m>[22m[39m[90m 18 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
+         [0m [90m 15 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+          [90m 16 |[39m   })
+         [31m[1m>[22m[39m[90m 17 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
           [90m    |[39m                 [31m[1m^[22m[39m
-          [90m 19 |[39m   console[33m.[39massert(
-          [90m 20 |[39m     [36mfalse[39m[33m,[39m
-          [90m 21 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m
+          [90m 18 |[39m   console[33m.[39massert(
+          [90m 19 |[39m     [36mfalse[39m[33m,[39m
+          [90m 20 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m
          Assertion failed: :::0:err::: /console-after-abort/client: This is an assert message with a template
          [2m:::1:out::: /console-after-abort/client: logging before prerender abort[22m[2m[22m
          [2m:::1:out::: /console-after-abort/client: logging before prerender aborts in client component[22m[2m[22m
@@ -436,13 +436,13 @@ describe('cache-components - Logging after Abort', () => {
          [2m:::1:err::: /console-after-abort/client: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
          [2mError: :::1:err::: /console-after-abort/client: test
              at log (app/console-after-abort/client/client.tsx:<line>:<col>)
-         [0m [90m 16 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-          [90m 17 |[39m   })
-         [31m[1m>[22m[39m[90m 18 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
+         [0m [90m 15 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+          [90m 16 |[39m   })
+         [31m[1m>[22m[39m[90m 17 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
           [90m    |[39m                 [31m[1m^[22m[39m
-          [90m 19 |[39m   console[33m.[39massert(
-          [90m 20 |[39m     [36mfalse[39m[33m,[39m
-          [90m 21 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
+          [90m 18 |[39m   console[33m.[39massert(
+          [90m 19 |[39m     [36mfalse[39m[33m,[39m
+          [90m 20 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
          [2mAssertion failed: [2m:::1:err::: /console-after-abort/client: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
          [2m:::2:out::: /console-after-abort/client: logging before prerender abort[22m[2m[22m
          [2m:::2:out::: /console-after-abort/client: logging before prerender aborts in client component[22m[2m[22m
@@ -451,13 +451,13 @@ describe('cache-components - Logging after Abort', () => {
          [2m:::2:err::: /console-after-abort/client: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
          [2mError: :::2:err::: /console-after-abort/client: test
              at log (app/console-after-abort/client/client.tsx:<line>:<col>)
-         [0m [90m 16 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-          [90m 17 |[39m   })
-         [31m[1m>[22m[39m[90m 18 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
+         [0m [90m 15 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+          [90m 16 |[39m   })
+         [31m[1m>[22m[39m[90m 17 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
           [90m    |[39m                 [31m[1m^[22m[39m
-          [90m 19 |[39m   console[33m.[39massert(
-          [90m 20 |[39m     [36mfalse[39m[33m,[39m
-          [90m 21 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
+          [90m 18 |[39m   console[33m.[39massert(
+          [90m 19 |[39m     [36mfalse[39m[33m,[39m
+          [90m 20 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
          [2mAssertion failed: [2m:::2:err::: /console-after-abort/client: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
          "
         `)
@@ -467,11 +467,11 @@ describe('cache-components - Logging after Abort', () => {
            "description": ":::0:err::: /console-after-abort/client: test",
            "environmentLabel": null,
            "label": "Console Error",
-           "source": "app/console-after-abort/client/client.tsx (18:17) @ log
-         > 18 |   console.error(new Error(\`\${errBadge} /console-after-abort/client: test\`))
+           "source": "app/console-after-abort/client/client.tsx (17:17) @ log
+         > 17 |   console.error(new Error(\`\${errBadge} /console-after-abort/client: test\`))
               |                 ^",
            "stack": [
-             "log app/console-after-abort/client/client.tsx (18:17)",
+             "log app/console-after-abort/client/client.tsx (17:17)",
            ],
          }
         `)
@@ -505,13 +505,13 @@ describe('cache-components - Logging after Abort', () => {
            [2m:::0:err::: /console-after-abort/client: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
            [2mError: :::0:err::: /console-after-abort/client: test
                at c (turbopack:///[project]/app/console-after-abort/client/client.tsx:<line>:<col>)
-           [0m [90m 16 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-            [90m 17 |[39m   })
-           [31m[1m>[22m[39m[90m 18 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
+           [0m [90m 15 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+            [90m 16 |[39m   })
+           [31m[1m>[22m[39m[90m 17 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
             [90m    |[39m                 [31m[1m^[22m[39m
-            [90m 19 |[39m   console[33m.[39massert(
-            [90m 20 |[39m     [36mfalse[39m[33m,[39m
-            [90m 21 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
+            [90m 18 |[39m   console[33m.[39massert(
+            [90m 19 |[39m     [36mfalse[39m[33m,[39m
+            [90m 20 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
            [2mAssertion failed: [2m:::0:err::: /console-after-abort/client: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m
            :::1:out::: /console-after-abort/client: logging before prerender abort
            :::1:out::: /console-after-abort/client: logging before prerender aborts in client component
@@ -520,13 +520,13 @@ describe('cache-components - Logging after Abort', () => {
            [2m:::1:err::: /console-after-abort/client: not a template { foo: [32m'just-some-object'[39m }[22m[2m[22m
            [2mError: :::1:err::: /console-after-abort/client: test
                at c (turbopack:///[project]/app/console-after-abort/client/client.tsx:<line>:<col>)
-           [0m [90m 16 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-            [90m 17 |[39m   })
-           [31m[1m>[22m[39m[90m 18 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
+           [0m [90m 15 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+            [90m 16 |[39m   })
+           [31m[1m>[22m[39m[90m 17 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
             [90m    |[39m                 [31m[1m^[22m[39m
-            [90m 19 |[39m   console[33m.[39massert(
-            [90m 20 |[39m     [36mfalse[39m[33m,[39m
-            [90m 21 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
+            [90m 18 |[39m   console[33m.[39massert(
+            [90m 19 |[39m     [36mfalse[39m[33m,[39m
+            [90m 20 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m[22m[2m[22m
            [2mAssertion failed: [2m:::1:err::: /console-after-abort/client: This is an assert message with a template[22m[2m[2m[22m[2m[22m[2m[22m"
           `)
         } else {
@@ -595,13 +595,13 @@ describe('cache-components - Logging after Abort', () => {
          :::0:err::: /console-after-abort/server: not a template { foo: [32m'just-some-object'[39m }
          Error: :::0:err::: /console-after-abort/server: test
              at ConsolePage (app/console-after-abort/server/page.tsx:<line>:<col>)
-         [0m [90m 59 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-          [90m 60 |[39m   })
-         [31m[1m>[22m[39m[90m 61 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
+         [0m [90m 57 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+          [90m 58 |[39m   })
+         [31m[1m>[22m[39m[90m 59 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/server: test\`[39m))
           [90m    |[39m                 [31m[1m^[22m[39m
-          [90m 62 |[39m   console[33m.[39massert(
-          [90m 63 |[39m     [36mfalse[39m[33m,[39m
-          [90m 64 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m
+          [90m 60 |[39m   console[33m.[39massert(
+          [90m 61 |[39m     [36mfalse[39m[33m,[39m
+          [90m 62 |[39m     [32m\`\${errBadge} /console-after-abort/server: This is an assert message with a %s\`[39m[33m,[39m[0m
          Assertion failed: :::0:err::: /console-after-abort/server: This is an assert message with a template
          :::0:err::: /console-after-abort/server: not a template { foo: [32m'just-some-object'[39m }
          Assertion failed: :::0:err::: /console-after-abort/server: This is an assert message with a template
@@ -618,11 +618,11 @@ describe('cache-components - Logging after Abort', () => {
            "description": ":::0:err::: /console-after-abort/server: test",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/console-after-abort/server/page.tsx (61:17) @ ConsolePage
-         > 61 |   console.error(new Error(\`\${errBadge} /console-after-abort/server: test\`))
+           "source": "app/console-after-abort/server/page.tsx (59:17) @ ConsolePage
+         > 59 |   console.error(new Error(\`\${errBadge} /console-after-abort/server: test\`))
               |                 ^",
            "stack": [
-             "ConsolePage app/console-after-abort/server/page.tsx (61:17)",
+             "ConsolePage app/console-after-abort/server/page.tsx (59:17)",
              "ConsolePage <anonymous>",
            ],
          }
@@ -695,13 +695,13 @@ describe('cache-components - Logging after Abort', () => {
          :::0:err::: /console-after-abort/client: not a template { foo: [32m'just-some-object'[39m }
          Error: :::0:err::: /console-after-abort/client: test
              at log (app/console-after-abort/client/client.tsx:<line>:<col>)
-         [0m [90m 16 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
-          [90m 17 |[39m   })
-         [31m[1m>[22m[39m[90m 18 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
+         [0m [90m 15 |[39m     foo[33m:[39m [32m'just-some-object'[39m[33m,[39m
+          [90m 16 |[39m   })
+         [31m[1m>[22m[39m[90m 17 |[39m   console[33m.[39merror([36mnew[39m [33mError[39m([32m\`\${errBadge} /console-after-abort/client: test\`[39m))
           [90m    |[39m                 [31m[1m^[22m[39m
-          [90m 19 |[39m   console[33m.[39massert(
-          [90m 20 |[39m     [36mfalse[39m[33m,[39m
-          [90m 21 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m
+          [90m 18 |[39m   console[33m.[39massert(
+          [90m 19 |[39m     [36mfalse[39m[33m,[39m
+          [90m 20 |[39m     [32m\`\${errBadge} /console-after-abort/client: This is an assert message with a %s\`[39m[33m,[39m[0m
          Assertion failed: :::0:err::: /console-after-abort/client: This is an assert message with a template
          [2m:::1:out::: /console-after-abort/client: logging before prerender abort[22m[2m[22m
          [2m:::1:out::: /console-after-abort/client: logging before prerender aborts in client component[22m[2m[22m
@@ -715,11 +715,11 @@ describe('cache-components - Logging after Abort', () => {
            "description": ":::0:err::: /console-after-abort/client: test",
            "environmentLabel": null,
            "label": "Console Error",
-           "source": "app/console-after-abort/client/client.tsx (18:17) @ log
-         > 18 |   console.error(new Error(\`\${errBadge} /console-after-abort/client: test\`))
+           "source": "app/console-after-abort/client/client.tsx (17:17) @ log
+         > 17 |   console.error(new Error(\`\${errBadge} /console-after-abort/client: test\`))
               |                 ^",
            "stack": [
-             "log app/console-after-abort/client/client.tsx (18:17)",
+             "log app/console-after-abort/client/client.tsx (17:17)",
            ],
          }
         `)

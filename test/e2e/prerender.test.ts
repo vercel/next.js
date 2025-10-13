@@ -412,7 +412,6 @@ describe('Prerender', () => {
       await goFromAnotherToHome()
 
       // Client-side SSG data caching test
-      // eslint-disable-next-line no-lone-blocks
       {
         // Let revalidation period lapse
         await waitFor(2000)

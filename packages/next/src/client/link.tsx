@@ -363,7 +363,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           }
         } else {
           // TypeScript trick for type-guarding:
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const _: never = key
         }
       })
@@ -446,7 +445,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           }
         } else {
           // TypeScript trick for type-guarding:
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const _: never = key
         }
       })
