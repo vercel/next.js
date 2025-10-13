@@ -952,7 +952,7 @@ export default async function getBaseWebpackConfig(
           ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
           ['swcEmotion', !!config.compiler?.emotion],
           ['transpilePackages', !!config.transpilePackages],
-          ['skipMiddlewareUrlNormalize', !!config.skipMiddlewareUrlNormalize],
+          ['skipProxyUrlNormalize', !!config.skipProxyUrlNormalize],
           ['skipTrailingSlashRedirect', !!config.skipTrailingSlashRedirect],
           ['modularizeImports', !!config.modularizeImports],
           // If esmExternals is not same as default value, it represents customized usage

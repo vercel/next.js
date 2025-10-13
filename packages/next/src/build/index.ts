@@ -485,7 +485,7 @@ export type RoutesManifest = {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
     queryHeader: typeof NEXT_REWRITTEN_QUERY_HEADER
   }
-  skipMiddlewareUrlNormalize?: boolean
+  skipProxyUrlNormalize?: boolean
   caseSensitive?: boolean
   /**
    * Configuration related to Partial Prerendering.
@@ -1605,7 +1605,7 @@ export default async function build(
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
               queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
             },
-            skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
+            skipProxyUrlNormalize: config.skipProxyUrlNormalize,
             ppr: isAppPPREnabled
               ? {
                   chain: {

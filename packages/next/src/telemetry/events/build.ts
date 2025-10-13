@@ -188,7 +188,7 @@ export type EventBuildFeatureUsage = {
     | 'turbotrace'
     | 'vercelImageGeneration'
     | 'transpilePackages'
-    | 'skipMiddlewareUrlNormalize'
+    | 'skipProxyUrlNormalize'
     | 'skipTrailingSlashRedirect'
     | 'modularizeImports'
     | 'esmExternals'

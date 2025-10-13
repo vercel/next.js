@@ -214,7 +214,7 @@ export function getDefineEnv({
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,
     'process.env.__NEXT_MIDDLEWARE_PREFETCH':
-      config.experimental.middlewarePrefetch ?? 'flexible',
+      config.experimental.proxyPrefetch ?? 'flexible',
     'process.env.__NEXT_CROSS_ORIGIN': config.crossOrigin,
     'process.browser': isClient,
     'process.env.__NEXT_TEST_MODE': process.env.__NEXT_TEST_MODE ?? false,
@@ -263,9 +263,9 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains ?? false,
     'process.env.__NEXT_I18N_CONFIG': config.i18n || '',
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE':
-      config.skipMiddlewareUrlNormalize,
+      config.skipProxyUrlNormalize,
     'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE':
-      config.experimental.externalMiddlewareRewritesResolve ?? false,
+      config.experimental.externalProxyRewritesResolve ?? false,
     'process.env.__NEXT_MANUAL_TRAILING_SLASH':
       config.skipTrailingSlashRedirect,
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION':

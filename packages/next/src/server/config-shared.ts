@@ -1462,7 +1462,6 @@ export const defaultConfig = Object.freeze({
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
-    middlewarePrefetch: 'flexible',
     proxyPrefetch: 'flexible',
     optimisticClientCache: true,
     manualClientBasePath: false,
@@ -1528,7 +1527,6 @@ export const defaultConfig = Object.freeze({
     browserDebugInfoInTerminal: false,
     lockDistDir: true,
     isolatedDevBuild: true,
-    middlewareClientMaxBodySize: 10_485_760, // 10MB
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
   },
