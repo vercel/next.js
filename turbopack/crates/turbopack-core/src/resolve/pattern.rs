@@ -941,7 +941,7 @@ impl Pattern {
                     Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
                 });
                 static FORBIDDEN_MATCH: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
+                    LazyLock::new(|| Regex::new(r"\.map$").unwrap());
                 if in_node_modules == InNodeModules::FolderSlashMatched
                     || (in_node_modules == InNodeModules::FolderMatched && value.starts_with('/'))
                 {
@@ -1043,7 +1043,7 @@ impl Pattern {
                     Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
                 });
                 static FORBIDDEN_MATCH: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
+                    LazyLock::new(|| Regex::new(r"\.map$").unwrap());
                 if in_node_modules == InNodeModules::FolderSlashMatched
                     || (in_node_modules == InNodeModules::FolderMatched && value.starts_with('/'))
                 {
@@ -1171,7 +1171,7 @@ impl Pattern {
                     Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap()
                 });
                 static FORBIDDEN_MATCH: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new(r"\.d\.ts$|\.map$").unwrap());
+                    LazyLock::new(|| Regex::new(r"\.map$").unwrap());
                 if let Some(m) = FORBIDDEN.find(value) {
                     NextConstantUntilResult::Consumed(value, Some(m.start()))
                 } else if FORBIDDEN_MATCH.find(value).is_some() {
