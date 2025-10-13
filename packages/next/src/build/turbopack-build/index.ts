@@ -18,18 +18,26 @@ async function turbopackBuildWithWorker() {
         },
       },
     }) as Worker & typeof import('./impl')
-    const { nextBuildSpan, ...prunedBuildContext } = NextBuildContext
-    const result = await worker.workerMain({
+    const {
+      nextBuildSpan,
+      // Config is not serializable and is loaded in the worker.
+      config: _config,
+      ...prunedBuildContext
+    } = NextBuildContext
+    console.log('prunedBuildContext', prunedBuildContext)
+    const { buildTraceContext, duration } = await worker.workerMain({
       buildContext: prunedBuildContext,
     })
 
-    // destroy worker when Turbopack has shutdown so it's not sticking around using memory
-    // We need to wait for shutdown to make sure filesystem cache is flushed
-    result.shutdownPromise = worker.waitForShutdown().then(() => {
-      worker.end()
-    })
-
-    return result
+    return {
+      // destroy worker when Turbopack has shutdown so it's not sticking around using memory
+      // We need to wait for shutdown to make sure filesystem cache is flushed
+      shutDownPromise: worker.waitForShutdown().then(() => {
+        worker.end()
+      }),
+      buildTraceContext,
+      duration,
+    }
   } catch (err: any) {
     // When the error is a serialized `Error` object we need to recreate the `Error` instance
     // in order to keep the consistent error reporting behavior.
