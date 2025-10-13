@@ -446,7 +446,6 @@ describe('Valid CSS Module Usage from within node_modules', () => {
           await killApp(app)
         })
 
-        // eslint-disable-next-line jest/no-identical-title
         it(`should've prerendered with relevant data`, async () => {
           const content = await renderViaHTTP(appPort, '/')
           const $ = cheerio.load(content)
@@ -457,7 +456,6 @@ describe('Valid CSS Module Usage from within node_modules', () => {
           )
         })
 
-        // eslint-disable-next-line jest/no-identical-title
         it(`should've emitted a single CSS file`, async () => {
           const content = await renderViaHTTP(appPort, '/')
           const $ = cheerio.load(content)

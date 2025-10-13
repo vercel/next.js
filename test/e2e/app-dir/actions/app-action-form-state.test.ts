@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { join } from 'path'

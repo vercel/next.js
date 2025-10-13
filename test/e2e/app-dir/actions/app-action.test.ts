@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,

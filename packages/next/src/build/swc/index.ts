@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { arch, platform } from 'os'
