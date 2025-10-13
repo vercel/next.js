@@ -1,13 +1,17 @@
 /**
- * MCP tool for retrieving browser error state.
+ * MCP tool for retrieving error state from Next.js dev server.
  *
- * This tool demonstrates server-to-browser communication in Next.js dev mode.
- * It leverages the existing HMR infrastructure rather than creating new channels.
+ * This tool provides comprehensive error reporting including:
+ * - Next.js global errors (e.g., next.config validation errors)
+ * - Browser runtime errors with source-mapped stack traces
+ * - Build errors from webpack/turbopack compilation
+ *
+ * For browser errors, it leverages the HMR infrastructure for server-to-browser communication.
  *
  * Flow:
  *   MCP client → server generates request ID → HMR message to browser →
  *   browser queries error overlay state → HMR response back → server performs source mapping →
- *   formatted output.
+ *   combined with global errors → formatted output.
  */
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import type { OverlayState } from '../../../next-devtools/dev-overlay/shared'
@@ -32,7 +36,7 @@ export function registerGetErrorsTool(
     'get_errors',
     {
       description:
-        'Get the current error state of the app when rendered in the browser, including any build or runtime errors with source-mapped stack traces',
+        'Get the current error state from the Next.js dev server, including Next.js global errors (e.g., next.config validation), browser runtime errors, and build errors with source-mapped stack traces',
       inputSchema: {},
     },
     async (_request) => {
