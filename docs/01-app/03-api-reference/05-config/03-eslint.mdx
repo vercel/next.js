@@ -35,9 +35,16 @@ Get linting working quickly with the ESLint CLI (flat config):
    ```js filename="eslint.config.mjs"
    import { FlatCompat } from '@eslint/eslintrc'
 
+   import { fileURLToPath } from 'url'
+   import { dirname } from 'path'
+
+   const __filename = fileURLToPath(import.meta.url)
+   const __dirname = dirname(__filename)
+
    const compat = new FlatCompat({
-     // import.meta.dirname is available after Node.js v20.11.0
-     baseDirectory: import.meta.dirname,
+     // If you're using Node.js v20.11.0 or later,
+     // you can use `import.meta.dirname` directly.
+     baseDirectory: __dirname,
    })
 
    const eslintConfig = [
