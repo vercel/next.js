@@ -1,13 +1,16 @@
+import type { Linter } from 'eslint'
+import module from 'module'
+
 /*
  * @rushstack/eslint-patch is used to include plugins as dev
  * dependencies instead of imposing them as peer dependencies
  *
  * https://www.npmjs.com/package/@rushstack/eslint-patch
  */
-const keptPaths = []
-const sortedPaths = []
+const keptPaths: string[] = []
+const sortedPaths: string[] = []
 const cwd = process.cwd().replace(/\\/g, '/')
-const originalPaths = require.resolve.paths('eslint-plugin-import')
+const originalPaths = require.resolve.paths('eslint-plugin-import') || []
 
 // eslint throws a conflict error when plugins resolve to different
 // locations, since we want to lock our dependencies by default
@@ -40,9 +43,14 @@ const hookPropertyMap = new Map(
   ])
 )
 
-const mod = require('module')
+const mod = module as any
 const resolveFilename = mod._resolveFilename
-mod._resolveFilename = function (request, parent, isMain, options) {
+mod._resolveFilename = function (
+  request: string,
+  parent: any,
+  isMain?: boolean,
+  options?: any
+) {
   const hookResolved = hookPropertyMap.get(request)
   if (hookResolved) {
     request = hookResolved
@@ -50,9 +58,11 @@ mod._resolveFilename = function (request, parent, isMain, options) {
   return resolveFilename.call(mod, request, parent, isMain, options)
 }
 
+// TODO: Will remove soon as we convert this to flat config.
+// eslint-disable-next-line @next/internal/typechecked-require
 require('@rushstack/eslint-patch/modern-module-resolution')
 
-module.exports = {
+const config: Linter.LegacyConfig = {
   extends: [
     'plugin:react/recommended',
     'plugin:react-hooks/recommended',
@@ -127,3 +137,7 @@ module.exports = {
     node: true,
   },
 }
+
+// Use `export =` instead of `export default` for ESLint parser compatibility.
+// ESLint expects parser modules to be directly importable as CommonJS modules (module.exports).
+export = config

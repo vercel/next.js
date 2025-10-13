@@ -2,13 +2,15 @@
   "name": "eslint-config-next",
   "version": "16.0.0-canary.5",
   "description": "ESLint configuration used by Next.js.",
-  "main": "index.js",
   "license": "MIT",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/eslint-config-next"
   },
   "homepage": "https://nextjs.org/docs/app/api-reference/config/eslint",
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@next/eslint-plugin-next": "16.0.0-canary.5",
     "@rushstack/eslint-patch": "^1.10.3",
@@ -28,6 +30,34 @@
   "peerDependenciesMeta": {
     "typescript": {
       "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/eslint": "9.6.1",
+    "typescript": "5.9.2"
+  },
+  "scripts": {
+    "dev": "pnpm build",
+    "build": "swc -d dist src && pnpm types",
+    "types": "tsc --skipLibCheck --declaration --emitDeclarationOnly --esModuleInterop --outDir dist",
+    "prepublishOnly": "cd ../../ && turbo run build"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./core-web-vitals": {
+      "types": "./dist/core-web-vitals.d.ts",
+      "default": "./dist/core-web-vitals.js"
+    },
+    "./typescript": {
+      "types": "./dist/typescript.d.ts",
+      "default": "./dist/typescript.js"
+    },
+    "./parser": {
+      "types": "./dist/parser.d.ts",
+      "default": "./dist/parser.js"
     }
   }
 }
