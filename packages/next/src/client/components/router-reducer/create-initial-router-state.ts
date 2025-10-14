@@ -111,6 +111,7 @@ export function createInitialRouterState({
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
     previousNextUrl: null,
+    debugInfo: null,
   }
 
   if (process.env.NODE_ENV !== 'development' && location) {

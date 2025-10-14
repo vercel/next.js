@@ -1,5 +1,5 @@
 import type { Dispatch } from 'react'
-import React, { use } from 'react'
+import React, { use, useMemo } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
 import type { AppRouterActionQueue } from './app-router-instance'
 import type {
@@ -50,5 +50,27 @@ export function useActionQueue(
       actionQueue.dispatch(action, setState)
   }
 
-  return isThenable(state) ? use(state) : state
+  // When navigating to a non-prefetched route, then App Router state will be
+  // blocked until the server responds. We need to transfer the `_debugInfo`
+  // from the underlying Flight response onto the top-level promise that is
+  // passed to React (via `use`) so that the latency is accurately represented
+  // in the React DevTools.
+  const stateWithDebugInfo = useMemo(() => {
+    if (isThenable(state)) {
+      const debugInfo: Array<unknown> = []
+      const promiseWithDebugInfo = Promise.resolve(state).then((asyncState) => {
+        if (asyncState.debugInfo !== null) {
+          debugInfo.push(...asyncState.debugInfo)
+        }
+        return asyncState
+      }) as Promise<AppRouterState> & { _debugInfo?: Array<unknown> }
+      promiseWithDebugInfo._debugInfo = debugInfo
+      return promiseWithDebugInfo
+    }
+    return state
+  }, [state])
+
+  return isThenable(stateWithDebugInfo)
+    ? use(stateWithDebugInfo)
+    : stateWithDebugInfo
 }
