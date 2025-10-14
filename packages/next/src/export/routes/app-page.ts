@@ -87,7 +87,28 @@ export async function exportAppPage(
       sharedContext
     )
 
-    const html = result.toUnchunkedString()
+    let html = result.toUnchunkedString()
+
+    // Check if this is a shell file for client dynamic routes
+    // Shell files have __shell__ placeholder in the path
+    const isShellFile = path.includes('__shell__')
+
+    if (isShellFile) {
+      // For shell files, generate minimal body HTML to force client-side rendering
+      // This avoids hydration issues where React ignores patched RSC data
+      // Keep RSC scripts but remove body content (replace with loading placeholder)
+
+      // Extract head and RSC scripts
+      const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/)
+      const headContent = headMatch ? headMatch[1] : ''
+
+      // Extract RSC and React scripts from body (all <script> tags)
+      const bodyScriptMatches = html.matchAll(/<script[^>]*>[\s\S]*?<\/script>/g)
+      const scripts = Array.from(bodyScriptMatches).map(m => m[0]).join('')
+
+      // Generate minimal HTML: head + scripts, but empty body content
+      html = `<!DOCTYPE html><html lang="en"><head>${headContent}</head><body><div id="__next"><div>Loading...</div></div>${scripts}</body></html>`
+    }
 
     // TODO(after): if we abort a prerender because of an error in an after-callback
     // we should probably communicate that better (and not log the error twice)

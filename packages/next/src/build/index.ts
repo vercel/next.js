@@ -2288,24 +2288,33 @@ export default async function build(
                               const params: Record<string, string> = {}
 
                               segments.forEach((segment) => {
-                                if (segment.startsWith('[') && segment.endsWith(']')) {
-                                  const paramName = segment.slice(1, -1)
-                                  // Handle catch-all routes [[...slug]] or [...slug]
-                                  if (paramName.startsWith('...')) {
-                                    const key = paramName.slice(3)
-                                    params[key] = '__shell__'
-                                  } else {
-                                    params[paramName] = '__shell__'
-                                  }
+                                // Check patterns in order of specificity (most specific first)
+                                if (segment.startsWith('[[...') && segment.endsWith(']]')) {
+                                  // Optional catch-all: [[...slug]]
+                                  const key = segment.slice(5, -2)
+                                  params[key] = '__shell__'
+                                } else if (segment.startsWith('[...') && segment.endsWith(']')) {
+                                  // Required catch-all: [...slug]
+                                  const key = segment.slice(4, -1)
+                                  params[key] = '__shell__'
+                                } else if (segment.startsWith('[[') && segment.endsWith(']]')) {
+                                  // Optional param: [[slug]]
+                                  const key = segment.slice(2, -2)
+                                  params[key] = '__shell__'
+                                } else if (segment.startsWith('[') && segment.endsWith(']')) {
+                                  // Regular param: [slug]
+                                  const key = segment.slice(1, -1)
+                                  params[key] = '__shell__'
                                 }
                               })
 
                               // Build the pathname with shell placeholders
                               let pathname = page
                               Object.keys(params).forEach((key) => {
-                                // Replace [param] with the placeholder value
+                                // Replace [param], [[param]], [...param], or [[...param]] with placeholder
+                                // Pattern matches: [key], [[key]], [...key], [[...key]]
                                 pathname = pathname.replace(
-                                  new RegExp(`\\[(\\.\\.\\.)?${key}\\]`),
+                                  new RegExp(`\\[\\[?(\\.\\.\\.)?${key}\\]\\]?`),
                                   params[key]
                                 )
                               })
@@ -2494,20 +2503,38 @@ export default async function build(
             return {
               pattern: route,
               segments: segments.map((segment) => {
-                if (segment.startsWith('[') && segment.endsWith(']')) {
-                  const paramName = segment.slice(1, -1)
-                  if (paramName.startsWith('...')) {
-                    return {
-                      type: 'dynamic',
-                      name: paramName.slice(3),
-                      catchAll: true,
-                    }
-                  } else {
-                    return {
-                      type: 'dynamic',
-                      name: paramName,
-                      catchAll: false,
-                    }
+                // Check patterns in order of specificity (most specific first)
+                if (segment.startsWith('[[...') && segment.endsWith(']]')) {
+                  // Optional catch-all: [[...slug]]
+                  return {
+                    type: 'dynamic',
+                    name: segment.slice(5, -2),
+                    catchAll: true,
+                    optional: true,
+                  }
+                } else if (segment.startsWith('[...') && segment.endsWith(']')) {
+                  // Required catch-all: [...slug]
+                  return {
+                    type: 'dynamic',
+                    name: segment.slice(4, -1),
+                    catchAll: true,
+                    optional: false,
+                  }
+                } else if (segment.startsWith('[[') && segment.endsWith(']]')) {
+                  // Optional param: [[slug]]
+                  return {
+                    type: 'dynamic',
+                    name: segment.slice(2, -2),
+                    catchAll: false,
+                    optional: true,
+                  }
+                } else if (segment.startsWith('[') && segment.endsWith(']')) {
+                  // Regular param: [slug]
+                  return {
+                    type: 'dynamic',
+                    name: segment.slice(1, -1),
+                    catchAll: false,
+                    optional: false,
                   }
                 } else {
                   return {
@@ -2532,7 +2559,7 @@ export default async function build(
         await fs.writeFile(manifestPath, manifestContent, 'utf-8')
 
         // Also write to output directory (out) for static export
-        const configOutDir = config.distDir ? path.join(config.distDir, '..', 'out') : 'out'
+        // Use outer scope configOutDir (set at line 959)
         const outputManifestPath = path.join(
           dir,
           configOutDir,
@@ -4246,23 +4273,25 @@ export default async function build(
 <head>
   <meta charset="utf-8">
   <title>Loading...</title>
-  <style>
-    /* Hide content until params are patched to avoid flash of __shell__ */
-    body { visibility: hidden; }
-    body.ready { visibility: visible; }
-  </style>
   <script>
     (function() {
+      // Prevent infinite loop - only run once per page
+      if (window.__shellPatched) return;
+      window.__shellPatched = true;
+
       // Load manifest and redirect to appropriate shell HTML
       var manifestUrl = '/_next/static/${buildId}/_clientDynamicRoutesManifest.json';
       fetch(manifestUrl)
         .then(function(res) { return res.json(); })
         .then(function(manifest) {
+          console.log('[404.html] Manifest loaded:', manifest);
           var pathname = window.location.pathname;
+          console.log('[404.html] Original pathname:', pathname);
           // Remove trailing slash for matching
           if (pathname.endsWith('/') && pathname !== '/') {
             pathname = pathname.slice(0, -1);
           }
+          console.log('[404.html] Normalized pathname:', pathname);
 
           // Try to match against client dynamic route patterns
           for (var i = 0; i < manifest.routes.length; i++) {
@@ -4270,29 +4299,76 @@ export default async function build(
             var pathSegments = pathname.split('/').filter(Boolean);
             var routeSegments = route.segments;
 
-            if (pathSegments.length !== routeSegments.length) continue;
-
-            var matches = true;
-            for (var j = 0; j < pathSegments.length; j++) {
-              var routeSeg = routeSegments[j];
-              if (routeSeg.type === 'static' && pathSegments[j] !== routeSeg.value) {
-                matches = false;
+            // Check if we have a catch-all segment
+            var hasCatchAll = false;
+            for (var k = 0; k < routeSegments.length; k++) {
+              if (routeSegments[k].type === 'dynamic' && routeSegments[k].catchAll) {
+                hasCatchAll = true;
                 break;
               }
             }
 
-            if (matches) {
-              // Found a match! Extract actual params from URL
-              var actualParams = {};
-              for (var j = 0; j < pathSegments.length; j++) {
-                var routeSeg = routeSegments[j];
-                if (routeSeg.type === 'dynamic') {
-                  actualParams[routeSeg.name] = pathSegments[j];
+            if (hasCatchAll) {
+              // For catch-all routes, need at least as many path segments as non-catch-all segments
+              var minSegments = 0;
+              for (var k = 0; k < routeSegments.length; k++) {
+                if (!(routeSegments[k].type === 'dynamic' && routeSegments[k].catchAll)) {
+                  minSegments++;
                 }
               }
+              if (pathSegments.length < minSegments) continue;
+            } else {
+              // For non-catch-all routes, exact length match is required
+              if (pathSegments.length !== routeSegments.length) continue;
+            }
 
-              // Fetch shell HTML and patch params
+            var matches = true;
+            var routeIdx = 0;
+            for (var j = 0; j < pathSegments.length && routeIdx < routeSegments.length; j++) {
+              var routeSeg = routeSegments[routeIdx];
+              if (routeSeg.type === 'static' && pathSegments[j] !== routeSeg.value) {
+                matches = false;
+                break;
+              }
+              if (routeSeg.type === 'static' || (routeSeg.type === 'dynamic' && !routeSeg.catchAll)) {
+                routeIdx++;
+              } else if (routeSeg.type === 'dynamic' && routeSeg.catchAll) {
+                routeIdx++;
+                break; // Catch-all consumes the rest
+              }
+            }
+
+            if (matches && routeIdx === routeSegments.length) {
+              // Found a match! Extract actual params from URL
+              console.log('[404.html] Route matched! Pattern:', route.pattern);
+              var actualParams = {};
+              routeIdx = 0;
+              for (var j = 0; j < pathSegments.length && routeIdx < routeSegments.length; j++) {
+                var routeSeg = routeSegments[routeIdx];
+                if (routeSeg.type === 'dynamic') {
+                  if (routeSeg.catchAll) {
+                    // Collect remaining segments as array
+                    var remaining = [];
+                    for (var m = j; m < pathSegments.length; m++) {
+                      remaining.push(pathSegments[m]);
+                    }
+                    actualParams[routeSeg.name] = remaining;
+                    routeIdx++;
+                    break;
+                  } else {
+                    actualParams[routeSeg.name] = pathSegments[j];
+                    routeIdx++;
+                  }
+                } else {
+                  routeIdx++;
+                }
+              }
+              console.log('[404.html] Extracted params:', actualParams);
+
+              // Fetch shell HTML and patch ONLY RSC data, NOT the HTML body
+              // This creates a hydration mismatch that forces React to update the DOM
               var shellPath = route.pattern.replace(/\\[([^\\]]+)\\]/g, '__shell__');
+              console.log('[404.html] Shell path:', shellPath);
 
               // Try without trailing slash first, then with trailing slash
               var fetchShell = function(url) {
@@ -4307,47 +4383,71 @@ export default async function build(
                 .catch(function() { return fetchShell(shellPath + '/'); })
                 .catch(function() { return fetchShell(shellPath + '/index.html'); })
                 .then(function(html) {
-                  // Patch __shell__ params in the HTML with actual URL params
-                  // The RSC data is in script tags like: self.__next_f.push([...])
-                  // We need to replace "__shell__" with actual param values
+                  console.log('[404.html] Shell HTML loaded, length:', html.length);
 
                   var patchedHtml = html;
+                  var paramNames = Object.keys(actualParams);
+
+                  // Patch RSC data in <script> tags
+                  // Shell HTML body is minimal (just "Loading..."), so React will do client-side render
+                  console.log('[404.html] Patching RSC data for params:', paramNames);
+
                   for (var paramName in actualParams) {
                     var paramValue = actualParams[paramName];
-                    // Replace ALL occurrences of __shell__ (with and without quotes)
-                    // This catches: "__shell__", >__shell__<, and other contexts
-                    patchedHtml = patchedHtml.split('__shell__').join(paramValue);
+                    if (Array.isArray(paramValue)) {
+                      paramValue = paramValue.join('/');
+                    }
+                    console.log('[404.html] Patching RSC param:', paramName, '=', paramValue);
+
+                    // Patch RSC data in scripts
+                    var pattern = new RegExp('\\\\\\\\?"' + paramName + '\\\\\\\\?"[,:]\\\\\\\\?"__shell__\\\\\\\\?"', 'g');
+                    var matchCount = 0;
+                    patchedHtml = patchedHtml.replace(pattern, function(match) {
+                      matchCount++;
+                      return match.replace('__shell__', paramValue);
+                    });
+                    console.log('[404.html] Made ' + matchCount + ' RSC replacements for param ' + paramName);
                   }
 
-                  // Replace document content while preserving the URL
+                  console.log('[404.html] RSC patching complete. Shell HTML is minimal (no content), React will render client-side.');
+
+                  // Replace the entire page with patched shell HTML
+                  // Using document.write() ensures React initializes with the patched RSC data
                   document.open();
                   document.write(patchedHtml);
                   document.close();
-                  // Show content after patching to avoid flash
-                  setTimeout(function() {
-                    document.body.classList.add('ready');
-                  }, 0);
+
+                  console.log('[404.html] Page replaced with patched shell HTML. React will initialize with correct params.');
                 })
                 .catch(function() {
                   // Shell HTML not found, show 404
-                  document.write('<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>');
+                  var root = document.getElementById('__next');
+                  if (root) {
+                    root.innerHTML = '<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>';
+                  }
                 });
               return;
             }
           }
 
           // No match found, show regular 404
-          document.write('<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>');
+          var root = document.getElementById('__next');
+          if (root) {
+            root.innerHTML = '<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>';
+          }
         })
         .catch(function() {
           // Manifest not found or error loading, show regular 404
-          document.write('<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>');
+          var root = document.getElementById('__next');
+          if (root) {
+            root.innerHTML = '<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>';
+          }
         });
     })();
   </script>
 </head>
 <body>
-  <p>Loading...</p>
+  <div id="__next"><p>Loading...</p></div>
 </body>
 </html>`
 
