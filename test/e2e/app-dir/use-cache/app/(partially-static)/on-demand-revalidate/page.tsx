@@ -2,7 +2,7 @@ import { revalidatePath } from 'next/cache'
 import { RevalidateButtons } from './revalidate-buttons'
 
 async function cachedValue() {
-  'use cache'
+  'use cache: remote'
   return Math.random()
 }
 

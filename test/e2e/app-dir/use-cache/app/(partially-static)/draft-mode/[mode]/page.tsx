@@ -5,7 +5,7 @@ async function getCachedValue(
   iterable: Iterable<number>,
   fn: () => string
 ): Promise<[string, () => string]> {
-  'use cache'
+  'use cache: remote'
 
   // Make sure we're always receiving the arguments the same way, regardless of
   // whether draft mode is enabled or not. We're asserting that by checking
@@ -27,13 +27,13 @@ export default async function Page({
 }: {
   params: Promise<{ mode: string }>
 }) {
-  'use cache'
+  'use cache: remote'
 
   const { mode } = await params
   const offset = 1000
 
   const cachedClosure = async () => {
-    'use cache'
+    'use cache: remote'
     return new Date(Date.now() + offset).toISOString()
   }
 

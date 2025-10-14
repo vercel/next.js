@@ -3,17 +3,17 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 async function outermost(id: string) {
-  'use cache'
+  'use cache: remote'
   return id + middle('middle')
 }
 
 async function middle(id: string) {
-  'use cache'
+  'use cache: remote'
   return id + innermost('inner')
 }
 
 async function innermost(id: string) {
-  'use cache'
+  'use cache: remote'
   return id
 }
 

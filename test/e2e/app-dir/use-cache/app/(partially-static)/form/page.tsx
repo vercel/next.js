@@ -6,7 +6,7 @@ async function refresh() {
 }
 
 export default async function Page() {
-  'use cache'
+  'use cache: remote'
   cacheTag('home')
 
   return (

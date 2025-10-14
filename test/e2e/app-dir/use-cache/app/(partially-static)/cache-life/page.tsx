@@ -1,7 +1,7 @@
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 async function getCachedRandom() {
-  'use cache'
+  'use cache: remote'
   cacheLife('frequent')
   return Math.random()
 }

@@ -1,5 +1,5 @@
 async function getCached({ p }) {
-  'use cache'
+  'use cache: remote'
   const array = await p
   if (array instanceof Uint8Array) {
     return array[0].toString(16) + '-' + Math.random()

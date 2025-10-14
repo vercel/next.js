@@ -7,7 +7,7 @@ async function action() {
 }
 
 export default async function Page() {
-  'use cache'
+  'use cache: remote'
 
   return (
     <Form action={action}>

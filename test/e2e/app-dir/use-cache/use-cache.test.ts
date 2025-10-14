@@ -20,16 +20,12 @@ const withCacheComponents =
   process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
 
 describe('use-cache', () => {
-  const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup(
-    {
-      files: __dirname,
-      skipDeployment: true,
-    }
-  )
-
-  if (skipped) {
-    return
-  }
+  const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
+    files: __dirname,
+    env: {
+      NEXT_PRIVATE_DEBUG_CACHE: '1',
+    },
+  })
 
   it('should cache results', async () => {
     const browser = await next.browser(`/?n=1`)

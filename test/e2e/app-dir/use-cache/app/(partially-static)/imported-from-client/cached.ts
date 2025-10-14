@@ -1,4 +1,4 @@
-'use cache'
+'use cache: remote'
 
 function getRandomValue() {
   const v = Math.random()

@@ -9,7 +9,7 @@ async function fetchCachedValue() {
 }
 
 async function getCachedValue() {
-  'use cache'
+  'use cache: remote'
   unstable_cacheTag('revalidate-and-use')
   return Math.random()
 }

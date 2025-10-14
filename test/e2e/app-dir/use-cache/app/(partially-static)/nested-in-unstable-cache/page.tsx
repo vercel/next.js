@@ -1,7 +1,7 @@
 import { revalidatePath, unstable_cache } from 'next/cache'
 
 async function inner() {
-  'use cache'
+  'use cache: remote'
   return Math.random()
 }
 

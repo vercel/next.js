@@ -1,7 +1,7 @@
 import { ClientComponent } from './client'
 
 async function getLargeObject() {
-  'use cache'
+  'use cache: remote'
 
   return { hello: 'world' }
 }

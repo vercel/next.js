@@ -4,7 +4,7 @@ import { getCachedData } from './cached-data'
 
 export async function generateMetadata(): Promise<Metadata> {
   // TODO: Deduping with nested caches requires #78703.
-  // 'use cache'
+  // 'use cache: remote'
 
   await connection()
 

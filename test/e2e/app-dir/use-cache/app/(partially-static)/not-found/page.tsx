@@ -1,4 +1,4 @@
-'use cache'
+'use cache: remote'
 
 import { notFound } from 'next/navigation'
 

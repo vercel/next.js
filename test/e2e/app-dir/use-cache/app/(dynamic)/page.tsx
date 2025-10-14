@@ -1,7 +1,7 @@
 import { Foo } from '../client'
 
 async function getCachedRandom(x: number, children: React.ReactNode) {
-  'use cache'
+  'use cache: remote'
   return {
     x,
     y: Math.random(),

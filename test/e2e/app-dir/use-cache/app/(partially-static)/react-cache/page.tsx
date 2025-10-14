@@ -10,7 +10,7 @@ function Component() {
 }
 
 async function getCachedComponent() {
-  'use cache'
+  'use cache: remote'
   return (
     <div>
       <p id="a">{number()}</p>

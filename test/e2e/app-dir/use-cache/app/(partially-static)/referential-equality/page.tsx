@@ -1,14 +1,14 @@
 /* eslint-disable no-self-compare */
 
 async function getObject(arg: unknown) {
-  'use cache'
+  'use cache: remote'
 
   return { arg }
 }
 
 async function getObjectWithBoundArgs(arg: unknown) {
   async function getCachedObject() {
-    'use cache'
+    'use cache: remote'
 
     return { arg }
   }

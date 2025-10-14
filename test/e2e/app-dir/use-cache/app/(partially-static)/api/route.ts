@@ -1,7 +1,7 @@
 import { unstable_cacheTag } from 'next/cache'
 
 async function getCachedRandom() {
-  'use cache'
+  'use cache: remote'
   unstable_cacheTag('api')
 
   return Math.random()

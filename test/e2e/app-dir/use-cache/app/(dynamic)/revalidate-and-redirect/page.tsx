@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { connection } from 'next/server'
 
 async function getCachedValue() {
-  'use cache'
+  'use cache: remote'
   cacheTag('revalidate-and-redirect')
 
   return Math.random()

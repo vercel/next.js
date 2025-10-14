@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import React from 'react'
 
 async function getData() {
-  'use cache'
+  'use cache: remote'
 
   return fetch('https://next-data-api-endpoint.vercel.app/api/random', {
     headers: {

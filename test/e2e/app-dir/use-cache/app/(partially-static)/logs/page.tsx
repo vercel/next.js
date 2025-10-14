@@ -1,12 +1,12 @@
 async function Bar() {
-  'use cache'
+  'use cache: remote'
   const date = new Date().toLocaleTimeString()
   console.log('deep inside', date)
   return <p>{date}</p>
 }
 
 async function Foo() {
-  'use cache'
+  'use cache: remote'
   console.log('inside')
   return <Bar />
 }

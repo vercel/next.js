@@ -11,15 +11,15 @@ export default function Page() {
   return (
     <Form
       foo={async function fooNamed() {
-        'use cache'
+        'use cache: remote'
         return offset + getRandomValue()
       }}
       bar={async function () {
-        'use cache'
+        'use cache: remote'
         return offset + getRandomValue()
       }}
       baz={async () => {
-        'use cache'
+        'use cache: remote'
         return offset + getRandomValue()
       }}
     />

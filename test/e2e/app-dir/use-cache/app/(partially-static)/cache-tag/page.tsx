@@ -9,7 +9,7 @@ async function getCachedWithTag({
   tag: string
   fetchCache?: 'force' | 'revalidate'
 }) {
-  'use cache'
+  'use cache: remote'
   cacheTag(tag, 'c')
 
   // If `force-cache` or `revalidate` is used for the fetch call, it creates
