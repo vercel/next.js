@@ -1973,7 +1973,7 @@ async function validateConfigSchema(
 
     // Then throw hard errors
     if (hasFatalErrors) {
-      flushTelemetry()
+      await flushTelemetry()
 
       const errorMessages = [
         `Fatal next config errors found in ${configFileName} that must be fixed:`,
