@@ -1276,6 +1276,10 @@ export default async function build(
         )
       NextBuildContext.mappedPages = mappedPages
 
+      if (Object.keys(mappedPages).length === 0 && !appDirOnly) {
+        appDirOnly = true
+      }
+
       let mappedAppPages: MappedPages | undefined
       let mappedAppLayouts: MappedPages | undefined
       let denormalizedAppPages: string[] | undefined
