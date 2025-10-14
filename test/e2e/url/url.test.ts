@@ -11,9 +11,15 @@ import { nextTestSetup } from 'e2e-utils'
 // - a bug where App Router API routes (and Metadata) return client assets for `new URL`s.
 // - a bug where Edge Page routes return client assets for `new URL`s.
 describe(`Handle new URL asset references`, () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
+    // Workaround for `Error: invariant: htmlFsRef != null && jsonFsRef != null /ssg` errors
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   const serverFilePath = expect.stringMatching(
     /file:.*\/.next(\/dev)?\/server\/.*\/vercel\.[0-9a-f]{8}\.png$/
