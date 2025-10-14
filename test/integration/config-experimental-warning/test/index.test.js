@@ -143,7 +143,8 @@ describe('Config Experimental Warning', () => {
     expect(stdout).toMatch(' · cpus: 2')
   })
 
-  it('should show the configured value for string features', async () => {
+  // TODO: the incremental option has been removed, update to another string feature
+  it.skip('should show the configured value for string features', async () => {
     configFile.write(`
       module.exports = {
         experimental: {

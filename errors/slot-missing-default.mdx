@@ -1,0 +1,80 @@
+---
+title: Missing Required default.js for Parallel Route
+---
+
+> Parallel route slots require a `default.js` file to serve as a fallback during navigation.
+
+## Why This Error Occurred
+
+You're using [parallel routes](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes#defaultjs) in your Next.js application, but one of your parallel route slots is missing a required `default.js` file, which causes a build error.
+
+When using parallel routes, Next.js needs to know what to render in each slot when:
+
+- Navigating between pages that have different slot structures
+- A slot doesn't match the current navigation (only during hard navigation)
+- After a page refresh when Next.js cannot determine the active state for a slot
+
+The `default.js` file serves as a fallback to render when Next.js cannot determine the active state of a slot based on the current URL. Without this file, the build will fail.
+
+## Possible Ways to Fix It
+
+Create a `default.js` (or `.jsx`, `.tsx`) file in the parallel route slot directory that's mentioned in the error message.
+
+For example, if you have this structure where different slots have pages at different paths:
+
+```
+app/
+├── layout.js
+├── page.js
+├── @team/
+│   └── settings/
+│       └── page.js
+└── @analytics/
+    └── page.js
+```
+
+You need to add `default.js` files for each slot, excluding the children slot:
+
+```
+app/
+├── layout.js
+├── page.js
+├── default.js         // Optiona: add this (for children slot)
+├── @team/
+│   ├── default.js     // Add this
+│   └── settings/
+│       └── page.js
+└── @analytics/
+    ├── default.js     // Add this
+    └── page.js
+```
+
+Without the root `default.js`, navigating to `/settings` would result in a 404, even though `@team/settings/page.js` exists. The `default.js` in the root tells Next.js what to render in the children slot when there's no matching page at that path. It's not required as other named slots default files are, but it's good to add to help improve the experience for your applications.
+
+### Example `default.js` file:
+
+The simplest implementation returns `null` to render nothing:
+
+```jsx filename="app/@analytics/default.js"
+export default function Default() {
+  return null
+}
+```
+
+You can also preserve the old behavior of returning a 404:
+
+```jsx filename="app/@team/default.js"
+import { notFound } from 'next/navigation'
+
+export default function Default() {
+  notFound()
+}
+```
+
+### When you need `default.js`
+
+You need a `default.js` file for each parallel route slot (directories starting with `@`) at each route segment.
+
+## Useful Links
+
+- [Parallel Routes Documentation](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes#defaultjs)

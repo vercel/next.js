@@ -58,9 +58,8 @@
       { "type": "user", "pattern": "ijjk" },
       { "type": "user", "pattern": "lazarv" },
       { "type": "user", "pattern": "lubieowoce" },
-      { "type": "user", "pattern": "bgub" },
       { "type": "user", "pattern": "RobPruzan" },
-      { "type": "user", "pattern": "samcx" },
+      { "type": "user", "pattern": "samselikoff" },
       { "type": "user", "pattern": "sebmarkbage" },
       { "type": "user", "pattern": "shuding" },
       { "type": "user", "pattern": "styfle" },
@@ -71,7 +70,6 @@
     "created-by: Next.js DevEx team": [
       { "type": "user", "pattern": "delbaoliveira" },
       { "type": "user", "pattern": "ismaelrumzan" },
-      { "type": "user", "pattern": "leerob" },
       { "type": "user", "pattern": "manovotny" },
       { "type": "user", "pattern": "molebox" },
       { "type": "user", "pattern": "timeyoutakeit" },

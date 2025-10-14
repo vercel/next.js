@@ -19,7 +19,7 @@
 //!      to wait until all the dynamic components are being loaded, this ensures hydration mismatch
 //!      won't occur
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use next_core::{
     next_app::ClientReferencesChunks, next_client_reference::EcmascriptClientReferenceModule,
     next_dynamic::NextDynamicEntryModule,
@@ -66,8 +66,12 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 NextDynamicChunkAvailability::ClientReferences(client_reference_chunks) => {
                     client_reference_chunks
                         .client_component_client_chunks
-                        .get(&parent_client_reference.unwrap())
-                        .unwrap()
+                        .get(
+                            &parent_client_reference.context(
+                                "Parent client reference not found for next/dynamic import",
+                            )?,
+                        )
+                        .context("Client reference chunk group not found for next/dynamic import")?
                         .availability_info
                 }
                 NextDynamicChunkAvailability::AvailabilityInfo(availability_info) => {

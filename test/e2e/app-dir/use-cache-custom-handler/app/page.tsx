@@ -3,7 +3,7 @@ import {
   unstable_cacheLife as cacheLife,
   unstable_cacheTag as cacheTag,
   revalidatePath,
-  revalidateTag,
+  updateTag,
 } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
@@ -38,7 +38,7 @@ export default async function Home() {
           formAction={async () => {
             'use server'
 
-            revalidateTag('modern')
+            updateTag('modern')
           }}
         >
           Revalidate Tag
@@ -58,7 +58,7 @@ export default async function Home() {
           formAction={async () => {
             'use server'
 
-            revalidateTag('modern')
+            updateTag('modern')
             redirect('/')
           }}
         >

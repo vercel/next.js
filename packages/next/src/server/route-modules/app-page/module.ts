@@ -114,25 +114,6 @@ export class AppPageRouteModule extends RouteModule<
       context.fallbackRouteParams,
       context.renderOpts,
       context.serverComponentsHmrCache,
-      false,
-      context.sharedContext
-    )
-  }
-
-  public warmup(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    context: AppPageRouteHandlerContext
-  ): Promise<RenderResult> {
-    return renderToHTMLOrFlight(
-      req,
-      res,
-      context.page,
-      context.query,
-      context.fallbackRouteParams,
-      context.renderOpts,
-      context.serverComponentsHmrCache,
-      true,
       context.sharedContext
     )
   }

@@ -102,7 +102,7 @@ pub struct NextConfig {
     trailing_slash: Option<bool>,
     asset_prefix: Option<RcStr>,
     base_path: Option<RcStr>,
-    skip_middleware_url_normalize: Option<bool>,
+    skip_proxy_url_normalize: Option<bool>,
     skip_trailing_slash_redirect: Option<bool>,
     i18n: Option<I18NConfig>,
     cross_origin: Option<CrossOriginConfig>,
@@ -465,7 +465,7 @@ impl Default for ImageConfig {
         // https://github.com/vercel/next.js/blob/327634eb/packages/next/shared/lib/image-config.ts#L100-L114
         Self {
             device_sizes: vec![640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-            image_sizes: vec![16, 32, 48, 64, 96, 128, 256, 384],
+            image_sizes: vec![32, 48, 64, 96, 128, 256, 384],
             path: "/_next/image".to_string(),
             loader: ImageLoader::Default,
             loader_file: None,
@@ -864,7 +864,6 @@ pub struct ExperimentalConfig {
     trust_host_header: Option<bool>,
 
     url_imports: Option<serde_json::Value>,
-    view_transition: Option<bool>,
     /// This option is to enable running the Webpack build in a worker thread
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
@@ -1661,8 +1660,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn skip_middleware_url_normalize(&self) -> Vc<bool> {
-        Vc::cell(self.skip_middleware_url_normalize.unwrap_or(false))
+    pub fn skip_proxy_url_normalize(&self) -> Vc<bool> {
+        Vc::cell(self.skip_proxy_url_normalize.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -1720,11 +1719,6 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_taint(&self) -> Vc<bool> {
         Vc::cell(self.experimental.taint.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_view_transition(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.view_transition.unwrap_or(false))
     }
 
     #[turbo_tasks::function]

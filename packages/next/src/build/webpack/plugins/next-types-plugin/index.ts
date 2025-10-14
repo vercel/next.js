@@ -52,6 +52,8 @@ ${
     : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
+import type { PrefetchForTypeCheckInternal } from 'next/dist/build/segment-config/app/app-segment-config.js'
+
 type TEntry = typeof import('${relativePath}.js')
 
 type SegmentParams<T extends Object = any> = T extends Record<string, any>
@@ -67,7 +69,7 @@ checkFields<Diff<{
   }
   config?: {}
   generateStaticParams?: Function
-  unstable_prefetch?: 'unstable_static' | 'unstable_runtime'
+  unstable_prefetch?: PrefetchForTypeCheckInternal
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean
@@ -413,7 +415,7 @@ function createServerDefinitions() {
     export { NextFetchEvent } from 'next/dist/server/web/spec-extension/fetch-event'
     export { NextRequest } from 'next/dist/server/web/spec-extension/request'
     export { NextResponse } from 'next/dist/server/web/spec-extension/response'
-    export { NextMiddleware, MiddlewareConfig } from 'next/dist/server/web/types'
+    export { NextMiddleware, MiddlewareConfig, NextProxy, ProxyConfig } from 'next/dist/server/web/types'
     export { userAgentFromString } from 'next/dist/server/web/spec-extension/user-agent'
     export { userAgent } from 'next/dist/server/web/spec-extension/user-agent'
     export { URLPattern } from 'next/dist/compiled/@edge-runtime/primitives/url'
@@ -528,10 +530,10 @@ function createCustomCacheLifeDefinitions(cacheLife: {
 declare module 'next/cache' {
   export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
   export {
+    updateTag,
     revalidateTag,
     revalidatePath,
-    unstable_expireTag,
-    unstable_expirePath,
+    refresh,
   } from 'next/dist/server/web/spec-extension/revalidate'
   export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
 

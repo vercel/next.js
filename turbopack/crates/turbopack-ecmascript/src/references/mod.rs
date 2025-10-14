@@ -104,8 +104,7 @@ use self::{
         EsmAssetReference, EsmAsyncAssetReference, EsmExports, EsmModuleItem, ImportMetaBinding,
         ImportMetaRef, UrlAssetReference, export::EsmExport,
     },
-    node::DirAssetReference,
-    raw::FileSourceReference,
+    raw::{DirAssetReference, FileSourceReference},
     typescript::{TsConfigReference, TsReferencePathAssetReference, TsReferenceTypeAssetReference},
 };
 use super::{
@@ -1652,6 +1651,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             .await
     };
 
+    let make_issue_source =
+        || IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32());
     if new {
         match func {
             JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor) => {
@@ -1987,6 +1988,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             context_dir,
                             Pattern::new(pat),
                             collect_affecting_sources,
+                            make_issue_source(),
                         )
                         .to_resolved()
                         .await?,
@@ -2038,7 +2040,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             }
             if let Some(context_dir) = get_traced_project_dir().await? {
                 analysis.add_reference(
-                    DirAssetReference::new(context_dir, Pattern::new(pat))
+                    DirAssetReference::new(context_dir, Pattern::new(pat), make_issue_source())
                         .to_resolved()
                         .await?,
                 );
@@ -2080,7 +2082,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             }
             if let Some(context_dir) = get_traced_project_dir().await? {
                 analysis.add_reference(
-                    DirAssetReference::new(context_dir, Pattern::new(pat))
+                    DirAssetReference::new(context_dir, Pattern::new(pat), make_issue_source())
                         .to_resolved()
                         .await?,
                 );
@@ -2136,6 +2138,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             context_dir,
                             Pattern::new(pat),
                             collect_affecting_sources,
+                            IssueSource::from_swc_offsets(
+                                source,
+                                span.lo.to_u32(),
+                                span.hi.to_u32(),
+                            ),
                         )
                         .to_resolved()
                         .await?,
@@ -2366,9 +2373,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             };
                             if let Some(context_dir) = get_traced_project_dir().await? {
                                 analysis.add_reference(
-                                    DirAssetReference::new(context_dir, Pattern::new(abs_pattern))
-                                        .to_resolved()
-                                        .await?,
+                                    DirAssetReference::new(
+                                        context_dir,
+                                        Pattern::new(abs_pattern),
+                                        make_issue_source(),
+                                    )
+                                    .to_resolved()
+                                    .await?,
                                 );
                             }
                             return Ok(());
@@ -2431,9 +2442,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 };
                 if let Some(context_dir) = get_traced_project_dir().await? {
                     analysis.add_reference(
-                        DirAssetReference::new(context_dir, Pattern::new(abs_pattern))
-                            .to_resolved()
-                            .await?,
+                        DirAssetReference::new(
+                            context_dir,
+                            Pattern::new(abs_pattern),
+                            make_issue_source(),
+                        )
+                        .to_resolved()
+                        .await?,
                     );
                 }
                 return Ok(());
@@ -2500,6 +2515,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             DirAssetReference::new(
                                 context_dir.clone(),
                                 Pattern::new(Pattern::Constant(dir.into())),
+                                make_issue_source(),
                             )
                             .to_resolved()
                         })

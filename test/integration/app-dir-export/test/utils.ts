@@ -28,213 +28,129 @@ export const nextConfig = new File(join(appDir, 'next.config.js'))
 const slugPage = new File(join(appDir, 'app/another/[slug]/page.js'))
 const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 
-export const expectedWhenTrailingSlashTrue = process.env
-  .__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE
-  ? [
-      '404.html',
-      '404/index.html',
-      '__next.__PAGE__.txt',
-      '__next._index.txt',
-      '__next._tree.txt',
-      // Turbopack and plain next.js have different hash output for the file name
-      // Turbopack will output favicon in the _next/static/media folder
-      ...(process.env.IS_TURBOPACK_TEST
-        ? [
-            expect.stringMatching(
-              /_next\/static\/media\/favicon\.[0-9a-f]+\.ico/
-            ),
-          ]
-        : []),
-      expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
-      '_next/static/test-build-id/_buildManifest.js',
-      ...(process.env.IS_TURBOPACK_TEST
-        ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
-        : []),
-      '_next/static/test-build-id/_ssgManifest.js',
-      '_not-found/__next._index.txt',
-      '_not-found/__next._not-found.__PAGE__.txt',
-      '_not-found/__next._not-found.txt',
-      '_not-found/__next._tree.txt',
-      '_not-found/index.html',
-      '_not-found/index.txt',
-      'another/__next._index.txt',
-      'another/__next._tree.txt',
-      'another/__next.another.__PAGE__.txt',
-      'another/__next.another.txt',
-      'another/first/__next._index.txt',
-      'another/first/__next._tree.txt',
-      'another/first/__next.another.$d$slug.__PAGE__.txt',
-      'another/first/__next.another.$d$slug.txt',
-      'another/first/__next.another.txt',
-      'another/first/index.html',
-      'another/first/index.txt',
-      'another/index.html',
-      'another/index.txt',
-      'another/second/__next._index.txt',
-      'another/second/__next._tree.txt',
-      'another/second/__next.another.$d$slug.__PAGE__.txt',
-      'another/second/__next.another.$d$slug.txt',
-      'another/second/__next.another.txt',
-      'another/second/index.html',
-      'another/second/index.txt',
-      'api/json',
-      'api/txt',
-      'client/__next._index.txt',
-      'client/__next._tree.txt',
-      'client/__next.client.__PAGE__.txt',
-      'client/__next.client.txt',
-      'client/index.html',
-      'client/index.txt',
-      'favicon.ico',
-      'image-import/__next._index.txt',
-      'image-import/__next._tree.txt',
-      'image-import/__next.image-import.__PAGE__.txt',
-      'image-import/__next.image-import.txt',
-      'image-import/index.html',
-      'image-import/index.txt',
-      'index.html',
-      'index.txt',
-      'robots.txt',
-    ]
-  : [
-      '404.html',
-      '404/index.html',
-      // Turbopack and plain next.js have different hash output for the file name
-      // Turbopack will output favicon in the _next/static/media folder
-      ...(process.env.IS_TURBOPACK_TEST
-        ? [
-            expect.stringMatching(
-              /_next\/static\/media\/favicon\.[0-9a-f]+\.ico/
-            ),
-          ]
-        : []),
-      expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
-      '_next/static/test-build-id/_buildManifest.js',
-      ...(process.env.IS_TURBOPACK_TEST
-        ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
-        : []),
-      '_next/static/test-build-id/_ssgManifest.js',
-      '_not-found/index.html',
-      '_not-found/index.txt',
-      'another/first/index.html',
-      'another/first/index.txt',
-      'another/index.html',
-      'another/index.txt',
-      'another/second/index.html',
-      'another/second/index.txt',
-      'api/json',
-      'api/txt',
-      'client/index.html',
-      'client/index.txt',
-      'favicon.ico',
-      'image-import/index.html',
-      'image-import/index.txt',
-      'index.html',
-      'index.txt',
-      'robots.txt',
-    ]
+export const expectedWhenTrailingSlashTrue = [
+  '404.html',
+  '404/index.html',
+  '__next.__PAGE__.txt',
+  '__next._index.txt',
+  '__next._tree.txt',
+  // Turbopack and plain next.js have different hash output for the file name
+  // Turbopack will output favicon in the _next/static/media folder
+  ...(process.env.IS_TURBOPACK_TEST
+    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    : []),
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
+  '_next/static/test-build-id/_buildManifest.js',
+  ...(process.env.IS_TURBOPACK_TEST
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    : []),
+  '_next/static/test-build-id/_ssgManifest.js',
+  '_not-found/__next._index.txt',
+  '_not-found/__next._not-found.__PAGE__.txt',
+  '_not-found/__next._not-found.txt',
+  '_not-found/__next._tree.txt',
+  '_not-found/index.html',
+  '_not-found/index.txt',
+  'another/__next._index.txt',
+  'another/__next._tree.txt',
+  'another/__next.another.__PAGE__.txt',
+  'another/__next.another.txt',
+  'another/first/__next._index.txt',
+  'another/first/__next._tree.txt',
+  'another/first/__next.another.$d$slug.__PAGE__.txt',
+  'another/first/__next.another.$d$slug.txt',
+  'another/first/__next.another.txt',
+  'another/first/index.html',
+  'another/first/index.txt',
+  'another/index.html',
+  'another/index.txt',
+  'another/second/__next._index.txt',
+  'another/second/__next._tree.txt',
+  'another/second/__next.another.$d$slug.__PAGE__.txt',
+  'another/second/__next.another.$d$slug.txt',
+  'another/second/__next.another.txt',
+  'another/second/index.html',
+  'another/second/index.txt',
+  'api/json',
+  'api/txt',
+  'client/__next._index.txt',
+  'client/__next._tree.txt',
+  'client/__next.client.__PAGE__.txt',
+  'client/__next.client.txt',
+  'client/index.html',
+  'client/index.txt',
+  'favicon.ico',
+  'image-import/__next._index.txt',
+  'image-import/__next._tree.txt',
+  'image-import/__next.image-import.__PAGE__.txt',
+  'image-import/__next.image-import.txt',
+  'image-import/index.html',
+  'image-import/index.txt',
+  'index.html',
+  'index.txt',
+  'robots.txt',
+]
 
-const expectedWhenTrailingSlashFalse = process.env
-  .__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE
-  ? [
-      '404.html',
-      '__next.__PAGE__.txt',
-      '__next._index.txt',
-      '__next._tree.txt',
-      // Turbopack will output favicon in the _next/static/media folder
-      ...(process.env.IS_TURBOPACK_TEST
-        ? [
-            expect.stringMatching(
-              /_next\/static\/media\/favicon\.[0-9a-f]+\.ico/
-            ),
-          ]
-        : []),
-      expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
-      '_next/static/test-build-id/_buildManifest.js',
-      ...(process.env.IS_TURBOPACK_TEST
-        ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
-        : []),
-      '_next/static/test-build-id/_ssgManifest.js',
-      '_not-found.html',
-      '_not-found.txt',
-      '_not-found/__next._index.txt',
-      '_not-found/__next._not-found.__PAGE__.txt',
-      '_not-found/__next._not-found.txt',
-      '_not-found/__next._tree.txt',
-      'another.html',
-      'another.txt',
-      'another/__next._index.txt',
-      'another/__next._tree.txt',
-      'another/__next.another.__PAGE__.txt',
-      'another/__next.another.txt',
-      'another/first.html',
-      'another/first.txt',
-      'another/first/__next._index.txt',
-      'another/first/__next._tree.txt',
-      'another/first/__next.another.$d$slug.__PAGE__.txt',
-      'another/first/__next.another.$d$slug.txt',
-      'another/first/__next.another.txt',
-      'another/second.html',
-      'another/second.txt',
-      'another/second/__next._index.txt',
-      'another/second/__next._tree.txt',
-      'another/second/__next.another.$d$slug.__PAGE__.txt',
-      'another/second/__next.another.$d$slug.txt',
-      'another/second/__next.another.txt',
-      'api/json',
-      'api/txt',
-      'client.html',
-      'client.txt',
-      'client/__next._index.txt',
-      'client/__next._tree.txt',
-      'client/__next.client.__PAGE__.txt',
-      'client/__next.client.txt',
-      'favicon.ico',
-      'image-import.html',
-      'image-import.txt',
-      'image-import/__next._index.txt',
-      'image-import/__next._tree.txt',
-      'image-import/__next.image-import.__PAGE__.txt',
-      'image-import/__next.image-import.txt',
-      'index.html',
-      'index.txt',
-      'robots.txt',
-    ]
-  : [
-      '404.html',
-      // Turbopack will output favicon in the _next/static/media folder
-      ...(process.env.IS_TURBOPACK_TEST
-        ? [
-            expect.stringMatching(
-              /_next\/static\/media\/favicon\.[0-9a-f]+\.ico/
-            ),
-          ]
-        : []),
-      expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
-      '_next/static/test-build-id/_buildManifest.js',
-      ...(process.env.IS_TURBOPACK_TEST
-        ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
-        : []),
-      '_next/static/test-build-id/_ssgManifest.js',
-      '_not-found.html',
-      '_not-found.txt',
-      'another.html',
-      'another.txt',
-      'another/first.html',
-      'another/first.txt',
-      'another/second.html',
-      'another/second.txt',
-      'api/json',
-      'api/txt',
-      'client.html',
-      'client.txt',
-      'favicon.ico',
-      'image-import.html',
-      'image-import.txt',
-      'index.html',
-      'index.txt',
-      'robots.txt',
-    ]
+const expectedWhenTrailingSlashFalse = [
+  '404.html',
+  '__next.__PAGE__.txt',
+  '__next._index.txt',
+  '__next._tree.txt',
+  // Turbopack will output favicon in the _next/static/media folder
+  ...(process.env.IS_TURBOPACK_TEST
+    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    : []),
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
+  '_next/static/test-build-id/_buildManifest.js',
+  ...(process.env.IS_TURBOPACK_TEST
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    : []),
+  '_next/static/test-build-id/_ssgManifest.js',
+  '_not-found.html',
+  '_not-found.txt',
+  '_not-found/__next._index.txt',
+  '_not-found/__next._not-found.__PAGE__.txt',
+  '_not-found/__next._not-found.txt',
+  '_not-found/__next._tree.txt',
+  'another.html',
+  'another.txt',
+  'another/__next._index.txt',
+  'another/__next._tree.txt',
+  'another/__next.another.__PAGE__.txt',
+  'another/__next.another.txt',
+  'another/first.html',
+  'another/first.txt',
+  'another/first/__next._index.txt',
+  'another/first/__next._tree.txt',
+  'another/first/__next.another.$d$slug.__PAGE__.txt',
+  'another/first/__next.another.$d$slug.txt',
+  'another/first/__next.another.txt',
+  'another/second.html',
+  'another/second.txt',
+  'another/second/__next._index.txt',
+  'another/second/__next._tree.txt',
+  'another/second/__next.another.$d$slug.__PAGE__.txt',
+  'another/second/__next.another.$d$slug.txt',
+  'another/second/__next.another.txt',
+  'api/json',
+  'api/txt',
+  'client.html',
+  'client.txt',
+  'client/__next._index.txt',
+  'client/__next._tree.txt',
+  'client/__next.client.__PAGE__.txt',
+  'client/__next.client.txt',
+  'favicon.ico',
+  'image-import.html',
+  'image-import.txt',
+  'image-import/__next._index.txt',
+  'image-import/__next._tree.txt',
+  'image-import/__next.image-import.__PAGE__.txt',
+  'image-import/__next.image-import.txt',
+  'index.html',
+  'index.txt',
+  'robots.txt',
+]
 
 export async function getFiles(cwd = exportDir) {
   const opts = { cwd, nodir: true }

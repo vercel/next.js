@@ -99,21 +99,10 @@ export class NextDeployInstance extends NextInstance {
     )
 
     // Add experimental feature flags
-    if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_PPR=${process.env.__NEXT_EXPERIMENTAL_PPR}`
-      )
-    }
 
     if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
       additionalEnv.push(
         `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS}`
-      )
-    }
-
-    if (process.env.__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_CLIENT_SEGMENT_CACHE=${process.env.__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE}`
       )
     }
 

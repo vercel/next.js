@@ -65,6 +65,7 @@ test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/broken.js
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-parse-error/input/invalid-export/broken.js
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/**/not-compiled.js
+/turbopack/crates/turbopack-tests/tests/snapshot/basic/ts-parse-error/input/other.ts
 /turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/mod.cjs
 /turbopack/crates/turbopack-tests/tests/snapshot/source_maps/*
 /turbopack/crates/turbopack-tests/tests/**/output*

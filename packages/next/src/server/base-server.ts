@@ -57,7 +57,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { setConfig } from '../shared/lib/runtime-config.external'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
@@ -65,7 +64,7 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
-import { getPreviouslyRevalidatedTags, getServerUtils } from './server-utils'
+import { getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -142,7 +141,6 @@ import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segmen
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
-import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
@@ -476,14 +474,7 @@ export default abstract class Server<
       ? new LocaleRouteNormalizer(this.i18nProvider)
       : undefined
 
-    // Only serverRuntimeConfig needs the default
-    // publicRuntimeConfig gets it's default in client/index.js
-    const {
-      serverRuntimeConfig = {},
-      publicRuntimeConfig,
-      assetPrefix,
-      generateEtags,
-    } = this.nextConfig
+    const { assetPrefix, generateEtags } = this.nextConfig
 
     this.buildId = this.getBuildId()
     // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
@@ -550,12 +541,6 @@ export default abstract class Server<
         ? this.nextConfig.crossOrigin
         : undefined,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
-      // Only the `publicRuntimeConfig` key is exposed to the client side
-      // It'll be rendered as part of __NEXT_DATA__ on the client side
-      runtimeConfig:
-        Object.keys(publicRuntimeConfig).length > 0
-          ? publicRuntimeConfig
-          : undefined,
 
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format
@@ -569,8 +554,6 @@ export default abstract class Server<
           this.nextConfig.experimental.clientSegmentCache === 'client-only'
             ? 'client-only'
             : Boolean(this.nextConfig.experimental.clientSegmentCache),
-        clientParamParsing:
-          this.nextConfig.experimental.clientParamParsing ?? false,
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
@@ -581,12 +564,6 @@ export default abstract class Server<
         this.instrumentationOnRequestError.bind(this),
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
     }
-
-    // Initialize next/config with the environment configuration
-    setConfig({
-      serverRuntimeConfig,
-      publicRuntimeConfig,
-    })
 
     this.pagesManifest = this.getPagesManifest()
     this.appPathsManifest = this.getAppPathsManifest()
@@ -1458,29 +1435,6 @@ export default abstract class Server<
         // This is needed for pages router to leverage unstable_cache
         // TODO: re-work this handling to not use global and use a AsyncStore
         ;(globalThis as any).__incrementalCache = incrementalCache
-      }
-
-      const cacheHandlers = getCacheHandlers()
-
-      if (cacheHandlers) {
-        await Promise.all(
-          [...cacheHandlers].map(async (cacheHandler) => {
-            if ('refreshTags' in cacheHandler) {
-              // Note: cacheHandler.refreshTags() is called lazily before the
-              // first cache entry is retrieved. It allows us to skip the
-              // refresh request if no caches are read at all.
-            } else {
-              const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
-                req.headers,
-                this.getPrerenderManifest().preview.previewModeId
-              )
-
-              await cacheHandler.receiveExpiredTags(
-                ...previouslyRevalidatedTags
-              )
-            }
-          })
-        )
       }
 
       // set server components HMR cache to request meta so it can be passed

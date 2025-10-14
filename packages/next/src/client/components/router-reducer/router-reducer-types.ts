@@ -254,6 +254,11 @@ export type AppRouterState = {
    * The underlying "url" representing the UI state, which is used for intercepting routes.
    */
   nextUrl: string | null
+
+  /**
+   * The previous next-url that was used previous to a dynamic navigation.
+   */
+  previousNextUrl: string | null
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>

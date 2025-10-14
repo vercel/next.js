@@ -416,7 +416,7 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
         .unwrap_or(false)
 }
 
-type HashToLayerNameModule = FxIndexMap<String, (ActionLayer, String, ResolvedVc<Box<dyn Module>>)>;
+type HashToLayerNameModule = Vec<(String, (ActionLayer, String, ResolvedVc<Box<dyn Module>>))>;
 
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.
@@ -427,7 +427,7 @@ pub struct AllActions(HashToLayerNameModule);
 impl AllActions {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(FxIndexMap::default())
+        Vc::cell(Default::default())
     }
 }
 

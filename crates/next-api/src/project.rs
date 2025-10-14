@@ -255,6 +255,7 @@ pub struct DefineEnv {
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct Middleware {
     pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    pub is_proxy: bool,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
@@ -984,8 +985,15 @@ impl Project {
     pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
-            let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
-            let _ = module_graphs_op.take_issues();
+            let module_graphs_vc = if self.next_mode().await?.is_production() {
+                module_graphs_op.connect()
+            } else {
+                // In development mode, we need to to take and drop the issues, otherwise every
+                // route will report all issues.
+                let vc = module_graphs_op.resolve_strongly_consistent().await?;
+                module_graphs_op.drop_issues();
+                *vc
+            };
 
             // At this point all modules have been computed and we can get rid of the node.js
             // process pools
@@ -995,7 +1003,7 @@ impl Project {
                 turbopack_node::evaluate::scale_zero();
             }
 
-            Ok(*module_graphs_vc)
+            Ok(module_graphs_vc)
         }
         .instrument(tracing::info_span!("module graph for app"))
         .await
@@ -1073,6 +1081,7 @@ impl Project {
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            debug_ids: self.next_config().turbopack_debug_ids(),
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(
@@ -1147,8 +1156,8 @@ impl Project {
         let config = self.next_config();
 
         emit_event(
-            "skipMiddlewareUrlNormalize",
-            *config.skip_middleware_url_normalize().await?,
+            "skipProxyUrlNormalize",
+            *config.skip_proxy_url_normalize().await?,
         );
 
         emit_event(
@@ -1261,9 +1270,11 @@ impl Project {
         let pages_error_endpoint = self.pages_project().error_endpoint().to_resolved().await?;
 
         let middleware = self.find_middleware();
-        let middleware = if let FindContextFileResult::Found(..) = *middleware.await? {
+        let middleware = if let FindContextFileResult::Found(fs_path, _) = &*middleware.await? {
+            let is_proxy = fs_path.file_stem() == Some("proxy");
             Some(Middleware {
                 endpoint: self.middleware_endpoint().to_resolved().await?,
+                is_proxy,
             })
         } else {
             None

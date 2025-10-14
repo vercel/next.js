@@ -38,7 +38,7 @@ describe('config', () => {
 
   it('Should assign object defaults deeply to user config', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
-    expect(config.distDir).toEqual('.next')
+    expect(config.distDir.replace(/\\/g, '/')).toEqual('.next/dev')
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
 

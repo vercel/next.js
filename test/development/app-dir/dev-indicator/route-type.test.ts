@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRouteTypeFromDevToolsIndicator, retry } from 'next-test-utils'
+import { assertStaticIndicator, retry } from 'next-test-utils'
 
 describe('app dir dev indicator - route type', () => {
   const { next } = nextTestSetup({
@@ -10,7 +10,7 @@ describe('app dir dev indicator - route type', () => {
     const browser = await next.browser('/')
 
     await retry(async () => {
-      expect(await getRouteTypeFromDevToolsIndicator(browser)).toBe('Static')
+      await assertStaticIndicator(browser, 'Static')
     })
   })
 
@@ -25,7 +25,7 @@ describe('app dir dev indicator - route type', () => {
 
     try {
       await retry(async () => {
-        expect(await getRouteTypeFromDevToolsIndicator(browser)).toBe('Dynamic')
+        await assertStaticIndicator(browser, 'Dynamic')
       })
     } finally {
       await next.patchFile('app/page.tsx', origContent)
@@ -44,7 +44,7 @@ describe('app dir dev indicator - route type', () => {
 
     try {
       await retry(async () => {
-        expect(await getRouteTypeFromDevToolsIndicator(browser)).toBe('Dynamic')
+        await assertStaticIndicator(browser, 'Dynamic')
       })
     } finally {
       await next.patchFile('app/page.tsx', origContent)
@@ -56,6 +56,6 @@ describe('app dir dev indicator - route type', () => {
 
     await browser.waitForElementByCss('#ready')
 
-    expect(await getRouteTypeFromDevToolsIndicator(browser)).toBe('Dynamic')
+    await assertStaticIndicator(browser, 'Dynamic')
   })
 })

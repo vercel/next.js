@@ -399,7 +399,6 @@ async function exportAppImpl(
         nextConfig.experimental.clientSegmentCache === 'client-only'
           ? 'client-only'
           : Boolean(nextConfig.experimental.clientSegmentCache),
-      clientParamParsing: nextConfig.experimental.clientParamParsing ?? false,
       clientParamParsingOrigins:
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
@@ -415,12 +414,6 @@ async function exportAppImpl(
         ? nextConfig.experimental.turbopackMinify === false
         : nextConfig.experimental.serverMinification === false) &&
       nextConfig.experimental.enablePrerenderSourceMaps === true,
-  }
-
-  const { publicRuntimeConfig } = nextConfig
-
-  if (Object.keys(publicRuntimeConfig).length > 0) {
-    renderOpts.runtimeConfig = publicRuntimeConfig
   }
 
   // We need this for server rendering the Link component.

@@ -1,4 +1,10 @@
-use std::{cmp::max, path::PathBuf, sync::Arc, thread::available_parallelism, time::Instant};
+use std::{
+    cmp::max,
+    path::PathBuf,
+    sync::Arc,
+    thread::available_parallelism,
+    time::{Duration, Instant},
+};
 
 use anyhow::{Ok, Result};
 use parking_lot::Mutex;
@@ -106,14 +112,14 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
             // Fully compact in CI to reduce cache size
             do_compact(
                 &self.db,
-                "Finished persistent caching database compaction",
+                "Finished filesystem cache database compaction",
                 usize::MAX,
             )?;
         } else {
             // Compact with a reasonable limit in non-CI environments
             do_compact(
                 &self.db,
-                "Finished persistent caching database compaction",
+                "Finished filesystem cache database compaction",
                 available_parallelism().map_or(4, |c| max(4, c.get())),
             )?;
         }
@@ -135,8 +141,11 @@ fn do_compact(
     })?;
     if ran {
         let elapsed = start.elapsed();
-        turbo_tasks()
-            .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
+        // avoid spamming the event queue with information about fast operations
+        if elapsed > Duration::from_secs(10) {
+            turbo_tasks()
+                .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
+        }
     }
     Ok(())
 }
@@ -171,7 +180,7 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
             let handle = spawn(async move {
                 do_compact(
                     &db,
-                    "Finished persistent caching database compaction",
+                    "Finished filesystem cache database compaction",
                     available_parallelism().map_or(4, |c| max(4, c.get() / 2)),
                 )
             });

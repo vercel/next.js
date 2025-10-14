@@ -18,7 +18,7 @@ import type { AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
-import { getSegmentParam } from './get-segment-param'
+import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -34,11 +34,9 @@ export async function walkTreeWithFlightRouterState({
   injectedJS,
   injectedFontPreloadTags,
   rootLayoutIncluded,
-  getViewportReady,
-  getMetadataReady,
   ctx,
   preloadCallbacks,
-  StreamingMetadataOutlet,
+  MetadataOutlet,
 }: {
   loaderTreeToFilter: LoaderTree
   parentParams: { [key: string]: string | string[] }
@@ -49,11 +47,9 @@ export async function walkTreeWithFlightRouterState({
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   rootLayoutIncluded: boolean
-  getMetadataReady: () => Promise<void>
-  getViewportReady: () => Promise<void>
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
-  StreamingMetadataOutlet: React.ComponentType | null
+  MetadataOutlet: React.ComponentType
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -228,11 +224,9 @@ export async function walkTreeWithFlightRouterState({
         injectedFontPreloadTags,
         // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
         rootLayoutIncluded,
-        getViewportReady,
-        getMetadataReady,
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
-        StreamingMetadataOutlet,
+        MetadataOutlet,
       }
     )
 
@@ -289,10 +283,8 @@ export async function walkTreeWithFlightRouterState({
       injectedJS: injectedJSWithCurrentLayout,
       injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
       rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-      getViewportReady,
-      getMetadataReady,
       preloadCallbacks,
-      StreamingMetadataOutlet,
+      MetadataOutlet,
     })
 
     for (const subPath of subPaths) {

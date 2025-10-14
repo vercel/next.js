@@ -69,13 +69,17 @@ import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
-  isPersistentCachingEnabledForDev,
+  isFileSystemCacheEnabledForDev,
   ModuleBuildError,
 } from '../../../shared/lib/turbopack/utils'
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
-import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
+import {
+  JSON_CONTENT_TYPE_HEADER,
+  MIDDLEWARE_FILENAME,
+  PROXY_FILENAME,
+} from '../../../lib/constants'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -109,7 +113,7 @@ export interface DevRoutesManifest {
   redirects: RoutesManifest['redirects']
   headers: RoutesManifest['headers']
   i18n: RoutesManifest['i18n']
-  skipMiddlewareUrlNormalize: RoutesManifest['skipMiddlewareUrlNormalize']
+  skipProxyUrlNormalize: RoutesManifest['skipProxyUrlNormalize']
 }
 
 export type ServerFields = {
@@ -127,7 +131,7 @@ export type ServerFields = {
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
   >[]
-  setIsrStatus?: (key: string, value: boolean) => void
+  setIsrStatus?: (key: string, value: boolean | undefined) => void
   resetFetch?: () => void
 }
 
@@ -141,6 +145,7 @@ async function verifyTypeScript(opts: SetupOpts) {
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
+    isolatedDevBuild: opts.nextConfig.experimental.isolatedDevBuild,
   })
 
   if (verifyResult.version) {
@@ -249,7 +254,7 @@ async function startWatcher(
     redirects: opts.fsChecker.redirects,
     headers: opts.fsChecker.headers,
     i18n: nextConfig.i18n || undefined,
-    skipMiddlewareUrlNormalize: nextConfig.skipMiddlewareUrlNormalize,
+    skipProxyUrlNormalize: nextConfig.skipProxyUrlNormalize,
   }
   await fs.promises.writeFile(
     routesManifestPath,
@@ -386,6 +391,29 @@ async function startWatcher(
         sortByPageExts(nextConfig.pageExtensions)
       )
 
+      let hasMiddlewareFile = false
+      let hasProxyFile = false
+      for (const fileName of sortedKnownFiles) {
+        const { name } = path.parse(fileName)
+        if (name === MIDDLEWARE_FILENAME) {
+          hasMiddlewareFile = true
+        }
+        if (name === PROXY_FILENAME) {
+          hasProxyFile = true
+        }
+      }
+
+      if (hasMiddlewareFile) {
+        if (hasProxyFile) {
+          throw new Error(
+            `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
+          )
+        }
+        Log.warnOnce(
+          `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
+        )
+      }
+
       for (const fileName of sortedKnownFiles) {
         if (
           !files.includes(fileName) &&
@@ -466,6 +494,7 @@ async function startWatcher(
             continue
           }
           serverFields.actualMiddlewareFile = rootFile
+
           await propagateServerField(
             opts,
             'actualMiddlewareFile',
@@ -1238,10 +1267,8 @@ export async function setupDevBundler(opts: SetupOpts) {
   opts.telemetry.record({
     eventName: EVENT_BUILD_FEATURE_USAGE,
     payload: {
-      featureName: 'turbopackPersistentCaching',
-      invocationCount: isPersistentCachingEnabledForDev(opts.nextConfig)
-        ? 1
-        : 0,
+      featureName: 'turbopackFileSystemCache',
+      invocationCount: isFileSystemCacheEnabledForDev(opts.nextConfig) ? 1 : 0,
     },
   })
 

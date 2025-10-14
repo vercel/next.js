@@ -23,7 +23,7 @@ import {
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import type { ProxyConfig } from '../../analysis/get-page-static-info'
 import type { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
@@ -294,7 +294,7 @@ function isBunModule(moduleName: string) {
 
 function isDynamicCodeEvaluationAllowed(
   fileName: string,
-  middlewareConfig?: MiddlewareConfig,
+  middlewareConfig?: ProxyConfig,
   rootDir?: string
 ) {
   // Some packages are known to use `eval` but are safe to use in the Edge

@@ -97,6 +97,7 @@ import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 import type { NextBuildContext } from './build-context'
 import type { RootParamsLoaderOpts } from './webpack/loaders/next-root-params-loader'
 import type { InvalidImportLoaderOpts } from './webpack/loaders/next-invalid-import-error-loader'
+import { defaultOverrides } from '../server/require-hook'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -951,7 +952,7 @@ export default async function getBaseWebpackConfig(
           ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
           ['swcEmotion', !!config.compiler?.emotion],
           ['transpilePackages', !!config.transpilePackages],
-          ['skipMiddlewareUrlNormalize', !!config.skipMiddlewareUrlNormalize],
+          ['skipProxyUrlNormalize', !!config.skipProxyUrlNormalize],
           ['skipTrailingSlashRedirect', !!config.skipTrailingSlashRedirect],
           ['modularizeImports', !!config.modularizeImports],
           // If esmExternals is not same as default value, it represents customized usage
@@ -966,7 +967,8 @@ export default async function getBaseWebpackConfig(
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
     // @ts-ignore
     externals:
-      isClient || isEdgeServer
+      !isRspack &&
+      (isClient || isEdgeServer
         ? // make sure importing "next" is handled gracefully for client
           // bundles in case a user imported types and it wasn't removed
           // TODO: should we warn/error for this instead?
@@ -1038,7 +1040,7 @@ export default async function getBaseWebpackConfig(
                     })
                 }
               ),
-          ],
+          ]),
 
     optimization: {
       emitOnErrors: !dev,
@@ -1552,7 +1554,7 @@ export default async function getBaseWebpackConfig(
         ...getNextRootParamsRules({
           isRootParamsEnabled:
             config.experimental.rootParams ??
-            // `experimental.dynamicIO` implies `experimental.rootParams`.
+            // `experimental.cacheComponents` implies `experimental.rootParams`.
             config.experimental.cacheComponents ??
             false,
           isClient,
@@ -2172,6 +2174,15 @@ export default async function getBaseWebpackConfig(
         ).default({
           compilerType,
           ...config.experimental.slowModuleDetection!,
+        }),
+      isRspack &&
+        new (getRspackCore().NextExternalsPlugin)({
+          compilerType,
+          config,
+          optOutBundlingPackageRegex,
+          finalTranspilePackages,
+          dir,
+          defaultOverrides,
         }),
     ].filter(Boolean as any as ExcludesFalse),
   }

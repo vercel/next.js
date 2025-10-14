@@ -1,5 +1,5 @@
 import {
-  unstable_expireTag,
+  revalidateTag,
   unstable_cacheLife as cacheLife,
   unstable_cacheTag,
 } from 'next/cache'
@@ -13,7 +13,7 @@ function InnerComponent({ children }) {
 
 async function refresh() {
   'use server'
-  unstable_expireTag('hello')
+  revalidateTag('hello')
 }
 
 async function reload() {

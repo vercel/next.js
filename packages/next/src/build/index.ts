@@ -21,6 +21,7 @@ import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
+  PROXY_FILENAME,
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
   RSC_PREFETCH_SUFFIX,
@@ -206,10 +207,10 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 
 import { turbopackBuild } from './turbopack-build'
-import { isPersistentCachingEnabledForBuild } from '../shared/lib/turbopack/utils'
+import { isFileSystemCacheEnabledForBuild } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
-import { durationToString } from './duration-to-string'
+import { durationToString, hrtimeDurationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
 import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
@@ -226,6 +227,7 @@ import {
   writeRouteTypesManifest,
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
+import { Lockfile } from './lockfile'
 
 type Fallback = null | boolean | string
 
@@ -466,8 +468,8 @@ export type RoutesManifest = {
     prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
 
     /**
-     * Whether the client param parsing is enabled. This is only relevant for
-     * app pages when PPR is enabled.
+     * Whether the client param parsing is enabled. This is automatically enabled when
+     * cacheComponents is enabled.
      */
     clientParamParsing: boolean
 
@@ -483,7 +485,7 @@ export type RoutesManifest = {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
     queryHeader: typeof NEXT_REWRITTEN_QUERY_HEADER
   }
-  skipMiddlewareUrlNormalize?: boolean
+  skipProxyUrlNormalize?: boolean
   caseSensitive?: boolean
   /**
    * Configuration related to Partial Prerendering.
@@ -763,17 +765,22 @@ async function writeStandaloneDirectory(
         )
       }
 
-      await recursiveCopy(
-        path.join(distDir, SERVER_DIRECTORY, 'pages'),
-        path.join(
-          distDir,
-          STANDALONE_DIRECTORY,
-          path.relative(outputFileTracingRoot, distDir),
-          SERVER_DIRECTORY,
-          'pages'
-        ),
-        { overwrite: true }
-      )
+      const originalPagesDir = path.join(distDir, SERVER_DIRECTORY, 'pages')
+
+      if (existsSync(originalPagesDir)) {
+        await recursiveCopy(
+          originalPagesDir,
+          path.join(
+            distDir,
+            STANDALONE_DIRECTORY,
+            path.relative(outputFileTracingRoot, distDir),
+            SERVER_DIRECTORY,
+            'pages'
+          ),
+          { overwrite: true }
+        )
+      }
+
       if (appDir) {
         const originalServerApp = path.join(distDir, SERVER_DIRECTORY, 'app')
         if (existsSync(originalServerApp)) {
@@ -899,7 +906,6 @@ export default async function build(
   reactProductionProfiling = false,
   debugOutput = false,
   debugPrerender = false,
-  runLint = true,
   noMangling = false,
   appDirOnly = false,
   bundler = Bundler.Turbopack,
@@ -1016,6 +1022,43 @@ export default async function build(
       NextBuildContext.originalRewrites = config._originalRewrites
       NextBuildContext.originalRedirects = config._originalRedirects
 
+      const distDirCreated = await nextBuildSpan
+        .traceChild('create-dist-dir')
+        .traceAsyncFn(async () => {
+          try {
+            await fs.mkdir(distDir, { recursive: true })
+            return true
+          } catch (err) {
+            if (isError(err) && err.code === 'EPERM') {
+              return false
+            }
+            throw err
+          }
+        })
+
+      if (!distDirCreated || !(await isWriteable(distDir))) {
+        throw new Error(
+          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
+        )
+      }
+
+      if (config.experimental.lockDistDir) {
+        // This leaks the lock file descriptor. That's okay, it'll be cleaned up by the OS upon
+        // process exit.
+        await Lockfile.acquireWithRetriesOrExit(
+          path.join(distDir, 'lock'),
+          'next build'
+        )
+      }
+
+      if (config.cleanDistDir && !isGenerateMode) {
+        await nextBuildSpan
+          .traceChild('clean')
+          .traceAsyncFn(() =>
+            recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev|lock)/)
+          )
+      }
+
       const cacheDir = getCacheDir(distDir)
 
       const telemetry = new Telemetry({ distDir })
@@ -1086,48 +1129,14 @@ export default async function build(
         logBundler: true,
       })
 
-      const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
-      const shouldLint = !ignoreESLint && runLint
-
       const typeCheckingOptions: Parameters<typeof startTypeChecking>[0] = {
         dir,
         appDir,
         pagesDir,
-        runLint,
-        shouldLint,
-        ignoreESLint,
         telemetry,
         nextBuildSpan,
         config,
         cacheDir,
-      }
-
-      const distDirCreated = await nextBuildSpan
-        .traceChild('create-dist-dir')
-        .traceAsyncFn(async () => {
-          try {
-            await fs.mkdir(distDir, { recursive: true })
-            return true
-          } catch (err) {
-            if (isError(err) && err.code === 'EPERM') {
-              return false
-            }
-            throw err
-          }
-        })
-
-      if (!distDirCreated || !(await isWriteable(distDir))) {
-        throw new Error(
-          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
-        )
-      }
-
-      if (config.cleanDistDir && !isGenerateMode) {
-        await nextBuildSpan
-          .traceChild('clean')
-          .traceAsyncFn(() =>
-            recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev)/)
-          )
       }
 
       if (appDir && 'exportPathMap' in config) {
@@ -1137,15 +1146,6 @@ export default async function build(
         await telemetry.flush()
         process.exit(1)
       }
-
-      const buildLintEvent: EventBuildFeatureUsage = {
-        featureName: 'build-lint',
-        invocationCount: shouldLint ? 1 : 0,
-      }
-      telemetry.record({
-        eventName: EVENT_BUILD_FEATURE_USAGE,
-        payload: buildLintEvent,
-      })
 
       const validFileMatcher = createValidFileMatcher(
         config.pageExtensions,
@@ -1168,6 +1168,10 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
+      const proxyDetectionRegExp = new RegExp(
+        `^${PROXY_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
+      )
+
       const instrumentationHookDetectionRegExp = new RegExp(
         `^${INSTRUMENTATION_HOOK_FILENAME}\\.(?:${config.pageExtensions.join(
           '|'
@@ -1177,6 +1181,7 @@ export default async function build(
       const rootDir = path.join((pagesDir || appDir)!, '..')
       const includes = [
         middlewareDetectionRegExp,
+        proxyDetectionRegExp,
         instrumentationHookDetectionRegExp,
       ]
 
@@ -1191,6 +1196,17 @@ export default async function build(
       const hasMiddlewareFile = rootPaths.some((p) =>
         p.includes(MIDDLEWARE_FILENAME)
       )
+      const hasProxyFile = rootPaths.some((p) => p.includes(PROXY_FILENAME))
+      if (hasMiddlewareFile) {
+        if (hasProxyFile) {
+          throw new Error(
+            `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
+          )
+        }
+        Log.warnOnce(
+          `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
+        )
+      }
 
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
@@ -1566,30 +1582,19 @@ export default async function build(
               prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
               prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
               prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
-              clientParamParsing:
-                // NOTE: once this is the default for `clientSegmentCache`, this
-                // should exclusively be based on the `clientSegmentCache` flag.
-                config.experimental.clientParamParsing ?? false,
-              clientParamParsingOrigins: config.experimental.clientParamParsing
-                ? config.experimental.clientParamParsingOrigins
-                : undefined,
+              clientParamParsing: config.experimental.cacheComponents ?? false,
+              clientParamParsingOrigins:
+                config.experimental.clientParamParsingOrigins,
               dynamicRSCPrerender:
-                // Only enable RDC for Navigations if the feature is enabled.
-                // Once we've made RDC for Navigations the default for PPR, we
-                // can remove the check for `config.experimental.rdcForNavigations`.
                 isAppPPREnabled &&
                 config.experimental.rdcForNavigations === true &&
-                // Temporarily we require that clientParamParsing is enabled for
-                // RDC for Navigations. This is due to a builder configuration
-                // bug that manifests as invalid query params being passed to
-                // the resume lambdas.
-                config.experimental.clientParamParsing === true,
+                config.experimental.cacheComponents === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
               queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
             },
-            skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
+            skipProxyUrlNormalize: config.skipProxyUrlNormalize,
             ppr: isAppPPREnabled
               ? {
                   chain: {
@@ -1846,6 +1851,7 @@ export default async function build(
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
+      const collectingPageDataStart = process.hrtime()
       const postCompileSpinner = createSpinner('Collecting page data')
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
@@ -1913,9 +1919,7 @@ export default async function build(
           }
         }
 
-        const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
-          config
-        const runtimeEnvConfig = { publicRuntimeConfig, serverRuntimeConfig }
+        const { configFileName } = config
         const sriEnabled = Boolean(config.experimental.sri?.algorithm)
 
         const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
@@ -1928,7 +1932,6 @@ export default async function build(
               (await worker.hasCustomGetInitialProps({
                 page: '/_error',
                 distDir,
-                runtimeEnvConfig,
                 checkingApp: false,
                 sriEnabled,
               }))
@@ -1942,7 +1945,6 @@ export default async function build(
               page: '/_error',
               distDir,
               configFileName,
-              runtimeEnvConfig,
               cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
@@ -1962,7 +1964,6 @@ export default async function build(
           ? worker.hasCustomGetInitialProps({
               page: appPageToCheck,
               distDir,
-              runtimeEnvConfig,
               checkingApp: true,
               sriEnabled,
             })
@@ -1972,7 +1973,6 @@ export default async function build(
           ? worker.getDefinedNamedExports({
               page: appPageToCheck,
               distDir,
-              runtimeEnvConfig,
               sriEnabled,
             })
           : Promise.resolve([])
@@ -2156,7 +2156,6 @@ export default async function build(
                             originalAppPath,
                             distDir,
                             configFileName,
-                            runtimeEnvConfig,
                             httpAgentOptions: config.httpAgentOptions,
                             locales: config.i18n?.locales,
                             defaultLocale: config.i18n?.defaultLocale,
@@ -2413,7 +2412,13 @@ export default async function build(
         return returnValue
       })
 
-      if (postCompileSpinner) postCompileSpinner.stopAndPersist()
+      if (postCompileSpinner) {
+        const collectingPageDataEnd = process.hrtime(collectingPageDataStart)
+        postCompileSpinner.setText(
+          `Collecting page data in ${hrtimeDurationToString(collectingPageDataEnd)}`
+        )
+        postCompileSpinner.stopAndPersist()
+      }
       traceMemoryUsage('Finished collecting page data', nextBuildSpan)
 
       if (customAppGetInitialProps) {
@@ -2548,8 +2553,8 @@ export default async function build(
           return serverFilesManifest
         })
 
-      const middlewareFile = rootPaths.find((p) =>
-        p.includes(MIDDLEWARE_FILENAME)
+      const middlewareFile = rootPaths.find(
+        (p) => p.includes(MIDDLEWARE_FILENAME) || p.includes(PROXY_FILENAME)
       )
       let hasNodeMiddleware = false
 
@@ -2721,8 +2726,12 @@ export default async function build(
           invocationCount: config.experimental.ppr ? 1 : 0,
         },
         {
-          featureName: 'turbopackPersistentCaching',
-          invocationCount: isPersistentCachingEnabledForBuild(config) ? 1 : 0,
+          featureName: 'experimental/isolatedDevBuild',
+          invocationCount: config.experimental.isolatedDevBuild ? 1 : 0,
+        },
+        {
+          featureName: 'turbopackFileSystemCache',
+          invocationCount: isFileSystemCacheEnabledForBuild(config) ? 1 : 0,
         },
       ]
       telemetry.record(
@@ -2797,6 +2806,8 @@ export default async function build(
       await updateBuildDiagnostics({
         buildStage: 'static-generation',
       })
+
+      const hasGSPAndRevalidateZero = new Set<string>()
 
       // we need to trigger automatic exporting when we have
       // - static 404/500
@@ -2921,7 +2932,7 @@ export default async function build(
                     // completely static.
                     !(
                       config.experimental.clientSegmentCache &&
-                      config.experimental.clientParamParsing
+                      config.experimental.cacheComponents
                     )
                   ) {
                     return
@@ -3073,6 +3084,8 @@ export default async function build(
 
             const appConfig = appDefaultConfigs.get(originalAppPath)
             if (!appConfig) throw new InvariantError('App config not found')
+
+            const ssgPageRoutesSet = new Set(pageInfos.get(page)?.ssgPageRoutes)
 
             let hasRevalidateZero =
               appConfig.revalidate === 0 ||
@@ -3235,7 +3248,7 @@ export default async function build(
                   // this route.
                   !(
                     config.experimental.clientSegmentCache &&
-                    config.experimental.clientParamParsing &&
+                    config.experimental.cacheComponents &&
                     isRoutePPREnabled
                   )
                 ) {
@@ -3269,13 +3282,35 @@ export default async function build(
                 }
               } else {
                 hasRevalidateZero = true
-                // we might have determined during prerendering that this page
-                // used dynamic data
-                pageInfos.set(route.pathname, {
-                  ...(pageInfos.get(route.pathname) as PageInfo),
-                  isSSG: false,
-                  isStatic: false,
-                })
+
+                if (ssgPageRoutesSet.has(route.pathname)) {
+                  const pageInfo = pageInfos.get(page) as PageInfo
+                  // Remove the route from the SSG page routes if it bailed out
+                  // during prerendering.
+                  ssgPageRoutesSet.delete(route.pathname)
+
+                  // Mark the route as having a GSP and revalidate zero.
+                  if (ssgPageRoutesSet.size === 0) {
+                    hasGSPAndRevalidateZero.delete(page)
+                  } else {
+                    hasGSPAndRevalidateZero.add(page)
+                  }
+
+                  pageInfos.set(page, {
+                    ...pageInfo,
+                    ssgPageRoutes: Array.from(ssgPageRoutesSet),
+                    // If there are no SSG page routes left, then the page is not SSG.
+                    isSSG: ssgPageRoutesSet.size === 0 ? false : pageInfo.isSSG,
+                  })
+                } else {
+                  // we might have determined during prerendering that this page
+                  // used dynamic data
+                  pageInfos.set(route.pathname, {
+                    ...(pageInfos.get(route.pathname) as PageInfo),
+                    isSSG: false,
+                    isStatic: false,
+                  })
+                }
               }
             }
 
@@ -3323,7 +3358,7 @@ export default async function build(
                     // this case. This only applies if we have PPR enabled for
                     // this route.
                     !config.experimental.clientSegmentCache ||
-                    !config.experimental.clientParamParsing ||
+                    !config.experimental.cacheComponents ||
                     !isRoutePPREnabled
                   ) {
                     prefetchDataRoute = path.posix.join(
@@ -3789,7 +3824,7 @@ export default async function build(
                       dataRoute: path.posix.join(
                         '/_next/data',
                         buildId,
-                        `${file}.json`
+                        `${localePage}.json`
                       ),
                       prefetchDataRoute: undefined,
                       allowHeader: ALLOWED_HEADERS,
@@ -3890,9 +3925,12 @@ export default async function build(
           .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
       }
 
+      const finalizingPageOptimizationStart = process.hrtime()
       const postBuildSpinner = createSpinner('Finalizing page optimization')
       let buildTracesSpinner
+      let buildTracesStart
       if (buildTracesPromise) {
+        buildTracesStart = process.hrtime()
         buildTracesSpinner = createSpinner('Collecting build traces')
       }
 
@@ -3919,7 +3957,7 @@ export default async function build(
           rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
-          middlewareCount: hasMiddlewareFile ? 1 : 0,
+          middlewareCount: hasMiddlewareFile || hasProxyFile ? 1 : 0,
           totalAppPagesCount,
           staticAppPagesCount,
           serverAppPagesCount,
@@ -4044,6 +4082,12 @@ export default async function build(
       await buildTracesPromise
 
       if (buildTracesSpinner) {
+        if (buildTracesStart) {
+          const buildTracesEnd = process.hrtime(buildTracesStart)
+          buildTracesSpinner.setText(
+            `Collecting build traces in ${hrtimeDurationToString(buildTracesEnd)}`
+          )
+        }
         buildTracesSpinner.stopAndPersist()
         buildTracesSpinner = undefined
       }
@@ -4069,6 +4113,9 @@ export default async function build(
           })
       }
 
+      // This should come after output: export handling but before
+      // output: standalone, in the future output: standalone might
+      // not be allowed if an adapter with onBuildComplete is configured
       const adapterPath = config.experimental.adapterPath
       if (adapterPath) {
         await nextBuildSpan
@@ -4078,6 +4125,7 @@ export default async function build(
               dir,
               distDir,
               config,
+              configOutDir: path.join(dir, configOutDir),
               staticPages,
               nextVersion: process.env.__NEXT_VERSION as string,
               tracingRoot: outputFileTracingRoot,
@@ -4117,7 +4165,15 @@ export default async function build(
           })
       }
 
-      if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+      if (postBuildSpinner) {
+        const finalizingPageOptimizationEnd = process.hrtime(
+          finalizingPageOptimizationStart
+        )
+        postBuildSpinner.setText(
+          `Finalizing page optimization in ${hrtimeDurationToString(finalizingPageOptimizationEnd)}`
+        )
+        postBuildSpinner.stopAndPersist()
+      }
       console.log()
 
       if (debugOutput) {
@@ -4133,6 +4189,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           buildManifest,
           middlewareManifest,
+          hasGSPAndRevalidateZero,
         })
       )
 

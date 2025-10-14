@@ -40,7 +40,7 @@ describe('app-dir static/dynamic handling', () => {
     }
   })
 
-  if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+  if (!process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
     it('should respond correctly for dynamic route with dynamicParams false in layout', async () => {
       const res = await next.fetch('/partial-params-false/en/another')
       expect(res.status).toBe(200)
@@ -169,7 +169,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(data1).not.toBe(data2)
       })
 
-      it('should not fetch from memory cache after unstable_expireTag is used', async () => {
+      it('should not fetch from memory cache after revalidateTag is used', async () => {
         const res1 = await next.fetch('/specify-new-tags/one-tag')
         expect(res1.status).toBe(200)
 
@@ -783,7 +783,7 @@ describe('app-dir static/dynamic handling', () => {
 
   if (isNextStart) {
     it('should not encode dynamic parameters as search parameters in RSC data', async () => {
-      const data = process.env.__NEXT_EXPERIMENTAL_PPR
+      const data = process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS
         ? await next.readFile('.next/server/app/blog/seb.prefetch.rsc')
         : await next.readFile('.next/server/app/blog/seb.rsc')
 
@@ -815,8 +815,7 @@ describe('app-dir static/dynamic handling', () => {
           )
         })
 
-      if (process.env.__NEXT_EXPERIMENTAL_CLIENT_SEGMENT_CACHE) {
-        expect(files.sort()).toMatchInlineSnapshot(`
+      expect(files.sort()).toMatchInlineSnapshot(`
          [
            "_not-found.html",
            "_not-found.rsc",
@@ -1163,6 +1162,12 @@ describe('app-dir static/dynamic handling', () => {
            "unstable-cache/fetch/no-store.segments/unstable-cache/fetch.segment.rsc",
            "unstable-cache/fetch/no-store.segments/unstable-cache/fetch/no-store.segment.rsc",
            "unstable-cache/fetch/no-store.segments/unstable-cache/fetch/no-store/__PAGE__.segment.rsc",
+           "update-tag-test.html",
+           "update-tag-test.rsc",
+           "update-tag-test.segments/_index.segment.rsc",
+           "update-tag-test.segments/_tree.segment.rsc",
+           "update-tag-test.segments/update-tag-test.segment.rsc",
+           "update-tag-test.segments/update-tag-test/__PAGE__.segment.rsc",
            "variable-config-revalidate/revalidate-3.html",
            "variable-config-revalidate/revalidate-3.rsc",
            "variable-config-revalidate/revalidate-3.segments/_index.segment.rsc",
@@ -1221,122 +1226,6 @@ describe('app-dir static/dynamic handling', () => {
            "variable-revalidate/revalidate-360-isr.segments/variable-revalidate/revalidate-360-isr/__PAGE__.segment.rsc",
          ]
         `)
-      } else {
-        expect(files.sort()).toMatchInlineSnapshot(`
-                [
-                  "_not-found.html",
-                  "_not-found.rsc",
-                  "articles/works.html",
-                  "articles/works.rsc",
-                  "blog/seb.html",
-                  "blog/seb.rsc",
-                  "blog/seb/second-post.html",
-                  "blog/seb/second-post.rsc",
-                  "blog/styfle.html",
-                  "blog/styfle.rsc",
-                  "blog/styfle/first-post.html",
-                  "blog/styfle/first-post.rsc",
-                  "blog/styfle/second-post.html",
-                  "blog/styfle/second-post.rsc",
-                  "blog/tim.html",
-                  "blog/tim.rsc",
-                  "blog/tim/first-post.html",
-                  "blog/tim/first-post.rsc",
-                  "default-config-fetch.html",
-                  "default-config-fetch.rsc",
-                  "force-cache.html",
-                  "force-cache.rsc",
-                  "force-static-fetch-no-store.html",
-                  "force-static-fetch-no-store.rsc",
-                  "force-static/first.html",
-                  "force-static/first.rsc",
-                  "force-static/second.html",
-                  "force-static/second.rsc",
-                  "gen-params-catch-all-unique/foo/bar.html",
-                  "gen-params-catch-all-unique/foo/bar.rsc",
-                  "gen-params-catch-all-unique/foo/foo.html",
-                  "gen-params-catch-all-unique/foo/foo.rsc",
-                  "gen-params-dynamic-revalidate/one.html",
-                  "gen-params-dynamic-revalidate/one.rsc",
-                  "hooks/use-pathname/slug.html",
-                  "hooks/use-pathname/slug.rsc",
-                  "hooks/use-search-params/force-static.html",
-                  "hooks/use-search-params/force-static.rsc",
-                  "hooks/use-search-params/with-suspense.html",
-                  "hooks/use-search-params/with-suspense.rsc",
-                  "index.html",
-                  "index.rsc",
-                  "isr-error-handling.html",
-                  "isr-error-handling.rsc",
-                  "no-config-fetch.html",
-                  "no-config-fetch.rsc",
-                  "no-store/static.html",
-                  "no-store/static.rsc",
-                  "partial-gen-params-no-additional-lang/en/RAND.html",
-                  "partial-gen-params-no-additional-lang/en/RAND.rsc",
-                  "partial-gen-params-no-additional-lang/en/first.html",
-                  "partial-gen-params-no-additional-lang/en/first.rsc",
-                  "partial-gen-params-no-additional-lang/en/second.html",
-                  "partial-gen-params-no-additional-lang/en/second.rsc",
-                  "partial-gen-params-no-additional-lang/fr/RAND.html",
-                  "partial-gen-params-no-additional-lang/fr/RAND.rsc",
-                  "partial-gen-params-no-additional-lang/fr/first.html",
-                  "partial-gen-params-no-additional-lang/fr/first.rsc",
-                  "partial-gen-params-no-additional-lang/fr/second.html",
-                  "partial-gen-params-no-additional-lang/fr/second.rsc",
-                  "partial-gen-params-no-additional-slug/en/RAND.html",
-                  "partial-gen-params-no-additional-slug/en/RAND.rsc",
-                  "partial-gen-params-no-additional-slug/en/first.html",
-                  "partial-gen-params-no-additional-slug/en/first.rsc",
-                  "partial-gen-params-no-additional-slug/en/second.html",
-                  "partial-gen-params-no-additional-slug/en/second.rsc",
-                  "partial-gen-params-no-additional-slug/fr/RAND.html",
-                  "partial-gen-params-no-additional-slug/fr/RAND.rsc",
-                  "partial-gen-params-no-additional-slug/fr/first.html",
-                  "partial-gen-params-no-additional-slug/fr/first.rsc",
-                  "partial-gen-params-no-additional-slug/fr/second.html",
-                  "partial-gen-params-no-additional-slug/fr/second.rsc",
-                  "partial-params-false/en/static.html",
-                  "partial-params-false/en/static.rsc",
-                  "partial-params-false/fr/static.html",
-                  "partial-params-false/fr/static.rsc",
-                  "prerendered-not-found/first.html",
-                  "prerendered-not-found/first.rsc",
-                  "prerendered-not-found/second.html",
-                  "prerendered-not-found/second.rsc",
-                  "prerendered-not-found/segment-revalidate.html",
-                  "prerendered-not-found/segment-revalidate.rsc",
-                  "ssg-draft-mode.html",
-                  "ssg-draft-mode.rsc",
-                  "ssg-draft-mode/test-2.html",
-                  "ssg-draft-mode/test-2.rsc",
-                  "ssg-draft-mode/test.html",
-                  "ssg-draft-mode/test.rsc",
-                  "strip-w3c-trace-context-headers.html",
-                  "strip-w3c-trace-context-headers.rsc",
-                  "unstable-cache/fetch/no-cache.html",
-                  "unstable-cache/fetch/no-cache.rsc",
-                  "unstable-cache/fetch/no-store.html",
-                  "unstable-cache/fetch/no-store.rsc",
-                  "variable-config-revalidate/revalidate-3.html",
-                  "variable-config-revalidate/revalidate-3.rsc",
-                  "variable-revalidate-stable/revalidate-3.html",
-                  "variable-revalidate-stable/revalidate-3.rsc",
-                  "variable-revalidate/authorization.html",
-                  "variable-revalidate/authorization.rsc",
-                  "variable-revalidate/cookie.html",
-                  "variable-revalidate/cookie.rsc",
-                  "variable-revalidate/encoding.html",
-                  "variable-revalidate/encoding.rsc",
-                  "variable-revalidate/headers-instance.html",
-                  "variable-revalidate/headers-instance.rsc",
-                  "variable-revalidate/revalidate-3.html",
-                  "variable-revalidate/revalidate-3.rsc",
-                  "variable-revalidate/revalidate-360-isr.html",
-                  "variable-revalidate/revalidate-360-isr.rsc",
-                ]
-              `)
-      }
     })
 
     it('should have correct prerender-manifest entries', async () => {
@@ -2674,6 +2563,31 @@ describe('app-dir static/dynamic handling', () => {
            "prefetchDataRoute": null,
            "srcRoute": "/unstable-cache/fetch/no-store",
          },
+         "/update-tag-test": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/update-tag-test.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "prefetchDataRoute": null,
+           "srcRoute": "/update-tag-test",
+         },
          "/variable-config-revalidate/revalidate-3": {
            "allowHeader": [
              "host",
@@ -3424,7 +3338,7 @@ describe('app-dir static/dynamic handling', () => {
     for (let i = 0; i < 5; i++) {
       const res = await next.fetch('/articles/non-existent')
 
-      if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev) {
+      if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS && !isNextDev) {
         expect(res.status).toBe(200)
       } else {
         expect(res.status).toBe(404)
@@ -3639,7 +3553,7 @@ describe('app-dir static/dynamic handling', () => {
     })
   } else {
     // TODO: re-implement this in a way that'll support PFPR
-    if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+    if (!process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
       it('should not error with dynamic server usage with force-static', async () => {
         const res = await next.fetch(
           '/static-to-dynamic-error-forced/static-bailout-1'
@@ -3680,7 +3594,7 @@ describe('app-dir static/dynamic handling', () => {
       )
     })
 
-    if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+    if (!process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
       it('should properly error when dynamic = "error" page uses dynamic', async () => {
         const res = await next.fetch('/dynamic-error/static-bailout-1')
         const outputIndex = next.cliOutput.length
@@ -4577,7 +4491,7 @@ describe('app-dir static/dynamic handling', () => {
     expect(html).toInclude('"noindex"')
     expect(html).toInclude('This page could not be found.')
 
-    if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev) {
+    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS && !isNextDev) {
       expect(res.status).toBe(200)
     } else {
       expect(res.status).toBe(404)
@@ -5000,5 +4914,96 @@ describe('app-dir static/dynamic handling', () => {
   it('should build dynamic param with edge runtime correctly', async () => {
     const browser = await next.browser('/dynamic-param-edge/hello')
     expect(await browser.elementByCss('#slug').text()).toBe('hello')
+  })
+
+  describe('updateTag/revalidateTag', () => {
+    it('should throw error when updateTag is called in route handler', async () => {
+      const res = await next.fetch('/api/update-tag-error')
+      const data = await res.json()
+
+      expect(data.error).toContain(
+        'updateTag can only be called from within a Server Action'
+      )
+    })
+
+    it('should successfully update tag when called from server action', async () => {
+      // First fetch to get initial data
+      const browser = await next.browser('/update-tag-test')
+      const initialData = JSON.parse(await browser.elementByCss('#data').text())
+
+      await retry(async () => {
+        // Click update button to trigger server action with updateTag
+        await browser.elementByCss('#update-button').click()
+
+        // Refresh the page to see if cache was invalidated
+        await browser.refresh()
+        const newData = JSON.parse(await browser.elementByCss('#data').text())
+
+        // Data should be different after updateTag (immediate expiration)
+        expect(newData).not.toEqual(initialData)
+      })
+    })
+
+    it('revalidateTag work with max profile in server actions', async () => {
+      // First fetch to get initial data
+      const browser = await next.browser('/update-tag-test')
+      const initialData = JSON.parse(await browser.elementByCss('#data').text())
+
+      // Click revalidate button to trigger server action with revalidateTag(..., 'max')
+      await browser.elementByCss('#revalidate-button').click()
+
+      // The behavior with 'max' profile would be stale-while-revalidate
+      // Initial request after revalidation might still show stale data
+      let dataAfterRevalidate
+      await retry(async () => {
+        await browser.refresh()
+        dataAfterRevalidate = JSON.parse(
+          await browser.elementByCss('#data').text()
+        )
+
+        expect(dataAfterRevalidate).toBeDefined()
+        expect(dataAfterRevalidate).not.toBe(initialData)
+      })
+
+      if (isNextStart) {
+        // give second so tag isn't still stale state
+        await waitFor(1000)
+
+        const res1 = await next.fetch('/update-tag-test')
+        const body1 = await res1.text()
+        const cacheHeader1 = res1.headers.get('x-nextjs-cache')
+
+        expect(res1.status).toBe(200)
+        expect(cacheHeader1).toBeDefined()
+        expect(cacheHeader1).not.toBe('MISS')
+
+        const res2 = await next.fetch('/update-tag-test')
+        const body2 = await res2.text()
+        const cacheHeader2 = res2.headers.get('x-nextjs-cache')
+
+        expect(res2.status).toBe(200)
+        expect(cacheHeader2).toBeDefined()
+        expect(cacheHeader2).not.toBe('MISS')
+        expect(body1).toBe(body2)
+      }
+    })
+
+    // Runtime logs aren't queryable in deploy mode
+    if (!isNextDeploy) {
+      it('should show deprecation warning for revalidateTag without second argument', async () => {
+        const cliOutputStart = next.cliOutput.length
+
+        const browser = await next.browser('/update-tag-test')
+
+        await retry(async () => {
+          // Click deprecated button to trigger server action with revalidateTag (no second arg)
+          await browser.elementByCss('#deprecated-button').click()
+          const output = next.cliOutput.substring(cliOutputStart)
+          expect(output).toContain(
+            '"revalidateTag" without the second argument is now deprecated'
+          )
+        })
+      })
+    }
   })
 })

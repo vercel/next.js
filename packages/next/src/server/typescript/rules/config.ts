@@ -159,12 +159,12 @@ const API_DOCS: Record<
   unstable_prefetch: {
     description: `Specifies the default prefetching behavior for this segment. This configuration is currently under development and will change.`,
     link: '(docs coming soon)',
-    options: {
-      '"unstable_static"':
-        'Only static and cached parts of the page will be prefetched. (default)',
-      '"unstable_runtime"':
-        'Parts of the page that use route params, search params, or cookies will also be prefetched.',
-    } satisfies DocsOptionsObject<FullAppSegmentConfig['unstable_prefetch']>,
+    type: 'object',
+    // TODO: ideally, we'd validate the config object somehow, but this is difficult to do
+    // with the way this plugin is currently structured.
+    // For now, since we don't provide an `options` here, we won't do any validation in
+    // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
+    insertText: 'unstable_prefetch = { mode: "static" };',
   },
 }
 

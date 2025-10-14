@@ -193,7 +193,6 @@ interface EntryType {
 }
 
 // Shadowing check in ESLint does not account for enum
-// eslint-disable-next-line no-shadow
 export const enum EntryTypes {
   ENTRY,
   CHILD_ENTRY,
@@ -886,7 +885,11 @@ export function onDemandEntryHandler({
 
       if (hasNewEntry) {
         const routePage = isApp ? route.page : normalizeAppPath(route.page)
-        reportTrigger(routePage, url)
+        // If proxy file, remove the leading slash from "/proxy" to "proxy".
+        reportTrigger(
+          isMiddlewareFile(routePage) ? routePage.slice(1) : routePage,
+          url
+        )
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
