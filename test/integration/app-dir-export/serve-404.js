@@ -17,17 +17,19 @@ const MIME_TYPES = {
 function createServer(dir, port) {
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
-      let filePath = path.join(dir, req.url === '/' ? 'index.html' : req.url);
-
       // Remove query string
-      filePath = filePath.split('?')[0];
+      const cleanUrl = req.url.split('?')[0];
 
-      const ext = path.extname(filePath);
-      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+      // Try multiple file paths in order
+      const pathsToTry = [
+        cleanUrl === '/' ? path.join(dir, 'index.html') : path.join(dir, cleanUrl),
+        path.join(dir, cleanUrl + '.html'),
+        path.join(dir, cleanUrl, 'index.html'),
+      ];
 
-      fs.readFile(filePath, (err, content) => {
-        if (err) {
-          // Serve 404.html for all 404 errors (SPA fallback)
+      function tryNextPath(index) {
+        if (index >= pathsToTry.length) {
+          // All paths failed, serve 404.html as SPA fallback
           const notFoundPath = path.join(dir, '404.html');
           fs.readFile(notFoundPath, (err404, content404) => {
             if (err404) {
@@ -38,11 +40,26 @@ function createServer(dir, port) {
               res.end(content404, 'utf-8');
             }
           });
-        } else {
-          res.writeHead(200, { 'Content-Type': contentType });
-          res.end(content, 'utf-8');
+          return;
         }
-      });
+
+        const filePath = pathsToTry[index];
+        const ext = path.extname(filePath);
+        const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+        fs.readFile(filePath, (err, content) => {
+          if (err) {
+            // Try next path
+            tryNextPath(index + 1);
+          } else {
+            // Found! Serve the file
+            res.writeHead(200, { 'Content-Type': contentType });
+            res.end(content, 'utf-8');
+          }
+        });
+      }
+
+      tryNextPath(0);
     });
 
     server.listen(port, () => {
