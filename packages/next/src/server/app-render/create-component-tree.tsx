@@ -941,16 +941,28 @@ async function createComponentTreeInternal(
         const UseCacheLayoutComponent: ComponentType<UseCacheLayoutProps> =
           SegmentComponent
 
-        serverSegment = createElement(UseCacheLayoutComponent, {
-          ...parallelRouteProps,
-          params: params,
-          $$isLayout: true,
-        })
+        serverSegment = createElement(
+          UseCacheLayoutComponent,
+          {
+            ...parallelRouteProps,
+            params: params,
+            $$isLayout: true,
+          },
+          // Force static children here so that they're validated.
+          // See https://github.com/facebook/react/pull/34846
+          parallelRouteProps.children
+        )
       } else {
-        serverSegment = createElement(SegmentComponent, {
-          ...parallelRouteProps,
-          params: params,
-        })
+        serverSegment = createElement(
+          SegmentComponent,
+          {
+            ...parallelRouteProps,
+            params: params,
+          },
+          // Force static children here so that they're validated.
+          // See https://github.com/facebook/react/pull/34846
+          parallelRouteProps.children
+        )
       }
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
