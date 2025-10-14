@@ -22,7 +22,7 @@ import { loadWebpackHook } from './config-utils'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import type { ImageConfig } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
-import { flushAndExit } from '../telemetry/flush-and-exit'
+import { flushTelemetry } from '../telemetry/flush-telemetry'
 import {
   findRootDirAndLockFiles,
   warnDuplicatedLockFiles,
@@ -53,40 +53,48 @@ export type { DomainLocale, NextConfig } from './config-shared'
 
 function normalizeNextConfigZodErrors(
   error: ZodError<NextConfig>
-): [errorMessages: string[], shouldExit: boolean] {
-  let shouldExit = false
+): [warnings: string[], fatalErrors: string[]] {
+  const warnings: string[] = []
+  const fatalErrors: string[] = []
   const issues = normalizeZodErrors(error)
-  return [
-    issues.flatMap(({ issue, message }) => {
-      if (issue.path[0] === 'images') {
-        // We exit the build when encountering an error in the images config
-        shouldExit = true
-      }
-      if (
-        issue.code === 'unrecognized_keys' &&
-        issue.path[0] === 'experimental'
-      ) {
-        if (message.includes('turbopackPersistentCachingForBuild')) {
-          // We exit the build when encountering an error in the turbopackPersistentCaching config
-          shouldExit = true
-          message +=
-            "\nUse 'experimental.turbopackFileSystemCacheForBuild' instead."
-          message +=
-            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
-        } else if (message.includes('turbopackPersistentCaching')) {
-          // We exit the build when encountering an error in the turbopackPersistentCaching config
-          shouldExit = true
-          message +=
-            "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
-          message +=
-            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
-        }
-      }
 
-      return message
-    }),
-    shouldExit,
-  ]
+  for (const { issue, message: originalMessage } of issues) {
+    let message = originalMessage
+    let shouldExit = false
+
+    if (issue.path[0] === 'images') {
+      // We exit the build when encountering an error in the images config
+      shouldExit = true
+    }
+    if (
+      issue.code === 'unrecognized_keys' &&
+      issue.path[0] === 'experimental'
+    ) {
+      if (message.includes('turbopackPersistentCachingForBuild')) {
+        // We exit the build when encountering an error in the turbopackPersistentCaching config
+        shouldExit = true
+        message +=
+          "\nUse 'experimental.turbopackFileSystemCacheForBuild' instead."
+        message +=
+          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+      } else if (message.includes('turbopackPersistentCaching')) {
+        // We exit the build when encountering an error in the turbopackPersistentCaching config
+        shouldExit = true
+        message +=
+          "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
+        message +=
+          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+      }
+    }
+
+    if (shouldExit) {
+      fatalErrors.push(message)
+    } else {
+      warnings.push(message)
+    }
+  }
+
+  return [warnings, fatalErrors]
 }
 
 export function warnOptionHasBeenDeprecated(
@@ -1938,36 +1946,67 @@ async function validateConfigSchema(
   const state = configSchema.safeParse(userConfig)
 
   if (!state.success) {
-    // error message header
-    const messages = [`Invalid ${configFileName} options detected: `]
+    const [warnings, fatalErrors] = normalizeNextConfigZodErrors(state.error)
+    const hasFatalErrors = fatalErrors.length > 0
 
-    const [errorMessages, shouldExit] = normalizeNextConfigZodErrors(
-      state.error
-    )
-    // ident list item
-    for (const error of errorMessages) {
-      messages.push(`    ${error.split('\n').join('\n    ')}`)
-    }
+    // Group warnings first
+    if (warnings.length > 0) {
+      const warningMessages = [`Invalid ${configFileName} options detected: `]
 
-    // error message footer
-    messages.push(
-      'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
-    )
-
-    // Call the callback with validation messages if provided
-    if (onValidationMessages) {
-      onValidationMessages(messages)
-    }
-
-    if (shouldExit) {
-      for (const message of messages) {
-        console.error(message)
+      for (const error of warnings) {
+        warningMessages.push(`    ${error.split('\n').join('\n    ')}`)
       }
-      await flushAndExit(1)
-    } else {
-      for (const message of messages) {
+
+      warningMessages.push(
+        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+      )
+
+      // Call the callback with validation messages if provided
+      if (onValidationMessages) {
+        onValidationMessages(warningMessages)
+      }
+
+      for (const message of warningMessages) {
         warn(message)
       }
+    }
+
+    // Then throw hard errors
+    if (hasFatalErrors) {
+      flushTelemetry()
+
+      const errorMessages = [
+        `Fatal next config errors found in ${configFileName} that must be fixed:`,
+      ]
+
+      for (const error of fatalErrors) {
+        errorMessages.push(`    ${error.split('\n').join('\n    ')}`)
+      }
+
+      errorMessages.push(
+        'These configuration options are required or have been migrated. Please update your configuration.'
+      )
+      errorMessages.push(
+        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+      )
+
+      // Call the callback with validation messages if provided
+      if (onValidationMessages) {
+        onValidationMessages(errorMessages)
+      }
+
+      const fullErrorMessage = errorMessages.join('\n')
+
+      let err: Error
+      const stackTraceLimit = Error.stackTraceLimit
+      Error.stackTraceLimit = 0
+      try {
+        err = new Error(fullErrorMessage)
+      } finally {
+        Error.stackTraceLimit = stackTraceLimit
+      }
+
+      throw err
     }
   }
 }
