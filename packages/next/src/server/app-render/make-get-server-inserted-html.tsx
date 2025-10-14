@@ -1,4 +1,4 @@
-/* eslint-disable @next/internal/no-jsx-in-app-router -- whole module is used in React Client */
+/* eslint-disable @next/internal/no-ambiguous-jsx -- whole module is used in React Client */
 import React, { type JSX } from 'react'
 import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import {

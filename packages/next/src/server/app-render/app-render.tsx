@@ -1320,7 +1320,7 @@ function App<T>({
   nonce,
   images,
 }: {
-  /* eslint-disable @next/internal/no-jsx-in-app-router -- React Client */
+  /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   reactServerStream: BinaryStreamOf<T>
   reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
@@ -1375,7 +1375,7 @@ function App<T>({
       </ImageConfigContext.Provider>
     </HeadManagerContext.Provider>
   )
-  /* eslint-enable @next/internal/no-jsx-in-app-router -- React Client */
+  /* eslint-enable @next/internal/no-ambiguous-jsx -- React Client */
 }
 
 // @TODO our error stream should be probably just use the same root component. But it was previously
@@ -1400,7 +1400,7 @@ function ErrorApp<T>({
   nonce?: string
   images: RenderOpts['images']
 }): JSX.Element {
-  /* eslint-disable @next/internal/no-jsx-in-app-router -- React Client */
+  /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   preinitScripts()
   const response = ReactClient.use(
     useFlightStream<InitialRSCPayload>(
@@ -1435,7 +1435,7 @@ function ErrorApp<T>({
       </ServerInsertedHTMLProvider>
     </ImageConfigContext.Provider>
   )
-  /* eslint-enable @next/internal/no-jsx-in-app-router -- React Client */
+  /* eslint-enable @next/internal/no-ambiguous-jsx -- React Client */
 }
 
 // We use a trick with TS Generics to branch streams with a type so we can
@@ -2155,7 +2155,7 @@ async function renderToStream(
   createRequestStore: (() => RequestStore) | undefined,
   devValidatingFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<ReadableStream<Uint8Array>> {
-  /* eslint-disable @next/internal/no-jsx-in-app-router -- React Client */
+  /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   const { assetPrefix, htmlRequestId, nonce, pagePath, renderOpts, requestId } =
     ctx
 
@@ -2700,7 +2700,7 @@ async function renderToStream(
       throw finalErr
     }
   }
-  /* eslint-enable @next/internal/no-jsx-in-app-router */
+  /* eslint-enable @next/internal/no-ambiguous-jsx */
 }
 
 async function renderWithRestartOnCacheMissInDev(
@@ -3182,7 +3182,7 @@ async function spawnDynamicValidationInDev(
     const pendingInitialClientResult = workUnitAsyncStorage.run(
       initialClientPrerenderStore,
       prerender,
-      // eslint-disable-next-line @next/internal/no-jsx-in-app-router -- React Client
+      // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
       <App
         reactServerStream={initialServerResult.asUnclosingStream()}
         reactDebugStream={undefined}
@@ -3413,7 +3413,7 @@ async function spawnDynamicValidationInDev(
           const pendingFinalClientResult = workUnitAsyncStorage.run(
             finalClientPrerenderStore,
             prerender,
-            // eslint-disable-next-line @next/internal/no-jsx-in-app-router -- React Client
+            // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- React Client
             <App
               reactServerStream={reactServerResult.asUnclosingStream()}
               reactDebugStream={undefined}
@@ -3933,7 +3933,7 @@ async function prerenderToStream(
         const pendingInitialClientResult = workUnitAsyncStorage.run(
           initialClientPrerenderStore,
           prerender,
-          // eslint-disable-next-line @next/internal/no-jsx-in-app-router
+          // eslint-disable-next-line @next/internal/no-ambiguous-jsx
           <App
             reactServerStream={initialServerResult.asUnclosingStream()}
             reactDebugStream={undefined}
@@ -4169,7 +4169,7 @@ async function prerenderToStream(
             const pendingFinalClientResult = workUnitAsyncStorage.run(
               finalClientPrerenderStore,
               prerender,
-              // eslint-disable-next-line @next/internal/no-jsx-in-app-router
+              // eslint-disable-next-line @next/internal/no-ambiguous-jsx
               <App
                 reactServerStream={reactServerResult.asUnclosingStream()}
                 reactDebugStream={undefined}
@@ -4335,7 +4335,7 @@ async function prerenderToStream(
           const foreverStream = new ReadableStream<Uint8Array>()
 
           const resumeStream = await resume(
-            // eslint-disable-next-line @next/internal/no-jsx-in-app-router
+            // eslint-disable-next-line @next/internal/no-ambiguous-jsx
             <App
               reactServerStream={foreverStream}
               reactDebugStream={undefined}
@@ -4444,7 +4444,7 @@ async function prerenderToStream(
         await workUnitAsyncStorage.run(
           ssrPrerenderStore,
           prerender,
-          // eslint-disable-next-line @next/internal/no-jsx-in-app-router
+          // eslint-disable-next-line @next/internal/no-ambiguous-jsx
           <App
             reactServerStream={reactServerResult.asUnclosingStream()}
             reactDebugStream={undefined}
@@ -4587,7 +4587,7 @@ async function prerenderToStream(
           const foreverStream = new ReadableStream<Uint8Array>()
 
           const resumeStream = await resume(
-            // eslint-disable-next-line @next/internal/no-jsx-in-app-router
+            // eslint-disable-next-line @next/internal/no-ambiguous-jsx
             <App
               reactServerStream={foreverStream}
               reactDebugStream={undefined}
@@ -4673,7 +4673,7 @@ async function prerenderToStream(
       const htmlStream = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
         renderToReadableStream,
-        // eslint-disable-next-line @next/internal/no-jsx-in-app-router
+        // eslint-disable-next-line @next/internal/no-ambiguous-jsx
         <App
           reactServerStream={reactServerResult.asUnclosingStream()}
           reactDebugStream={undefined}
@@ -4849,7 +4849,7 @@ async function prerenderToStream(
           ReactDOMServer:
             require('react-dom/server') as typeof import('react-dom/server'),
           element: (
-            // eslint-disable-next-line @next/internal/no-jsx-in-app-router
+            // eslint-disable-next-line @next/internal/no-ambiguous-jsx
             <ErrorApp
               reactServerStream={errorServerStream}
               reactDebugStream={undefined}

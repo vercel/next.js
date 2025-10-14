@@ -1,19 +1,14 @@
 /**
- * ESLint rule: typechecked-require
- */
-
-/**
  * @type {import('eslint').Rule.RuleModule}
  */
 const plugin = {
-  name: 'no-jsx-in-app-router',
+  name: 'no-ambiguous-jsx',
   meta: {
     type: 'problem',
     docs: {
       description:
-        'JSX in app-render will default to React Client if it is not bundled in next-server. ' +
-        "If you're creating JSX for React Server, use createElement from ComponentMod instead.",
-      category: 'TypeScript',
+        'Unbundled JSX will default to React Client if it is not bundled in next-server. ' +
+        "If you're creating JSX for React Server, use createElement from componentMod instead.",
       recommended: true,
     },
     fixable: 'code',

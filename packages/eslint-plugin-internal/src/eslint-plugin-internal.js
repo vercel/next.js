@@ -1,9 +1,9 @@
 const typecheckedRequire = require('./eslint-typechecked-require')
-const noJsxInAppRouter = require('./eslint-no-jsx-in-app-router')
+const noAmbiguousJSX = require('./eslint-no-ambiguous-jsx')
 
 module.exports = {
   rules: {
-    'no-jsx-in-app-router': noJsxInAppRouter,
+    'no-ambiguous-jsx': noAmbiguousJSX,
     'typechecked-require': typecheckedRequire,
   },
 }

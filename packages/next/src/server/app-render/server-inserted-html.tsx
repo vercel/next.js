@@ -1,4 +1,4 @@
-/* eslint-disable @next/internal/no-jsx-in-app-router -- whole module is used in React Client */
+/* eslint-disable @next/internal/no-ambiguous-jsx -- whole module is used in React Client */
 // Provider for the `useServerInsertedHTML` API to register callbacks to insert
 // elements into the HTML stream.
 

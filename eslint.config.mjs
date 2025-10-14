@@ -400,16 +400,16 @@ export default defineConfig([
   },
   {
     files: [
-      'packages/next/src/server/app-render/**/*.js',
-      'packages/next/src/server/app-render/**/*.jsx',
-      'packages/next/src/server/app-render/**/*.ts',
-      'packages/next/src/server/app-render/**/*.tsx',
+      'packages/next/src/server/**/*.js',
+      'packages/next/src/server/**/*.jsx',
+      'packages/next/src/server/**/*.ts',
+      'packages/next/src/server/**/*.tsx',
     ],
     plugins: {
       '@next/internal': nextEslintPluginInternal,
     },
     rules: {
-      '@next/internal/no-jsx-in-app-router': 'error',
+      '@next/internal/no-ambiguous-jsx': 'error',
     },
   },
   {
