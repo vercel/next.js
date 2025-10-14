@@ -34,8 +34,7 @@ export default async function Page() {
 After:
 
 ```jsx filename="app/page.js"
-import { unstable_cacheTag as cacheTag } from 'next/cache'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
+import { unstable_cacheTag as cacheTag, cacheLife } from 'next/cache'
 
 async function getRecentArticles() {
   "use cache"
@@ -222,7 +221,7 @@ If you expected the `"use cache"` entry to be prerenderable try describing a sli
 Before:
 
 ```jsx filename="app/page.js"
-import { unstable_cacheLife as cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 async function getDashboard() {
   "use cache"
@@ -242,7 +241,7 @@ export default async function Page() {
 After:
 
 ```jsx filename="app/page.js"
-import { unstable_cacheLife as cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 async function getDashboard() {
   "use cache"

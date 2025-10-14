@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import {
-  unstable_cacheLife as cacheLife,
+  cacheLife,
   unstable_cacheTag as cacheTag,
   revalidatePath,
   updateTag,
