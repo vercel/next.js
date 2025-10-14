@@ -991,7 +991,7 @@ impl Project {
                 // In development mode, we need to to take and drop the issues, otherwise every
                 // route will report all issues.
                 let vc = module_graphs_op.resolve_strongly_consistent().await?;
-                let _ = module_graphs_op.take_issues();
+                module_graphs_op.drop_issues();
                 *vc
             };
 
