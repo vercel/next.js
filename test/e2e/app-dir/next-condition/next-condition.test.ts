@@ -1,10 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('`next-js` Condition', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     dependencies: require('./package.json').dependencies,
+    // Deploy tests are broken with `config.serverExternalPackages`
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   // TODO I should be able to access the complete config from a Next.js Server or Build
   // So I don't have to coordinate using process env variables
