@@ -128,30 +128,27 @@ As part of the removal, the `eslint` option in your Next config file is no longe
 If you're using `@next/eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `@next/eslint-plugin-next` where to find your Next.js application using the `settings` property in your `eslint.config.mjs`:
 
 ```js filename="eslint.config.mjs"
-import { FlatCompat } from '@eslint/eslintrc'
+import { defineConfig } from 'eslint/config'
+import eslintNextPlugin from '@next/eslint-plugin-next'
 
-import { fileURLToPath } from 'url'
-import { dirname } from 'path'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-const compat = new FlatCompat({
-  // If you're using Node.js v20.11.0 or later,
-  // you can use `import.meta.dirname` directly.
-  baseDirectory: __dirname,
-})
-
-const eslintConfig = [
-  ...compat.config({
-    extends: ['next'],
+const eslintConfig = defineConfig([
+  {
+    plugins: {
+      next: eslintNextPlugin,
+    },
     settings: {
       next: {
         rootDir: 'packages/my-app/',
       },
     },
-  }),
-]
+    files: [
+      // ...files
+    ],
+    ignores: [
+      // ...ignores
+    ],
+  },
+])
 
 export default eslintConfig
 ```
