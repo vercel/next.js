@@ -89,7 +89,6 @@ pub struct NextSegmentConfig {
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
-    pub experimental_ppr: Option<bool>,
     pub middleware_matcher: Option<Vec<MiddlewareMatcherKind>>,
 
     /// Whether these exports are defined in the source file.
@@ -118,7 +117,6 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
-            experimental_ppr,
             ..
         } = self;
         *dynamic = dynamic.or(parent.dynamic);
@@ -127,7 +125,6 @@ impl NextSegmentConfig {
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
         *runtime = runtime.or(parent.runtime);
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
-        *experimental_ppr = experimental_ppr.or(parent.experimental_ppr);
     }
 
     /// Applies a config from a parallel route to this config, returning an
@@ -161,7 +158,6 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
-            experimental_ppr,
             ..
         } = self;
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
@@ -177,11 +173,6 @@ impl NextSegmentConfig {
             preferred_region,
             &parallel_config.preferred_region,
             "preferredRegion",
-        )?;
-        merge_parallel(
-            experimental_ppr,
-            &parallel_config.experimental_ppr,
-            "experimental_ppr",
         )?;
         Ok(())
     }
@@ -929,35 +920,6 @@ async fn parse_config_value(
         }
         "generateStaticParams" => {
             config.generate_static_params = Some(span);
-        }
-        "experimental_ppr" => {
-            let Some(value) = get_value() else {
-                return invalid_config(
-                    source,
-                    "experimental_ppr",
-                    span,
-                    rcstr!("It mustn't be reexported."),
-                    None,
-                    IssueSeverity::Error,
-                )
-                .await;
-            };
-            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
-                return Ok(());
-            }
-            let Some(val) = value.as_bool() else {
-                return invalid_config(
-                    source,
-                    "experimental_ppr",
-                    span,
-                    rcstr!("`experimental_ppr` needs to be a static boolean."),
-                    Some(&value),
-                    IssueSeverity::Error,
-                )
-                .await;
-            };
-
-            config.experimental_ppr = Some(val);
         }
         _ => {}
     }

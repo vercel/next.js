@@ -3,7 +3,6 @@ import type { NextConfigComplete } from '../config-shared'
 import '../require-hook'
 import '../node-environment'
 
-import { reduceAppConfig } from '../../build/utils'
 import { collectSegments } from '../../build/segment-config/app/app-segments'
 import type { StaticPathsResult } from '../../build/static-paths/types'
 import { loadComponents } from '../load-components'
@@ -114,7 +113,7 @@ export async function loadStaticPaths({
 
     const isRoutePPREnabled =
       isAppPageRouteModule(routeModule) &&
-      checkIsRoutePPREnabled(config.pprConfig, reduceAppConfig(segments))
+      checkIsRoutePPREnabled(config.pprConfig)
 
     const rootParamKeys = collectRootParamKeys(routeModule)
 

@@ -85,7 +85,6 @@ checkFields<Diff<{
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
-  experimental_ppr?: boolean
   `
   }
 }, TEntry, ''>>()
