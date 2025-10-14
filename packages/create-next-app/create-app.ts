@@ -282,7 +282,7 @@ export async function createApp({
           choices: [
             { title: 'npm (npx shadcn@latest init)', value: 'npm' },
             { title: 'pnpm (pnpm dlx shadcn@latest init)', value: 'pnpm' },
-            { title: 'yarn (yarn shadcn@latest init)', value: 'yarn' },
+            { title: 'yarn (auto-detects v1 or v2+)', value: 'yarn' },
             { title: 'bun (bunx --bun shadcn@latest init)', value: 'bun' },
           ],
           initial:
@@ -310,6 +310,19 @@ export async function createApp({
         )
         console.log()
       } else {
+        // If the user chose a different package manager than the one used for Next.js,
+        // run an install with the chosen package manager first to set up the environment
+        // This creates the appropriate lockfile (yarn.lock, bun.lockb, etc.) so that
+        // ShadCN detects and uses the correct package manager
+        if (shadcnPackageManager !== packageManager) {
+          console.log(
+            `Setting up ${shadcnPackageManager} environment for ShadCN...`
+          )
+          console.log()
+          await install(shadcnPackageManager, isOnline)
+          console.log()
+        }
+
         await runShadcnInit(shadcnPackageManager)
         console.log('ShadCN UI installed successfully.')
         console.log()
