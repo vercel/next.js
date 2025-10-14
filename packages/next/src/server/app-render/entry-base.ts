@@ -10,7 +10,6 @@ export {
 // eslint-disable-next-line import/no-extraneous-dependencies
 export { prerender } from 'react-server-dom-webpack/static'
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 export { captureOwnerStack } from 'react'
 
 export { default as LayoutRouter } from '../../client/components/layout-router'

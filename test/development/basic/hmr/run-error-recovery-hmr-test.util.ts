@@ -129,7 +129,6 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         await next.browser(basePath + '/does-not-exist')
 
         await retry(() => {
-          // eslint-disable-next-line jest/no-standalone-expect
           expect(next.cliOutput).toMatch(/getInitialProps called/)
         })
 
@@ -141,7 +140,6 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         const logOccurrences =
           next.cliOutput.slice(outputIndex).split('getInitialProps called')
             .length - 1
-        // eslint-disable-next-line jest/no-standalone-expect
         expect(logOccurrences).toBe(0)
       } finally {
         await next.deleteFile(errorPage)

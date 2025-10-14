@@ -114,7 +114,6 @@ describe('persistent-caching', () => {
     }
   }
 
-  /* eslint-disable jest/no-standalone-expect */
   const POTENTIAL_CHANGES = {
     'RSC change': {
       checkInitial: makeTextCheck('/', 'hello world'),
@@ -191,7 +190,6 @@ describe('persistent-caching', () => {
       },
     },
   }
-  /* eslint-enable jest/no-standalone-expect */
 
   const KEYS = Object.keys(POTENTIAL_CHANGES)
   for (let bitset = 1; bitset < 1 << KEYS.length; bitset++) {

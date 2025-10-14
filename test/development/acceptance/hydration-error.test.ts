@@ -114,7 +114,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        +                     client
        -                     server
                      ...",
-         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
          "source": "index.js (5:9) @ Mismatch

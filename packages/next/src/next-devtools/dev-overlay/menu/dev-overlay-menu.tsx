@@ -145,7 +145,6 @@ export const DevtoolMenu = ({
 
   useLayoutEffect(() => {
     menuRef.current?.focus() // allows keydown to be captured
-    // eslint-disable-next-line react-hooks/rules-of-hooks -- eprh bug
     fireInitialSelectMenuItem()
   }, [])
 

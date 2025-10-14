@@ -56,7 +56,6 @@ describe('Invalid Global CSS', () => {
         await remove(join(appDir, '.next'))
       })
 
-      // eslint-disable-next-line jest/no-identical-title
       it('should fail to build', async () => {
         const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
@@ -128,7 +127,6 @@ describe('Invalid Global CSS with Custom App', () => {
         await remove(join(appDir, '.next'))
       })
 
-      // eslint-disable-next-line jest/no-identical-title
       it('should fail to build', async () => {
         const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
@@ -158,7 +156,6 @@ describe('Valid and Invalid Global CSS with Custom App', () => {
         await remove(join(appDir, '.next'))
       })
 
-      // eslint-disable-next-line jest/no-identical-title
       it('should fail to build', async () => {
         const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
