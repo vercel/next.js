@@ -994,13 +994,14 @@ pub struct ServerChunkingContextOptions {
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub debug_ids: Vc<bool>,
+    pub client_root: FileSystemPath,
+    pub asset_prefix: RcStr,
 }
 
+/// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context_with_client_assets(
     options: ServerChunkingContextOptions,
-    client_root: FileSystemPath,
-    asset_prefix: Option<RcStr>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let ServerChunkingContextOptions {
         mode,
@@ -1015,6 +1016,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         no_mangling,
         scope_hoisting,
         debug_ids,
+        client_root,
+        asset_prefix,
     } = options;
 
     let next_mode = mode.await?;
@@ -1031,7 +1034,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
-    .asset_prefix(asset_prefix)
+    .asset_prefix(Some(asset_prefix))
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -1076,11 +1079,10 @@ pub async fn get_server_chunking_context_with_client_assets(
     Ok(builder.build())
 }
 
+// By default, assets are server assets, but the StructuredImageModuleType ones are on the client
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context(
     options: ServerChunkingContextOptions,
-    client_root: FileSystemPath,
-    asset_prefix: Option<RcStr>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let ServerChunkingContextOptions {
         mode,
@@ -1095,6 +1097,8 @@ pub async fn get_server_chunking_context(
         no_mangling,
         scope_hoisting,
         debug_ids,
+        client_root,
+        asset_prefix,
     } = options;
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1112,7 +1116,7 @@ pub async fn get_server_chunking_context(
     )
     .client_roots_override(rcstr!("client"), client_root.clone())
     .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
-    .asset_prefix_override(rcstr!("client"), asset_prefix.unwrap())
+    .asset_prefix_override(rcstr!("client"), asset_prefix)
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
