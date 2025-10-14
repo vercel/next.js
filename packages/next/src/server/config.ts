@@ -1998,6 +1998,7 @@ async function validateConfigSchema(
       const fullErrorMessage = errorMessages.join('\n')
 
       let err: Error
+      // Hide the stack trace for this error as the trace is not useful here.
       const stackTraceLimit = Error.stackTraceLimit
       Error.stackTraceLimit = 0
       try {
