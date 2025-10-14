@@ -1,10 +1,5 @@
 import { Suspense } from 'react'
-import {
-  cacheLife,
-  unstable_cacheTag as cacheTag,
-  revalidatePath,
-  updateTag,
-} from 'next/cache'
+import { cacheLife, cacheTag, revalidatePath, updateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import React from 'react'

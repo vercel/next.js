@@ -9,7 +9,7 @@ export {
 
 export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
 
-export { cacheTag as unstable_cacheTag } from 'next/dist/server/use-cache/cache-tag'
+export { cacheTag } from 'next/dist/server/use-cache/cache-tag'
 
 /**
  * Cache this `"use cache"` for a timespan defined by the `"default"` profile.

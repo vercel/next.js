@@ -34,7 +34,7 @@ export default async function Page() {
 After:
 
 ```jsx filename="app/page.js"
-import { unstable_cacheTag as cacheTag, cacheLife } from 'next/cache'
+import { cacheTag, cacheLife } from 'next/cache'
 
 async function getRecentArticles() {
   "use cache"

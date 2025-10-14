@@ -279,23 +279,21 @@ describe('Error overlay - RSC build errors', () => {
   })
 
   describe("importing 'next/cache' APIs in a client component", () => {
-    test.each([
-      'revalidatePath',
-      'revalidateTag',
-      'cacheLife',
-      'unstable_cacheTag',
-    ])('%s is not allowed', async (api) => {
-      await using sandbox = await createSandbox(
-        next,
-        undefined,
-        `/server-with-errors/next-cache-in-client/${api.toLowerCase()}`
-      )
-      const { session } = sandbox
-      await session.assertHasRedbox()
-      expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs "${api}". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
-      )
-    })
+    test.each(['revalidatePath', 'revalidateTag', 'cacheLife', 'cacheTag'])(
+      '%s is not allowed',
+      async (api) => {
+        await using sandbox = await createSandbox(
+          next,
+          undefined,
+          `/server-with-errors/next-cache-in-client/${api.toLowerCase()}`
+        )
+        const { session } = sandbox
+        await session.assertHasRedbox()
+        expect(await session.getRedboxSource()).toInclude(
+          `You're importing a component that needs "${api}". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+        )
+      }
+    )
 
     test.each([
       'unstable_cache', // useless in client, but doesn't technically error
