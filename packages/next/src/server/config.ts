@@ -260,7 +260,6 @@ function assignDefaultsAndValidate(
   dir: string,
   userConfig: NextConfig & { configFileName: string },
   silent: boolean,
-  configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
   phase: PHASE_TYPE
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
@@ -1282,34 +1281,6 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.experimental.cacheComponents
   }
 
-  // If cacheComponents is enabled and the user hasn't configured
-  // rdcForNavigations, we enable it by default.
-  if (
-    result.experimental.cacheComponents &&
-    userConfig.experimental?.rdcForNavigations === undefined
-  ) {
-    result.experimental.rdcForNavigations = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'rdcForNavigations',
-        true,
-        'enabled by `experimental.cacheComponents`'
-      )
-    }
-  }
-
-  // If rdcForNavigations is enabled, but cacheComponents is not, we throw an error.
-  if (
-    result.experimental.rdcForNavigations &&
-    !result.experimental.cacheComponents
-  ) {
-    throw new Error(
-      '`experimental.rdcForNavigations` is enabled, but `experimental.cacheComponents` is not.'
-    )
-  }
-
   if (
     phase === PHASE_DEVELOPMENT_SERVER &&
     result.experimental?.isolatedDevBuild
@@ -1488,7 +1459,6 @@ export default async function loadConfig(
           ...customConfig,
         },
         silent,
-        configuredExperimentalFeatures,
         phase
       ),
       phase,
@@ -1660,7 +1630,6 @@ export default async function loadConfig(
         ...userConfig,
       },
       silent,
-      configuredExperimentalFeatures,
       phase
     )
 
@@ -1716,7 +1685,6 @@ export default async function loadConfig(
     dir,
     { ...clonedDefaultConfig, configFileName },
     silent,
-    configuredExperimentalFeatures,
     phase
   ) as NextConfigComplete
 
@@ -1808,25 +1776,6 @@ function enforceExperimentalFeatures(
       addConfiguredExperimentalFeature(
         configuredExperimentalFeatures,
         'cacheComponents',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
-      )
-    }
-  }
-
-  // TODO: Remove this once we've made RDC for Navigations the default for cache components.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.rdcForNavigations === undefined ||
-      (isDefaultConfig && !config.experimental.rdcForNavigations))
-  ) {
-    config.experimental.rdcForNavigations = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'rdcForNavigations',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
       )

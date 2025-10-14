@@ -157,21 +157,6 @@ describe('loadConfig', () => {
       delete process.env.__NEXT_VERSION
     })
 
-    it('errors when rdcForNavigations is enabled but cacheComponents is disabled', async () => {
-      await expect(
-        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-          customConfig: {
-            experimental: {
-              rdcForNavigations: true,
-              ppr: false,
-            },
-          },
-        })
-      ).rejects.toThrow(
-        '`experimental.rdcForNavigations` is enabled, but `experimental.cacheComponents` is not.'
-      )
-    })
-
     it('errors when ppr is set to incremental', async () => {
       await expect(
         loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
@@ -184,18 +169,6 @@ describe('loadConfig', () => {
       ).rejects.toThrow(
         /`experimental\.ppr` has been merged into `experimental\.cacheComponents`/
       )
-    })
-
-    it('defaults rdcForNavigations to true when cacheComponents is enabled', async () => {
-      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-        customConfig: {
-          experimental: {
-            cacheComponents: true,
-          },
-        },
-      })
-
-      expect(result.experimental.rdcForNavigations).toBe(true)
     })
   })
 })

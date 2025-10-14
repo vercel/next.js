@@ -195,7 +195,6 @@ export const experimentalSchema = {
   clientSegmentCache: z
     .union([z.boolean(), z.literal('client-only')])
     .optional(),
-  rdcForNavigations: z.boolean().optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
   dynamicOnHover: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),

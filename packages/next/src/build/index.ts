@@ -1586,9 +1586,7 @@ export default async function build(
               clientParamParsingOrigins:
                 config.experimental.clientParamParsingOrigins,
               dynamicRSCPrerender:
-                isAppPPREnabled &&
-                config.experimental.rdcForNavigations === true &&
-                config.experimental.cacheComponents === true,
+                isAppPPREnabled && config.experimental.cacheComponents === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,

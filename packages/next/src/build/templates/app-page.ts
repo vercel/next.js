@@ -291,12 +291,9 @@ export async function handler(
       !(isHtmlBot && isRoutePPREnabled)
   )
 
-  // When a page supports PPR, we can support RSC for Navigations so long as the
-  // feature is not disabled.
-  const supportsRSCForNavigations =
-    isRoutePPREnabled &&
-    nextConfig.experimental.rdcForNavigations === true &&
-    nextConfig.experimental.cacheComponents === true
+  // When a page supports cacheComponents, we can support RDC for Navigations
+  const supportsRDCForNavigations =
+    isRoutePPREnabled && nextConfig.experimental.cacheComponents === true
 
   // In development, we always want to generate dynamic HTML.
   const supportsDynamicResponse: boolean =
@@ -312,7 +309,7 @@ export async function handler(
     // If this handler supports onCacheEntryV2, then we can only support
     // dynamic responses if it's a dynamic RSC request and not in minimal mode. If it
     // doesn't support it we must fallback to the default behavior.
-    (supportsRSCForNavigations && getRequestMeta(req, 'onCacheEntryV2')
+    (supportsRDCForNavigations && getRequestMeta(req, 'onCacheEntryV2')
       ? // In minimal mode, we'll always want to generate a static response
         // which will generate the RDC for the route. When resuming a Dynamic
         // RSC request, we'll pass the minimal postponed data to the render
@@ -810,7 +807,7 @@ export async function handler(
       // is consistent between the static and dynamic renders.
       if (
         // Only enable RDC for Navigations if the feature is enabled.
-        supportsRSCForNavigations &&
+        supportsRDCForNavigations &&
         process.env.NEXT_RUNTIME !== 'edge' &&
         !minimalMode &&
         incrementalCache &&
@@ -1124,7 +1121,7 @@ export async function handler(
       // prefer the `onCacheEntryV2` callback. Once RDC for Navigations is the
       // default, we can remove the fallback to `onCacheEntry` as
       // `onCacheEntryV2` is now fully supported.
-      const onCacheEntry = supportsRSCForNavigations
+      const onCacheEntry = supportsRDCForNavigations
         ? (getRequestMeta(req, 'onCacheEntryV2') ??
           getRequestMeta(req, 'onCacheEntry'))
         : getRequestMeta(req, 'onCacheEntry')
