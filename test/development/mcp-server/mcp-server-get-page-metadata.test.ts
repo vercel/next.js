@@ -180,6 +180,33 @@ describe('mcp-server get_page_metadata tool', () => {
         await session2.close()
       }
     })
+
+    it('should count multiple browser tabs with the same URL separately', async () => {
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      const session1 = await launchStandaloneSession(next.url, '/')
+      const session2 = await launchStandaloneSession(next.url, '/')
+
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        let metadata: string = ''
+        await retry(async () => {
+          const sessionId = 'test-same-url-' + Date.now()
+          metadata = await callGetPageMetadata(next.url, sessionId)
+          const rootSessions = (metadata.match(/## Session: \/(?!\w)/g) || [])
+            .length
+          expect(rootSessions).toBeGreaterThanOrEqual(2)
+        })
+
+        const rootSessions = (metadata.match(/## Session: \/(?!\w)/g) || [])
+          .length
+        expect(rootSessions).toBeGreaterThanOrEqual(2)
+      } finally {
+        await session1.close()
+        await session2.close()
+      }
+    })
   })
 
   describe('pages router', () => {

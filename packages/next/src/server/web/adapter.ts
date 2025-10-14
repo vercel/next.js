@@ -239,7 +239,10 @@ export async function adapter(
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
     const isMiddleware =
-      params.page === '/middleware' || params.page === '/src/middleware'
+      params.page === '/middleware' ||
+      params.page === '/src/middleware' ||
+      params.page === '/proxy' ||
+      params.page === '/src/proxy'
 
     if (isMiddleware) {
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),

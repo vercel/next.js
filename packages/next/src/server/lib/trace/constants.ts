@@ -6,7 +6,6 @@
  **/
 
 // eslint typescript has a bug with TS enums
-/* eslint-disable no-shadow */
 
 enum BaseServerSpan {
   handleRequest = 'BaseServer.handleRequest',

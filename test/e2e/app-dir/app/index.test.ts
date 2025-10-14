@@ -7,11 +7,6 @@ import {
   RSC_HEADER,
 } from 'next/dist/client/components/app-router-headers'
 
-// TODO: We should decide on an established pattern for gating test assertions
-// on experimental flags. For example, as a first step we could all the common
-// gates like this one into a single module.
-const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 describe('app dir - basic', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
@@ -592,7 +587,7 @@ describe('app dir - basic', () => {
   ;(isNextDev ||
     // When PPR is enabled, the shared layouts re-render because we prefetch
     // from the root. This will be addressed before GA.
-    isPPREnabledByDefault
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
     ? it.skip
     : it)(
     'should not rerender layout when navigating between routes in the same layout',
@@ -1389,7 +1384,7 @@ describe('app dir - basic', () => {
     ;(isNextDev ||
       // When PPR is enabled, the shared layouts re-render because we prefetch
       // from the root. This will be addressed before GA.
-      isPPREnabledByDefault
+      process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
       ? it.skip
       : it)(
       'should render the template that is a server component and rerender on navigation',

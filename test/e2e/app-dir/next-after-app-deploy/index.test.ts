@@ -9,7 +9,7 @@ const WAIT_BEFORE_REVALIDATING = 1000
 // If we want to verify that `after()` ran its callback,
 // we need it to perform some kind of side effect (because it can't affect the response).
 // In other tests, we often use logs for this, but we don't have access to those in deploy tests.
-// So instead this test relies on calling `unstable_expirePath` inside `after`
+// So instead this test relies on calling `revalidatePath` inside `after`
 // to revalidate an ISR page '/timestamp/key/[key]', and then checking if the timestamp changed --
 // if it did, we successfully ran the callback (and performed a side effect).
 
@@ -46,7 +46,7 @@ _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
     // despite the page being static, the first two requests both cause a render
     // and only the second one gets cached and re-used.
     // we work around it by doing a dummy request to get that first "uncached" request out of the way.
-    if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
       await getTimestampPageData(path)
     }
 

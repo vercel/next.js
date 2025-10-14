@@ -55,7 +55,7 @@ export interface Dispatcher {
   onDebugInfo(debugInfo: DebugInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
-  onStaticIndicator(status: boolean): void
+  onStaticIndicator(status: 'pending' | 'static' | 'dynamic' | 'disabled'): void
   onDevIndicator(devIndicator: DevIndicatorServerState): void
   onDevToolsConfig(config: DevToolsConfig): void
   onUnhandledError(reason: Error): void
@@ -147,9 +147,14 @@ export const dispatcher: Dispatcher = {
       dispatch({ type: ACTION_VERSION_INFO, versionInfo })
     }
   ),
-  onStaticIndicator: createQueuable((dispatch: Dispatch, status: boolean) => {
-    dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
-  }),
+  onStaticIndicator: createQueuable(
+    (
+      dispatch: Dispatch,
+      status: 'pending' | 'static' | 'dynamic' | 'disabled'
+    ) => {
+      dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
+    }
+  ),
   onDebugInfo: createQueuable((dispatch: Dispatch, debugInfo: DebugInfo) => {
     dispatch({ type: ACTION_DEBUG_INFO, debugInfo })
   }),

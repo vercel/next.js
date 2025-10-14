@@ -355,7 +355,7 @@
                 });
                 break;
               case "stylesheet":
-                preload(srcSet, "stylesheet", {
+                preload(srcSet, "style", {
                   crossOrigin: props.crossOrigin,
                   integrity: props.integrity,
                   nonce: props.nonce,
@@ -1176,7 +1176,23 @@
             ((cancelled = !0),
             request.status === ABORTING
               ? emitDebugHaltChunk(request, id)
-              : emitOutlinedDebugModelChunk(request, id, counter, value),
+              : (isArrayImpl(value) && 200 < value.length) ||
+                  ((value instanceof ArrayBuffer ||
+                    value instanceof Int8Array ||
+                    value instanceof Uint8Array ||
+                    value instanceof Uint8ClampedArray ||
+                    value instanceof Int16Array ||
+                    value instanceof Uint16Array ||
+                    value instanceof Int32Array ||
+                    value instanceof Uint32Array ||
+                    value instanceof Float32Array ||
+                    value instanceof Float64Array ||
+                    value instanceof BigInt64Array ||
+                    value instanceof BigUint64Array ||
+                    value instanceof DataView) &&
+                    1e3 < value.byteLength)
+                ? emitDebugHaltChunk(request, id)
+                : emitOutlinedDebugModelChunk(request, id, counter, value),
             enqueueFlush(request));
         },
         function (reason) {
@@ -2021,6 +2037,9 @@
             ? "$-Infinity"
             : "$NaN";
     }
+    function serializeRowHeader(tag, id) {
+      return id.toString(16) + ":" + tag;
+    }
     function encodeReferenceChunk(request, id, reference) {
       request = stringify(reference);
       id = id.toString(16) + ":" + request + "\n";
@@ -2174,6 +2193,8 @@
       return serializeByValueID(bufferId);
     }
     function serializeDebugTypedArray(request, tag, typedArray) {
+      if (1e3 < typedArray.byteLength && !doNotLimit.has(typedArray))
+        return serializeDeferredObject(request, typedArray);
       request.pendingDebugChunks++;
       var bufferId = request.nextChunkId++;
       emitTypedArrayChunk(request, bufferId, tag, typedArray, !0);
@@ -2733,8 +2754,7 @@
         stack = [];
       }
       id =
-        id.toString(16) +
-        ":P" +
+        serializeRowHeader("P", id) +
         stringify({ reason: reason, stack: stack, env: env }) +
         "\n";
       id = stringToChunk(id);
@@ -2794,7 +2814,7 @@
         env: env,
         owner: error
       };
-      id = id.toString(16) + ":E" + stringify(digest) + "\n";
+      id = serializeRowHeader("E", id) + stringify(digest) + "\n";
       id = stringToChunk(id);
       debug
         ? request.completedDebugChunks.push(id)
@@ -2802,7 +2822,7 @@
     }
     function emitImportChunk(request, id, clientReferenceMetadata, debug) {
       clientReferenceMetadata = stringify(clientReferenceMetadata);
-      id = id.toString(16) + ":I" + clientReferenceMetadata + "\n";
+      id = serializeRowHeader("I", id) + clientReferenceMetadata + "\n";
       id = stringToChunk(id);
       debug
         ? request.completedDebugChunks.push(id)
@@ -2825,13 +2845,20 @@
     function emitDebugChunk(request, id, debugInfo) {
       var json = serializeDebugModel(request, 500, debugInfo);
       null !== request.debugDestination
-        ? ((debugInfo = request.nextChunkId++),
-          (json = debugInfo.toString(16) + ":" + json + "\n"),
-          request.pendingDebugChunks++,
-          request.completedDebugChunks.push(stringToChunk(json)),
-          (id = id.toString(16) + ':D"$' + debugInfo.toString(16) + '"\n'),
-          request.completedRegularChunks.push(stringToChunk(id)))
-        : ((id = id.toString(16) + ":D" + json + "\n"),
+        ? '"' === json[0] && "$" === json[1]
+          ? ((id = serializeRowHeader("D", id) + json + "\n"),
+            request.completedRegularChunks.push(stringToChunk(id)))
+          : ((debugInfo = request.nextChunkId++),
+            (json = debugInfo.toString(16) + ":" + json + "\n"),
+            request.pendingDebugChunks++,
+            request.completedDebugChunks.push(stringToChunk(json)),
+            (id =
+              serializeRowHeader("D", id) +
+              '"$' +
+              debugInfo.toString(16) +
+              '"\n'),
+            request.completedRegularChunks.push(stringToChunk(id)))
+        : ((id = serializeRowHeader("D", id) + json + "\n"),
           request.completedRegularChunks.push(stringToChunk(id)));
     }
     function outlineComponentInfo(request, componentInfo) {
@@ -3083,7 +3110,11 @@
         }
         if ("function" === typeof value.then)
           return serializeDebugThenable(request, counter, value);
-        if (isArrayImpl(value)) return value;
+        if (isArrayImpl(value))
+          return 200 < value.length && !doNotLimit.has(value)
+            ? serializeDeferredObject(request, value)
+            : value;
+        if (value instanceof Date) return "$D" + value.toJSON();
         if (value instanceof Map) {
           value = Array.from(value);
           counter.objectLimit++;
@@ -3186,11 +3217,6 @@
         return value;
       }
       if ("string" === typeof value) {
-        if (
-          "Z" === value[value.length - 1] &&
-          parent[parentPropertyName] instanceof Date
-        )
-          return "$D" + value;
         if (1024 <= value.length) {
           if (0 >= counter.objectLimit)
             return serializeDeferredObject(request, value);
@@ -3252,19 +3278,17 @@
       }
       return "bigint" === typeof value
         ? "$n" + value.toString(10)
-        : value instanceof Date
-          ? "$D" + value.toJSON()
-          : "unknown type " + typeof value;
+        : "unknown type " + typeof value;
     }
     function serializeDebugModel(request, objectLimit, model) {
-      function replacer(parentPropertyName, value) {
+      function replacer(parentPropertyName) {
         try {
           return renderDebugModel(
             request,
             counter,
             this,
             parentPropertyName,
-            value
+            this[parentPropertyName]
           );
         } catch (x) {
           return (
@@ -3288,14 +3312,14 @@
       }
     }
     function emitOutlinedDebugModelChunk(request, id, counter, model) {
-      function replacer(parentPropertyName, value) {
+      function replacer(parentPropertyName) {
         try {
           return renderDebugModel(
             request,
             counter,
             this,
             parentPropertyName,
-            value
+            this[parentPropertyName]
           );
         } catch (x) {
           return (
@@ -3362,10 +3386,11 @@
                       parseStackTrace(ioInfo$jscomp$0.debugStack, 1)
                     )
                   : ioInfo$jscomp$0.stack;
+              var env = ioInfo$jscomp$0.env;
+              null == env && (env = (0, request.environmentName)());
               var request$jscomp$0 = request,
                 id$jscomp$1 = id$jscomp$0,
                 value = ioInfo$jscomp$0.value,
-                env = ioInfo$jscomp$0.env,
                 objectLimit = 10;
               debugStack && (objectLimit += debugStack.length);
               var debugIOInfo = {
@@ -3377,12 +3402,12 @@
               null != debugStack && (debugIOInfo.stack = debugStack);
               null != owner && (debugIOInfo.owner = owner);
               void 0 !== value && (debugIOInfo.value = value);
-              value = serializeDebugModel(
+              env = serializeDebugModel(
                 request$jscomp$0,
                 objectLimit,
                 debugIOInfo
               );
-              id$jscomp$1 = id$jscomp$1.toString(16) + ":J" + value + "\n";
+              id$jscomp$1 = id$jscomp$1.toString(16) + ":J" + env + "\n";
               id$jscomp$1 = stringToChunk(id$jscomp$1);
               request$jscomp$0.completedDebugChunks.push(id$jscomp$1);
               request.writtenDebugObjects.set(
@@ -3400,7 +3425,10 @@
                   )
                 : info.stack;
             ioInfo = { awaited: ioInfo };
-            null != info.env && (ioInfo.env = info.env);
+            ioInfo.env =
+              null != info.env
+                ? info.env
+                : (0, request$jscomp$1.environmentName)();
             null != info.owner && (ioInfo.owner = info.owner);
             null != request && (ioInfo.stack = request);
             request$jscomp$1.pendingChunks++;
@@ -3434,9 +3462,13 @@
           (json = timestamp.toString(16) + ":" + json + "\n"),
           request.pendingDebugChunks++,
           request.completedDebugChunks.push(stringToChunk(json)),
-          (id = id.toString(16) + ':D"$' + timestamp.toString(16) + '"\n'),
+          (id =
+            serializeRowHeader("D", id) +
+            '"$' +
+            timestamp.toString(16) +
+            '"\n'),
           request.completedRegularChunks.push(stringToChunk(id)))
-        : ((id = id.toString(16) + ":D" + json + "\n"),
+        : ((id = serializeRowHeader("D", id) + json + "\n"),
           request.completedRegularChunks.push(stringToChunk(id)));
     }
     function markOperationEndTime(request, task, timestamp) {

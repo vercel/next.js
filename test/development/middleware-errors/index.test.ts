@@ -1,4 +1,4 @@
-import { assertNoRedbox, check, retry } from 'next-test-utils'
+import { assertNoRedbox, check, getDistDir, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -303,7 +303,7 @@ describe('middleware - development errors', () => {
               '\n    at <unknown> (middleware.js:3)' +
               // TODO: Should be ignore-listed
               '\n    at eval (middleware.js:3:13)' +
-              '\n    at (middleware)/./middleware.js (.next/server/middleware.js:18:1)' +
+              `\n    at (middleware)/./middleware.js (${getDistDir()}/server/middleware.js:18:1)` +
               '\n    at __webpack_require__ '
       )
     })

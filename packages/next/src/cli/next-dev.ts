@@ -56,6 +56,7 @@ export type NextDevOptions = {
   experimentalHttpsCert?: string
   experimentalHttpsCa?: string
   experimentalUploadTrace?: string
+  experimentalNextConfigStripTypes?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'

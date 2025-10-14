@@ -53,9 +53,6 @@ describe('required server files', () => {
       nextConfig: {
         cacheHandler: './cache-handler.js',
         cacheMaxMemorySize: 0,
-        eslint: {
-          ignoreDuringBuilds: true,
-        },
         output: 'standalone',
         async rewrites() {
           return {

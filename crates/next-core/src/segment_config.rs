@@ -572,7 +572,7 @@ async fn parse_config_value(
 ) -> Result<()> {
     let get_value = || {
         let init = init.as_deref();
-        // Unwrap `export const config = { .. } satisfies MiddlewareConfig`, usually this is already
+        // Unwrap `export const config = { .. } satisfies ProxyConfig`, usually this is already
         // transpiled away, but we are looking at the original source here.
         let init = if let Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) = init {
             Some(&**expr)

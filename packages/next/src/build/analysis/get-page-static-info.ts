@@ -47,7 +47,7 @@ export type MiddlewareMatcher = {
   originalSource: string
 }
 
-export type MiddlewareConfig = {
+export type ProxyConfig = {
   /**
    * The matcher for the middleware. Read more: [Next.js Docs: Middleware `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/middleware#matcher),
    * [Next.js Docs: Middleware matching paths](https://nextjs.org/docs/app/building-your-application/routing/middleware#matching-paths)
@@ -74,7 +74,7 @@ export interface AppPageStaticInfo {
   generateStaticParams?: boolean
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
-  middleware?: MiddlewareConfig
+  middleware?: ProxyConfig
   config: Omit<AppSegmentConfig, 'runtime' | 'maxDuration'> | undefined
   runtime: AppSegmentConfig['runtime'] | undefined
   preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
@@ -90,7 +90,7 @@ export interface PagesPageStaticInfo {
   generateStaticParams?: boolean
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
-  middleware?: MiddlewareConfig
+  middleware?: ProxyConfig
   config:
     | (Omit<PagesSegmentConfig, 'runtime' | 'config' | 'maxDuration'> & {
         config?: Omit<PagesSegmentConfigConfig, 'runtime' | 'maxDuration'>
@@ -372,7 +372,7 @@ function parseMiddlewareConfig(
   page: string,
   rawConfig: unknown,
   nextConfig: NextConfig
-): MiddlewareConfig {
+): ProxyConfig {
   // If there's no config to parse, then return nothing.
   if (typeof rawConfig !== 'object' || !rawConfig) return {}
 
@@ -386,7 +386,7 @@ function parseMiddlewareConfig(
     process.exit(1)
   }
 
-  const config: MiddlewareConfig = {}
+  const config: ProxyConfig = {}
 
   if (input.data.matcher) {
     config.matchers = getMiddlewareMatchers(input.data.matcher, nextConfig)

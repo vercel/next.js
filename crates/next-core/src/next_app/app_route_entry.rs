@@ -60,8 +60,8 @@ pub async fn get_app_route_entry(
     let inner = rcstr!("INNER_APP_ROUTE");
 
     let output_type: &str = next_config
+        .output()
         .await?
-        .output
         .as_ref()
         .map(|o| match o {
             OutputType::Standalone => "\"standalone\"",

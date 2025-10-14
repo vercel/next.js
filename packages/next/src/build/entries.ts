@@ -5,7 +5,7 @@ import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-ro
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
-  MiddlewareConfig,
+  ProxyConfig,
   MiddlewareMatcher,
   PageStaticInfo,
 } from './analysis/get-page-static-info'
@@ -20,6 +20,8 @@ import {
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
   INSTRUMENTATION_HOOK_FILENAME,
+  PROXY_FILENAME,
+  MIDDLEWARE_FILENAME,
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -593,12 +595,12 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: MappedPages
-  middleware?: Partial<MiddlewareConfig>
+  middleware?: Partial<ProxyConfig>
   pagesType: PAGE_TYPES
   appDirLoader?: string
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
-  middlewareConfig?: MiddlewareConfig
+  middlewareConfig?: ProxyConfig
 }) {
   if (
     opts.pagesType === 'app' &&
@@ -947,7 +949,13 @@ export async function createEntrypoints(
                 isDev: false,
               })
           } else if (isMiddlewareFile(page)) {
-            server[serverBundlePath.replace('src/', '')] = getEdgeServerEntry({
+            server[
+              serverBundlePath
+                // proxy.js still uses middleware.js for bundle path for now.
+                // TODO: Revisit when we remove middleware.js.
+                .replace(PROXY_FILENAME, MIDDLEWARE_FILENAME)
+                .replace('src/', '')
+            ] = getEdgeServerEntry({
               ...params,
               rootDir,
               absolutePagePath: absolutePagePath,
@@ -1022,7 +1030,12 @@ export async function createEntrypoints(
                   : undefined,
               }).import
             }
-            edgeServer[serverBundlePath] = getEdgeServerEntry({
+            const edgeServerBundlePath = isMiddlewareFile(page)
+              ? serverBundlePath
+                  .replace(PROXY_FILENAME, MIDDLEWARE_FILENAME)
+                  .replace('src/', '')
+              : serverBundlePath
+            edgeServer[edgeServerBundlePath] = getEdgeServerEntry({
               ...params,
               rootDir,
               absolutePagePath: absolutePagePath,

@@ -284,8 +284,6 @@ describe('Error overlay - RSC build errors', () => {
       'revalidateTag',
       'unstable_cacheLife',
       'unstable_cacheTag',
-      'unstable_expirePath',
-      'unstable_expireTag',
     ])('%s is not allowed', async (api) => {
       await using sandbox = await createSandbox(
         next,

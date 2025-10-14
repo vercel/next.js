@@ -199,9 +199,6 @@ export function getDefineEnv({
     'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
       config.experimental.clientSegmentCache
     ),
-    'process.env.__NEXT_CLIENT_PARAM_PARSING': Boolean(
-      config.experimental.clientParamParsing
-    ),
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),
@@ -214,7 +211,7 @@ export function getDefineEnv({
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,
     'process.env.__NEXT_MIDDLEWARE_PREFETCH':
-      config.experimental.middlewarePrefetch ?? 'flexible',
+      config.experimental.proxyPrefetch ?? 'flexible',
     'process.env.__NEXT_CROSS_ORIGIN': config.crossOrigin,
     'process.browser': isClient,
     'process.env.__NEXT_TEST_MODE': process.env.__NEXT_TEST_MODE ?? false,
@@ -263,9 +260,9 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains ?? false,
     'process.env.__NEXT_I18N_CONFIG': config.i18n || '',
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE':
-      config.skipMiddlewareUrlNormalize,
+      config.skipProxyUrlNormalize,
     'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE':
-      config.experimental.externalMiddlewareRewritesResolve ?? false,
+      config.experimental.externalProxyRewritesResolve ?? false,
     'process.env.__NEXT_MANUAL_TRAILING_SLASH':
       config.skipTrailingSlashRedirect,
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION':
@@ -320,19 +317,19 @@ export function getDefineEnv({
 
     // The devtools need to know whether or not to show an option to clear the
     // bundler cache. This option may be removed later once Turbopack's
-    // persistent cache feature is more stable.
+    // filesystem cache feature is more stable.
     //
     // This environment value is currently best-effort:
     // - It's possible to disable the webpack filesystem cache, but it's
     //   unlikely for a user to do that.
-    // - Rspack's persistent cache is unstable and requires a different
+    // - Rspack's filesystem cache is unstable and requires a different
     //   configuration than webpack to enable (which we don't do).
     //
     // In the worst case we'll show an option to clear the cache, but it'll be a
     // no-op that just restarts the development server.
     'process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE':
       !isTurbopack ||
-      (config.experimental.turbopackPersistentCachingForDev ?? false),
+      (config.experimental.turbopackFileSystemCacheForDev ?? false),
     'process.env.__NEXT_REACT_DEBUG_CHANNEL':
       config.experimental.reactDebugChannel ?? false,
   }

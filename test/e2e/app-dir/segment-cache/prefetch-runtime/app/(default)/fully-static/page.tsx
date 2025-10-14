@@ -3,7 +3,10 @@
 // but it's useful to exercise this codepath.
 // In the future, this test can be used to check whether we correctly
 // *skip* a runtime prefetch if a page was prerendered as static.
-export const unstable_prefetch = 'unstable_runtime'
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ cookies: [] }],
+}
 
 export default async function Page() {
   return (

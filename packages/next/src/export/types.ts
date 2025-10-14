@@ -44,7 +44,6 @@ export interface ExportPageInput {
   renderOpts: WorkerRenderOptsPartial
   trailingSlash?: boolean
   buildExport?: boolean
-  serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
   optimizeCss: any
   disableOptimizedLoading: any

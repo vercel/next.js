@@ -3,7 +3,10 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { connection } from 'next/server'
 
-export const unstable_prefetch = 'unstable_runtime'
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
+}
 
 export default async function Page() {
   return (

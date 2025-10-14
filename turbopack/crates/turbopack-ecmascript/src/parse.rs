@@ -348,18 +348,16 @@ async fn parse_file_content(
                             Syntax::Typescript(TsSyntax {
                                 decorators: true,
                                 dts: false,
-                                no_early_errors: true,
                                 tsx,
-                                disallow_ambiguous_jsx_like: false,
+                                ..Default::default()
                             })
                         }
                         EcmascriptModuleAssetType::TypescriptDeclaration => {
                             Syntax::Typescript(TsSyntax {
                                 decorators: true,
                                 dts: true,
-                                no_early_errors: true,
                                 tsx: false,
-                                disallow_ambiguous_jsx_like: false,
+                                ..Default::default()
                             })
                         }
                     },

@@ -408,7 +408,9 @@ pub async fn all_assets_from_entries_filtered(
                         Ok((
                             *asset,
                             if emit_spans {
-                                Some(asset.path().to_string().await?)
+                                // INVALIDATION: we don't need to invalidate the list of assets when
+                                // the span name changes
+                                Some(asset.path_string().untracked().await?)
                             } else {
                                 None
                             },
@@ -498,7 +500,9 @@ async fn get_referenced_server_assets(
             Ok(Some((
                 *asset,
                 if emit_spans {
-                    Some(asset.path().to_string().await?)
+                    // INVALIDATION: we don't need to invalidate the list of assets when the span
+                    // name changes
+                    Some(asset.path_string().untracked().await?)
                 } else {
                     None
                 },
