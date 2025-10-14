@@ -29,9 +29,6 @@ describe('deprecation-warnings', () => {
 
       const logs = next.cliOutput
 
-      // Should warn about amp configuration
-      expect(logs).toContain('Built-in amp support is deprecated')
-
       // Should warn about experimental.instrumentationHook
       expect(logs).toContain('experimental.instrumentationHook')
       expect(logs).toContain('no longer needed')

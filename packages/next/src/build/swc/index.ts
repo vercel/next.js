@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { arch, platform } from 'os'
@@ -10,7 +9,6 @@ import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
-  ReactCompilerOptions,
   TurbopackLoaderBuiltinCondition,
   TurbopackLoaderItem,
   TurbopackRuleCondition,
@@ -19,7 +17,6 @@ import type {
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import { type DefineEnvOptions, getDefineEnv } from '../define-env'
-import { getReactCompilerLoader } from '../get-babel-loader-config'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
@@ -31,6 +28,7 @@ import type {
   DefineEnv,
   Endpoint,
   HmrIdentifiers,
+  Lockfile,
   Project,
   ProjectOptions,
   RawEntrypoints,
@@ -186,13 +184,13 @@ export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 export async function loadBindings(
   useWasmBinary: boolean = false
 ): Promise<Binding> {
+  if (pendingBindings) {
+    return pendingBindings
+  }
+
   // Increase Rust stack size as some npm packages being compiled need more than the default.
   if (!process.env.RUST_MIN_STACK) {
     process.env.RUST_MIN_STACK = '8388608'
-  }
-
-  if (pendingBindings) {
-    return pendingBindings
   }
 
   if (process.env.NEXT_TEST_WASM) {
@@ -487,8 +485,7 @@ function bindingToApi(
 
   type NapiMiddleware = {
     endpoint: NapiEndpoint
-    runtime: 'nodejs' | 'edge'
-    matcher?: string[]
+    isProxy: boolean
   }
 
   type NapiInstrumentation = {
@@ -660,24 +657,42 @@ function bindingToApi(
 
     async writeAllEntrypointsToDisk(
       appDirOnly: boolean
-    ): Promise<TurbopackResult<RawEntrypoints>> {
+    ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
       const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
         this._nativeProject,
         appDirOnly
-      )) as TurbopackResult<NapiEntrypoints>
+      )) as TurbopackResult<Partial<NapiEntrypoints>>
 
-      return napiEntrypointsToRawEntrypoints(napiEndpoints)
+      if ('routes' in napiEndpoints) {
+        return napiEntrypointsToRawEntrypoints(
+          napiEndpoints as TurbopackResult<NapiEntrypoints>
+        )
+      } else {
+        return {
+          issues: napiEndpoints.issues,
+          diagnostics: napiEndpoints.diagnostics,
+        }
+      }
     }
 
     entrypointsSubscribe() {
-      const subscription = subscribe<TurbopackResult<NapiEntrypoints>>(
+      const subscription = subscribe<TurbopackResult<NapiEntrypoints | {}>>(
         false,
         async (callback) =>
           binding.projectEntrypointsSubscribe(this._nativeProject, callback)
       )
       return (async function* () {
         for await (const entrypoints of subscription) {
-          yield napiEntrypointsToRawEntrypoints(entrypoints)
+          if ('routes' in (entrypoints as TurbopackResult<NapiEntrypoints>)) {
+            yield napiEntrypointsToRawEntrypoints(
+              entrypoints as TurbopackResult<NapiEntrypoints>
+            )
+          } else {
+            yield {
+              issues: entrypoints.issues,
+              diagnostics: entrypoints.diagnostics,
+            } as TurbopackResult<{}>
+          }
         }
       })()
     }
@@ -742,8 +757,8 @@ function bindingToApi(
       )
     }
 
-    invalidatePersistentCache(): Promise<void> {
-      return binding.projectInvalidatePersistentCache(this._nativeProject)
+    invalidateFileSystemCache(): Promise<void> {
+      return binding.projectInvalidateFileSystemCache(this._nativeProject)
     }
 
     shutdown(): Promise<void> {
@@ -768,7 +783,7 @@ function bindingToApi(
       )) as TurbopackResult<WrittenEndpoint>
     }
 
-    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>> {
       const clientSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -780,7 +795,7 @@ function bindingToApi(
 
     async serverChanged(
       includeIssues: boolean
-    ): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+    ): Promise<AsyncIterableIterator<TurbopackResult>> {
       const serverSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -795,70 +810,12 @@ function bindingToApi(
     }
   }
 
-  /**
-   * Returns a new copy of next.js config object to avoid mutating the original.
-   *
-   * Also it does some augmentation to the configuration as well, for example set the
-   * turbopack's rules if `experimental.reactCompilerOptions` is set.
-   */
-  function augmentNextConfig(
-    originalNextConfig: NextConfigComplete,
-    projectPath: string
-  ): Record<string, any> {
-    let nextConfig = { ...originalNextConfig }
-
-    const reactCompilerOptions = nextConfig.experimental?.reactCompiler
-
-    // TODO: Merge this with `crates/next-core/src/next_shared/webpack_rules/babel.rs` so that we're
-    // not configuring babel in two different places (potentially causing it to run twice)
-    if (reactCompilerOptions) {
-      const options: ReactCompilerOptions =
-        typeof reactCompilerOptions === 'object' ? reactCompilerOptions : {}
-      nextConfig.turbopack = {
-        ...originalNextConfig.turbopack,
-        rules: {
-          ...originalNextConfig.turbopack.rules,
-          // assumption: there is no collision with this glob key
-          '{*.{js,jsx,ts,tsx,cjs,mjs,mts,cts},react-compiler-builtin-rule}': {
-            loaders: [
-              getReactCompilerLoader(
-                reactCompilerOptions,
-                projectPath,
-                nextConfig.dev,
-                /* isServer */ false,
-                /* reactCompilerExclude */ undefined
-              ),
-            ],
-            condition: {
-              all: [
-                'browser',
-                { not: 'foreign' },
-                {
-                  content:
-                    options.compilationMode === 'annotation'
-                      ? /['"]use memo['"]/
-                      : !options.compilationMode ||
-                          options.compilationMode === 'infer'
-                        ? // Matches declaration or useXXX or </ (closing jsx) or /> (self closing jsx)
-                          /['"]use memo['"]|\Wuse[A-Z]|<\/|\/>/
-                        : undefined,
-                },
-              ],
-            },
-          },
-        },
-      }
-    }
-
-    return nextConfig
-  }
-
   async function serializeNextConfig(
     nextConfig: NextConfigComplete,
     projectPath: string
   ): Promise<string> {
-    // Avoid mutating the existing `nextConfig` object. NOTE: This does a shallow clone.
-    let nextConfigSerializable = augmentNextConfig(nextConfig, projectPath)
+    // Avoid mutating the existing `nextConfig` object. NOTE: This is only a shallow clone.
+    let nextConfigSerializable: Record<string, any> = { ...nextConfig }
 
     nextConfigSerializable.generateBuildId =
       await nextConfigSerializable.generateBuildId?.()
@@ -1083,19 +1040,19 @@ function bindingToApi(
             type: 'conflict',
           }
           break
-        default:
+        default: {
           const _exhaustiveCheck: never = routeType
           invariant(
             nativeRoute,
             () => `Unknown route type: ${_exhaustiveCheck}`
           )
+        }
       }
       routes.set(pathname, route)
     }
     const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
       endpoint: new EndpointImpl(middleware.endpoint),
-      runtime: middleware.runtime,
-      matcher: middleware.matcher,
+      isProxy: middleware.isProxy,
     })
     const middleware = entrypoints.middleware
       ? napiMiddlewareToMiddleware(entrypoints.middleware)
@@ -1264,7 +1221,10 @@ async function loadWasm(importPath = '') {
           '`turbo.createProject` is not supported by the wasm bindings.'
         )
       },
-      startTurbopackTraceServer(_traceFilePath: string): void {
+      startTurbopackTraceServer(
+        _traceFilePath: string,
+        _port: number | undefined
+      ): void {
         throw new Error(
           '`turbo.startTurbopackTraceServer` is not supported by the wasm bindings.'
         )
@@ -1319,6 +1279,24 @@ async function loadWasm(importPath = '') {
         replacements,
         injections,
         imports
+      )
+    },
+    lockfileTryAcquire(_filePath: string) {
+      throw new Error(
+        '`lockfileTryAcquire` is not supported by the wasm bindings.'
+      )
+    },
+    lockfileTryAcquireSync(_filePath: string) {
+      throw new Error(
+        '`lockfileTryAcquireSync` is not supported by the wasm bindings.'
+      )
+    },
+    lockfileUnlock(_lockfile: Lockfile) {
+      throw new Error('`lockfileUnlock` is not supported by the wasm bindings.')
+    },
+    lockfileUnlockSync(_lockfile: Lockfile) {
+      throw new Error(
+        '`lockfileUnlockSync` is not supported by the wasm bindings.'
       )
     },
   }
@@ -1458,11 +1436,14 @@ function loadNative(importPath?: string) {
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       turbo: {
         createProject: bindingToApi(customBindings ?? bindings, false),
-        startTurbopackTraceServer(traceFilePath) {
+        startTurbopackTraceServer(traceFilePath, port) {
           Log.warn(
-            'Turbopack trace server started. View trace at https://trace.nextjs.org'
+            `Turbopack trace server started. View trace at https://trace.nextjs.org${port != null ? `?port=${port}` : ''}`
           )
-          ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
+          ;(customBindings ?? bindings).startTurbopackTraceServer(
+            traceFilePath,
+            port
+          )
         },
       },
       mdx: {
@@ -1519,6 +1500,18 @@ function loadNative(importPath?: string) {
           injections,
           imports
         )
+      },
+      lockfileTryAcquire(filePath: string) {
+        return bindings.lockfileTryAcquire(filePath)
+      },
+      lockfileTryAcquireSync(filePath: string) {
+        return bindings.lockfileTryAcquireSync(filePath)
+      },
+      lockfileUnlock(lockfile: Lockfile) {
+        return bindings.lockfileUnlock(lockfile)
+      },
+      lockfileUnlockSync(lockfile: Lockfile) {
+        return bindings.lockfileUnlockSync(lockfile)
       },
     }
     return nativeBindings

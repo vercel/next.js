@@ -14,9 +14,9 @@ const nextConfig = join(appDir, 'next.config.js')
 let nextConfigContent
 
 async function checkFileWrite(existsAfterBuild) {
-  await nextBuild(appDir, [], { lint: true })
+  await nextBuild(appDir, [])
   fs.writeFileSync(customFile, 'this is a testing file')
-  await nextBuild(appDir, [], { lint: true })
+  await nextBuild(appDir, [])
   expect(fs.existsSync(customFile)).toBe(existsAfterBuild)
   // `.next/cache` should be preserved in all cases
   expect(fs.existsSync(cacheDir)).toBe(true)

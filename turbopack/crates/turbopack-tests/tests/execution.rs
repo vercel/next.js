@@ -36,10 +36,10 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
     context::AssetContext,
-    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
-    issue::IssueDescriptionExt,
+    issue::CollectibleIssuesExt,
     module_graph::{
         ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
     },
@@ -161,7 +161,7 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
     messages
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsResult> {
     // Clean up old output files.
     let output_path = resource.join("output");
@@ -337,10 +337,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .get_relative_path_to(project_root)
         .context("Project path is in root path")?;
 
-    let env = Environment::new(
-        ExecutionEnvironment::NodeJsBuildTime(NodeJsEnvironment::default().resolved_cell()),
-        BrowserEnvironment::default().cell(),
-    )
+    let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
+        NodeJsEnvironment::default().resolved_cell(),
+    ))
     .to_resolved()
     .await?;
 
@@ -564,9 +563,7 @@ async fn snapshot_issues(
     let PreparedTest { path, .. } = &*prepared_test.await?;
     let _ = run_result_op.resolve_strongly_consistent().await;
 
-    let captured_issues = run_result_op.peek_issues_with_path().await?;
-
-    let plain_issues = captured_issues.get_plain_issues().await?;
+    let plain_issues = run_result_op.peek_issues().get_plain_issues().await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)
         .await

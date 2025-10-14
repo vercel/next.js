@@ -1857,6 +1857,7 @@ const runTests = (isDev = false) => {
            {
              "destination": "/:path+",
              "internal": true,
+             "priority": true,
              "regex": "^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))\\/$",
              "source": "/:path+/",
              "statusCode": 308,

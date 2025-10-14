@@ -1,6 +1,9 @@
 import type { IncomingMessage } from 'http'
 import type { Readable } from 'stream'
 import { PassThrough } from 'stream'
+import bytes from 'next/dist/compiled/bytes'
+
+const DEFAULT_BODY_CLONE_SIZE_LIMIT = 10 * 1024 * 1024 // 10MB
 
 export function requestToBodyStream(
   context: { ReadableStream: typeof ReadableStream },
@@ -38,7 +41,8 @@ export interface CloneableBody {
 }
 
 export function getCloneableBody<T extends IncomingMessage>(
-  readable: T
+  readable: T,
+  sizeLimit?: number
 ): CloneableBody {
   let buffered: Readable | null = null
 
@@ -76,13 +80,35 @@ export function getCloneableBody<T extends IncomingMessage>(
       const input = buffered ?? readable
       const p1 = new PassThrough()
       const p2 = new PassThrough()
+
+      let bytesRead = 0
+      const bodySizeLimit = sizeLimit ?? DEFAULT_BODY_CLONE_SIZE_LIMIT
+      let limitExceeded = false
+
       input.on('data', (chunk) => {
+        if (limitExceeded) return
+
+        bytesRead += chunk.length
+
+        if (bytesRead > bodySizeLimit) {
+          limitExceeded = true
+          const urlInfo = readable.url ? ` for ${readable.url}` : ''
+          console.warn(
+            `Request body exceeded ${bytes.format(bodySizeLimit)}${urlInfo}. Only the first ${bytes.format(bodySizeLimit)} will be available unless configured. See https://nextjs.org/docs/app/api-reference/config/next-config-js/middlewareClientMaxBodySize for more details.`
+          )
+          p1.push(null)
+          p2.push(null)
+          return
+        }
+
         p1.push(chunk)
         p2.push(chunk)
       })
       input.on('end', () => {
-        p1.push(null)
-        p2.push(null)
+        if (!limitExceeded) {
+          p1.push(null)
+          p2.push(null)
+        }
       })
       buffered = p2
       return p1

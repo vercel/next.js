@@ -26,7 +26,13 @@ pub async fn module_references(
     runtime: ResolvedVc<WebpackRuntime>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ModuleReferences>> {
-    let parsed = parse(*source, EcmascriptModuleAssetType::Ecmascript, *transforms).await?;
+    let parsed = parse(
+        *source,
+        EcmascriptModuleAssetType::Ecmascript,
+        *transforms,
+        false,
+    )
+    .await?;
     match &*parsed {
         ParseResult::Ok {
             program,
@@ -48,7 +54,7 @@ pub async fn module_references(
             HANDLER.set(&handler, || {
                 program.visit_with(&mut visitor);
             });
-            collector.emit().await?;
+            collector.emit(false).await?;
             Ok(Vc::cell(references))
         }
         ParseResult::Unparsable { .. } | ParseResult::NotFound => Ok(Vc::cell(Vec::new())),

@@ -10,6 +10,11 @@ const nextConfig = {
         revalidate: 100,
         expire: 300,
       },
+      expireNow: {
+        stale: 0,
+        expire: 0,
+        revalidate: 0,
+      },
     },
     cacheHandlers: {
       custom: require.resolve(

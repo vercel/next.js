@@ -9,6 +9,7 @@ use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::ProcessEnv;
+use turbo_tasks_fs::FileSystemPathOption;
 
 use crate::target::CompileTarget;
 
@@ -42,20 +43,13 @@ pub enum ChunkLoading {
 pub struct Environment {
     // members must be private to avoid leaking non-custom types
     execution: ExecutionEnvironment,
-    css_environment: ResolvedVc<BrowserEnvironment>,
 }
 
 #[turbo_tasks::value_impl]
 impl Environment {
     #[turbo_tasks::function]
-    pub async fn new(
-        execution: ExecutionEnvironment,
-        css_environment: ResolvedVc<BrowserEnvironment>,
-    ) -> Vc<Self> {
-        Self::cell(Environment {
-            execution,
-            css_environment,
-        })
+    pub fn new(execution: ExecutionEnvironment) -> Vc<Self> {
+        Self::cell(Environment { execution })
     }
 }
 
@@ -105,17 +99,6 @@ impl Environment {
             ExecutionEnvironment::EdgeWorker(edge_env) => edge_env.runtime_versions(),
             ExecutionEnvironment::Custom(_) => todo!(),
         })
-    }
-
-    #[turbo_tasks::function]
-    pub fn css_environment(&self) -> Vc<BrowserEnvironment> {
-        *self.css_environment
-    }
-
-    #[turbo_tasks::function]
-    pub async fn css_runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
-        let distribs = resolve_browserslist(self.css_environment).await?;
-        Ok(Vc::cell(Versions::parse_versions(distribs)?))
     }
 
     #[turbo_tasks::function]
@@ -231,7 +214,7 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn cwd(&self) -> Result<Vc<Option<RcStr>>> {
+    pub async fn cwd(&self) -> Result<Vc<FileSystemPathOption>> {
         let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
@@ -276,7 +259,7 @@ pub struct NodeJsEnvironment {
     pub compile_target: ResolvedVc<CompileTarget>,
     pub node_version: ResolvedVc<NodeJsVersion>,
     // user specified process.cwd
-    pub cwd: ResolvedVc<Option<RcStr>>,
+    pub cwd: ResolvedVc<FileSystemPathOption>,
 }
 
 impl Default for NodeJsEnvironment {
@@ -335,7 +318,6 @@ impl Default for NodeJsVersion {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Default)]
 pub struct BrowserEnvironment {
     pub dom: bool,
     pub web_worker: bool,

@@ -68,6 +68,7 @@ export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
   focusAndScrollRef: FocusAndScrollRef
   nextUrl: string | null
+  previousNextUrl: string | null
 }>(null as any)
 
 export const TemplateContext = React.createContext<React.ReactNode>(null as any)

@@ -6,7 +6,6 @@ use std::{
 
 use bytes_str::BytesStr;
 use next_custom_transforms::transforms::{
-    amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
     debug_fn_name::debug_fn_name,
     dynamic::{next_dynamic, NextDynamicMode},
@@ -15,7 +14,6 @@ use next_custom_transforms::transforms::{
     next_ssg::next_ssg,
     optimize_barrel::optimize_barrel,
     optimize_server_react::{self, optimize_server_react},
-    page_config::page_config_test,
     pure::pure_magic,
     react_server_components::server_components,
     server_actions::{self, server_actions, ServerActionsMode},
@@ -50,18 +48,6 @@ fn syntax() -> Syntax {
         import_attributes: true,
         ..Default::default()
     })
-}
-
-#[fixture("tests/fixture/amp/**/input.js")]
-fn amp_attributes_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| amp_attributes(),
-        &input,
-        &output,
-        Default::default(),
-    );
 }
 
 #[fixture("tests/fixture/next-dynamic/**/input.js")]
@@ -382,18 +368,6 @@ fn next_ssg_fixture(input: PathBuf) {
                 jsx,
             )
         },
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/page-config/**/input.js")]
-fn page_config_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| page_config_test(),
         &input,
         &output,
         Default::default(),

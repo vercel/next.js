@@ -1,10 +1,6 @@
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertNoRedbox,
-  getRouteTypeFromDevToolsIndicator,
-  retry,
-} from 'next-test-utils'
+import { assertNoRedbox, retry } from 'next-test-utils'
 
 describe('async imports in cacheComponents', () => {
   const { next, isNextStart, isNextDev } = nextTestSetup({
@@ -65,8 +61,6 @@ describe('async imports in cacheComponents', () => {
     expect(await browser.elementByCss('body').text()).toBe('hello')
     if (isNextDev) {
       await retry(async () => {
-        // the page should be static
-        expect(await getRouteTypeFromDevToolsIndicator(browser)).toBe('Static')
         // we shouldn't get any errors from `spawnDynamicValidationInDev`
         await assertNoRedbox(browser)
       })

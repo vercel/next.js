@@ -329,6 +329,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             // rustc complains: error[E0210]: type parameter `T` must be covered by another type when it appears before
             // the first local type (`dyn Trait`).
             unsafe impl #impl_generics turbo_tasks::Upcast<::std::boxed::Box<dyn #trait_path>> for #ty #where_clause {}
+            unsafe impl #impl_generics turbo_tasks::UpcastStrict<::std::boxed::Box<dyn #trait_path>> for #ty #where_clause {}
 
             impl #impl_generics #trait_path for #ty #where_clause {
                 #(#trait_items)*

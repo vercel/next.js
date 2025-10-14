@@ -3,7 +3,10 @@ import type {
   MiddlewareMatcher,
 } from '../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { MIDDLEWARE_LOCATION_REGEXP } from '../../../lib/constants'
+import {
+  MIDDLEWARE_LOCATION_REGEXP,
+  PROXY_LOCATION_REGEXP,
+} from '../../../lib/constants'
 import { loadEntrypoint } from '../../load-entrypoint'
 
 export type MiddlewareLoaderOptions = {
@@ -49,7 +52,12 @@ export default async function middlewareLoader(this: any) {
   buildInfo.nextEdgeMiddleware = {
     matchers,
     page:
-      page.replace(new RegExp(`/${MIDDLEWARE_LOCATION_REGEXP}$`), '') || '/',
+      page.replace(
+        new RegExp(
+          `/(${MIDDLEWARE_LOCATION_REGEXP}|${PROXY_LOCATION_REGEXP})$`
+        ),
+        ''
+      ) || '/',
   }
   buildInfo.rootDir = rootDir
   buildInfo.route = {

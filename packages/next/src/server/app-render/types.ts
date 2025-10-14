@@ -9,6 +9,7 @@ import type { NextFontManifest } from '../../build/webpack/plugins/next-font-man
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { ImageConfigComplete } from '../../shared/lib/image-config'
 import type { __ApiPreviewProps } from '../api-utils'
 
 import s from 'next/dist/compiled/superstruct'
@@ -77,6 +78,7 @@ export interface RenderOptsPartial {
   dev?: boolean
   basePath: string
   trailingSlash: boolean
+  images: ImageConfigComplete
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   supportsDynamicResponse: boolean
   runtime?: ServerRuntime
@@ -93,13 +95,12 @@ export interface RenderOptsPartial {
   }
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
-  setIsrStatus?: (key: string, value: boolean) => void
+  setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
     debugChannel: { readable: ReadableStream<Uint8Array> },
     htmlRequestId: string,
     requestId: string
   ) => void
-  isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   onInstrumentationRequestError?: ServerOnInstrumentationRequestError

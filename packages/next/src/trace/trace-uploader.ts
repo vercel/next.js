@@ -28,7 +28,7 @@ const DEV_ALLOWED_EVENTS = new Set([
 const BUILD_ALLOWED_EVENTS = new Set([
   ...COMMON_ALLOWED_EVENTS,
   'next-build',
-  'run-turbopack-compiler',
+  'run-turbopack',
   'webpack-compilation',
   'run-webpack-compiler',
   'create-entrypoints',
@@ -50,14 +50,14 @@ const BUILD_ALLOWED_EVENTS = new Set([
   'node-file-trace-build',
   'static-generation',
   'next-export',
-  'verify-typescript-setup',
-  'verify-and-lint',
+  'run-typescript',
+  'run-eslint',
 ])
 
 const {
   NEXT_TRACE_UPLOAD_DEBUG,
   // An external env to allow to upload full trace without picking up the relavant spans.
-  // This is mainly for the debugging purpose, to allwo manual audit for full trace for the given build.
+  // This is mainly for the debugging purpose, to allow manual audit for full trace for the given build.
   // [NOTE] This may fail if build is large and generated trace is excessively large.
   NEXT_TRACE_UPLOAD_FULL,
 } = process.env

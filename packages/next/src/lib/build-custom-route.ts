@@ -45,7 +45,19 @@ export function buildCustomRoute(
     )
   }
 
-  const regex = normalizeRouteRegex(source)
+  // If this is an internal rewrite and it already provides a regex, use it
+  // otherwise, normalize the source to a regex.
+  let regex: string
+  if (
+    !route.internal ||
+    type !== 'rewrite' ||
+    !('regex' in route) ||
+    typeof route.regex !== 'string'
+  ) {
+    regex = normalizeRouteRegex(source)
+  } else {
+    regex = route.regex
+  }
 
   if (type !== 'redirect') {
     return { ...route, regex }

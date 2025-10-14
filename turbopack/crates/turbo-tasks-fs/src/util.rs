@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow};
-use turbo_tasks::Vc;
+use turbo_tasks::ResolvedVc;
 
 use crate::{DiskFileSystem, FileSystemPath};
 
@@ -23,9 +23,8 @@ pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Optio
 pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
     use turbo_unix_path::sys_to_unix;
 
-    let root_fs = root.fs();
-    let root_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(root_fs)
-        .await?
+    let root_fs = root.fs;
+    let root_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(root_fs)
         .context("Expected root to have a DiskFileSystem")?
         .await?;
 
@@ -48,9 +47,8 @@ pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<S
 
 #[cfg(target_os = "windows")]
 pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
-    let root_fs = root.fs();
-    let root_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(root_fs)
-        .await?
+    let root_fs = root.fs;
+    let root_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(root_fs)
         .context("Expected root to have a DiskFileSystem")?
         .await?;
 

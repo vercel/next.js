@@ -120,6 +120,7 @@ export interface PrerenderStoreModernRuntime
    */
   readonly runtimeStagePromise: Promise<void> | null
 
+  readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']
   readonly draftMode: RequestStore['draftMode']
 }
@@ -294,10 +295,7 @@ export interface PrivateUseCacheStore extends CommonUseCacheStore {
    */
   readonly runtimeStagePromise: Promise<void> | null
 
-  /**
-   * As opposed to the public cache store, the private cache store is allowed to
-   * access the request cookies.
-   */
+  readonly headers: ReadonlyHeaders
   readonly cookies: ReadonlyRequestCookies
 
   /**

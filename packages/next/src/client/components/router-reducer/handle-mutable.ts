@@ -16,6 +16,7 @@ export function handleMutable(
   // shouldScroll is true by default, can override to false.
   const shouldScroll = mutable.shouldScroll ?? true
 
+  let previousNextUrl = state.previousNextUrl
   let nextUrl = state.nextUrl
 
   if (isNotUndefined(mutable.patchedTree)) {
@@ -23,6 +24,7 @@ export function handleMutable(
     const changedPath = computeChangedPath(state.tree, mutable.patchedTree)
     if (changedPath) {
       // If the tree changed, we need to update the nextUrl
+      previousNextUrl = nextUrl
       nextUrl = changedPath
     } else if (!nextUrl) {
       // if the tree ends up being the same (ie, no changed path), and we don't have a nextUrl, then we should use the canonicalUrl
@@ -84,5 +86,6 @@ export function handleMutable(
       ? mutable.patchedTree
       : state.tree,
     nextUrl,
+    previousNextUrl: previousNextUrl,
   }
 }

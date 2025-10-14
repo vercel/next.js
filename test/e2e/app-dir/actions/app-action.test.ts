@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
@@ -6,6 +5,7 @@ import {
   check,
   waitFor,
   getRedboxSource,
+  getDistDir,
 } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
 import fs from 'node:fs/promises'
@@ -32,7 +32,7 @@ describe('app-dir action handling', () => {
   if (isNextStart) {
     it('should output exportName and filename info in manifest', async () => {
       const referenceManifest = await next.readJSON(
-        '.next/server/server-reference-manifest.json'
+        `${getDistDir()}/server/server-reference-manifest.json`
       )
       let foundExportNames = []
 
@@ -750,7 +750,8 @@ describe('app-dir action handling', () => {
     expect(newRandom).not.toBe(initialRandom)
   })
 
-  it('should reset the form state when the action redirects to itself', async () => {
+  // TODO(client-segment-cache): re-enable when this optimization is added back
+  it.skip('should reset the form state when the action redirects to itself', async () => {
     const browser = await next.browser('/self-redirect')
     const requests = []
     browser.on('request', async (req) => {
@@ -935,7 +936,7 @@ describe('app-dir action handling', () => {
     it('should not expose action content in sourcemaps', async () => {
       // We check all sourcemaps in the `static` folder for sensitive information given that chunking
       const sourcemaps = await fs
-        .readdir(join(next.testDir, '.next', 'static'), {
+        .readdir(join(next.testDir, getDistDir(), 'static'), {
           recursive: true,
           encoding: 'utf8',
         })
@@ -944,7 +945,7 @@ describe('app-dir action handling', () => {
             files
               .filter((f) => f.endsWith('.js.map'))
               .map((f) =>
-                fs.readFile(join(next.testDir, '.next', 'static', f), {
+                fs.readFile(join(next.testDir, getDistDir(), 'static', f), {
                   encoding: 'utf8',
                 })
               )
@@ -1022,14 +1023,14 @@ describe('app-dir action handling', () => {
     it('should bundle external libraries if they are on the action layer', async () => {
       await next.fetch('/client')
       const pageBundle = await fs.readFile(
-        join(next.testDir, '.next', 'server', 'app', 'client', 'page.js'),
+        join(next.testDir, getDistDir(), 'server', 'app', 'client', 'page.js'),
         { encoding: 'utf8' }
       )
       if (isTurbopack) {
         const chunkPaths = pageBundle.matchAll(/R\.c\("([^"]*)"\)/g)
         const reads = [...chunkPaths].map(async (match) => {
           const bundle = await fs.readFile(
-            join(next.testDir, '.next', ...match[1].split(/[\\/]/g)),
+            join(next.testDir, getDistDir(), ...match[1].split(/[\\/]/g)),
             { encoding: 'utf8' }
           )
           return bundle.includes('node_modules/nanoid/index.js')
@@ -1299,7 +1300,7 @@ describe('app-dir action handling', () => {
       }, 5000)
     })
 
-    it('should handle unstable_expirePath', async () => {
+    it('should handle revalidatePath', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1322,7 +1323,7 @@ describe('app-dir action handling', () => {
       })
     })
 
-    it('should handle unstable_expireTag', async () => {
+    it('should handle revalidateTag', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1346,7 +1347,7 @@ describe('app-dir action handling', () => {
     })
 
     // TODO: investigate flakey behavior with revalidate
-    it.skip('should handle unstable_expireTag + redirect', async () => {
+    it.skip('should handle revalidateTag + redirect', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()

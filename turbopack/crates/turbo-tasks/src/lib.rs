@@ -109,9 +109,9 @@ pub use key_value_pair::KeyValuePair;
 pub use magic_any::MagicAny;
 pub use manager::{
     CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
-    TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
-    dynamic_call, emit, mark_finished, mark_root, mark_session_dependent, mark_stateful,
-    prevent_gc, run_once, run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope,
+    TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit, mark_finished,
+    mark_root, mark_session_dependent, mark_stateful, prevent_gc, run, run_once,
+    run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope,
 };
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
@@ -132,8 +132,8 @@ pub use value::{TransientInstance, TransientValue};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
     Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-    Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead,
-    VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
+    Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead,
+    VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
 
 pub type SliceMap<K, V> = Box<[(K, V)]>;
@@ -240,7 +240,7 @@ macro_rules! fxindexset {
 /// ## `serialization = "..."`
 ///
 /// Affects serialization via [`serde::Serialize`] and [`serde::Deserialize`]. Serialization is
-/// required for persistent caching of tasks to disk.
+/// required for filesystem cache of tasks.
 ///
 /// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
 /// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization

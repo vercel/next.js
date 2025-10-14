@@ -75,39 +75,40 @@ impl Default for CacheKinds {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct NextConfig {
-    // TODO all fields should be private and access should be wrapped within a turbo-tasks function
-    // Otherwise changing NextConfig will lead to invalidating all tasks accessing it.
-    pub config_file: Option<RcStr>,
-    pub config_file_name: RcStr,
+    // IMPORTANT: all fields should be private and access should be wrapped within a turbo-tasks
+    // function. Otherwise changing NextConfig will lead to invalidating all tasks accessing it.
+    config_file: Option<RcStr>,
+    config_file_name: RcStr,
 
     /// In-memory cache size in bytes.
     ///
     /// If `cache_max_memory_size: 0` disables in-memory caching.
-    pub cache_max_memory_size: Option<f64>,
+    cache_max_memory_size: Option<f64>,
     /// custom path to a cache handler to use
-    pub cache_handler: Option<RcStr>,
+    cache_handler: Option<RcStr>,
 
-    pub env: FxIndexMap<String, JsonValue>,
-    pub experimental: ExperimentalConfig,
-    pub images: ImageConfig,
-    pub page_extensions: Vec<RcStr>,
-    pub react_production_profiling: Option<bool>,
-    pub react_strict_mode: Option<bool>,
-    pub transpile_packages: Option<Vec<RcStr>>,
-    pub modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
-    pub dist_dir: Option<RcStr>,
-    pub deployment_id: Option<RcStr>,
+    env: FxIndexMap<String, JsonValue>,
+    experimental: ExperimentalConfig,
+    images: ImageConfig,
+    page_extensions: Vec<RcStr>,
+    react_compiler: Option<ReactCompilerOptionsOrBoolean>,
+    react_production_profiling: Option<bool>,
+    react_strict_mode: Option<bool>,
+    transpile_packages: Option<Vec<RcStr>>,
+    modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
+    dist_dir: Option<RcStr>,
+    deployment_id: Option<RcStr>,
     sass_options: Option<serde_json::Value>,
-    pub trailing_slash: Option<bool>,
-    pub asset_prefix: Option<RcStr>,
-    pub base_path: Option<RcStr>,
-    pub skip_middleware_url_normalize: Option<bool>,
-    pub skip_trailing_slash_redirect: Option<bool>,
-    pub i18n: Option<I18NConfig>,
-    pub cross_origin: Option<CrossOriginConfig>,
-    pub dev_indicators: Option<DevIndicatorsConfig>,
-    pub output: Option<OutputType>,
-    pub turbopack: Option<TurbopackConfig>,
+    trailing_slash: Option<bool>,
+    asset_prefix: Option<RcStr>,
+    base_path: Option<RcStr>,
+    skip_middleware_url_normalize: Option<bool>,
+    skip_trailing_slash_redirect: Option<bool>,
+    i18n: Option<I18NConfig>,
+    cross_origin: Option<CrossOriginConfig>,
+    dev_indicators: Option<DevIndicatorsConfig>,
+    output: Option<OutputType>,
+    turbopack: Option<TurbopackConfig>,
     production_browser_source_maps: bool,
     output_file_tracing_includes: Option<serde_json::Value>,
     output_file_tracing_excludes: Option<serde_json::Value>,
@@ -118,24 +119,22 @@ pub struct NextConfig {
     /// server-side bundles.
     ///
     /// [API Reference](https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies)
-    pub bundle_pages_router_dependencies: Option<bool>,
+    bundle_pages_router_dependencies: Option<bool>,
 
     /// A list of packages that should be treated as external on the server
     /// build.
     ///
     /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
-    pub server_external_packages: Option<Vec<RcStr>>,
+    server_external_packages: Option<Vec<RcStr>>,
 
     #[serde(rename = "_originalRedirects")]
-    pub original_redirects: Option<Vec<Redirect>>,
+    original_redirects: Option<Vec<Redirect>>,
 
     // Partially supported
-    pub compiler: Option<CompilerConfig>,
+    compiler: Option<CompilerConfig>,
 
-    pub optimize_fonts: Option<bool>,
+    optimize_fonts: Option<bool>,
 
-    // unsupported
-    amp: AmpConfig,
     clean_dist_dir: bool,
     compress: bool,
     eslint: EslintConfig,
@@ -158,7 +157,7 @@ pub struct NextConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum CrossOriginConfig {
@@ -166,21 +165,8 @@ pub enum CrossOriginConfig {
     UseCredentials,
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-)]
-#[serde(rename_all = "camelCase")]
-struct AmpConfig {
-    canonical_base: Option<String>,
-}
+#[turbo_tasks::value(transparent)]
+pub struct OptionCrossOriginConfig(Option<CrossOriginConfig>);
 
 #[derive(
     Clone,
@@ -279,7 +265,7 @@ struct HttpAgentConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DomainLocale {
@@ -290,7 +276,7 @@ pub struct DomainLocale {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct I18NConfig {
@@ -300,14 +286,20 @@ pub struct I18NConfig {
     pub locales: Vec<String>,
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionI18NConfig(Option<I18NConfig>);
+
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum OutputType {
     Standalone,
     Export,
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionOutputType(Option<OutputType>);
 
 #[derive(
     Debug,
@@ -473,7 +465,7 @@ impl Default for ImageConfig {
         // https://github.com/vercel/next.js/blob/327634eb/packages/next/shared/lib/image-config.ts#L100-L114
         Self {
             device_sizes: vec![640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-            image_sizes: vec![16, 32, 48, 64, 96, 128, 256, 384],
+            image_sizes: vec![32, 48, 64, 96, 128, 256, 384],
             path: "/_next/image".to_string(),
             loader: ImageLoader::Default,
             loader_file: None,
@@ -560,7 +552,7 @@ pub struct TurbopackConfig {
     pub rules: Option<FxIndexMap<RcStr, RuleConfigCollection>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
-    pub module_ids: Option<ModuleIds>,
+    pub debug_ids: Option<bool>,
 }
 
 #[derive(
@@ -734,23 +726,34 @@ pub enum MdxRsOptions {
 }
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
-pub enum ReactCompilerMode {
+pub enum ReactCompilerCompilationMode {
+    #[default]
     Infer,
     Annotation,
     All,
 }
 
+#[turbo_tasks::value(shared, operation)]
+#[derive(Clone, Debug, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ReactCompilerPanicThreshold {
+    #[default]
+    None,
+    CriticalErrors,
+    AllErrors,
+}
+
 /// Subset of react compiler options
 #[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactCompilerOptions {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compilation_mode: Option<ReactCompilerMode>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub panic_threshold: Option<RcStr>,
+    #[serde(default)]
+    pub compilation_mode: ReactCompilerCompilationMode,
+    #[serde(default)]
+    pub panic_threshold: ReactCompilerPanicThreshold,
 }
 
 #[derive(
@@ -806,7 +809,6 @@ pub struct ExperimentalConfig {
     web_vitals_attribution: Option<Vec<RcStr>>,
     server_actions: Option<ServerActionsOrLegacyBool>,
     sri: Option<SubResourceIntegrity>,
-    react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     root_params: Option<bool>,
@@ -816,7 +818,6 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks: Option<bool>,
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
-    amp: Option<serde_json::Value>,
     app_document_preloading: Option<bool>,
     cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
     cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
@@ -863,17 +864,18 @@ pub struct ExperimentalConfig {
     trust_host_header: Option<bool>,
 
     url_imports: Option<serde_json::Value>,
-    view_transition: Option<bool>,
     /// This option is to enable running the Webpack build in a worker thread
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
 
     turbopack_minify: Option<bool>,
+    turbopack_module_ids: Option<ModuleIds>,
     turbopack_persistent_caching: Option<bool>,
     turbopack_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    turbopack_import_type_bytes: Option<bool>,
     turbopack_use_system_tls_certs: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
@@ -1304,6 +1306,14 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub async fn config_file_path(
+        &self,
+        project_path: FileSystemPath,
+    ) -> Result<Vc<FileSystemPath>> {
+        Ok(project_path.join(&self.config_file_name)?.cell())
+    }
+
+    #[turbo_tasks::function]
     pub fn bundle_pages_router_dependencies(&self) -> Vc<bool> {
         Vc::cell(self.bundle_pages_router_dependencies.unwrap_or_default())
     }
@@ -1326,6 +1336,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn is_standalone(&self) -> Vc<bool> {
         Vc::cell(self.output == Some(OutputType::Standalone))
+    }
+
+    #[turbo_tasks::function]
+    pub fn base_path(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.base_path.clone())
     }
 
     #[turbo_tasks::function]
@@ -1387,8 +1402,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn webpack_rules(&self, project_path: FileSystemPath) -> Result<Vc<WebpackRules>> {
-        let Some(turbo_rules) = self.turbopack.as_ref().and_then(|t| t.rules.as_ref()) else {
+    pub async fn webpack_rules(
+        self: Vc<Self>,
+        project_path: FileSystemPath,
+    ) -> Result<Vc<WebpackRules>> {
+        let this = self.await?;
+        let Some(turbo_rules) = this.turbopack.as_ref().and_then(|t| t.rules.as_ref()) else {
             return Ok(Vc::cell(Vec::new()));
         };
         if turbo_rules.is_empty() {
@@ -1411,7 +1430,6 @@ impl NextConfig {
                         .collect(),
                 )
             }
-            let config_file_path = || project_path.join(&self.config_file_name);
             for item in &rule_collection.0 {
                 match item {
                     RuleConfigCollectionItem::Shorthand(loaders) => {
@@ -1438,7 +1456,10 @@ impl NextConfig {
                         {
                             InvalidLoaderRuleRenameAsIssue {
                                 glob: glob.clone(),
-                                config_file_path: config_file_path()?,
+                                config_file_path: self
+                                    .config_file_path(project_path.clone())
+                                    .owned()
+                                    .await?,
                                 rename_as: rename_as.clone(),
                             }
                             .resolved_cell()
@@ -1453,7 +1474,10 @@ impl NextConfig {
                             } else {
                                 InvalidLoaderRuleConditionIssue {
                                     condition: condition.clone(),
-                                    config_file_path: config_file_path()?,
+                                    config_file_path: self
+                                        .config_file_path(project_path.clone())
+                                        .owned()
+                                        .await?,
                                 }
                                 .resolved_cell()
                                 .emit();
@@ -1521,6 +1545,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn inline_css(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.inline_css.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
     pub fn mdx_rs(&self) -> Vc<OptionalMdxTransformOptions> {
         let options = &self.experimental.mdx_rs;
 
@@ -1553,6 +1582,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn modularize_imports(&self) -> Vc<ModularizeImports> {
         Vc::cell(self.modularize_imports.clone().unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn dist_dir(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.dist_dir.clone())
     }
 
     #[turbo_tasks::function]
@@ -1604,18 +1638,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn react_compiler(&self) -> Vc<OptionalReactCompilerOptions> {
-        let options = &self.experimental.react_compiler;
+    pub fn react_compiler_options(&self) -> Vc<OptionalReactCompilerOptions> {
+        let options = &self.react_compiler;
 
         let options = match options {
             Some(ReactCompilerOptionsOrBoolean::Boolean(true)) => {
-                OptionalReactCompilerOptions(Some(
-                    ReactCompilerOptions {
-                        compilation_mode: None,
-                        panic_threshold: None,
-                    }
-                    .resolved_cell(),
-                ))
+                OptionalReactCompilerOptions(Some(ReactCompilerOptions::default().resolved_cell()))
             }
             Some(ReactCompilerOptionsOrBoolean::Option(options)) => OptionalReactCompilerOptions(
                 Some(ReactCompilerOptions { ..options.clone() }.resolved_cell()),
@@ -1691,16 +1719,6 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_taint(&self) -> Vc<bool> {
         Vc::cell(self.experimental.taint.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_router_bfcache(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.router_bfcache.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_view_transition(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.view_transition.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -1789,9 +1807,8 @@ impl NextConfig {
             // Ignore configuration in development mode, HMR only works with `named`
             NextMode::Development => ModuleIds::Named.cell(),
             NextMode::Build => self
-                .turbopack
-                .as_ref()
-                .and_then(|t| t.module_ids)
+                .experimental
+                .turbopack_module_ids
                 .unwrap_or(ModuleIds::Deterministic)
                 .cell(),
         })
@@ -1815,6 +1832,15 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub async fn turbopack_import_type_bytes(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_import_type_bytes
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
         let source_maps = self.experimental.turbopack_source_maps;
         Ok(Vc::cell(source_maps.unwrap_or(match &*mode.await? {
@@ -1830,6 +1856,16 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn turbopack_debug_ids(&self) -> Vc<bool> {
+        Vc::cell(
+            self.turbopack
+                .as_ref()
+                .and_then(|turbopack| turbopack.debug_ids)
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn typescript_tsconfig_path(&self) -> Result<Vc<Option<RcStr>>> {
         Ok(Vc::cell(
             self.typescript
@@ -1837,6 +1873,21 @@ impl NextConfig {
                 .as_ref()
                 .map(|path| path.to_owned().into()),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub fn cross_origin(&self) -> Vc<OptionCrossOriginConfig> {
+        Vc::cell(self.cross_origin.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn i18n(&self) -> Vc<OptionI18NConfig> {
+        Vc::cell(self.i18n.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn output(&self) -> Vc<OptionOutputType> {
+        Vc::cell(self.output.clone())
     }
 
     #[turbo_tasks::function]

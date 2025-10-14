@@ -9,7 +9,7 @@ import {
   retry,
 } from 'next-test-utils'
 
-const pprEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const pprEnabled = process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
 
 describe('Error overlay for hydration errors in App router', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -147,8 +147,8 @@ describe('Error overlay for hydration errors in App router', () => {
                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                    <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
-                       <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={{...}} forbidden={undefined} ...>
+                     <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                       <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
                          <RedirectBoundary>
                            <RedirectErrorBoundary router={{...}}>
                              <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
@@ -156,7 +156,7 @@ describe('Error overlay for hydration errors in App router', () => {
                                  <SegmentTrieNode>
                                  <script>
                                  <script>
-                                 <ClientSegmentRoot Component={function Root} slots={{children:{...}}} params={{}}>
+                                 <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
                                    <Root params={Promise}>
                                      <html
        -                               className="server-html"
@@ -184,14 +184,14 @@ describe('Error overlay for hydration errors in App router', () => {
                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                    <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
-                       <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={{...}} forbidden={undefined} ...>
+                     <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                       <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
                          <RedirectBoundary>
                            <RedirectErrorBoundary router={{...}}>
                              <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
                                <SegmentViewNode type="layout" pagePath="(extra-att...">
                                  <SegmentTrieNode>
-                                 <ClientSegmentRoot Component={function Root} slots={{children:{...}}} params={{}}>
+                                 <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
                                    <Root params={Promise}>
                                      <html
        -                               className="server-html"
@@ -775,8 +775,8 @@ describe('Error overlay for hydration errors in App router', () => {
                  <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                      <LoadingBoundary loading={null}>
-                       <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
-                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={{...}} forbidden={undefined} ...>
+                       <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
                            <RedirectBoundary>
                              <RedirectErrorBoundary router={{...}}>
                                <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
@@ -784,135 +784,7 @@ describe('Error overlay for hydration errors in App router', () => {
                                    <SegmentTrieNode>
                                    <script>
                                    <script>
-         >                         <html>
-                                     <body>
-                                     <Script src="https://ex..." strategy="beforeInte...">
-         >                             <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
-                               ...
-                   ...
-             ...",
-             "description": "In HTML, <script> cannot be a child of <html>.
-         This will cause a hydration error.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "script <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "description": "<html> cannot contain a nested <script>.
-         See this log for the ancestor stack trace.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (6:5) @ Root
-         > 6 |     <html>
-             |     ^",
-             "stack": [
-               "html <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (6:5)",
-             ],
-           },
-         ]
-        `)
-      } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "componentStack": "...
-             <RenderFromTemplateContext>
-               <ScrollAndFocusHandler segmentPath={[...]}>
-                 <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                   <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                     <LoadingBoundary loading={null}>
-                       <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
-                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={{...}} forbidden={undefined} ...>
-                           <RedirectBoundary>
-                             <RedirectErrorBoundary router={{...}}>
-                               <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                                 <SegmentViewNode type="layout" pagePath="(script-un...">
-                                   <SegmentTrieNode>
-         >                         <html>
-                                     <body>
-                                     <Script src="https://ex..." strategy="beforeInte...">
-         >                             <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
-                               ...
-                   ...
-             ...",
-             "description": "In HTML, <script> cannot be a child of <html>.
-         This will cause a hydration error.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "script <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "description": "<html> cannot contain a nested <script>.
-         See this log for the ancestor stack trace.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (6:5) @ Root
-         > 6 |     <html>
-             |     ^",
-             "stack": [
-               "html <anonymous>",
-               "Root app/(script-under-html)/layout.tsx (6:5)",
-             ],
-           },
-         ]
-        `)
-      }
-    } else {
-      if (isTurbopack) {
-        await expect(browser).toDisplayCollapsedRedbox(`
-         [
-           {
-             "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
-             "environmentLabel": null,
-             "label": "Console Error",
-             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
-         >  8 |       <Script
-              |       ^",
-             "stack": [
-               "Root app/(script-under-html)/layout.tsx (8:7)",
-             ],
-           },
-           {
-             "componentStack": "...
-             <RenderFromTemplateContext>
-               <ScrollAndFocusHandler segmentPath={[...]}>
-                 <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                   <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                     <LoadingBoundary loading={null}>
-                       <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
-                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={{...}} forbidden={undefined} ...>
-                           <RedirectBoundary>
-                             <RedirectErrorBoundary router={{...}}>
-                               <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                                 <SegmentViewNode type="layout" pagePath="(script-un...">
-                                   <SegmentTrieNode>
                                    <Root>
-                                     <script>
-                                     <script>
          >                           <html>
                                        <body>
                                        <Script src="https://ex..." strategy="beforeInte...">
@@ -968,8 +840,138 @@ describe('Error overlay for hydration errors in App router', () => {
                  <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                      <LoadingBoundary loading={null}>
-                       <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
-                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={{...}} forbidden={undefined} ...>
+                       <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
+                           <RedirectBoundary>
+                             <RedirectErrorBoundary router={{...}}>
+                               <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                                 <SegmentViewNode type="layout" pagePath="(script-un...">
+                                   <SegmentTrieNode>
+                                   <Root>
+         >                           <html>
+                                       <body>
+                                       <Script src="https://ex..." strategy="beforeInte...">
+         >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                               ...
+                   ...
+             ...",
+             "description": "In HTML, <script> cannot be a child of <html>.
+         This will cause a hydration error.",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
+         >  8 |       <Script
+              |       ^",
+             "stack": [
+               "script <anonymous>",
+               "Root app/(script-under-html)/layout.tsx (8:7)",
+             ],
+           },
+           {
+             "description": "<html> cannot contain a nested <script>.
+         See this log for the ancestor stack trace.",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/(script-under-html)/layout.tsx (6:5) @ Root
+         > 6 |     <html>
+             |     ^",
+             "stack": [
+               "html <anonymous>",
+               "Root app/(script-under-html)/layout.tsx (6:5)",
+             ],
+           },
+         ]
+        `)
+      }
+    } else {
+      if (isTurbopack) {
+        await expect(browser).toDisplayCollapsedRedbox(`
+         [
+           {
+             "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
+         >  8 |       <Script
+              |       ^",
+             "stack": [
+               "Root app/(script-under-html)/layout.tsx (8:7)",
+             ],
+           },
+           {
+             "componentStack": "...
+             <RenderFromTemplateContext>
+               <ScrollAndFocusHandler segmentPath={[...]}>
+                 <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                   <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                     <LoadingBoundary loading={null}>
+                       <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
+                           <RedirectBoundary>
+                             <RedirectErrorBoundary router={{...}}>
+                               <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                                 <SegmentViewNode type="layout" pagePath="(script-un...">
+                                   <SegmentTrieNode>
+                                   <script>
+                                   <script>
+                                   <Root>
+         >                           <html>
+                                       <body>
+                                       <Script src="https://ex..." strategy="beforeInte...">
+         >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                               ...
+                   ...
+             ...",
+             "description": "In HTML, <script> cannot be a child of <html>.
+         This will cause a hydration error.",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
+         >  8 |       <Script
+              |       ^",
+             "stack": [
+               "script <anonymous>",
+               "Root app/(script-under-html)/layout.tsx (8:7)",
+             ],
+           },
+           {
+             "description": "<html> cannot contain a nested <script>.
+         See this log for the ancestor stack trace.",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/(script-under-html)/layout.tsx (6:5) @ Root
+         > 6 |     <html>
+             |     ^",
+             "stack": [
+               "html <anonymous>",
+               "Root app/(script-under-html)/layout.tsx (6:5)",
+             ],
+           },
+         ]
+        `)
+      } else {
+        await expect(browser).toDisplayCollapsedRedbox(`
+         [
+           {
+             "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
+             "environmentLabel": null,
+             "label": "Console Error",
+             "source": "app/(script-under-html)/layout.tsx (8:7) @ Root
+         >  8 |       <Script
+              |       ^",
+             "stack": [
+               "Root app/(script-under-html)/layout.tsx (8:7)",
+             ],
+           },
+           {
+             "componentStack": "...
+             <RenderFromTemplateContext>
+               <ScrollAndFocusHandler segmentPath={[...]}>
+                 <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                   <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                     <LoadingBoundary loading={null}>
+                       <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                         <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
                            <RedirectBoundary>
                              <RedirectErrorBoundary router={{...}}>
                                <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>

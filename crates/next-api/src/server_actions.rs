@@ -77,7 +77,7 @@ pub(crate) async fn create_server_actions_manifest(
         .to_resolved()
         .await?;
 
-    let chunk_item = loader.as_chunk_item(module_graph, Vc::upcast(chunking_context));
+    let chunk_item = loader.as_chunk_item(module_graph, chunking_context);
     let manifest = build_manifest(
         node_root,
         page_name,
@@ -275,14 +275,13 @@ pub fn parse_server_actions(
 /// If found, we return the mapping of every action's hashed id to the name of
 /// the exported action function. If not, we return a None.
 #[turbo_tasks::function]
-async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
-    let Some(ecmascript_asset) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
+    let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
     else {
         return Ok(Vc::cell(None));
     };
 
-    if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
+    if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModulePartAsset>(module)
         && matches!(
             module.await?.part,
             ModulePart::Evaluation | ModulePart::Facade
@@ -417,7 +416,7 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
         .unwrap_or(false)
 }
 
-type HashToLayerNameModule = FxIndexMap<String, (ActionLayer, String, ResolvedVc<Box<dyn Module>>)>;
+type HashToLayerNameModule = Vec<(String, (ActionLayer, String, ResolvedVc<Box<dyn Module>>))>;
 
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.
@@ -428,7 +427,7 @@ pub struct AllActions(HashToLayerNameModule);
 impl AllActions {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(FxIndexMap::default())
+        Vc::cell(Default::default())
     }
 }
 

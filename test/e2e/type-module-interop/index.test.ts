@@ -15,12 +15,10 @@ describe('Type module interop', () => {
           import Head from 'next/head'
           import Script from 'next/script'
           import dynamic from 'next/dynamic'
-          import { useAmp } from 'next/amp'
 
           const Dynamic = dynamic(() => import('../components/example'))
 
           export default function Page() {
-            const isAmp = useAmp()
             return (
               <>
                 <Head>
@@ -36,7 +34,6 @@ describe('Type module interop', () => {
                 />
                 <p>hello world</p>
                 <Dynamic />
-                <p id="isAmp">isAmp: {isAmp ? 'yes' : 'false'}</p>
                 <Link href="/modules" id="link-to-module">
                   link to module
                 </Link>
@@ -88,9 +85,6 @@ describe('Type module interop', () => {
     expect(html).toContain('hello world')
     // component load via next/dynamic should rendered on the server side
     expect(html).toContain('An example components load via next/dynamic')
-    // imported next/amp should work on the server side
-    const $ = cheerio.load(html)
-    expect($('#isAmp').text()).toContain('false')
   })
 
   it('should render client-side', async () => {

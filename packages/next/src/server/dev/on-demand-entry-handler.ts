@@ -13,10 +13,8 @@ import type HotReloaderWebpack from './hot-reloader-webpack'
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import {
-  getStaticInfoIncludingLayouts,
-  runDependingOnPageType,
-} from '../../build/entries'
+import { runDependingOnPageType } from '../../build/entries'
+import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -38,13 +36,18 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_SERVER,
+} from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
+import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -190,7 +193,6 @@ interface EntryType {
 }
 
 // Shadowing check in ESLint does not account for enum
-// eslint-disable-next-line no-shadow
 export const enum EntryTypes {
   ENTRY,
   CHILD_ENTRY,
@@ -883,7 +885,11 @@ export function onDemandEntryHandler({
 
       if (hasNewEntry) {
         const routePage = isApp ? route.page : normalizeAppPath(route.page)
-        reportTrigger(routePage, url)
+        // If proxy file, remove the leading slash from "/proxy" to "proxy".
+        reportTrigger(
+          isMiddlewareFile(routePage) ? routePage.slice(1) : routePage,
+          url
+        )
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -994,12 +1000,30 @@ export function onDemandEntryHandler({
             typeof data !== 'string' ? data.toString() : data
           )
 
-          if (parsedData.event === 'ping') {
+          if (parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.PING) {
             if (parsedData.appDirRoute) {
               handleAppDirPing(parsedData.tree)
             } else {
               handlePing(parsedData.page)
             }
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE
+          ) {
+            handleErrorStateResponse(
+              parsedData.requestId,
+              parsedData.errorState,
+              parsedData.url
+            )
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE
+          ) {
+            handlePageMetadataResponse(
+              parsedData.requestId,
+              parsedData.segmentTrieData,
+              parsedData.url
+            )
           }
         } catch {}
       })

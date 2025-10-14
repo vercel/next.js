@@ -3,7 +3,6 @@ use next_core::{
     all_assets_from_entries,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
-    next_server::{ServerContextType, get_server_runtime_entries},
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
@@ -21,7 +20,7 @@ use turbopack_core::{
         GraphEntries,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -98,37 +97,19 @@ impl InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn edge_files(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+    async fn edge_chunk_group(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         let module = self.core_modules().await?.edge_entry_module;
 
         let module_graph = this.project.module_graph(*module);
 
-        let evaluatable_assets = get_server_runtime_entries(
-            ServerContextType::Instrumentation {
-                app_dir: this.app_dir.clone(),
-                ecmascript_client_reference_transition_name: this
-                    .ecmascript_client_reference_transition_name
-                    .clone(),
-            },
-            this.project.next_mode(),
-        )
-        .resolve_entries(*this.asset_context)
-        .await?
-        .iter()
-        .map(|m| ResolvedVc::upcast(*m))
-        .chain(std::iter::once(module))
-        .collect();
-
         let edge_chunking_context = this.project.edge_chunking_context(false);
-        let edge_files: Vc<OutputAssets> = edge_chunking_context.evaluated_chunk_group_assets(
+        Ok(edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            ChunkGroup::Entry(evaluatable_assets),
+            ChunkGroup::Entry(vec![module]),
             module_graph,
             AvailabilityInfo::Root,
-        );
-
-        Ok(edge_files)
+        ))
     }
 
     #[turbo_tasks::function]
@@ -150,18 +131,9 @@ impl InstrumentationEndpoint {
                     .node_root()
                     .await?
                     .join("server/instrumentation.js")?,
-                get_server_runtime_entries(
-                    ServerContextType::Instrumentation {
-                        app_dir: this.app_dir.clone(),
-                        ecmascript_client_reference_transition_name: this
-                            .ecmascript_client_reference_transition_name
-                            .clone(),
-                    },
-                    this.project.next_mode(),
-                )
-                .resolve_entries(*this.asset_context)
-                .with_entry(*module),
+                Vc::cell(vec![module]),
                 module_graph,
+                OutputAssets::empty(),
                 OutputAssets::empty(),
                 AvailabilityInfo::Root,
             )
@@ -174,19 +146,20 @@ impl InstrumentationEndpoint {
         let this = self.await?;
 
         if this.is_edge {
-            let edge_files = self.edge_files();
-            let mut output_assets = edge_files.owned().await?;
+            let edge_chunk_group = self.edge_chunk_group();
+            let edge_all_assets = edge_chunk_group.all_assets();
 
             let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &output_assets).await?;
+                get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
+                    .await?;
 
-            let all_output_assets = all_assets_from_entries(edge_files).await?;
+            let mut output_assets = all_assets_from_entries(edge_all_assets).owned().await?;
 
             let wasm_paths_from_root =
-                get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
+                get_wasm_paths_from_root(&node_root_value, &output_assets).await?;
 
             let instrumentation_definition = InstrumentationDefinition {
                 files: file_paths_from_root,

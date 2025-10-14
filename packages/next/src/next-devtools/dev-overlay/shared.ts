@@ -49,7 +49,7 @@ export interface OverlayState {
   readonly notFound: boolean
   readonly buildingIndicator: boolean
   readonly renderingIndicator: boolean
-  readonly staticIndicator: boolean
+  readonly staticIndicator: 'pending' | 'static' | 'dynamic' | 'disabled'
   readonly showIndicator: boolean
   readonly disableDevIndicator: boolean
   readonly debugInfo: DebugInfo
@@ -112,7 +112,7 @@ export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE =
 
 interface StaticIndicatorAction {
   type: typeof ACTION_STATIC_INDICATOR
-  staticIndicator: boolean
+  staticIndicator: 'pending' | 'static' | 'dynamic' | 'disabled'
 }
 
 interface BuildOkAction {
@@ -251,6 +251,9 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
+const devToolsInitialPositionFromNextConfig = (process.env
+  .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
+
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
   'isErrorOverlayOpen' | 'routerType'
@@ -260,7 +263,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   errors: [],
   notFound: false,
   renderingIndicator: false,
-  staticIndicator: false,
+  staticIndicator: 'disabled',
   /* 
     This is set to `true` when we can reliably know
     whether the indicator is in disabled state or not.  
@@ -272,9 +275,9 @@ export const INITIAL_OVERLAY_STATE: Omit<
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
-  devToolsPosition: 'bottom-left',
+  devToolsPosition: devToolsInitialPositionFromNextConfig,
   devToolsPanelPosition: {
-    [STORE_KEY_SHARED_PANEL_LOCATION]: 'bottom-left',
+    [STORE_KEY_SHARED_PANEL_LOCATION]: devToolsInitialPositionFromNextConfig,
   },
   devToolsPanelSize: {},
   scale: NEXT_DEV_TOOLS_SCALE.Medium,

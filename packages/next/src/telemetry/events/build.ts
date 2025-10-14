@@ -175,6 +175,7 @@ export type EventBuildFeatureUsage = {
     | 'experimental/cacheComponents'
     | 'experimental/optimizeCss'
     | 'experimental/ppr'
+    | 'experimental/isolatedDevBuild'
     | 'swcLoader'
     | 'swcRelay'
     | 'swcStyledComponents'
@@ -185,7 +186,6 @@ export type EventBuildFeatureUsage = {
     | 'swcEmotion'
     | `swc/target/${SWC_TARGET_TRIPLE}`
     | 'turbotrace'
-    | 'build-lint'
     | 'vercelImageGeneration'
     | 'transpilePackages'
     | 'skipMiddlewareUrlNormalize'
@@ -194,7 +194,7 @@ export type EventBuildFeatureUsage = {
     | 'esmExternals'
     | 'webpackPlugins'
     | UseCacheTrackerKey
-    | 'turbopackPersistentCaching'
+    | 'turbopackFileSystemCache'
     | 'runAfterProductionCompile'
   invocationCount: number
 }

@@ -10,7 +10,9 @@ export function ShowScriptOrder() {
       <button
         id="get-order"
         onClick={() => {
-          setOrder(window._script_order)
+          // Copy the array, otherwise React won't rerender after the
+          // `window._script_order.push()` call
+          setOrder([...(window._script_order || [])])
         }}
       >
         get order

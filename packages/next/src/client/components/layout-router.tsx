@@ -16,6 +16,7 @@ import {
 } from './router-reducer/router-reducer-types'
 
 import React, {
+  Activity,
   useContext,
   use,
   startTransition,
@@ -41,10 +42,6 @@ import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has
 import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-
-const Activity = process.env.__NEXT_ROUTER_BF_CACHE
-  ? (require('react') as typeof import('react')).unstable_Activity
-  : null!
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -392,7 +389,14 @@ function InnerLayoutRouter({
         new URL(url, location.origin),
         {
           flightRouterState: refetchTree,
-          nextUrl: includeNextUrl ? context.nextUrl : null,
+          nextUrl: includeNextUrl
+            ? // We always send the last next-url, not the current when
+              // performing a dynamic request. This is because we update
+              // the next-url after a navigation, but we want the same
+              // interception route to be matched that used the last
+              // next-url.
+              context.previousNextUrl || context.nextUrl
+            : null,
         }
       ).then((serverResponse) => {
         startTransition(() => {

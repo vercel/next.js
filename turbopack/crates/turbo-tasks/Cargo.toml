@@ -56,3 +56,9 @@ turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
 inventory = { workspace = true }
 
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+
+[[bench]]
+name = "mod"
+harness = false

@@ -2,7 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  experimental_useEffectEvent as useEffectEvent,
+  useEffectEvent,
   useLayoutEffect,
   useState,
   type RefObject,
@@ -130,7 +130,6 @@ export const ResizeProvider = ({ value, children }: ResizeProviderProps) => {
   })
 
   useLayoutEffect(() => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks -- eprh bug
     fireInitialConstrainDimensions()
   }, [])
 

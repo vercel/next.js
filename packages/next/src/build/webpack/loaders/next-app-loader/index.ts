@@ -37,6 +37,7 @@ import type { PageExtensions } from '../../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../../client/components/builtin/default'
 import type { Compilation } from 'webpack'
 import { createAppRouteCode } from './create-app-route-code'
+import { MissingDefaultParallelRouteError } from '../../../../shared/lib/errors/missing-default-parallel-route-error'
 
 export type AppLoaderOptions = {
   name: string
@@ -114,6 +115,9 @@ export type AppDirModules = {
 
 const normalizeParallelKey = (key: string) =>
   key.startsWith('@') ? key.slice(1) : key
+
+const isCatchAllSegment = (segment: string) =>
+  segment.startsWith('[...') || segment.startsWith('[[...')
 
 const isDirectory = async (pathname: string) => {
   try {
@@ -539,11 +543,32 @@ async function createTreeCodeFromPath(
             ? ''
             : `/${adjacentParallelSegment}`
 
-        // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
-        const defaultPath =
-          (await resolver(
-            `${appDirPrefix}${segmentPath}${actualSegment}/default`
-          )) ?? PARALLEL_ROUTE_DEFAULT_PATH
+        // Use the default path if it's found, otherwise if it's a children
+        // slot, then use the fallback (which triggers a `notFound()`). If this
+        // isn't a children slot, then throw an error, as it produces a silent
+        // 404 if we'd used the fallback.
+        const fullSegmentPath = `${appDirPrefix}${segmentPath}${actualSegment}`
+        let defaultPath = await resolver(`${fullSegmentPath}/default`)
+        if (!defaultPath) {
+          if (adjacentParallelSegment === 'children') {
+            defaultPath = PARALLEL_ROUTE_DEFAULT_PATH
+          } else {
+            // Check if we're inside a catch-all route (i.e., the parallel route is a child
+            // of a catch-all segment). Only skip validation if the slot is UNDER a catch-all.
+            // For example:
+            //   /[...catchAll]/@slot - isInsideCatchAll = true (skip validation) ✓
+            //   /@slot/[...catchAll] - isInsideCatchAll = false (require default) ✓
+            // The catch-all provides fallback behavior, so default.js is not required.
+            const isInsideCatchAll = segments.some(isCatchAllSegment)
+            if (!isInsideCatchAll) {
+              throw new MissingDefaultParallelRouteError(
+                fullSegmentPath,
+                adjacentParallelSegment
+              )
+            }
+            defaultPath = PARALLEL_ROUTE_DEFAULT_PATH
+          }
+        }
 
         const varName = `default${nestedCollectedDeclarations.length}`
         nestedCollectedDeclarations.push([varName, defaultPath])

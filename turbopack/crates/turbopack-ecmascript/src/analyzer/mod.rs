@@ -1004,8 +1004,25 @@ impl JsValue {
         }
     }
 
-    pub fn function(func_ident: u32, return_value: Box<JsValue>) -> Self {
-        Self::Function(1 + return_value.total_nodes(), func_ident, return_value)
+    pub fn function(
+        func_ident: u32,
+        is_async: bool,
+        is_generator: bool,
+        return_value: JsValue,
+    ) -> Self {
+        // Check generator first to handle async generators
+        let return_value = if is_generator {
+            JsValue::WellKnownObject(WellKnownObjectKind::Generator)
+        } else if is_async {
+            JsValue::promise(return_value)
+        } else {
+            return_value
+        };
+        Self::Function(
+            1 + return_value.total_nodes(),
+            func_ident,
+            Box::new(return_value),
+        )
     }
 
     pub fn object(list: Vec<ObjectPart>) -> Self {
@@ -1061,8 +1078,12 @@ impl JsValue {
         Self::Member(1 + o.total_nodes() + p.total_nodes(), o, p)
     }
 
-    pub fn promise(operand: Box<JsValue>) -> Self {
-        Self::Promise(1 + operand.total_nodes(), operand)
+    pub fn promise(operand: JsValue) -> Self {
+        // In ecmascript Promise<Promise<T>> is equivalent to Promise<T>
+        if let JsValue::Promise(_, _) = operand {
+            return operand;
+        }
+        Self::Promise(1 + operand.total_nodes(), Box::new(operand))
     }
 
     pub fn awaited(operand: Box<JsValue>) -> Self {
@@ -1735,6 +1756,10 @@ impl JsValue {
             }
             JsValue::WellKnownObject(obj) => {
                 let (name, explainer) = match obj {
+                    WellKnownObjectKind::Generator => (
+                        "Generator",
+                        "A Generator or AsyncGenerator object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
+                    ),
                     WellKnownObjectKind::GlobalObject => (
                         "Object",
                         "The global Object variable",
@@ -1747,6 +1772,10 @@ impl JsValue {
                         "fs",
                         "The Node.js fs module: https://nodejs.org/api/fs.html",
                     ),
+                    WellKnownObjectKind::FsExtraModule | WellKnownObjectKind::FsExtraModuleDefault => (
+                        "fs-extra",
+                        "The Node.js fs-extra module: https://github.com/jprichardson/node-fs-extra",
+                    ),
                     WellKnownObjectKind::FsModulePromises => (
                         "fs/promises",
                         "The Node.js fs module: https://nodejs.org/api/fs.html#promises-api",
@@ -1754,6 +1783,10 @@ impl JsValue {
                     WellKnownObjectKind::UrlModule | WellKnownObjectKind::UrlModuleDefault => (
                         "url",
                         "The Node.js url module: https://nodejs.org/api/url.html",
+                    ),
+                    WellKnownObjectKind::ModuleModule | WellKnownObjectKind::ModuleModuleDefault => (
+                        "module",
+                        "The Node.js `module` module: https://nodejs.org/api/module.html",
                     ),
                     WellKnownObjectKind::ChildProcess | WellKnownObjectKind::ChildProcessDefault => (
                         "child_process",
@@ -1856,6 +1889,10 @@ impl JsValue {
                     WellKnownFunctionKind::PathToFileUrl => (
                         "url.pathToFileURL".to_string(),
                         "The Node.js url.pathToFileURL method: https://nodejs.org/api/url.html#urlpathtofileurlpath",
+                    ),
+                    WellKnownFunctionKind::CreateRequire => (
+                        "module.createRequire".to_string(),
+                        "The Node.js module.createRequire method: https://nodejs.org/api/module.html#modulecreaterequirefilename",
                     ),
                     WellKnownFunctionKind::ChildProcessSpawnMethod(name) => (
                         format!("child_process.{name}"),
@@ -3425,6 +3462,10 @@ pub enum WellKnownObjectKind {
     FsModule,
     FsModuleDefault,
     FsModulePromises,
+    FsExtraModule,
+    FsExtraModuleDefault,
+    ModuleModule,
+    ModuleModuleDefault,
     UrlModule,
     UrlModuleDefault,
     ChildProcess,
@@ -3440,6 +3481,8 @@ pub enum WellKnownObjectKind {
     NodeBuffer,
     RequireCache,
     ImportMeta,
+    /// An iterator object, used to model generator return values.
+    Generator,
 }
 
 impl WellKnownObjectKind {
@@ -3563,6 +3606,7 @@ pub enum WellKnownFunctionKind {
     Define,
     FsReadMethod(Atom),
     PathToFileUrl,
+    CreateRequire,
     ChildProcessSpawnMethod(Atom),
     ChildProcessFork,
     OsArch,
@@ -3644,13 +3688,32 @@ pub mod test_utils {
                 ref args,
             ) => match &args[0] {
                 JsValue::Constant(ConstantValue::Str(v)) => {
-                    JsValue::promise(Box::new(JsValue::Module(ModuleValue {
+                    JsValue::promise(JsValue::Module(ModuleValue {
                         module: v.as_atom().into_owned(),
                         annotations: ImportAnnotations::default(),
-                    })))
+                    }))
                 }
                 _ => v.into_unknown(true, "import() non constant"),
             },
+            JsValue::Call(
+                _,
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire),
+                ref args,
+            ) => {
+                if let [
+                    JsValue::Member(
+                        _,
+                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
+                        box JsValue::Constant(ConstantValue::Str(prop)),
+                    ),
+                ] = &args[..]
+                    && prop.as_str() == "url"
+                {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
+                } else {
+                    v.into_unknown(true, "createRequire() non constant")
+                }
+            }
             JsValue::Call(
                 _,
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
@@ -3747,7 +3810,7 @@ pub mod test_utils {
                 }
             }
             _ => {
-                let (mut v, m1) = replace_well_known(v, compile_time_info).await?;
+                let (mut v, m1) = replace_well_known(v, compile_time_info, true).await?;
                 let m2 = replace_builtin(&mut v);
                 let m = m1 || m2 || v.make_nested_operations_unknown();
                 return Ok((v, m));
@@ -3777,9 +3840,7 @@ mod tests {
     use turbo_tasks::{ResolvedVc, util::FormatDuration};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
-        environment::{
-            BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion,
-        },
+        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
         target::{Arch, CompileTarget, Endianness, Libc, Platform},
     };
 
@@ -3788,7 +3849,13 @@ mod tests {
         graph::{ConditionalKind, Effect, EffectArg, EvalContext, VarGraph, create_graph},
         linker::link,
     };
-    use crate::analyzer::imports::ImportAttributes;
+    use crate::{
+        AnalyzeMode,
+        analyzer::{
+            graph::{AssignmentScopes, VarMeta},
+            imports::ImportAttributes,
+        },
+    };
 
     #[fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
@@ -3829,7 +3896,8 @@ mod tests {
                     None,
                 );
 
-                let mut var_graph = create_graph(&m, &eval_context, false);
+                let mut var_graph =
+                    create_graph(&m, &eval_context, AnalyzeMode::CodeGenerationAndTracing);
                 let var_cache = Default::default();
 
                 let mut named_values = var_graph
@@ -3848,13 +3916,21 @@ mod tests {
                 named_values.sort_by(|a, b| a.0.cmp(&b.0));
 
                 fn explain_all<'a>(
-                    values: impl IntoIterator<Item = (&'a String, &'a JsValue)>,
+                    values: impl IntoIterator<
+                        Item = (&'a String, &'a JsValue, Option<AssignmentScopes>),
+                    >,
                 ) -> String {
                     values
                         .into_iter()
-                        .map(|(id, value)| {
+                        .map(|(id, value, assignment_scopes)| {
+                            let non_root_assignments = match assignment_scopes {
+                                Some(AssignmentScopes::AllInModuleEvalScope) => {
+                                    " (const after eval)"
+                                }
+                                _ => "",
+                            };
                             let (explainer, hints) = value.explain(10, 5);
-                            format!("{id} = {explainer}{hints}")
+                            format!("{id}{non_root_assignments} = {explainer}{hints}")
                         })
                         .collect::<Vec<_>>()
                         .join("\n\n")
@@ -3870,15 +3946,24 @@ mod tests {
                             "{:#?}",
                             named_values
                                 .iter()
-                                .map(|(name, (_, value))| (name, value))
+                                .map(|(name, (_, VarMeta { value, .. }))| (name, value))
                                 .collect::<Vec<_>>()
                         ))
                         .compare_to_file(&graph_snapshot_path)
                         .unwrap();
                     }
-                    NormalizedOutput::from(explain_all(
-                        named_values.iter().map(|(name, (_, value))| (name, value)),
-                    ))
+                    NormalizedOutput::from(explain_all(named_values.iter().map(
+                        |(
+                            name,
+                            (
+                                _,
+                                VarMeta {
+                                    value,
+                                    assignment_scopes,
+                                },
+                            ),
+                        )| (name, value, Some(*assignment_scopes)),
+                    )))
                     .compare_to_file(&graph_explained_snapshot_path)
                     .unwrap();
                     if !large {
@@ -3922,7 +4007,8 @@ mod tests {
                     }
 
                     let start = Instant::now();
-                    let explainer = explain_all(resolved.iter().map(|(name, value)| (name, value)));
+                    let explainer =
+                        explain_all(resolved.iter().map(|(name, value)| (name, value, None)));
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
                         println!(
@@ -4150,7 +4236,8 @@ mod tests {
                     }
 
                     let start = Instant::now();
-                    let explainer = explain_all(resolved.iter().map(|(name, value)| (name, value)));
+                    let explainer =
+                        explain_all(resolved.iter().map(|(name, value)| (name, value, None)));
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
                         println!(
@@ -4178,26 +4265,21 @@ mod tests {
         var_cache: &Mutex<FxHashMap<Id, JsValue>>,
     ) -> (JsValue, u32) {
         turbo_tasks_testing::VcStorage::with(async {
-            let css_environment = BrowserEnvironment::default().resolved_cell();
-
             let compile_time_info = CompileTimeInfo::builder(
-                Environment::new(
-                    ExecutionEnvironment::NodeJsLambda(
-                        NodeJsEnvironment {
-                            compile_target: CompileTarget {
-                                arch: Arch::X64,
-                                platform: Platform::Linux,
-                                endianness: Endianness::Little,
-                                libc: Libc::Glibc,
-                            }
-                            .resolved_cell(),
-                            node_version: NodeJsVersion::default().resolved_cell(),
-                            cwd: ResolvedVc::cell(None),
+                Environment::new(ExecutionEnvironment::NodeJsLambda(
+                    NodeJsEnvironment {
+                        compile_target: CompileTarget {
+                            arch: Arch::X64,
+                            platform: Platform::Linux,
+                            endianness: Endianness::Little,
+                            libc: Libc::Glibc,
                         }
                         .resolved_cell(),
-                    ),
-                    *css_environment,
-                )
+                        node_version: NodeJsVersion::default().resolved_cell(),
+                        cwd: ResolvedVc::cell(None),
+                    }
+                    .resolved_cell(),
+                ))
                 .to_resolved()
                 .await?,
             )

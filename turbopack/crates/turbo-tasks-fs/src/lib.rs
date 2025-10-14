@@ -1,12 +1,14 @@
-#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
-#![feature(btree_cursors)] // needed for the `InvalidatorMap` and watcher, reduces time complexity
-#![feature(trivial_bounds)]
-#![feature(min_specialization)]
-#![feature(iter_advance_by)]
-#![feature(io_error_more)]
-#![feature(round_char_boundary)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(btree_cursors)] // needed for the `InvalidatorMap` and watcher, reduces time complexity
+#![feature(io_error_more)]
+#![feature(iter_advance_by)]
+#![feature(min_specialization)]
+// if `normalize_lexically` isn't eventually stabilized, we can copy the implementation from the
+// stdlib into our source tree
+#![feature(normalize_lexically)]
+#![feature(trivial_bounds)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![allow(clippy::mutable_key_type)]
 
 pub mod attach;
@@ -29,6 +31,7 @@ mod watcher;
 use std::{
     borrow::Cow,
     cmp::{Ordering, min},
+    env,
     fmt::{self, Debug, Display, Formatter},
     fs::FileType,
     future::Future,
@@ -191,7 +194,20 @@ where
 }
 
 fn create_semaphore() -> tokio::sync::Semaphore {
-    tokio::sync::Semaphore::new(256)
+    // the semaphore isn't serialized, and we assume the environment variable doesn't change during
+    // runtime, so it's okay to access it in this untracked way.
+    static NEXT_TURBOPACK_IO_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
+        env::var("NEXT_TURBOPACK_IO_CONCURRENCY")
+            .ok()
+            .filter(|val| !val.is_empty())
+            .map(|val| {
+                val.parse()
+                    .expect("NEXT_TURBOPACK_IO_CONCURRENCY must be a valid integer")
+            })
+            .filter(|val| *val != 0)
+            .unwrap_or(256)
+    });
+    tokio::sync::Semaphore::new(*NEXT_TURBOPACK_IO_CONCURRENCY)
 }
 
 #[turbo_tasks::value_trait]
@@ -251,16 +267,18 @@ struct DiskFileSystemInner {
 impl DiskFileSystemInner {
     /// Returns the root as Path
     fn root_path(&self) -> &Path {
+        // just in case there's a windows unc path prefix we remove it with `dunce`
         simplified(Path::new(&*self.root))
     }
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
     fn register_read_invalidator(&self, path: &Path) -> Result<()> {
-        let invalidator = turbo_tasks::get_invalidator();
-        self.invalidator_map
-            .insert(path.to_owned(), invalidator, None);
-        self.watcher.ensure_watched_file(path, self.root_path())?;
+        if let Some(invalidator) = turbo_tasks::get_invalidator() {
+            self.invalidator_map
+                .insert(path.to_owned(), invalidator, None);
+            self.watcher.ensure_watched_file(path, self.root_path())?;
+        }
         Ok(())
     }
 
@@ -293,10 +311,11 @@ impl DiskFileSystemInner {
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
     fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
-        let invalidator = turbo_tasks::get_invalidator();
-        self.dir_invalidator_map
-            .insert(path.to_owned(), invalidator, None);
-        self.watcher.ensure_watched_dir(path, self.root_path())?;
+        if let Some(invalidator) = turbo_tasks::get_invalidator() {
+            self.dir_invalidator_map
+                .insert(path.to_owned(), invalidator, None);
+            self.watcher.ensure_watched_dir(path, self.root_path())?;
+        }
         Ok(())
     }
 
@@ -459,8 +478,54 @@ impl DiskFileSystem {
         self.inner.watcher.stop_watching();
     }
 
+    /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
+    /// filesystem root. If no `relative_to` argument is given, it is assumed that the `sys_path` is
+    /// relative to the [`DiskFileSystem`] root.
+    ///
+    /// Attempts to convert absolute paths to paths relative to the filesystem root, though we only
+    /// attempt to do so lexically.
+    ///
+    /// Assumes `self` is the `DiskFileSystem` contained in `vc_self`. This API is a bit awkward
+    /// because:
+    /// - [`Path`]/[`PathBuf`] should not be stored in the filesystem cache, so the function cannot
+    ///   be a [`turbo_tasks::function`].
+    /// - It's a little convenient for this function to be sync.
+    pub fn try_from_sys_path(
+        &self,
+        vc_self: ResolvedVc<DiskFileSystem>,
+        sys_path: &Path,
+        relative_to: Option<&FileSystemPath>,
+    ) -> Option<FileSystemPath> {
+        let vc_self = ResolvedVc::upcast(vc_self);
+
+        let sys_path = simplified(sys_path);
+        let relative_sys_path = if sys_path.is_absolute() {
+            // `normalize_lexically` will return an error if the relative `sys_path` leaves the
+            // DiskFileSystem root
+            let normalized_sys_path = sys_path.normalize_lexically().ok()?;
+            normalized_sys_path
+                .strip_prefix(self.inner.root_path())
+                .ok()?
+                .to_owned()
+        } else if let Some(relative_to) = relative_to {
+            debug_assert_eq!(
+                relative_to.fs, vc_self,
+                "`relative_to.fs` must match the current `ResolvedVc<DiskFileSystem>`"
+            );
+            let mut joined_sys_path = PathBuf::from(unix_to_sys(&relative_to.path).into_owned());
+            joined_sys_path.push(sys_path);
+            joined_sys_path.normalize_lexically().ok()?
+        } else {
+            sys_path.normalize_lexically().ok()?
+        };
+
+        Some(FileSystemPath {
+            fs: vc_self,
+            path: RcStr::from(sys_to_unix(relative_sys_path.to_str()?)),
+        })
+    }
+
     pub fn to_sys_path(&self, fs_path: FileSystemPath) -> Result<PathBuf> {
-        // just in case there's a windows unc path prefix we remove it with `dunce`
         let path = self.inner.root_path();
         Ok(if fs_path.path.is_empty() {
             path.to_path_buf()
@@ -712,11 +777,16 @@ impl FileSystem for DiskFileSystem {
             let _lock = inner.lock_path(&full_path).await;
 
             // Track the file, so that we will rewrite it if it ever changes.
-            let old_invalidators = inner.register_write_invalidator(
-                &full_path,
-                invalidator,
-                WriteContent::File(content.clone()),
-            )?;
+            let old_invalidators = invalidator
+                .map(|invalidator| {
+                    inner.register_write_invalidator(
+                        &full_path,
+                        invalidator,
+                        WriteContent::File(content.clone()),
+                    )
+                })
+                .transpose()?
+                .unwrap_or_default();
 
             // We perform an untracked comparison here, so that this write is not dependent
             // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
@@ -846,11 +916,16 @@ impl FileSystem for DiskFileSystem {
 
             let _lock = inner.lock_path(&full_path).await;
 
-            let old_invalidators = inner.register_write_invalidator(
-                &full_path,
-                invalidator,
-                WriteContent::Link(content.clone()),
-            )?;
+            let old_invalidators = invalidator
+                .map(|invalidator| {
+                    inner.register_write_invalidator(
+                        &full_path,
+                        invalidator,
+                        WriteContent::Link(content.clone()),
+                    )
+                })
+                .transpose()?
+                .unwrap_or_default();
 
             // TODO(sokra) preform a untracked read here, register an invalidator and get
             // all existing invalidators
@@ -1387,7 +1462,7 @@ impl FileSystemPath {
     // is invalid.
     pub async fn realpath(&self) -> Result<FileSystemPath> {
         let result = &(*self.realpath_with_links().await?);
-        match &result.path_or_error {
+        match &result.path_result {
             Ok(path) => Ok(path.clone()),
             Err(error) => Err(anyhow::anyhow!(error.as_error_message(self, result))),
         }
@@ -1449,7 +1524,7 @@ impl ValueToString for FileSystemPath {
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
 pub struct RealPathResult {
-    pub path_or_error: Result<FileSystemPath, RealPathResultError>,
+    pub path_result: Result<FileSystemPath, RealPathResultError>,
     pub symlinks: Vec<FileSystemPath>,
 }
 
@@ -1483,18 +1558,13 @@ impl RealPathResultError {
     }
 }
 
-#[derive(Clone, Copy, Debug, DeterministicHash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, DeterministicHash, PartialOrd, Ord)]
 #[turbo_tasks::value(shared)]
 pub enum Permissions {
     Readable,
+    #[default]
     Writable,
     Executable,
-}
-
-impl Default for Permissions {
-    fn default() -> Self {
-        Self::Writable
-    }
 }
 
 // Only handle the permissions on unix platform for now
@@ -2121,7 +2191,7 @@ impl DirectoryEntry {
     pub async fn resolve_symlink(self) -> Result<Self> {
         if let DirectoryEntry::Symlink(symlink) = &self {
             let result = &*symlink.realpath_with_links().await?;
-            let real_path = match &result.path_or_error {
+            let real_path = match &result.path_result {
                 Ok(path) => path,
                 Err(error) => {
                     return Ok(DirectoryEntry::Error(
@@ -2136,9 +2206,9 @@ impl DirectoryEntry {
                 FileSystemEntryType::NotFound => DirectoryEntry::Error(
                     format!("Symlink {symlink} points at {real_path} which does not exist").into(),
                 ),
+                // This is caused by eventual consistency
                 FileSystemEntryType::Symlink => bail!(
-                    "Symlink {symlink} points at a symlink but realpath_with_links returned a \
-                     path, this is caused by eventual consistency."
+                    "Symlink {symlink} points at a symlink but realpath_with_links returned a path"
                 ),
                 _ => self,
             })
@@ -2298,12 +2368,12 @@ impl ValueToString for NullFileSystem {
 
 pub async fn to_sys_path(mut path: FileSystemPath) -> Result<Option<PathBuf>> {
     loop {
-        if let Some(fs) = Vc::try_resolve_downcast_type::<AttachedFileSystem>(path.fs()).await? {
+        if let Some(fs) = ResolvedVc::try_downcast_type::<AttachedFileSystem>(path.fs) {
             path = fs.get_inner_fs_path(path).owned().await?;
             continue;
         }
 
-        if let Some(fs) = Vc::try_resolve_downcast_type::<DiskFileSystem>(path.fs()).await? {
+        if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs) {
             let sys_path = fs.await?.to_sys_path(path)?;
             return Ok(Some(sys_path));
         }
@@ -2376,7 +2446,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         if current_path.is_root() {
             // fast path
             return Ok(RealPathResult {
-                path_or_error: Ok(current_path),
+                path_result: Ok(current_path),
                 symlinks: symlinks.into_iter().collect(),
             }
             .cell());
@@ -2395,7 +2465,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             .rsplit_once('/')
             .map_or(current_path.path.as_str(), |(_, name)| name);
         symlinks.extend(parent_result.symlinks);
-        let parent_path = match parent_result.path_or_error {
+        let parent_path = match parent_result.path_result {
             Ok(path) => {
                 if path != parent {
                     current_path = path.join(basename)?;
@@ -2415,7 +2485,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             FileSystemEntryType::Symlink
         ) {
             return Ok(RealPathResult {
-                path_or_error: Ok(current_path),
+                path_result: Ok(current_path),
                 symlinks: symlinks.into_iter().collect(), // convert set to vec
             }
             .cell());
@@ -2450,7 +2520,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
     // Returning the followed symlinks is still important, even if there is an error! Otherwise
     // we may never notice if the symlink loop is fixed.
     Ok(RealPathResult {
-        path_or_error: Err(error),
+        path_result: Err(error),
         symlinks: symlinks.into_iter().collect(),
     }
     .cell())
@@ -2459,6 +2529,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
 
@@ -2539,5 +2610,104 @@ mod tests {
         })
         .await
         .unwrap()
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_try_from_sys_path() {
+        let sys_root = if cfg!(windows) {
+            Path::new(r"C:\fake\root")
+        } else {
+            Path::new(r"/fake/root")
+        };
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            let fs_vc =
+                DiskFileSystem::new(rcstr!("temp"), RcStr::from(sys_root.to_str().unwrap()))
+                    .to_resolved()
+                    .await?;
+            let fs = fs_vc.await?;
+            let fs_root_path = fs_vc.root().await?;
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    &Path::new("relative").join("directory"),
+                    /* relative_to */ None,
+                )
+                .unwrap()
+                .path,
+                "relative/directory"
+            );
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    &sys_root
+                        .join("absolute")
+                        .join("directory")
+                        .join("..")
+                        .join("normalized_path"),
+                    /* relative_to */ Some(&fs_root_path.join("ignored").unwrap()),
+                )
+                .unwrap()
+                .path,
+                "absolute/normalized_path"
+            );
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    Path::new("child"),
+                    /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
+                )
+                .unwrap()
+                .path,
+                "parent/child"
+            );
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    &Path::new("..").join("parallel_dir"),
+                    /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
+                )
+                .unwrap()
+                .path,
+                "parallel_dir"
+            );
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    &Path::new("relative")
+                        .join("..")
+                        .join("..")
+                        .join("leaves_root"),
+                    /* relative_to */ None,
+                ),
+                None
+            );
+
+            assert_eq!(
+                fs.try_from_sys_path(
+                    fs_vc,
+                    &sys_root
+                        .join("absolute")
+                        .join("..")
+                        .join("..")
+                        .join("leaves_root"),
+                    /* relative_to */ None,
+                ),
+                None
+            );
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
     }
 }

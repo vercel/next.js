@@ -1,7 +1,7 @@
 import fs from 'fs'
 import { nextTestSetup } from 'e2e-utils'
-import type { NextAdapter } from 'next'
-import { AdapterOutputType } from 'next/constants'
+import type { AdapterOutput, NextAdapter } from 'next'
+import { version as nextVersion } from 'next/package.json'
 
 describe('adapter-config', () => {
   const { next } = nextTestSetup({
@@ -23,56 +23,64 @@ describe('adapter-config', () => {
   it('should call onBuildComplete with correct context', async () => {
     expect(next.cliOutput).toContain('onBuildComplete called')
 
-    const buildContext: Parameters<NextAdapter['onBuildComplete']>[0] =
-      await next.readJSON('build-complete.json')
+    const {
+      outputs,
+      routes,
+      config,
+      ...ctx
+    }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
+      'build-complete.json'
+    )
 
-    const outputMap = new Map<string, (typeof buildContext.outputs)[0]>()
-    const prerenderOutputs: typeof buildContext.outputs = []
-    const staticOutputs: typeof buildContext.outputs = []
-    const nodeOutputs: typeof buildContext.outputs = []
-    const edgeOutputs: typeof buildContext.outputs = []
+    for (const field of ['distDir', 'projectDir', 'repoRoot']) {
+      expect(ctx[field]).toBeString()
 
-    for (const output of buildContext.outputs) {
-      if (outputMap.has(output.id)) {
+      if (!fs.existsSync(ctx[field])) {
         throw new Error(
-          `multiple outputs with same ID ${JSON.stringify(
-            {
-              first: outputMap.get(output.id),
-              second: output,
-            },
-            null,
-            2
-          )}`
+          `Invalid dir value provided for ${field} value ${ctx[field]}`
         )
       }
+    }
 
-      switch (output.type) {
-        case AdapterOutputType.PRERENDER: {
-          prerenderOutputs.push(output)
-          break
-        }
-        case AdapterOutputType.STATIC_FILE: {
-          staticOutputs.push(output)
-          break
-        }
-        case AdapterOutputType.APP_PAGE:
-        case AdapterOutputType.APP_ROUTE:
-        case AdapterOutputType.PAGES:
-        case AdapterOutputType.PAGES_API: {
-          if (output.runtime === 'nodejs') {
-            nodeOutputs.push(output)
-          } else if (output.runtime === 'edge') {
-            edgeOutputs.push(output)
-          } else {
-            throw new Error(
-              `unrecognized runtime on ${JSON.stringify(output, null, 2)}`
-            )
-          }
-          break
-        }
-        default: {
-          throw new Error(`unrecognized output type ${output.type}`)
-        }
+    expect(ctx.nextVersion).toBe(nextVersion)
+    expect(config?.basePath).toBe('/docs')
+
+    const combinedRouteOutputs = [
+      ...outputs.appPages,
+      ...outputs.appRoutes,
+      ...outputs.pages,
+      ...outputs.pagesApi,
+    ]
+
+    type PageRoutesType =
+      | AdapterOutput['APP_PAGE']
+      | AdapterOutput['APP_ROUTE']
+      | AdapterOutput['PAGES']
+      | AdapterOutput['PAGES_API']
+
+    const outputMap = new Map<string, PageRoutesType>()
+    const prerenderOutputs: AdapterOutput['PRERENDER'][] = outputs.prerenders
+    const staticOutputs: AdapterOutput['STATIC_FILE'][] = outputs.staticFiles
+    const nodeOutputs: PageRoutesType[] = []
+    const edgeOutputs: PageRoutesType[] = []
+
+    for (const routeOutput of combinedRouteOutputs) {
+      if (outputMap.has(routeOutput.id)) {
+        require('console').error({
+          existingOutput: outputMap.get(routeOutput.id),
+          newOutput: routeOutput,
+        })
+        throw new Error(`duplicate id on route outputs ${routeOutput.id}`)
+      }
+      outputMap.set(routeOutput.id, routeOutput)
+
+      if (routeOutput.runtime === 'edge') {
+        edgeOutputs.push(routeOutput)
+      } else if (routeOutput.runtime === 'nodejs') {
+        nodeOutputs.push(routeOutput)
+      } else {
+        require('console').error(routeOutput)
+        throw new Error(`Unexpected runtime on output ${routeOutput.runtime}`)
       }
     }
 
@@ -83,17 +91,25 @@ describe('adapter-config', () => {
 
     for (const output of staticOutputs) {
       expect(output.id).toBeTruthy()
-      expect(output.pathname).toStartWith('/_next/static')
-      expect(fs.existsSync(output.filePath)).toBe(true)
+
+      if (output.filePath.endsWith('.html')) {
+        expect(output.pathname.endsWith('.html')).toBe(false)
+      } else {
+        expect(output.pathname).toStartWith('/docs/_next/static')
+      }
+
+      const stats = await fs.promises.stat(output.filePath)
+      expect(stats.isFile()).toBe(true)
     }
 
     for (const prerenderOutput of prerenderOutputs) {
       try {
         expect(prerenderOutput.parentOutputId).toBeTruthy()
         if (prerenderOutput.fallback) {
-          expect(await fs.existsSync(prerenderOutput.fallback.filePath)).toBe(
-            true
+          const stats = await fs.promises.stat(
+            prerenderOutput.fallback.filePath
           )
+          expect(stats.isFile()).toBe(true)
           expect(prerenderOutput.fallback.initialRevalidate).toBeDefined()
         }
 
@@ -106,7 +122,66 @@ describe('adapter-config', () => {
       }
     }
 
-    expect(buildContext.routes).toEqual({
+    for (const route of nodeOutputs) {
+      try {
+        expect(route.id).toBeString()
+        expect(route.config).toBeObject()
+        expect(route.pathname).toBeString()
+        expect(route.runtime).toBe('nodejs')
+
+        const stats = await fs.promises.stat(route.filePath)
+        expect(stats.isFile()).toBe(true)
+
+        const missingAssets: string[] = []
+
+        for (const filePath of Object.values(route.assets)) {
+          if (!fs.existsSync(filePath)) {
+            missingAssets.push(filePath)
+          }
+        }
+
+        expect(missingAssets).toEqual([])
+      } catch (err) {
+        require('console').error(`Invalid fields for ${route.id}`, route, err)
+        throw err
+      }
+    }
+
+    for (const route of edgeOutputs) {
+      try {
+        expect(route.id).toBeString()
+        expect(route.config).toBeObject()
+        expect(route.pathname).toBeString()
+        expect(route.runtime).toBe('edge')
+        expect(route.config.env).toEqual(
+          expect.objectContaining({
+            NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: expect.toBeString(),
+            __NEXT_BUILD_ID: expect.toBeString(),
+            __NEXT_PREVIEW_MODE_ENCRYPTION_KEY: expect.toBeString(),
+            __NEXT_PREVIEW_MODE_ID: expect.toBeString(),
+            __NEXT_PREVIEW_MODE_SIGNING_KEY: expect.toBeString(),
+          })
+        )
+
+        const stats = await fs.promises.stat(route.filePath)
+        expect(stats.isFile()).toBe(true)
+
+        const missingAssets: string[] = []
+
+        for (const filePath of Object.values(route.assets)) {
+          if (!fs.existsSync(filePath)) {
+            missingAssets.push(filePath)
+          }
+        }
+
+        expect(missingAssets).toEqual([])
+      } catch (err) {
+        require('console').error(`Invalid fields for ${route.id}`, route, err)
+        throw err
+      }
+    }
+
+    expect(routes).toEqual({
       dynamicRoutes: expect.toBeArray(),
       rewrites: expect.toBeObject(),
       redirects: expect.toBeArray(),

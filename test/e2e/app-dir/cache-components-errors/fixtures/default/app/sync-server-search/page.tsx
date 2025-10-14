@@ -1,4 +1,4 @@
-import { connection, type UnsafeUnwrappedSearchParams } from 'next/server'
+import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 type SearchParams = { foo: string | string[] | undefined }
@@ -25,9 +25,8 @@ async function SearchParamsReadingComponent({
 }: {
   searchParams: Promise<SearchParams>
 }) {
-  const fooParam = (
-    searchParams as unknown as UnsafeUnwrappedSearchParams<typeof searchParams>
-  ).foo
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+  const fooParam = (searchParams as any).foo
   return (
     <div>
       this component reads the `foo` search param:{' '}
