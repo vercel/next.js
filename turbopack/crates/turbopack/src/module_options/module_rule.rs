@@ -140,9 +140,11 @@ pub enum ModuleType {
         environment: Option<ResolvedVc<Environment>>,
     },
     StaticUrlJs {
+        /// The tag that is passed to ChunkingContext::asset_url
         tag: Option<RcStr>,
     },
     StaticUrlCss {
+        /// The tag that is passed to ChunkingContext::asset_url
         tag: Option<RcStr>,
     },
     InlinedBytesJs,
