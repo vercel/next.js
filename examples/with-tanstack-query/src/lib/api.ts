@@ -5,7 +5,7 @@ export type Post = {
 }
 
 export async function fetchPosts(): Promise<Post[]> {
-  const response = await fetch('http://localhost:3000/api/posts')
+  const response = await fetch('/api/posts')
   if (!response.ok) {
     throw new Error('Failed to fetch posts')
   }
