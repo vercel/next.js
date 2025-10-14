@@ -9,7 +9,7 @@ describe('`next-js` Condition', () => {
   // TODO I should be able to access the complete config from a Next.js Server or Build
   // So I don't have to coordinate using process env variables
   const isUsingCacheComponents =
-    !!process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
 
   // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
   if (isUsingCacheComponents) {
