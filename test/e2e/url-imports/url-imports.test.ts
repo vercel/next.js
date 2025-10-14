@@ -25,7 +25,7 @@ import { join } from 'path'
       await stopApp(staticServer)
     })
 
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: isNextDev
         ? {
             // exclude next.lock here, should be generated automatically in dev
@@ -34,7 +34,13 @@ import { join } from 'path'
             public: new FileRef(join(__dirname, 'public')),
           }
         : __dirname,
+      // The staticServer above doesn't work when deployed
+      skipDeployment: true,
     })
+
+    if (skipped) {
+      return
+    }
 
     const expectedServer =
       /Hello <!-- -->42<!-- -->\+<!-- -->42<!-- -->\+<!-- -->\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png<!-- -->\+<!-- -->\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png/
