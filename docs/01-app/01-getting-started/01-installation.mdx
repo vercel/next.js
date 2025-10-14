@@ -356,7 +356,7 @@ npx @next/codemod@canary next-lint-to-eslint-cli .
 
 If you use ESLint, create an explicit config (recommended `eslint.config.mjs`). ESLint supports both [the legacy `.eslintrc.*` and the newer `eslint.config.mjs` formats](https://eslint.org/docs/latest/use/configure/configuration-files#configuring-eslint). See the [ESLint API reference](/docs/app/api-reference/config/eslint#with-core-web-vitals) for a recommended setup.
 
-> **Good to know**: Starting with Next.js 16, linting no longer runs automatically during `next build`. You now control when linting runs by invoking your linter through npm scripts.
+> **Good to know**: Starting with Next.js 16, `next build` no longer runs the linter automatically. Instead, you can run your linter through NPM scripts.
 
 See the [ESLint Plugin](/docs/app/api-reference/config/eslint) page for more information.
 
