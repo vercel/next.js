@@ -1870,8 +1870,8 @@ async function renderToHTMLOrFlightImpl(
             formState,
             postponedState,
             metadata,
-            devValidatingFallbackParams,
-            undefined // Prevent restartable-render behavior in dev + Cache Components mode
+            undefined, // Prevent restartable-render behavior in dev + Cache Components mode
+            devValidatingFallbackParams
           )
 
           return new RenderResult(stream, {
@@ -1909,13 +1909,13 @@ async function renderToHTMLOrFlightImpl(
       formState,
       postponedState,
       metadata,
-      devValidatingFallbackParams,
       // If we're rendering HTML after an action, we don't want restartable-render behavior
       // because the result should be dynamic, like it is in prod.
       // Also, the request store might have been mutated by the action (e.g. enabling draftMode)
       // and we currently we don't copy changes over when creating a new store,
       // so the restarted render wouldn't be correct.
-      didExecuteServerAction ? undefined : createRequestStore
+      didExecuteServerAction ? undefined : createRequestStore,
+      devValidatingFallbackParams
     )
 
     // Invalid dynamic usages should only error the request in development.
@@ -2114,8 +2114,8 @@ async function renderToStream(
   formState: any,
   postponedState: PostponedState | null,
   metadata: AppPageRenderResultMetadata,
-  devValidatingFallbackParams: OpaqueFallbackRouteParams | null,
-  createRequestStore: (() => RequestStore) | undefined
+  createRequestStore: (() => RequestStore) | undefined,
+  devValidatingFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<ReadableStream<Uint8Array>> {
   const { assetPrefix, htmlRequestId, nonce, pagePath, renderOpts, requestId } =
     ctx
