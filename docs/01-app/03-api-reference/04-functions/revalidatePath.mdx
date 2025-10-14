@@ -77,18 +77,18 @@ After calling `revalidatePath('/blog')`:
 
 ### Building revalidation utilities
 
-`revalidatePath` and `revalidateTag` are complementary primitives that are often used together in utility functions to ensure comprehensive data consistency across your application:
+`revalidatePath` and `updateTag` are complementary primitives that are often used together in utility functions to ensure comprehensive data consistency across your application:
 
 ```ts
 'use server'
 
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 
 export async function updatePost() {
   await updatePostInDatabase()
 
   revalidatePath('/blog') // Refresh the blog page
-  revalidateTag('posts') // Refresh all pages using 'posts' tag
+  updateTag('posts') // Refresh all pages using 'posts' tag
 }
 ```
 
