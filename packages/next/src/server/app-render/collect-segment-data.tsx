@@ -1,3 +1,4 @@
+/* eslint-disable @next/internal/no-jsx-in-app-router -- Bundled in entry-base so it gets the right JSX runtime. */
 import type {
   CacheNodeSeedData,
   FlightRouterState,

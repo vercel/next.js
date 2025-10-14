@@ -1,3 +1,4 @@
+import type { ComponentType, ErrorInfo, JSX, ReactNode } from 'react'
 import type { RenderOpts, PreloadCallbacks } from './types'
 import type {
   ActionResult,
@@ -28,8 +29,7 @@ import type {
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
-
-import React, { type ErrorInfo, type JSX } from 'react'
+import * as ReactClient from 'react'
 
 import RenderResult, {
   type AppPageRenderResultMetadata,
@@ -417,10 +417,12 @@ function makeGetDynamicParamFromSegment(
 }
 
 function NonIndex({
+  createElement,
   pagePath,
   statusCode,
   isPossibleServerAction,
 }: {
+  createElement: typeof ReactClient.createElement
   pagePath: string
   statusCode: number | undefined
   isPossibleServerAction: boolean
@@ -431,7 +433,10 @@ function NonIndex({
   // Only render noindex for page request, skip for server actions
   // TODO: is this correct if `isPossibleServerAction` is a false positive?
   if (!isPossibleServerAction && (is404Page || isInvalidStatusCode)) {
-    return <meta name="robots" content="noindex" />
+    return createElement('meta', {
+      name: 'robots',
+      content: 'noindex',
+    })
   }
   return null
 }
@@ -462,7 +467,9 @@ async function generateDynamicRSCPayload(
       routeModule: {
         userland: { loaderTree },
       },
+      createElement,
       createMetadataComponents,
+      Fragment,
     },
     getDynamicParamFromSegment,
     query,
@@ -494,18 +501,23 @@ async function generateDynamicRSCPayload(
         parentParams: {},
         flightRouterState,
         // For flight, render metadata inside leaf page
-        rscHead: (
-          <React.Fragment key={flightDataPathHeadKey}>
-            {/* noindex needs to be blocking */}
-            <NonIndex
-              pagePath={ctx.pagePath}
-              statusCode={ctx.res.statusCode}
-              isPossibleServerAction={ctx.isPossibleServerAction}
-            />
-            {/* Adding requestId as react key to make metadata remount for each render */}
-            <Viewport key={getFlightViewportKey(requestId)} />
-            <Metadata key={getFlightMetadataKey(requestId)} />
-          </React.Fragment>
+        rscHead: createElement(
+          Fragment,
+          {
+            key: flightDataPathHeadKey,
+          },
+          createElement(NonIndex, {
+            createElement,
+            pagePath: ctx.pagePath,
+            statusCode: ctx.res.statusCode,
+            isPossibleServerAction: ctx.isPossibleServerAction,
+          }),
+          createElement(Viewport, {
+            key: getFlightViewportKey(requestId),
+          }),
+          createElement(Metadata, {
+            key: getFlightMetadataKey(requestId),
+          })
         ),
         injectedCSS: new Set(),
         injectedJS: new Set(),
@@ -595,7 +607,7 @@ async function generateDynamicFlightRenderResult(
 
   const RSCPayload: RSCPayload & {
     /** Only available during cacheComponents development builds. Used for logging errors. */
-    _validation?: Promise<React.ReactNode>
+    _validation?: Promise<ReactNode>
   } = await workUnitAsyncStorage.run(
     requestStore,
     generateDynamicRSCPayload,
@@ -1037,7 +1049,7 @@ async function getRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
   is404: boolean
-): Promise<InitialRSCPayload & { P: React.ReactNode }> {
+): Promise<InitialRSCPayload & { P: ReactNode }> {
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
@@ -1052,7 +1064,7 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
-    componentMod: { createMetadataComponents },
+    componentMod: { createMetadataComponents, createElement, Fragment },
     url,
     workStore,
   } = ctx
@@ -1104,20 +1116,25 @@ async function getRSCPayload(
   const couldBeIntercepted =
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
-  const initialHead = (
-    <React.Fragment key={flightDataPathHeadKey}>
-      <NonIndex
-        pagePath={ctx.pagePath}
-        statusCode={ctx.res.statusCode}
-        isPossibleServerAction={ctx.isPossibleServerAction}
-      />
-      <Viewport />
-      <Metadata />
-      {/* This meta tag is for next/font which is still required to be blocking. */}
-      {appUsingSizeAdjustment ? (
-        <meta name="next-size-adjust" content="" />
-      ) : null}
-    </React.Fragment>
+  const initialHead = createElement(
+    Fragment,
+    {
+      key: flightDataPathHeadKey,
+    },
+    createElement(NonIndex, {
+      createElement,
+      pagePath: ctx.pagePath,
+      statusCode: ctx.res.statusCode,
+      isPossibleServerAction: ctx.isPossibleServerAction,
+    }),
+    createElement(Viewport, null),
+    createElement(Metadata, null),
+    appUsingSizeAdjustment
+      ? createElement('meta', {
+          name: 'next-size-adjust',
+          content: '',
+        })
+      : null
   )
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
@@ -1137,7 +1154,9 @@ async function getRSCPayload(
 
   return {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
-    P: <Preloads preloadCallbacks={preloadCallbacks} />,
+    P: createElement(Preloads, {
+      preloadCallbacks: preloadCallbacks,
+    }),
     b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
     i: !!couldBeIntercepted,
@@ -1177,7 +1196,7 @@ async function getErrorRSCPayload(
   const {
     getDynamicParamFromSegment,
     query,
-    componentMod: { createMetadataComponents },
+    componentMod: { createMetadataComponents, createElement, Fragment },
     url,
     workStore,
   } = ctx
@@ -1194,19 +1213,24 @@ async function getErrorRSCPayload(
     serveStreamingMetadata: serveStreamingMetadata,
   })
 
-  const initialHead = (
-    <React.Fragment key={flightDataPathHeadKey}>
-      <NonIndex
-        pagePath={ctx.pagePath}
-        statusCode={ctx.res.statusCode}
-        isPossibleServerAction={ctx.isPossibleServerAction}
-      />
-      <Viewport />
-      {process.env.NODE_ENV === 'development' && (
-        <meta name="next-error" content="not-found" />
-      )}
-      <Metadata />
-    </React.Fragment>
+  const initialHead = createElement(
+    Fragment,
+    {
+      key: flightDataPathHeadKey,
+    },
+    createElement(NonIndex, {
+      createElement,
+      pagePath: ctx.pagePath,
+      statusCode: ctx.res.statusCode,
+      isPossibleServerAction: ctx.isPossibleServerAction,
+    }),
+    createElement(Viewport, null),
+    process.env.NODE_ENV === 'development' &&
+      createElement('meta', {
+        name: 'next-error',
+        content: 'not-found',
+      }),
+    createElement(Metadata, null)
   )
 
   const initialTree = createFlightRouterStateFromLoaderTree(
@@ -1224,18 +1248,24 @@ async function getErrorRSCPayload(
   // so we create a not found page with AppRouter
   const seedData: CacheNodeSeedData = [
     initialTree[0],
-    <html id="__next_error__">
-      <head></head>
-      <body>
-        {process.env.NODE_ENV !== 'production' && err ? (
-          <template
-            data-next-error-message={err.message}
-            data-next-error-digest={'digest' in err ? err.digest : ''}
-            data-next-error-stack={err.stack}
-          />
-        ) : null}
-      </body>
-    </html>,
+    createElement(
+      'html',
+      {
+        id: '__next_error__',
+      },
+      createElement('head', null),
+      createElement(
+        'body',
+        null,
+        process.env.NODE_ENV !== 'production' && err
+          ? createElement('template', {
+              'data-next-error-message': err.message,
+              'data-next-error-digest': 'digest' in err ? err.digest : '',
+              'data-next-error-stack': err.stack,
+            })
+          : null
+      )
+    ),
     {},
     null,
     false,
@@ -1290,16 +1320,19 @@ function App<T>({
   nonce,
   images,
 }: {
+  /* eslint-disable @next/internal/no-jsx-in-app-router -- React Client */
   reactServerStream: BinaryStreamOf<T>
   reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
-  ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
+  ServerInsertedHTMLProvider: ComponentType<{
+    children: JSX.Element
+  }>
   images: RenderOpts['images']
   nonce?: string
 }): JSX.Element {
   preinitScripts()
-  const response = React.use(
+  const response = ReactClient.use(
     useFlightStream<InitialRSCPayload>(
       reactServerStream,
       reactDebugStream,
@@ -1342,6 +1375,7 @@ function App<T>({
       </ImageConfigContext.Provider>
     </HeadManagerContext.Provider>
   )
+  /* eslint-enable @next/internal/no-jsx-in-app-router -- React Client */
 }
 
 // @TODO our error stream should be probably just use the same root component. But it was previously
@@ -1360,12 +1394,15 @@ function ErrorApp<T>({
   reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
-  ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
+  ServerInsertedHTMLProvider: ComponentType<{
+    children: JSX.Element
+  }>
   nonce?: string
   images: RenderOpts['images']
 }): JSX.Element {
+  /* eslint-disable @next/internal/no-jsx-in-app-router -- React Client */
   preinitScripts()
-  const response = React.use(
+  const response = ReactClient.use(
     useFlightStream<InitialRSCPayload>(
       reactServerStream,
       reactDebugStream,
@@ -1398,6 +1435,7 @@ function ErrorApp<T>({
       </ServerInsertedHTMLProvider>
     </ImageConfigContext.Provider>
   )
+  /* eslint-enable @next/internal/no-jsx-in-app-router -- React Client */
 }
 
 // We use a trick with TS Generics to branch streams with a type so we can
@@ -2117,6 +2155,7 @@ async function renderToStream(
   createRequestStore: (() => RequestStore) | undefined,
   devValidatingFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<ReadableStream<Uint8Array>> {
+  /* eslint-disable @next/internal/no-jsx-in-app-router -- React Client */
   const { assetPrefix, htmlRequestId, nonce, pagePath, renderOpts, requestId } =
     ctx
 
@@ -2242,7 +2281,7 @@ async function renderToStream(
     ) {
       type RSCPayloadWithValidation = InitialRSCPayload & {
         /** Only available during cacheComponents development builds. Used for logging errors. */
-        _validation?: Promise<React.ReactNode>
+        _validation?: Promise<ReactNode>
       }
 
       const [resolveValidation, validationOutlet] = createValidationOutlet()
@@ -2661,6 +2700,7 @@ async function renderToStream(
       throw finalErr
     }
   }
+  /* eslint-enable @next/internal/no-jsx-in-app-router */
 }
 
 async function renderWithRestartOnCacheMissInDev(
@@ -2870,8 +2910,8 @@ function createDebugChannel(): DebugChannelPair | undefined {
 }
 
 function createValidationOutlet() {
-  let resolveValidation: (value: React.ReactNode) => void
-  let outlet = new Promise<React.ReactNode>((resolve) => {
+  let resolveValidation: (value: ReactNode) => void
+  let outlet = new Promise<ReactNode>((resolve) => {
     resolveValidation = resolve
   })
   return [resolveValidation!, outlet] as const
@@ -2884,7 +2924,7 @@ function createValidationOutlet() {
  * in conjunction with any changes to that function.
  */
 async function spawnDynamicValidationInDev(
-  resolveValidation: (validatingElement: React.ReactNode) => void,
+  resolveValidation: (validatingElement: ReactNode) => void,
   tree: LoaderTree,
   ctx: AppRenderContext,
   isNotFound: boolean,
@@ -2943,8 +2983,9 @@ async function spawnDynamicValidationInDev(
   // ready to cut the render off.
   const cacheSignal = new CacheSignal()
 
-  const captureOwnerStackClient = React.captureOwnerStack
-  const captureOwnerStackServer = ComponentMod.captureOwnerStack
+  const captureOwnerStackClient = ReactClient.captureOwnerStack
+  const { captureOwnerStack: captureOwnerStackServer, createElement } =
+    ComponentMod
 
   // The resume data cache here should use a fresh instance as it's
   // performing a fresh prerender. If we get to implementing the
@@ -3077,11 +3118,11 @@ async function spawnDynamicValidationInDev(
   const { invalidDynamicUsageError } = workStore
   if (invalidDynamicUsageError) {
     resolveValidation(
-      <LogSafely
-        fn={() => {
+      createElement(LogSafely, {
+        fn: () => {
           console.error(invalidDynamicUsageError)
-        }}
-      />
+        },
+      })
     )
     return
   }
@@ -3141,6 +3182,7 @@ async function spawnDynamicValidationInDev(
     const pendingInitialClientResult = workUnitAsyncStorage.run(
       initialClientPrerenderStore,
       prerender,
+      // eslint-disable-next-line @next/internal/no-jsx-in-app-router -- React Client
       <App
         reactServerStream={initialServerResult.asUnclosingStream()}
         reactDebugStream={undefined}
@@ -3371,6 +3413,7 @@ async function spawnDynamicValidationInDev(
           const pendingFinalClientResult = workUnitAsyncStorage.run(
             finalClientPrerenderStore,
             prerender,
+            // eslint-disable-next-line @next/internal/no-jsx-in-app-router -- React Client
             <App
               reactServerStream={reactServerResult.asUnclosingStream()}
               reactDebugStream={undefined}
@@ -3432,15 +3475,15 @@ async function spawnDynamicValidationInDev(
 
     const { preludeIsEmpty } = await processPrelude(unprocessedPrelude)
     resolveValidation(
-      <LogSafely
-        fn={throwIfDisallowedDynamic.bind(
+      createElement(LogSafely, {
+        fn: throwIfDisallowedDynamic.bind(
           null,
           workStore,
           preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
           dynamicValidation,
           serverDynamicTracking
-        )}
-      />
+        ),
+      })
     )
   } catch (thrownValue) {
     // Even if the root errors we still want to report any cache components errors
@@ -3467,7 +3510,11 @@ async function spawnDynamicValidationInDev(
       }
     }
 
-    resolveValidation(<LogSafely fn={loggingFunction} />)
+    resolveValidation(
+      createElement(LogSafely, {
+        fn: loggingFunction,
+      })
+    )
   }
 }
 
@@ -3886,6 +3933,7 @@ async function prerenderToStream(
         const pendingInitialClientResult = workUnitAsyncStorage.run(
           initialClientPrerenderStore,
           prerender,
+          // eslint-disable-next-line @next/internal/no-jsx-in-app-router
           <App
             reactServerStream={initialServerResult.asUnclosingStream()}
             reactDebugStream={undefined}
@@ -4121,6 +4169,7 @@ async function prerenderToStream(
             const pendingFinalClientResult = workUnitAsyncStorage.run(
               finalClientPrerenderStore,
               prerender,
+              // eslint-disable-next-line @next/internal/no-jsx-in-app-router
               <App
                 reactServerStream={reactServerResult.asUnclosingStream()}
                 reactDebugStream={undefined}
@@ -4286,6 +4335,7 @@ async function prerenderToStream(
           const foreverStream = new ReadableStream<Uint8Array>()
 
           const resumeStream = await resume(
+            // eslint-disable-next-line @next/internal/no-jsx-in-app-router
             <App
               reactServerStream={foreverStream}
               reactDebugStream={undefined}
@@ -4394,6 +4444,7 @@ async function prerenderToStream(
         await workUnitAsyncStorage.run(
           ssrPrerenderStore,
           prerender,
+          // eslint-disable-next-line @next/internal/no-jsx-in-app-router
           <App
             reactServerStream={reactServerResult.asUnclosingStream()}
             reactDebugStream={undefined}
@@ -4536,6 +4587,7 @@ async function prerenderToStream(
           const foreverStream = new ReadableStream<Uint8Array>()
 
           const resumeStream = await resume(
+            // eslint-disable-next-line @next/internal/no-jsx-in-app-router
             <App
               reactServerStream={foreverStream}
               reactDebugStream={undefined}
@@ -4621,6 +4673,7 @@ async function prerenderToStream(
       const htmlStream = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
         renderToReadableStream,
+        // eslint-disable-next-line @next/internal/no-jsx-in-app-router
         <App
           reactServerStream={reactServerResult.asUnclosingStream()}
           reactDebugStream={undefined}
@@ -4796,6 +4849,7 @@ async function prerenderToStream(
           ReactDOMServer:
             require('react-dom/server') as typeof import('react-dom/server'),
           element: (
+            // eslint-disable-next-line @next/internal/no-jsx-in-app-router
             <ErrorApp
               reactServerStream={errorServerStream}
               reactDebugStream={undefined}
@@ -4886,12 +4940,15 @@ const getGlobalErrorStyles = async (
   ctx: AppRenderContext
 ): Promise<{
   GlobalError: GlobalErrorComponent
-  styles: React.ReactNode | undefined
+  styles: ReactNode | undefined
 }> => {
   const {
     modules: { 'global-error': globalErrorModule },
   } = parseLoaderTree(tree)
 
+  const {
+    componentMod: { createElement },
+  } = ctx
   const GlobalErrorComponent: GlobalErrorComponent =
     ctx.componentMod.GlobalError
   let globalErrorStyles
@@ -4917,17 +4974,18 @@ const getGlobalErrorStyles = async (
     )
     if (globalErrorModulePath) {
       const SegmentViewNode = ctx.componentMod.SegmentViewNode
-      globalErrorStyles = (
+      globalErrorStyles =
         // This will be rendered next to GlobalError component under ErrorBoundary,
         // it requires a key to avoid React warning about duplicate keys.
-        <SegmentViewNode
-          key="ge-svn"
-          type="global-error"
-          pagePath={globalErrorModulePath}
-        >
-          {globalErrorStyles}
-        </SegmentViewNode>
-      )
+        createElement(
+          SegmentViewNode,
+          {
+            key: 'ge-svn',
+            type: 'global-error',
+            pagePath: globalErrorModulePath,
+          },
+          globalErrorStyles
+        )
     }
   }
 
