@@ -332,6 +332,7 @@
       "test/e2e/switchable-runtime/index.test.ts",
       "test/e2e/testmode/testmode.test.ts",
       "test/e2e/use-link-status/index.test.ts",
+      "test/e2e/url/url.test.ts",
       "test/integration/app-dir-export/**/*",
       "test/integration/app-dynamic-error/test/index.test.ts",
       "test/integration/app-types/app-types.test.js",

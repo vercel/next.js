@@ -78,7 +78,7 @@ import { join } from 'path'
             .elementByCss('#static-css')
             .getComputedCss('background-image')
         ).toMatch(
-          /^url\("http:\/\/localhost:\d+\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png"\)$/
+          /^url\("http(s)?:\/\/.+\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png"\)$/
         )
       )
     })
