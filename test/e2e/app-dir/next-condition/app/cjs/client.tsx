@@ -4,26 +4,18 @@
 // Make sure you delete node_modules if you are editing the package otherwise it won't
 // reinstall and reflect your changes.
 
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import ExportsDefault from 'my-cjs-package/exports'
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import * as ExportsNamed from 'my-cjs-package/exports'
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import { named as namedExports } from 'my-cjs-package/exports'
 
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import ImportsDefault from 'my-cjs-package/imports'
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import * as ImportsNamed from 'my-cjs-package/imports'
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import { named as namedImports } from 'my-cjs-package/imports'
 
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 const pendingDynamicExports = import('my-cjs-package/exports').then((mod) =>
   JSON.stringify(mod)
 )
 
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 const pendingDynamicImports = import('my-cjs-package/imports').then((mod) =>
   JSON.stringify(mod)
 )

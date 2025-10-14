@@ -2,26 +2,18 @@
 // Make sure you delete node_modules if you are editing the package otherwise it won't
 // reinstall and reflect your changes.
 
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import ExportsDefault from 'my-external-cjs-package/exports'
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import * as ExportsNamed from 'my-external-cjs-package/exports'
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import { named as namedExports } from 'my-external-cjs-package/exports'
 
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import ImportsDefault from 'my-external-cjs-package/imports'
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import * as ImportsNamed from 'my-external-cjs-package/imports'
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import { named as namedImports } from 'my-external-cjs-package/imports'
 
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 const pendingDynamicExports = import('my-external-cjs-package/exports').then(
   (mod) => JSON.stringify(mod)
 )
 
-// @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 const pendingDynamicImports = import('my-external-cjs-package/imports').then(
   (mod) => JSON.stringify(mod)
 )
