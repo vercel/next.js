@@ -723,11 +723,6 @@ export interface ExperimentalConfig {
   cacheComponents?: boolean
 
   /**
-   * @deprecated Use `experimental.cacheComponents` instead.
-   */
-  dynamicIO?: boolean
-
-  /**
    * Render <style> tags inline in the HTML for imported CSS assets.
    * Supports app-router in production mode only.
    */

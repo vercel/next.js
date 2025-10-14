@@ -1554,7 +1554,7 @@ export default async function getBaseWebpackConfig(
         ...getNextRootParamsRules({
           isRootParamsEnabled:
             config.experimental.rootParams ??
-            // `experimental.dynamicIO` implies `experimental.rootParams`.
+            // `experimental.cacheComponents` implies `experimental.rootParams`.
             config.experimental.cacheComponents ??
             false,
           isClient,

@@ -130,15 +130,6 @@ function checkDeprecations(
   silent: boolean,
   dir: string
 ) {
-  if (userConfig.experimental?.dynamicIO !== undefined) {
-    warnOptionHasBeenDeprecated(
-      userConfig,
-      'experimental.dynamicIO',
-      `\`experimental.dynamicIO\` has been renamed to \`experimental.cacheComponents\`. Please update your ${configFileName} file accordingly.`,
-      silent
-    )
-  }
-
   warnOptionHasBeenDeprecated(
     userConfig,
     'experimental.middlewarePrefetch',
@@ -283,19 +274,6 @@ function assignDefaultsAndValidate(
       userConfig.trailingSlash = (userConfig as any).exportTrailingSlash
     }
     delete (userConfig as any).exportTrailingSlash
-  }
-
-  // Handle migration of experimental.dynamicIO to experimental.cacheComponents
-  if (userConfig.experimental?.dynamicIO !== undefined) {
-    // If cacheComponents was not explicitly set by the user (i.e., it's still the default value),
-    // use the dynamicIO value. We check against the user config, not the merged result.
-    if (userConfig.experimental?.cacheComponents === undefined) {
-      userConfig.experimental.cacheComponents =
-        userConfig.experimental.dynamicIO
-    }
-
-    // Remove the deprecated property
-    delete userConfig.experimental.dynamicIO
   }
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
