@@ -1,6 +1,6 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { assertHasRedbox, retry } from 'next-test-utils'
 
 describe('parallel-routes-leaf-segments-build-error', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -16,7 +16,10 @@ describe('parallel-routes-leaf-segments-build-error', () => {
 
   if (isNextDev) {
     beforeEach(() => next.start())
-    afterEach(() => next.stop())
+    afterEach(async () => {
+      await next.stop()
+      await next.clean()
+    })
   } else {
     beforeAll(async () => {
       try {
@@ -34,7 +37,9 @@ describe('parallel-routes-leaf-segments-build-error', () => {
         await assertHasRedbox(browser)
       }
 
-      expect(next.cliOutput).toContain('/with-children/@header/default.js')
+      await retry(() => {
+        expect(next.cliOutput).toContain('/with-children/@header/default.js')
+      })
     })
   })
 
@@ -45,9 +50,11 @@ describe('parallel-routes-leaf-segments-build-error', () => {
         await assertHasRedbox(browser)
       }
 
-      expect(next.cliOutput).toContain(
-        '/with-groups-and-children/(dashboard)/(overview)/@metrics/default.js'
-      )
+      await retry(() => {
+        expect(next.cliOutput).toContain(
+          '/with-groups-and-children/(dashboard)/(overview)/@metrics/default.js'
+        )
+      })
     })
   })
 })
