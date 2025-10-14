@@ -22,7 +22,7 @@
   "analyticsId": "",
   "images": {
     "deviceSizes": [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    "imageSizes": [16, 32, 48, 64, 96, 128, 256, 384],
+    "imageSizes": [32, 48, 64, 96, 128, 256, 384],
     "path": "/_next/image",
     "loader": "default",
     "loaderFile": "",
@@ -30,6 +30,8 @@
     "disableStaticImages": false,
     "minimumCacheTTL": 60,
     "formats": ["image/avif", "image/webp"],
+    "maximumRedirects": 3,
+    "dangerouslyAllowLocalIP": false,
     "dangerouslyAllowSVG": false,
     "contentSecurityPolicy": "script-src 'none'; frame-src 'none'; sandbox;",
     "contentDispositionType": "inline",
@@ -37,14 +39,11 @@
     "unoptimized": false
   },
   "devIndicators": {
-    "buildActivityPosition": "bottom-right"
+    "position": "bottom-right"
   },
   "onDemandEntries": {
     "maxInactiveAge": 60000,
     "pagesBufferLength": 5
-  },
-  "amp": {
-    "canonicalBase": ""
   },
   "basePath": "",
   "sassOptions": {},
@@ -53,8 +52,6 @@
   "productionBrowserSourceMaps": false,
   "optimizeFonts": true,
   "excludeDefaultMomentLocales": true,
-  "serverRuntimeConfig": {},
-  "publicRuntimeConfig": {},
   "reactProductionProfiling": false,
   "reactStrictMode": true,
   "httpAgentOptions": {
@@ -84,7 +81,6 @@
     "scrollRestoration": false,
     "externalDir": false,
     "disableOptimizedLoading": false,
-    "gzipSize": true,
     "craCompat": false,
     "esmExternals": true,
     "fullySpecified": false,

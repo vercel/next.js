@@ -22,7 +22,7 @@ import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 
-export interface ErrorsProps extends ErrorBaseProps {
+interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   runtimeErrors: ReadyRuntimeError[]
   debugInfo: DebugInfo
@@ -33,11 +33,11 @@ function isNextjsLink(text: string): boolean {
   return text.startsWith('https://nextjs.org')
 }
 
-export function HydrationErrorDescription({ message }: { message: string }) {
+function HydrationErrorDescription({ message }: { message: string }) {
   return <HotlinkedText text={message} matcher={isNextjsLink} />
 }
 
-export function GenericErrorDescription({ error }: { error: Error }) {
+function GenericErrorDescription({ error }: { error: Error }) {
   const environmentName =
     'environmentName' in error ? error.environmentName : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''

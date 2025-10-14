@@ -4,11 +4,6 @@ use std::vec;
 
 use anyhow::{Result, bail};
 
-pub fn register() {
-    turbo_tasks::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}
-
 /// A simple regular expression implementation following ecmascript semantics
 ///
 /// Delegates to the `regex` crate when possible and `regress` otherwise.

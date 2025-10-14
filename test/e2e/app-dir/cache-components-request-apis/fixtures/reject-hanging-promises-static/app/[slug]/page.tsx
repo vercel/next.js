@@ -1,24 +1,16 @@
 import { cookies, headers, draftMode } from 'next/headers'
 import { connection } from 'next/server'
 
-export function generateStaticParams() {
-  return [{ slug: 'one' }]
-}
-
 export default async function Page(props: {
   params: Promise<{}>
   searchParams: Promise<{}>
 }) {
-  setTimeout(async () => await props.params)
-  setTimeout(async () => await props.searchParams)
-  let pendingCookies = cookies()
-  setTimeout(async () => await pendingCookies)
-  let pendingHeaders = headers()
-  setTimeout(async () => await pendingHeaders)
-  let pendingDraftMode = draftMode()
-  setTimeout(async () => await pendingDraftMode)
-  let pendingConnection = connection()
-  setTimeout(async () => await pendingConnection)
+  props.params.catch(logReason)
+  props.searchParams.catch(logReason)
+  cookies().catch(logReason)
+  headers().catch(logReason)
+  draftMode().catch(logReason)
+  connection().catch(logReason)
   return (
     <>
       <p>
@@ -29,4 +21,8 @@ export default async function Page(props: {
       </p>
     </>
   )
+}
+
+function logReason(reason: any) {
+  console.log('Reason:', reason)
 }

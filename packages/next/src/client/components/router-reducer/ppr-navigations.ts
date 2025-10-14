@@ -3,16 +3,19 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   Segment,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import type {
   CacheNode,
   ChildSegmentMap,
+  ReadyCacheNode,
+} from '../../../shared/lib/app-router-types'
+import type {
   HeadData,
   LoadingModuleData,
-  ReadyCacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+} from '../../../shared/lib/app-router-types'
 import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
+import { createHrefFromUrl } from './create-href-from-url'
 import { createRouterCacheKey } from './create-router-cache-key'
 import type { FetchServerResponseResult } from './fetch-server-response'
 import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
@@ -89,6 +92,7 @@ export type Task = SPANavigationTask | MPANavigationTask
 // can be reused without initiating a server request.
 export function startPPRNavigation(
   navigatedAt: number,
+  oldUrl: URL,
   oldCacheNode: CacheNode,
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
@@ -101,6 +105,7 @@ export function startPPRNavigation(
   const segmentPath: Array<FlightSegmentPath> = []
   return updateCacheNodeOnNavigation(
     navigatedAt,
+    oldUrl,
     oldCacheNode,
     oldRouterState,
     newRouterState,
@@ -116,6 +121,7 @@ export function startPPRNavigation(
 
 function updateCacheNodeOnNavigation(
   navigatedAt: number,
+  oldUrl: URL,
   oldCacheNode: CacheNode,
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
@@ -228,7 +234,7 @@ function updateCacheNodeOnNavigation(
         // Reuse the existing Router State for this segment. We spawn a "task"
         // just to keep track of the updated router state; unlike most, it's
         // already fulfilled and won't be affected by the dynamic response.
-        taskChild = spawnReusedTask(oldRouterStateChild)
+        taskChild = reuseActiveSegmentInDefaultSlot(oldUrl, oldRouterStateChild)
       } else {
         // There's no currently active segment. Switch to the "create" path.
         taskChild = beginRenderingNewRouteTree(
@@ -297,6 +303,7 @@ function updateCacheNodeOnNavigation(
         // the children.
         taskChild = updateCacheNodeOnNavigation(
           navigatedAt,
+          oldUrl,
           oldCacheNodeChild,
           oldRouterStateChild,
           newRouterStateChild,
@@ -724,9 +731,37 @@ function spawnPendingTask(
   return newTask
 }
 
-function spawnReusedTask(reusedRouterState: FlightRouterState): Task {
-  // Create a task that reuses an existing segment, e.g. when reusing
-  // the current active segment in place of a default route.
+function reuseActiveSegmentInDefaultSlot(
+  oldUrl: URL,
+  oldRouterState: FlightRouterState
+): Task {
+  // This is a "default" segment. These are never sent by the server during a
+  // soft navigation; instead, the client reuses whatever segment was already
+  // active in that slot on the previous route. This means if we later need to
+  // refresh the segment, it will have to be refetched from the previous route's
+  // URL. We store it in the Flight Router State.
+  //
+  // TODO: We also mark the segment with a "refresh" marker but I think we can
+  // get rid of that eventually by making sure we only add URLs to page segments
+  // that are reused. Then the presence of the URL alone is enough.
+  let reusedRouterState
+
+  const oldRefreshMarker = oldRouterState[3]
+  if (oldRefreshMarker === 'refresh') {
+    // This segment was already reused from an even older route. Keep its
+    // existing URL and refresh marker.
+    reusedRouterState = oldRouterState
+  } else {
+    // This segment was not previously reused, and it's not on the new route.
+    // So it must have been delivered in the old route.
+    reusedRouterState = patchRouterStateWithNewChildren(
+      oldRouterState,
+      oldRouterState[1]
+    )
+    reusedRouterState[2] = createHrefFromUrl(oldUrl)
+    reusedRouterState[3] = 'refresh'
+  }
+
   return {
     route: reusedRouterState,
     node: null,
@@ -971,7 +1006,6 @@ function createPendingCacheNode(
   }
 
   const maybePrefetchRsc = prefetchData !== null ? prefetchData[1] : null
-  const maybePrefetchLoading = prefetchData !== null ? prefetchData[3] : null
   return {
     lazyData: null,
     parallelRoutes: parallelRoutes,
@@ -979,15 +1013,20 @@ function createPendingCacheNode(
     prefetchRsc: maybePrefetchRsc !== undefined ? maybePrefetchRsc : null,
     prefetchHead: isLeafSegment ? prefetchHead : [null, null],
 
-    // TODO: Technically, a loading boundary could contain dynamic data. We must
-    // have separate `loading` and `prefetchLoading` fields to handle this, like
-    // we do for the segment data and head.
-    loading: maybePrefetchLoading !== undefined ? maybePrefetchLoading : null,
-
     // Create a deferred promise. This will be fulfilled once the dynamic
     // response is received from the server.
     rsc: createDeferredRsc() as React.ReactNode,
     head: isLeafSegment ? (createDeferredRsc() as React.ReactNode) : null,
+
+    // TODO: Technically, a loading boundary could contain dynamic data. We must
+    // have separate `loading` and `prefetchLoading` fields to handle this, like
+    // we do for the segment data and head.
+    loading:
+      prefetchData !== null
+        ? (prefetchData[3] ?? null)
+        : // If we don't have a prefetch, then we don't know if there's a loading component.
+          // We'll fulfill it based on the dynamic response, just like `rsc` and `head`.
+          createDeferredRsc<LoadingModuleData>(),
 
     navigatedAt,
   }
@@ -1087,6 +1126,14 @@ function finishPendingCacheNode(
     // been populated by a different navigation. We must not overwrite it.
   }
 
+  // If we navigated without a prefetch, then `loading` will be a deferred promise too.
+  // Fulfill it using the dynamic response so that we can display the loading boundary.
+  const loading = cacheNode.loading
+  if (isDeferredRsc(loading)) {
+    const dynamicLoading = dynamicData[3]
+    loading.resolve(dynamicLoading)
+  }
+
   // Check if this is a leaf segment. If so, it will have a `head` property with
   // a pending promise that needs to be resolved with the dynamic head from
   // the server.
@@ -1151,6 +1198,7 @@ function abortPendingCacheNode(
       // used to construct the cache nodes in the first place.
     }
   }
+
   const rsc = cacheNode.rsc
   if (isDeferredRsc(rsc)) {
     if (error === null) {
@@ -1160,6 +1208,11 @@ function abortPendingCacheNode(
       // This will trigger an error during rendering.
       rsc.reject(error)
     }
+  }
+
+  const loading = cacheNode.loading
+  if (isDeferredRsc(loading)) {
+    loading.resolve(null)
   }
 
   // Check if this is a leaf segment. If so, it will have a `head` property with
@@ -1238,53 +1291,55 @@ export function updateCacheNodeOnPopstateRestoration(
 
 const DEFERRED = Symbol()
 
-type PendingDeferredRsc = Promise<React.ReactNode> & {
+type PendingDeferredRsc<T> = Promise<T> & {
   status: 'pending'
-  resolve: (value: React.ReactNode) => void
+  resolve: (value: T) => void
   reject: (error: any) => void
   tag: Symbol
 }
 
-type FulfilledDeferredRsc = Promise<React.ReactNode> & {
+type FulfilledDeferredRsc<T> = Promise<T> & {
   status: 'fulfilled'
-  value: React.ReactNode
-  resolve: (value: React.ReactNode) => void
+  value: T
+  resolve: (value: T) => void
   reject: (error: any) => void
   tag: Symbol
 }
 
-type RejectedDeferredRsc = Promise<React.ReactNode> & {
+type RejectedDeferredRsc<T> = Promise<T> & {
   status: 'rejected'
   reason: any
-  resolve: (value: React.ReactNode) => void
+  resolve: (value: T) => void
   reject: (error: any) => void
   tag: Symbol
 }
 
-type DeferredRsc =
-  | PendingDeferredRsc
-  | FulfilledDeferredRsc
-  | RejectedDeferredRsc
+type DeferredRsc<T extends React.ReactNode = React.ReactNode> =
+  | PendingDeferredRsc<T>
+  | FulfilledDeferredRsc<T>
+  | RejectedDeferredRsc<T>
 
 // This type exists to distinguish a DeferredRsc from a Flight promise. It's a
 // compromise to avoid adding an extra field on every Cache Node, which would be
 // awkward because the pre-PPR parts of codebase would need to account for it,
 // too. We can remove it once type Cache Node type is more settled.
 function isDeferredRsc(value: any): value is DeferredRsc {
-  return value && value.tag === DEFERRED
+  return value && typeof value === 'object' && value.tag === DEFERRED
 }
 
-function createDeferredRsc(): PendingDeferredRsc {
+function createDeferredRsc<
+  T extends React.ReactNode = React.ReactNode,
+>(): PendingDeferredRsc<T> {
   let resolve: any
   let reject: any
-  const pendingRsc = new Promise<React.ReactNode>((res, rej) => {
+  const pendingRsc = new Promise<T>((res, rej) => {
     resolve = res
     reject = rej
-  }) as PendingDeferredRsc
+  }) as PendingDeferredRsc<T>
   pendingRsc.status = 'pending'
-  pendingRsc.resolve = (value: React.ReactNode) => {
+  pendingRsc.resolve = (value: T) => {
     if (pendingRsc.status === 'pending') {
-      const fulfilledRsc: FulfilledDeferredRsc = pendingRsc as any
+      const fulfilledRsc: FulfilledDeferredRsc<T> = pendingRsc as any
       fulfilledRsc.status = 'fulfilled'
       fulfilledRsc.value = value
       resolve(value)
@@ -1292,7 +1347,7 @@ function createDeferredRsc(): PendingDeferredRsc {
   }
   pendingRsc.reject = (error: any) => {
     if (pendingRsc.status === 'pending') {
-      const rejectedRsc: RejectedDeferredRsc = pendingRsc as any
+      const rejectedRsc: RejectedDeferredRsc<T> = pendingRsc as any
       rejectedRsc.status = 'rejected'
       rejectedRsc.reason = error
       reject(error)

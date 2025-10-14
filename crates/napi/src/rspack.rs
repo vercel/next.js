@@ -16,10 +16,12 @@ use swc_core::{
         utils::{ExprCtx, find_pat_ids},
         visit::{Visit, VisitMutWith, VisitWith},
     },
-    node::MapErr,
 };
 
-use crate::next_api::utils::{NapiIssueSourceRange, NapiSourcePos};
+use crate::{
+    next_api::utils::{NapiIssueSourceRange, NapiSourcePos},
+    util::MapErr,
+};
 
 struct Finder {
     pub named_exports: Vec<Atom>,

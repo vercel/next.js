@@ -10,7 +10,6 @@ import { TurbopackInfoBody } from '../components/errors/dev-tools-indicator/dev-
 import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
 import { useDelayedRender } from '../hooks/use-delayed-render'
 import {
-  getShadowRoot,
   MENU_CURVE,
   MENU_DURATION_MS,
 } from '../components/errors/dev-tools-indicator/utils'
@@ -25,6 +24,7 @@ import {
   ACTION_ERROR_OVERLAY_OPEN,
 } from '../shared'
 import GearIcon from '../icons/gear-icon'
+import { LoadingIcon } from '../icons/loading-icon'
 import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
@@ -61,17 +61,24 @@ const MenuPanel = () => {
             }
           },
         },
-        {
-          title: `Current route is ${state.staticIndicator ? 'static' : 'dynamic'}.`,
-          label: 'Route',
-          value: state.staticIndicator ? 'Static' : 'Dynamic',
-          onClick: () => setPanel('route-type'),
-          attributes: {
-            'data-nextjs-route-type': state.staticIndicator
-              ? 'static'
-              : 'dynamic',
-          },
-        },
+        state.staticIndicator === 'disabled'
+          ? undefined
+          : state.staticIndicator === 'pending'
+            ? {
+                title: 'Loading...',
+                label: 'Route',
+                value: <LoadingIcon />,
+              }
+            : {
+                title: `Current route is ${state.staticIndicator}.`,
+                label: 'Route',
+                value:
+                  state.staticIndicator === 'static' ? 'Static' : 'Dynamic',
+                onClick: () => setPanel('route-type'),
+                attributes: {
+                  'data-nextjs-route-type': state.staticIndicator,
+                },
+              },
         !!process.env.TURBOPACK
           ? {
               title: 'Turbopack is enabled.',
@@ -85,15 +92,14 @@ const MenuPanel = () => {
               value: <ChevronRight />,
               onClick: () => setPanel('turbo-info'),
             },
-        !!process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER &&
-          isAppRouter && {
-            label: 'Route Info',
-            value: <ChevronRight />,
-            onClick: () => setPanel('segment-explorer'),
-            attributes: {
-              'data-segment-explorer': true,
-            },
+        isAppRouter && {
+          label: 'Route Info',
+          value: <ChevronRight />,
+          onClick: () => setPanel('segment-explorer'),
+          attributes: {
+            'data-segment-explorer': true,
           },
+        },
         {
           label: 'Preferences',
           value: <GearIcon />,
@@ -110,29 +116,27 @@ const MenuPanel = () => {
 
 // a little hacky but it does the trick
 const useToggleDevtoolsVisibility = () => {
-  const { state, dispatch } = useDevOverlayContext()
+  const { state, dispatch, shadowRoot } = useDevOverlayContext()
   return () => {
     dispatch({
       type: ACTION_DEV_INDICATOR_SET,
       disabled: !state.disableDevIndicator,
     })
-    const portal = getShadowRoot()
-    if (portal) {
-      const menuElement = portal.getElementById('panel-route') as HTMLElement
-      const indicatorElement = portal.getElementById(
-        'data-devtools-indicator'
-      ) as HTMLElement
 
-      if (menuElement && menuElement.firstElementChild) {
-        const firstChild = menuElement.firstElementChild as HTMLElement
-        const isCurrentlyHidden = firstChild.style.display === 'none'
-        firstChild.style.display = isCurrentlyHidden ? '' : 'none'
-      }
+    const menuElement = shadowRoot.getElementById('panel-route') as HTMLElement
+    const indicatorElement = shadowRoot.getElementById(
+      'data-devtools-indicator'
+    ) as HTMLElement
 
-      if (indicatorElement) {
-        const isCurrentlyHidden = indicatorElement.style.display === 'none'
-        indicatorElement.style.display = isCurrentlyHidden ? '' : 'none'
-      }
+    if (menuElement && menuElement.firstElementChild) {
+      const firstChild = menuElement.firstElementChild as HTMLElement
+      const isCurrentlyHidden = firstChild.style.display === 'none'
+      firstChild.style.display = isCurrentlyHidden ? '' : 'none'
+    }
+
+    if (indicatorElement) {
+      const isCurrentlyHidden = indicatorElement.style.display === 'none'
+      indicatorElement.style.display = isCurrentlyHidden ? '' : 'none'
     }
   }
 }
@@ -170,41 +174,41 @@ export const PanelRouter = () => {
         </DynamicPanel>
       </PanelRoute>
 
-      <PanelRoute name="route-type">
-        <DynamicPanel
-          key={state.staticIndicator ? 'static' : 'dynamic'}
-          sharePanelSizeGlobally={false}
-          sizeConfig={{
-            kind: 'fixed',
-            height: state.staticIndicator
-              ? 300 / state.scale
-              : 325 / state.scale,
-            width: 400 / state.scale,
-          }}
-          closeOnClickOutside
-          header={
-            <DevToolsHeader
-              title={`${state.staticIndicator ? 'Static' : 'Dynamic'} Route`}
-            />
-          }
-        >
-          <div className="panel-content">
-            <RouteInfoBody
-              routerType={state.routerType}
-              isStaticRoute={state.staticIndicator}
-            />
-            <InfoFooter
-              href={
-                learnMoreLink[state.routerType][
-                  state.staticIndicator ? 'static' : 'dynamic'
-                ]
+      {state.staticIndicator !== 'disabled' &&
+        state.staticIndicator !== 'pending' && (
+          <PanelRoute name="route-type">
+            <DynamicPanel
+              key={state.staticIndicator}
+              sharePanelSizeGlobally={false}
+              sizeConfig={{
+                kind: 'fixed',
+                height:
+                  state.staticIndicator === 'static'
+                    ? 300 / state.scale
+                    : 325 / state.scale,
+                width: 400 / state.scale,
+              }}
+              closeOnClickOutside
+              header={
+                <DevToolsHeader
+                  title={`${state.staticIndicator === 'static' ? 'Static' : 'Dynamic'} Route`}
+                />
               }
-            />
-          </div>
-        </DynamicPanel>
-      </PanelRoute>
+            >
+              <div className="panel-content">
+                <RouteInfoBody
+                  routerType={state.routerType}
+                  isStaticRoute={state.staticIndicator === 'static'}
+                />
+                <InfoFooter
+                  href={learnMoreLink[state.routerType][state.staticIndicator]}
+                />
+              </div>
+            </DynamicPanel>
+          </PanelRoute>
+        )}
 
-      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER && isAppRouter && (
+      {isAppRouter && (
         <PanelRoute name="segment-explorer">
           <DynamicPanel
             sharePanelSizeGlobally={false}
@@ -309,7 +313,7 @@ const UserPreferencesWrapper = () => {
 }
 
 export const usePanelContext = () => useContext(PanelContext)
-export const PanelContext = createContext<{
+const PanelContext = createContext<{
   name: PanelStateKind
   mounted: boolean
 }>(null!)

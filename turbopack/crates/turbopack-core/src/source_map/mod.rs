@@ -63,14 +63,18 @@ pub trait GenerateSourceMap {
 /// The distinction between the source map spec's [sourcemap::Index] and our
 /// [SourceMap::Sectioned] is whether the sections are represented with Vcs
 /// pointers.
-#[turbo_tasks::value(shared, cell = "new")]
+#[turbo_tasks::value(shared, cell = "new", eq = "manual")]
 #[derive(Debug)]
-pub enum SourceMap {
+pub struct SourceMap {
     /// A decoded source map contains no Vcs.
-    Decoded(#[turbo_tasks(trace_ignore)] InnerSourceMap),
-    /// A sectioned source map contains many (possibly recursive) maps covering
-    /// different regions of the file.
-    Sectioned(#[turbo_tasks(trace_ignore)] SectionedSourceMap),
+    #[turbo_tasks(trace_ignore)]
+    map: Arc<CrateMapWrapper>,
+}
+impl Eq for SourceMap {}
+impl PartialEq for SourceMap {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.map, &other.map)
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -207,49 +211,23 @@ impl TryInto<swc_sourcemap::RawToken> for Token {
 }
 
 impl SourceMap {
-    pub fn empty_uncelled() -> Self {
-        let mut builder = SourceMapBuilder::new(None);
-        builder.add(0, 0, 0, 0, None, None, false);
-        SourceMap::new_regular(builder.into_sourcemap())
-    }
-
     /// Creates a new SourceMap::Decoded Vc out of a [RegularMap] instance.
-    pub fn new_regular(map: RegularMap) -> Self {
+    fn new_regular(map: RegularMap) -> Self {
         Self::new_decoded(DecodedMap::Regular(map))
     }
 
     /// Creates a new SourceMap::Decoded Vc out of a [DecodedMap] instance.
-    pub fn new_decoded(map: DecodedMap) -> Self {
-        SourceMap::Decoded(InnerSourceMap::new(map))
-    }
-
-    /// Creates a new SourceMap::Sectioned Vc out of a collection of source map
-    /// sections.
-    pub fn new_sectioned(sections: Vec<SourceMapSection>) -> Self {
-        SourceMap::Sectioned(SectionedSourceMap::new(sections))
+    fn new_decoded(map: DecodedMap) -> Self {
+        SourceMap {
+            map: Arc::new(CrateMapWrapper(map)),
+        }
     }
 
     pub fn new_from_rope(content: &Rope) -> Result<Option<Self>> {
         let Ok(map) = DecodedMap::from_reader(content.read()) else {
             return Ok(None);
         };
-        Ok(Some(SourceMap::Decoded(InnerSourceMap::new(map))))
-    }
-
-    pub async fn new_from_file(file: FileSystemPath) -> Result<Option<Self>> {
-        let read = file.read();
-        Self::new_from_file_content(read).await
-    }
-
-    pub async fn new_from_file_content(content: Vc<FileContent>) -> Result<Option<Self>> {
-        let content = &content.await?;
-        let Some(contents) = content.as_content() else {
-            return Ok(None);
-        };
-        let Ok(map) = DecodedMap::from_reader(contents.read()) else {
-            return Ok(None);
-        };
-        Ok(Some(SourceMap::Decoded(InnerSourceMap::new(map))))
+        Ok(Some(SourceMap::new_decoded(map)))
     }
 }
 
@@ -269,27 +247,8 @@ impl SourceMap {
 }
 
 impl SourceMap {
-    pub async fn to_source_map(&self) -> Result<Arc<CrateMapWrapper>> {
-        Ok(match self {
-            Self::Decoded(m) => m.map.clone(),
-            Self::Sectioned(m) => {
-                let wrapped = m.to_crate_wrapper().await?;
-                let sections = wrapped
-                    .sections
-                    .iter()
-                    .map(|s| {
-                        swc_sourcemap::SourceMapSection::new(
-                            (s.offset.line, s.offset.column),
-                            None,
-                            Some(s.map.0.clone()),
-                        )
-                    })
-                    .collect::<Vec<swc_sourcemap::SourceMapSection>>();
-                Arc::new(CrateMapWrapper(DecodedMap::Index(SourceMapIndex::new(
-                    None, sections,
-                ))))
-            }
-        })
+    pub fn to_source_map(&self) -> Arc<CrateMapWrapper> {
+        self.map.clone()
     }
 }
 
@@ -315,16 +274,20 @@ impl SourceMap {
         EMPTY_SOURCE_MAP_ROPE.clone()
     }
 
-    pub fn sections_to_rope(sections: impl IntoIterator<Item = (SourcePos, Rope)>) -> Result<Rope> {
+    pub fn sections_to_rope(
+        sections: impl IntoIterator<Item = (SourcePos, Rope)>,
+        debug_id: Option<RcStr>,
+    ) -> Rope {
         let mut sections = sections.into_iter().peekable();
 
         let mut first = sections.next();
         if let Some((offset, map)) = &mut first
             && sections.peek().is_none()
             && *offset == (0, 0)
+            && debug_id.is_none()
         {
             // There is just a single sourcemap that starts at the beginning of the file.
-            return Ok(std::mem::take(map));
+            return std::mem::take(map);
         }
 
         // My kingdom for a decent dedent macro with interpolation!
@@ -334,8 +297,12 @@ impl SourceMap {
             r#"{
   "version": 3,
   "sources": [],
-  "sections": ["#,
+"#,
         );
+        if let Some(debug_id) = debug_id {
+            writeln!(rope, r#"  "debugId": "{debug_id}","#).unwrap();
+        }
+        rope += "  \"sections\": [";
 
         let mut first_section = true;
         for (offset, section_map) in first.into_iter().chain(sections) {
@@ -349,57 +316,39 @@ impl SourceMap {
                 r#"
     {{"offset": {{"line": {}, "column": {}}}, "map": "#,
                 offset.line, offset.column,
-            )?;
+            )
+            .unwrap();
 
             rope += &section_map;
 
             rope += "}";
         }
 
-        rope += "]
-}";
+        rope += "]";
 
-        Ok(rope.build())
+        rope += "\n}";
+
+        rope.build()
     }
 
     /// Stringifies the source map into JSON bytes.
-    pub async fn to_rope(&self) -> Result<Rope> {
-        let rope = match self {
-            SourceMap::Decoded(r) => {
-                let mut bytes = vec![];
-                r.0.to_writer(&mut bytes)?;
-                Rope::from(bytes)
-            }
-
-            SourceMap::Sectioned(s) => {
-                let sections = s
-                    .sections
-                    .iter()
-                    .map(async |s| Ok((s.offset, s.map.to_rope().await?)))
-                    .try_join()
-                    .await?;
-
-                Self::sections_to_rope(sections)?
-            }
-        };
-        Ok(rope)
+    pub fn to_rope(&self) -> Result<Rope> {
+        let mut bytes = vec![];
+        self.map.0.to_writer(&mut bytes)?;
+        Ok(Rope::from(bytes))
     }
 
     /// Traces a generated line/column into an mapping token representing either
     /// synthetic code or user-authored original code.
-    pub async fn lookup_token(&self, line: u32, column: u32) -> Result<Token> {
-        let (token, _) = self
-            .lookup_token_and_source_internal(line, column, true)
-            .await?;
-        Ok(token)
+    pub fn lookup_token(&self, line: u32, column: u32) -> Token {
+        let (token, _) = self.lookup_token_and_source_internal(line, column, true);
+        token
     }
 
     /// Traces a generated line/column into an mapping token representing either
     /// synthetic code or user-authored original code.
     pub async fn lookup_token_and_source(&self, line: u32, column: u32) -> Result<TokenWithSource> {
-        let (token, content) = self
-            .lookup_token_and_source_internal(line, column, true)
-            .await?;
+        let (token, content) = self.lookup_token_and_source_internal(line, column, true);
         Ok(TokenWithSource {
             token,
             source_content: match content {
@@ -465,9 +414,10 @@ impl SourceMap {
             let mut new_sources = Vec::with_capacity(count);
             let mut new_source_contents = Vec::with_capacity(count);
             for (source, source_content) in sources.into_iter().zip(source_contents.into_iter()) {
-                let (source, name) = resolve_source(source, source_content, origin.clone()).await?;
+                let (source, source_content) =
+                    resolve_source(source, source_content, origin.clone()).await?;
                 new_sources.push(source);
-                new_source_contents.push(Some(name));
+                new_source_contents.push(Some(source_content));
             }
             let mut map =
                 RegularMap::new(file, tokens, names, new_sources, Some(new_source_contents));
@@ -529,20 +479,9 @@ impl SourceMap {
                 }
             }))
         }
-        Ok(match self {
-            Self::Decoded(m) => {
-                let map = Box::pin(decoded_map_with_resolved_sources(&m.map, origin)).await?;
-                Self::Decoded(InnerSourceMap::new(map.0))
-            }
-            Self::Sectioned(m) => {
-                let mut sections = Vec::with_capacity(m.sections.len());
-                for section in &m.sections {
-                    let map = Box::pin(section.map.with_resolved_sources(origin.clone())).await?;
-                    sections.push(SourceMapSection::new(section.offset, map));
-                }
-                SourceMap::new_sectioned(sections)
-            }
-        })
+
+        let map = Box::pin(decoded_map_with_resolved_sources(&self.map, origin)).await?;
+        Ok(Self::new_decoded(map.0))
     }
 }
 
@@ -559,143 +498,67 @@ async fn sourcemap_content_source(path: RcStr, content: RcStr) -> Result<Vc<Box<
 }
 
 impl SourceMap {
-    async fn lookup_token_and_source_internal(
+    fn lookup_token_and_source_internal(
         &self,
         line: u32,
         column: u32,
         need_source_content: bool,
-    ) -> Result<(Token, Option<Vc<Box<dyn Source>>>)> {
+    ) -> (Token, Option<Vc<Box<dyn Source>>>) {
         let mut content: Option<Vc<Box<dyn Source>>> = None;
 
-        let token: Token = match self {
-            SourceMap::Decoded(map) => {
-                let tok = map.lookup_token(line, column);
-                let mut token = tok.map(Token::from).unwrap_or_else(|| {
-                    Token::Synthetic(SyntheticToken {
-                        generated_line: line,
-                        generated_column: column,
-                        guessed_original_file: None,
-                    })
-                });
+        let token: Token = {
+            let map = &self.map;
 
-                if let Token::Synthetic(SyntheticToken {
-                    guessed_original_file,
-                    ..
-                }) = &mut token
-                    && let DecodedMap::Regular(map) = &map.map.0
-                    && map.get_source_count() == 1
-                {
-                    let source = map.sources().next().unwrap().clone();
-                    *guessed_original_file = Some(RcStr::from(source));
-                }
-
-                if need_source_content
-                    && content.is_none()
-                    && let Some(map) = map.map.as_regular_source_map()
-                {
-                    content = tok.and_then(|tok| {
-                        let src_id = tok.get_src_id();
-
-                        let name = map.get_source(src_id);
-                        let content = map.get_source_contents(src_id);
-
-                        let (name, content) = name.zip(content)?;
-                        Some(sourcemap_content_source(
-                            name.clone().into(),
-                            content.clone().into(),
-                        ))
-                    });
-                }
-
-                token
-            }
-
-            SourceMap::Sectioned(map) => {
-                let len = map.sections.len();
-                let mut low = 0;
-                let mut high = len;
-                let pos = SourcePos { line, column };
-
-                // A "greatest lower bound" binary search. We're looking for the closest section
-                // offset <= to our line/col.
-                while low < high {
-                    let mid = (low + high) / 2;
-                    if pos < map.sections[mid].offset {
-                        high = mid;
-                    } else {
-                        low = mid + 1;
-                    }
-                }
-
-                // Our GLB search will return the section immediately to the right of the
-                // section we actually want to recurse into, because the binary search does not
-                // early exit on an exact match (it'll `low = mid + 1`).
-                if low > 0 && low <= len {
-                    let SourceMapSection { map, offset } = &map.sections[low - 1];
-                    // We're looking for the position `l` lines into region covered by this
-                    // sourcemap's section.
-                    let l = line - offset.line;
-                    // The source map starts offset by the section's column only on its first line.
-                    // On the 2nd+ line, the source map covers starting at column 0.
-                    let c = if line == offset.line {
-                        column - offset.column
-                    } else {
-                        column
-                    };
-
-                    if need_source_content {
-                        let result = Box::pin(map.lookup_token_and_source(l, c)).await?;
-                        return Ok((result.token, result.source_content.map(|v| *v)));
-                    } else {
-                        return Ok((Box::pin(map.lookup_token(l, c)).await?, None));
-                    }
-                }
+            let tok = map.lookup_token(line, column);
+            let mut token = tok.map(Token::from).unwrap_or_else(|| {
                 Token::Synthetic(SyntheticToken {
                     generated_line: line,
                     generated_column: column,
                     guessed_original_file: None,
                 })
+            });
+
+            if let Token::Synthetic(SyntheticToken {
+                guessed_original_file,
+                ..
+            }) = &mut token
+                && let DecodedMap::Regular(map) = &map.0
+                && map.get_source_count() == 1
+            {
+                let source = map.sources().next().unwrap().clone();
+                *guessed_original_file = Some(RcStr::from(source));
             }
+
+            if need_source_content
+                && content.is_none()
+                && let Some(map) = map.as_regular_source_map()
+            {
+                content = tok.and_then(|tok| {
+                    let src_id = tok.get_src_id();
+
+                    let name = map.get_source(src_id);
+                    let content = map.get_source_contents(src_id);
+
+                    let (name, content) = name.zip(content)?;
+                    Some(sourcemap_content_source(
+                        name.clone().into(),
+                        content.clone().into(),
+                    ))
+                });
+            }
+
+            token
         };
 
-        Ok((token, content))
+        (token, content)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: ResolvedVc<Self>) -> Result<Vc<OptionStringifiedSourceMap>> {
-        Ok(Vc::cell(Some(self.await?.to_rope().await?)))
-    }
-}
-
-/// A regular source map covers an entire file.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InnerSourceMap {
-    map: Arc<CrateMapWrapper>,
-}
-
-impl InnerSourceMap {
-    pub fn new(map: DecodedMap) -> Self {
-        InnerSourceMap {
-            map: Arc::new(CrateMapWrapper(map)),
-        }
-    }
-}
-
-impl Deref for InnerSourceMap {
-    type Target = Arc<CrateMapWrapper>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.map
-    }
-}
-
-impl Eq for InnerSourceMap {}
-impl PartialEq for InnerSourceMap {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.map, &other.map)
+    fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
+        Ok(Vc::cell(Some(self.to_rope()?)))
     }
 }
 
@@ -726,17 +589,6 @@ pub struct RegularMapWrapper(RegularMap);
 // required to cache in a Vc. So, we have wrap it in 4 layers of cruft to do it.
 unsafe impl Send for RegularMapWrapper {}
 unsafe impl Sync for RegularMapWrapper {}
-
-#[derive(Debug)]
-pub struct CrateIndexWrapper {
-    pub sections: Vec<CrateSectionWrapper>,
-}
-
-#[derive(Debug)]
-pub struct CrateSectionWrapper {
-    pub offset: SourcePos,
-    pub map: Arc<CrateMapWrapper>,
-}
 
 impl CrateMapWrapper {
     pub fn as_regular_source_map(&self) -> Option<Cow<'_, RegularMap>> {
@@ -771,48 +623,5 @@ impl<'de> Deserialize<'de> for CrateMapWrapper {
         let bytes = <&[u8]>::deserialize(deserializer)?;
         let map = DecodedMap::from_reader(bytes).map_err(Error::custom)?;
         Ok(CrateMapWrapper(map))
-    }
-}
-
-/// A sectioned source map contains many (possibly recursive) maps covering
-/// different regions of the file.
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
-pub struct SectionedSourceMap {
-    sections: Vec<SourceMapSection>,
-}
-
-impl SectionedSourceMap {
-    pub fn new(sections: Vec<SourceMapSection>) -> Self {
-        Self { sections }
-    }
-
-    pub async fn to_crate_wrapper(&self) -> Result<CrateIndexWrapper> {
-        let mut sections = Vec::with_capacity(self.sections.len());
-        for section in &self.sections {
-            sections.push(section.to_crate_wrapper().await?);
-        }
-        Ok(CrateIndexWrapper { sections })
-    }
-}
-
-/// A section of a larger sectioned source map, which applies at source
-/// positions >= the offset (until the next section starts).
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
-pub struct SourceMapSection {
-    offset: SourcePos,
-    map: SourceMap,
-}
-
-impl SourceMapSection {
-    pub fn new(offset: SourcePos, map: SourceMap) -> Self {
-        Self { offset, map }
-    }
-
-    pub async fn to_crate_wrapper(&self) -> Result<CrateSectionWrapper> {
-        let map = Box::pin(self.map.to_source_map()).await?;
-        Ok(CrateSectionWrapper {
-            offset: self.offset,
-            map,
-        })
     }
 }

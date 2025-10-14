@@ -100,9 +100,10 @@ impl EcmascriptChunkPlaceable for NextServerUtilityModule {
         );
 
         let mut exports = BTreeMap::new();
+        let default = rcstr!("default");
         exports.insert(
-            rcstr!("default"),
-            EsmExport::ImportedBinding(module_reference, rcstr!("default"), false),
+            default.clone(),
+            EsmExport::ImportedBinding(module_reference, default, false),
         );
 
         Ok(EcmascriptExports::EsmExports(
@@ -129,10 +130,7 @@ impl EcmascriptChunkItem for NextServerComponentChunkItem {
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let inner = self.inner.await?;
 
-        let module_id = inner
-            .module
-            .chunk_item_id(Vc::upcast(*self.chunking_context))
-            .await?;
+        let module_id = inner.module.chunk_item_id(*self.chunking_context).await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));",

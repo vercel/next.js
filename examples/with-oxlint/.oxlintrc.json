@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/refs/tags/oxlint_v1.16.0/npm/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "react", "unicorn", "oxc", "typescript", "nextjs"],
+  "ignorePatterns": ["node_modules/**", ".next/**", "dist/**", "build/**"]
+}

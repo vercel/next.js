@@ -97,7 +97,7 @@ Here's how this example works:
 3. After 60 seconds has passed, the next request will still return the cached (now stale) page
 4. The cache is invalidated and a new version of the page begins generating in the background
 5. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
-6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [dynamicParams](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) value. However, if the post does not exist, then 404 is returned.
+6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [dynamicParams](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) value. However, if the post does not exist, then 404 is returned.
 
 </AppOnly>
 
@@ -196,7 +196,7 @@ Here's how this example works:
 3. After 60 seconds has passed, the next request will still return the cached (now stale) page
 4. The cache is invalidated and a new version of the page begins generating in the background
 5. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
-6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [fallback](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-false) value. However, if the post does not exist, then 404 is returned.
+6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [fallback](/docs/pages/api-reference/functions/get-static-paths#fallback-false) value. However, if the post does not exist, then 404 is returned.
 
 </PagesOnly>
 
@@ -281,9 +281,11 @@ We recommend setting a high revalidation time. For instance, 1 hour instead of 1
 
 ### On-demand revalidation with `revalidatePath`
 
-For a more precise method of revalidation, invalidate pages on-demand with the `revalidatePath` function.
+For a more precise method of revalidation, invalidate cached pages on-demand with the `revalidatePath` function.
 
-For example, this Server Action would get called after adding a new post. Regardless of how you retrieve your data in your Server Component, either using `fetch` or connecting to a database, this will immediately clear the cache for the entire route. Unlike time-based revalidation, the next request after on-demand revalidation won't return stale data but will serve the updated version right away and cache it for subsequent requests.
+For example, this Server Action would get called after adding a new post. Regardless of how you retrieve your data in your Server Component, either using `fetch` or connecting to a database, this will invalidate the cache for the entire route. The next request to that route will trigger regeneration and serve fresh data, which will then be cached for subsequent requests.
+
+> **Note:** `revalidatePath` invalidates the cache entries but regeneration happens on the next request. If you want to eagerly regenerate the cache entry immediately instead of waiting for the next request, you can use the Pages router [`res.revalidate`](docs/pages/guides/incremental-static-regeneration#on-demand-validation-with-resrevalidate) method. We're working on adding new methods to provide eager regeneration capabilities for the App Router.
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -291,7 +293,7 @@ For example, this Server Action would get called after adding a new post. Regard
 import { revalidatePath } from 'next/cache'
 
 export async function createPost() {
-  // Invalidate the /posts route in the cache
+  // Invalidate the cache for the /posts route
   revalidatePath('/posts')
 }
 ```
@@ -302,7 +304,7 @@ export async function createPost() {
 import { revalidatePath } from 'next/cache'
 
 export async function createPost() {
-  // Invalidate the /posts route in the cache
+  // Invalidate the cache for the /posts route
   revalidatePath('/posts')
 }
 ```
@@ -379,7 +381,7 @@ You can then use `revalidateTag` in a [Server Actions](/docs/app/getting-started
 import { revalidateTag } from 'next/cache'
 
 export async function createPost() {
-  // Invalidate all data tagged with 'posts' in the cache
+  // Invalidate all data tagged with 'posts'
   revalidateTag('posts')
 }
 ```
@@ -390,7 +392,7 @@ export async function createPost() {
 import { revalidateTag } from 'next/cache'
 
 export async function createPost() {
-  // Invalidate all data tagged with 'posts' in the cache
+  // Invalidate all data tagged with 'posts'
   revalidateTag('posts')
 }
 ```

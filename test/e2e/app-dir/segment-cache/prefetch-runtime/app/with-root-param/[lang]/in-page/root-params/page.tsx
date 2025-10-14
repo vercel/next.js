@@ -2,6 +2,12 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../../shared'
 import { connection } from 'next/server'
 import { lang } from 'next/root-params'
+import { cookies } from 'next/headers'
+
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ params: { lang: 'en' } }],
+}
 
 export default async function Page() {
   return (
@@ -12,12 +18,16 @@ export default async function Page() {
         always be available in static prerenders, so a runtime prefetch should
         have them too.
       </p>
-      <StaticallyPrefetchable />
+      <Suspense fallback="Loading 1...">
+        <RuntimePrefetchable />
+      </Suspense>
     </main>
   )
 }
 
-async function StaticallyPrefetchable() {
+async function RuntimePrefetchable() {
+  await cookies()
+
   const currentLang = await lang()
   await cachedDelay([__filename, currentLang])
   return (

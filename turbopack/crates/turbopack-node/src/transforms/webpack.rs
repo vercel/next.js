@@ -15,7 +15,10 @@ use turbo_tasks::{
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    File, FileContent, FileSystemPath, glob::Glob, json::parse_json_with_source_context, rope::Rope,
+    File, FileContent, FileSystemPath,
+    glob::{Glob, GlobOptions},
+    json::parse_json_with_source_context,
+    rope::Rope,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -85,6 +88,7 @@ struct WebpackLoadersProcessingResult {
 )]
 pub struct WebpackLoaderItem {
     pub loader: RcStr,
+    #[serde(default)]
     pub options: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -243,12 +247,11 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-        let resource_fs_path = this.source.ident().path().owned().await?;
-        let resource_fs_path_ref = resource_fs_path.clone();
-        let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path_ref) else {
+        let resource_fs_path = this.source.ident().path().await?;
+        let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
             bail!(format!(
                 "Resource path \"{}\" need to be on project filesystem \"{}\"",
-                resource_fs_path_ref, project_path
+                resource_fs_path, project_path
             ));
         };
         let loaders = transform.loaders.await?;
@@ -294,7 +297,7 @@ impl WebpackLoadersProcessedAsset {
                 .map
                 .map(|source_map| Rope::from(source_map.into_owned()))
         };
-        let source_map = resolve_source_map_sources(source_map.as_ref(), resource_fs_path).await?;
+        let source_map = resolve_source_map_sources(source_map.as_ref(), &resource_fs_path).await?;
 
         let file = match processed.source {
             Either::Left(str) => File::from(str),
@@ -405,12 +408,16 @@ pub enum RequestMessage {
         lookup_path: RcStr,
         request: RcStr,
     },
+    #[serde(rename_all = "camelCase")]
+    TrackFileRead { file: RcStr },
 }
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum ResponseMessage {
     Resolve { path: RcStr },
+    // Only used for tracking invalidations, no content is returned.
+    TrackFileRead {},
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, Debug, TraceRawVcs)]
@@ -493,48 +500,48 @@ impl EvaluateContext for WebpackLoaderContext {
                 directories,
                 build_file_paths,
             } => {
-                // Track dependencies of the loader task
-                // TODO: Because these are reported _after_ the loader actually read the dependency
-                // there is a race condition where we may miss updates that race
-                // with the loader execution.
+                // We only process these dependencies to help with tracking, so if it is disabled
+                // dont bother.
+                if turbo_tasks::turbo_tasks().is_tracking_dependencies() {
+                    // Track dependencies of the loader task
+                    // TODO: Because these are reported _after_ the loader actually read the
+                    // dependency there is a race condition where we may miss
+                    // updates that race with the loader execution.
 
-                // Track all the subscriptions in parallel, since certain loaders like tailwind
-                // might add thousands of subscriptions.
-                let env_subscriptions = env_variables
-                    .iter()
-                    .map(|e| self.env.read(e.clone()))
-                    .try_join();
-                let file_subscriptions = file_paths
-                    .iter()
-                    .map(|p| async move { self.cwd.join(p)?.read().await })
-                    .try_join();
-                let directory_subscriptions = directories
-                    .iter()
-                    .map(|(dir, glob)| async move {
-                        self.cwd
-                            .join(dir)?
-                            .track_glob(Glob::new(glob.clone()), false)
-                            .await
-                    })
-                    .try_join();
-                let build_paths = build_file_paths
-                    .iter()
-                    .map(|path| async move { self.cwd.join(path) })
-                    .try_join();
-                let (resolved_build_paths, ..) = try_join!(
-                    build_paths,
-                    env_subscriptions,
-                    file_subscriptions,
-                    directory_subscriptions
-                )?;
+                    // Track all the subscriptions in parallel, since certain loaders like tailwind
+                    // might add thousands of subscriptions.
+                    let env_subscriptions = env_variables
+                        .iter()
+                        .map(|e| self.env.read(e.clone()))
+                        .try_join();
+                    let file_subscriptions = file_paths
+                        .iter()
+                        .map(|p| async move { self.cwd.join(p)?.read().await })
+                        .try_join();
+                    let directory_subscriptions = directories
+                        .iter()
+                        .map(|(dir, glob)| async move {
+                            self.cwd
+                                .join(dir)?
+                                .track_glob(Glob::new(glob.clone(), GlobOptions::default()), false)
+                                .await
+                        })
+                        .try_join();
+                    try_join!(
+                        env_subscriptions,
+                        file_subscriptions,
+                        directory_subscriptions
+                    )?;
 
-                for build_path in resolved_build_paths {
-                    BuildDependencyIssue {
-                        source: IssueSource::from_source_only(self.context_source_for_issue),
-                        path: build_path,
+                    for build_path in build_file_paths {
+                        let build_path = self.cwd.join(&build_path)?;
+                        BuildDependencyIssue {
+                            source: IssueSource::from_source_only(self.context_source_for_issue),
+                            path: build_path,
+                        }
+                        .resolved_cell()
+                        .emit();
                     }
-                    .resolved_cell()
-                    .emit();
                 }
             }
             InfoMessage::EmittedError { error, severity } => {
@@ -604,6 +611,12 @@ impl EvaluateContext for WebpackLoaderContext {
                         lookup_path.value_to_string().await?
                     );
                 }
+            }
+            RequestMessage::TrackFileRead { file } => {
+                // Ignore result, we read on the JS side again to prevent some IPC overhead. Still
+                // await the read though to cover at least one class of race conditions.
+                let _ = &*self.cwd.join(&file)?.read().await?;
+                Ok(ResponseMessage::TrackFileRead {})
             }
         }
     }

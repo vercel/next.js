@@ -45,6 +45,7 @@ import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
 import type { InstrumentationModule } from './instrumentation/types'
 
+import * as path from 'path'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
 import {
@@ -56,7 +57,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { setConfig } from '../shared/lib/runtime-config.external'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
@@ -64,7 +64,7 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
-import { getPreviouslyRevalidatedTags, getServerUtils } from './server-utils'
+import { getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -141,12 +141,13 @@ import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segmen
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
-import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
 import type { PrerenderedRoute } from '../build/static-paths/types'
+import { createOpaqueFallbackRouteParams } from './request/fallback-params'
+import { RouteKind } from './route-kind'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -404,7 +405,7 @@ export default abstract class Server<
 
   protected abstract loadEnvConfig(params: {
     dev: boolean
-    forceReload?: boolean
+    forceReload: boolean
   }): void
 
   // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
@@ -443,10 +444,10 @@ export default abstract class Server<
     this.experimentalTestProxy = experimentalTestProxy
     this.serverOptions = options
 
-    this.dir = (require('path') as typeof import('path')).resolve(dir)
+    this.dir = path.resolve(/* turbopackIgnore: true */ dir)
 
     this.quiet = quiet
-    this.loadEnvConfig({ dev })
+    this.loadEnvConfig({ dev, forceReload: false })
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
@@ -457,8 +458,8 @@ export default abstract class Server<
       this.fetchHostname = formatHostname(this.hostname)
     }
     this.port = port
-    this.distDir = (require('path') as typeof import('path')).join(
-      this.dir,
+    this.distDir = path.join(
+      /* turbopackIgnore: true */ this.dir,
       this.nextConfig.distDir
     )
     this.publicDir = this.getPublicDir()
@@ -473,14 +474,7 @@ export default abstract class Server<
       ? new LocaleRouteNormalizer(this.i18nProvider)
       : undefined
 
-    // Only serverRuntimeConfig needs the default
-    // publicRuntimeConfig gets it's default in client/index.js
-    const {
-      serverRuntimeConfig = {},
-      publicRuntimeConfig,
-      assetPrefix,
-      generateEtags,
-    } = this.nextConfig
+    const { assetPrefix, generateEtags } = this.nextConfig
 
     this.buildId = this.getBuildId()
     // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
@@ -529,10 +523,8 @@ export default abstract class Server<
       trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.deploymentId,
       poweredByHeader: this.nextConfig.poweredByHeader,
-      canonicalBase: this.nextConfig.amp.canonicalBase || '',
       generateEtags,
       previewProps: this.getPrerenderManifest().preview,
-      ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
@@ -549,12 +541,6 @@ export default abstract class Server<
         ? this.nextConfig.crossOrigin
         : undefined,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
-      // Only the `publicRuntimeConfig` key is exposed to the client side
-      // It'll be rendered as part of __NEXT_DATA__ on the client side
-      runtimeConfig:
-        Object.keys(publicRuntimeConfig).length > 0
-          ? publicRuntimeConfig
-          : undefined,
 
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format
@@ -570,6 +556,8 @@ export default abstract class Server<
             : Boolean(this.nextConfig.experimental.clientSegmentCache),
         clientParamParsing:
           this.nextConfig.experimental.clientParamParsing ?? false,
+        clientParamParsingOrigins:
+          this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
@@ -577,15 +565,7 @@ export default abstract class Server<
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
-      devtoolSegmentExplorer:
-        this.nextConfig.experimental.devtoolSegmentExplorer,
     }
-
-    // Initialize next/config with the environment configuration
-    setConfig({
-      serverRuntimeConfig,
-      publicRuntimeConfig,
-    })
 
     this.pagesManifest = this.getPagesManifest()
     this.appPathsManifest = this.getAppPathsManifest()
@@ -602,6 +582,10 @@ export default abstract class Server<
 
     this.setAssetPrefix(assetPrefix)
     this.responseCache = this.getResponseCache({ dev })
+  }
+
+  protected reloadMatchers() {
+    return this.matchers.reload()
   }
 
   private handleRSCRequest: RouteHandler<ServerRequest, ServerResponse> = (
@@ -880,13 +864,13 @@ export default abstract class Server<
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
-
     const tracer = getTracer()
+
     return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
-          spanName: `${method} ${req.url}`,
+          spanName: `${method}`,
           kind: SpanKind.SERVER,
           attributes: {
             'http.method': method,
@@ -942,11 +926,7 @@ export default abstract class Server<
               })
               span.updateName(name)
             } else {
-              span.updateName(
-                isRSCRequest
-                  ? `RSC ${method} ${req.url}`
-                  : `${method} ${req.url}`
-              )
+              span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
             }
           })
       )
@@ -1075,9 +1055,10 @@ export default abstract class Server<
           if (this.normalizers.data?.match(urlPathname)) {
             addRequestMeta(req, 'isNextDataReq', true)
           }
-          // In minimal mode, if PPR is enabled, then we should check to see if
-          // the request should be a resume request.
-          else if (
+
+          // It's important to execute the following block even it the request
+          // matches a pages data route from above.
+          if (
             this.isAppPPREnabled &&
             this.minimalMode &&
             req.headers[NEXT_RESUME_HEADER] === '1' &&
@@ -1093,6 +1074,22 @@ export default abstract class Server<
             const postponed = Buffer.concat(body).toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
+          }
+
+          // If the request is a next data request and it has a postponed state,
+          // we should error, as it represents an unprocessable request.
+          if (
+            getRequestMeta(req, 'isNextDataReq') &&
+            getRequestMeta(req, 'postponed')
+          ) {
+            // The server understood that this is a PPR resume request, as the
+            // headers were included to correctly indicate a resume request, but
+            // because the request URL indicates that this should render a next
+            // data route (a pages router route), this represents an
+            // unprocessable request.
+            res.statusCode = 422
+            res.send()
+            return
           }
 
           matchedPath = this.normalize(matchedPath)
@@ -1130,23 +1127,21 @@ export default abstract class Server<
             hasValidParams: false,
           }
 
-          if (!pageIsDynamic) {
-            const match = await this.matchers.match(srcPathname, {
-              i18n: localeAnalysisResult,
-            })
+          const match = await this.matchers.match(srcPathname, {
+            i18n: localeAnalysisResult,
+          })
 
+          if (!pageIsDynamic && match) {
             // Update the source pathname to the matched page's pathname.
-            if (match) {
-              srcPathname = match.definition.pathname
+            srcPathname = match.definition.pathname
 
-              // The page is dynamic if the params are defined. We know at this
-              // stage that the matched path is not a static page if the params
-              // were parsed from the matched path header.
-              if (typeof match.params !== 'undefined') {
-                pageIsDynamic = true
-                paramsResult.params = match.params
-                paramsResult.hasValidParams = true
-              }
+            // The page is dynamic if the params are defined. We know at this
+            // stage that the matched path is not a static page if the params
+            // were parsed from the matched path header.
+            if (typeof match.params !== 'undefined') {
+              pageIsDynamic = true
+              paramsResult.params = match.params
+              paramsResult.hasValidParams = true
             }
           }
 
@@ -1181,18 +1176,21 @@ export default abstract class Server<
           const originQueryParams = { ...parsedUrl.query }
 
           const pathnameBeforeRewrite = parsedUrl.pathname
-          const rewriteParamKeys = Object.keys(
-            utils.handleRewrites(req, parsedUrl)
+          const { rewriteParams, rewrittenParsedUrl } = utils.handleRewrites(
+            req,
+            parsedUrl
           )
+          const rewriteParamKeys = Object.keys(rewriteParams)
 
           // Create a copy of the query params to avoid mutating the original
           // object. This prevents any overlapping query params that have the
           // same normalized key from causing issues.
-          const queryParams = { ...parsedUrl.query }
-          const didRewrite = pathnameBeforeRewrite !== parsedUrl.pathname
+          const rewrittenQueryParams = { ...rewrittenParsedUrl.query }
+          const didRewrite =
+            pathnameBeforeRewrite !== rewrittenParsedUrl.pathname
 
-          if (didRewrite && parsedUrl.pathname) {
-            addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
+          if (didRewrite && rewrittenParsedUrl.pathname) {
+            addRequestMeta(req, 'rewroteURL', rewrittenParsedUrl.pathname)
           }
 
           const routeParamKeys = new Set<string>()
@@ -1207,7 +1205,7 @@ export default abstract class Server<
 
             if (typeof value === 'undefined') continue
 
-            queryParams[normalizedKey] = Array.isArray(value)
+            rewrittenQueryParams[normalizedKey] = Array.isArray(value)
               ? value.map((v) => decodeQueryPathParameter(v))
               : decodeQueryPathParameter(value)
           }
@@ -1220,7 +1218,7 @@ export default abstract class Server<
             // the query params.
             if (!paramsResult.hasValidParams) {
               paramsResult = utils.normalizeDynamicRouteParams(
-                queryParams,
+                rewrittenQueryParams,
                 false
               )
             }
@@ -1300,7 +1298,7 @@ export default abstract class Server<
             // from the route matches but ignore missing optional params.
             if (!paramsResult.hasValidParams) {
               paramsResult = utils.normalizeDynamicRouteParams(
-                queryParams,
+                rewrittenQueryParams,
                 true
               )
 
@@ -1366,6 +1364,7 @@ export default abstract class Server<
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
           }
+
           // Remove the route `params` keys from `parsedUrl.query` if they are
           // not in the original query params.
           // If it's used in both route `params` and query `searchParams`, it should be kept.
@@ -1374,8 +1373,21 @@ export default abstract class Server<
               delete parsedUrl.query[key]
             }
           }
+
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
+
+          // For Pages Router routes, use the normalized queryParams from
+          // handleRewrites to ensure catch-all routes get proper array values.
+          // App Router routes should not include rewrite query params as they
+          // affect RSC payload.
+          if (
+            match?.definition.kind === RouteKind.PAGES ||
+            match?.definition.kind === RouteKind.PAGES_API
+          ) {
+            parsedUrl.query = rewrittenQueryParams
+          }
+
           finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
           if (finished) return
         } catch (err) {
@@ -1425,29 +1437,6 @@ export default abstract class Server<
         // This is needed for pages router to leverage unstable_cache
         // TODO: re-work this handling to not use global and use a AsyncStore
         ;(globalThis as any).__incrementalCache = incrementalCache
-      }
-
-      const cacheHandlers = getCacheHandlers()
-
-      if (cacheHandlers) {
-        await Promise.all(
-          [...cacheHandlers].map(async (cacheHandler) => {
-            if ('refreshTags' in cacheHandler) {
-              // Note: cacheHandler.refreshTags() is called lazily before the
-              // first cache entry is retrieved. It allows us to skip the
-              // refresh request if no caches are read at all.
-            } else {
-              const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
-                req.headers,
-                this.getPrerenderManifest().preview.previewModeId
-              )
-
-              await cacheHandler.receiveExpiredTags(
-                ...previouslyRevalidatedTags
-              )
-            }
-          })
-        )
       }
 
       // set server components HMR cache to request meta so it can be passed
@@ -2236,10 +2225,6 @@ export default abstract class Server<
       }
     }
 
-    // Ensure that if the `amp` query parameter is falsy that we remove it from
-    // the query object. This ensures it won't be found by the `in` operator.
-    if ('amp' in query && !query.amp) delete query.amp
-
     if (opts.supportsDynamicResponse === true) {
       const ua = req.headers['user-agent'] || ''
       const isBotRequest = isBot(ua)
@@ -2254,7 +2239,7 @@ export default abstract class Server<
       // be static so we can collect revalidate and populate the
       // cache if there are no dynamic data requirements
       opts.supportsDynamicResponse =
-        !isSSG && !isBotRequest && !query.amp && isSupportedDocument
+        !isSSG && !isBotRequest && isSupportedDocument
     }
 
     // In development, we always want to generate dynamic HTML.
@@ -2319,13 +2304,10 @@ export default abstract class Server<
             }
           }
           if (smallestFallbackRouteParams) {
-            const devValidatingFallbackParams = new Map<string, string>(
-              smallestFallbackRouteParams.map((v) => [v, ''])
-            )
             addRequestMeta(
               req,
               'devValidatingFallbackParams',
-              devValidatingFallbackParams
+              createOpaqueFallbackRouteParams(smallestFallbackRouteParams)!
             )
           }
         }
@@ -2370,7 +2352,6 @@ export default abstract class Server<
     addRequestMeta(request, 'distDir', this.distDir)
     addRequestMeta(request, 'query', query)
     addRequestMeta(request, 'params', opts.params)
-    addRequestMeta(request, 'ampValidator', this.renderOpts.ampValidator)
     addRequestMeta(request, 'minimalMode', this.minimalMode)
 
     if (opts.err) {
@@ -2416,19 +2397,19 @@ export default abstract class Server<
     return null
   }
 
-  private stripNextDataPath(path: string, stripLocale = true) {
-    if (path.includes(this.buildId)) {
-      const splitPath = path.substring(
-        path.indexOf(this.buildId) + this.buildId.length
+  private stripNextDataPath(filePath: string, stripLocale = true) {
+    if (filePath.includes(this.buildId)) {
+      const splitPath = filePath.substring(
+        filePath.indexOf(this.buildId) + this.buildId.length
       )
 
-      path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
+      filePath = denormalizePagePath(splitPath.replace(/\.json$/, ''))
     }
 
     if (this.localeNormalizer && stripLocale) {
-      return this.localeNormalizer.normalize(path)
+      return this.localeNormalizer.normalize(filePath)
     }
-    return path
+    return filePath
   }
 
   // map the route to the actual bundle name
@@ -2533,11 +2514,30 @@ export default abstract class Server<
       i18n: this.i18nProvider?.fromRequest(req, pathname),
     }
 
+    const existingMatch = getRequestMeta(ctx.req, 'match')
+
+    let fastPath = true
+    // when a specific invoke-output is meant to be matched
+    // ensure a prior dynamic route/page doesn't take priority
+    const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
+
+    if (
+      (!this.minimalMode &&
+        typeof invokeOutput === 'string' &&
+        isDynamicRoute(invokeOutput || '') &&
+        invokeOutput !== existingMatch?.definition.pathname) ||
+      // Parallel routes are matched in `existingMatch` but since currently
+      // there can be multiple matches it's not guaranteed to be the right match
+      // therefor we need to opt-out of the fast path for parallel routes.
+      existingMatch?.definition.page.includes('/@')
+    ) {
+      fastPath = false
+    }
+
     try {
-      for await (const match of this.matchers.matchAll(pathname, options)) {
-        // when a specific invoke-output is meant to be matched
-        // ensure a prior dynamic route/page doesn't take priority
-        const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
+      for await (const match of fastPath && existingMatch
+        ? [existingMatch]
+        : this.matchers.matchAll(pathname, options)) {
         if (
           !this.minimalMode &&
           typeof invokeOutput === 'string' &&
@@ -2749,9 +2749,10 @@ export default abstract class Server<
 
       const is404 = res.statusCode === 404
       let using404Page = false
+      const hasAppDir = this.enabledDirectories.app
 
       if (is404) {
-        if (this.enabledDirectories.app) {
+        if (hasAppDir) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
             locale: getRequestMeta(ctx.req, 'locale'),
@@ -2789,6 +2790,21 @@ export default abstract class Server<
         // skip ensuring /500 in dev mode as it isn't used and the
         // dev overlay is used instead
         if (statusPage !== '/500' || !this.renderOpts.dev) {
+          if (!result && hasAppDir) {
+            // Otherwise if app router present, load app router built-in 500 page
+            result = await this.findPageComponents({
+              locale: getRequestMeta(ctx.req, 'locale'),
+              page: statusPage,
+              query,
+              params: {},
+              isAppPath: true,
+              // Ensuring can't be done here because you never "match" a 500
+              // route.
+              shouldEnsure: true,
+              url: ctx.req.url,
+            })
+          }
+          // If the above App Router result is empty, fallback to pages router 500 page
           result = await this.findPageComponents({
             locale: getRequestMeta(ctx.req, 'locale'),
             page: statusPage,

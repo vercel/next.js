@@ -3,23 +3,21 @@ import type {
   FlightRouterState,
   InitialRSCPayload,
   DynamicParamTypesShort,
-} from './types'
+  HeadData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-types'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
+import { prerender } from 'react-server-dom-webpack/static'
 
 import {
   streamFromBuffer,
   streamToBuffer,
 } from '../stream-utils/node-web-streams-helper'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
-import type {
-  HeadData,
-  LoadingModuleData,
-} from '../../shared/lib/app-router-context.shared-runtime'
 import {
   type SegmentRequestKey,
   createSegmentRequestKeyPart,
@@ -51,6 +49,9 @@ export type TreePrefetch = {
   slots: null | {
     [parallelRouteKey: string]: TreePrefetch
   }
+
+  /** Whether this segment should be fetched using a runtime prefetch */
+  hasRuntimePrefetch: boolean
 
   // Extra fields that only exist so we can reconstruct a FlightRouterState on
   // the client. We may be able to unify TreePrefetch and FlightRouterState
@@ -280,6 +281,8 @@ function collectSegmentDataImpl(
     slotMetadata[parallelRouteKey] = childTree
   }
 
+  const hasRuntimePrefetch = seedData !== null ? seedData[5] : false
+
   if (seedData !== null) {
     // Spawn a task to write the segment data to a new Flight stream.
     segmentTasks.push(
@@ -321,6 +324,7 @@ function collectSegmentDataImpl(
     // case there's a bug and we need to revert.
     // TODO: Remove once clientParamParsing is enabled everywhere.
     paramKey: isClientParamParsingEnabled ? null : paramKey,
+    hasRuntimePrefetch,
     slots: slotMetadata,
     isRootLayout: route[4] === true,
   }

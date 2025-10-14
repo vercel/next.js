@@ -1,0 +1,8 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/url-in-supports-query/input/style.css [test] (css) */
+@supports ((-webkit-mask: url('')) or (mask: url(''))) {
+  .supports-url-in-query {
+    color: red;
+  }
+}
+
+/*# sourceMappingURL=780ce_turbopack-tests_tests_snapshot_css_url-in-supports-query_input_style_c44a5010.css.map*/

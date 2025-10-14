@@ -232,7 +232,7 @@ async fn resolve_source_mapping(
     let Some(sm) = &*SourceMap::new_from_rope_cached(sm).await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let trace = trace_source_map(sm, line, column, name.map(|s| &**s)).await?;
+    let trace = trace_source_map(sm, line, column, name.map(|s| &**s));
     match trace {
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");

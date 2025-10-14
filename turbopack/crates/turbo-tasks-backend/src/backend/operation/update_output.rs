@@ -12,7 +12,7 @@ use crate::{
         TaskDataCategory,
         operation::{
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
-            invalidate::{make_task_dirty, make_task_dirty_internal},
+            invalidate::make_task_dirty_internal,
         },
         storage::{get, get_many},
     },
@@ -25,7 +25,6 @@ use crate::{
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum UpdateOutputOperation {
     MakeDependentTasksDirty {
-        #[cfg(feature = "trace_task_dirty")]
         task_id: TaskId,
         dependent_tasks: SmallVec<[TaskId; 4]>,
         children: SmallVec<[TaskId; 4]>,
@@ -46,7 +45,7 @@ impl UpdateOutputOperation {
     pub fn run(
         task_id: TaskId,
         output: Result<RawVc, TurboTasksExecutionError>,
-        mut ctx: impl ExecuteContext,
+        mut ctx: impl ExecuteContext<'_>,
     ) {
         let mut dependent_tasks = Default::default();
         let mut children = Default::default();
@@ -54,11 +53,16 @@ impl UpdateOutputOperation {
 
         'output: {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
+            let in_progress_state = get!(task, InProgress);
+            if matches!(in_progress_state, Some(InProgressState::Canceled)) {
+                // Skip updating the output when the task was canceled
+                break 'output;
+            }
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 stale,
                 new_children,
                 ..
-            })) = get!(task, InProgress)
+            })) = in_progress_state
             else {
                 panic!("Task is not in progress while updating the output");
             };
@@ -66,9 +70,7 @@ impl UpdateOutputOperation {
                 // Skip updating the output when the task is stale
                 break 'output;
             }
-            if ctx.should_track_children() {
-                children = new_children.iter().copied().collect();
-            }
+            children = new_children.iter().copied().collect();
 
             let current_output = get!(task, Output);
             let output_value = match output {
@@ -116,21 +118,19 @@ impl UpdateOutputOperation {
             }
 
             make_task_dirty_internal(
-                &mut task,
+                task,
                 task_id,
                 false,
                 #[cfg(feature = "trace_task_dirty")]
                 TaskDirtyCause::InitialDirty,
                 &mut queue,
-                &ctx,
+                &mut ctx,
             );
 
-            drop(task);
             drop(old_content);
         }
 
         UpdateOutputOperation::MakeDependentTasksDirty {
-            #[cfg(feature = "trace_task_dirty")]
             task_id,
             dependent_tasks,
             children,
@@ -146,15 +146,35 @@ impl Operation for UpdateOutputOperation {
             ctx.operation_suspend_point(&self);
             match self {
                 UpdateOutputOperation::MakeDependentTasksDirty {
-                    #[cfg(feature = "trace_task_dirty")]
                     task_id,
                     ref mut dependent_tasks,
                     ref mut children,
                     ref mut queue,
                 } => {
                     if let Some(dependent_task_id) = dependent_tasks.pop() {
-                        make_task_dirty(
+                        if ctx.is_once_task(dependent_task_id) {
+                            // once tasks are never invalidated
+                            continue;
+                        }
+                        let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
+                        if dependent.has_key(&CachedDataItemKey::OutdatedOutputDependency {
+                            target: task_id,
+                        }) {
+                            // output dependency is outdated, so it hasn't read the output yet
+                            // and doesn't need to be invalidated
+                            continue;
+                        }
+                        if !dependent
+                            .has_key(&CachedDataItemKey::OutputDependency { target: task_id })
+                        {
+                            // output dependency has been removed, so the task doesn't depend on the
+                            // output anymore and doesn't need to be invalidated
+                            continue;
+                        }
+                        make_task_dirty_internal(
+                            dependent,
                             dependent_task_id,
+                            true,
                             #[cfg(feature = "trace_task_dirty")]
                             TaskDirtyCause::OutputChange { task_id },
                             queue,
@@ -173,10 +193,10 @@ impl Operation for UpdateOutputOperation {
                     ref mut queue,
                 } => {
                     if let Some(child_id) = children.pop() {
-                        let mut child_task = ctx.task(child_id, TaskDataCategory::Meta);
+                        let child_task = ctx.task(child_id, TaskDataCategory::Meta);
                         if !child_task.has_key(&CachedDataItemKey::Output {}) {
                             make_task_dirty_internal(
-                                &mut child_task,
+                                child_task,
                                 child_id,
                                 false,
                                 #[cfg(feature = "trace_task_dirty")]

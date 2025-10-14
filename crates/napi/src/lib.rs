@@ -34,7 +34,7 @@ DEALINGS IN THE SOFTWARE.
 #[macro_use]
 extern crate napi_derive;
 
-use std::sync::{Arc, Once};
+use std::sync::Arc;
 
 use napi::bindgen_prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -43,8 +43,10 @@ use swc_core::{
     base::{Compiler, TransformOutput},
     common::{FilePathMapping, SourceMap},
 };
+
 #[cfg(not(target_arch = "wasm32"))]
 pub mod css;
+pub mod lockfile;
 pub mod mdx;
 pub mod minify;
 #[cfg(not(target_arch = "wasm32"))]
@@ -73,6 +75,7 @@ fn init() {
     use std::{
         cell::RefCell,
         panic::{set_hook, take_hook},
+        thread::available_parallelism,
         time::{Duration, Instant},
     };
 
@@ -90,6 +93,8 @@ fn init() {
         prev_hook(info);
     }));
 
+    let worker_threads = available_parallelism().map(|n| n.get()).unwrap_or(1);
+
     let rt = Builder::new_multi_thread()
         .enable_all()
         .on_thread_stop(|| {
@@ -103,6 +108,10 @@ fn init() {
                 }
             });
         })
+        .worker_threads(worker_threads)
+        // Avoid a limit on threads to avoid deadlocks due to usage of block_in_place
+        .max_blocking_threads(usize::MAX - worker_threads)
+        // Avoid the extra lifo slot to avoid stalling tasks when doing cpu-heavy work
         .disable_lifo_slot()
         .build()
         .unwrap();
@@ -146,20 +155,4 @@ pub fn complete_output(
     }
 
     Ok(js_output)
-}
-
-static REGISTER_ONCE: Once = Once::new();
-
-#[cfg(not(target_arch = "wasm32"))]
-fn register() {
-    REGISTER_ONCE.call_once(|| {
-        ::next_api::register();
-        next_core::register();
-        include!(concat!(env!("OUT_DIR"), "/register.rs"));
-    });
-}
-
-#[cfg(target_arch = "wasm32")]
-fn register() {
-    //noop
 }

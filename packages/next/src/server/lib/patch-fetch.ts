@@ -27,7 +27,6 @@ import {
   type ServerComponentsHmrCache,
   type SetIncrementalFetchCacheContext,
 } from '../response-cache'
-import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
 
@@ -121,22 +120,7 @@ function trackFetchMetric(
   workStore: WorkStore,
   ctx: Omit<FetchMetric, 'end' | 'idx'>
 ) {
-  // If the static generation store is not available, we can't track the fetch
-  if (!workStore) return
-  if (workStore.requestEndedState?.ended) return
-
-  const isDebugBuild =
-    (!!process.env.NEXT_DEBUG_BUILD ||
-      process.env.NEXT_SSG_FETCH_METRICS === '1') &&
-    workStore.isStaticGeneration
-  const isDevelopment = process.env.NODE_ENV === 'development'
-
-  if (
-    // The only time we want to track fetch metrics outside of development is when
-    // we are performing a static generation & we are in debug mode.
-    !isDebugBuild &&
-    !isDevelopment
-  ) {
+  if (!workStore.shouldTrackFetchMetrics) {
     return
   }
 
@@ -926,7 +910,7 @@ export function createPatchedFetcher(
                   // make sure we still exclude them from prerenders if
                   // cacheComponents is on so we introduce an artificial task boundary
                   // here.
-                  await waitAtLeastOneReactRenderTask()
+                  await getTimeoutBoundary()
                   break
                 case 'prerender-ppr':
                 case 'prerender-legacy':
@@ -950,7 +934,7 @@ export function createPatchedFetcher(
             if (entry?.value && entry.value.kind === CachedRouteKind.FETCH) {
               // when stale and is revalidating we wait for fresh data
               // so the revalidated entry has the updated data
-              if (workStore.isRevalidate && entry.isStale) {
+              if (workStore.isStaticGeneration && entry.isStale) {
                 isForegroundRevalidate = true
               } else {
                 if (entry.isStale) {
@@ -1205,4 +1189,17 @@ export function patchFetch(options: PatchableModule) {
 
   // Set the global fetch to the patched fetch.
   globalThis.fetch = createPatchedFetcher(original, options)
+}
+
+let currentTimeoutBoundary: null | Promise<void> = null
+function getTimeoutBoundary() {
+  if (!currentTimeoutBoundary) {
+    currentTimeoutBoundary = new Promise((r) => {
+      setTimeout(() => {
+        currentTimeoutBoundary = null
+        r()
+      }, 0)
+    })
+  }
+  return currentTimeoutBoundary
 }

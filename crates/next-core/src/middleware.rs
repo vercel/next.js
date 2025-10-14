@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{context::AssetContext, module::Module, reference_type::ReferenceType};
 
@@ -9,7 +9,7 @@ use crate::util::load_next_js_template;
 #[turbo_tasks::function]
 pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<RcStr>>> {
     let extensions = page_extensions.await?;
-    let files = ["middleware.", "src/middleware."]
+    let files = ["middleware.", "src/middleware.", "proxy.", "src/proxy."]
         .into_iter()
         .flat_map(|f| {
             extensions
@@ -27,23 +27,25 @@ pub async fn get_middleware_module(
     project_root: FileSystemPath,
     userland_module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    let inner = rcstr!("INNER_MIDDLEWARE_MODULE");
+    const INNER: &str = "INNER_MIDDLEWARE_MODULE";
+
+    // Determine if this is a proxy file by checking the module path
+    let userland_path = userland_module.ident().path().await?;
+    let is_proxy = userland_path.file_stem() == Some("proxy");
+    let page_path = if is_proxy { "/proxy" } else { "/middleware" };
 
     // Load the file from the next.js codebase.
     let source = load_next_js_template(
         "middleware.js",
         project_root,
-        fxindexmap! {
-            "VAR_USERLAND" => inner.clone(),
-            "VAR_DEFINITION_PAGE" => rcstr!("/middleware"),
-        },
-        FxIndexMap::default(),
-        FxIndexMap::default(),
+        &[("VAR_USERLAND", INNER), ("VAR_DEFINITION_PAGE", page_path)],
+        &[],
+        &[],
     )
     .await?;
 
     let inner_assets = fxindexmap! {
-        inner => userland_module
+        rcstr!(INNER) => userland_module
     };
 
     let module = asset_context

@@ -645,7 +645,7 @@ impl ReactServerComponentValidator {
             ],
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([
-                ("next/server", vec!["after", "unstable_rootParams"]),
+                ("next/server", vec!["after"]),
                 (
                     "next/cache",
                     vec![
@@ -654,8 +654,6 @@ impl ReactServerComponentValidator {
                         // "unstable_cache", // useless in client, but doesn't technically error
                         "unstable_cacheLife",
                         "unstable_cacheTag",
-                        "unstable_expirePath",
-                        "unstable_expireTag",
                         // "unstable_noStore" // no-op in client, but allowed for legacy reasons
                     ],
                 ),
@@ -805,10 +803,10 @@ impl ReactServerComponentValidator {
             return;
         }
         static RE: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"[\\/](page|layout)\.(ts|js)x?$").unwrap());
-        let is_layout_or_page = RE.is_match(&self.filepath);
+            Lazy::new(|| Regex::new(r"[\\/](page|layout|route)\.(ts|js)x?$").unwrap());
+        let is_app_entry = RE.is_match(&self.filepath);
 
-        if is_layout_or_page {
+        if is_app_entry {
             let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
                 FxIndexMap::default();
 

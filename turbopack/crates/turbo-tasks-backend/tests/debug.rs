@@ -5,13 +5,13 @@
 use std::sync::Mutex;
 
 use turbo_tasks::{ResolvedVc, Vc, debug::ValueDebug};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn primitive_debug() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let a: Vc<u32> = Vc::cell(42);
         assert_eq!(format!("{:?}", a.dbg().await?), "42");
         anyhow::Ok(())
@@ -20,9 +20,9 @@ async fn primitive_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn transparent_debug() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let a: Vc<Transparent> = Transparent(42).cell();
         assert_eq!(format!("{:?}", a.dbg().await?), "42");
 
@@ -32,9 +32,9 @@ async fn transparent_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn enum_none_debug() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let a: Vc<Enum> = Enum::None.cell();
         assert_eq!(format!("{:?}", a.dbg().await?), "Enum :: None");
 
@@ -44,9 +44,9 @@ async fn enum_none_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn enum_transparent_debug() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let a: Vc<Enum> = Enum::Transparent(Transparent(42).resolved_cell()).cell();
         assert_eq!(
             format!("{:?}", a.dbg().await?),
@@ -60,9 +60,9 @@ async fn enum_transparent_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn enum_inner_vc_debug() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let a: Vc<Enum> = Enum::Enum(Enum::None.resolved_cell()).cell();
         assert_eq!(
             format!("{:?}", a.dbg().await?),
@@ -76,9 +76,9 @@ async fn enum_inner_vc_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn struct_unit_debug() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let a: Vc<StructUnit> = StructUnit.cell();
         assert_eq!(format!("{:?}", a.dbg().await?), "StructUnit");
         anyhow::Ok(())
@@ -87,9 +87,9 @@ async fn struct_unit_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn struct_transparent_debug() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let a: Vc<StructWithTransparent> = StructWithTransparent {
             transparent: Transparent(42).resolved_cell(),
         }
@@ -106,9 +106,9 @@ async fn struct_transparent_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn struct_vec_debug() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let a: Vc<StructWithVec> = StructWithVec { vec: vec![] }.cell();
         assert_eq!(
             format!("{:?}", a.dbg().await?),
@@ -135,9 +135,9 @@ async fn struct_vec_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn struct_ignore_debug() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let a: Vc<StructWithIgnore> = StructWithIgnore {
             dont_ignore: 42,
             ignore: Mutex::new(()),

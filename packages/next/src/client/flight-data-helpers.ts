@@ -1,18 +1,13 @@
 import type {
   CacheNodeSeedData,
-  DynamicParamTypesShort,
   FlightData,
   FlightDataPath,
   FlightRouterState,
   FlightSegmentPath,
   Segment,
-} from '../server/app-render/types'
-import type { HeadData } from '../shared/lib/app-router-context.shared-runtime'
+  HeadData,
+} from '../shared/lib/app-router-types'
 import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
-import {
-  doesStaticSegmentAppearInURL,
-  parseDynamicParamFromURLPart,
-} from './route-params'
 
 export type NormalizedFlightData = {
   /**
@@ -36,8 +31,7 @@ export type NormalizedFlightData = {
 // we're currently exporting it so we can use it directly. This should be fixed as part of the unification of
 // the different ways we express `FlightSegmentPath`.
 export function getFlightDataPartsFromPath(
-  flightDataPath: FlightDataPath,
-  renderedPathname: string
+  flightDataPath: FlightDataPath
 ): NormalizedFlightData {
   // Pick the last 4 items from the `FlightDataPath` to get the [tree, seedData, viewport, isHeadPartial].
   const flightDataPathLength = 4
@@ -46,8 +40,6 @@ export function getFlightDataPartsFromPath(
     flightDataPath.slice(-flightDataPathLength)
   // The `FlightSegmentPath` is everything except the last three items. For a root render, it won't be present.
   const segmentPath = flightDataPath.slice(0, -flightDataPathLength)
-
-  fillTreeWithParamValues(renderedPathname, segmentPath, tree)
 
   return {
     // TODO: Unify these two segment path helpers. We are inconsistently pushing an empty segment ("")
@@ -75,8 +67,7 @@ export function getNextFlightSegmentPath(
 }
 
 export function normalizeFlightData(
-  flightData: FlightData,
-  renderedPathname: string
+  flightData: FlightData
 ): NormalizedFlightData[] | string {
   // FlightData can be a string when the server didn't respond with a proper flight response,
   // or when a redirect happens, to signal to the client that it needs to perform an MPA navigation.
@@ -85,7 +76,7 @@ export function normalizeFlightData(
   }
 
   return flightData.map((flightDataPath) =>
-    getFlightDataPartsFromPath(flightDataPath, renderedPathname)
+    getFlightDataPartsFromPath(flightDataPath)
   )
 }
 
@@ -179,94 +170,4 @@ function shouldPreserveRefreshMarker(
   refreshMarker: FlightRouterState[3]
 ): boolean {
   return Boolean(refreshMarker && refreshMarker !== 'refresh')
-}
-
-function fillTreeWithParamValues(
-  renderedPathname: string,
-  segmentPath: FlightSegmentPath,
-  flightRouterState: FlightRouterState
-): void {
-  // Traverse the FlightRouterState and fill in the param values using the
-  // rendered pathname.
-
-  // Remove trailing and leading slashes, then split the pathname into parts.
-  // These will be assigned as params as we traverse the tree.
-  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
-
-  let pathnamePartsIndex = 0
-
-  // segmentPath represents the parent path of subtree. It's a repeating pattern
-  // of parallel route key and segment:
-  //
-  //   [string, Segment, string, Segment, string, Segment, ...]
-  //
-  // Iterate through the path and skip over the corresponding pathname parts.
-  for (let i = 0; i < segmentPath.length; i += 2) {
-    const segment: Segment = segmentPath[i + 1]
-    if (Array.isArray(segment) || doesStaticSegmentAppearInURL(segment)) {
-      // This segment appears in the URL, so we need to skip over this part
-      // of the pathname
-      pathnamePartsIndex++
-    }
-  }
-
-  fillTreeWithParamValuesImpl(
-    renderedPathname,
-    flightRouterState,
-    pathnameParts,
-    pathnamePartsIndex
-  )
-}
-
-function fillTreeWithParamValuesImpl(
-  renderedPathname: string,
-  flightRouterState: FlightRouterState,
-  pathnameParts: Array<string>,
-  pathnamePartsIndex: number
-): void {
-  const segment = flightRouterState[0]
-
-  let doesAppearInURL: boolean
-  if (Array.isArray(segment)) {
-    doesAppearInURL = true
-
-    // This segment is parameterized. Get the param from the pathname.
-    const paramType = segment[2] as DynamicParamTypesShort
-    const paramValue = parseDynamicParamFromURLPart(
-      paramType,
-      pathnameParts,
-      pathnamePartsIndex
-    )
-
-    // Insert the param value into the segment.
-    // TODO: Eventually this is the value that will be passed to client
-    // components that render this param.
-    segment[3] = paramValue
-
-    // Assign a cache key to the segment, based on the param value. In the
-    // pre-Segment Cache implementation, the server computes this and sends it
-    // in the body of the response. In the Segment Cache implementation, the
-    // server sends an empty string and we fill it in here.
-    // TODO: This will land in a follow up PR.
-    // const segmentCacheKey = getCacheKeyForDynamicParam(paramValue)
-    // segment[1] = segmentCacheKey
-  } else {
-    doesAppearInURL = doesStaticSegmentAppearInURL(segment)
-  }
-
-  // Only increment the index if the segment appears in the URL. If it's a
-  // "virtual" segment, like a route group, it remains the same.
-  const childPathnamePartsIndex = doesAppearInURL
-    ? pathnamePartsIndex + 1
-    : pathnamePartsIndex
-
-  const parallelRoutes = flightRouterState[1]
-  for (const parallelRouteKey in parallelRoutes) {
-    fillTreeWithParamValuesImpl(
-      renderedPathname,
-      parallelRoutes[parallelRouteKey],
-      pathnameParts,
-      childPathnamePartsIndex
-    )
-  }
 }

@@ -21,7 +21,7 @@ use crate::{
     EcmascriptModuleContent,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
-    utils::{FormatIter, StringifyJs},
+    utils::StringifyJs,
 };
 
 #[turbo_tasks::value(shared)]
@@ -66,7 +66,6 @@ impl EcmascriptChunkItemContent {
                     strict: true,
                     externals,
                     async_module,
-                    stub_require: true,
                     ..Default::default()
                 }
             } else {
@@ -78,8 +77,7 @@ impl EcmascriptChunkItemContent {
                     strict,
                     externals,
                     // These things are not available in ESM
-                    module: true,
-                    exports: true,
+                    module_and_exports: true,
                     ..Default::default()
                 }
             },
@@ -87,30 +85,23 @@ impl EcmascriptChunkItemContent {
         }
         .cell())
     }
+}
 
-    #[turbo_tasks::function]
-    pub async fn module_factory(&self) -> Result<Vc<Code>> {
-        let mut args = Vec::new();
-        if self.options.module {
-            args.push("m: module");
-        }
-        if self.options.exports {
-            args.push("e: exports");
-        }
-
+impl EcmascriptChunkItemContent {
+    async fn module_factory(&self) -> Result<ResolvedVc<Code>> {
         let mut code = CodeBuilder::default();
         for additional_id in self.additional_ids.iter().try_join().await? {
             writeln!(code, "{}, ", StringifyJs(&*additional_id))?;
         }
-        code += "((__turbopack_context__) => {\n";
+        if self.options.module_and_exports {
+            code += "((__turbopack_context__, module, exports) => {\n";
+        } else {
+            code += "((__turbopack_context__) => {\n";
+        }
         if self.options.strict {
             code += "\"use strict\";\n\n";
         } else {
             code += "\n";
-        }
-        if !args.is_empty() {
-            let args = FormatIter(|| args.iter().copied().intersperse(", "));
-            writeln!(code, "var {{ {args} }} = __turbopack_context__;")?;
         }
 
         if self.options.async_module.is_some() {
@@ -119,8 +110,6 @@ impl EcmascriptChunkItemContent {
                 "return {TURBOPACK_ASYNC_MODULE}(async (__turbopack_handle_async_dependencies__, \
                  __turbopack_async_result__) => {{ try {{\n"
             )?;
-        } else if !args.is_empty() {
-            code += "{\n";
         }
 
         let source_map = if let Some(rewrite_source_path) = &self.rewrite_source_path {
@@ -138,13 +127,11 @@ impl EcmascriptChunkItemContent {
                  }}, {});",
                 opts.has_top_level_await
             )?;
-        } else if !args.is_empty() {
-            code += "}";
         }
 
         code += "})";
 
-        Ok(code.build().cell())
+        Ok(code.build().resolved_cell())
     }
 }
 
@@ -154,15 +141,9 @@ impl EcmascriptChunkItemContent {
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
     pub strict: bool,
-    /// Whether this chunk item's module factory should include a `module`
-    /// argument.
-    pub module: bool,
-    /// Whether this chunk item's module factory should include an `exports`
-    /// argument.
-    pub exports: bool,
-    /// Whether this chunk item's module factory should include an argument for a throwing require
-    /// stub (for ESM)
-    pub stub_require: bool,
+    /// Whether this chunk item's module factory should include a `module` and
+    /// `exports` argument.
+    pub module_and_exports: bool,
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.
     pub externals: bool,
@@ -232,7 +213,7 @@ where
 {
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code> {
-        module_factory_with_code_generation_issue(Vc::upcast(self), async_module_info)
+        module_factory_with_code_generation_issue(Vc::upcast_non_strict(self), async_module_info)
     }
 }
 
@@ -241,37 +222,37 @@ async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<Code>> {
-    Ok(
-        match chunk_item
-            .content_with_async_module_info(async_module_info)
-            .module_factory()
-            .resolve()
-            .await
-        {
-            Ok(factory) => factory,
-            Err(error) => {
-                let id = chunk_item.asset_ident().to_string().await;
-                let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
-                let error = error.context(format!(
-                    "An error occurred while generating the chunk item {id}"
-                ));
-                let error_message = format!("{}", PrettyPrintError(&error)).into();
-                let js_error_message = serde_json::to_string(&error_message)?;
-                CodeGenerationIssue {
-                    severity: IssueSeverity::Error,
-                    path: chunk_item.asset_ident().path().owned().await?,
-                    title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
-                        .resolved_cell(),
-                    message: StyledString::Text(error_message).resolved_cell(),
-                }
-                .resolved_cell()
-                .emit();
-                let mut code = CodeBuilder::default();
-                code += "(() => {{\n\n";
-                writeln!(code, "throw new Error({error});", error = &js_error_message)?;
-                code += "\n}})";
-                code.build().cell()
+    let content = match chunk_item
+        .content_with_async_module_info(async_module_info)
+        .await
+    {
+        Ok(item) => item.module_factory().await,
+        Err(err) => Err(err),
+    };
+    Ok(match content {
+        Ok(factory) => *factory,
+        Err(error) => {
+            let id = chunk_item.asset_ident().to_string().await;
+            let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
+            let error = error.context(format!(
+                "An error occurred while generating the chunk item {id}"
+            ));
+            let error_message = format!("{}", PrettyPrintError(&error)).into();
+            let js_error_message = serde_json::to_string(&error_message)?;
+            CodeGenerationIssue {
+                severity: IssueSeverity::Error,
+                path: chunk_item.asset_ident().path().owned().await?,
+                title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
+                    .resolved_cell(),
+                message: StyledString::Text(error_message).resolved_cell(),
             }
-        },
-    )
+            .resolved_cell()
+            .emit();
+            let mut code = CodeBuilder::default();
+            code += "(() => {{\n\n";
+            writeln!(code, "throw new Error({error});", error = &js_error_message)?;
+            code += "\n}})";
+            code.build().cell()
+        }
+    })
 }

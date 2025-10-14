@@ -243,7 +243,7 @@ export function getDefineEnv({
     'process.env.__NEXT_DEV_INDICATOR_POSITION':
       config.devIndicators === false
         ? 'bottom-left' // This will not be used as the indicator is disabled.
-        : config.devIndicators.position ?? 'bottom-left',
+        : (config.devIndicators.position ?? 'bottom-left'),
     'process.env.__NEXT_STRICT_MODE':
       config.reactStrictMode === null ? false : config.reactStrictMode,
     'process.env.__NEXT_STRICT_MODE_APP':
@@ -312,29 +312,29 @@ export function getDefineEnv({
           ),
         }
       : {}),
-    'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
-      !!config.experimental.devtoolSegmentExplorer,
 
     'process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL': JSON.stringify(
       config.experimental.browserDebugInfoInTerminal || false
     ),
+    'process.env.__NEXT_MCP_SERVER': !!config.experimental.mcpServer,
 
     // The devtools need to know whether or not to show an option to clear the
     // bundler cache. This option may be removed later once Turbopack's
-    // persistent cache feature is more stable.
+    // filesystem cache feature is more stable.
     //
     // This environment value is currently best-effort:
     // - It's possible to disable the webpack filesystem cache, but it's
     //   unlikely for a user to do that.
-    // - Rspack's persistent cache is unstable and requires a different
+    // - Rspack's filesystem cache is unstable and requires a different
     //   configuration than webpack to enable (which we don't do).
     //
     // In the worst case we'll show an option to clear the cache, but it'll be a
     // no-op that just restarts the development server.
     'process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE':
-      !isTurbopack || (config.experimental.turbopackPersistentCaching ?? false),
-    'process.env.__NEXT_OPTIMIZE_ROUTER_SCROLL':
-      config.experimental.optimizeRouterScrolling ?? false,
+      !isTurbopack ||
+      (config.experimental.turbopackFileSystemCacheForDev ?? false),
+    'process.env.__NEXT_REACT_DEBUG_CHANNEL':
+      config.experimental.reactDebugChannel ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

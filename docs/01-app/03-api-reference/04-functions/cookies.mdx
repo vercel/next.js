@@ -82,6 +82,14 @@ When working with cookies in Server Components, it's important to understand tha
 
 The server can only send instructions (via `Set-Cookie` headers) to tell the browser to store cookies - the actual storage happens on the client side. This is why cookie operations that modify state (`.set`, `.delete`, `.clear`) must be performed in a Route Handler or Server Action where the response headers can be properly set.
 
+## Understanding Cookie Behavior in Server Actions
+
+After you set or delete a cookie in a Server Action, Next.js re-renders the current page and its layouts on the server so the UI reflects the new cookie value. See the [Caching guide](/docs/app/guides/caching#cookies).
+
+The UI is not unmounted, but effects that depend on data coming from the server will re-run.
+
+To refresh cached data too, call [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) inside the action.
+
 ## Examples
 
 ### Getting a cookie

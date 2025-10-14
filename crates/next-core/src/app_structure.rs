@@ -16,6 +16,7 @@ use turbopack_core::issue::{
 };
 
 use crate::{
+    mode::NextMode,
     next_app::{
         AppPage, AppPath, PageSegment, PageType,
         metadata::{
@@ -268,10 +269,10 @@ async fn get_directory_tree(
     dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<DirectoryTree>> {
-    let span = {
-        let dir = dir.value_to_string().await?.to_string();
-        tracing::info_span!("read app directory tree", name = dir)
-    };
+    let span = tracing::info_span!(
+        "read app directory tree",
+        name = display(dir.value_to_string().await?)
+    );
     get_directory_tree_internal(dir, page_extensions)
         .instrument(span)
         .await
@@ -753,12 +754,14 @@ pub fn get_entrypoints(
     app_dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints(
         app_dir.clone(),
         get_directory_tree(app_dir.clone(), page_extensions),
         get_global_metadata(app_dir, page_extensions),
         is_global_not_found_enabled,
+        next_mode,
         Default::default(),
         Default::default(),
     )
@@ -786,6 +789,7 @@ fn directory_tree_to_entrypoints(
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
     root_layouts: Vc<FileSystemPathVec>,
     root_params: Vc<RootParamVecOption>,
 ) -> Vc<Entrypoints> {
@@ -793,6 +797,7 @@ fn directory_tree_to_entrypoints(
         app_dir,
         global_metadata,
         is_global_not_found_enabled,
+        next_mode,
         rcstr!(""),
         directory_tree,
         AppPage::new(),
@@ -832,6 +837,83 @@ impl Issue for DuplicateParallelRouteIssue {
             .into(),
         )
         .cell())
+    }
+}
+
+#[turbo_tasks::value]
+struct MissingDefaultParallelRouteIssue {
+    app_dir: FileSystemPath,
+    app_page: AppPage,
+    slot_name: RcStr,
+}
+
+#[turbo_tasks::function]
+fn missing_default_parallel_route_issue(
+    app_dir: FileSystemPath,
+    app_page: AppPage,
+    slot_name: RcStr,
+) -> Vc<MissingDefaultParallelRouteIssue> {
+    MissingDefaultParallelRouteIssue {
+        app_dir,
+        app_page,
+        slot_name,
+    }
+    .cell()
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for MissingDefaultParallelRouteIssue {
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self
+            .app_dir
+            .join(&self.app_page.to_string())?
+            .join(&format!("@{}", self.slot_name))?
+            .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::AppStructure.cell()
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Vc<StyledString> {
+        StyledString::Text(
+            format!(
+                "Missing required default.js file for parallel route at {}/@{}",
+                self.app_page, self.slot_name
+            )
+            .into(),
+        )
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(
+                format!(
+                    "The parallel route slot \"@{}\" is missing a default.js file. When using \
+                     parallel routes, each slot must have a default.js file to serve as a \
+                     fallback.\n\nCreate a default.js file at: {}/@{}/default.js",
+                    self.slot_name, self.app_page, self.slot_name
+                )
+                .into(),
+            )
+            .resolved_cell(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn documentation_link(&self) -> Vc<RcStr> {
+        Vc::cell(rcstr!(
+            "https://nextjs.org/docs/messages/slot-missing-default"
+        ))
     }
 }
 
@@ -1109,6 +1191,29 @@ async fn directory_tree_to_loader_tree_internal(
 
         if let Some(subtree) = subtree {
             if let Some(key) = parallel_route_key {
+                let is_inside_catchall = app_page.is_catchall();
+
+                // Validate that parallel routes (except "children") have a default.js file.
+                // Skip this validation if the slot is UNDER a catch-all route (i.e., the
+                // parallel route is a child of a catch-all segment).
+                // For example:
+                //   /[...catchAll]/@slot - is_inside_catchall = true (skip validation) ✓
+                //   /@slot/[...catchAll] - is_inside_catchall = false (require default) ✓
+                // The catch-all provides fallback behavior, so default.js is not required.
+                if key != "children"
+                    && subdirectory.modules.default.is_none()
+                    && !is_inside_catchall
+                {
+                    missing_default_parallel_route_issue(
+                        app_dir.clone(),
+                        app_page.clone(),
+                        key.into(),
+                    )
+                    .to_resolved()
+                    .await?
+                    .emit();
+                }
+
                 tree.parallel_routes.insert(key.into(), subtree);
                 continue;
             }
@@ -1168,8 +1273,24 @@ async fn directory_tree_to_loader_tree_internal(
                 None
             };
 
+            let is_inside_catchall = app_page.is_catchall();
+
+            // Only emit the issue if this is not the children slot and there's no default
+            // component. The children slot is implicit and doesn't require a default.js
+            // file. Also skip validation if the slot is UNDER a catch-all route.
+            if default.is_none() && key != "children" && !is_inside_catchall {
+                missing_default_parallel_route_issue(
+                    app_dir.clone(),
+                    app_page.clone(),
+                    key.clone(),
+                )
+                .to_resolved()
+                .await?
+                .emit();
+            }
+
             tree.parallel_routes.insert(
-                key,
+                key.clone(),
                 default_route_tree(app_dir.clone(), global_metadata, app_page.clone(), default)
                     .await?,
             );
@@ -1247,6 +1368,7 @@ async fn directory_tree_to_entrypoints_internal(
     app_dir: FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
@@ -1258,6 +1380,7 @@ async fn directory_tree_to_entrypoints_internal(
         app_dir,
         global_metadata,
         is_global_not_found_enabled,
+        next_mode,
         directory_name,
         directory_tree,
         app_page,
@@ -1272,6 +1395,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     app_dir: FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
@@ -1454,16 +1578,13 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             parallel_routes: FxIndexMap::default(),
                             modules: if use_global_not_found {
                                 // if global-not-found.js is present:
-                                // we use it for the page and no layout, since layout is included in global-not-found.js;
+                                // leaf module only keeps page pointing to empty-stub
                                 AppDirModules {
-                                    layout: None,
-                                    page: match modules.global_not_found {
-                                        Some(v) => Some(v),
-                                        None =>  Some(get_next_package(app_dir.clone())
-                                            .await?
-                                            .join("dist/client/components/builtin/global-not-found.js")?,
-                                        ),
-                                    },
+                                    // page is built-in/empty-stub
+                                    page: Some(get_next_package(app_dir.clone())
+                                        .await?
+                                        .join("dist/client/components/builtin/empty-stub.js")?,
+                                    ),
                                     ..Default::default()
                                 }
                             } else {
@@ -1495,7 +1616,14 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 // Otherwise, we need to compose it with the root layout to compose with
                 // not-found.js boundary.
                 layout: if use_global_not_found {
-                    None
+                    match modules.global_not_found {
+                        Some(v) => Some(v),
+                        None => Some(
+                            get_next_package(app_dir.clone())
+                                .await?
+                                .join("dist/client/components/builtin/global-not-found.js")?,
+                        ),
+                    }
                 } else {
                     modules.layout
                 },
@@ -1503,7 +1631,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             },
             global_metadata,
         }
-            .resolved_cell();
+        .resolved_cell();
 
         {
             let app_page = app_page
@@ -1515,6 +1643,46 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 &mut result,
                 app_page,
                 not_found_tree,
+                root_params,
+            );
+        }
+
+        // Create production global error page only in build mode
+        // This aligns with webpack: default Pages entries (including /_error) are only added when
+        // the build isn't app-only. If the build is app-only (no user pages/api), we should still
+        // expose the app global error so runtime errors render, but we shouldn't emit it otherwise.
+        if matches!(*next_mode.await?, NextMode::Build) {
+            // Use built-in global-error.js to create a `_global-error/page` route.
+            let global_error_tree = AppPageLoaderTree {
+                page: app_page.clone(),
+                segment: directory_name.clone(),
+                parallel_routes: fxindexmap! {
+                    rcstr!("children") => AppPageLoaderTree {
+                        page: app_page.clone(),
+                        segment: rcstr!("__PAGE__"),
+                        parallel_routes: FxIndexMap::default(),
+                        modules: AppDirModules {
+                            page: Some(get_next_package(app_dir.clone())
+                                .await?
+                                .join("dist/client/components/builtin/app-error.js")?),
+                            ..Default::default()
+                        },
+                        global_metadata,
+                    }
+                },
+                modules: AppDirModules::default(),
+                global_metadata,
+            }
+            .resolved_cell();
+
+            let app_global_error_page = app_page
+                .clone_push_str("_global-error")?
+                .complete(PageType::Page)?;
+            add_app_page(
+                app_dir.clone(),
+                &mut result,
+                app_global_error_page,
+                global_error_tree,
                 root_params,
             );
         }
@@ -1542,6 +1710,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     app_dir.clone(),
                     *global_metadata,
                     is_global_not_found_enabled,
+                    next_mode,
                     subdir_name.clone(),
                     *subdirectory,
                     child_app_page.clone(),

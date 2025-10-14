@@ -10,7 +10,11 @@ const cases: {
   pathname: string
   only?: boolean
   debug?: true
-  headers?: Record<string, string>
+  headers?: {
+    rsc?: '1'
+    'next-router-prefetch'?: '0' | '1' | '2'
+    'next-router-segment-prefetch'?: string
+  }
   expected: Record<Target, string | null>
 }[] = [
   {
@@ -38,6 +42,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -69,6 +78,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -100,6 +114,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     // only: true,
     expected: {
@@ -132,6 +151,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': '/hello/bobby',
@@ -163,6 +187,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -194,6 +223,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -225,6 +259,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': '/hello/samantha',
@@ -256,6 +295,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',
@@ -295,6 +339,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': null,
@@ -393,6 +442,11 @@ const cases: {
     headers: {
       rsc: '1',
       'next-router-prefetch': '1',
+      ...(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',
@@ -418,9 +472,9 @@ describe('rewrite-headers', () => {
         // Add cache busting param for RSC requests
         if (headers.rsc === '1') {
           const cacheBustingParam = computeCacheBustingSearchParam(
-            headers['next-router-prefetch'] ? '1' : '0',
+            headers['next-router-prefetch'],
+            headers['next-router-segment-prefetch'],
             undefined,
-            headers['next-router-state-tree'],
             undefined
           )
           if (cacheBustingParam) {

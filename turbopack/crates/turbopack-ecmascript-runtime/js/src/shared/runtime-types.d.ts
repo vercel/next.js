@@ -105,7 +105,6 @@ interface Module {
     | EsmNamespaceObject
     | Promise<EsmNamespaceObject>
     | AsyncModulePromise<EsmNamespaceObject>
-  [REEXPORTED_OBJECTS]?: any[]
 }
 
 interface ModuleWithDirection extends Module {
@@ -115,7 +114,7 @@ interface ModuleWithDirection extends Module {
 
 interface TurbopackBaseContext<M> {
   a: AsyncModule
-  e: Module['exports']
+  e: Exports
   r: CommonJsRequire
   t: RuntimeRequire
   f: ModuleContextFactory
@@ -138,4 +137,5 @@ interface TurbopackBaseContext<M> {
   x: ExternalRequire
   y: ExternalImport
   z: CommonJsRequire
+  g: typeof globalThis
 }

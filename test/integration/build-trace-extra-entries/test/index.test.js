@@ -16,7 +16,6 @@ describe('build trace with extra entries', () => {
           stderr: true,
           stdout: true,
         })
-        console.log(result)
         expect(result.code).toBe(0)
 
         const appTrace = await fs.readJSON(
@@ -35,26 +34,32 @@ describe('build trace with extra entries', () => {
           join(appDir, '.next/server/app/route1/route.js.nft.json')
         )
 
+        expect(appDirRoute1Trace.files).toContain(
+          '../../../../include-me/hello.txt'
+        )
+        expect(appDirRoute1Trace.files).toContain(
+          '../../../../include-me/second.txt'
+        )
         expect(
           appDirRoute1Trace.files.some(
-            (file) => file === '../../../../include-me/hello.txt'
-          )
-        ).toBe(true)
-        expect(
-          appDirRoute1Trace.files.some(
-            (file) => file === '../../../../include-me/second.txt'
+            (file) => file === '../../../../include-me-global.txt'
           )
         ).toBe(true)
         expect(
           appDirRoute1Trace.files.some((file) => file.includes('exclude-me'))
         ).toBe(false)
-
-        // Skip hello.json check for Turbopack as it doesn't support webpack entry modifications
-        if (!process.env.TURBOPACK_BUILD) {
-          expect(
-            appTrace.files.some((file) => file.endsWith('hello.json'))
-          ).toBe(true)
-        }
+        expect(appDirRoute1Trace.files).toEqual(
+          expect.arrayContaining([
+            '../../../../node_modules/pkg-behind-symlink/index.js',
+            '../../../../node_modules/pkg-behind-symlink/package.json',
+          ])
+        )
+        // This assertion not really needed, but ensures consistency between Turbopack and Webpack
+        expect(
+          appDirRoute1Trace.files.some((file) =>
+            file.startsWith('../../../../node_modules/pkg/')
+          )
+        ).toBe(false)
 
         expect(
           indexTrace.files.filter(
@@ -66,12 +71,24 @@ describe('build trace with extra entries', () => {
           ).length
         )
 
+        // Skip hello.json check for Turbopack as it doesn't support webpack entry modifications
+        if (!process.env.TURBOPACK_BUILD) {
+          expect(
+            appTrace.files.some((file) => file.endsWith('hello.json'))
+          ).toBe(true)
+        }
         // Skip lib/get-data.js check for Turbopack as it doesn't support webpack entry modifications
         if (!process.env.TURBOPACK_BUILD) {
           expect(
             appTrace.files.some((file) => file.endsWith('lib/get-data.js'))
           ).toBe(true)
         }
+        expect(
+          appTrace.files.some(
+            (file) => file === '../../../include-me-global.txt'
+          )
+        ).toBe(true)
+
         expect(
           indexTrace.files.some((file) => file.endsWith('hello.json'))
         ).toBeFalsy()
@@ -89,19 +106,16 @@ describe('build trace with extra entries', () => {
         expect(
           indexTrace.files.some((file) => file.includes('some-cms/index.js'))
         ).toBe(true)
-        expect(
-          indexTrace.files.some(
-            (file) => file === '../../../include-me/hello.txt'
-          )
-        ).toBe(true)
-        expect(
-          indexTrace.files.some(
-            (file) => file === '../../../include-me/second.txt'
-          )
-        ).toBe(true)
+        expect(indexTrace.files).toContain('../../../include-me/hello.txt')
+        expect(indexTrace.files).toContain('../../../include-me/second.txt')
         expect(
           indexTrace.files.some((file) => file.includes('exclude-me'))
         ).toBe(false)
+        expect(
+          indexTrace.files.some(
+            (file) => file === '../../../include-me-global.txt'
+          )
+        ).toBe(true)
 
         expect(
           anotherTrace.files.some((file) =>
@@ -119,11 +133,22 @@ describe('build trace with extra entries', () => {
           )
         ).toBe(true)
         expect(
+          anotherTrace.files.some(
+            (file) => file === '../../../include-me-global.txt'
+          )
+        ).toBe(true)
+
+        expect(
           imageTrace.files.some((file) => file.includes('public/another.jpg'))
         ).toBe(true)
         expect(
           imageTrace.files.some((file) => file.includes('public/test.jpg'))
         ).toBe(false)
+        expect(
+          imageTrace.files.some(
+            (file) => file === '../../../include-me-global.txt'
+          )
+        ).toBe(true)
       })
     }
   )

@@ -1,8 +1,8 @@
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-} from '../../../../server/app-render/types'
+} from '../../../../shared/lib/app-router-types'
 import { fetchServerResponse } from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { invalidateCacheBelowFlightSegmentPath } from '../invalidate-cache-below-flight-segmentpath'
@@ -48,7 +48,7 @@ export function handleExternalUrl(
   return handleMutable(state, mutable)
 }
 
-function generateSegmentsFromPatch(
+export function generateSegmentsFromPatch(
   flightRouterPatch: FlightRouterState
 ): FlightSegmentPath[] {
   const segments: FlightSegmentPath[] = []
@@ -203,8 +203,10 @@ export function navigateReducer(
     // Temporary glue code between the router reducer and the new navigation
     // implementation. Eventually we'll rewrite the router reducer to a
     // state machine.
+    const currentUrl = new URL(state.canonicalUrl, location.origin)
     const result = navigateUsingSegmentCache(
       url,
+      currentUrl,
       state.cache,
       state.tree,
       state.nextUrl,
@@ -267,13 +269,14 @@ export function navigateReducer(
         return handleExternalUrl(state, mutable, flightData, pendingPush)
       }
 
+      const oldCanonicalUrl = state.canonicalUrl
       const updatedCanonicalUrl = canonicalUrlOverride
         ? createHrefFromUrl(canonicalUrlOverride)
         : href
 
       const onlyHashChange =
         !!hash &&
-        state.canonicalUrl.split('#', 1)[0] ===
+        oldCanonicalUrl.split('#', 1)[0] ===
           updatedCanonicalUrl.split('#', 1)[0]
 
       // If only the hash has changed, the server hasn't sent us any new data. We can just update
@@ -339,6 +342,7 @@ export function navigateReducer(
           ) {
             const task = startPPRNavigation(
               navigatedAt,
+              new URL(oldCanonicalUrl, url.origin),
               currentCache,
               currentTree,
               treePatch,
@@ -387,7 +391,12 @@ export function navigateReducer(
                   new URL(updatedCanonicalUrl, url.origin),
                   {
                     flightRouterState: dynamicRequestTree,
-                    nextUrl: state.nextUrl,
+                    // We always send the last next-url, not the current when
+                    // performing a dynamic request. This is because we update
+                    // the next-url after a navigation, but we want the same
+                    // interception route to be matched that used the last
+                    // next-url.
+                    nextUrl: state.previousNextUrl || state.nextUrl,
                   }
                 )
 

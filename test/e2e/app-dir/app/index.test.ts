@@ -7,32 +7,26 @@ import {
   RSC_HEADER,
 } from 'next/dist/client/components/app-router-headers'
 
-// TODO: We should decide on an established pattern for gating test assertions
-// on experimental flags. For example, as a first step we could all the common
-// gates like this one into a single module.
-const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 describe('app dir - basic', () => {
-  const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
-    nextTestSetup({
-      files: __dirname,
-      buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
-        ? 'pnpm compile-mode'
-        : undefined,
-      packageJson: {
-        scripts: {
-          'compile-mode': process.env.NEXT_EXPERIMENTAL_COMPILE
-            ? `next build --experimental-build-mode=compile && next build --experimental-build-mode=generate-env`
-            : undefined,
-        },
+  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
+    files: __dirname,
+    buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
+      ? 'pnpm compile-mode'
+      : undefined,
+    packageJson: {
+      scripts: {
+        'compile-mode': process.env.NEXT_EXPERIMENTAL_COMPILE
+          ? `next build --experimental-build-mode=compile && next build --experimental-build-mode=generate-env`
+          : undefined,
       },
-      dependencies: {
-        nanoid: '4.0.1',
-      },
-      env: {
-        NEXT_PUBLIC_TEST_ID: Date.now() + '',
-      },
-    })
+    },
+    dependencies: {
+      nanoid: '4.0.1',
+    },
+    env: {
+      NEXT_PUBLIC_TEST_ID: Date.now() + '',
+    },
+  })
 
   if (isNextStart) {
     it('should have correct cache-control for SSR routes', async () => {
@@ -79,14 +73,6 @@ describe('app dir - basic', () => {
   }
 
   if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
-    if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
-      it('should have correct size in build output', async () => {
-        expect(next.cliOutput).toMatch(
-          /\/dashboard\/another.*? *?[^0]\d{1,} [\w]{1,}B/
-        )
-      })
-    }
-
     it('should have correct preferredRegion values in manifest', async () => {
       const middlewareManifest = JSON.parse(
         await next.readFile('.next/server/middleware-manifest.json')
@@ -177,32 +163,32 @@ describe('app dir - basic', () => {
     })
   }
 
-  // Turbopack has different chunking in dev/production which results in the entrypoint name not being included in the outputs.
-  if (!process.env.IS_TURBOPACK_TEST) {
-    it('should encode chunk path correctly', async () => {
-      await next.fetch('/dynamic-client/first/second')
-      const browser = await next.browser('/')
-      const requests = []
-      browser.on('request', (req) => {
-        requests.push(req.url())
-      })
-
-      await browser.eval(
-        'window.location.href = "/dynamic-client/first/second"'
-      )
-
-      await browser.waitForElementByCss('#id-page-params')
-
-      expect(
-        requests.some(
-          (req) =>
-            req.includes(
-              encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
-            ) && req.includes('.js')
-        )
-      ).toBe(true)
+  it('should encode chunk path correctly', async () => {
+    const requests = []
+    const browser = await next.browser('/dynamic-client/first/second', {
+      beforePageLoad(page) {
+        page.on('request', (req) => {
+          requests.push(req.url())
+        })
+      },
     })
-  }
+
+    await browser.waitForElementByCss('#id-page-params')
+
+    expect(requests).not.toEqual(
+      expect.arrayContaining([expect.stringContaining('[category]')])
+    )
+
+    // Turbopack doesn't recreate the original folder structure for the output chunks
+    if (!process.env.IS_TURBOPACK_TEST) {
+      expect(requests).toEqual(
+        // e.g. _next/static/chunks/app/dynamic-client/%5Bcategory%5D/%5Bid%5D/page-6e188d657a208f8e.js?dpl=...
+        expect.arrayContaining([
+          expect.stringMatching(/.*%5Bcategory%5D\/%5Bid%5D.*\.js/),
+        ])
+      )
+    }
+  })
 
   it.each([
     { pathname: '/redirect-1' },
@@ -401,7 +387,7 @@ describe('app dir - basic', () => {
     it('should serve polyfills for browsers that do not support modules', async () => {
       const html = await next.render('/dashboard/index')
       expect(html).toMatch(
-        isTurbopack
+        process.env.IS_TURBOPACK_TEST
           ? /<script src="\/_next\/static\/chunks\/([\w-]*polyfill-nomodule|[0-9a-f]+)\.js" noModule="">/
           : /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
       )
@@ -601,7 +587,7 @@ describe('app dir - basic', () => {
   ;(isNextDev ||
     // When PPR is enabled, the shared layouts re-render because we prefetch
     // from the root. This will be addressed before GA.
-    isPPREnabledByDefault
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
     ? it.skip
     : it)(
     'should not rerender layout when navigating between routes in the same layout',
@@ -1398,7 +1384,7 @@ describe('app dir - basic', () => {
     ;(isNextDev ||
       // When PPR is enabled, the shared layouts re-render because we prefetch
       // from the root. This will be addressed before GA.
-      isPPREnabledByDefault
+      process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
       ? it.skip
       : it)(
       'should render the template that is a server component and rerender on navigation',
@@ -1729,12 +1715,12 @@ describe('app dir - basic', () => {
       })
 
       if (!isNextDev) {
+        // Fails in dev due to CSP header
         const browser = await next.browser('/script-nonce')
-
         await retry(async () => {
           await browser.elementByCss('#get-order').click()
           const order = JSON.parse(await browser.elementByCss('#order').text())
-          expect(order?.length).toBe(2)
+          expect(order).toEqual([2, 1])
         })
       }
     })
@@ -1754,15 +1740,12 @@ describe('app dir - basic', () => {
         expect(element.attribs.nonce).toBeTruthy()
       })
 
-      if (!isNextDev) {
-        const browser = await next.browser('/script-manual-nonce')
-
-        await retry(async () => {
-          await browser.elementByCss('#get-order').click()
-          const order = JSON.parse(await browser.elementByCss('#order').text())
-          expect(order?.length).toBe(2)
-        })
-      }
+      const browser = await next.browser('/script-manual-nonce')
+      await retry(async () => {
+        await browser.elementByCss('#get-order').click()
+        const order = JSON.parse(await browser.elementByCss('#order').text())
+        expect(order).toEqual([2, 1])
+      })
     })
 
     it('should pass manual `nonce` pages', async () => {
@@ -1780,14 +1763,12 @@ describe('app dir - basic', () => {
         expect(element.attribs.nonce).toBeTruthy()
       })
 
-      if (!isNextDev) {
-        await retry(async () => {
-          const browser = await next.browser('/pages-script-manual-nonce')
-          await browser.elementByCss('#get-order').click()
-          const order = JSON.parse(await browser.elementByCss('#order').text())
-          expect(order?.length).toBe(2)
-        })
-      }
+      const browser = await next.browser('/pages-script-manual-nonce')
+      await retry(async () => {
+        await browser.elementByCss('#get-order').click()
+        const order = JSON.parse(await browser.elementByCss('#order').text())
+        expect(order).toEqual([2, 1])
+      })
     })
 
     it('should pass nonce when using next/font', async () => {

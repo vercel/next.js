@@ -23,7 +23,7 @@ async function turbopackBuildWithWorker() {
     })
 
     // destroy worker when Turbopack has shutdown so it's not sticking around using memory
-    // We need to wait for shutdown to make sure persistent cache is flushed
+    // We need to wait for shutdown to make sure filesystem cache is flushed
     result.shutdownPromise = worker.waitForShutdown().then(() => {
       worker.end()
     })
@@ -52,15 +52,13 @@ export function turbopackBuild(
   withWorker: boolean
 ): ReturnType<typeof import('./impl').turbopackBuild> {
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
-  return nextBuildSpan
-    .traceChild('run-turbopack-compiler')
-    .traceAsyncFn(async () => {
-      if (withWorker) {
-        return await turbopackBuildWithWorker()
-      } else {
-        const build = (require('./impl') as typeof import('./impl'))
-          .turbopackBuild
-        return await build()
-      }
-    })
+  return nextBuildSpan.traceChild('run-turbopack').traceAsyncFn(async () => {
+    if (withWorker) {
+      return await turbopackBuildWithWorker()
+    } else {
+      const build = (require('./impl') as typeof import('./impl'))
+        .turbopackBuild
+      return await build()
+    }
+  })
 }

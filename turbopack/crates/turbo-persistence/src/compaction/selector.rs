@@ -136,8 +136,8 @@ impl Default for CompactConfig {
             optimal_merge_count: 8,
             max_merge_count: 32,
             max_merge_bytes: 500 * MB,
-            min_merge_duplication_bytes: MB,
-            optimal_merge_duplication_bytes: 10 * MB,
+            min_merge_duplication_bytes: 50 * MB,
+            optimal_merge_duplication_bytes: 100 * MB,
             max_merge_segment_count: 8,
         }
     }
@@ -200,10 +200,13 @@ fn total_duplication_size(duplication: &IntervalMap<Option<DuplicationInfo>>) ->
 
 type MergeSegments = Vec<SmallVec<[usize; 1]>>;
 
+/// Computes the set of merge segments that should be run to compact the given compactables.
+///
+/// Returns both the mergeable segments and the actual number of merge segments that were created.
 pub fn get_merge_segments<T: Compactable>(
     compactables: &[T],
     config: &CompactConfig,
-) -> MergeSegments {
+) -> (MergeSegments, usize) {
     // Process all compactables in reverse order.
     // For each compactable, find the smallest set of compactables that overlaps with it and matches
     // the conditions.
@@ -233,13 +236,20 @@ pub fn get_merge_segments<T: Compactable>(
             // We have reached the maximum number of merge jobs, so we stop here.
             break;
         }
-        let mut current_range = start_compactable.range();
+        let start_compactable_range = start_compactable.range();
+        let start_compactable_size = start_compactable.size();
+        let mut current_range = start_compactable_range.clone();
 
         // We might need to restart the search if we need to extend the range.
         'search: loop {
             let mut current_set = smallvec![start_index];
-            let mut current_size = start_compactable.size();
+            let mut current_size = start_compactable_size;
             let mut duplication = IntervalMap::<Option<DuplicationInfo>>::new();
+            duplication.update(start_compactable_range.clone(), |dup_info| {
+                dup_info
+                    .get_or_insert_default()
+                    .add(start_compactable_size, &start_compactable_range);
+            });
             let mut current_skip = 0;
 
             // We will capture compactables in the current_range until we find a optimal merge
@@ -259,7 +269,7 @@ pub fn get_merge_segments<T: Compactable>(
                     continue 'outer;
                 }
 
-                // If we are limited by size or count, we might also crate a merge segment if it's
+                // If we are limited by size or count, we might also create a merge segment if it's
                 // within the limits.
                 let valid_merge_job = current_set.len() >= config.min_merge_count
                     && duplication_size >= config.min_merge_duplication_bytes;
@@ -361,7 +371,7 @@ pub fn get_merge_segments<T: Compactable>(
         true
     });
 
-    merge_segments
+    (merge_segments, real_merge_segments)
 }
 
 #[cfg(test)]
@@ -398,7 +408,7 @@ mod tests {
             .into_iter()
             .map(|range| TestCompactable { range, size: 100 })
             .collect::<Vec<_>>();
-        let jobs = get_merge_segments(&compactables, config);
+        let (jobs, _) = get_merge_segments(&compactables, config);
         jobs.into_iter()
             .map(|job| job.into_iter().collect())
             .collect()
@@ -609,11 +619,11 @@ mod tests {
                 min_merge_count: 2,
                 optimal_merge_count: 4,
                 max_merge_bytes: 5000,
-                min_merge_duplication_bytes: 200,
-                optimal_merge_duplication_bytes: 500,
+                min_merge_duplication_bytes: 500,
+                optimal_merge_duplication_bytes: 1000,
                 max_merge_segment_count: 4,
             };
-            let jobs = get_merge_segments(&containers, &config);
+            let (jobs, _) = get_merge_segments(&containers, &config);
             if !jobs.is_empty() {
                 println!("{jobs:?}");
 
@@ -653,7 +663,7 @@ mod tests {
         println!("Number of compactions: {number_of_compactions}");
 
         let metrics = compute_metrics(&containers, 0..=KEY_RANGE);
-        assert!(number_of_compactions < 40);
+        assert!(number_of_compactions < 30);
         assert!(containers.len() < 30);
         assert!(metrics.duplication < 0.5);
     }

@@ -5,13 +5,12 @@ import { check } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
-const isRspack = !!process.env.NEXT_RSPACK
-
 describe('Error recovery app', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   test('can recover from a syntax error without losing state', async () => {
     await using sandbox = await createSandbox(next)
@@ -63,12 +62,12 @@ describe('Error recovery app', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module build failed:
-         ╰─▶   × Error:   x Unexpected eof
-               │    ,---- 
+         ╰─▶   × Error:   x Expected '>', got '<eof>'
+               │    ,----
                │  1 | export default () => <div/
                │    \`----
-               │ 
-               │ 
+               │
+               │
                │ Caused by:
                │     Syntax Error
        Import trace for requested module:
@@ -80,11 +79,11 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  x Unexpected eof",
+         "description": "  x Expected '>', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-       Error:   x Unexpected eof
+       Error:   x Expected '>', got '<eof>'
           ,----
         1 | export default () => <div/
           \`----
@@ -149,6 +148,28 @@ describe('Error recovery app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/server/page.js
+         × Module build failed:
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │    ,-[2:1]
+               │  1 | export default function Page() {
+               │  2 |   return <p>Hello world</p>
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./app/server/page.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -209,6 +230,28 @@ describe('Error recovery app', () => {
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
            |                            ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/client/page.js
+         × Module build failed:
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │    ,-[2:1]
+               │  1 | export default function Page() {
+               │  2 |   return <p>Hello world</p>
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./app/client/page.js",
          "stack": [],
        }
       `)
@@ -477,7 +520,7 @@ describe('Error recovery app', () => {
     )
 
     if (isTurbopack) {
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
+      // TODO(veil): Possibly https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "oops",
@@ -488,8 +531,6 @@ describe('Error recovery app', () => {
            |         ^",
          "stack": [
            "Child child.js (3:9)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "Index index.js (6:7)",
            "<FIXME-file-protocol>",
          ],
@@ -569,18 +610,18 @@ describe('Error recovery app', () => {
     await browser.eval('window.triggerError()')
     if (isRspack) {
       await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "no 1",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "index.js (7:11) @ eval
-         > 7 |     throw Error('no ' + i)
-             |           ^",
-           "stack": [
-             "eval index.js (7:11)",
-           ],
-         }
-        `)
+       {
+         "description": "no 1",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (7:11) @ eval
+       >  7 |     throw Error('no ' + i)
+            |           ^",
+         "stack": [
+           "eval index.js (7:11)",
+         ],
+       }
+      `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
@@ -628,6 +669,31 @@ describe('Error recovery app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │     ,-[10:1]
+               │   7 |     throw Error('no ' + i)
+               │   8 |   }, 0)
+               │   9 | }
+               │  10 | export default function FunctionNamed() {
+               │     \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -661,6 +727,31 @@ describe('Error recovery app', () => {
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
             |                                          ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │     ,-[10:1]
+               │   7 |     throw Error('no ' + i)
+               │   8 |   }, 0)
+               │   9 | }
+               │  10 | export default function FunctionNamed() {
+               │     \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
@@ -731,7 +822,7 @@ describe('Error recovery app', () => {
 
     // We get an error because Foo didn't import React. Fair.
     if (isTurbopack) {
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
+      // TODO(veil): Possibly https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "React is not defined",
@@ -742,8 +833,6 @@ describe('Error recovery app', () => {
            |   ^",
          "stack": [
            "Foo Foo.js (3:3)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "FunctionDefault index.js (4:10)",
            "<FIXME-file-protocol>",
          ],
@@ -852,8 +941,8 @@ describe('Error recovery app', () => {
                │  6 |   }
                │  7 | }
                │    \`----
-               │ 
-               │ 
+               │
+               │
                │ Caused by:
                │     Syntax Error
        Import trace for requested module:
@@ -918,6 +1007,35 @@ describe('Error recovery app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ╰─▶   × Error:   x Expected '{', got 'throw'
+               │    ,-[5:1]
+               │  2 |
+               │  3 | class ClassDefault extends React.Component {
+               │  4 |   render()
+               │  5 |     throw new Error('nooo');
+               │    :     ^^^^^
+               │  6 |     return <h1>Default Export</h1>;
+               │  7 |   }
+               │  8 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -964,7 +1082,6 @@ describe('Error recovery app', () => {
     )
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "nooo",
@@ -975,8 +1092,6 @@ describe('Error recovery app', () => {
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "Page index.js (10:16)",
          ],
        }
@@ -1016,6 +1131,25 @@ describe('Error recovery app', () => {
        Parsing ecmascript source code failed
        > 1 | {{{
            |    ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/page.js
+         × Module build failed:
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │    ,----
+               │  1 | {{{
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error",
          "stack": [],
        }
       `)

@@ -4,7 +4,9 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import imageSizeOf from 'next/dist/compiled/image-size'
+import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
+import isLocalAddress from 'next/dist/compiled/is-local-address'
 import { join } from 'path'
 import nodeUrl, { type UrlWithParsedQuery } from 'url'
 
@@ -29,6 +31,9 @@ import isError from '../lib/is-error'
 import { parseUrl } from '../lib/url'
 import type { CacheControl } from './lib/cache-control'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { lookup } from 'dns/promises'
+import { isIP } from 'net'
+import { ALL } from 'dns'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -141,6 +146,7 @@ async function writeToCacheDir(
   upstreamEtag: string
 ) {
   const filename = join(
+    /* turbopackIgnore: true */
     dir,
     `${maxAge}.${expireAt}.${etag}.${upstreamEtag}.${extension}`
   )
@@ -157,8 +163,13 @@ async function writeToCacheDir(
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
 export async function detectContentType(
-  buffer: Buffer
+  buffer: Buffer,
+  skipMetadata: boolean | null | undefined,
+  concurrency?: number | null | undefined
 ): Promise<string | null> {
+  if (buffer.byteLength === 0) {
+    return null
+  }
   if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
     return JPEG
   }
@@ -232,11 +243,21 @@ export async function detectContentType(
     return JP2
   }
 
-  const sharp = getSharp(null)
-  const meta = await sharp(buffer)
-    .metadata()
-    .catch((_) => null)
-  switch (meta?.format) {
+  let format:
+    | import('sharp').Metadata['format']
+    | ReturnType<typeof detector>
+    | undefined
+  format = detector(buffer)
+
+  if (!format && !skipMetadata) {
+    const sharp = getSharp(concurrency)
+    const meta = await sharp(buffer)
+      .metadata()
+      .catch((_) => null)
+    format = meta?.format
+  }
+
+  switch (format) {
     case 'avif':
       return AVIF
     case 'webp':
@@ -251,6 +272,7 @@ export async function detectContentType(
     case 'svg':
       return SVG
     case 'jxl':
+    case 'jxl-stream':
       return JXL
     case 'jp2':
       return JP2
@@ -259,6 +281,12 @@ export async function detectContentType(
       return TIFF
     case 'pdf':
       return PDF
+    case 'bmp':
+      return BMP
+    case 'ico':
+      return ICO
+    case 'icns':
+      return ICNS
     case 'dcraw':
     case 'dz':
     case 'exr':
@@ -271,6 +299,13 @@ export async function detectContentType(
     case 'rad':
     case 'raw':
     case 'v':
+    case 'cur':
+    case 'dds':
+    case 'j2c':
+    case 'ktx':
+    case 'pnm':
+    case 'psd':
+    case 'tga':
     case undefined:
     default:
       return null
@@ -292,7 +327,7 @@ export class ImageOptimizerCache {
       deviceSizes = [],
       imageSizes = [],
       domains = [],
-      minimumCacheTTL = 60,
+      minimumCacheTTL = 14400,
       formats = ['image/webp'],
     } = imageData
     const remotePatterns = nextConfig.images?.remotePatterns || []
@@ -464,20 +499,25 @@ export class ImageOptimizerCache {
     distDir: string
     nextConfig: NextConfigComplete
   }) {
-    this.cacheDir = join(distDir, 'cache', 'images')
+    this.cacheDir = join(/* turbopackIgnore: true */ distDir, 'cache', 'images')
     this.nextConfig = nextConfig
   }
 
   async get(cacheKey: string): Promise<IncrementalResponseCacheEntry | null> {
     try {
-      const cacheDir = join(this.cacheDir, cacheKey)
+      const cacheDir = join(/* turbopackIgnore: true */ this.cacheDir, cacheKey)
       const files = await promises.readdir(cacheDir)
       const now = Date.now()
 
       for (const file of files) {
         const [maxAgeSt, expireAtSt, etag, upstreamEtag, extension] =
           file.split('.', 5)
-        const buffer = await promises.readFile(join(cacheDir, file))
+        const buffer = await promises.readFile(
+          /* turbopackIgnore: true */ join(
+            /* turbopackIgnore: true */ cacheDir,
+            file
+          )
+        )
         const expireAt = Number(expireAtSt)
         const maxAge = Number(maxAgeSt)
 
@@ -530,7 +570,7 @@ export class ImageOptimizerCache {
 
     try {
       await writeToCacheDir(
-        join(this.cacheDir, cacheKey),
+        join(/* turbopackIgnore: true */ this.cacheDir, cacheKey),
         value.extension,
         revalidate,
         expireAt,
@@ -664,9 +704,40 @@ export async function optimizeImage({
   return optimizedBuffer
 }
 
-export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
+function isRedirect(statusCode: number) {
+  return [301, 302, 303, 307, 308].includes(statusCode)
+}
+
+export async function fetchExternalImage(
+  href: string,
+  dangerouslyAllowLocalIP: boolean,
+  count = 3
+): Promise<ImageUpstream> {
+  if (!dangerouslyAllowLocalIP) {
+    const { hostname } = new URL(href)
+    let ips = [hostname]
+    if (!isIP(hostname)) {
+      const records = await lookup(hostname, {
+        family: 0,
+        all: true,
+        hints: ALL,
+      }).catch((_) => [{ address: hostname }])
+      ips = records.map((record) => record.address)
+    }
+    const privateIps = ips.filter((ip) => isLocalAddress(ip))
+    if (privateIps.length > 0) {
+      Log.error(
+        'upstream image',
+        href,
+        'resolved to private ip',
+        JSON.stringify(privateIps)
+      )
+      throw new ImageError(400, '"url" parameter is not allowed')
+    }
+  }
   const res = await fetch(href, {
     signal: AbortSignal.timeout(7_000),
+    redirect: 'manual',
   }).catch((err) => err as Error)
 
   if (res instanceof Error) {
@@ -679,6 +750,23 @@ export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
       )
     }
     throw err
+  }
+
+  const locationHeader = res.headers.get('Location')
+  if (
+    isRedirect(res.status) &&
+    locationHeader &&
+    URL.canParse(locationHeader, href)
+  ) {
+    if (count === 0) {
+      Log.error('upstream image response had too many redirects', href)
+      throw new ImageError(
+        508,
+        '"url" parameter is valid but upstream response is invalid'
+      )
+    }
+    const redirect = new URL(locationHeader, href).href
+    return fetchExternalImage(redirect, dangerouslyAllowLocalIP, count - 1)
   }
 
   if (!res.ok) {
@@ -751,6 +839,7 @@ export async function imageOptimizer(
       | 'imgOptConcurrency'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
+      | 'imgOptSkipMetadata'
       | 'imgOptTimeoutInSeconds'
     >
     images: Pick<
@@ -778,7 +867,11 @@ export async function imageOptimizer(
     getMaxAge(imageUpstream.cacheControl)
   )
 
-  const upstreamType = await detectContentType(upstreamBuffer)
+  const upstreamType = await detectContentType(
+    upstreamBuffer,
+    nextConfig.experimental.imgOptSkipMetadata,
+    nextConfig.experimental.imgOptConcurrency
+  )
 
   if (
     !upstreamType ||

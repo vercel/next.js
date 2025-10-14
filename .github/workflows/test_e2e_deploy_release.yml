@@ -15,6 +15,10 @@ on:
         description: Version of Vercel CLI to use
         default: 'vercel@latest'
         type: string
+      overrideProxyAddress:
+        description: Override the proxy address to use for the test
+        default: ''
+        type: string
 
 env:
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
@@ -26,7 +30,7 @@ env:
   TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
   DD_ENV: 'ci'
 
-run-name: test-e2e-deploy ${{ inputs.nextVersion || 'canary' }}
+run-name: test-e2e-deploy ${{ inputs.nextVersion || (github.event_name == 'release' && github.event.release.tag_name) || 'canary' }}
 
 jobs:
   setup:
@@ -64,12 +68,6 @@ jobs:
         name: Extract `next` version
         run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
 
-      - name: Setup test project
-        run: |
-          pnpm install
-          pnpm run build
-          node scripts/run-e2e-test-project-reset.mjs
-
   test-deploy:
     name: Run Deploy Tests
     needs: setup
@@ -78,14 +76,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+        group: [1/8, 2/8, 3/8, 4/8, 5/8, 6/8, 7/8, 8/8]
     with:
-      afterBuild: npm i -g vercel@latest && NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=deploy NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || 'canary' }}" VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+      afterBuild: |
+        npm i -g vercel@latest && \
+        NEXT_E2E_TEST_TIMEOUT=240000 \
+        NEXT_TEST_MODE=deploy \
+        IS_WEBPACK_TEST=1 \
+        NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
+        NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
+        VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
+        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
+      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
 
   report-test-results-to-datadog:
     needs: test-deploy
@@ -120,7 +127,7 @@ jobs:
           - repo: front
             workflow_id: cron-update-next.yml
           - repo: v0
-            workflow_id: update-next.yml
+            workflow_id: update-next.yaml
     steps:
       - name: Check token
         run: gh auth status
@@ -190,8 +197,8 @@ jobs:
             workflow_id: cron-update-next.yml
             workflow_url: https://github.com/vercel/front/actions/workflows/cron-update-next.yml?query=event%3Aworkflow_dispatch
           - repo: v0
-            workflow_id: update-next.yml
-            workflow_url: https://github.com/vercel/v0/actions/workflows/update-next.yml?query=event%3Aworkflow_dispatch
+            workflow_id: update-next.yaml
+            workflow_url: https://github.com/vercel/v0/actions/workflows/update-next.yaml?query=event%3Aworkflow_dispatch
     steps:
       - name: Check token
         run: gh auth status

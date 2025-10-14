@@ -16,13 +16,11 @@ export default async function Page() {
             <li>
               <DebugLinkAccordion
                 href={`/with-root-param/${currentLang}/in-page/root-params`}
-                prefetch={true}
               />
             </li>
             <li>
               <DebugLinkAccordion
                 href={`/with-root-param/${otherLang}/in-page/root-params`}
-                prefetch={true}
               />
             </li>
           </ul>
@@ -39,13 +37,32 @@ export default async function Page() {
             <li>
               <DebugLinkAccordion
                 href={`/with-root-param/${currentLang}/in-private-cache/root-params`}
-                prefetch={true}
               />
             </li>
             <li>
               <DebugLinkAccordion
                 href={`/with-root-param/${otherLang}/in-private-cache/root-params`}
-                prefetch={true}
+              />
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <h2>
+        <code>promise passed to public cache</code>
+      </h2>
+      <ul>
+        <li>
+          root params + dynamic content
+          <ul>
+            <li>
+              <DebugLinkAccordion
+                href={`/with-root-param/${currentLang}/passed-to-public-cache/root-params`}
+              />
+            </li>
+            <li>
+              <DebugLinkAccordion
+                href={`/with-root-param/${otherLang}/passed-to-public-cache/root-params`}
               />
             </li>
           </ul>

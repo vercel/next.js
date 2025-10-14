@@ -436,6 +436,26 @@ export default function Page({ params }) {
 }
 ```
 
+Notice that the params argument can be accessed synchronously and includes only parent segment params.
+
+For type completion, you can make use of the TypeScript `Awaited` helper in combination with either [`Page Props helper`](/docs/app/api-reference/file-conventions/page#page-props-helper) or [`Layout Props helper`](/docs/app/api-reference/file-conventions/layout#layout-props-helper):
+
+```ts filename="app/products/[category]/[product]/page.tsx" switcher
+export async function generateStaticParams({
+  params: { category },
+}: {
+  params: Awaited<LayoutProps<'/products/[category]'>['params']>
+}) {
+  const products = await fetch(
+    `https://.../products?category=${category}`
+  ).then((res) => res.json())
+
+  return products.map((product) => ({
+    product: product.id,
+  }))
+}
+```
+
 > **Good to know**: `fetch` requests are automatically [memoized](/docs/app/guides/caching#request-memoization) for the same data across all `generate`-prefixed functions, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/guides/caching#react-cache-function) if `fetch` is unavailable.
 
 ## Version History

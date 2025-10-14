@@ -1,7 +1,25 @@
 // Used to deterministically stub out minified local names in stack traces.
 const abc = 'abcdefghijklmnopqrstuvwxyz'
 const hostElementsUsedInFixtures = ['html', 'body', 'main', 'div']
-const ignoredLines = ['Generating static pages', 'Inlining static env']
+const ignoredLines = [
+  'Generating static pages',
+  'Inlining static env',
+  'Finalizing page optimization',
+]
+
+/**
+ * Converts a module function sequence expression, e.g.:
+ * - (0 , __TURBOPACK__imported__module__1836__.cookies)(...)
+ * - (0 , c.cookies)(...)
+ * - (0 , cookies.U)(...)
+ * - (0 , e.U)(...)
+ * to a deterministic, bundler-agnostic representation.
+ */
+export function convertModuleFunctionSequenceExpression(
+  output: string
+): string {
+  return output.replace(/\(0 , \w+\.(\w+)\)\(\.\.\.\)/, '<module-function>()')
+}
 
 export function getPrerenderOutput(
   cliOutput: string,
@@ -36,6 +54,10 @@ export function getPrerenderOutput(
       break
     }
 
+    if (line.includes('Route (app)')) {
+      break
+    }
+
     if (
       foundPrerenderingLine &&
       !ignoredLines.some((ignoredLine) => line.includes(ignoredLine))
@@ -61,17 +83,11 @@ export function getPrerenderOutput(
         )
         .replace(/at \d+ \(/, replaceNumericModuleId)
         .replace(/digest: '\d+'/, "digest: '<error-digest>'")
-        // Convert a module function sequence expression, e.g.:
-        // - (0 , __TURBOPACK__imported__module__1836__.cookies)(...)
-        // - (0 , c.cookies)(...)
-        // - (0 , cookies.U)(...)
-        // - (0 , e.U)(...)
-        .replace(/\(0 , \w+\.(\w+)\)\(\.\.\.\)/, '<module-function>()')
         // TODO(veil): Bundler protocols should not appear in stack frames.
         .replace('webpack:///', 'bundler:///')
         .replace('turbopack:///[project]/', 'bundler:///')
 
-      lines.push(line)
+      lines.push(convertModuleFunctionSequenceExpression(line))
     }
   }
 

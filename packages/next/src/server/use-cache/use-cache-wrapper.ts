@@ -11,7 +11,7 @@ import {
   encodeReply,
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client'
-import { unstable_prerender as prerender } from 'react-server-dom-webpack/static'
+import { prerender } from 'react-server-dom-webpack/static'
 /* eslint-enable import/no-extraneous-dependencies */
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
@@ -34,6 +34,7 @@ import {
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
+  getRuntimeStagePromise,
 } from '../app-render/work-unit-async-storage.external'
 
 import { makeHangingPromise } from '../dynamic-rendering-utils'
@@ -58,7 +59,7 @@ import {
   throwToInterruptStaticGeneration,
 } from '../app-render/dynamic-rendering'
 import {
-  makeErroringExoticSearchParamsForUseCache,
+  makeErroringSearchParamsForUseCache,
   type SearchParams,
 } from '../request/search-params'
 import type { Params } from '../request/params'
@@ -90,15 +91,20 @@ type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
   | [buildId: string, id: string, args: unknown[], hmrRefreshHash: string]
 
-export interface UseCachePageComponentProps {
+interface UseCachePageInnerProps {
   params: Promise<Params>
-  searchParams: Promise<SearchParams>
-  $$isPageComponent: true
+  searchParams?: Promise<SearchParams>
 }
 
-export type UseCacheLayoutComponentProps = {
+export interface UseCachePageProps {
   params: Promise<Params>
-  $$isLayoutComponent: true
+  searchParams: Promise<SearchParams>
+  $$isPage: true
+}
+
+export type UseCacheLayoutProps = {
+  params: Promise<Params>
+  $$isLayout: true
 } & {
   // The value type should be React.ReactNode. But such an index signature would
   // be incompatible with the other two props.
@@ -199,11 +205,13 @@ function createUseCacheStore(
         outerWorkUnitStore
       ),
       forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
+      runtimeStagePromise: getRuntimeStagePromise(outerWorkUnitStore),
       draftMode: getDraftModeProviderForCacheScope(
         workStore,
         outerWorkUnitStore
       ),
       rootParams: outerWorkUnitStore.rootParams,
+      headers: outerWorkUnitStore.headers,
       cookies: outerWorkUnitStore.cookies,
     }
   } else {
@@ -371,7 +379,7 @@ function propagateCacheLifeAndTags(
 }
 
 async function collectResult(
-  savedStream: ReadableStream,
+  savedStream: ReadableStream<Uint8Array>,
   workStore: WorkStore,
   cacheContext: CacheContext,
   innerCacheStore: UseCacheStore,
@@ -391,7 +399,7 @@ async function collectResult(
   // that the stream might also error for other reasons anyway such as losing
   // connection.
 
-  const buffer: any[] = []
+  const buffer: Uint8Array[] = []
   const reader = savedStream.getReader()
 
   try {
@@ -403,7 +411,7 @@ async function collectResult(
   }
 
   let idx = 0
-  const bufferStream = new ReadableStream({
+  const bufferStream = new ReadableStream<Uint8Array>({
     pull(controller) {
       if (workStore.invalidDynamicUsageError) {
         controller.error(workStore.invalidDynamicUsageError)
@@ -444,17 +452,40 @@ async function collectResult(
     tags: collectedTags === null ? [] : collectedTags,
   }
 
-  // Propagate tags/revalidate to the parent context.
-  if (cacheContext) {
-    propagateCacheLifeAndTags(cacheContext, entry)
-  }
+  if (cacheContext.outerWorkUnitStore) {
+    const outerWorkUnitStore = cacheContext.outerWorkUnitStore
 
-  const cacheSignal = cacheContext.outerWorkUnitStore
-    ? getCacheSignal(cacheContext.outerWorkUnitStore)
-    : null
+    // Propagate cache life & tags to the parent context if appropriate.
+    switch (outerWorkUnitStore.type) {
+      case 'prerender':
+      case 'prerender-runtime': {
+        // If we've just created a cache result, and we're filling caches for a
+        // Cache Components prerender, then we don't want to propagate cache
+        // life & tags yet, in case the entry ends up being omitted from the
+        // final prerender due to short expire/stale times. If it is omitted,
+        // then it shouldn't have any effects on the prerender. We'll decide
+        // whether or not this cache should have its life & tags propagated when
+        // we read the entry in the final prerender from the resume data cache.
+        break
+      }
+      case 'request':
+      case 'private-cache':
+      case 'cache':
+      case 'unstable-cache':
+      case 'prerender-legacy':
+      case 'prerender-ppr': {
+        propagateCacheLifeAndTags(cacheContext, entry)
+        break
+      }
+      default: {
+        outerWorkUnitStore satisfies never
+      }
+    }
 
-  if (cacheSignal) {
-    cacheSignal.endRead()
+    const cacheSignal = getCacheSignal(outerWorkUnitStore)
+    if (cacheSignal) {
+      cacheSignal.endRead()
+    }
   }
 
   return entry
@@ -953,69 +984,102 @@ export function cache(
         ? createHangingInputAbortSignal(workUnitStore)
         : undefined
 
-      let isPageOrLayout = false
+      // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
+      // are resolved with a delay, in the runtime stage. Private caches are one of these.
+      if (cacheContext.kind === 'private') {
+        const runtimeStagePromise = getRuntimeStagePromise(
+          cacheContext.outerWorkUnitStore
+        )
+        if (runtimeStagePromise) {
+          await runtimeStagePromise
+        }
+      }
 
-      // For page and layout components, the cache function is overwritten,
-      // which allows us to apply special handling for params and searchParams.
-      // For pages and layouts we're using the outer params prop, and not the
-      // inner one that was serialized/deserialized. While it's not generally
-      // true for "use cache" args, in the case of `params` the inner and outer
-      // object are essentially equivalent, so this is safe to do (including
-      // fallback params that are hanging promises). It allows us to avoid
-      // waiting for the timeout, when prerendering a fallback shell of a cached
-      // page or layout that awaits params.
-      if (isPageComponent(args)) {
-        isPageOrLayout = true
+      let isPageOrLayoutSegmentFunction = false
 
-        const [{ params: outerParams, searchParams: outerSearchParams }] = args
-        const keepSearchParams = workStore.cacheComponentsEnabled || isPrivate
+      // For page and layout segment functions (i.e. the page/layout component,
+      // or generateMetadata/generateViewport), the cache function is
+      // overwritten, which allows us to apply special handling for params and
+      // searchParams. For pages and layouts we're using the outer params prop,
+      // and not the inner one that was serialized/deserialized. While it's not
+      // generally true for "use cache" args, in the case of `params` the inner
+      // and outer object are essentially equivalent, so this is safe to do
+      // (including fallback params that are hanging promises). It allows us to
+      // avoid waiting for the timeout, when prerendering a fallback shell of a
+      // cached page or layout that awaits params.
+      if (isPageSegmentFunction(args)) {
+        isPageOrLayoutSegmentFunction = true
 
-        args = [
-          {
-            params: outerParams,
-            searchParams: keepSearchParams
-              ? outerSearchParams
-              : Promise.resolve({}),
-            // omit $$isPageComponent.
-          },
-        ]
+        const [
+          { params: outerParams, searchParams: outerSearchParams },
+          ...otherOuterArgs
+        ] = args
+
+        const props: UseCachePageInnerProps = {
+          params: outerParams,
+          // Omit searchParams and $$isPage.
+        }
+
+        if (isPrivate) {
+          // Private caches allow accessing search params. We need to include
+          // them in the serialized args and when generating the cache key.
+          props.searchParams = outerSearchParams
+        }
+
+        args = [props, ...otherOuterArgs]
 
         fn = {
-          [name]: async ({
-            params: _innerParams,
-            searchParams: innerSearchParams,
-          }: Omit<UseCachePageComponentProps, '$$isPageComponent'>) =>
+          [name]: async (
+            {
+              params: _innerParams,
+              searchParams: innerSearchParams,
+            }: UseCachePageInnerProps,
+            ...otherInnerArgs: unknown[]
+          ) =>
             originalFn.apply(null, [
               {
                 params: outerParams,
-                searchParams: keepSearchParams
-                  ? innerSearchParams
-                  : // When cacheComponents is not enabled, we can not encode
-                    // searchParams as a hanging promise. To still avoid unused
-                    // search params from making a page dynamic, we define them
-                    // as a promise that resolves to an empty object above. And
-                    // here, we're creating an erroring searchParams prop, when
-                    // invoking the original function. This ensures that used
-                    // searchParams inside of cached functions would still yield
-                    // an error.
-                    makeErroringExoticSearchParamsForUseCache(workStore),
+                searchParams:
+                  innerSearchParams ??
+                  // For public caches, search params are omitted from the cache
+                  // key (and the serialized args) to avoid mismatches between
+                  // prerendering and resuming a cached page that does not
+                  // access search params. This is also the reason why we're not
+                  // using a hanging promise for search params. For cached pages
+                  // that do access them, which is an invalid dynamic usage, we
+                  // need to ensure that an error is shown.
+                  makeErroringSearchParamsForUseCache(workStore),
               },
+              ...otherInnerArgs,
             ]),
         }[name] as (...args: unknown[]) => Promise<unknown>
-      } else if (isLayoutComponent(args)) {
-        isPageOrLayout = true
+      } else if (isLayoutSegmentFunction(args)) {
+        isPageOrLayoutSegmentFunction = true
 
-        const [{ params: outerParams, $$isLayoutComponent, ...outerSlots }] =
-          args
-        // Overwrite the props to omit $$isLayoutComponent.
-        args = [{ params: outerParams, ...outerSlots }]
+        const [
+          { params: outerParams, $$isLayout, ...outerSlots },
+          ...otherOuterArgs
+        ] = args
+
+        // Overwrite the props to omit $$isLayout. Note that slots are only
+        // passed to the layout component (if any are defined), and not to
+        // generateMetadata nor generateViewport. For those functions,
+        // outerSlots/innerSlots is an empty object, which is fine because we're
+        // just spreading it into the props.
+        args = [{ params: outerParams, ...outerSlots }, ...otherOuterArgs]
 
         fn = {
-          [name]: async ({
-            params: _innerParams,
-            ...innerSlots
-          }: Omit<UseCacheLayoutComponentProps, '$$isLayoutComponent'>) =>
-            originalFn.apply(null, [{ params: outerParams, ...innerSlots }]),
+          [name]: async (
+            {
+              params: _innerParams,
+              ...innerSlots
+            }: Omit<UseCacheLayoutProps, '$$isLayout'>,
+            ...otherInnerArgs: unknown[]
+          ) =>
+            originalFn.apply(null, [
+              { params: outerParams, ...innerSlots },
+              ...otherInnerArgs,
+            ]),
         }[name] as (...args: unknown[]) => Promise<unknown>
       }
 
@@ -1068,15 +1132,23 @@ export function cache(
 
       switch (workUnitStore?.type) {
         case 'prerender-runtime':
+        // We're currently only using `dynamicAccessAsyncStorage` for params,
+        // which are always available in a runtime prerender, so they will never hang,
+        // effectively making the tracking below a no-op.
+        // However, a runtime prerender shares a lot of the semantics with a static prerender,
+        // and might need to follow this codepath in the future
+        // if we start using `dynamicAccessAsyncStorage` for other APIs.
+        //
+        // fallthrough
         case 'prerender':
-          if (!isPageOrLayout) {
-            // If the "use cache" function is not a page or a layout, we need to
-            // track dynamic access already when encoding the arguments. If
-            // params are passed explicitly into a "use cache" function (as
-            // opposed to receiving them automatically in a page or layout), we
-            // assume that the params are also accessed. This allows us to abort
-            // early, and treat the function as dynamic, instead of waiting for
-            // the timeout to be reached.
+          if (!isPageOrLayoutSegmentFunction) {
+            // If the "use cache" function is not a page or layout segment
+            // function, we need to track dynamic access already when encoding
+            // the arguments. If params are passed explicitly into a "use cache"
+            // function (as opposed to receiving them automatically in a page or
+            // layout), we assume that the params are also accessed. This allows
+            // us to abort early, and treat the function as dynamic, instead of
+            // waiting for the timeout to be reached.
             const dynamicAccessAbortController = new AbortController()
 
             encodedCacheKeyParts = await dynamicAccessAsyncStorage.run(
@@ -1133,8 +1205,6 @@ export function cache(
         const cachedEntry = renderResumeDataCache.cache.get(serializedCacheKey)
         if (cachedEntry !== undefined) {
           const existingEntry = await cachedEntry
-          propagateCacheLifeAndTags(cacheContext, existingEntry)
-
           if (workUnitStore !== undefined && existingEntry !== undefined) {
             if (
               existingEntry.revalidate === 0 ||
@@ -1143,11 +1213,11 @@ export function cache(
               switch (workUnitStore.type) {
                 case 'prerender':
                   // In a Dynamic I/O prerender, if the cache entry has
-                  // revalidate: 0 or if the expire time is under 5 minutes, then
-                  // we consider this cache entry dynamic as it's not worth
-                  // generating static pages for such data. It's better to leave a
-                  // PPR hole that can be filled in dynamically with a potentially
-                  // cached entry.
+                  // revalidate: 0 or if the expire time is under 5 minutes,
+                  // then we consider this cache entry dynamic as it's not worth
+                  // generating static pages for such data. It's better to leave
+                  // a dynamic hole that can be filled in during the resume with
+                  // a potentially cached entry.
                   if (cacheSignal) {
                     cacheSignal.endRead()
                   }
@@ -1156,7 +1226,15 @@ export function cache(
                     workStore.route,
                     'dynamic "use cache"'
                   )
-                case 'prerender-runtime':
+                case 'prerender-runtime': {
+                  // In the final phase of a runtime prerender, we have to make
+                  // sure that APIs that would hang during a static prerender
+                  // are resolved with a delay, in the runtime stage.
+                  if (workUnitStore.runtimeStagePromise) {
+                    await workUnitStore.runtimeStagePromise
+                  }
+                  break
+                }
                 case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'request':
@@ -1172,10 +1250,10 @@ export function cache(
             if (existingEntry.stale < RUNTIME_PREFETCH_DYNAMIC_STALE) {
               switch (workUnitStore.type) {
                 case 'prerender-runtime':
-                  // In a runtime prerender, if the cache entry will become stale in less then 30 seconds,
-                  // we consider this cache entry dynamic as it's not worth prefetching.
-                  // It's better to leave a PPR hole that can be filled in dynamically
-                  // with a potentially cached entry.
+                  // In a runtime prerender, if the cache entry will become
+                  // stale in less then 30 seconds, we consider this cache entry
+                  // dynamic as it's not worth prefetching. It's better to leave
+                  // a dynamic hole that can be filled during the navigation.
                   if (cacheSignal) {
                     cacheSignal.endRead()
                   }
@@ -1197,6 +1275,11 @@ export function cache(
               }
             }
           }
+
+          // We want to make sure we only propagate cache life & tags if the
+          // entry was *not* omitted from the prerender. So we only do this
+          // after the above early returns.
+          propagateCacheLifeAndTags(cacheContext, existingEntry)
 
           const [streamA, streamB] = existingEntry.value.tee()
           existingEntry.value = streamB
@@ -1311,7 +1394,7 @@ export function cache(
               implicitTagsExpiration
             )
           ) {
-            debug?.('discarding stale entry', serializedCacheKey)
+            debug?.('discarding expired entry', serializedCacheKey)
             entry = undefined
           }
         }
@@ -1327,8 +1410,9 @@ export function cache(
               // In a Dynamic I/O prerender, if the cache entry has revalidate:
               // 0 or if the expire time is under 5 minutes, then we consider
               // this cache entry dynamic as it's not worth generating static
-              // pages for such data. It's better to leave a PPR hole that can
-              // be filled in dynamically with a potentially cached entry.
+              // pages for such data. It's better to leave a dynamic hole that
+              // can be filled in during the resume with a potentially cached
+              // entry.
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
@@ -1537,37 +1621,35 @@ export function cache(
   return React.cache(cachedFn)
 }
 
-function isPageComponent(
+/**
+ * Returns `true` if the `'use cache'` function is the page component itself,
+ * or `generateMetadata`/`generateViewport` in a page file.
+ */
+function isPageSegmentFunction(
   args: any[]
-): args is [UseCachePageComponentProps, undefined] {
-  if (args.length !== 2) {
-    return false
-  }
-
-  const [props, ref] = args
+): args is [UseCachePageProps, ...unknown[]] {
+  const [maybeProps] = args
 
   return (
-    ref === undefined && // server components receive an undefined ref arg
-    props !== null &&
-    typeof props === 'object' &&
-    (props as UseCachePageComponentProps).$$isPageComponent
+    maybeProps !== null &&
+    typeof maybeProps === 'object' &&
+    (maybeProps as UseCachePageProps).$$isPage === true
   )
 }
 
-function isLayoutComponent(
+/**
+ * Returns `true` if the `'use cache'` function is the layout component itself,
+ * or `generateMetadata`/`generateViewport` in a layout file.
+ */
+function isLayoutSegmentFunction(
   args: any[]
-): args is [UseCacheLayoutComponentProps, undefined] {
-  if (args.length !== 2) {
-    return false
-  }
-
-  const [props, ref] = args
+): args is [UseCacheLayoutProps, ...unknown[]] {
+  const [maybeProps] = args
 
   return (
-    ref === undefined && // server components receive an undefined ref arg
-    props !== null &&
-    typeof props === 'object' &&
-    (props as UseCacheLayoutComponentProps).$$isLayoutComponent
+    maybeProps !== null &&
+    typeof maybeProps === 'object' &&
+    (maybeProps as UseCacheLayoutProps).$$isLayout === true
   )
 }
 
@@ -1673,7 +1755,7 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
   // In this case the revalidation might not have been fully propagated by a
   // remote cache handler yet, so we read it from the pending tags in the work
   // store.
-  if (pendingRevalidatedTags?.includes(tag)) {
+  if (pendingRevalidatedTags?.some((item) => item.tag === tag)) {
     debug?.('tag', tag, 'was just revalidated')
 
     return true

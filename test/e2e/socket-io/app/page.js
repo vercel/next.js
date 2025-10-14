@@ -6,6 +6,7 @@ import io from 'socket.io-client'
 let socket
 
 export default function Home() {
+  const [connected, setConnected] = useState(false)
   const [value, setValue] = useState('')
 
   const socketInitializer = async () => {
@@ -26,7 +27,10 @@ export default function Home() {
   }
 
   const sendMessageHandler = async (e) => {
-    if (!socket) return
+    if (!socket) {
+      console.error('No socket connection yet for message')
+      return
+    }
     const value = e.target.value
 
     setValue(value)
@@ -34,8 +38,15 @@ export default function Home() {
   }
 
   useEffect(() => {
-    socketInitializer()
+    socketInitializer().then(() => {
+      setConnected(true)
+    })
   }, [])
 
-  return <input value={value} onChange={sendMessageHandler} />
+  return (
+    <>
+      <span id="status">{connected ? 'Connected' : 'Disconnected'}</span>
+      <input value={value} onChange={sendMessageHandler} />
+    </>
+  )
 }

@@ -25,18 +25,18 @@ SOFTWARE.
 // This file is based on https://github.com/microsoft/vscode/blob/f860fcf11022f10a992440fd54c6e45674e39617/src/vs/base/node/pfs.ts
 // See the LICENSE at the top of the file
 
-import { rename as fsRename, stat } from 'node:fs/promises'
+import { renameSync as fsRenameSync, statSync } from 'node:fs'
 
 /**
  * A drop-in replacement for `fs.rename` that:
  * - allows to move across multiple disks
  * - attempts to retry the operation for certain error codes on Windows
  */
-export async function rename(
+export function renameSync(
   source: string,
   target: string,
   windowsRetryTimeout: number | false = 60000 /* matches graceful-fs */
-): Promise<void> {
+): void {
   if (source === target) {
     return // simulate node.js behaviour here and do a no-op if paths match
   }
@@ -46,21 +46,21 @@ export async function rename(
     // is locked by AV software. We do leverage graceful-fs to iron
     // out these issues, however in case the target file exists,
     // graceful-fs will immediately return without retry for fs.rename().
-    await renameWithRetry(source, target, Date.now(), windowsRetryTimeout)
+    renameSyncWithRetry(source, target, Date.now(), windowsRetryTimeout)
   } else {
-    await fsRename(source, target)
+    fsRenameSync(source, target)
   }
 }
 
-async function renameWithRetry(
+function renameSyncWithRetry(
   source: string,
   target: string,
   startTime: number,
   retryTimeout: number,
   attempt = 0
-): Promise<void> {
+): void {
   try {
-    return await fsRename(source, target)
+    return fsRenameSync(source, target)
   } catch (error: any) {
     if (
       error.code !== 'EACCES' &&
@@ -72,16 +72,23 @@ async function renameWithRetry(
 
     if (Date.now() - startTime >= retryTimeout) {
       console.error(
-        `[node.js fs] rename failed after ${attempt} retries with error: ${error}`
+        `Node.js fs rename failed after ${attempt} retries with error: ${error}`
       )
 
       throw error // give up after configurable timeout
     }
 
+    if (attempt > 100) {
+      console.error(
+        `Node.js fs rename failed after ${attempt} retries with error ${error}`
+      )
+      throw error
+    }
+
     if (attempt === 0) {
       let abortRetry = false
       try {
-        const statTarget = await stat(target)
+        const statTarget = statSync(target)
         if (!statTarget.isFile()) {
           abortRetry = true // if target is not a file, EPERM error may be raised and we should not attempt to retry
         }
@@ -94,13 +101,13 @@ async function renameWithRetry(
       }
     }
 
-    // Delay with incremental backoff up to 100ms
-    await timeout(Math.min(100, attempt * 10))
-
     // Attempt again
-    return renameWithRetry(source, target, startTime, retryTimeout, attempt + 1)
+    return renameSyncWithRetry(
+      source,
+      target,
+      startTime,
+      retryTimeout,
+      attempt + 1
+    )
   }
 }
-
-const timeout = (millis: number) =>
-  new Promise((resolve) => setTimeout(resolve, millis))

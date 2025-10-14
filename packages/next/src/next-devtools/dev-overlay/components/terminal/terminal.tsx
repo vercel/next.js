@@ -7,7 +7,7 @@ import { getFrameSource, type StackFrame } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 import { FileIcon } from '../../icons/file'
 
-export type TerminalProps = { content: string }
+type TerminalProps = { content: string }
 
 function getFile(lines: string[]) {
   const contentFileName = lines.shift()
@@ -74,7 +74,6 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
     })
   }, [source])
 
-  console.log({ file })
   const open = useOpenInEditor({
     file: file?.fileName,
     line1: file?.location?.line1 ?? 1,

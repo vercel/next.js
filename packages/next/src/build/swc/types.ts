@@ -9,6 +9,8 @@ import type {
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
+export type Lockfile = { __napiType: 'Lockfile' }
+
 export interface Binding {
   isWasm: boolean
   turbo: {
@@ -16,7 +18,10 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions?: NapiTurboEngineOptions
     ): Promise<Project>
-    startTurbopackTraceServer(traceFilePath: string): void
+    startTurbopackTraceServer(
+      traceFilePath: string,
+      port: number | undefined
+    ): void
 
     nextBuild?: any
   }
@@ -52,6 +57,19 @@ export interface Binding {
       isProduction: boolean
     ): Promise<NapiSourceDiagnostic[]>
   }
+  expandNextJsTemplate(
+    content: Buffer,
+    templatePath: string,
+    nextPackageDirPath: string,
+    replacements: Record<`VAR_${string}`, string>,
+    injections: Record<string, string>,
+    imports: Record<string, string | null>
+  ): string
+
+  lockfileTryAcquire(path: string): Promise<Lockfile | null>
+  lockfileTryAcquireSync(path: string): Lockfile | null
+  lockfileUnlock(lockfile: Lockfile): Promise<void>
+  lockfileUnlockSync(lockfile: Lockfile): void
 }
 
 export type StyledString =
@@ -126,6 +144,7 @@ export type TurbopackResult<T = {}> = T & {
 
 export interface Middleware {
   endpoint: Endpoint
+  isProxy: boolean
 }
 
 export interface Instrumentation {
@@ -214,9 +233,11 @@ export interface Project {
 
   writeAllEntrypointsToDisk(
     appDirOnly: boolean
-  ): Promise<TurbopackResult<RawEntrypoints>>
+  ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
 
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints>>
+  entrypointsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<RawEntrypoints | {}>
+  >
 
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
 
@@ -242,7 +263,7 @@ export interface Project {
     eventTypes?: string[]
   ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
 
-  invalidatePersistentCache(): Promise<void>
+  invalidateFileSystemCache(): Promise<void>
 
   shutdown(): Promise<void>
 
@@ -369,17 +390,6 @@ export interface ProjectOptions {
    * The next.config.js contents.
    */
   nextConfig: NextConfigComplete
-
-  /**
-   * Jsconfig, or tsconfig contents.
-   *
-   * Next.js implicitly requires to read it to support few options
-   * https://nextjs.org/docs/architecture/nextjs-compiler#legacy-decorators
-   * https://nextjs.org/docs/architecture/nextjs-compiler#importsource
-   */
-  jsConfig: {
-    compilerOptions: object
-  }
 
   /**
    * A map of environment variables to use when compiling code.

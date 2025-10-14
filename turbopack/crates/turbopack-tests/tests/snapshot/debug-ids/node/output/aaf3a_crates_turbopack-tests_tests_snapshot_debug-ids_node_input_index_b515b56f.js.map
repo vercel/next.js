@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "debugId": "3d97c2d1-90e5-a3ef-c710-5c78b21b3b3a",
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/node/input/index.js"],"sourcesContent":["console.log('Hello World')\n"],"names":[],"mappings":"AAAA,QAAQ,GAAG,CAAC"}}]
+}

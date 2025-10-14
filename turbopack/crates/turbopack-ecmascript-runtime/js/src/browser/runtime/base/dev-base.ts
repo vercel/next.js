@@ -165,15 +165,20 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
 function DevContext(
   this: TurbopackDevContext,
   module: HotModule,
+  exports: Exports,
   refresh: RefreshContext
 ) {
-  Context.call(this, module)
+  Context.call(this, module, exports)
   this.k = refresh
 }
 DevContext.prototype = Context.prototype
 
 type DevContextConstructor = {
-  new (module: HotModule, refresh: RefreshContext): TurbopackDevContext
+  new (
+    module: HotModule,
+    exports: Exports,
+    refresh: RefreshContext
+  ): TurbopackDevContext
 }
 
 function instantiateModule(
@@ -217,6 +222,7 @@ function instantiateModule(
   }
 
   const module: HotModule = createModuleObject(id) as HotModule
+  const exports = module.exports
   module.parents = parents
   module.children = []
   module.hot = hot
@@ -229,9 +235,10 @@ function instantiateModule(
     runModuleExecutionHooks(module, (refresh) => {
       const context = new (DevContext as any as DevContextConstructor)(
         module,
+        exports,
         refresh
       )
-      moduleFactory(context)
+      moduleFactory(context, module, exports)
     })
   } catch (error) {
     module.error = error as any

@@ -99,7 +99,7 @@ function SegmentExplorerFooter({
   )
 }
 
-export function FilePill({
+function FilePill({
   type,
   isBuiltin,
   isOverridden,
@@ -441,7 +441,7 @@ function PageSegmentTreeLayerPresentation({
   )
 }
 
-export function openInEditor({ filePath }: { filePath: string }) {
+function openInEditor({ filePath }: { filePath: string }) {
   const params = new URLSearchParams({
     file: filePath,
     // Mark the file path is relative to the app directory,
@@ -491,7 +491,7 @@ function BackArrowIcon() {
   )
 }
 
-export function CodeIcon(props: React.SVGProps<SVGSVGElement>) {
+function CodeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       width="12"

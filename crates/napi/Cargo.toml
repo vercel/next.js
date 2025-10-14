@@ -64,6 +64,7 @@ owo-colors = { workspace = true }
 napi = { workspace = true }
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
+next-taskless = { workspace = true }
 rand = { workspace = true }
 rustc-hash = { workspace = true }
 serde = "1"
@@ -78,7 +79,7 @@ urlencoding = { workspace = true }
 once_cell = { workspace = true }
 
 swc_core = { workspace = true, features = [
-    "base_node",
+    "base",
     "common_concurrent",
     "ecma_ast",
     "ecma_ast_serde",
@@ -105,6 +106,7 @@ turbo-rcstr = { workspace = true, features = ["napi"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }
+turbo-unix-path = { workspace = true }
 next-api = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
@@ -121,6 +123,8 @@ turbopack-trace-utils = { workspace = true }
 turbopack-trace-server = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, optional = true }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = "0.60"
 
 # Dependencies for the wasm32 build.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -143,6 +147,3 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 vergen-gitcl = { workspace = true }
 
-# build-dependencies for the native, non-wasm32 build
-[target.'cfg(not(target_arch = "wasm32"))'.build-dependencies]
-turbo-tasks-build = { workspace = true }

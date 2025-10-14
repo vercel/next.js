@@ -2,7 +2,7 @@
 'use strict';
 /**
  * This is a comment.
- */ import { unstable_rootParams } from 'next/server';
+ */ import { lang } from 'next/root-params';
 export default function() {
     return null;
 }

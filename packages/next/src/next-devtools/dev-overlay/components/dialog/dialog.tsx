@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useOnClickOutside } from '../../hooks/use-on-click-outside'
 
-export type DialogProps = {
+type DialogProps = {
   children?: React.ReactNode
   'aria-labelledby': string
   'aria-describedby': string
@@ -29,6 +29,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   ...props
 }) {
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
+  // TODO: Document is an external store. Either use useSyncExternalStore or always set the role.
   const [role, setRole] = React.useState<string | undefined>(
     typeof document !== 'undefined' && document.hasFocus()
       ? 'dialog'
@@ -36,8 +37,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   )
 
   useOnClickOutside(
-    // eslint-disable-next-line react-hooks/react-compiler -- TODO
-    dialogRef.current,
+    dialogRef,
     CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE,
     (e) => {
       e.preventDefault()
