@@ -122,8 +122,8 @@ impl ServerContextType {
 }
 
 #[turbo_tasks::function]
-pub async fn should_use_next_js_condition(next_config: Vc<NextConfig>) -> Result<Vc<bool>> {
-    Ok(Vc::cell(*next_config.enable_cache_components().await?))
+pub fn should_use_next_js_condition(next_config: Vc<NextConfig>) -> Vc<bool> {
+    next_config.enable_cache_components()
 }
 
 #[turbo_tasks::function]
