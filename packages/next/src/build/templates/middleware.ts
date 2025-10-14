@@ -10,13 +10,15 @@ import { edgeInstrumentationOnRequestError } from '../../server/web/globals'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 
 const mod = { ..._mod }
-const handler = mod.middleware || mod.default
 
 const page = 'VAR_DEFINITION_PAGE'
+// @ts-expect-error `page` will be replaced during build
+const isProxy = page === '/proxy' || page === '/src/proxy'
+const handler = (isProxy ? mod.proxy : mod.middleware) || mod.default
 
 if (typeof handler !== 'function') {
   throw new Error(
-    `The Middleware "${page}" must export a \`middleware\` or a \`default\` function`
+    `The ${isProxy ? 'Proxy' : 'Middleware'} "${page}" must export a ${isProxy ? '`proxy`' : '`middleware`'} or a \`default\` function`
   )
 }
 

@@ -27,7 +27,8 @@ function verifyTypeScriptSetup(
   cacheDir: string | undefined,
   enableWorkerThreads: boolean | undefined,
   hasAppDir: boolean,
-  hasPagesDir: boolean
+  hasPagesDir: boolean,
+  isolatedDevBuild: boolean | undefined
 ) {
   const typeCheckWorker = new Worker(
     require.resolve('../lib/verify-typescript-setup'),
@@ -54,6 +55,7 @@ function verifyTypeScriptSetup(
       cacheDir,
       hasAppDir,
       hasPagesDir,
+      isolatedDevBuild,
     })
     .then((result) => {
       typeCheckWorker.end()
@@ -116,7 +118,8 @@ export async function startTypeChecking({
           cacheDir,
           config.experimental.workerThreads,
           !!appDir,
-          !!pagesDir
+          !!pagesDir,
+          config.experimental.isolatedDevBuild
         ).then((resolved) => {
           const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const

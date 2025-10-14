@@ -13,7 +13,7 @@ import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
-import { isStableBuild } from '../shared/lib/canary-only'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 
 export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
@@ -573,8 +573,8 @@ export interface ExperimentalConfig {
   clientTraceMetadata?: string[]
 
   /**
-   * Enables experimental Partial Prerendering feature of Next.js.
-   * Using this feature will enable the `react@experimental` for the `app` directory.
+   * @deprecated This configuration option has been merged into `experimental.cacheComponents`.
+   * The Partial Prerendering feature is still available via `experimental.cacheComponents`.
    */
   ppr?: ExperimentalPPRConfig
 
@@ -817,6 +817,14 @@ export interface ExperimentalConfig {
    * @default true
    */
   lockDistDir?: boolean
+
+  /**
+   * Hide logs that occur after a render has already aborted.
+   * This can help reduce noise in the console when dealing with aborted renders.
+   *
+   * @default false
+   */
+  hideLogsAfterAbort?: boolean
 }
 
 export type ExportPathMap = {
@@ -1228,12 +1236,6 @@ export interface NextConfig {
 
   skipMiddlewareUrlNormalize?: boolean
 
-  /**
-   * Skip Next.js internals route `/_next` from middleware.
-   * @default true
-   */
-  skipMiddlewareNextInternalRoutes?: boolean
-
   skipTrailingSlashRedirect?: boolean
 
   modularizeImports?: Record<
@@ -1412,7 +1414,7 @@ export const defaultConfig = Object.freeze({
       max: {
         stale: 60 * 5, // 5 minutes
         revalidate: 60 * 60 * 24 * 30, // 1 month
-        expire: INFINITE_CACHE, // Unbounded.
+        expire: 60 * 60 * 24 * 365, // 1 year
       },
     },
     cacheHandlers: {
@@ -1504,10 +1506,11 @@ export const defaultConfig = Object.freeze({
     browserDebugInfoInTerminal: false,
     lockDistDir: true,
     isolatedDevBuild: true,
+    middlewareClientMaxBodySize: 10_485_760, // 10MB
+    hideLogsAfterAbort: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-  skipMiddlewareNextInternalRoutes: true,
 } satisfies NextConfig)
 
 export async function normalizeConfig(phase: string, config: any) {

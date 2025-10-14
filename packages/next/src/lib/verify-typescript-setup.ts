@@ -43,6 +43,7 @@ export async function verifyTypeScriptSetup({
   disableStaticImages,
   hasAppDir,
   hasPagesDir,
+  isolatedDevBuild,
 }: {
   dir: string
   distDir: string
@@ -53,6 +54,7 @@ export async function verifyTypeScriptSetup({
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
+  isolatedDevBuild: boolean | undefined
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigFileName = tsconfigPath || 'tsconfig.json'
   const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
@@ -126,7 +128,8 @@ export async function verifyTypeScriptSetup({
       intent.firstTimeSetup,
       hasAppDir,
       distDir,
-      hasPagesDir
+      hasPagesDir,
+      isolatedDevBuild
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:

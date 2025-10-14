@@ -1,7 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // This test needs to intercept internal routes /_next/ (skipped by default)
-  skipMiddlewareNextInternalRoutes: false,
   skipMiddlewareUrlNormalize: true,
   skipTrailingSlashRedirect: true,
   experimental: {

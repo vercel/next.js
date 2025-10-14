@@ -11,7 +11,7 @@ import {
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
-import { parseLoaderTree } from './parse-loader-tree'
+import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
 import type { AppRenderContext, GetDynamicParamFromSegment } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'

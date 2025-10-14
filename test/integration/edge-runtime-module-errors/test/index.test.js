@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-identical-title */
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'

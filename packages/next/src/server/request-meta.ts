@@ -1,4 +1,3 @@
-/* eslint-disable no-redeclare */
 import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'

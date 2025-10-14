@@ -134,7 +134,7 @@ This can lead to subtle rendering changes when adopting Turbopack, if applicatio
 
 ### Bundle Sizes
 
-Turbopack does not yet have an equivalent to the [Inner Graph Optimization](https://webpack.js.org/configuration/optimization/#optimizationinnergraph) in webpack. This optimization is useful to tree shake large modules. For example:
+Turbopack does not yet have an equivalent to the [Inner Graph Optimization](https://webpack.js.org/configuration/optimization/#optimizationinnergraph) in webpack which is enabled by default. This optimization is useful to tree shake large modules. For example:
 
 ```js filename=large.module.js
 import heavy from 'some-heavy-dependency.js'
@@ -146,15 +146,18 @@ export function usesHeavy() {
 export const CONSTANT_VALUE = 3
 ```
 
-If an application only uses `CONSTANT_VALUE` Turbopack will detect this and delete the `usesHeavy` export but not the corresponding `import`. However, with the `optimization.innerGraph = true` option enabled, webpack can delete the `import` too.
+If an application only uses `CONSTANT_VALUE` Turbopack will detect this and delete the `usesHeavy` export but not the corresponding `import`. However, with the Inner Graph Optimization, webpack can delete the `import` too which can drop the dependency as well.
 
-We are planning to offer an equivalent to the `innerGraph` optimization in Turbopack but it is still under development. If you are affected by this gap, consider manually splitting these modules.
+We are planning to offer an equivalent to the Inner Graph Optimization in Turbopack but it is still under development. If you are affected by this gap, consider manually splitting these modules.
 
 ### Build Caching
 
-Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to speed up builds. We are planning to support an analogous feature in Turbopack but it is not ready yet. On the `next@canary` release you can experiment with our solution by enabling the [`experimental.turbopackFileSystemCacheForDev`/`experimental.turbopackFileSystemCacheForBuild` flags](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache).
+Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to improve build performance. Turbopack provides a similar opt-in feature, currently in beta. Starting with Next 16, you can enable Turbopack’s filesystem cache by setting the following experimental flags:
 
-> **Good to know:** For this reason, when comparing webpack and Turbopack performance, make sure to delete the `.next` folder between builds to see a fair comparison.
+- [`experimental.turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache)
+- [`experimental.turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache)
+
+> **Good to know:** For this reason, when comparing webpack and Turbopack performance, make sure to delete the `.next` folder between builds to see a fair comparison or enable the turbopack filesystem cache feature.
 
 ### Webpack plugins
 

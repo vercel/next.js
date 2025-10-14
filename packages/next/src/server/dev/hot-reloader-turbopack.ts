@@ -1311,6 +1311,8 @@ export async function createHotReloaderTurbopack(
             // TODO: why is this entry missing in turbopack?
             if (page === '/middleware') return
             if (page === '/src/middleware') return
+            if (page === '/proxy') return
+            if (page === '/src/proxy') return
             if (page === '/instrumentation') return
             if (page === '/src/instrumentation') return
 

@@ -3,7 +3,7 @@ import execa from 'execa'
 import stripAnsi from 'strip-ansi'
 
 describe('lockfile', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
   })
   const isRspack = !!process.env.NEXT_RSPACK
@@ -17,7 +17,7 @@ describe('lockfile', () => {
       [
         'next',
         'dev',
-        isTurbopack ? '--turbopack' : isRspack ? '' : '--webpack',
+        ...(isRspack ? [] : [isTurbopack ? '--turbopack' : '--webpack']),
       ],
       {
         cwd: next.testDir,

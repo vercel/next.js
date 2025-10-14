@@ -150,13 +150,20 @@ program
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )
-  .action((directory: string, options: NextBuildOptions) =>
+  .option(
+    '--experimental-next-config-strip-types',
+    'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
+  )
+  .action((directory: string, options: NextBuildOptions) => {
+    if (options.experimentalNextConfigStripTypes) {
+      process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+    }
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
-    import('../cli/next-build.js').then((mod) =>
+    return import('../cli/next-build.js').then((mod) =>
       mod.nextBuild(options, directory).then(() => process.exit(0))
     )
-  )
+  })
   .usage('[directory] [options]')
 
 program
@@ -208,8 +215,15 @@ program
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )
+  .option(
+    '--experimental-next-config-strip-types',
+    'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
+  )
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
+      if (options.experimentalNextConfigStripTypes) {
+        process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+      }
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
         mod.nextDev(options, portSource, directory)
@@ -267,11 +281,18 @@ program
       'Specify the maximum amount of milliseconds to wait before closing inactive connections.'
     ).argParser(parseValidPositiveInteger)
   )
-  .action((directory: string, options: NextStartOptions) =>
-    import('../cli/next-start.js').then((mod) =>
+  .option(
+    '--experimental-next-config-strip-types',
+    'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
+  )
+  .action((directory: string, options: NextStartOptions) => {
+    if (options.experimentalNextConfigStripTypes) {
+      process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+    }
+    return import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)
     )
-  )
+  })
   .usage('[directory] [options]')
 
 program

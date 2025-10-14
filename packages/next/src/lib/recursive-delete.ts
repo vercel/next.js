@@ -1,6 +1,6 @@
 import type { Dirent } from 'node:fs'
 import * as fs from 'node:fs'
-import { join, isAbsolute, dirname } from 'node:path'
+import { join } from 'node:path'
 import isError from './is-error'
 import { wait } from './wait'
 
@@ -90,33 +90,17 @@ export async function recursiveDeleteSyncWithAsyncRetries(
   await Promise.all(
     result.map(async (part: Dirent) => {
       const absolutePath = join(dir, part.name)
-
-      // readdir does not follow symbolic links
-      // if part is a symbolic link, follow it using stat
-      let isDirectory = part.isDirectory()
-      const isSymlink = part.isSymbolicLink()
-
-      if (isSymlink) {
-        const linkPath = fs.readlinkSync(absolutePath)
-
-        try {
-          const stats = fs.statSync(
-            isAbsolute(linkPath)
-              ? linkPath
-              : join(dirname(absolutePath), linkPath)
-          )
-          isDirectory = stats.isDirectory()
-        } catch {}
-      }
-
       const pp = join(previousPath, part.name)
       const isNotExcluded = !exclude || !exclude.test(pp)
 
       if (isNotExcluded) {
-        if (!isSymlink && isDirectory) {
+        // Note: readdir does not follow symbolic links, that's good: we want to
+        // delete the links and not the destination.
+        let isDirectory = part.isDirectory()
+        if (isDirectory) {
           await recursiveDeleteSyncWithAsyncRetries(absolutePath, exclude, pp)
         }
-        return unlinkPath(absolutePath, !isSymlink && isDirectory)
+        return unlinkPath(absolutePath, isDirectory)
       }
     })
   )

@@ -97,6 +97,7 @@ import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 import type { NextBuildContext } from './build-context'
 import type { RootParamsLoaderOpts } from './webpack/loaders/next-root-params-loader'
 import type { InvalidImportLoaderOpts } from './webpack/loaders/next-invalid-import-error-loader'
+import { defaultOverrides } from '../server/require-hook'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -966,7 +967,8 @@ export default async function getBaseWebpackConfig(
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
     // @ts-ignore
     externals:
-      isClient || isEdgeServer
+      !isRspack &&
+      (isClient || isEdgeServer
         ? // make sure importing "next" is handled gracefully for client
           // bundles in case a user imported types and it wasn't removed
           // TODO: should we warn/error for this instead?
@@ -1038,7 +1040,7 @@ export default async function getBaseWebpackConfig(
                     })
                 }
               ),
-          ],
+          ]),
 
     optimization: {
       emitOnErrors: !dev,
@@ -2081,7 +2083,6 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           rewrites,
-          nextConfig: config,
           edgeEnvironments: {
             __NEXT_BUILD_ID: buildId,
             NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: encryptionKey,
@@ -2173,6 +2174,15 @@ export default async function getBaseWebpackConfig(
         ).default({
           compilerType,
           ...config.experimental.slowModuleDetection!,
+        }),
+      isRspack &&
+        new (getRspackCore().NextExternalsPlugin)({
+          compilerType,
+          config,
+          optOutBundlingPackageRegex,
+          finalTranspilePackages,
+          dir,
+          defaultOverrides,
         }),
     ].filter(Boolean as any as ExcludesFalse),
   }

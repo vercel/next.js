@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'

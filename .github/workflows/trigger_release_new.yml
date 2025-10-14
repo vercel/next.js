@@ -19,6 +19,7 @@ on:
           - canary
           - stable
           - release-candidate
+          - beta
 
       force:
         description: Forced Release

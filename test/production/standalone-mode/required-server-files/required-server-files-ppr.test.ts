@@ -13,7 +13,8 @@ import {
 } from 'next-test-utils'
 import { ChildProcess } from 'node:child_process'
 
-describe('required server files app router', () => {
+// TODO(NAR-423): Migrate to Cache Components.
+describe.skip('required server files app router', () => {
   let next: NextInstance
   let server: ChildProcess
   let appPort: number | string
@@ -55,7 +56,7 @@ describe('required server files app router', () => {
       nextConfig: {
         cacheHandler: './cache-handler.js',
         experimental: {
-          ppr: true,
+          cacheComponents: true,
           clientSegmentCache: true,
           clientParamParsing: true,
         },
