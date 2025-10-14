@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
@@ -167,28 +167,6 @@ pub async fn get_app_client_references_chunks(
             let mut layout_segment_client_chunks = FxIndexMap::default();
             let mut client_component_ssr_chunks = FxIndexMap::default();
             let mut client_component_client_chunks = FxIndexMap::default();
-
-            println!(
-                "client_references {:#?}",
-                client_references_by_server_component
-                    .iter()
-                    .map(async |(server, tys)| Ok((
-                        server.ident().to_string().await?,
-                        tys.iter()
-                            .map(|ty| match ty {
-                                ClientReferenceType::EcmascriptClientReference(m) => {
-                                    m.ident().to_string()
-                                }
-                                ClientReferenceType::CssClientReference(m) => {
-                                    m.ident().to_string()
-                                }
-                            })
-                            .try_join()
-                            .await?
-                    )))
-                    .try_join()
-                    .await?
-            );
 
             for (server_component, client_reference_types) in
                 client_references_by_server_component.into_iter()
