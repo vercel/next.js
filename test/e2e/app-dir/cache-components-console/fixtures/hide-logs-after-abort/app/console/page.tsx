@@ -3,7 +3,6 @@ async function cachedConsoleCalls(outBadge: string, errBadge: string) {
   console.info(`${outBadge} /console: template(one: %s, two: %s)`, 'one', 'two')
   await 1
   console.log(
-    // eslint-disable-next-line no-useless-concat
     `${outBadge} /console: This is a console page` +
       ". Don't match the codeframe."
   )
@@ -32,7 +31,6 @@ export default async function ConsolePage() {
   console.info(`${outBadge} /console: template(one: %s, two: %s)`, 'one', 'two')
   await 1
   console.log(
-    // eslint-disable-next-line no-useless-concat
     `${outBadge} /console: This is a console page` +
       ". Don't match the codeframe."
   )
