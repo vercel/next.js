@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{self as turbo_tasks, RawVc, ResolvedVc, TryJoinIterExt, Vc};
+use crate::{self as turbo_tasks, ResolvedVc, TryJoinIterExt, Vc};
 
 /// Just an empty type, but it's never equal to itself.
 ///
