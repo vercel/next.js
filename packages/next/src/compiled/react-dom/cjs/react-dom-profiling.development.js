@@ -14786,6 +14786,8 @@
           flags = finishedWork.flags;
         switch (finishedWork.tag) {
           case 0:
+          case 11:
+          case 15:
             if (
               0 !== (flags & 4) &&
               ((isViewTransitionEligible = finishedWork.updateQueue),
@@ -14802,9 +14804,6 @@
               )
                 (current = isViewTransitionEligible[finishedWork]),
                   (current.ref.impl = current.nextImpl);
-            break;
-          case 11:
-          case 15:
             break;
           case 1:
             0 !== (flags & 1024) &&
@@ -15770,7 +15769,10 @@
             );
           break;
         case 5:
+          hoistableRoot = offscreenDirectParentIsHidden;
+          offscreenDirectParentIsHidden = !1;
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
+          offscreenDirectParentIsHidden = hoistableRoot;
           commitReconciliationEffects(finishedWork);
           flags & 512 &&
             (offscreenSubtreeWasHidden ||
@@ -15900,13 +15902,17 @@
           hoistableRoot = null !== finishedWork.memoizedState;
           var wasHidden = null !== current && null !== current.memoizedState,
             prevOffscreenSubtreeIsHidden = offscreenSubtreeIsHidden,
-            prevOffscreenSubtreeWasHidden = offscreenSubtreeWasHidden;
+            prevOffscreenSubtreeWasHidden = offscreenSubtreeWasHidden,
+            _prevOffscreenDirectParentIsHidden = offscreenDirectParentIsHidden;
           offscreenSubtreeIsHidden =
             prevOffscreenSubtreeIsHidden || hoistableRoot;
+          offscreenDirectParentIsHidden =
+            _prevOffscreenDirectParentIsHidden || hoistableRoot;
           offscreenSubtreeWasHidden =
             prevOffscreenSubtreeWasHidden || wasHidden;
           recursivelyTraverseMutationEffects(root, finishedWork, lanes);
           offscreenSubtreeWasHidden = prevOffscreenSubtreeWasHidden;
+          offscreenDirectParentIsHidden = _prevOffscreenDirectParentIsHidden;
           offscreenSubtreeIsHidden = prevOffscreenSubtreeIsHidden;
           wasHidden &&
             !hoistableRoot &&
@@ -15922,33 +15928,31 @@
               componentEffectEndTime
             );
           commitReconciliationEffects(finishedWork);
-          if (flags & 8192)
-            a: for (
-              root = finishedWork.stateNode,
-                root._visibility = hoistableRoot
-                  ? root._visibility & ~OffscreenVisible
-                  : root._visibility | OffscreenVisible,
-                !hoistableRoot ||
-                  null === current ||
-                  wasHidden ||
-                  offscreenSubtreeIsHidden ||
-                  offscreenSubtreeWasHidden ||
-                  (recursivelyTraverseDisappearLayoutEffects(finishedWork),
-                  (finishedWork.mode & ProfileMode) !== NoMode &&
-                    0 <= componentEffectStartTime &&
-                    0 <= componentEffectEndTime &&
-                    0.05 < componentEffectEndTime - componentEffectStartTime &&
-                    logComponentTrigger(
-                      finishedWork,
-                      componentEffectStartTime,
-                      componentEffectEndTime,
-                      "Disconnect"
-                    )),
-                current = null,
-                root = finishedWork;
-              ;
-
-            ) {
+          if (
+            flags & 8192 &&
+            ((root = finishedWork.stateNode),
+            (root._visibility = hoistableRoot
+              ? root._visibility & ~OffscreenVisible
+              : root._visibility | OffscreenVisible),
+            !hoistableRoot ||
+              null === current ||
+              wasHidden ||
+              offscreenSubtreeIsHidden ||
+              offscreenSubtreeWasHidden ||
+              (recursivelyTraverseDisappearLayoutEffects(finishedWork),
+              (finishedWork.mode & ProfileMode) !== NoMode &&
+                0 <= componentEffectStartTime &&
+                0 <= componentEffectEndTime &&
+                0.05 < componentEffectEndTime - componentEffectStartTime &&
+                logComponentTrigger(
+                  finishedWork,
+                  componentEffectStartTime,
+                  componentEffectEndTime,
+                  "Disconnect"
+                )),
+            hoistableRoot || !offscreenDirectParentIsHidden)
+          )
+            a: for (current = null, root = finishedWork; ; ) {
               if (5 === root.tag || 26 === root.tag) {
                 if (null === current) {
                   lanes = current = root;
@@ -29319,6 +29323,7 @@
       didWarnAboutName = {},
       offscreenSubtreeIsHidden = !1,
       offscreenSubtreeWasHidden = !1,
+      offscreenDirectParentIsHidden = !1,
       needsFormReset = !1,
       PossiblyWeakSet = "function" === typeof WeakSet ? WeakSet : Set,
       nextEffect = null,
@@ -30327,11 +30332,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-ead92181-20251010" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-d7215b49-20251013" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-ead92181-20251010\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-d7215b49-20251013\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -30368,10 +30373,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-canary-ead92181-20251010",
+          version: "19.3.0-canary-d7215b49-20251013",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-canary-ead92181-20251010"
+          reconcilerVersion: "19.3.0-canary-d7215b49-20251013"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -30839,7 +30844,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-canary-ead92181-20251010";
+    exports.version = "19.3.0-canary-d7215b49-20251013";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
