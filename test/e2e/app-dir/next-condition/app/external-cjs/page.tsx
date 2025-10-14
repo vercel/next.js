@@ -1,6 +1,6 @@
 // For this to work locally you need to use `pnpm next-with-deps dev|build`
 // Make sure you delete node_modules if you are editing the package otherwise it won't
-// reinstall and reflect your changes. You must `npm pack` the packages to make them installable
+// reinstall and reflect your changes.
 
 // @ts-expect-error -- the package isn't installed in your IDE in a way TS understands
 import ExportsDefault from 'my-external-cjs-package/exports'

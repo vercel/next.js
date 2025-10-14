@@ -1,8 +1,8 @@
 {
   "dependencies": {
-    "my-cjs-package": "file:./packages/my-cjs-package/my-cjs-package-0.0.0.tgz",
-    "my-esm-package": "file:./packages/my-esm-package/my-esm-package-0.0.0.tgz",
-    "my-external-cjs-package": "file:./packages/my-external-cjs-package/my-external-cjs-package-0.0.0.tgz",
-    "my-external-esm-package": "file:./packages/my-external-esm-package/my-external-esm-package-0.0.0.tgz"
+    "my-cjs-package": "file:./packages/my-cjs-package",
+    "my-esm-package": "file:./packages/my-esm-package",
+    "my-external-cjs-package": "file:./packages/my-external-cjs-package",
+    "my-external-esm-package": "file:./packages/my-external-esm-package"
   }
 }
