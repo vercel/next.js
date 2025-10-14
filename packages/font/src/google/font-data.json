@@ -1418,6 +1418,21 @@
     "styles": ["normal", "italic"],
     "subsets": ["latin"]
   },
+  "BBH Sans Bartle": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin"]
+  },
+  "BBH Sans Bogle": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin"]
+  },
+  "BBH Sans Hegarty": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin"]
+  },
   "BIZ UDGothic": {
     "weights": ["400", "700"],
     "styles": ["normal"],
