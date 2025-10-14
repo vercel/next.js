@@ -122,11 +122,6 @@ impl ServerContextType {
 }
 
 #[turbo_tasks::function]
-pub fn should_use_next_js_condition(next_config: Vc<NextConfig>) -> Vc<bool> {
-    next_config.enable_cache_components()
-}
-
-#[turbo_tasks::function]
 pub async fn get_server_resolve_options_context(
     project_path: FileSystemPath,
     ty: ServerContextType,
@@ -219,7 +214,7 @@ pub async fn get_server_resolve_options_context(
         custom_conditions.push(rcstr!("react-server"));
     };
 
-    if *should_use_next_js_condition(next_config).await? {
+    if *next_config.enable_cache_components().await? {
         custom_conditions.push(rcstr!("next-js"));
     };
 
