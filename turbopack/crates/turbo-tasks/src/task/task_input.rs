@@ -22,18 +22,7 @@ use crate::{
 ///
 /// Serialization must be deterministic and compatible with `eq` comparisons.  If two `TaskInputs`
 /// compare equal they must also serialize to the same bytes.
-pub trait TaskInput:
-    Send
-    + Sync
-    + Clone
-    + Debug
-    + PartialEq
-    + Eq
-    + Hash
-    + TraceRawVcs
-    + Serialize
-    + for<'a> Deserialize<'a>
-{
+pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs {
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         async { Ok(self.clone()) }
     }
