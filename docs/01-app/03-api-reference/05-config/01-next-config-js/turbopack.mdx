@@ -65,6 +65,33 @@ The following loaders have been tested to work with Turbopack's webpack loader i
 - [`sass-loader`](https://www.npmjs.com/package/sass-loader) [_(Configured automatically)_](/docs/app/api-reference/turbopack#css-and-styling)
 - [`graphql-tag/loader`](https://www.npmjs.com/package/graphql-tag)
 
+#### Missing Webpack loader features
+
+Turbopack uses the [`loader-runner`](https://github.com/webpack/loader-runner) library to execute webpack loaders, which provides most of the standard loader API. However, some features are not supported:
+
+**Module loading:**
+
+- [`importModule`](https://webpack.js.org/api/loaders/#thisimportmodule) - No support
+- [`loadModule`](https://webpack.js.org/api/loaders/#thisloadmodule) - No support
+
+**File system and output:**
+
+- [`fs`](https://webpack.js.org/api/loaders/#thisfs) - Partial support: only `fs.readFile` is currently implemented.
+- [`emitFile`](https://webpack.js.org/api/loaders/#thisemitfile) - No support
+
+**Context properties:**
+
+- [`version`](https://webpack.js.org/api/loaders/#thisversion) - No support
+- [`mode`](https://webpack.js.org/api/loaders/#thismode) - No support
+- [`target`](https://webpack.js.org/api/loaders/#thistarget) - No support
+
+**Utilities:**
+
+- [`utils`](https://webpack.js.org/api/loaders/#thisutils) - No support
+- [`resolve`](https://webpack.js.org/api/loaders/#thisresolve) - No support (use [`getResolve`](https://webpack.js.org/api/loaders/#thisgetresolve) instead)
+
+If you have a loader that is critically dependent upon one of these features please file an issue.
+
 ## Examples
 
 ### Root directory

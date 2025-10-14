@@ -3300,10 +3300,11 @@
                       parseStackTrace(ioInfo$jscomp$0.debugStack, 1)
                     )
                   : ioInfo$jscomp$0.stack;
+              var env = ioInfo$jscomp$0.env;
+              null == env && (env = (0, request.environmentName)());
               var request$jscomp$0 = request,
                 id$jscomp$1 = id$jscomp$0,
                 value = ioInfo$jscomp$0.value,
-                env = ioInfo$jscomp$0.env,
                 objectLimit = 10;
               debugStack && (objectLimit += debugStack.length);
               var debugIOInfo = {
@@ -3315,12 +3316,12 @@
               null != debugStack && (debugIOInfo.stack = debugStack);
               null != owner && (debugIOInfo.owner = owner);
               void 0 !== value && (debugIOInfo.value = value);
-              value = serializeDebugModel(
+              env = serializeDebugModel(
                 request$jscomp$0,
                 objectLimit,
                 debugIOInfo
               );
-              id$jscomp$1 = id$jscomp$1.toString(16) + ":J" + value + "\n";
+              id$jscomp$1 = id$jscomp$1.toString(16) + ":J" + env + "\n";
               id$jscomp$1 = stringToChunk(id$jscomp$1);
               request$jscomp$0.completedDebugChunks.push(id$jscomp$1);
               request.writtenDebugObjects.set(
@@ -3338,7 +3339,10 @@
                   )
                 : info.stack;
             ioInfo = { awaited: ioInfo };
-            null != info.env && (ioInfo.env = info.env);
+            ioInfo.env =
+              null != info.env
+                ? info.env
+                : (0, request$jscomp$1.environmentName)();
             null != info.owner && (ioInfo.owner = info.owner);
             null != request && (ioInfo.stack = request);
             request$jscomp$1.pendingChunks++;
