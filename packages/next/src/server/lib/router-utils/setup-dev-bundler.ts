@@ -409,7 +409,7 @@ async function startWatcher(
             `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
           )
         }
-        Log.warn(
+        Log.warnOnce(
           `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
         )
       }
