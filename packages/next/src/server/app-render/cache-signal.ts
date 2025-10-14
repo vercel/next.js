@@ -28,15 +28,17 @@ export class CacheSignal {
   private noMorePendingCaches() {
     if (!this.tickPending) {
       this.tickPending = true
-      process.nextTick(() => {
-        this.tickPending = false
-        if (this.count === 0) {
-          for (let i = 0; i < this.earlyListeners.length; i++) {
-            this.earlyListeners[i]()
+      queueMicrotask(() =>
+        process.nextTick(() => {
+          this.tickPending = false
+          if (this.count === 0) {
+            for (let i = 0; i < this.earlyListeners.length; i++) {
+              this.earlyListeners[i]()
+            }
+            this.earlyListeners.length = 0
           }
-          this.earlyListeners.length = 0
-        }
-      })
+        })
+      )
     }
 
     // After a cache resolves, React will schedule new rendering work:
