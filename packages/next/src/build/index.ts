@@ -738,10 +738,11 @@ async function writeStandaloneDirectory(
       ]) {
         // requiredServerFiles.appDir Refers to the application directory, not App Router.
         const filePath = path.join(requiredServerFiles.appDir, file)
+        // For standalone builds, core server files should be placed directly in standalone directory
         const outputPath = path.join(
           distDir,
           STANDALONE_DIRECTORY,
-          path.relative(outputFileTracingRoot, filePath)
+          path.basename(filePath) === 'server.js' ? 'server.js' : path.relative(outputFileTracingRoot, filePath)
         )
         await fs.mkdir(path.dirname(outputPath), {
           recursive: true,
@@ -753,7 +754,6 @@ async function writeStandaloneDirectory(
         const middlewareOutput = path.join(
           distDir,
           STANDALONE_DIRECTORY,
-          path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
           'middleware.js'
         )
@@ -770,7 +770,6 @@ async function writeStandaloneDirectory(
         path.join(
           distDir,
           STANDALONE_DIRECTORY,
-          path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
           'pages'
         ),
@@ -784,7 +783,6 @@ async function writeStandaloneDirectory(
             path.join(
               distDir,
               STANDALONE_DIRECTORY,
-              path.relative(outputFileTracingRoot, distDir),
               SERVER_DIRECTORY,
               'app'
             ),
