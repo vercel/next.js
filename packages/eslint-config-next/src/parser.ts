@@ -1,12 +1,7 @@
 import type { Linter } from 'eslint'
-
-const {
-  parse,
-  parseForESLint,
-  // No types for compiled modules.
-  // eslint-disable-next-line @next/internal/typechecked-require
-} = require('next/dist/compiled/babel/eslint-parser')
-const { version } = require('../package.json')
+// @ts-expect-error - No types for compiled modules.
+import { parse, parseForESLint } from 'next/dist/compiled/babel/eslint-parser'
+import { version } from '../package.json'
 
 const parser: Linter.Parser = {
   parse,

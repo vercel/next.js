@@ -13,18 +13,17 @@
   ],
   "dependencies": {
     "@next/eslint-plugin-next": "16.0.0-canary.5",
-    "@rushstack/eslint-patch": "^1.10.3",
-    "@typescript-eslint/eslint-plugin": "^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0",
-    "@typescript-eslint/parser": "^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0",
     "eslint-import-resolver-node": "^0.3.6",
     "eslint-import-resolver-typescript": "^3.5.2",
-    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.0",
     "eslint-plugin-react": "^7.37.0",
-    "eslint-plugin-react-hooks": "^7.0.0"
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "globals": "16.4.0",
+    "typescript-eslint": "^8.46.0"
   },
   "peerDependencies": {
-    "eslint": "^7.23.0 || ^8.0.0 || ^9.0.0",
+    "eslint": ">=9.0.0",
     "typescript": ">=3.3.1"
   },
   "peerDependenciesMeta": {
@@ -34,6 +33,7 @@
   },
   "devDependencies": {
     "@types/eslint": "9.6.1",
+    "@types/eslint-plugin-jsx-a11y": "6.10.1",
     "typescript": "5.9.2"
   },
   "scripts": {
