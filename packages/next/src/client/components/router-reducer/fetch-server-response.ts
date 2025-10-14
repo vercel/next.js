@@ -75,33 +75,61 @@ async function loadClientDynamicRoutesManifest(): Promise<void> {
 
 function matchClientDynamicRoute(
   pathname: string
-): { pattern: string; params: Record<string, string> } | null {
+): { pattern: string; params: Record<string, string | string[]> } | null {
   if (!clientDynamicRoutesManifest) return null
 
   for (const route of clientDynamicRoutesManifest.routes) {
     const pathSegments = pathname.split('/').filter(Boolean)
     const routeSegments = route.segments
 
-    if (pathSegments.length !== routeSegments.length) continue
+    // Check if we have a catch-all segment
+    const hasCatchAll = routeSegments.some(seg => seg.type === 'dynamic' && seg.catchAll)
 
-    const params: Record<string, string> = {}
+    if (hasCatchAll) {
+      // For catch-all routes, need at least as many path segments as non-catch-all segments
+      const minSegments = routeSegments.filter(seg =>
+        !(seg.type === 'dynamic' && seg.catchAll)
+      ).length
+      if (pathSegments.length < minSegments) continue
+    } else {
+      // For non-catch-all routes, exact length match is required
+      if (pathSegments.length !== routeSegments.length) continue
+    }
+
+    const params: Record<string, string | string[]> = {}
     let matches = true
+    let routeIdx = 0
 
-    for (let i = 0; i < pathSegments.length; i++) {
+    for (let i = 0; i < pathSegments.length && routeIdx < routeSegments.length; i++) {
       const pathSeg = pathSegments[i]
-      const routeSeg = routeSegments[i]
+      const routeSeg = routeSegments[routeIdx]
+
+      if (!routeSeg) {
+        matches = false
+        break
+      }
 
       if (routeSeg.type === 'static') {
         if (pathSeg !== routeSeg.value) {
           matches = false
           break
         }
+        routeIdx++
       } else if (routeSeg.type === 'dynamic') {
-        params[routeSeg.name] = pathSeg
+        if (routeSeg.catchAll) {
+          // Catch-all: collect remaining path segments as an array
+          params[routeSeg.name] = pathSegments.slice(i)
+          routeIdx++
+          break // Catch-all consumes the rest
+        } else {
+          // Regular dynamic: match one segment
+          params[routeSeg.name] = pathSeg
+          routeIdx++
+        }
       }
     }
 
-    if (matches) {
+    if (matches && routeIdx === routeSegments.length) {
       return { pattern: route.pattern, params }
     }
   }
@@ -126,7 +154,7 @@ function constructShellUrl(url: URL, pattern: string): URL {
  */
 function patchParamsInFlightData(
   flightData: NormalizedFlightData[] | string,
-  actualParams: Record<string, string>
+  actualParams: Record<string, string | string[]>
 ): NormalizedFlightData[] | string {
   if (typeof flightData === 'string') {
     return flightData
@@ -136,7 +164,7 @@ function patchParamsInFlightData(
 
 function patchFlightDataItem(
   data: NormalizedFlightData,
-  actualParams: Record<string, string>
+  actualParams: Record<string, string | string[]>
 ): NormalizedFlightData {
   // Patch the tree in the NormalizedFlightData object
   const patchedTree = patchFlightRouterState(data.tree, actualParams)
@@ -148,7 +176,7 @@ function patchFlightDataItem(
 
 function patchFlightRouterState(
   state: FlightRouterState,
-  actualParams: Record<string, string>
+  actualParams: Record<string, string | string[]>
 ): FlightRouterState {
   // FlightRouterState is a tuple: [segment, parallelRoutes, url?, refresh?, isRootLayout?, hasLoadingBoundary?]
   const [segment, parallelRoutes, ...rest] = state
@@ -170,7 +198,7 @@ function patchFlightRouterState(
 
 function patchSegment(
   segment: string | [string, string, string],
-  actualParams: Record<string, string>
+  actualParams: Record<string, string | string[]>
 ): string | [string, string, string] {
   // Segment can be either a string or [paramName, paramCacheKey, dynamicParamType]
   if (Array.isArray(segment)) {
@@ -178,7 +206,10 @@ function patchSegment(
 
     // If the paramCacheKey is __shell__, replace it with the actual param value
     if (paramCacheKey === '__shell__' && actualParams[paramName]) {
-      return [paramName, actualParams[paramName], dynamicParamType]
+      const paramValue = actualParams[paramName]
+      // For catch-all routes, join array to form path
+      const valueStr = Array.isArray(paramValue) ? paramValue.join('/') : paramValue
+      return [paramName, valueStr, dynamicParamType]
     }
 
     return segment
@@ -312,7 +343,7 @@ export async function fetchServerResponse(
 
     // Track original URL before modifications for client dynamic route handling
     const originalRequestUrl = new URL(url)
-    let clientDynamicMatch: { pattern: string; params: Record<string, string> } | null = null
+    let clientDynamicMatch: { pattern: string; params: Record<string, string | string[]> } | null = null
 
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
@@ -426,10 +457,27 @@ export async function fetchServerResponse(
 
                 let patchedText = shellText
 
-                // Replace ALL occurrences of __shell__ with actual param values
-                // Use simple string replacement to ensure complete consistency
-                for (const [paramName, paramValue] of Object.entries(match.params)) {
-                  patchedText = patchedText.split('__shell__').join(paramValue)
+                // Replace __shell__ with actual param values using param-specific regex
+                // This ensures each param gets its correct value in multi-param routes
+                const paramEntries = Object.entries(match.params)
+                for (const [paramName, paramValue] of paramEntries) {
+                  // Match patterns where param name is explicit:
+                  // - Segment tuples: ["paramName","__shell__","d"]
+                  // - Param objects: {"paramName":"__shell__"}
+                  // Match both literal and escaped quotes (\" in JSON strings)
+                  const valueStr = Array.isArray(paramValue) ? paramValue.join('/') : paramValue
+                  const pattern = new RegExp('\\\\?"' + paramName + '\\\\?"[,:]\\\\?"__shell__\\\\?"', 'g')
+                  patchedText = patchedText.replace(pattern, function(match) {
+                    return match.replace('__shell__', valueStr)
+                  })
+                }
+
+                // For single-param routes, also replace any remaining plain __shell__ occurrences
+                // This handles __shell__ in static HTML body that doesn't have param name context
+                if (paramEntries.length === 1) {
+                  const [singleParamName, singleParamValue] = paramEntries[0]
+                  const valueStr = Array.isArray(singleParamValue) ? singleParamValue.join('/') : singleParamValue
+                  patchedText = patchedText.replace(/__shell__/g, valueStr)
                 }
 
                 // Create a new readable stream from the patched text
