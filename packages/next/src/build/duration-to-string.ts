@@ -17,6 +17,18 @@ export function hrtimeToSeconds(hrtime: [number, number]): number {
   return hrtime[0] + hrtime[1] / 1e9
 }
 
+function nanosecondsBigIntToSeconds(nanoseconds: bigint): number {
+  return Number(nanoseconds) / 1000000000
+}
+
+function hrtimeBigIntToSeconds(hrtime: bigint): number {
+  return nanosecondsBigIntToSeconds(hrtime)
+}
+
+export function hrtimeBigIntDurationToString(hrtime: bigint) {
+  return durationToString(hrtimeBigIntToSeconds(hrtime))
+}
+
 export function hrtimeDurationToString(hrtime: [number, number]): string {
   return durationToString(hrtimeToSeconds(hrtime))
 }

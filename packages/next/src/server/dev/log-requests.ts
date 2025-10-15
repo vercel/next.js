@@ -1,4 +1,4 @@
-import { hrtimeDurationToString } from '../../build/duration-to-string'
+import { hrtimeBigIntDurationToString } from '../../build/duration-to-string'
 import {
   blue,
   bold,
@@ -42,10 +42,16 @@ export function logRequests(
   request: NodeNextRequest,
   response: NodeNextResponse,
   loggingConfig: LoggingConfig,
-  requestEndTime: ReturnType<typeof process.hrtime>
+  requestStartTime: bigint,
+  requestEndTime: bigint
 ): void {
   if (!ignoreLoggingIncomingRequests(request, loggingConfig)) {
-    logIncomingRequests(request, requestEndTime, response.statusCode)
+    logIncomingRequests(
+      request,
+      requestStartTime,
+      requestEndTime,
+      response.statusCode
+    )
   }
 
   if (request.fetchMetrics) {
@@ -57,7 +63,8 @@ export function logRequests(
 
 function logIncomingRequests(
   request: NodeNextRequest,
-  requestEndTime: ReturnType<typeof process.hrtime>,
+  requestStartTime: bigint,
+  requestEndTime: bigint,
   statusCode: number
 ): void {
   const isRSC = getRequestMeta(request, 'isRSCRequest')
@@ -77,7 +84,7 @@ function logIncomingRequests(
   const coloredStatus = statusCodeColor(statusCode.toString())
 
   return writeLine(
-    `${request.method} ${url} ${coloredStatus} in ${hrtimeDurationToString(requestEndTime)}`
+    `${request.method} ${url} ${coloredStatus} in ${hrtimeBigIntDurationToString(requestEndTime - requestStartTime)}`
   )
 }
 
