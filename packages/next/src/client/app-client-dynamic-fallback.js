@@ -52,86 +52,76 @@
         var pathSegments = pathname.split('/').filter(Boolean)
         var routeSegments = route.segments
 
-        // Check if we have a catch-all segment
-        var hasCatchAll = false
+        // Calculate minimum required segments (static + non-optional dynamic)
+        var minRequiredSegments = 0
         for (var k = 0; k < routeSegments.length; k++) {
-          if (routeSegments[k].type === 'dynamic' && routeSegments[k].catchAll) {
-            hasCatchAll = true
-            break
+          if (
+            routeSegments[k].type === 'static' ||
+            (routeSegments[k].type === 'dynamic' && !routeSegments[k].optional)
+          ) {
+            minRequiredSegments++
           }
         }
 
-        if (hasCatchAll) {
-          // For catch-all routes, need at least as many path segments as non-catch-all segments
-          var minSegments = 0
-          for (var k = 0; k < routeSegments.length; k++) {
-            if (
-              !(routeSegments[k].type === 'dynamic' && routeSegments[k].catchAll)
-            ) {
-              minSegments++
-            }
-          }
-          if (pathSegments.length < minSegments) continue
-        } else {
-          // For non-catch-all routes, exact length match is required
-          if (pathSegments.length !== routeSegments.length) continue
+        if (pathSegments.length < minRequiredSegments) {
+          continue // Not enough required segments
         }
 
+        var actualParams = {}
         var matches = true
+        var pathIdx = 0
         var routeIdx = 0
-        for (
-          var j = 0;
-          j < pathSegments.length && routeIdx < routeSegments.length;
-          j++
-        ) {
-          var routeSeg = routeSegments[routeIdx]
-          if (
-            routeSeg.type === 'static' &&
-            pathSegments[j] !== routeSeg.value
-          ) {
-            matches = false
-            break
-          }
-          if (
-            routeSeg.type === 'static' ||
-            (routeSeg.type === 'dynamic' && !routeSeg.catchAll)
-          ) {
-            routeIdx++
-          } else if (routeSeg.type === 'dynamic' && routeSeg.catchAll) {
-            routeIdx++
-            break // Catch-all consumes the rest
-          }
-        }
 
-        if (matches && routeIdx === routeSegments.length) {
-          // Found a match! Extract actual params from URL
-          console.log('[404.html] Route matched! Pattern:', route.pattern)
-          var actualParams = {}
-          routeIdx = 0
-          for (
-            var j = 0;
-            j < pathSegments.length && routeIdx < routeSegments.length;
-            j++
-          ) {
-            var routeSeg = routeSegments[routeIdx]
-            if (routeSeg.type === 'dynamic') {
-              if (routeSeg.catchAll) {
-                // Collect remaining segments as array
+        while (routeIdx < routeSegments.length && pathIdx <= pathSegments.length) {
+          var routeSeg = routeSegments[routeIdx]
+
+          if (routeSeg.type === 'static') {
+            if (pathIdx >= pathSegments.length || pathSegments[pathIdx] !== routeSeg.value) {
+              matches = false
+              break
+            }
+            pathIdx++
+            routeIdx++
+          } else if (routeSeg.type === 'dynamic') {
+            if (routeSeg.catchAll) {
+              if (routeSeg.optional && pathIdx >= pathSegments.length) {
+                // Optional catch-all with no remaining segments
+                actualParams[routeSeg.name] = []
+              } else if (pathIdx < pathSegments.length) {
+                // Catch-all consumes remaining segments
                 var remaining = []
-                for (var m = j; m < pathSegments.length; m++) {
+                for (var m = pathIdx; m < pathSegments.length; m++) {
                   remaining.push(pathSegments[m])
                 }
                 actualParams[routeSeg.name] = remaining
-                routeIdx++
+                pathIdx = pathSegments.length
+              } else if (!routeSeg.optional) {
+                // Required catch-all but no segments available
+                matches = false
                 break
-              } else {
-                actualParams[routeSeg.name] = pathSegments[j]
-                routeIdx++
               }
             } else {
-              routeIdx++
+              // Regular dynamic segment
+              if (routeSeg.optional && pathIdx >= pathSegments.length) {
+                // Optional param with no segment - leave param undefined
+              } else if (pathIdx < pathSegments.length) {
+                // Regular dynamic segment with available path segment
+                actualParams[routeSeg.name] = pathSegments[pathIdx]
+                pathIdx++
+              } else if (!routeSeg.optional) {
+                // Required param but no segment available
+                matches = false
+                break
+              }
             }
+            routeIdx++
           }
+        }
+
+        // Check if we've consumed all path segments and route segments
+        if (matches && pathIdx === pathSegments.length && routeIdx === routeSegments.length) {
+          // Found a match! Extract actual params from URL
+          console.log('[404.html] Route matched! Pattern:', route.pattern)
           console.log('[404.html] Extracted params:', actualParams)
 
           // Fetch shell HTML and patch ONLY RSC data, NOT the HTML body

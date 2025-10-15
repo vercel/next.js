@@ -45,7 +45,7 @@ let clientDynamicRoutesManifest: {
     pattern: string
     segments: Array<
       | { type: 'static'; value: string }
-      | { type: 'dynamic'; name: string; catchAll: boolean }
+      | { type: 'dynamic'; name: string; catchAll: boolean; optional: boolean }
     >
   }>
 } | null = null
@@ -98,54 +98,64 @@ function matchClientDynamicRoute(
     const pathSegments = pathname.split('/').filter(Boolean)
     const routeSegments = route.segments
 
-    // Check if we have a catch-all segment
-    const hasCatchAll = routeSegments.some(seg => seg.type === 'dynamic' && seg.catchAll)
+    // Calculate minimum required segments (static + non-optional dynamic)
+    const minRequiredSegments = routeSegments.filter(seg =>
+      seg.type === 'static' || (seg.type === 'dynamic' && !seg.optional)
+    ).length
 
-    if (hasCatchAll) {
-      // For catch-all routes, need at least as many path segments as non-catch-all segments
-      const minSegments = routeSegments.filter(seg =>
-        !(seg.type === 'dynamic' && seg.catchAll)
-      ).length
-      if (pathSegments.length < minSegments) continue
-    } else {
-      // For non-catch-all routes, exact length match is required
-      if (pathSegments.length !== routeSegments.length) continue
+    if (pathSegments.length < minRequiredSegments) {
+      continue // Not enough required segments
     }
 
     const params: Record<string, string | string[]> = {}
     let matches = true
+    let pathIdx = 0
     let routeIdx = 0
 
-    for (let i = 0; i < pathSegments.length && routeIdx < routeSegments.length; i++) {
-      const pathSeg = pathSegments[i]
+    while (routeIdx < routeSegments.length && pathIdx <= pathSegments.length) {
       const routeSeg = routeSegments[routeIdx]
 
-      if (!routeSeg) {
-        matches = false
-        break
-      }
-
       if (routeSeg.type === 'static') {
-        if (pathSeg !== routeSeg.value) {
+        if (pathIdx >= pathSegments.length || pathSegments[pathIdx] !== routeSeg.value) {
           matches = false
           break
         }
+        pathIdx++
         routeIdx++
       } else if (routeSeg.type === 'dynamic') {
         if (routeSeg.catchAll) {
-          // Catch-all: collect remaining path segments as an array
-          params[routeSeg.name] = pathSegments.slice(i)
-          routeIdx++
-          break // Catch-all consumes the rest
+          if (routeSeg.optional && pathIdx >= pathSegments.length) {
+            // Optional catch-all with no remaining segments
+            params[routeSeg.name] = []
+          } else if (pathIdx < pathSegments.length) {
+            // Catch-all consumes remaining segments
+            params[routeSeg.name] = pathSegments.slice(pathIdx)
+            pathIdx = pathSegments.length
+          } else if (!routeSeg.optional) {
+            // Required catch-all but no segments available
+            matches = false
+            break
+          }
         } else {
-          // Regular dynamic: match one segment
-          params[routeSeg.name] = pathSeg
-          routeIdx++
+          // Regular dynamic segment
+          if (routeSeg.optional && pathIdx >= pathSegments.length) {
+            // Optional param with no segment - leave param undefined
+          } else if (pathIdx < pathSegments.length) {
+            // Regular dynamic segment with available path segment
+            params[routeSeg.name] = pathSegments[pathIdx]
+            pathIdx++
+          } else if (!routeSeg.optional) {
+            // Required param but no segment available
+            matches = false
+            break
+          }
         }
+        routeIdx++
       }
     }
 
-    if (matches && routeIdx === routeSegments.length) {
+    // Check if we've consumed all path segments and route segments
+    if (matches && pathIdx === pathSegments.length && routeIdx === routeSegments.length) {
       return { pattern: route.pattern, params }
     }
   }

@@ -49,19 +49,35 @@ describe('app dir - with output export - client dynamic route', () => {
         expect(await fs.pathExists(shellHtmlPath)).toBe(true)
         expect(await fs.pathExists(shellTxtPath)).toBe(true)
 
-        // Verify shell HTML content includes __shell__ placeholder
+        // Verify shell HTML content includes __shell__ placeholder in RSC data
         const shellHtml = await fs.readFile(shellHtmlPath, 'utf-8')
         expect(shellHtml).toContain('__shell__')
-        expect(shellHtml).toContain('Post:')
+        // Shell HTML is now minimal, but RSC data (in scripts) should contain __shell__
+        // The RSC data is escaped in the script tag
+        expect(shellHtml).toContain('\\"slug\\":\\"__shell__\\"')
       })
 
-      it('should generate 404.html with param patching logic', async () => {
+      it('should generate 404.html with external fallback script', async () => {
         const notFoundPath = join(exportDir, '404.html')
         expect(await fs.pathExists(notFoundPath)).toBe(true)
 
         const notFoundHtml = await fs.readFile(notFoundPath, 'utf-8')
-        expect(notFoundHtml).toContain('_clientDynamicRoutesManifest.json')
-        expect(notFoundHtml).toContain('__shell__')
+        // Check for external script reference (CSP compliant)
+        expect(notFoundHtml).toContain('app-client-dynamic-fallback.js')
+        expect(notFoundHtml).toContain('window.__BUILD_ID__')
+        expect(notFoundHtml).toContain('<noscript>')
+
+        // Verify external script file exists
+        const fallbackScriptPath = join(
+          exportDir,
+          '_next/static/test-build-id/app-client-dynamic-fallback.js'
+        )
+        expect(await fs.pathExists(fallbackScriptPath)).toBe(true)
+
+        // Verify external script contains the logic
+        const fallbackScript = await fs.readFile(fallbackScriptPath, 'utf-8')
+        expect(fallbackScript).toContain('_clientDynamicRoutesManifest.json')
+        expect(fallbackScript).toContain('__shell__')
       })
 
       it('should generate client dynamic routes manifest', async () => {
