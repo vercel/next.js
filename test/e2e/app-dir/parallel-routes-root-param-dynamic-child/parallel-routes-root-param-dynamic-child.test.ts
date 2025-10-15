@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
+import { setTimeout } from 'node:timers/promises'
 
 describe('parallel-routes-root-param-dynamic-child', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -12,6 +13,8 @@ describe('parallel-routes-root-param-dynamic-child', () => {
       beforePageLoad(page) {
         act = createRouterAct(page, { allowErrorStatusCodes: [404] })
       },
+      // throttling the CPU to rule out flakiness based on how quickly the page loads
+      cpuThrottleRate: 6,
     })
 
     // If we're on the error page, we don't have a nav element to wait for.
@@ -30,8 +33,14 @@ describe('parallel-routes-root-param-dynamic-child', () => {
         // Ensure the navigation is visible
         await browser.elementByCss('#nav')
 
+        // Wait for 500ms to ensure all links are visible
+        await setTimeout(500)
+
         // Scroll to bottom to ensure all links enter viewport and trigger prefetches
         await browser.eval('window.scrollTo(0, document.body.scrollHeight)')
+
+        // Wait for 500ms to ensure all links are visible
+        await setTimeout(500)
       },
       // If we're in development, we don't have any prefetching to wait for.
       isNextDev ? 'no-requests' : undefined
