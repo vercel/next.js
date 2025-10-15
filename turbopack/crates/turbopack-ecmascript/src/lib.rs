@@ -2544,7 +2544,7 @@ impl SourceMapper for CodeGenResultSourceMap {
     fn span_to_snippet(&self, sp: Span) -> Result<String, Box<SpanSnippetError>> {
         match self {
             CodeGenResultSourceMap::None => {
-                panic!("CodeGenResultSourceMap::None cannot span_to_snippet")
+                bail!("CodeGenResultSourceMap::None cannot span_to_snippet")
             }
             CodeGenResultSourceMap::Single { source_map } => source_map.span_to_snippet(sp),
             CodeGenResultSourceMap::ScopeHoisting {
