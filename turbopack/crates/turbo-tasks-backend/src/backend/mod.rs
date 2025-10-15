@@ -28,8 +28,8 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, field::Empty, info_span, trace_span};
 use turbo_tasks::{
     CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
-    SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId, TurboTasksBackendApi,
-    ValueTypeId,
+    ReadOutputOptions, ReadTracking, SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId,
+    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent,
@@ -458,7 +458,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self: &Arc<Self>,
         task_id: TaskId,
         reader: Option<TaskId>,
-        consistency: ReadConsistency,
+        options: ReadOutputOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<RawVc, EventListener>> {
         self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
@@ -469,15 +469,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         fn listen_to_done_event<B: BackingStorage>(
             this: &TurboTasksBackendInner<B>,
             reader: Option<TaskId>,
+            tracking: ReadTracking,
             done_event: &Event,
         ) -> EventListener {
             done_event.listen_with_note(move || {
                 let reader_desc = reader.map(|r| this.get_task_desc_fn(r));
                 move || {
                     if let Some(reader_desc) = reader_desc.as_ref() {
-                        format!("try_read_task_output from {}", reader_desc())
+                        format!("try_read_task_output from {} ({})", reader_desc(), tracking)
                     } else {
-                        "try_read_task_output (untracked)".to_string()
+                        format!("try_read_task_output ({})", tracking)
                     }
                 }
             })
@@ -487,16 +488,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             this: &TurboTasksBackendInner<B>,
             task: &impl TaskGuard,
             reader: Option<TaskId>,
+            tracking: ReadTracking,
             ctx: &impl ExecuteContext<'_>,
         ) -> Option<std::result::Result<std::result::Result<RawVc, EventListener>, anyhow::Error>>
         {
             match get!(task, InProgress) {
-                Some(InProgressState::Scheduled { done_event, .. }) => {
-                    Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
-                }
+                Some(InProgressState::Scheduled { done_event, .. }) => Some(Ok(Err(
+                    listen_to_done_event(this, reader, tracking, done_event),
+                ))),
                 Some(InProgressState::InProgress(box InProgressStateInner {
                     done_event, ..
-                })) => Some(Ok(Err(listen_to_done_event(this, reader, done_event)))),
+                })) => Some(Ok(Err(listen_to_done_event(
+                    this, reader, tracking, done_event,
+                )))),
                 Some(InProgressState::Canceled) => Some(Err(anyhow::anyhow!(
                     "{} was canceled",
                     ctx.get_task_description(task.id())
@@ -505,7 +509,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        if matches!(consistency, ReadConsistency::Strong) {
+        if matches!(options.consistency, ReadConsistency::Strong) {
             // Ensure it's an root node
             loop {
                 let aggregation_number = get_aggregation_number(&task);
@@ -687,7 +691,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        if let Some(value) = check_in_progress(self, &task, reader, &ctx) {
+        if let Some(value) = check_in_progress(self, &task, reader, options.tracking, &ctx) {
             return value;
         }
 
@@ -705,6 +709,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             };
             if self.should_track_dependencies()
                 && let Some(reader) = reader
+                && options.tracking.should_track(result.is_err())
                 && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
                 let _ = task.add(CachedDataItem::OutputDependent {
@@ -810,7 +815,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             None
         };
         if let Some(content) = content {
-            add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+            if options.tracking.should_track(false) {
+                add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+            }
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
                 CellContent(Some(content.reference)),
@@ -835,14 +842,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         )
         .copied();
         let Some(max_id) = max_id else {
-            add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+            if options.tracking.should_track(true) {
+                add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+            }
             bail!(
                 "Cell {cell:?} no longer exists in task {} (no cell of this type exists)",
                 ctx.get_task_description(task_id)
             );
         };
         if cell.index >= max_id {
-            add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+            if options.tracking.should_track(true) {
+                add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+            }
             bail!(
                 "Cell {cell:?} no longer exists in task {} (index out of bounds)",
                 ctx.get_task_description(task_id)
@@ -2457,7 +2468,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         })
     }
 
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         task_id: TaskId,
         cell: CellId,
@@ -3139,11 +3150,11 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         reader: Option<TaskId>,
-        consistency: ReadConsistency,
+        options: ReadOutputOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>> {
         self.0
-            .try_read_task_output(task_id, reader, consistency, turbo_tasks)
+            .try_read_task_output(task_id, reader, options, turbo_tasks)
     }
 
     fn try_read_task_cell(
@@ -3158,7 +3169,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
             .try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
     }
 
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         task_id: TaskId,
         cell: CellId,
@@ -3166,7 +3177,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
         self.0
-            .try_read_own_task_cell_untracked(task_id, cell, options, turbo_tasks)
+            .try_read_own_task_cell(task_id, cell, options, turbo_tasks)
     }
 
     fn read_task_collectibles(
