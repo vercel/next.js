@@ -2313,8 +2313,10 @@ export default async function build(
                               Object.keys(params).forEach((key) => {
                                 // Replace [param], [[param]], [...param], or [[...param]] with placeholder
                                 // Pattern matches: [key], [[key]], [...key], [[...key]]
+                                // Escape regex special characters in the key to prevent unintended matches
+                                const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
                                 pathname = pathname.replace(
-                                  new RegExp(`\\[\\[?(\\.\\.\\.)?${key}\\]\\]?`),
+                                  new RegExp(`\\[\\[?(\\.\\.\\.)?${escapedKey}\\]\\]?`),
                                   params[key]
                                 )
                               })
