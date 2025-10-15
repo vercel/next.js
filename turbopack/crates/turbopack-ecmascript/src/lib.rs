@@ -270,6 +270,8 @@ pub struct EcmascriptOptions {
     // node_modules.
     /// Whether to replace `typeof window` with some constant value.
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
+
+    pub inline_helpers: bool,
 }
 
 #[turbo_tasks::value]
@@ -687,11 +689,13 @@ impl EcmascriptModuleAsset {
 
 impl EcmascriptModuleAsset {
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
+        let options = self.options.await?;
         Ok(parse(
             *self.source,
             self.ty,
             *self.transforms,
-            self.options.await?.analyze_mode == AnalyzeMode::Tracing,
+            options.analyze_mode == AnalyzeMode::Tracing,
+            options.inline_helpers,
         ))
     }
 
