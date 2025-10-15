@@ -793,12 +793,29 @@ export async function buildAppStaticPaths({
   // we're emitting the route for the base route.
   const parallelFallbackRouteParams: FallbackRouteParam[] = []
 
+  // First pass: collect all non-parallel route param names.
+  // This allows us to filter out parallel route params that duplicate non-parallel ones.
+  const nonParallelParamNames = new Set<string>()
+  for (const segment of segments) {
+    if (!segment.paramName || !segment.paramType) continue
+    if (!segment.isParallelRouteSegment) {
+      nonParallelParamNames.add(segment.paramName)
+    }
+  }
+
+  // Second pass: collect segments, ensuring non-parallel route params take precedence.
   for (const segment of segments) {
     // If this segment doesn't have a param name then it's not param that we
     // need to resolve.
     if (!segment.paramName || !segment.paramType) continue
 
     if (segment.isParallelRouteSegment) {
+      // Skip parallel route params that are already defined as non-parallel route params.
+      // Non-parallel route params take precedence because they appear in the URL pathname.
+      if (nonParallelParamNames.has(segment.paramName)) {
+        continue
+      }
+
       // Collect all the parallel route segments that have dynamic params for
       // second-pass resolution.
       parallelRouteSegments.push({

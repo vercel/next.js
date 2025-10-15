@@ -120,13 +120,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
 
     // Create a unique key for the segment
     const segmentKey = getSegmentKey(segment)
-    const existing = uniqueSegments.get(segmentKey)
-
-    // Prefer non-parallel segments over parallel ones
-    if (
-      !existing ||
-      (existing.isParallelRouteSegment && !segment.isParallelRouteSegment)
-    ) {
+    if (!uniqueSegments.has(segmentKey)) {
       uniqueSegments.set(segmentKey, segment)
     }
 
@@ -137,14 +131,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
       // Add all segments in the current path, preferring non-parallel segments
       updatedSegments.forEach((seg) => {
         const key = getSegmentKey(seg)
-        const existingSeg = uniqueSegments.get(key)
-
-        // Use the same preference logic: prefer non-parallel segments over
-        // parallel ones.
-        if (
-          !existingSeg ||
-          (existingSeg.isParallelRouteSegment && !seg.isParallelRouteSegment)
-        ) {
+        if (!uniqueSegments.has(key)) {
           uniqueSegments.set(key, seg)
         }
       })
@@ -167,7 +154,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
 }
 
 function getSegmentKey(segment: AppSegment) {
-  return `${segment.name}-${segment.filePath ?? ''}-${segment.paramName ?? ''}`
+  return `${segment.name}-${segment.filePath ?? ''}-${segment.paramName ?? ''}-${segment.isParallelRouteSegment ? 'pr' : 'np'}`
 }
 
 /**
@@ -259,14 +246,8 @@ export function collectFallbackRouteParams(
     // Handle this segment (if it's a dynamic segment param).
     const segmentParam = getSegmentParam(name)
     if (segmentParam) {
-      const key = `${name}-${segmentParam.param}`
-      const existing = uniqueSegments.get(key)
-
-      // Prefer non-parallel segments over parallel ones
-      if (
-        !existing ||
-        (existing.isParallelRouteParam && !isParallelRouteSegment)
-      ) {
+      const key = `${name}-${segmentParam.param}-${isParallelRouteSegment ? 'pr' : 'np'}`
+      if (!uniqueSegments.has(key)) {
         uniqueSegments.set(
           key,
           createFallbackRouteParam(
