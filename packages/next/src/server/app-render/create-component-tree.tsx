@@ -817,10 +817,22 @@ async function createComponentTreeInternal(
     ]
   } else {
     const SegmentComponent = Component
+
+    const hasErrorBoundaries = !!(
+      notFoundElement ||
+      forbiddenElement ||
+      unauthorizedElement
+    )
+
     const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
       rootLayoutAtThisLevel &&
       'children' in parallelRoutes &&
       Object.keys(parallelRoutes).length > 1
+
+    const shouldWrapWithErrorBoundary =
+      hasErrorBoundaries &&
+      (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot ||
+        !rootLayoutAtThisLevel)
 
     let segmentNode: React.ReactNode
 
@@ -849,63 +861,55 @@ async function createComponentTreeInternal(
         )
       }
 
-      if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
+      if (shouldWrapWithErrorBoundary) {
         let notfoundClientSegment: React.ReactNode
         let forbiddenClientSegment: React.ReactNode
         let unauthorizedClientSegment: React.ReactNode
-        // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-        // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
-        // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
-        // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
-        // rely on the `NotFound` behavior.
-        notfoundClientSegment = createErrorBoundaryClientSegmentRoot({
-          ErrorBoundaryComponent: NotFound,
-          errorElement: notFoundElement,
-          ClientSegmentRoot,
-          layerAssets,
-          SegmentComponent,
-          currentParams,
-        })
-        forbiddenClientSegment = createErrorBoundaryClientSegmentRoot({
-          ErrorBoundaryComponent: Forbidden,
-          errorElement: forbiddenElement,
-          ClientSegmentRoot,
-          layerAssets,
-          SegmentComponent,
-          currentParams,
-        })
-        unauthorizedClientSegment = createErrorBoundaryClientSegmentRoot({
-          ErrorBoundaryComponent: Unauthorized,
-          errorElement: unauthorizedElement,
-          ClientSegmentRoot,
-          layerAssets,
-          SegmentComponent,
-          currentParams,
-        })
-        if (
-          notfoundClientSegment ||
-          forbiddenClientSegment ||
-          unauthorizedClientSegment
-        ) {
-          segmentNode = (
-            <HTTPAccessFallbackBoundary
-              key={cacheNodeKey}
-              notFound={notfoundClientSegment}
-              forbidden={forbiddenClientSegment}
-              unauthorized={unauthorizedClientSegment}
-            >
-              {layerAssets}
-              {clientSegment}
-            </HTTPAccessFallbackBoundary>
-          )
-        } else {
-          segmentNode = (
-            <React.Fragment key={cacheNodeKey}>
-              {layerAssets}
-              {clientSegment}
-            </React.Fragment>
-          )
-        }
+
+        notfoundClientSegment = notFoundElement
+          ? createErrorBoundaryClientSegmentRoot({
+              ErrorBoundaryComponent: NotFound,
+              errorElement: notFoundElement,
+              ClientSegmentRoot,
+              layerAssets,
+              SegmentComponent,
+              currentParams,
+            })
+          : undefined
+
+        forbiddenClientSegment = forbiddenElement
+          ? createErrorBoundaryClientSegmentRoot({
+              ErrorBoundaryComponent: Forbidden,
+              errorElement: forbiddenElement,
+              ClientSegmentRoot,
+              layerAssets,
+              SegmentComponent,
+              currentParams,
+            })
+          : undefined
+
+        unauthorizedClientSegment = unauthorizedElement
+          ? createErrorBoundaryClientSegmentRoot({
+              ErrorBoundaryComponent: Unauthorized,
+              errorElement: unauthorizedElement,
+              ClientSegmentRoot,
+              layerAssets,
+              SegmentComponent,
+              currentParams,
+            })
+          : undefined
+
+        segmentNode = (
+          <HTTPAccessFallbackBoundary
+            key={cacheNodeKey}
+            notFound={notfoundClientSegment}
+            forbidden={forbiddenClientSegment}
+            unauthorized={unauthorizedClientSegment}
+          >
+            {layerAssets}
+            {clientSegment}
+          </HTTPAccessFallbackBoundary>
+        )
       } else {
         segmentNode = (
           <React.Fragment key={cacheNodeKey}>
@@ -939,12 +943,7 @@ async function createComponentTreeInternal(
         )
       }
 
-      if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
-        // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-        // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
-        // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
-        // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
-        // rely on the `NotFound` behavior.
+      if (shouldWrapWithErrorBoundary) {
         segmentNode = (
           <HTTPAccessFallbackBoundary
             key={cacheNodeKey}
@@ -955,6 +954,28 @@ async function createComponentTreeInternal(
                   <SegmentComponent params={params}>
                     {notFoundStyles}
                     {notFoundElement}
+                  </SegmentComponent>
+                </>
+              ) : undefined
+            }
+            forbidden={
+              forbiddenElement ? (
+                <>
+                  {layerAssets}
+                  <SegmentComponent params={params}>
+                    {forbiddenStyles}
+                    {forbiddenElement}
+                  </SegmentComponent>
+                </>
+              ) : undefined
+            }
+            unauthorized={
+              unauthorizedElement ? (
+                <>
+                  {layerAssets}
+                  <SegmentComponent params={params}>
+                    {unauthorizedStyles}
+                    {unauthorizedElement}
                   </SegmentComponent>
                 </>
               ) : undefined
