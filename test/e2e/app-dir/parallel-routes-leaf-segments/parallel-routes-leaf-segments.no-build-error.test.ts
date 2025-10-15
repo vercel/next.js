@@ -66,4 +66,13 @@ describe('parallel-routes-leaf-segments-no-build-error', () => {
       expect($('.footer h3').text()).toBe('Catch-All Footer Slot')
     })
   })
+
+  describe('no children slot', () => {
+    it('should render the no children slot', async () => {
+      const $ = await next.render$('/no-children/other')
+
+      expect($('#slot').text()).toBe('No Children Other Page')
+      expect($('#children').text()).toBe('No Children Default')
+    })
+  })
 })
