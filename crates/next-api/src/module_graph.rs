@@ -300,11 +300,23 @@ impl ClientReferencesGraph {
                 |node, _| {
                     let module_type = data.get(&node.module);
                     Ok(match module_type {
-                        Some(_) => GraphTraversalAction::Skip,
+                        Some(
+                            ClientManifestEntryType::EcmascriptClientReference { .. }
+                            | ClientManifestEntryType::CssClientReference { .. }
+                            | ClientManifestEntryType::ServerComponent { .. },
+                        ) => GraphTraversalAction::Skip,
                         None => GraphTraversalAction::Continue,
                     })
                 },
                 |node, _| {
+                    if let Some(server_util_module) =
+                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(node.module)
+                    {
+                        // Server utility used by the template, not a server component
+                        server_utils.insert(server_util_module);
+                        return Ok(());
+                    }
+
                     let module_type = data.get(&node.module);
 
                     let ty = match module_type {
@@ -324,9 +336,7 @@ impl ClientReferencesGraph {
                         }
                     };
 
-                    // Otherwise there is some path from the root directly to the
-                    // reference, just associate it with
-                    // the root.
+                    // Client reference used by the template, not a server component
                     client_references.push(ClientReference {
                         server_component: None,
                         ty,
