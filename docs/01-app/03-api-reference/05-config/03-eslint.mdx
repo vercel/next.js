@@ -33,25 +33,20 @@ Get linting working quickly with the ESLint CLI (flat config):
 2. Create `eslint.config.mjs` with the Next.js config:
 
    ```js filename="eslint.config.mjs"
-   import { FlatCompat } from '@eslint/eslintrc'
+   import { defineConfig, globalIgnores } from 'eslint/config'
+   import nextVitals from 'eslint-config-next/core-web-vitals'
 
-   import { fileURLToPath } from 'url'
-   import { dirname } from 'path'
-
-   const __filename = fileURLToPath(import.meta.url)
-   const __dirname = dirname(__filename)
-
-   const compat = new FlatCompat({
-     // If you're using Node.js v20.11.0 or later,
-     // you can use `import.meta.dirname` directly.
-     baseDirectory: __dirname,
-   })
-
-   const eslintConfig = [
-     ...compat.config({
-       extends: ['next/core-web-vitals'],
-     }),
-   ]
+   const eslintConfig = defineConfig([
+     ...nextVitals,
+     // Override default ignores of eslint-config-next.
+     globalIgnores([
+       // Default ignores of eslint-config-next:
+       '.next/**',
+       'out/**',
+       'build/**',
+       'next-env.d.ts',
+     ]),
+   ])
 
    export default eslintConfig
    ```
@@ -160,22 +155,26 @@ export default eslintConfig
 If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `eslint.config.mjs`:
 
 ```js filename="eslint.config.mjs"
-import { FlatCompat } from '@eslint/eslintrc'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
 
-const compat = new FlatCompat({
-  // import.meta.dirname is available after Node.js v20.11.0
-  baseDirectory: import.meta.dirname,
-})
-
-const eslintConfig = [
-  ...compat.config({
-    extends: ['next'],
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  {
     rules: {
       'react/no-unescaped-entities': 'off',
       '@next/next/no-page-custom-font': 'off',
     },
-  }),
-]
+  },
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+  ]),
+])
 
 export default eslintConfig
 ```
@@ -185,18 +184,20 @@ export default eslintConfig
 Enable the `next/core-web-vitals` rule set by extending it in your ESLint config.
 
 ```js filename="eslint.config.mjs"
-import { FlatCompat } from '@eslint/eslintrc'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
 
-const compat = new FlatCompat({
-  // import.meta.dirname is available after Node.js v20.11.0
-  baseDirectory: import.meta.dirname,
-})
-
-const eslintConfig = [
-  ...compat.config({
-    extends: ['next/core-web-vitals'],
-  }),
-]
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+  ]),
+])
 
 export default eslintConfig
 ```
@@ -210,18 +211,22 @@ export default eslintConfig
 In addition to the Next.js ESLint rules, `create-next-app --typescript` will also add TypeScript-specific lint rules with `next/typescript` to your config:
 
 ```js filename="eslint.config.mjs"
-import { FlatCompat } from '@eslint/eslintrc'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
+import nextTs from 'eslint-config-next/typescript'
 
-const compat = new FlatCompat({
-  // import.meta.dirname is available after Node.js v20.11.0
-  baseDirectory: import.meta.dirname,
-})
-
-const eslintConfig = [
-  ...compat.config({
-    extends: ['next/core-web-vitals', 'next/typescript'],
-  }),
-]
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+  ]),
+])
 
 export default eslintConfig
 ```
@@ -254,18 +259,22 @@ bun add -d eslint-config-prettier
 Then, add `prettier` to your existing ESLint config:
 
 ```js filename="eslint.config.mjs"
-import { FlatCompat } from '@eslint/eslintrc'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
+import prettier from 'eslint-config-prettier/flat'
 
-const compat = new FlatCompat({
-  // import.meta.dirname is available after Node.js v20.11.0
-  baseDirectory: import.meta.dirname,
-})
-
-const eslintConfig = [
-  ...compat.config({
-    extends: ['next', 'prettier'],
-  }),
-]
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  prettier,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+  ]),
+])
 
 export default eslintConfig
 ```
@@ -339,20 +348,14 @@ This eliminates the risk of collisions or errors that can occur due to importing
 If you already use a separate ESLint configuration and want to include `eslint-config-next`, ensure that it is extended last after other configurations. For example:
 
 ```js filename="eslint.config.mjs"
-import js from '@eslint/js'
-import { FlatCompat } from '@eslint/eslintrc'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextPlugin from '@next/eslint-plugin-next'
 
-const compat = new FlatCompat({
-  // import.meta.dirname is available after Node.js v20.11.0
-  baseDirectory: import.meta.dirname,
-  recommendedConfig: js.configs.recommended,
-})
-
-const eslintConfig = [
-  ...compat.config({
-    extends: ['eslint:recommended', 'next'],
-  }),
-]
+const eslintConfig = defineConfig([
+  nextPlugin.configs['core-web-vitals'],
+  // List of ignore patterns.
+  globalIgnores([]),
+])
 
 export default eslintConfig
 ```
