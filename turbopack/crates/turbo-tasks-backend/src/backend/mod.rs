@@ -722,13 +722,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let result = match output {
                 OutputValue::Cell(cell) => Ok(Ok(RawVc::TaskCell(cell.task, cell.cell))),
                 OutputValue::Output(task) => Ok(Ok(RawVc::TaskOutput(*task))),
-                OutputValue::Error(error) => {
-                    let err: anyhow::Error = error.clone().into();
-                    Err(err.context(format!(
-                        "Execution of {} failed",
-                        ctx.get_task_description(task_id)
-                    )))
-                }
+                OutputValue::Error(error) => Err(error
+                    .with_task_context(ctx.get_task_description(task_id), Some(task_id))
+                    .into()),
             };
             if let Some(mut reader_task) = reader_task
                 && options.tracking.should_track(result.is_err())
