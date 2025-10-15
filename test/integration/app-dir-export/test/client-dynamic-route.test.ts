@@ -143,6 +143,29 @@ describe('app dir - with output export - client dynamic route', () => {
 
         await browser.close()
       })
+
+      it('should NOT corrupt content containing literal __shell__ text', async () => {
+        // This test verifies the fix for content corruption issue
+        // Previously, global replacement would corrupt content like "bash __shell__ variable"
+        const browser = await webdriver(port, '/client-dynamic/shell-test')
+
+        await check(
+          () => browser.elementByCss('#slug').text(),
+          /Shell Test/
+        )
+
+        const description = await browser.elementByCss('#description').text()
+
+        // The literal text "__shell__" should remain unchanged in the content
+        expect(description).toContain('__shell__')
+        expect(description).toContain('The __shell__ placeholder should remain')
+
+        // Verify the slug parameter was correctly patched to "shell-test", not "__shell__"
+        const pageContent = await browser.elementByCss('main').text()
+        expect(pageContent).toContain('Slug parameter: shell-test')
+
+        await browser.close()
+      })
     }
   )
 })

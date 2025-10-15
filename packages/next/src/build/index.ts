@@ -4268,186 +4268,38 @@ export default async function build(
         // Generate SPA-style 404.html for direct URL access to client dynamic routes
         // This must happen AFTER writeFullyStaticExport to avoid being overwritten
         if (clientDynamicRoutes.size > 0) {
+          // Copy the external fallback script to the output directory
+          const fallbackScriptSrc = path.join(
+            __dirname,
+            '..',
+            'client',
+            'app-client-dynamic-fallback.js'
+          )
+          const fallbackScriptDest = path.join(
+            dir,
+            configOutDir,
+            '_next',
+            'static',
+            buildId,
+            'app-client-dynamic-fallback.js'
+          )
+          await fs.mkdir(path.dirname(fallbackScriptDest), { recursive: true })
+          await fs.copyFile(fallbackScriptSrc, fallbackScriptDest)
+
           const fallback404Html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <title>Loading...</title>
-  <script>
-    (function() {
-      // Prevent infinite loop - only run once per page
-      if (window.__shellPatched) return;
-      window.__shellPatched = true;
-
-      // Load manifest and redirect to appropriate shell HTML
-      var manifestUrl = '/_next/static/${buildId}/_clientDynamicRoutesManifest.json';
-      fetch(manifestUrl)
-        .then(function(res) { return res.json(); })
-        .then(function(manifest) {
-          console.log('[404.html] Manifest loaded:', manifest);
-          var pathname = window.location.pathname;
-          console.log('[404.html] Original pathname:', pathname);
-          // Remove trailing slash for matching
-          if (pathname.endsWith('/') && pathname !== '/') {
-            pathname = pathname.slice(0, -1);
-          }
-          console.log('[404.html] Normalized pathname:', pathname);
-
-          // Try to match against client dynamic route patterns
-          for (var i = 0; i < manifest.routes.length; i++) {
-            var route = manifest.routes[i];
-            var pathSegments = pathname.split('/').filter(Boolean);
-            var routeSegments = route.segments;
-
-            // Check if we have a catch-all segment
-            var hasCatchAll = false;
-            for (var k = 0; k < routeSegments.length; k++) {
-              if (routeSegments[k].type === 'dynamic' && routeSegments[k].catchAll) {
-                hasCatchAll = true;
-                break;
-              }
-            }
-
-            if (hasCatchAll) {
-              // For catch-all routes, need at least as many path segments as non-catch-all segments
-              var minSegments = 0;
-              for (var k = 0; k < routeSegments.length; k++) {
-                if (!(routeSegments[k].type === 'dynamic' && routeSegments[k].catchAll)) {
-                  minSegments++;
-                }
-              }
-              if (pathSegments.length < minSegments) continue;
-            } else {
-              // For non-catch-all routes, exact length match is required
-              if (pathSegments.length !== routeSegments.length) continue;
-            }
-
-            var matches = true;
-            var routeIdx = 0;
-            for (var j = 0; j < pathSegments.length && routeIdx < routeSegments.length; j++) {
-              var routeSeg = routeSegments[routeIdx];
-              if (routeSeg.type === 'static' && pathSegments[j] !== routeSeg.value) {
-                matches = false;
-                break;
-              }
-              if (routeSeg.type === 'static' || (routeSeg.type === 'dynamic' && !routeSeg.catchAll)) {
-                routeIdx++;
-              } else if (routeSeg.type === 'dynamic' && routeSeg.catchAll) {
-                routeIdx++;
-                break; // Catch-all consumes the rest
-              }
-            }
-
-            if (matches && routeIdx === routeSegments.length) {
-              // Found a match! Extract actual params from URL
-              console.log('[404.html] Route matched! Pattern:', route.pattern);
-              var actualParams = {};
-              routeIdx = 0;
-              for (var j = 0; j < pathSegments.length && routeIdx < routeSegments.length; j++) {
-                var routeSeg = routeSegments[routeIdx];
-                if (routeSeg.type === 'dynamic') {
-                  if (routeSeg.catchAll) {
-                    // Collect remaining segments as array
-                    var remaining = [];
-                    for (var m = j; m < pathSegments.length; m++) {
-                      remaining.push(pathSegments[m]);
-                    }
-                    actualParams[routeSeg.name] = remaining;
-                    routeIdx++;
-                    break;
-                  } else {
-                    actualParams[routeSeg.name] = pathSegments[j];
-                    routeIdx++;
-                  }
-                } else {
-                  routeIdx++;
-                }
-              }
-              console.log('[404.html] Extracted params:', actualParams);
-
-              // Fetch shell HTML and patch ONLY RSC data, NOT the HTML body
-              // This creates a hydration mismatch that forces React to update the DOM
-              var shellPath = route.pattern.replace(/\\[([^\\]]+)\\]/g, '__shell__');
-              console.log('[404.html] Shell path:', shellPath);
-
-              // Try without trailing slash first, then with trailing slash
-              var fetchShell = function(url) {
-                return fetch(url).then(function(res) {
-                  if (!res.ok) throw new Error('Not found');
-                  return res.text();
-                });
-              };
-
-              fetchShell(shellPath + '.html')
-                .catch(function() { return fetchShell(shellPath); })
-                .catch(function() { return fetchShell(shellPath + '/'); })
-                .catch(function() { return fetchShell(shellPath + '/index.html'); })
-                .then(function(html) {
-                  console.log('[404.html] Shell HTML loaded, length:', html.length);
-
-                  var patchedHtml = html;
-                  var paramNames = Object.keys(actualParams);
-
-                  // Patch RSC data in <script> tags
-                  // Shell HTML body is minimal (just "Loading..."), so React will do client-side render
-                  console.log('[404.html] Patching RSC data for params:', paramNames);
-
-                  for (var paramName in actualParams) {
-                    var paramValue = actualParams[paramName];
-                    if (Array.isArray(paramValue)) {
-                      paramValue = paramValue.join('/');
-                    }
-                    console.log('[404.html] Patching RSC param:', paramName, '=', paramValue);
-
-                    // Patch RSC data in scripts
-                    var pattern = new RegExp('\\\\\\\\?"' + paramName + '\\\\\\\\?"[,:]\\\\\\\\?"__shell__\\\\\\\\?"', 'g');
-                    var matchCount = 0;
-                    patchedHtml = patchedHtml.replace(pattern, function(match) {
-                      matchCount++;
-                      return match.replace('__shell__', paramValue);
-                    });
-                    console.log('[404.html] Made ' + matchCount + ' RSC replacements for param ' + paramName);
-                  }
-
-                  console.log('[404.html] RSC patching complete. Shell HTML is minimal (no content), React will render client-side.');
-
-                  // Replace the entire page with patched shell HTML
-                  // Using document.write() ensures React initializes with the patched RSC data
-                  document.open();
-                  document.write(patchedHtml);
-                  document.close();
-
-                  console.log('[404.html] Page replaced with patched shell HTML. React will initialize with correct params.');
-                })
-                .catch(function() {
-                  // Shell HTML not found, show 404
-                  var root = document.getElementById('__next');
-                  if (root) {
-                    root.innerHTML = '<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>';
-                  }
-                });
-              return;
-            }
-          }
-
-          // No match found, show regular 404
-          var root = document.getElementById('__next');
-          if (root) {
-            root.innerHTML = '<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>';
-          }
-        })
-        .catch(function() {
-          // Manifest not found or error loading, show regular 404
-          var root = document.getElementById('__next');
-          if (root) {
-            root.innerHTML = '<h1>404 - Page Not Found</h1><p>The page you are looking for does not exist.</p>';
-          }
-        });
-    })();
-  </script>
+  <script>window.__BUILD_ID__='${buildId}'</script>
+  <script src="/_next/static/${buildId}/app-client-dynamic-fallback.js"></script>
 </head>
 <body>
   <div id="__next"><p>Loading...</p></div>
+  <noscript>
+    <h1>JavaScript Required</h1>
+    <p>This site requires JavaScript to be enabled for client-side routing.</p>
+  </noscript>
 </body>
 </html>`
 

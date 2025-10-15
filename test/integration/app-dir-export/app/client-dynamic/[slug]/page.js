@@ -23,6 +23,13 @@ export default function Page() {
           color: '#f3e5f5',
           icon: '🥈'
         }
+      case 'shell-test':
+        return {
+          title: 'Shell Test - Content Corruption Check',
+          description: 'This content contains the literal text __shell__ to verify it does NOT get replaced during patching. The __shell__ placeholder should remain as-is in actual content.',
+          color: '#fff9c4',
+          icon: '🐚'
+        }
       default:
         return {
           title: `Post: ${slug}`,

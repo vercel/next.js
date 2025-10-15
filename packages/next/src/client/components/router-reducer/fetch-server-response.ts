@@ -49,7 +49,11 @@ let clientDynamicRoutesManifest: {
     >
   }>
 } | null = null
-let manifestLoadAttempted = false
+
+// Retry state for manifest loading
+let manifestLoadAttempts = 0
+const MAX_MANIFEST_RETRIES = 3
+const MANIFEST_RETRY_DELAYS = [100, 500, 1000] // Exponential backoff in ms
 
 async function loadClientDynamicRoutesManifest(): Promise<void> {
   // Only skip if we already have a valid manifest
@@ -57,20 +61,32 @@ async function loadClientDynamicRoutesManifest(): Promise<void> {
     return
   }
 
-  manifestLoadAttempted = true
-
   if (process.env.__NEXT_CONFIG_OUTPUT !== 'export') return
 
-  try {
-    const buildId = getAppBuildId()
-    const manifestUrl = `/_next/static/${buildId}/_clientDynamicRoutesManifest.json`
-    const response = await fetch(manifestUrl)
-    if (response.ok) {
-      clientDynamicRoutesManifest = await response.json()
+  // Retry with exponential backoff
+  while (manifestLoadAttempts < MAX_MANIFEST_RETRIES) {
+    try {
+      const buildId = getAppBuildId()
+      const manifestUrl = `/_next/static/${buildId}/_clientDynamicRoutesManifest.json`
+      const response = await fetch(manifestUrl)
+      if (response.ok) {
+        clientDynamicRoutesManifest = await response.json()
+        return // Success!
+      }
+    } catch (err) {
+      // Network error, will retry
     }
-  } catch (err) {
-    // Manifest not available, continue without fallback
+
+    manifestLoadAttempts++
+
+    // If we haven't exhausted retries, wait before trying again
+    if (manifestLoadAttempts < MAX_MANIFEST_RETRIES) {
+      const delay = MANIFEST_RETRY_DELAYS[manifestLoadAttempts - 1] || 1000
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
   }
+
+  // All retries exhausted, manifest not available
 }
 
 function matchClientDynamicRoute(
@@ -439,59 +455,78 @@ export async function fetchServerResponse(
 
             if (isShellFlightResponse) {
               try {
-                // Patch the shell RSC payload text before parsing
-                // We need to replace ALL occurrences of "__shell__" with actual param values
-                // Read the body stream as text
-                const reader = shellRes.body!.getReader()
-                const decoder = new TextDecoder()
-                let shellText = ''
-                let done = false
-
-                while (!done) {
-                  const { value, done: streamDone } = await reader.read()
-                  done = streamDone
-                  if (value) {
-                    shellText += decoder.decode(value, { stream: !streamDone })
-                  }
-                }
-
-                let patchedText = shellText
-
-                // Replace __shell__ with actual param values using param-specific regex
-                // This ensures each param gets its correct value in multi-param routes
+                // Patch the shell RSC payload using streaming approach to avoid memory issues
+                // Build regex patterns for each param
                 const paramEntries = Object.entries(match.params)
+                const patterns: Array<{ regex: RegExp; replacement: string }> = []
+
                 for (const [paramName, paramValue] of paramEntries) {
                   // Match patterns where param name is explicit:
                   // - Segment tuples: ["paramName","__shell__","d"]
                   // - Param objects: {"paramName":"__shell__"}
                   // Match both literal and escaped quotes (\" in JSON strings)
-                  const valueStr = Array.isArray(paramValue) ? paramValue.join('/') : paramValue
-                  const pattern = new RegExp('\\\\?"' + paramName + '\\\\?"[,:]\\\\?"__shell__\\\\?"', 'g')
-                  patchedText = patchedText.replace(pattern, function(match) {
-                    return match.replace('__shell__', valueStr)
-                  })
+                  const valueStr = Array.isArray(paramValue)
+                    ? paramValue.join('/')
+                    : paramValue
+                  const pattern = new RegExp(
+                    '\\\\?"' + paramName + '\\\\?"[,:]\\\\?"__shell__\\\\?"',
+                    'g'
+                  )
+                  patterns.push({ regex: pattern, replacement: valueStr })
                 }
 
-                // For single-param routes, also replace any remaining plain __shell__ occurrences
-                // This handles __shell__ in static HTML body that doesn't have param name context
-                if (paramEntries.length === 1) {
-                  const [singleParamName, singleParamValue] = paramEntries[0]
-                  const valueStr = Array.isArray(singleParamValue) ? singleParamValue.join('/') : singleParamValue
-                  patchedText = patchedText.replace(/__shell__/g, valueStr)
-                }
-
-                // Create a new readable stream from the patched text
+                // Create a transform stream that patches chunks on-the-fly
+                const decoder = new TextDecoder()
                 const encoder = new TextEncoder()
-                const patchedStream = new ReadableStream({
-                  start(controller) {
-                    controller.enqueue(encoder.encode(patchedText))
-                    controller.close()
-                  }
+                let buffer = '' // Lookbehind buffer for pattern matches across chunk boundaries
+                const BUFFER_SIZE = 200 // Keep last 200 chars to handle boundary cases
+
+                const patchingTransform = new TransformStream({
+                  transform(chunk, controller) {
+                    // Decode chunk and append to buffer
+                    const text = decoder.decode(chunk, { stream: true })
+                    buffer += text
+
+                    // Only process if buffer is large enough, keep BUFFER_SIZE chars for next iteration
+                    if (buffer.length > BUFFER_SIZE) {
+                      const processLength = buffer.length - BUFFER_SIZE
+                      let processText = buffer.slice(0, processLength)
+
+                      // Apply all pattern replacements
+                      for (const { regex, replacement } of patterns) {
+                        processText = processText.replace(regex, (match) => {
+                          return match.replace('__shell__', replacement)
+                        })
+                      }
+
+                      // Enqueue processed text and keep buffer
+                      controller.enqueue(encoder.encode(processText))
+                      buffer = buffer.slice(processLength)
+                    }
+                  },
+                  flush(controller) {
+                    // Process remaining buffer
+                    if (buffer.length > 0) {
+                      let processText = buffer
+
+                      // Apply all pattern replacements
+                      for (const { regex, replacement } of patterns) {
+                        processText = processText.replace(regex, (match) => {
+                          return match.replace('__shell__', replacement)
+                        })
+                      }
+
+                      controller.enqueue(encoder.encode(processText))
+                    }
+                  },
                 })
+
+                // Pipe shell response through patching transform
+                const patchedStream = shellRes.body!.pipeThrough(patchingTransform)
 
                 const response = (await createFromNextReadableStream(
                   patchedStream,
-                  shellRes.headers
+                  headers
                 )) as Promise<NavigationFlightResponse>
 
                 if (getAppBuildId() !== (await response).b) {

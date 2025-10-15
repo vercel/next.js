@@ -488,6 +488,7 @@ export async function getAppPageStaticInfo({
 
   //  Get RSC type - first try from runtime labels, then check for 'use client' directive
   let rsc: RSCModuleType | undefined
+  let cachedAst: any = null // Cache AST to avoid double parsing
 
   if (content) {
     const { type: rscFromLabel } = getRSCModuleInformation(content, true)
@@ -496,11 +497,12 @@ export async function getAppPageStaticInfo({
     if (rscFromLabel === 'server' && content.includes("'use client'")) {
       // Parse to confirm it's actually a directive (not just a string in code)
       try {
-        const ast = await parseModule(pageFilePath, content)
-        const { directives } = checkExports(ast, AppSegmentConfigSchemaKeys, page)
+        cachedAst = await parseModule(pageFilePath, content)
+        const { directives } = checkExports(cachedAst, AppSegmentConfigSchemaKeys, page)
         rsc = directives?.has('client') ? 'client' : rscFromLabel
       } catch {
         rsc = rscFromLabel
+        cachedAst = null // Clear cache on error
       }
     } else {
       rsc = rscFromLabel
@@ -519,7 +521,8 @@ export async function getAppPageStaticInfo({
     }
   }
 
-  const ast = await parseModule(pageFilePath, content)
+  // Reuse cached AST if available, otherwise parse now
+  const ast = cachedAst || (await parseModule(pageFilePath, content))
 
   const {
     generateStaticParams,

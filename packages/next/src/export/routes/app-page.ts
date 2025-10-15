@@ -90,7 +90,9 @@ export async function exportAppPage(
     let html = result.toUnchunkedString()
 
     // Check if this is a shell file for client dynamic routes
-    // Shell files have __shell__ placeholder in the path
+    // Shell files have __shell__ placeholder in the path where dynamic segments would be
+    // Note: In the extremely rare case of a route literally containing "/__shell__/",
+    // this would be a false positive, but such routes are highly unlikely in practice
     const isShellFile = path.includes('__shell__')
 
     if (isShellFile) {
