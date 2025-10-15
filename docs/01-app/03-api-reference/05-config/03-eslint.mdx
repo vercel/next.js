@@ -33,21 +33,21 @@ Get linting working quickly with the ESLint CLI (flat config):
 2. Create `eslint.config.mjs` with the Next.js config:
 
    ```js filename="eslint.config.mjs"
-   import { defineConfig, globalIgnores } from "eslint/config"
-   import nextVitals from "eslint-config-next/core-web-vitals"
-   
+   import { defineConfig, globalIgnores } from 'eslint/config'
+   import nextVitals from 'eslint-config-next/core-web-vitals'
+
    const eslintConfig = defineConfig([
      ...nextVitals,
      // Override default ignores of eslint-config-next.
      globalIgnores([
        // Default ignores of eslint-config-next:
-       ".next/**",
-       "out/**",
-       "build/**",
-       "next-env.d.ts",
+       '.next/**',
+       'out/**',
+       'build/**',
+       'next-env.d.ts',
      ]),
    ])
-   
+
    export default eslintConfig
    ```
 
@@ -180,18 +180,18 @@ export default eslintConfig
 Enable the `next/core-web-vitals` rule set by extending it in your ESLint config.
 
 ```js filename="eslint.config.mjs"
-import { defineConfig, globalIgnores } from "eslint/config"
-import nextVitals from "eslint-config-next/core-web-vitals"
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
   ]),
 ])
 
@@ -207,9 +207,9 @@ export default eslintConfig
 In addition to the Next.js ESLint rules, `create-next-app --typescript` will also add TypeScript-specific lint rules with `next/typescript` to your config:
 
 ```js filename="eslint.config.mjs"
-import { defineConfig, globalIgnores } from "eslint/config"
-import nextVitals from "eslint-config-next/core-web-vitals"
-import nextTs from "eslint-config-next/typescript"
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
+import nextTs from 'eslint-config-next/typescript'
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -217,10 +217,10 @@ const eslintConfig = defineConfig([
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
   ]),
 ])
 
@@ -255,9 +255,9 @@ bun add -d eslint-config-prettier
 Then, add `prettier` to your existing ESLint config:
 
 ```js filename="eslint.config.mjs"
-import { defineConfig, globalIgnores } from "eslint/config"
-import nextVitals from "eslint-config-next/core-web-vitals"
-import prettier from "eslint-config-prettier/flat"
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
+import prettier from 'eslint-config-prettier/flat'
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -265,10 +265,10 @@ const eslintConfig = defineConfig([
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
   ]),
 ])
 
@@ -344,11 +344,11 @@ This eliminates the risk of collisions or errors that can occur due to importing
 If you already use a separate ESLint configuration and want to include `eslint-config-next`, ensure that it is extended last after other configurations. For example:
 
 ```js filename="eslint.config.mjs"
-import { defineConfig, globalIgnores } from "eslint/config"
-import nextPlugin from "@next/eslint-plugin-next"
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextPlugin from '@next/eslint-plugin-next'
 
 const eslintConfig = defineConfig([
-  nextPlugin.configs["core-web-vitals"],
+  nextPlugin.configs['core-web-vitals'],
   // List of ignore patterns.
   globalIgnores([]),
 ])
