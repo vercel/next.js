@@ -24,7 +24,7 @@ import { promises as fs } from 'fs'
 import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
 import type { NextConfig } from '../../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../../server/normalizers/built/app/app-pathname-normalizer'
-import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 import { isAppBuiltinPage } from '../../../utils'
 import { loadEntrypoint } from '../../../load-entrypoint'
 import {
@@ -644,7 +644,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const collectedDeclarations: [string, string][] = []
   const page = name.replace(/^app/, '')
-  const middlewareConfig: MiddlewareConfig = JSON.parse(
+  const middlewareConfig: ProxyConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
   )
   buildInfo.route = {

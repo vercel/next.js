@@ -199,7 +199,7 @@
     "eslint-plugin-jest": "27.6.3",
     "eslint-plugin-jsdoc": "48.0.4",
     "eslint-plugin-mdx": "3.1.5",
-    "eslint-plugin-react": "7.35.0",
+    "eslint-plugin-react": "7.37.0",
     "eslint-plugin-react-hooks": "0.0.0-experimental-56e84692-20251014",
     "event-stream": "4.0.1",
     "execa": "2.0.3",

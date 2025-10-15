@@ -94,6 +94,7 @@ export function getCloneableBody<T extends IncomingMessage>(
           limitExceeded = true
           const urlInfo = readable.url ? ` for ${readable.url}` : ''
           console.warn(
+            // TODO(jiwon): Update this document link
             `Request body exceeded ${bytes.format(bodySizeLimit)}${urlInfo}. Only the first ${bytes.format(bodySizeLimit)} will be available unless configured. See https://nextjs.org/docs/app/api-reference/config/next-config-js/middlewareClientMaxBodySize for more details.`
           )
           p1.push(null)

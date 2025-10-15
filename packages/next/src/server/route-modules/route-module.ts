@@ -219,7 +219,7 @@ export abstract class RouteModule<
           headers: [],
           i18n:
             (process.env.__NEXT_I18N_CONFIG as any as I18NConfig) || undefined,
-          skipMiddlewareUrlNormalize: Boolean(
+          skipProxyUrlNormalize: Boolean(
             process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
           ),
         },

@@ -150,7 +150,12 @@ pub async fn get_client_resolve_options_context(
         get_next_client_resolved_map(project_path.clone(), project_path.clone(), *mode.await?)
             .to_resolved()
             .await?;
-    let custom_conditions = mode.await?.custom_resolve_conditions().collect();
+    let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();
+
+    if *next_config.enable_cache_components().await? {
+        custom_conditions.push(rcstr!("next-js"));
+    };
+
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().owned().await?),
         custom_conditions,
