@@ -24,6 +24,7 @@ env:
   RUST_LOG: 'off'
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'
+  TURBO_API: ${{ secrets.HOSTED_TURBO_API }}
   TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
 
 jobs:
