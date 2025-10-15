@@ -324,6 +324,9 @@ export function useErrorOverlayReducer(
     const pendingEvents = events.filter((event) => {
       // Filter out duplicate errors
       return (
+        // SpiderMonkey and JavaScriptCore don't include the error message in the stack.
+        // We don't want to dedupe errors with different messages for which we don't have a good stack
+        '' + event.error !== '' + pendingEvent.error ||
         (event.error.stack !== pendingEvent.error.stack &&
           // TODO: Let ReactDevTools control deduping instead?
           getStackIgnoringStrictMode(event.error.stack) !==
