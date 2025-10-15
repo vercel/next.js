@@ -120,7 +120,13 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
 
     // Create a unique key for the segment
     const segmentKey = getSegmentKey(segment)
-    if (!uniqueSegments.has(segmentKey)) {
+    const existing = uniqueSegments.get(segmentKey)
+
+    // Prefer non-parallel segments over parallel ones
+    if (
+      !existing ||
+      (existing.isParallelRouteSegment && !segment.isParallelRouteSegment)
+    ) {
       uniqueSegments.set(segmentKey, segment)
     }
 
@@ -128,10 +134,19 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
 
     // If this is a page segment, we've reached a leaf node
     if (name === PAGE_SEGMENT_KEY) {
-      // Add all segments in the current path
+      // Add all segments in the current path, preferring non-parallel segments
       updatedSegments.forEach((seg) => {
         const key = getSegmentKey(seg)
-        uniqueSegments.set(key, seg)
+        const existingSeg = uniqueSegments.get(key)
+
+        // Use the same preference logic: prefer non-parallel segments over
+        // parallel ones.
+        if (
+          !existingSeg ||
+          (existingSeg.isParallelRouteSegment && !seg.isParallelRouteSegment)
+        ) {
+          uniqueSegments.set(key, seg)
+        }
       })
     }
 
@@ -245,7 +260,13 @@ export function collectFallbackRouteParams(
     const segmentParam = getSegmentParam(name)
     if (segmentParam) {
       const key = `${name}-${segmentParam.param}`
-      if (!uniqueSegments.has(key)) {
+      const existing = uniqueSegments.get(key)
+
+      // Prefer non-parallel segments over parallel ones
+      if (
+        !existing ||
+        (existing.isParallelRouteParam && !isParallelRouteSegment)
+      ) {
         uniqueSegments.set(
           key,
           createFallbackRouteParam(
