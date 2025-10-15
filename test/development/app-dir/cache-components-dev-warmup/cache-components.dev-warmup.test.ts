@@ -29,7 +29,7 @@ describe('cache-components-dev-warmup', () => {
   ) {
     // Match logs that contain the message, with any environment.
     const logPattern = new RegExp(
-      `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Prefetch|Server)\\b).*`
+      `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Prefetch|Prefetchable|Server)\\b).*`
     )
     const logMessages = logs.map((log) => log.message)
     const messages = logMessages.filter((message) => logPattern.test(message))
@@ -175,12 +175,12 @@ describe('cache-components-dev-warmup', () => {
 
           // Private caches are dynamic holes in static prerenders,
           // so they shouldn't resolve in the static stage.
-          assertLog(logs, 'after private cache read - page', 'Prefetch')
-          assertLog(logs, 'after private cache read - layout', 'Prefetch')
+          assertLog(logs, 'after private cache read - page', 'Prefetchable')
+          assertLog(logs, 'after private cache read - layout', 'Prefetchable')
           assertLog(
             logs,
             'after successive private cache reads - page',
-            'Prefetch'
+            'Prefetchable'
           )
 
           assertLog(logs, 'after uncached fetch - layout', 'Server')
@@ -204,8 +204,12 @@ describe('cache-components-dev-warmup', () => {
 
           // Short lived caches are dynamic holes in static prerenders,
           // so they shouldn't resolve in the static stage.
-          assertLog(logs, 'after short-lived cache read - page', 'Prefetch')
-          assertLog(logs, 'after short-lived cache read - layout', 'Prefetch')
+          assertLog(logs, 'after short-lived cache read - page', 'Prefetchable')
+          assertLog(
+            logs,
+            'after short-lived cache read - layout',
+            'Prefetchable'
+          )
 
           assertLog(logs, 'after uncached fetch - layout', 'Server')
           assertLog(logs, 'after uncached fetch - page', 'Server')
@@ -247,10 +251,10 @@ describe('cache-components-dev-warmup', () => {
         assertLog(logs, 'after cache read - page', 'Prerender')
 
         // TODO: we should only label this as "Prefetch" if there's a prefetch config.
-        assertLog(logs, `after cookies`, 'Prefetch')
-        assertLog(logs, `after headers`, 'Prefetch')
-        assertLog(logs, `after params`, 'Prefetch')
-        assertLog(logs, `after searchParams`, 'Prefetch')
+        assertLog(logs, `after cookies`, 'Prefetchable')
+        assertLog(logs, `after headers`, 'Prefetchable')
+        assertLog(logs, `after params`, 'Prefetchable')
+        assertLog(logs, `after searchParams`, 'Prefetchable')
 
         assertLog(logs, 'after connection', 'Server')
       }

@@ -212,6 +212,7 @@ import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolv
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { imageConfigDefault } from '../../shared/lib/image-config'
 import { RenderStage, StagedRenderingController } from './staged-rendering'
+import { anySegmentHasRuntimePrefetchEnabled } from './staged-validation'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -2768,7 +2769,16 @@ async function renderWithRestartOnCacheMissInDev(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void
 ) {
-  const { htmlRequestId, renderOpts, requestId } = ctx
+  const {
+    htmlRequestId,
+    renderOpts,
+    requestId,
+    componentMod: {
+      routeModule: {
+        userland: { loaderTree },
+      },
+    },
+  } = ctx
   const {
     clientReferenceManifest,
     ComponentMod,
@@ -2776,6 +2786,9 @@ async function renderWithRestartOnCacheMissInDev(
     setReactDebugChannel,
   } = renderOpts
   assertClientReferenceManifest(clientReferenceManifest)
+
+  const hasRuntimePrefetch =
+    await anySegmentHasRuntimePrefetchEnabled(loaderTree)
 
   // If the render is restarted, we'll recreate a fresh request store
   let requestStore: RequestStore = initialRequestStore
@@ -2786,8 +2799,7 @@ async function renderWithRestartOnCacheMissInDev(
       case RenderStage.Static:
         return 'Prerender'
       case RenderStage.Runtime:
-        // TODO: only label as "Prefetch" if the page has a `prefetch` config.
-        return 'Prefetch'
+        return hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
       case RenderStage.Dynamic:
         return 'Server'
       default:
