@@ -15,10 +15,10 @@
     "integrity": "sha512-orh6tVnh1jjxWNNLduiv0pUcW0guzwTmy52JQGdz4D2LL2IgIlJaC0w4+YBtIBXa2kKGho839WgGAK0sC0Folw==",
     "contentType": "application/javascript; charset=UTF-8"
   },
-  "https://github.com/vercel/next.js/raw/canary/test/integration/url/public/vercel.png": "no-cache",
-  "https://github.com/vercel/next.js/raw/canary/test/integration/url/public/vercel.png?_=image": "no-cache",
-  "https://github.com/vercel/next.js/raw/canary/test/integration/url/public/vercel.png?_=ssg": "no-cache",
-  "https://github.com/vercel/next.js/raw/canary/test/integration/url/public/vercel.png?_=ssr": "no-cache",
-  "https://github.com/vercel/next.js/raw/canary/test/integration/url/public/vercel.png?_=static": "no-cache",
+  "https://github.com/vercel/next.js/raw/canary/test/e2e/url-imports/public/vercel.png": "no-cache",
+  "https://github.com/vercel/next.js/raw/canary/test/e2e/url-imports/public/vercel.png?_=image": "no-cache",
+  "https://github.com/vercel/next.js/raw/canary/test/e2e/url-imports/public/vercel.png?_=ssg": "no-cache",
+  "https://github.com/vercel/next.js/raw/canary/test/e2e/url-imports/public/vercel.png?_=ssr": "no-cache",
+  "https://github.com/vercel/next.js/raw/canary/test/e2e/url-imports/public/vercel.png?_=static": "no-cache",
   "version": 1
 }
