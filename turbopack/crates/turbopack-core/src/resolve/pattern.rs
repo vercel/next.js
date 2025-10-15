@@ -4,7 +4,7 @@ use std::{
     sync::LazyLock,
 };
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -227,17 +227,17 @@ impl Pattern {
         longest_common_suffix(&strings)
     }
 
-    pub fn strip_prefix(&self, prefix: &str) -> Option<Self> {
+    pub fn strip_prefix(&self, prefix: &str) -> Result<Option<Self>> {
         if self.must_match(prefix) {
             let mut pat = self.clone();
-            pat.strip_prefix_len(prefix.len());
-            Some(pat)
+            pat.strip_prefix_len(prefix.len())?;
+            Ok(Some(pat))
         } else {
-            None
+            Ok(None)
         }
     }
 
-    pub fn strip_prefix_len(&mut self, len: usize) {
+    pub fn strip_prefix_len(&mut self, len: usize) -> Result<()> {
         fn strip_prefix_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) {
             match pattern {
                 Pattern::Constant(c) => {
@@ -278,12 +278,18 @@ impl Pattern {
             }
             Pattern::Dynamic | Pattern::DynamicNoSlash => {
                 if len > 0 {
-                    panic!("strip_prefix prefix is too long");
+                    bail!(
+                        "strip_prefix prefix ({}) is too long: {}",
+                        len,
+                        self.describe_as_string()
+                    );
                 }
             }
         };
 
-        self.normalize()
+        self.normalize();
+
+        Ok(())
     }
 
     pub fn strip_suffix_len(&mut self, len: usize) {
@@ -2164,7 +2170,7 @@ mod tests {
     #[test]
     fn strip_prefix() {
         fn strip(mut pat: Pattern, n: usize) -> Pattern {
-            pat.strip_prefix_len(n);
+            pat.strip_prefix_len(n).unwrap();
             pat
         }
 
