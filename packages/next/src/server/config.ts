@@ -707,6 +707,13 @@ function assignDefaultsAndValidate(
     configFileName,
     silent
   )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'enablePrerenderSourceMaps',
+    'enablePrerenderSourceMaps',
+    configFileName,
+    silent
+  )
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
@@ -1269,9 +1276,14 @@ function assignDefaultsAndValidate(
     result.experimental.mcpServer = true
   }
 
-  // TODO: remove once we've finished migrating internally to cacheComponents.
   if (result.experimental.cacheComponents) {
+    // TODO: remove once we've finished migrating internally to cacheComponents.
     result.experimental.ppr = true
+
+    // Prerender sourcemaps are enabled by default when using cacheComponents, unless explicitly disabled.
+    if (result.enablePrerenderSourceMaps === undefined) {
+      result.enablePrerenderSourceMaps = true
+    }
   }
 
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
@@ -1734,6 +1746,9 @@ function enforceExperimentalFeatures(
     debugPrerender &&
     (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
   ) {
+    // TODO: This is not an experimental feature, but should be enabled alongside other prerender debugging features.
+    config.enablePrerenderSourceMaps = true
+
     setExperimentalFeatureForDebugPrerender(
       config.experimental,
       'serverSourceMaps',
@@ -1745,13 +1760,6 @@ function enforceExperimentalFeatures(
       config.experimental,
       process.env.TURBOPACK ? 'turbopackMinify' : 'serverMinification',
       false,
-      configuredExperimentalFeatures
-    )
-
-    setExperimentalFeatureForDebugPrerender(
-      config.experimental,
-      'enablePrerenderSourceMaps',
-      true,
       configuredExperimentalFeatures
     )
 
@@ -1809,22 +1817,6 @@ function enforceExperimentalFeatures(
   ) {
     config.reactCompiler = true
     // TODO: Report if we enable non-experimental features via env
-  }
-
-  if (
-    config.experimental.enablePrerenderSourceMaps === undefined &&
-    config.experimental.cacheComponents === true
-  ) {
-    config.experimental.enablePrerenderSourceMaps = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'enablePrerenderSourceMaps',
-        true,
-        'enabled by `experimental.cacheComponents`'
-      )
-    }
   }
 }
 

@@ -2,9 +2,10 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  enablePrerenderSourceMaps: false,
+
   experimental: {
     cacheComponents: true,
-    enablePrerenderSourceMaps: false,
   },
 }
 
