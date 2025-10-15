@@ -89,9 +89,9 @@ function generateSameLevelHeaderRegex(
     }
   }
 
-  // Match the pattern, optionally followed by a single segment, with optional trailing slash
+  // Match the pattern, optionally followed by any descendants, with optional trailing slash
   // Note: Don't add ^ and $ anchors here - matchHas() will add them automatically
-  return `${pattern}(/[^/]+)?/?`
+  return `${pattern}(/.+)?/?`
 }
 
 /**

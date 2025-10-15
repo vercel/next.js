@@ -36,16 +36,48 @@ describe('generateInterceptionRoutesRewrites', () => {
       // - / (root)
       // - /nested-link (any root-level route)
       // - /foo (any other root-level route)
-      // But NOT:
-      // - /foo/bar (nested routes)
+      // - /foo/bar (nested routes - any descendant of root)
+      // Since the intercepting route is at root, it should match when navigating
+      // FROM root or any of its descendants
       const { headerRegex } = getRewriteMatchers(rewrite)
-      expect(headerRegex.source).toMatchInlineSnapshot(`"^(\\/[^/]+)?\\/?$"`)
+      expect(headerRegex.source).toMatchInlineSnapshot(`"^(\\/.+)?\\/?$"`)
 
       expect(headerRegex.test('/')).toBe(true)
       expect(headerRegex.test('/nested-link')).toBe(true)
       expect(headerRegex.test('/foo')).toBe(true)
-      expect(headerRegex.test('/foo/bar')).toBe(false)
-      expect(headerRegex.test('/a/b/c')).toBe(false)
+      expect(headerRegex.test('/foo/bar')).toBe(true)
+      expect(headerRegex.test('/a/b/c')).toBe(true)
+    })
+
+    it('should generate rewrite for root-level slot intercepting nested route with dynamic segments', () => {
+      const rewrites = generateInterceptionRoutesRewrites([
+        '/@modal/(.)groups/[id]/new',
+      ])
+
+      expect(rewrites).toHaveLength(1)
+      const rewrite = rewrites[0]
+
+      // Source should be the intercepted route
+      expect(rewrite.source).toBe('/groups/:nxtPid/new')
+
+      // Destination should be the intercepting route path
+      expect(rewrite.destination).toBe('/@modal/(.)groups/:nxtPid/new')
+
+      // The Next-Url header should match routes at root level and all descendants
+      // This is the bug fix: should match /groups/123 (nested route) in addition to / and /groups
+      const { sourceRegex, headerRegex } = getRewriteMatchers(rewrite)
+      expect(headerRegex.source).toMatchInlineSnapshot(`"^(\\/.+)?\\/?$"`)
+
+      // Source should match the target URL with dynamic parameter
+      expect(sourceRegex.test('/groups/123/new')).toBe(true)
+      expect(sourceRegex.test('/groups/abc/new')).toBe(true)
+
+      // Header should match when navigating FROM root or any descendant
+      expect(headerRegex.test('/')).toBe(true) // From root
+      expect(headerRegex.test('/groups')).toBe(true) // From /groups
+      expect(headerRegex.test('/groups/123')).toBe(true) // From /groups/123 (THE BUG FIX!)
+      expect(headerRegex.test('/groups/123/settings')).toBe(true) // From any nested route
+      expect(headerRegex.test('/other/route/deep')).toBe(true) // From any other route
     })
 
     it('should generate rewrite for nested route intercepting sibling', () => {
@@ -67,7 +99,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Verify the regex in the rewrite can match actual URLs
       const { sourceRegex, headerRegex } = getRewriteMatchers(rewrite)
       expect(headerRegex.source).toMatchInlineSnapshot(
-        `"^\\/intercepting\\-routes\\/feed(\\/[^/]+)?\\/?$"`
+        `"^\\/intercepting\\-routes\\/feed(\\/.+)?\\/?$"`
       )
 
       expect(sourceRegex.test('/intercepting-routes/feed/photos/123')).toBe(
@@ -78,15 +110,15 @@ describe('generateInterceptionRoutesRewrites', () => {
       )
 
       // The Next-Url header should match routes at /intercepting-routes/feed level
-      // Should match routes at the same level
+      // Should match routes at the same level and ALL descendants
       expect(headerRegex.test('/intercepting-routes/feed')).toBe(true)
       expect(headerRegex.test('/intercepting-routes/feed/nested')).toBe(true)
-
-      // Should NOT match parent or deeper nested routes
-      expect(headerRegex.test('/intercepting-routes')).toBe(false)
       expect(headerRegex.test('/intercepting-routes/feed/nested/deep')).toBe(
-        false
+        true
       )
+
+      // Should NOT match parent routes
+      expect(headerRegex.test('/intercepting-routes')).toBe(false)
     })
 
     it('should handle (.) with dynamic parameters in intercepting route', () => {
@@ -107,14 +139,16 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Verify the source regex matches actual URLs
       const { sourceRegex, headerRegex } = getRewriteMatchers(rewrite)
       expect(headerRegex.source).toMatchInlineSnapshot(
-        `"^\\/intercepting\\-siblings(\\/[^/]+)?\\/?$"`
+        `"^\\/intercepting\\-siblings(\\/.+)?\\/?$"`
       )
 
       expect(sourceRegex.test('/intercepting-siblings/123')).toBe(true)
       expect(sourceRegex.test('/intercepting-siblings/user-abc')).toBe(true)
 
-      // Should match routes at /intercepting-siblings level
+      // Should match routes at /intercepting-siblings level and all descendants
       expect(headerRegex.test('/intercepting-siblings')).toBe(true)
+      expect(headerRegex.test('/intercepting-siblings/123')).toBe(true)
+      expect(headerRegex.test('/intercepting-siblings/123/nested')).toBe(true)
     })
 
     it('should handle (.) with multiple dynamic parameters', () => {
@@ -137,7 +171,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Verify the source regex matches actual URLs with both parameters
       const { sourceRegex, headerRegex } = getRewriteMatchers(rewrite)
       expect(headerRegex.source).toMatchInlineSnapshot(
-        `"^\\/intercepting\\-routes\\-dynamic\\/photos(\\/[^/]+)?\\/?$"`
+        `"^\\/intercepting\\-routes\\-dynamic\\/photos(\\/.+)?\\/?$"`
       )
 
       expect(
@@ -147,8 +181,14 @@ describe('generateInterceptionRoutesRewrites', () => {
         sourceRegex.test('/intercepting-routes-dynamic/photos/jane/post-456')
       ).toBe(true)
 
-      // Should match the parent directory
+      // Should match the parent directory and all descendants
       expect(headerRegex.test('/intercepting-routes-dynamic/photos')).toBe(true)
+      expect(headerRegex.test('/intercepting-routes-dynamic/photos/john')).toBe(
+        true
+      )
+      expect(
+        headerRegex.test('/intercepting-routes-dynamic/photos/john/123')
+      ).toBe(true)
     })
 
     it('should handle (.) with optional catchall in intercepting route', () => {
@@ -169,7 +209,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Verify source regex matches actual URLs with 0 or more catchall segments
       const { sourceRegex, headerRegex } = getRewriteMatchers(rewrite)
       expect(headerRegex.source).toMatchInlineSnapshot(
-        `"^(?:\\/(?<nxtPlocale>.+?))?(\\/[^/]+)?\\/?$"`
+        `"^(?:\\/(?<nxtPlocale>.+?))?(\\/.+)?\\/?$"`
       )
 
       expect(sourceRegex.test('/settings')).toBe(true)
@@ -656,7 +696,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Verify source regex matches catchall URLs
       const { sourceRegex, headerRegex } = getRewriteMatchers(rewrite)
       expect(headerRegex.source).toMatchInlineSnapshot(
-        `"^\\/intercepting\\-routes\\-dynamic\\-catchall\\/photos(\\/[^/]+)?\\/?$"`
+        `"^\\/intercepting\\-routes\\-dynamic\\-catchall\\/photos(\\/.+)?\\/?$"`
       )
 
       expect(
@@ -675,9 +715,15 @@ describe('generateInterceptionRoutesRewrites', () => {
         )
       ).toBe(true)
 
-      // Should match the parent level
+      // Should match the parent level and all descendants
       expect(
         headerRegex.test('/intercepting-routes-dynamic-catchall/photos')
+      ).toBe(true)
+      expect(
+        headerRegex.test('/intercepting-routes-dynamic-catchall/photos/foo')
+      ).toBe(true)
+      expect(
+        headerRegex.test('/intercepting-routes-dynamic-catchall/photos/foo/bar')
       ).toBe(true)
     })
 
@@ -702,7 +748,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Verify source regex matches both with and without segments
       const { sourceRegex, headerRegex } = getRewriteMatchers(rewrite)
       expect(headerRegex.source).toMatchInlineSnapshot(
-        `"^\\/intercepting\\-routes\\-dynamic\\-catchall\\/photos(\\/[^/]+)?\\/?$"`
+        `"^\\/intercepting\\-routes\\-dynamic\\-catchall\\/photos(\\/.+)?\\/?$"`
       )
 
       expect(
@@ -721,9 +767,15 @@ describe('generateInterceptionRoutesRewrites', () => {
         )
       ).toBe(true)
 
-      // Should match the parent level
+      // Should match the parent level and all descendants
       expect(
         headerRegex.test('/intercepting-routes-dynamic-catchall/photos')
+      ).toBe(true)
+      expect(
+        headerRegex.test('/intercepting-routes-dynamic-catchall/photos/foo')
+      ).toBe(true)
+      expect(
+        headerRegex.test('/intercepting-routes-dynamic-catchall/photos/foo/bar')
       ).toBe(true)
     })
   })
@@ -758,11 +810,12 @@ describe('generateInterceptionRoutesRewrites', () => {
       // So interceptingRoute should be / (root)
       // Note: Router adds ^ and $ anchors automatically via matchHas()
       const { headerRegex } = getRewriteMatchers(rewrites[0])
-      expect(headerRegex.source).toMatchInlineSnapshot(`"^(\\/[^/]+)?\\/?$"`)
+      expect(headerRegex.source).toMatchInlineSnapshot(`"^(\\/.+)?\\/?$"`)
 
-      // Should match root-level routes
+      // Should match root-level routes and all descendants
       expect(headerRegex.test('/')).toBe(true)
       expect(headerRegex.test('/nested-link')).toBe(true)
+      expect(headerRegex.test('/nested-link/deep')).toBe(true)
     })
 
     it('should handle parallel routes at nested levels', () => {
@@ -775,11 +828,13 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Note: Router adds ^ and $ anchors automatically via matchHas()
       const { headerRegex } = getRewriteMatchers(rewrites[0])
       expect(headerRegex.source).toMatchInlineSnapshot(
-        `"^\\/parallel\\-layout(\\/[^/]+)?\\/?$"`
+        `"^\\/parallel\\-layout(\\/.+)?\\/?$"`
       )
 
-      // Should match routes at /parallel-layout level
+      // Should match routes at /parallel-layout level and all descendants
       expect(headerRegex.test('/parallel-layout')).toBe(true)
+      expect(headerRegex.test('/parallel-layout/nested')).toBe(true)
+      expect(headerRegex.test('/parallel-layout/nested/deep')).toBe(true)
     })
 
     it('should handle optional catchall in route groups with (..) interception', () => {
@@ -821,26 +876,22 @@ describe('generateInterceptionRoutesRewrites', () => {
 
       const { headerRegex } = getRewriteMatchers(rewrite)
       expect(headerRegex.source).toMatchInlineSnapshot(
-        `"^(?:\\/(?<nxtPlocale>.+?))?(\\/[^/]+)?\\/?$"`
+        `"^(?:\\/(?<nxtPlocale>.+?))?(\\/.+)?\\/?$"`
       )
 
       // @slot should be normalized away, so interceptingRoute is root
-      // With optional catchall at root level
+      // With optional catchall at root level, should match all descendants
       expect(headerRegex.test('/')).toBe(true) // Zero locale segments (root level)
       expect(headerRegex.test('/en')).toBe(true) // One locale segment
       expect(headerRegex.test('/en/us')).toBe(true) // Multiple locale segments
 
-      // Should match direct children at each level (same-level interception allows one child)
-      expect(headerRegex.test('/other-page')).toBe(true) // Direct child at root
-      expect(headerRegex.test('/en/settings')).toBe(true) // Direct child at /en level
-      expect(headerRegex.test('/en/us/nested')).toBe(true) // Direct child at /en/us level
-
-      // With optional catchall, any depth of catchall + one child is valid
-      expect(headerRegex.test('/en/settings/deep')).toBe(true) // /en/settings level + child
-      expect(headerRegex.test('/en/us/nested/deeper')).toBe(true) // /en/us/nested level + child
-
-      // Should NOT match when there's no valid "catchall + child" or "just catchall" interpretation
-      expect(headerRegex.test('/a/b/c/d/e')).toBe(true) // Actually matches: /a/b/c/d as catchall + /e as child
+      // Should match all descendants at any depth
+      expect(headerRegex.test('/other-page')).toBe(true)
+      expect(headerRegex.test('/en/settings')).toBe(true)
+      expect(headerRegex.test('/en/us/nested')).toBe(true)
+      expect(headerRegex.test('/en/settings/deep')).toBe(true)
+      expect(headerRegex.test('/en/us/nested/deeper')).toBe(true)
+      expect(headerRegex.test('/a/b/c/d/e')).toBe(true)
     })
   })
 
@@ -860,7 +911,7 @@ describe('generateInterceptionRoutesRewrites', () => {
 
       // Verify source regex includes basePath and matches actual URLs
       const { sourceRegex, headerRegex } = getRewriteMatchers(rewrite)
-      expect(headerRegex.source).toMatchInlineSnapshot(`"^(\\/[^/]+)?\\/?$"`)
+      expect(headerRegex.source).toMatchInlineSnapshot(`"^(\\/.+)?\\/?$"`)
 
       expect(sourceRegex.test('/base/nested')).toBe(true)
       expect(sourceRegex.test('/nested')).toBe(false) // Should NOT match without basePath
@@ -868,13 +919,11 @@ describe('generateInterceptionRoutesRewrites', () => {
       // But Next-Url header check should NOT include basePath
       // (comment in code says "The Next-Url header does not contain the base path")
 
-      // Should match root-level routes (without basePath in the check)
+      // Should match root-level routes and all descendants (without basePath in the check)
       expect(headerRegex.test('/')).toBe(true)
       expect(headerRegex.test('/nested-link')).toBe(true)
-      expect(headerRegex.test('/base')).toBe(true) // Matches because it's a root-level route
-
-      // Should NOT match deeply nested routes
-      expect(headerRegex.test('/nested-link/deep')).toBe(false)
+      expect(headerRegex.test('/base')).toBe(true)
+      expect(headerRegex.test('/nested-link/deep')).toBe(true)
     })
 
     it('should handle optional catchall with basePath', () => {
@@ -892,7 +941,7 @@ describe('generateInterceptionRoutesRewrites', () => {
 
       const { sourceRegex, headerRegex } = getRewriteMatchers(rewrite)
       expect(headerRegex.source).toMatchInlineSnapshot(
-        `"^(?:\\/(?<nxtPlocale>.+?))?(\\/[^/]+)?\\/?$"`
+        `"^(?:\\/(?<nxtPlocale>.+?))?(\\/.+)?\\/?$"`
       )
 
       // Source regex should include basePath
@@ -902,10 +951,11 @@ describe('generateInterceptionRoutesRewrites', () => {
       expect(sourceRegex.test('/settings')).toBe(false) // Without basePath
 
       // Header check should NOT include basePath
-      // The optional catchall allows zero or more segments at root level
+      // The optional catchall allows zero or more segments at root level, matching all descendants
       expect(headerRegex.test('/')).toBe(true) // Zero locale segments
       expect(headerRegex.test('/en')).toBe(true) // One locale segment
       expect(headerRegex.test('/en/us')).toBe(true) // Multiple locale segments
+      expect(headerRegex.test('/en/us/deep')).toBe(true) // Deep nesting
     })
   })
 
@@ -925,11 +975,13 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Note: Router adds ^ and $ anchors automatically via matchHas()
       const { headerRegex } = getRewriteMatchers(rewrites[0])
       expect(headerRegex.source).toMatchInlineSnapshot(
-        `"^\\/(?<nxtPthisismyroute>[^/]+?)(\\/[^/]+)?\\/?$"`
+        `"^\\/(?<nxtPthisismyroute>[^/]+?)(\\/.+)?\\/?$"`
       )
 
-      // Should match routes at the parent level
+      // Should match routes at the parent level and all descendants
       expect(headerRegex.test('/foo')).toBe(true)
+      expect(headerRegex.test('/foo/bar')).toBe(true)
+      expect(headerRegex.test('/foo/bar/baz')).toBe(true)
     })
   })
 
@@ -1213,13 +1265,13 @@ describe('generateInterceptionRoutesRewrites', () => {
         expect(rewrite.source).toBe('/photos')
         expect(rewrite.destination).toBe('/@slot1/@slot2/(.)photos')
 
-        // Header should match root-level routes (both slots normalized away)
+        // Header should match root-level routes and all descendants (both slots normalized away)
         const { headerRegex } = getRewriteMatchers(rewrite)
-        expect(headerRegex.source).toMatchInlineSnapshot(`"^(\\/[^/]+)?\\/?$"`)
+        expect(headerRegex.source).toMatchInlineSnapshot(`"^(\\/.+)?\\/?$"`)
 
         expect(headerRegex.test('/')).toBe(true)
         expect(headerRegex.test('/home')).toBe(true)
-        expect(headerRegex.test('/home/nested')).toBe(false)
+        expect(headerRegex.test('/home/nested')).toBe(true)
       })
     })
 
@@ -1287,7 +1339,7 @@ describe('generateInterceptionRoutesRewrites', () => {
 
         const { sourceRegex, headerRegex } = getRewriteMatchers(rewrite)
         expect(headerRegex.source).toMatchInlineSnapshot(
-          `"^\\/feed(\\/[^/]+)?\\/?$"`
+          `"^\\/feed(\\/.+)?\\/?$"`
         )
 
         // Source should match catchall paths
@@ -1295,9 +1347,10 @@ describe('generateInterceptionRoutesRewrites', () => {
         expect(sourceRegex.test('/feed/blog/2024/post-1')).toBe(true)
         expect(sourceRegex.test('/feed/blog/a/b/c')).toBe(true)
 
-        // Header should match /feed level
+        // Header should match /feed level and all descendants
         expect(headerRegex.test('/feed')).toBe(true)
         expect(headerRegex.test('/feed/home')).toBe(true)
+        expect(headerRegex.test('/feed/home/nested')).toBe(true)
       })
 
       it('should intercept an optional catchall route with (..)', () => {
