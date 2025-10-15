@@ -853,16 +853,14 @@ async function createComponentTreeInternal(
         let notfoundClientSegment: React.ReactNode
         let forbiddenClientSegment: React.ReactNode
         let unauthorizedClientSegment: React.ReactNode
-        // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-        // This ensures that a `HTTPAccessFallbackBoundary` is available for when that happens,
-        // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
-        // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
-        // rely on the `NotFound` behavior.
+        // Don't include layerAssets in error boundaries for parallel routes to prevent
+        // double rendering of scripts from server components (like LocalizedStringProvider).
+        // The layerAssets are already rendered in the HTTPAccessFallbackBoundary wrapper.
         notfoundClientSegment = createErrorBoundaryClientSegmentRoot({
           ErrorBoundaryComponent: NotFound,
           errorElement: notFoundElement,
           ClientSegmentRoot,
-          layerAssets,
+          layerAssets: null,
           SegmentComponent,
           currentParams,
         })
@@ -870,7 +868,7 @@ async function createComponentTreeInternal(
           ErrorBoundaryComponent: Forbidden,
           errorElement: forbiddenElement,
           ClientSegmentRoot,
-          layerAssets,
+          layerAssets: null,
           SegmentComponent,
           currentParams,
         })
@@ -878,7 +876,7 @@ async function createComponentTreeInternal(
           ErrorBoundaryComponent: Unauthorized,
           errorElement: unauthorizedElement,
           ClientSegmentRoot,
-          layerAssets,
+          layerAssets: null,
           SegmentComponent,
           currentParams,
         })
@@ -1007,7 +1005,7 @@ function createErrorBoundaryClientSegmentRoot({
   ErrorBoundaryComponent: React.ComponentType<any> | undefined
   errorElement: React.ReactNode
   ClientSegmentRoot: React.ComponentType<any>
-  layerAssets: React.ReactNode
+  layerAssets: React.ReactNode | null
   SegmentComponent: React.ComponentType<any>
   currentParams: Params
 }) {
