@@ -9941,7 +9941,7 @@
       "skip-trailing-slash-redirect should not apply trailing slash on load on client",
       "skip-trailing-slash-redirect should not have trailing slash redirects in manifest",
       "skip-trailing-slash-redirect should parse locale info for data request correctly",
-      "skip-trailing-slash-redirect should provide original _next/data URL with skipMiddlewareUrlNormalize"
+      "skip-trailing-slash-redirect should provide original _next/data URL with skipProxyUrlNormalize"
     ],
     "failed": [],
     "pending": [],

@@ -114,6 +114,10 @@ export class CacheSignal {
     }
   }
 
+  hasPendingReads(): boolean {
+    return this.count > 0
+  }
+
   trackRead<T>(promise: Promise<T>) {
     this.beginRead()
     // `promise.finally()` still rejects, so don't use it here to avoid unhandled rejections

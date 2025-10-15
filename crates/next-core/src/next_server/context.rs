@@ -214,6 +214,10 @@ pub async fn get_server_resolve_options_context(
         custom_conditions.push(rcstr!("react-server"));
     };
 
+    if *next_config.enable_cache_components().await? {
+        custom_conditions.push(rcstr!("next-js"));
+    };
+
     let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
         server_external_packages_plugin
     } else {

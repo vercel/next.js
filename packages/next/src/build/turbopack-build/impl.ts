@@ -210,7 +210,9 @@ export async function turbopackBuild(): Promise<{
 let shutdownPromise: Promise<void> | undefined
 export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
-}): Promise<Awaited<ReturnType<typeof turbopackBuild>>> {
+}): Promise<
+  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>
+> {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
 
@@ -234,9 +236,16 @@ export async function workerMain(workerData: {
   })
   setGlobal('telemetry', telemetry)
 
-  const result = await turbopackBuild()
-  shutdownPromise = result.shutdownPromise
-  return result
+  const {
+    shutdownPromise: resultShutdownPromise,
+    buildTraceContext,
+    duration,
+  } = await turbopackBuild()
+  shutdownPromise = resultShutdownPromise
+  return {
+    buildTraceContext,
+    duration,
+  }
 }
 
 export async function waitForShutdown(): Promise<void> {

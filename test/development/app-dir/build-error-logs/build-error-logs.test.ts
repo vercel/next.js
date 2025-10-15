@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('build-error-logs', () => {
-  const { next, isTurbopack, isRspack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 

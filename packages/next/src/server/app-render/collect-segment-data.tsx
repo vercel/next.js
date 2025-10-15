@@ -39,10 +39,9 @@ export type RootTreePrefetch = {
 export type TreePrefetch = {
   name: string
   paramType: DynamicParamTypesShort | null
-  // TODO: When clientParamParsing is enabled, this field is always null.
+  // When cacheComponents is enabled, this field is always null.
   // Instead we parse the param on the client, allowing us to omit it from
-  // the prefetch response and increase its cacheability. Remove this field
-  // once clientParamParsing is enabled everywhere.
+  // the prefetch response and increase its cacheability.
   paramKey: string | null
 
   // Child segments.
@@ -89,7 +88,7 @@ function onSegmentPrerenderError(error: unknown) {
 }
 
 export async function collectSegmentData(
-  isClientParamParsingEnabled: boolean,
+  isCacheComponentsEnabled: boolean,
   fullPageDataBuffer: Buffer,
   staleTime: number,
   clientModules: ManifestNode,
@@ -134,7 +133,7 @@ export async function collectSegmentData(
     // inside of it, the side effects are transferred to the new stream.
     // @ts-expect-error
     <PrefetchTreeData
-      isClientParamParsingEnabled={isClientParamParsingEnabled}
+      isClientParamParsingEnabled={isCacheComponentsEnabled}
       fullPageDataBuffer={fullPageDataBuffer}
       serverConsumerManifest={serverConsumerManifest}
       clientModules={clientModules}
@@ -319,10 +318,8 @@ function collectSegmentDataImpl(
   return {
     name,
     paramType,
-    // This value is ommitted from the prefetch response when clientParamParsing
-    // is enabled. The flag only exists while we're testing the feature, in
-    // case there's a bug and we need to revert.
-    // TODO: Remove once clientParamParsing is enabled everywhere.
+    // This value is ommitted from the prefetch response when cacheComponents
+    // is enabled.
     paramKey: isClientParamParsingEnabled ? null : paramKey,
     hasRuntimePrefetch,
     slots: slotMetadata,

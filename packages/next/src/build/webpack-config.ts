@@ -69,10 +69,7 @@ import { getBabelConfigFile } from './get-babel-config-file'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import { isResourceInPackages, makeExternalHandler } from './handle-externals'
-import {
-  getMainField,
-  edgeConditionNames,
-} from './webpack-config-rules/resolve'
+import { getMainField, edgeConditionName } from './webpack-config-rules/resolve'
 import { OptionalPeerDependencyResolverPlugin } from './webpack/plugins/optional-peer-dependency-resolve-plugin'
 import {
   createWebpackAliases,
@@ -688,11 +685,16 @@ export default async function getBaseWebpackConfig(
     ? path.join(distDir, SERVER_DIRECTORY)
     : distDir
 
-  const reactServerCondition = [
-    'react-server',
-    ...(isEdgeServer ? edgeConditionNames : []),
-    // inherits the default conditions
+  const conditionNames = [
+    ...(config.experimental?.cacheComponents === true ? ['next-js'] : []),
+    ...(isEdgeServer ? [edgeConditionName] : []),
+    // inherits Webpack's default conditions
     '...',
+  ]
+  const reactServerConditionNames = [
+    'react-server',
+    // We could just use `'...'`. Explicit spread makes it more obvious.
+    ...conditionNames,
   ]
 
   const reactRefreshEntry = isRspack
@@ -757,6 +759,7 @@ export default async function getBaseWebpackConfig(
     : undefined
 
   const resolveConfig: webpack.Configuration['resolve'] = {
+    conditionNames,
     // Disable .mjs for node_modules bundling
     extensions: ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm'],
     extensionAlias: config.experimental.extensionAlias,
@@ -784,9 +787,6 @@ export default async function getBaseWebpackConfig(
       : undefined),
     // default main fields use pages dir ones, and customize app router ones in loaders.
     mainFields: getMainField(compilerType, false),
-    ...(isEdgeServer && {
-      conditionNames: edgeConditionNames,
-    }),
     plugins: [
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
@@ -952,7 +952,7 @@ export default async function getBaseWebpackConfig(
           ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
           ['swcEmotion', !!config.compiler?.emotion],
           ['transpilePackages', !!config.transpilePackages],
-          ['skipMiddlewareUrlNormalize', !!config.skipMiddlewareUrlNormalize],
+          ['skipProxyUrlNormalize', !!config.skipProxyUrlNormalize],
           ['skipTrailingSlashRedirect', !!config.skipTrailingSlashRedirect],
           ['modularizeImports', !!config.modularizeImports],
           // If esmExternals is not same as default value, it represents customized usage
@@ -1534,7 +1534,7 @@ export default async function getBaseWebpackConfig(
                 },
                 resolve: {
                   mainFields: getMainField(compilerType, true),
-                  conditionNames: reactServerCondition,
+                  conditionNames: reactServerConditionNames,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
                   // will be ignored completely.
@@ -1554,7 +1554,7 @@ export default async function getBaseWebpackConfig(
         ...getNextRootParamsRules({
           isRootParamsEnabled:
             config.experimental.rootParams ??
-            // `experimental.dynamicIO` implies `experimental.rootParams`.
+            // `experimental.cacheComponents` implies `experimental.rootParams`.
             config.experimental.cacheComponents ??
             false,
           isClient,
@@ -1688,7 +1688,7 @@ export default async function getBaseWebpackConfig(
               use: middlewareLayerLoaders,
               resolve: {
                 mainFields: getMainField(compilerType, true),
-                conditionNames: reactServerCondition,
+                conditionNames: reactServerConditionNames,
                 alias: createVendoredReactAliases(bundledReactChannel, {
                   reactProductionProfiling,
                   layer: WEBPACK_LAYERS.middleware,
@@ -1703,7 +1703,7 @@ export default async function getBaseWebpackConfig(
               use: instrumentLayerLoaders,
               resolve: {
                 mainFields: getMainField(compilerType, true),
-                conditionNames: reactServerCondition,
+                conditionNames: reactServerConditionNames,
                 alias: createVendoredReactAliases(bundledReactChannel, {
                   reactProductionProfiling,
                   layer: WEBPACK_LAYERS.instrument,

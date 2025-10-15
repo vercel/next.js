@@ -69,6 +69,8 @@ export interface RequestStore extends CommonWorkUnitStore {
   usedDynamic?: boolean
   prerenderPhase?: boolean
   devFallbackParams?: OpaqueFallbackRouteParams | null
+  cacheSignal?: CacheSignal | null
+  prerenderResumeDataCache?: PrerenderResumeDataCache | null
 }
 
 /**
@@ -351,8 +353,14 @@ export function getPrerenderResumeDataCache(
       // TODO eliminate fetch caching in client scope and stop exposing this data
       // cache during SSR.
       return workUnitStore.prerenderResumeDataCache
+    case 'request': {
+      // In dev, we might fill caches even during a dynamic request.
+      if (workUnitStore.prerenderResumeDataCache) {
+        return workUnitStore.prerenderResumeDataCache
+      }
+      // fallthrough
+    }
     case 'prerender-legacy':
-    case 'request':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
@@ -367,7 +375,6 @@ export function getRenderResumeDataCache(
 ): RenderResumeDataCache | null {
   switch (workUnitStore.type) {
     case 'request':
-      return workUnitStore.renderResumeDataCache
     case 'prerender':
     case 'prerender-runtime':
     case 'prerender-client':
@@ -380,7 +387,7 @@ export function getRenderResumeDataCache(
     case 'prerender-ppr':
       // Otherwise we return the mutable resume data cache here as an immutable
       // version of the cache as it can also be used for reading.
-      return workUnitStore.prerenderResumeDataCache
+      return workUnitStore.prerenderResumeDataCache ?? null
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
@@ -503,9 +510,15 @@ export function getCacheSignal(
     case 'prerender-client':
     case 'prerender-runtime':
       return workUnitStore.cacheSignal
+    case 'request': {
+      // In dev, we might fill caches even during a dynamic request.
+      if (workUnitStore.cacheSignal) {
+        return workUnitStore.cacheSignal
+      }
+      // fallthrough
+    }
     case 'prerender-ppr':
     case 'prerender-legacy':
-    case 'request':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':

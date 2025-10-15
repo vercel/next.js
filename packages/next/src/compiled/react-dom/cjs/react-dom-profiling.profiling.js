@@ -2600,7 +2600,8 @@ function logComponentTrigger(fiber, startTime, endTime, trigger) {
     (reusableComponentDevToolDetails.color = "warning"),
     (reusableComponentDevToolDetails.tooltipText = trigger),
     (reusableComponentDevToolDetails.properties = null),
-    performance.measure(trigger, reusableComponentOptions));
+    performance.measure(trigger, reusableComponentOptions),
+    performance.clearMeasures(trigger));
 }
 function logComponentReappeared(fiber, startTime, endTime) {
   logComponentTrigger(fiber, startTime, endTime, "Reconnect");
@@ -19830,14 +19831,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2357 = React.version;
 if (
-  "19.3.0-canary-d7215b49-20251013" !==
+  "19.3.0-canary-56e84692-20251014" !==
   isomorphicReactPackageVersion$jscomp$inline_2357
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2357,
-      "19.3.0-canary-d7215b49-20251013"
+      "19.3.0-canary-56e84692-20251014"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19859,10 +19860,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2957 = {
   bundleType: 0,
-  version: "19.3.0-canary-d7215b49-20251013",
+  version: "19.3.0-canary-56e84692-20251014",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-d7215b49-20251013"
+  reconcilerVersion: "19.3.0-canary-56e84692-20251014"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2958 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -20121,7 +20122,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-d7215b49-20251013";
+exports.version = "19.3.0-canary-56e84692-20251014";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

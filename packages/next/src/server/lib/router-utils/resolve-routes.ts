@@ -171,7 +171,7 @@ export function getResolveRoutes(
     addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      const bodySizeLimit = config.experimental.middlewareClientMaxBodySize as
+      const bodySizeLimit = config.experimental.proxyClientMaxBodySize as
         | number
         | undefined
       addRequestMeta(req, 'clonableBody', getCloneableBody(req, bodySizeLimit))
@@ -180,7 +180,7 @@ export function getResolveRoutes(
     const maybeAddTrailingSlash = (pathname: string) => {
       if (
         config.trailingSlash &&
-        !config.skipMiddlewareUrlNormalize &&
+        !config.skipProxyUrlNormalize &&
         !pathname.endsWith('/')
       ) {
         return `${pathname}/`
