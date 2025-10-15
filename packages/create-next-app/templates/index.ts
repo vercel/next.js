@@ -271,8 +271,6 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       eslint: "^9",
       "eslint-config-next": version,
-      // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
-      "@eslint/eslintrc": "^3",
     };
   }
 
