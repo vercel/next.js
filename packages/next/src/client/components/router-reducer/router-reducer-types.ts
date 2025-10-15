@@ -35,6 +35,7 @@ export interface Mutable {
   shouldScroll?: boolean
   preserveCustomHistoryState?: boolean
   onlyHashChange?: boolean
+  collectedDebugInfo?: Array<unknown>
 }
 
 export interface ServerActionMutable extends Mutable {
@@ -259,10 +260,14 @@ export type AppRouterState = {
    * The previous next-url that was used previous to a dynamic navigation.
    */
   previousNextUrl: string | null
+
+  debugInfo: Array<unknown> | null
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>
-export type ReducerState = Promise<AppRouterState> | AppRouterState
+export type ReducerState =
+  | (Promise<AppRouterState> & { _debugInfo?: Array<unknown> })
+  | AppRouterState
 export type ReducerActions = Readonly<
   | RefreshAction
   | NavigateAction
