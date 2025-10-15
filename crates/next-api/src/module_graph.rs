@@ -300,13 +300,7 @@ impl ClientReferencesGraph {
                 |node, _| {
                     let module_type = data.get(&node.module);
                     Ok(match module_type {
-                        Some(
-                            ClientManifestEntryType::EcmascriptClientReference { .. }
-                            | ClientManifestEntryType::CssClientReference { .. },
-                        )
-                        | Some(ClientManifestEntryType::ServerComponent { .. }) => {
-                            GraphTraversalAction::Skip
-                        }
+                        Some(_) => GraphTraversalAction::Skip,
                         None => GraphTraversalAction::Continue,
                     })
                 },
