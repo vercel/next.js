@@ -1,8 +1,15 @@
-use anyhow::{Result, bail};
+use std::path::Path;
+
+use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{context::AssetContext, module::Module, reference_type::ReferenceType};
+use turbopack_core::{
+    context::AssetContext,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    module::Module,
+    reference_type::ReferenceType,
+};
 use turbopack_ecmascript::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 
 use crate::util::load_next_js_template;
@@ -33,7 +40,11 @@ pub async fn get_middleware_module(
     // Determine if this is a proxy file by checking the module path
     let userland_path = userland_module.ident().path().await?;
     let is_proxy = userland_path.file_stem() == Some("proxy");
-    let page_path = if is_proxy { "/proxy" } else { "/middleware" };
+    let (file_type, function_name, page_path) = if is_proxy {
+        ("Proxy", "proxy", "/proxy")
+    } else {
+        ("Middleware", "middleware", "/middleware")
+    };
 
     // Validate that the module has the required exports
     if let Some(ecma_module) =
@@ -46,13 +57,9 @@ pub async fn get_middleware_module(
             // ESM modules - check for named or default export
             EcmascriptExports::EsmExports(esm_exports) => {
                 let esm_exports = esm_exports.await?;
-                let has_default = esm_exports.exports.contains_key(&rcstr!("default"));
-                let expected_named = if is_proxy {
-                    rcstr!("proxy")
-                } else {
-                    rcstr!("middleware")
-                };
-                let has_named = esm_exports.exports.contains_key(&expected_named);
+                let has_default = esm_exports.exports.contains_key("default");
+                let expected_named = function_name;
+                let has_named = esm_exports.exports.contains_key(expected_named);
                 has_default || has_named
             }
             // CommonJS modules are valid (they can have module.exports or exports.default)
@@ -67,21 +74,16 @@ pub async fn get_middleware_module(
         };
 
         if !has_valid_export {
-            let file_type = if is_proxy { "Proxy" } else { "Middleware" };
-            let function_name = if is_proxy { "proxy" } else { "middleware" };
-            // Extract just the filename for the error message
-            let file_name = userland_path
-                .path
-                .split('/')
-                .next_back()
-                .unwrap_or(&userland_path.path);
-            // Use the same error message format as the runtime check
-            bail!(
-                "The {} file \"./{}\" must export a function named `{}` or a default function.",
-                file_type,
-                file_name,
-                function_name
-            );
+            MiddlewareMissingExportIssue {
+                file_type: file_type.into(),
+                function_name: function_name.into(),
+                file_path: (*userland_path).clone(),
+            }
+            .resolved_cell()
+            .emit();
+
+            // Continue execution instead of bailing - let the module be processed anyway
+            // The runtime template will still catch this at runtime
         }
     }
     // If we can't cast to EcmascriptChunkPlaceable, continue without validation
@@ -113,4 +115,52 @@ pub async fn get_middleware_module(
         .module();
 
     Ok(module)
+}
+
+#[turbo_tasks::value]
+struct MiddlewareMissingExportIssue {
+    file_type: RcStr,     // "Proxy" or "Middleware"
+    function_name: RcStr, // "proxy" or "middleware"
+    file_path: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for MiddlewareMissingExportIssue {
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Transform.into()
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.file_path.clone().cell()
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<StyledString> {
+        let file_name = Path::new(&self.file_path.path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(&self.file_path.path);
+
+        StyledString::Line(vec![
+            StyledString::Text(rcstr!("The ")),
+            StyledString::Code(self.file_type.clone()),
+            StyledString::Text(rcstr!(" file \"")),
+            StyledString::Code(format!("./{}", file_name).into()),
+            StyledString::Text(rcstr!("\" must export a function named ")),
+            StyledString::Code(format!("`{}`", self.function_name).into()),
+            StyledString::Text(rcstr!(" or a default function.")),
+        ])
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(None)
+    }
 }
