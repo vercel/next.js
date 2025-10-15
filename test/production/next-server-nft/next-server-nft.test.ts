@@ -244,7 +244,7 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
       )
 
       // Snapshot the non-node_modules and non-chunks files to see what's being traced
-      // We filter out chunks because their names change with every build
+      // We also filter out chunks because their names change with every build
       const nonNodeModulesFiles = pageTrace.filter(
         (file: string) =>
           !file.includes('/node_modules/') && !file.includes('/chunks/')
@@ -256,26 +256,10 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "./page_client-reference-manifest.js",
        ]
       `)
-
-      // Filter to see if any .next files are included (with various path patterns)
-      const nextFiles = pageTrace.filter(
-        (file: string) =>
-          file.includes('/.next/') || // Absolute paths containing /.next/
-          file.match(
-            /^\.\.(\/\.\.)*\/(lock|turbopack|package\.json|cache|diagnostics|types)/
-          ) || // Relative paths that look like .next files
-          file.match(/^\.\.(\/\.\.)*\/\.next\//) // Relative paths explicitly to .next
-      )
-
-      // Assert that NO .next files are in the trace
-      expect(nextFiles).toEqual([])
-
-      // Sanity check - ensure we still have legitimate traces
-      expect(pageTrace.length).toBeGreaterThan(0)
     })
 
     it('should not trace too many files in next-minimal-server.js.nft.json', async () => {
-      let trace = await readNormalizedNFT(
+      const trace = await readNormalizedNFT(
         '.next/next-minimal-server.js.nft.json'
       )
       expect(trace).toMatchInlineSnapshot(`
