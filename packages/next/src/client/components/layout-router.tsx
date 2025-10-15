@@ -47,6 +47,8 @@ import {
   NavigationPromisesContext,
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
+import { getParamValueFromCacheKey } from '../route-params'
+import type { Params } from '../../server/request/params'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -337,12 +339,14 @@ function InnerLayoutRouter({
   tree,
   segmentPath,
   cacheNode,
+  params,
   url,
   isActive,
 }: {
   tree: FlightRouterState
   segmentPath: FlightSegmentPath
   cacheNode: CacheNode
+  params: Params
   url: string
   isActive: boolean
 }) {
@@ -464,6 +468,7 @@ function InnerLayoutRouter({
         parentTree: tree,
         parentCacheNode: cacheNode,
         parentSegmentPath: segmentPath,
+        parentParams: params,
 
         // TODO-APP: overriding of url for parallel routes
         url: url,
@@ -565,8 +570,14 @@ export default function OuterLayoutRouter({
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { parentTree, parentCacheNode, parentSegmentPath, url, isActive } =
-    context
+  const {
+    parentTree,
+    parentCacheNode,
+    parentSegmentPath,
+    parentParams,
+    url,
+    isActive,
+  } = context
 
   // Get the CacheNode for this segment by reading it from the parent segment's
   // child map.
@@ -668,6 +679,23 @@ export default function OuterLayoutRouter({
       )
     }
 
+    let params = parentParams
+    if (Array.isArray(segment)) {
+      // This segment contains a route param. Accumulate these as we traverse
+      // down the router tree. The result represents the set of params that
+      // the layout/page components are permitted to access below this point.
+      const paramName = segment[0]
+      const paramCacheKey = segment[1]
+      const paramType = segment[2]
+      const paramValue = getParamValueFromCacheKey(paramCacheKey, paramType)
+      if (paramValue !== null) {
+        params = {
+          ...parentParams,
+          [paramName]: paramValue,
+        }
+      }
+    }
+
     // TODO: The loading module data for a segment is stored on the parent, then
     // applied to each of that parent segment's parallel route slots. In the
     // simple case where there's only one parallel route (the `children` slot),
@@ -697,6 +725,7 @@ export default function OuterLayoutRouter({
                     <InnerLayoutRouter
                       url={url}
                       tree={tree}
+                      params={params}
                       cacheNode={cacheNode}
                       segmentPath={segmentPath}
                       isActive={isActive && stateKey === activeStateKey}

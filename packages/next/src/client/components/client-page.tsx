@@ -4,6 +4,11 @@ import type { ParsedUrlQuery } from 'querystring'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 import type { Params } from '../../server/request/params'
+import {
+  GlobalLayoutRouterContext,
+  LayoutRouterContext,
+} from '../../shared/lib/app-router-context.shared-runtime'
+import { use } from 'react'
 
 /**
  * When the Page is a client component we send the params and searchParams to this client wrapper
@@ -15,16 +20,33 @@ import type { Params } from '../../server/request/params'
  */
 export function ClientPageRoot({
   Component,
-  searchParams,
-  params,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  promises,
+  serverProvidedParams,
 }: {
   Component: React.ComponentType<any>
-  searchParams: ParsedUrlQuery
-  params: Params
-  promises?: Array<Promise<any>>
+  serverProvidedParams: null | {
+    searchParams: ParsedUrlQuery
+    params: Params
+    promises: Array<Promise<any>> | null
+  }
 }) {
+  let searchParams: ParsedUrlQuery
+  let params: Params
+  if (serverProvidedParams !== null) {
+    searchParams = serverProvidedParams.searchParams
+    params = serverProvidedParams.params
+  } else {
+    // When Cache Components is enabled, the server does not pass the params
+    // as props; they are parsed on the client and passed via context.
+    const globalLayoutRouterContext = use(GlobalLayoutRouterContext)
+    searchParams =
+      globalLayoutRouterContext !== null
+        ? globalLayoutRouterContext.renderedSearchParams
+        : {}
+    const layoutRouterContext = use(LayoutRouterContext)
+    params =
+      layoutRouterContext !== null ? layoutRouterContext.parentParams : {}
+  }
+
   if (typeof window === 'undefined') {
     const { workAsyncStorage } =
       require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')

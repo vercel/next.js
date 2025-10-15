@@ -1,9 +1,11 @@
 'use client'
 
+import type { ParsedUrlQuery } from 'querystring'
 import type {
   FocusAndScrollRef,
   PrefetchKind,
 } from '../../client/components/router-reducer/router-reducer-types'
+import type { Params } from '../../server/request/params'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -61,6 +63,7 @@ export const LayoutRouterContext = React.createContext<{
   parentTree: FlightRouterState
   parentCacheNode: CacheNode
   parentSegmentPath: FlightSegmentPath | null
+  parentParams: Params
   url: string
   isActive: boolean
 } | null>(null)
@@ -70,6 +73,10 @@ export const GlobalLayoutRouterContext = React.createContext<{
   focusAndScrollRef: FocusAndScrollRef
   nextUrl: string | null
   previousNextUrl: string | null
+  // These match the search params read by the server. In the case of a rewrite,
+  // they may differ from the search params shown in the URL, or the ones
+  // returned by `useSearchParams`.
+  renderedSearchParams: ParsedUrlQuery
 }>(null as any)
 
 export const TemplateContext = React.createContext<React.ReactNode>(null as any)

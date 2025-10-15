@@ -1174,7 +1174,7 @@ function prepareInitialCanonicalUrl(url: RequestStore['url']) {
   return (url.pathname + url.search).split('/')
 }
 
-function querystringEncode(query: NextParsedUrlQuery): string {
+function getRenderedSearch(query: NextParsedUrlQuery): string {
   // Inlined implementation of querystring.encode, which is not available in
   // the Edge runtime.
   const pairs = []
@@ -1193,7 +1193,18 @@ function querystringEncode(query: NextParsedUrlQuery): string {
       )
     }
   }
-  return pairs.join('&')
+
+  // The result should match the format of a web URL's `search` property, since
+  // this is the format that's stored in the App Router state.
+  // TODO: We're a bit inconsistent about this. The x-nextjs-rewritten-query
+  // header omits the leading question mark. Should refactor to always do
+  // that instead.
+  if (pairs.length === 0) {
+    // If the search string is empty, return an empty string.
+    return ''
+  }
+  // Prepend '?' to the search params string.
+  return '?' + pairs.join('&')
 }
 
 // This is the data necessary to render <AppRouter /> when no SSR errors are encountered
@@ -1311,7 +1322,7 @@ async function getRSCPayload(
     }),
     b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
-    q: querystringEncode(query),
+    q: getRenderedSearch(query),
     i: !!couldBeIntercepted,
     f: [
       [
@@ -1436,7 +1447,7 @@ async function getErrorRSCPayload(
   return {
     b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
-    q: querystringEncode(query),
+    q: getRenderedSearch(query),
     m: undefined,
     i: false,
     f: [

@@ -46,6 +46,7 @@ import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
+import { urlSearchParamsToParsedUrlQuery } from '../route-params'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -170,7 +171,7 @@ function Router({
   staticIndicatorState: StaticIndicatorState | undefined
 }) {
   const state = useActionQueue(actionQueue)
-  const { canonicalUrl } = state
+  const { canonicalUrl, renderedSearch } = state
   // Add memoized pathname/query for useSearchParams and usePathname.
   const { searchParams, pathname } = useMemo(() => {
     const url = new URL(
@@ -434,6 +435,7 @@ function Router({
       parentTree: tree,
       parentCacheNode: cache,
       parentSegmentPath: null,
+      parentParams: {},
       // Root node always has `url`
       // Provided in AppTreeContext to ensure it can be overwritten in layout-router
       url: canonicalUrl,
@@ -443,13 +445,17 @@ function Router({
   }, [tree, cache, canonicalUrl])
 
   const globalLayoutRouterContext = useMemo(() => {
+    const renderedSearchParams = urlSearchParamsToParsedUrlQuery(
+      new URL('http://n' + renderedSearch).searchParams
+    )
     return {
       tree,
       focusAndScrollRef,
       nextUrl,
       previousNextUrl,
+      renderedSearchParams,
     }
-  }, [tree, focusAndScrollRef, nextUrl, previousNextUrl])
+  }, [renderedSearch, tree, focusAndScrollRef, nextUrl, previousNextUrl])
 
   let head
   if (matchingHead !== null) {
