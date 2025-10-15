@@ -674,11 +674,11 @@ impl Project {
         let denied_path = match join_path(&self.project_path, &self.dist_dir_root) {
             Some(dist_dir_root) => dist_dir_root.into(),
             None => {
-                return Err(anyhow::anyhow!(
+                bail!(
                     "Invalid distDirRoot: {dist_dir_root:?}. distDirRoot should not navigate out \
                      of the projectPath.",
                     dist_dir_root = self.dist_dir_root
-                ));
+                );
             }
         };
 

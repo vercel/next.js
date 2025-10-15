@@ -588,7 +588,6 @@ impl DiskFileSystem {
     /// * `name` - Name of the filesystem.
     /// * `root` - Path to the given filesystem's root. Should be
     ///   [canonicalized][std::fs::canonicalize].
-
     pub fn new(name: RcStr, root: RcStr) -> Vc<Self> {
         Self::new_internal(name, root, None)
     }
