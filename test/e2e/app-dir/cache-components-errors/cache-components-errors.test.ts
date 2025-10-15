@@ -4780,9 +4780,21 @@ describe('Cache Components Errors', () => {
              }
             `)
           } else {
-            await expect(browser).toDisplayCollapsedRedbox(
-              `"Redbox still had suspended content after 10s"`
-            )
+            await expect(browser).toDisplayCollapsedRedbox(`
+                        {
+                          "description": "Route "/sync-io-node-crypto/random-int-up-to" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+                          "environmentLabel": "Server",
+                          "label": "Console Error",
+                          "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17) @ SyncIOComponent
+                        > 20 |   const first = crypto.randomInt(128)
+                             |                 ^",
+                          "stack": [
+                            "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17)",
+                            "Page app/sync-io-node-crypto/random-int-up-to/page.tsx (12:9)",
+                            "LogSafely <anonymous>",
+                          ],
+                        }
+                      `)
           }
         })
       } else {

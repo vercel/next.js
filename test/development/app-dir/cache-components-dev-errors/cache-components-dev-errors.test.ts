@@ -13,6 +13,7 @@ describe('Cache Components Dev Errors', () => {
   const { isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   it('should show a red box error on the SSR render', async () => {
     const browser = await next.browser('/error')
@@ -152,6 +153,26 @@ describe('Cache Components Dev Errors', () => {
            "stack": [],
          }
         `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/page.tsx
+         × Module build failed:
+         ╰─▶   × Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.cacheComponents\`. Please remove it.
+               │    ,-[1:1]
+               │  1 | export const revalidate = 10
+               │    :              ^^^^^^^^^^
+               │  2 | export default function Page() {
+               │  3 |   return (
+               │  4 |     <div>Hello World</div>
+               │    \`----
+               │",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
