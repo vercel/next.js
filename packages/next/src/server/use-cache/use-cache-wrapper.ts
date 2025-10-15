@@ -1202,6 +1202,10 @@ export function cache(
         case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
+        // TODO(restart-on-cache-miss): We need to handle params/searchParams on page components.
+        // the promises will be tasky, so `encodeCacheKeyParts` will not resolve in the static stage.
+        // We have not started a cache read at this point, so we might just miss the cache completely.
+        // fallthrough
         case 'cache':
         case 'private-cache':
         case 'unstable-cache':

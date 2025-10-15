@@ -85,7 +85,6 @@ checkFields<Diff<{
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
-  experimental_ppr?: boolean
   `
   }
 }, TEntry, ''>>()
@@ -491,7 +490,7 @@ function createCustomCacheLifeDefinitions(cacheLife: {
      * \`\`\`
      * ${description}
      */
-    export function unstable_cacheLife(profile: ${JSON.stringify(profileName)}): void
+    export function cacheLife(profile: ${JSON.stringify(profileName)}): void
     `
   }
 
@@ -508,7 +507,7 @@ function createCustomCacheLifeDefinitions(cacheLife: {
      *
      * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
      */
-    export function unstable_cacheLife(profile: {
+    export function cacheLife(profile: {
       /**
        * This cache may be stale on clients for ... seconds before checking with the server.
        */

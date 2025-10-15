@@ -282,7 +282,7 @@ describe('Error overlay - RSC build errors', () => {
     test.each([
       'revalidatePath',
       'revalidateTag',
-      'unstable_cacheLife',
+      'cacheLife',
       'unstable_cacheTag',
     ])('%s is not allowed', async (api) => {
       await using sandbox = await createSandbox(

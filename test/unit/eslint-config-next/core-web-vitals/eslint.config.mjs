@@ -1,12 +1,6 @@
-import path from 'path'
-import { fileURLToPath } from 'url'
-import { FlatCompat } from '@eslint/eslintrc'
+import { defineConfig } from 'eslint/config'
+import eslintCoreWebVitals from 'eslint-config-next/core-web-vitals'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const eslintConfig = defineConfig(eslintCoreWebVitals)
 
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-})
-
-export default compat.extends('next/core-web-vitals')
+export default eslintConfig

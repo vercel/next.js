@@ -652,7 +652,7 @@ impl ReactServerComponentValidator {
                         "revalidatePath",
                         "revalidateTag",
                         // "unstable_cache", // useless in client, but doesn't technically error
-                        "unstable_cacheLife",
+                        "cacheLife",
                         "unstable_cacheTag",
                         // "unstable_noStore" // no-op in client, but allowed for legacy reasons
                     ],
@@ -843,7 +843,8 @@ impl ReactServerComponentValidator {
                             );
                         }
                     }
-                    "dynamicParams" | "dynamic" | "fetchCache" | "revalidate" => {
+                    "dynamicParams" | "dynamic" | "fetchCache" | "revalidate"
+                    | "experimental_ppr" => {
                         if self.cache_components_enabled {
                             possibly_invalid_exports.insert(
                                 export_name.clone(),

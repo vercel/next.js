@@ -1,4 +1,4 @@
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 export async function ShortLivedCache({
   label,
@@ -19,7 +19,7 @@ export async function ShortLivedCache({
 
 async function getShortLivedCachedData(_key: string) {
   'use cache'
-  unstable_cacheLife('seconds')
+  cacheLife('seconds')
   await new Promise((r) => setTimeout(r))
   return Math.random()
 }
