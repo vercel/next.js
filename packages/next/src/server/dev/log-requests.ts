@@ -7,6 +7,7 @@ import {
   red,
   white,
   yellow,
+  dim,
 } from '../../lib/picocolors'
 import { stripNextRscUnionQuery } from '../../lib/url'
 import type { FetchMetric } from '../base-http'
@@ -101,7 +102,7 @@ function logIncomingRequests(
   if (devRequestTimingMiddlewareStart && devRequestTimingMiddlewareEnd) {
     middlewareTime =
       devRequestTimingMiddlewareEnd - devRequestTimingMiddlewareStart
-    times.push(['user-proxy', middlewareTime])
+    times.push(['proxy.ts', middlewareTime])
   }
 
   if (devRequestTimingInternalsEnd) {
@@ -112,12 +113,12 @@ function logIncomingRequests(
       frameworkTime -= middlewareTime
     }
     // Insert as the first item to be rendered in the list
-    times.unshift(['framework', frameworkTime])
-    times.push(['user', requestEndTime - devRequestTimingInternalsEnd])
+    times.unshift(['compile', frameworkTime])
+    times.push(['render', requestEndTime - devRequestTimingInternalsEnd])
   }
 
   return writeLine(
-    `${request.method} ${url} ${coloredStatus} in ${hrtimeBigIntDurationToString(totalRequestTime)}${times.length > 0 ? ` (${times.map(([label, time]) => `${label}: ${hrtimeBigIntDurationToString(time)}`).join(', ')})` : ''}`
+    `${request.method} ${url} ${coloredStatus} in ${hrtimeBigIntDurationToString(totalRequestTime)}${times.length > 0 ? dim(` (${times.map(([label, time]) => `${label}: ${hrtimeBigIntDurationToString(time)}`).join(', ')})`) : ''}`
   )
 }
 
