@@ -26,7 +26,12 @@ describe('parallel-routes-root-param-dynamic-child', () => {
     await act(
       async () => {
         await browser.elementByCss('#reveal').click()
-        await browser.waitForElementByCss('#nav')
+
+        // Ensure the navigation is visible
+        await browser.elementByCss('#nav')
+
+        // Scroll to bottom to ensure all links enter viewport and trigger prefetches
+        await browser.eval('window.scrollTo(0, document.body.scrollHeight)')
       },
       // If we're in development, we don't have any prefetching to wait for.
       isNextDev ? 'no-requests' : undefined
