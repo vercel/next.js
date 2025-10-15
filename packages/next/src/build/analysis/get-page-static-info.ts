@@ -2,7 +2,7 @@ import type { NextConfig } from '../../server/config-shared'
 import type { RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
-import { basename } from 'path'
+import { relative } from 'path'
 import { LRUCache } from '../../server/lib/lru-cache'
 import {
   extractExportedConstValue,
@@ -329,7 +329,7 @@ function validateMiddlewareProxyExports({
     return
   }
 
-  const fileName = isProxy ? 'proxy' : 'middleware'
+  const fileName = isProxy ? PROXY_FILENAME : MIDDLEWARE_FILENAME
 
   // Parse AST to get export info (since checkExports doesn't return middleware/proxy info)
   let hasDefaultExport = false
@@ -396,9 +396,21 @@ function validateMiddlewareProxyExports({
     (isMiddleware && hasMiddlewareExport) ||
     (isProxy && hasProxyExport)
 
+  const relativeFilePath = `./${relative(process.cwd(), pageFilePath)}`
+
   if (!hasValidExport) {
     throw new Error(
-      `The ${fileName === 'proxy' ? 'Proxy' : 'Middleware'} file "./${basename(pageFilePath)}" must export a function named \`${fileName}\` or a default function.`
+      `The file "${relativeFilePath}" must export a function, either as a default export or as a named "${fileName}" export.\n` +
+        `This function is what Next.js runs for every request handled by this ${fileName === 'proxy' ? 'proxy (previously called middleware)' : 'middleware'}.\n\n` +
+        `Why this happens:\n` +
+        `- The file exists but doesn't export a function.\n` +
+        `- The export is not a function (e.g., an object or constant).\n` +
+        `- There's a syntax error preventing the export from being recognized.\n\n` +
+        `To fix it:\n` +
+        `- Check your "${relativeFilePath}" file.\n` +
+        `- Ensure it has either a default or "${fileName}" function export.\n` +
+        `- Restart the dev server if the error persists.\n\n` +
+        `Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
     )
   }
 }
