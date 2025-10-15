@@ -12,13 +12,15 @@ import { isNextRouterError } from '../../client/components/is-next-router-error'
 const mod = { ..._mod }
 
 const page = 'VAR_DEFINITION_PAGE'
+// Turbopack does not add a `./` prefix to the relative file path, but Webpack does.
+const relativeFilePath = 'VAR_MODULE_RELATIVE_PATH'
 // @ts-expect-error `page` will be replaced during build
 const isProxy = page === '/proxy' || page === '/src/proxy'
 const handler = (isProxy ? mod.proxy : mod.middleware) || mod.default
 
 if (typeof handler !== 'function') {
   throw new Error(
-    `The ${isProxy ? 'Proxy' : 'Middleware'} "${page}" must export a ${isProxy ? '`proxy`' : '`middleware`'} or a \`default\` function`
+    `The ${isProxy ? 'Proxy' : 'Middleware'} file "${relativeFilePath.startsWith('.') ? relativeFilePath : `./${relativeFilePath}`}" must export a function named \`${isProxy ? 'proxy' : 'middleware'}\` or a default function.`
   )
 }
 
