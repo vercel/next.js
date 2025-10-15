@@ -671,7 +671,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
-        let dist_dir_root = match join_path(&self.project_path, &self.dist_dir_root) {
+        let denied_path = match join_path(&self.project_path, &self.dist_dir_root) {
             Some(dist_dir_root) => dist_dir_root.into(),
             None => {
                 return Err(anyhow::anyhow!(
@@ -685,7 +685,7 @@ impl Project {
         Ok(DiskFileSystem::new_with_denied_path(
             rcstr!(PROJECT_FILESYSTEM_NAME),
             self.root_path.clone(),
-            dist_dir_root,
+            denied_path,
         ))
     }
 

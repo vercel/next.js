@@ -264,7 +264,6 @@ struct DiskFileSystemInner {
     watcher: DiskWatcher,
     /// A root path that we do not allow access to from this filesystem.
     /// Useful for things like output directories to prevent accidental ouroboros situations.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
     denied_path: Option<RcStr>,
 }
 
@@ -583,16 +582,17 @@ fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<
 }
 
 impl DiskFileSystem {
+    /// Create a new instance of `DiskFileSystem`.
+    /// # Arguments
+    ///
+    /// * `name` - Name of the filesystem.
+    /// * `root` - Path to the given filesystem's root. Should be
+    ///   [canonicalized][std::fs::canonicalize].
+
     pub fn new(name: RcStr, root: RcStr) -> Vc<Self> {
         Self::new_internal(name, root, None)
     }
-    pub fn new_with_denied_path(name: RcStr, root: RcStr, denied_path: RcStr) -> Vc<Self> {
-        Self::new_internal(name, root, Some(denied_path))
-    }
-}
 
-#[turbo_tasks::value_impl]
-impl DiskFileSystem {
     /// Create a new instance of `DiskFileSystem`.
     /// # Arguments
     ///
@@ -600,7 +600,19 @@ impl DiskFileSystem {
     /// * `root` - Path to the given filesystem's root. Should be
     ///   [canonicalized][std::fs::canonicalize].
     /// * `denied_path` - A path within this filesystem that is not allowed to be accessed or
-    ///   navigated into
+    ///   navigated into.  This must be normalized, non-empty and relative to the fs root.
+    pub fn new_with_denied_path(name: RcStr, root: RcStr, denied_path: RcStr) -> Vc<Self> {
+        debug_assert!(!denied_path.is_empty(), "denied_path must not be empty");
+        debug_assert!(
+            normalize_path(&denied_path).as_deref() == Some(&*denied_path),
+            "denied_path must be normalized: {denied_path:?}"
+        );
+        Self::new_internal(name, root, Some(denied_path))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl DiskFileSystem {
     #[turbo_tasks::function]
     fn new_internal(name: RcStr, root: RcStr, denied_path: Option<RcStr>) -> Vc<Self> {
         mark_stateful();
