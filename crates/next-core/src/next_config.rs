@@ -102,7 +102,7 @@ pub struct NextConfig {
     trailing_slash: Option<bool>,
     asset_prefix: Option<RcStr>,
     base_path: Option<RcStr>,
-    skip_middleware_url_normalize: Option<bool>,
+    skip_proxy_url_normalize: Option<bool>,
     skip_trailing_slash_redirect: Option<bool>,
     i18n: Option<I18NConfig>,
     cross_origin: Option<CrossOriginConfig>,
@@ -1660,8 +1660,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn skip_middleware_url_normalize(&self) -> Vc<bool> {
-        Vc::cell(self.skip_middleware_url_normalize.unwrap_or(false))
+    pub fn skip_proxy_url_normalize(&self) -> Vc<bool> {
+        Vc::cell(self.skip_proxy_url_normalize.unwrap_or(false))
     }
 
     #[turbo_tasks::function]

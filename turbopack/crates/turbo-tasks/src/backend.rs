@@ -538,18 +538,12 @@ pub trait Backend: Sync + Send {
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
-    fn task_execution_result(
-        &self,
-        task_id: TaskId,
-        result: Result<RawVc, TurboTasksExecutionError>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    );
-
     fn task_execution_completed(
         &self,
         task: TaskId,
         duration: Duration,
         memory_usage: usize,
+        result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
         has_invalidator: bool,

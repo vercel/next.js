@@ -113,7 +113,7 @@ export interface DevRoutesManifest {
   redirects: RoutesManifest['redirects']
   headers: RoutesManifest['headers']
   i18n: RoutesManifest['i18n']
-  skipMiddlewareUrlNormalize: RoutesManifest['skipMiddlewareUrlNormalize']
+  skipProxyUrlNormalize: RoutesManifest['skipProxyUrlNormalize']
 }
 
 export type ServerFields = {
@@ -254,7 +254,7 @@ async function startWatcher(
     redirects: opts.fsChecker.redirects,
     headers: opts.fsChecker.headers,
     i18n: nextConfig.i18n || undefined,
-    skipMiddlewareUrlNormalize: nextConfig.skipMiddlewareUrlNormalize,
+    skipProxyUrlNormalize: nextConfig.skipProxyUrlNormalize,
   }
   await fs.promises.writeFile(
     routesManifestPath,

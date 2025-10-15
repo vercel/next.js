@@ -5,7 +5,7 @@ import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-ro
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
-  MiddlewareConfig,
+  ProxyConfig,
   MiddlewareMatcher,
   PageStaticInfo,
 } from './analysis/get-page-static-info'
@@ -595,12 +595,12 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: MappedPages
-  middleware?: Partial<MiddlewareConfig>
+  middleware?: Partial<ProxyConfig>
   pagesType: PAGE_TYPES
   appDirLoader?: string
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
-  middlewareConfig?: MiddlewareConfig
+  middlewareConfig?: ProxyConfig
 }) {
   if (
     opts.pagesType === 'app' &&

@@ -874,5 +874,9 @@
   "873": "Invalid profile provided \"%s\" must be configured under cacheLife in next.config or be \"max\"",
   "874": "Expected not to install Node.js global behaviors in the edge runtime.",
   "875": "`pipelineInSequentialTasks` should not be called in edge runtime.",
-  "876": "dynamicInDevStagedRendering should only be used in development mode and when Cache Components is enabled."
+  "876": "dynamicInDevStagedRendering should only be used in development mode and when Cache Components is enabled.",
+  "877": "Config options `experimental.externalProxyRewritesResolve` and `experimental.externalMiddlewareRewritesResolve` cannot be set at the same time. Please use `experimental.externalProxyRewritesResolve` instead.",
+  "878": "Config options `skipProxyUrlNormalize` and `skipMiddlewareUrlNormalize` cannot be set at the same time. Please use `skipProxyUrlNormalize` instead.",
+  "879": "Config options `experimental.proxyClientMaxBodySize` and `experimental.middlewareClientMaxBodySize` cannot be set at the same time. Please use `experimental.proxyClientMaxBodySize` instead.",
+  "880": "Config options `experimental.proxyPrefetch` and `experimental.middlewarePrefetch` cannot be set at the same time. Please use `experimental.proxyPrefetch` instead."
 }

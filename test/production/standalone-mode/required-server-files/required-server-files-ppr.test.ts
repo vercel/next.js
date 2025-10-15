@@ -58,7 +58,6 @@ describe.skip('required server files app router', () => {
         experimental: {
           cacheComponents: true,
           clientSegmentCache: true,
-          clientParamParsing: true,
         },
         output: 'standalone',
       },

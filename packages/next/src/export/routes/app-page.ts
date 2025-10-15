@@ -132,14 +132,10 @@ export async function exportAppPage(
     // properly so long as we don't have unknown route params. When a route doesn't
     // have unknown route params, there will not be any flight data.
     if (!flightData) {
-      // Unless the user has clientParamParsing enabled, we expect that routes
-      // that don't have fallback route params would have flight data. This is
-      // because when clientParamParsing is enabled, the absence of flight data
-      // means that the route has unknown route params.
       if (
         !fallbackRouteParams ||
         fallbackRouteParams.size === 0 ||
-        renderOpts.experimental.clientParamParsing
+        renderOpts.experimental.cacheComponents
       ) {
         throw new Error(`Invariant: failed to get page data for ${path}`)
       }

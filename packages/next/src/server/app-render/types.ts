@@ -132,7 +132,6 @@ export interface RenderOptsPartial {
     clientTraceMetadata: string[] | undefined
     cacheComponents: boolean
     clientSegmentCache: boolean | 'client-only'
-    clientParamParsing: boolean
 
     /**
      * The origins that are allowed to write the rewritten headers when

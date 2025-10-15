@@ -1127,9 +1127,7 @@ function convertTreePrefetchToRouteTree(
         const renderedSearch = '' as NormalizedSearch
         const childParamKey =
           // The server omits this field from the prefetch response when
-          // clientParamParsing is enabled. The flag only exists while we're
-          // testing the feature, in case there's a bug and we need to revert.
-          // TODO: Remove once clientParamParsing is enabled everywhere.
+          // cacheComponents is enabled.
           childServerSentParamKey !== null
             ? childServerSentParamKey
             : // If no param key was sent, use the value parsed on the client.

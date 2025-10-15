@@ -37,8 +37,8 @@ async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
     let _ = entrypoints.resolve_strongly_consistent().await?;
-    let _ = entrypoints.take_collectibles::<Box<dyn Diagnostic>>();
-    let _ = entrypoints.take_issues();
+    entrypoints.drop_collectibles::<Box<dyn Diagnostic>>();
+    entrypoints.drop_issues();
     let _ = get_effects(entrypoints).await?;
     Ok(entrypoints.connect())
 }
