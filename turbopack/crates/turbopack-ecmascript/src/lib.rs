@@ -300,10 +300,10 @@ impl Display for EcmascriptModuleAssetType {
             EcmascriptModuleAssetType::Typescript { tsx, analyze_types } => {
                 write!(f, "typescript")?;
                 if *tsx {
-                    write!(f, "with JSX")?;
+                    write!(f, " with JSX")?;
                 }
                 if *analyze_types {
-                    write!(f, "with types")?;
+                    write!(f, " with types")?;
                 }
                 Ok(())
             }
