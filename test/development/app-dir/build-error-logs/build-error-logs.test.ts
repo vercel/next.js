@@ -2,10 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('build-error-logs', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   it('should only log error a single time', async () => {
     await next.fetch('/')

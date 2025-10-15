@@ -10,10 +10,9 @@ import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 describe('Cache Components Dev Errors', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: __dirname,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   it('should show a red box error on the SSR render', async () => {
     const browser = await next.browser('/error')

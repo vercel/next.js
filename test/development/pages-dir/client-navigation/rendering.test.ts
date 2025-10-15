@@ -11,13 +11,12 @@ import url from 'url'
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Client Navigation rendering', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
     env: {
       TEST_STRICT_NEXT_HEAD: String(true),
     },
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   function render(
     pathname: Parameters<typeof renderViaHTTP>[1],

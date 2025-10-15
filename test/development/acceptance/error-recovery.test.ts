@@ -6,10 +6,9 @@ import { outdent } from 'outdent'
 import path from 'path'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
-const isRspack = !!process.env.NEXT_RSPACK
 
 describe('pages/ error recovery', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
