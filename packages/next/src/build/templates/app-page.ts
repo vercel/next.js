@@ -10,7 +10,7 @@ import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition
 
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
-import { getRequestMeta } from '../../server/request-meta'
+import { addRequestMeta, getRequestMeta } from '../../server/request-meta'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { interopDefault } from '../../server/app-render/interop-default'
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers'
@@ -118,6 +118,9 @@ export async function handler(
     waitUntil: (prom: Promise<void>) => void
   }
 ) {
+  if (routeModule.isDev) {
+    addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
+  }
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
