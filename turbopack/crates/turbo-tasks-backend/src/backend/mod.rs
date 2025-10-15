@@ -1759,7 +1759,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // The task might be invalidated during this process, so we need to check the stale flag
         // at the start of every step.
 
+        #[cfg(not(feature = "trace_task_details"))]
         let span = tracing::trace_span!("task execution completed", immutable = Empty).entered();
+        #[cfg(feature = "trace_task_details")]
+        let span = tracing::trace_span!(
+            "task execution completed",
+            task_id = display(task_id),
+            result = match result.as_ref() {
+                Ok(value) => display(either::Either::Left(value)),
+                Err(err) => display(either::Either::Right(err)),
+            },
+            immutable = Empty
+        )
+        .entered();
         let mut ctx = self.execute_context(turbo_tasks);
 
         let Some(TaskExecutionCompletePrepareResult {
@@ -2084,6 +2096,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         {
             is_now_immutable = true;
         }
+        #[cfg(feature = "trace_task_details")]
         span.record("immutable", is_immutable || is_now_immutable);
 
         if !queue.is_empty() || !old_edges.is_empty() {
