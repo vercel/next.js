@@ -64,10 +64,14 @@ Automatic prefetching runs only in production. Disable with `prefetch={false}` o
 import { useRouter } from 'next/navigation'
 
 const router = useRouter()
+```
+
+At the spot where you want the `prefetch` to get triggered:
+```tsx
 router.prefetch('/pricing')
 ```
 
-Call `router.prefetch()` to warm routes outside the viewport or in response to analytics, hover, scroll, etc.
+Call `router.prefetch()` to warm routes outside the viewport or in response to analytics, hover, scroll, etc. If the intent is to prefetch a URL when a component loads, avoid calling `router.prefetch()` in the component's main body, rather place the `router.prefetch()` call in a `useEffect()`.
 
 ## Hover-triggered prefetch
 
