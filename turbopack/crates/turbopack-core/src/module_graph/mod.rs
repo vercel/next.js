@@ -443,6 +443,58 @@ impl SingleModuleGraph {
         Ok(())
     }
 
+    /// Traverses all reachable nodes once
+    pub fn traverse_nodes_from_entries<'a, S>(
+        &'a self,
+        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
+        state: &mut S,
+        visit_preorder: impl Fn(&'a SingleModuleGraphModuleNode, &mut S) -> Result<GraphTraversalAction>,
+        mut visit_postorder: impl FnMut(&'a SingleModuleGraphModuleNode, &mut S) -> Result<()>,
+    ) -> Result<()> {
+        let graph = &self.graph;
+        let entries = entries.into_iter().map(|e| self.get_module(e).unwrap());
+
+        enum Pass {
+            Visit,
+            ExpandAndVisit,
+        }
+
+        let mut stack: Vec<(Pass, NodeIndex)> =
+            entries.map(|e| (Pass::ExpandAndVisit, e)).collect();
+        let mut expanded = FxHashSet::default();
+        while let Some((pass, current)) = stack.pop() {
+            match pass {
+                Pass::Visit => {
+                    if let SingleModuleGraphNode::Module(current_node) =
+                        graph.node_weight(current).unwrap()
+                    {
+                        visit_postorder(current_node, state)?;
+                    }
+                }
+                Pass::ExpandAndVisit => {
+                    if expanded.insert(current)
+                        && let SingleModuleGraphNode::Module(current_node) =
+                            graph.node_weight(current).unwrap()
+                    {
+                        let action = visit_preorder(current_node, state)?;
+                        if action == GraphTraversalAction::Exclude {
+                            continue;
+                        }
+                        stack.push((Pass::Visit, current));
+                        if action == GraphTraversalAction::Continue {
+                            stack.extend(
+                                iter_neighbors_rev(graph, current)
+                                    .map(|(_, child)| (Pass::ExpandAndVisit, child)),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
     /// target.
     ///

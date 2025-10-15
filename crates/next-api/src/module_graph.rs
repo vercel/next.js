@@ -294,12 +294,11 @@ impl ClientReferencesGraph {
             let mut server_components = FxIndexSet::default();
 
             // Perform a DFS traversal to find all server components included by this page.
-            graph.traverse_edges_from_entries_dfs(
+            graph.traverse_nodes_from_entries(
                 entries,
                 &mut (),
-                |_, node, _| {
-                    let module = node.module();
-                    let module_type = data.get(&module);
+                |node, _| {
+                    let module_type = data.get(&node.module);
                     Ok(match module_type {
                         Some(
                             ClientManifestEntryType::EcmascriptClientReference { .. }
@@ -311,9 +310,8 @@ impl ClientReferencesGraph {
                         None => GraphTraversalAction::Continue,
                     })
                 },
-                |_, node, _| {
-                    let module = node.module();
-                    let module_type = data.get(&module);
+                |node, _| {
+                    let module_type = data.get(&node.module);
 
                     let ty = match module_type {
                         Some(ClientManifestEntryType::EcmascriptClientReference {
@@ -348,11 +346,11 @@ impl ClientReferencesGraph {
             // necessarily rendered at the same time (not-found, or parallel routes), we need to
             // determine the order of client references individually for each server component.
             for sc in server_components.iter().copied() {
-                graph.traverse_edges_from_entries_dfs(
+                graph.traverse_nodes_from_entries(
                     std::iter::once(ResolvedVc::upcast(sc)),
                     &mut (),
-                    |_, node, _| {
-                        let module = node.module();
+                    |node, _| {
+                        let module = node.module;
                         let module_type = data.get(&module);
 
                         Ok(match module_type {
@@ -363,8 +361,8 @@ impl ClientReferencesGraph {
                             _ => GraphTraversalAction::Continue,
                         })
                     },
-                    |_, node, _| {
-                        let module = node.module();
+                    |node, _| {
+                        let module = node.module;
                         if let Some(server_util_module) =
                             ResolvedVc::try_downcast_type::<NextServerUtilityModule>(module)
                         {
