@@ -611,7 +611,7 @@ where
                         if is_match {
                             let mut remaining = self.request.clone();
                             if let Err(e) = remaining.strip_prefix_len(prefix.len()) {
-                                return Some(Err(e));
+                                return Some(Err(e.context(self.request.describe_as_string())));
                             }
                             remaining.strip_suffix_len(suffix.len());
 
