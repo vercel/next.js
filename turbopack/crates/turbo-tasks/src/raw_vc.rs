@@ -316,6 +316,18 @@ impl CollectiblesSource for RawVc {
             .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
             .collect()
     }
+
+    fn drop_collectibles<T: VcValueTrait + ?Sized>(self) {
+        let RawVc::TaskOutput(task_id) = self else {
+            panic!(
+                "<RawVc as CollectiblesSource>::drop_collectibles() must only be called on a \
+                 RawVc::TaskOutput"
+            );
+        };
+        let tt = turbo_tasks();
+        let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
+        tt.unemit_collectibles(T::get_trait_type_id(), &map);
+    }
 }
 
 pub struct ReadRawVcFuture {

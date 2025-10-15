@@ -842,7 +842,7 @@ pub async fn get_global_information_for_endpoint(
         get_global_information_for_endpoint_inner_operation(module_graph, is_single_page);
     let result_vc = if !is_single_page {
         let result_vc = result_op.resolve_strongly_consistent().await?;
-        let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
+        result_op.drop_collectibles::<Box<dyn Issue>>();
         *result_vc
     } else {
         result_op.connect()

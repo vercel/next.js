@@ -1093,7 +1093,7 @@ impl ModuleGraph {
         async move {
             let result_op = compute_async_module_info(self.to_resolved().await?);
             let result_vc = result_op.resolve_strongly_consistent().await?;
-            let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
+            result_op.drop_collectibles::<Box<dyn Issue>>();
             anyhow::Ok(*result_vc)
         }
         .instrument(tracing::info_span!("compute async module info"))
