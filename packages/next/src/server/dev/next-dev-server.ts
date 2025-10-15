@@ -466,7 +466,7 @@ export default class DevServer extends Server {
       const loggingConfig = this.nextConfig.logging
 
       if (loggingConfig !== false) {
-        const start = Date.now()
+        const requestStart = process.hrtime()
         const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
 
         if (!isMiddlewareRequest) {
@@ -480,12 +480,8 @@ export default class DevServer extends Server {
               return
             }
 
-            logRequests({
-              request,
-              response,
-              loggingConfig,
-              requestDurationInMs: Date.now() - start,
-            })
+            const requestEnd = process.hrtime(requestStart)
+            logRequests(request, response, loggingConfig, requestEnd)
           })
         }
       }

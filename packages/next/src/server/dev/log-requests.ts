@@ -1,3 +1,4 @@
+import { hrtimeDurationToString } from '../../build/duration-to-string'
 import {
   blue,
   bold,
@@ -12,13 +13,6 @@ import type { FetchMetric } from '../base-http'
 import type { NodeNextRequest, NodeNextResponse } from '../base-http/node'
 import type { LoggingConfig } from '../config-shared'
 import { getRequestMeta } from '../request-meta'
-
-export interface RequestLoggingOptions {
-  readonly request: NodeNextRequest
-  readonly response: NodeNextResponse
-  readonly loggingConfig: LoggingConfig | undefined
-  readonly requestDurationInMs: number
-}
 
 /**
  * Returns true if the incoming request should be ignored for logging.
@@ -44,15 +38,14 @@ export function ignoreLoggingIncomingRequests(
   return ignore.some((pattern) => pattern.test(request.url))
 }
 
-export function logRequests(options: RequestLoggingOptions): void {
-  const { request, response, loggingConfig, requestDurationInMs } = options
-
+export function logRequests(
+  request: NodeNextRequest,
+  response: NodeNextResponse,
+  loggingConfig: LoggingConfig,
+  requestEndTime: ReturnType<typeof process.hrtime>
+): void {
   if (!ignoreLoggingIncomingRequests(request, loggingConfig)) {
-    logIncomingRequests({
-      request,
-      requestDurationInMs,
-      statusCode: response.statusCode,
-    })
+    logIncomingRequests(request, requestEndTime, response.statusCode)
   }
 
   if (request.fetchMetrics) {
@@ -62,14 +55,11 @@ export function logRequests(options: RequestLoggingOptions): void {
   }
 }
 
-interface IncomingRequestOptions {
-  readonly request: NodeNextRequest
-  readonly requestDurationInMs: number
-  readonly statusCode: number
-}
-
-function logIncomingRequests(options: IncomingRequestOptions): void {
-  const { request, requestDurationInMs, statusCode } = options
+function logIncomingRequests(
+  request: NodeNextRequest,
+  requestEndTime: ReturnType<typeof process.hrtime>,
+  statusCode: number
+): void {
   const isRSC = getRequestMeta(request, 'isRSCRequest')
   const url = isRSC ? stripNextRscUnionQuery(request.url) : request.url
 
@@ -87,7 +77,7 @@ function logIncomingRequests(options: IncomingRequestOptions): void {
   const coloredStatus = statusCodeColor(statusCode.toString())
 
   return writeLine(
-    `${request.method} ${url} ${coloredStatus} in ${requestDurationInMs}ms`
+    `${request.method} ${url} ${coloredStatus} in ${hrtimeDurationToString(requestEndTime)}`
   )
 }
 
