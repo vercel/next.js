@@ -2286,6 +2286,7 @@ export default async function build(
                               // Extract dynamic segments from the route pattern
                               const segments = page.split('/').filter(Boolean)
                               const params: Record<string, string> = {}
+                              const optionalCatchAllKeys: string[] = []
 
                               segments.forEach((segment) => {
                                 // Check patterns in order of specificity (most specific first)
@@ -2293,6 +2294,7 @@ export default async function build(
                                   // Optional catch-all: [[...slug]]
                                   const key = segment.slice(5, -2)
                                   params[key] = '__shell__'
+                                  optionalCatchAllKeys.push(key)
                                 } else if (segment.startsWith('[...') && segment.endsWith(']')) {
                                   // Required catch-all: [...slug]
                                   const key = segment.slice(4, -1)
@@ -2321,7 +2323,10 @@ export default async function build(
                                 )
                               })
 
-                              staticPaths.set(originalAppPath, [
+                              // For optional catch-all routes, we need to generate two entries:
+                              // 1. The shell file (with __shell__ placeholder) for parameterized access
+                              // 2. The root file (without the param) for the empty/root case
+                              const paths = [
                                 {
                                   pathname,
                                   encodedPathname: pathname,
@@ -2331,7 +2336,35 @@ export default async function build(
                                   fallbackRootParams: undefined,
                                   throwOnEmptyStaticShell: undefined,
                                 },
-                              ])
+                              ]
+
+                              // Add root case entry for optional catch-all routes
+                              if (optionalCatchAllKeys.length > 0) {
+                                const rootParams = { ...params }
+                                let rootPathname = page
+
+                                // Remove optional catch-all params and rebuild pathname
+                                optionalCatchAllKeys.forEach((key) => {
+                                  delete rootParams[key]
+                                  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                                  rootPathname = rootPathname.replace(
+                                    new RegExp(`/\\[\\[\\.\\.\\.${escapedKey}\\]\\]`),
+                                    ''
+                                  )
+                                })
+
+                                paths.push({
+                                  pathname: rootPathname,
+                                  encodedPathname: rootPathname,
+                                  params: rootParams,
+                                  fallbackRouteParams: undefined,
+                                  fallbackMode: undefined,
+                                  fallbackRootParams: undefined,
+                                  throwOnEmptyStaticShell: undefined,
+                                })
+                              }
+
+                              staticPaths.set(originalAppPath, paths)
                               isStatic = true
                               isRoutePPREnabled = false
                             }
