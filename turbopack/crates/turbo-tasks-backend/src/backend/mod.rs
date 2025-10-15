@@ -134,6 +134,10 @@ pub struct BackendOptions {
     /// Enables the backing storage.
     pub storage_mode: Option<StorageMode>,
 
+    /// Number of tokio worker threads. It will be used to compute the shard amount of parallel
+    /// datastructures. If `None`, it will use the available parallelism.
+    pub num_workers: Option<usize>,
+
     /// Avoid big preallocations for faster startup. Should only be used for testing purposes.
     pub small_preallocation: bool,
 }
@@ -144,6 +148,7 @@ impl Default for BackendOptions {
             dependency_tracking: true,
             active_tracking: true,
             storage_mode: Some(StorageMode::ReadWrite),
+            num_workers: None,
             small_preallocation: false,
         }
     }
@@ -235,6 +240,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             options.active_tracking = false;
         }
         let small_preallocation = options.small_preallocation;
+        let num_workers = options.num_workers;
         let next_task_id = backing_storage
             .next_free_task_id()
             .expect("Failed to get task id");
@@ -256,7 +262,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task_cache: BiMap::new(),
             transient_tasks: FxDashMap::default(),
             local_is_partial: AtomicBool::new(next_task_id != TaskId::MIN),
-            storage: Storage::new(small_preallocation),
+            storage: Storage::new(num_workers, small_preallocation),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
             operations_suspended: Condvar::new(),

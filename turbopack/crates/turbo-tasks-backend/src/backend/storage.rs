@@ -616,17 +616,19 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub fn new(small_preallocation: bool) -> Self {
+    pub fn new(num_worker: Option<usize>, small_preallocation: bool) -> Self {
         let map_capacity: usize = if small_preallocation {
             1024
         } else {
             1024 * 1024
         };
         let modified_capacity: usize = if small_preallocation { 0 } else { 1024 };
-        let shard_factor: usize = if small_preallocation { 4 } else { 64 };
+        let shard_factor: usize = if small_preallocation { 1 } else { 16 };
 
-        let shard_amount =
-            (available_parallelism().map_or(4, |v| v.get()) * shard_factor).next_power_of_two();
+        let num_workers =
+            num_worker.unwrap_or_else(|| available_parallelism().map_or(4, |v| v.get()));
+
+        let shard_amount = (num_workers * num_workers * shard_factor).next_power_of_two();
 
         Self {
             snapshot_mode: AtomicBool::new(false),
