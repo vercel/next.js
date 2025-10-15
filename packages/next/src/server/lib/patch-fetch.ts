@@ -564,6 +564,7 @@ export function createPatchedFetcher(
                 }
                 await workUnitStore.stagedRendering.delayUntilStage(
                   RenderStage.Dynamic,
+                  undefined,
                   undefined
                 )
               }
@@ -691,6 +692,7 @@ export function createPatchedFetcher(
                     }
                     await workUnitStore.stagedRendering.delayUntilStage(
                       RenderStage.Dynamic,
+                      undefined,
                       undefined
                     )
                   }
@@ -964,6 +966,7 @@ export function createPatchedFetcher(
                   ) {
                     await workUnitStore.stagedRendering.delayUntilStage(
                       RenderStage.Dynamic,
+                      undefined,
                       undefined
                     )
                   }
@@ -1093,6 +1096,7 @@ export function createPatchedFetcher(
                     }
                     await workUnitStore.stagedRendering.delayUntilStage(
                       RenderStage.Dynamic,
+                      undefined,
                       undefined
                     )
                   }
@@ -1140,6 +1144,7 @@ export function createPatchedFetcher(
                     ) {
                       await workUnitStore.stagedRendering.delayUntilStage(
                         RenderStage.Dynamic,
+                        undefined,
                         undefined
                       )
                     }

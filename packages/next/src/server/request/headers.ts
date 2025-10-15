@@ -199,6 +199,13 @@ function makeUntrackedHeadersWithDevWarnings(
   route: string | undefined,
   requestStore: RequestStore
 ): Promise<ReadonlyHeaders> {
+  if (requestStore.asyncApiPromises) {
+    const promise = requestStore.asyncApiPromises.headers
+    // TODO(restart-on-cache-miss): Instrument with warnings
+    // return instrumentHeadersPromiseWithDevWarnings(promise, route)
+    return promise
+  }
+
   const cachedHeaders = CachedHeaders.get(underlyingHeaders)
   if (cachedHeaders) {
     return cachedHeaders
@@ -210,7 +217,22 @@ function makeUntrackedHeadersWithDevWarnings(
     RenderStage.Runtime
   )
 
-  const proxiedPromise = new Proxy(promise, {
+  const proxiedPromise = instrumentHeadersPromiseWithDevWarnings(promise, route)
+
+  CachedHeaders.set(underlyingHeaders, proxiedPromise)
+
+  return proxiedPromise
+}
+
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createHeadersAccessError
+)
+
+function instrumentHeadersPromiseWithDevWarnings(
+  promise: Promise<ReadonlyHeaders>,
+  route: string | undefined
+) {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
       switch (prop) {
         case Symbol.iterator: {
@@ -237,16 +259,11 @@ function makeUntrackedHeadersWithDevWarnings(
 
       return ReflectAdapter.get(target, prop, receiver)
     },
+    set(target, prop, newValue, receiver) {
+      return ReflectAdapter.set(target, prop, newValue, receiver)
+    },
   })
-
-  CachedHeaders.set(underlyingHeaders, proxiedPromise)
-
-  return proxiedPromise
 }
-
-const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
-  createHeadersAccessError
-)
 
 function createHeadersAccessError(
   route: string | undefined,

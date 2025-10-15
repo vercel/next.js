@@ -190,6 +190,22 @@ function makeUntrackedCookiesWithDevWarnings(
   underlyingCookies: ReadonlyRequestCookies,
   route?: string
 ): Promise<ReadonlyRequestCookies> {
+  if (requestStore.asyncApiPromises) {
+    let promise: Promise<ReadonlyRequestCookies>
+    if (underlyingCookies === requestStore.mutableCookies) {
+      promise = requestStore.asyncApiPromises.mutableCookies
+    } else if (underlyingCookies === requestStore.cookies) {
+      promise = requestStore.asyncApiPromises.cookies
+    } else {
+      throw new InvariantError(
+        'Received a underlying cookies object that does not match either `cookies` or `mutableCookies`'
+      )
+    }
+    // TODO(restart-on-cache-miss): Instrument with warnings
+    // return instrumentCookiesPromiseWithDevWarnings(promise, route)
+    return promise
+  }
+
   const cachedCookies = CachedCookies.get(underlyingCookies)
   if (cachedCookies) {
     return cachedCookies
@@ -201,7 +217,22 @@ function makeUntrackedCookiesWithDevWarnings(
     RenderStage.Runtime
   )
 
-  const proxiedPromise = new Proxy(promise, {
+  const proxiedPromise = instrumentCookiesPromiseWithDevWarnings(promise, route)
+
+  CachedCookies.set(underlyingCookies, proxiedPromise)
+
+  return proxiedPromise
+}
+
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createCookiesAccessError
+)
+
+function instrumentCookiesPromiseWithDevWarnings(
+  promise: Promise<ReadonlyRequestCookies>,
+  route: string | undefined
+) {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
       switch (prop) {
         case Symbol.iterator: {
@@ -226,16 +257,11 @@ function makeUntrackedCookiesWithDevWarnings(
 
       return ReflectAdapter.get(target, prop, receiver)
     },
+    set(target, prop, newValue, receiver) {
+      return ReflectAdapter.set(target, prop, newValue, receiver)
+    },
   })
-
-  CachedCookies.set(underlyingCookies, proxiedPromise)
-
-  return proxiedPromise
 }
-
-const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
-  createCookiesAccessError
-)
 
 function createCookiesAccessError(
   route: string | undefined,

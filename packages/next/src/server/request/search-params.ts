@@ -386,28 +386,86 @@ function makeUntrackedSearchParamsWithDevWarnings(
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<SearchParams> {
-  // Note: unlike some of the other functions here, we tie the lifetime of the cached search params
-  // to the request store, not `underlyingSearchParams`.
-  // If we didn't do that we'd end up re-using the same object across both renders in the restart-on-cache-miss flow,
-  // meaning that the `searchParams` promise would (incorrectly) be already resolved in the restarted render.
-  const cachedSearchParams = CachedSearchParams.get(requestStore)
-  if (cachedSearchParams) {
-    return cachedSearchParams
+  const shouldCachePromise = !!requestStore.asyncApiPromises
+  if (shouldCachePromise) {
+    // Note: unlike some of the other functions here, we tie the lifetime of the cached search params
+    // to the request store, not `underlyingSearchParams`.
+    // If we didn't do that we'd end up re-using the same object across both renders in the restart-on-cache-miss flow,
+    // meaning that the `searchParams` promise would (incorrectly) be already resolved in the restarted render.
+    const cachedSearchParams = CachedSearchParams.get(requestStore)
+    if (cachedSearchParams) {
+      return cachedSearchParams
+    }
   }
 
-  // Track which properties we should warn for.
-  const proxiedProperties = new Set<string>()
+  const promiseInitialized = { current: false }
+  const proxiedUnderlying = instrumentSearchParamsObjectWithDevWarnings(
+    underlyingSearchParams,
+    workStore,
+    promiseInitialized
+  )
 
+  let promise: Promise<SearchParams>
+  if (requestStore.asyncApiPromises) {
+    promise = requestStore.asyncApiPromises.sharedSearchParamsParent.then(
+      () => proxiedUnderlying
+    )
+  } else {
+    promise = makeDevtoolsIOAwarePromise(
+      proxiedUnderlying,
+      requestStore,
+      RenderStage.Runtime
+    )
+  }
+  promise.then(
+    () => {
+      promiseInitialized.current = true
+    },
+    // If we're in staged rendering, this promise will reject if the render
+    // is aborted before it can reach the runtime stage.
+    // In that case, we have to prevent an unhandled rejection from the promise
+    // created by this `.then()` call.
+    // This does not affect the `promiseInitialized` logic above,
+    // because `proxiedUnderlying` will not be used to resolve the promise,
+    // so there's no risk of any of its properties being accessed and triggering
+    // an undesireable warning.
+    ignoreReject
+  )
+
+  if (requestStore.asyncApiPromises) {
+    // TODO(restart-on-cache-miss): Instrument with warnings
+    return promise
+  }
+
+  const proxiedPromise = instrumentSearchParamsPromiseWithDevWarnings(
+    underlyingSearchParams,
+    promise,
+    workStore
+  )
+
+  if (shouldCachePromise) {
+    CachedSearchParams.set(requestStore, proxiedPromise)
+  }
+
+  return proxiedPromise
+}
+
+function ignoreReject() {}
+
+function instrumentSearchParamsObjectWithDevWarnings(
+  underlyingSearchParams: SearchParams,
+  workStore: WorkStore,
+  promiseInitialized: { current: boolean }
+) {
   // We have an unfortunate sequence of events that requires this initialization logic. We want to instrument the underlying
   // searchParams object to detect if you are accessing values in dev. This is used for warnings and for things like the static prerender
   // indicator. However when we pass this proxy to our Promise.resolve() below the VM checks if the resolved value is a promise by looking
   // at the `.then` property. To our dynamic tracking logic this is indistinguishable from a `then` searchParam and so we would normally trigger
   // dynamic tracking. However we know that this .then is not real dynamic access, it's just how thenables resolve in sequence. So we introduce
   // this initialization concept so we omit the dynamic check until after we've constructed our resolved promise.
-  let promiseInitialized = false
-  const proxiedUnderlying = new Proxy(underlyingSearchParams, {
+  return new Proxy(underlyingSearchParams, {
     get(target, prop, receiver) {
-      if (typeof prop === 'string' && promiseInitialized) {
+      if (typeof prop === 'string' && promiseInitialized.current) {
         if (workStore.dynamicShouldError) {
           const expression = describeStringPropertyAccess('searchParams', prop)
           throwWithStaticGenerationBailoutErrorWithDynamicError(
@@ -445,18 +503,15 @@ function makeUntrackedSearchParamsWithDevWarnings(
       return Reflect.ownKeys(target)
     },
   })
+}
 
-  // We don't use makeResolvedReactPromise here because searchParams
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
-  const promise = makeDevtoolsIOAwarePromise(
-    proxiedUnderlying,
-    requestStore,
-    RenderStage.Runtime
-  )
-  promise.then(() => {
-    promiseInitialized = true
-  })
+function instrumentSearchParamsPromiseWithDevWarnings(
+  underlyingSearchParams: SearchParams,
+  promise: Promise<SearchParams>,
+  workStore: WorkStore
+) {
+  // Track which properties we should warn for.
+  const proxiedProperties = new Set<string>()
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
     if (wellKnownProperties.has(prop)) {
@@ -467,7 +522,7 @@ function makeUntrackedSearchParamsWithDevWarnings(
     }
   })
 
-  const proxiedPromise = new Proxy(promise, {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
       if (prop === 'then' && workStore.dynamicShouldError) {
         const expression = '`searchParams.then`'
@@ -520,9 +575,6 @@ function makeUntrackedSearchParamsWithDevWarnings(
       return Reflect.ownKeys(target)
     },
   })
-
-  CachedSearchParams.set(requestStore, proxiedPromise)
-  return proxiedPromise
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(

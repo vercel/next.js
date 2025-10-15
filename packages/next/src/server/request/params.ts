@@ -455,6 +455,19 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<Params> {
+  if (requestStore.asyncApiPromises && hasFallbackParams) {
+    const promise = requestStore.asyncApiPromises.sharedParamsParent.then(
+      () => underlyingParams
+    )
+    // TODO(restart-on-cache-miss): Instrument with warnings
+    // return instrumentParamsPromiseWithDevWarnings(
+    //   underlyingParams,
+    //   promise,
+    //   workStore
+    // )
+    return promise
+  }
+
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
     return cachedParams
@@ -472,6 +485,20 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     : // We don't want to force an environment transition when this params is not part of the fallback params set
       Promise.resolve(underlyingParams)
 
+  const proxiedPromise = instrumentParamsPromiseWithDevWarnings(
+    underlyingParams,
+    promise,
+    workStore
+  )
+  CachedParams.set(underlyingParams, proxiedPromise)
+  return proxiedPromise
+}
+
+function instrumentParamsPromiseWithDevWarnings(
+  underlyingParams: Params,
+  promise: Promise<Params>,
+  workStore: WorkStore
+): Promise<Params> {
   // Track which properties we should warn for.
   const proxiedProperties = new Set<string>()
 
@@ -484,7 +511,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     }
   })
 
-  const proxiedPromise = new Proxy(promise, {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
       if (typeof prop === 'string') {
         if (
@@ -509,9 +536,6 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
       return Reflect.ownKeys(target)
     },
   })
-
-  CachedParams.set(underlyingParams, proxiedPromise)
-  return proxiedPromise
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
