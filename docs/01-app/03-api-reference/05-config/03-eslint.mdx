@@ -350,13 +350,7 @@ import nextPlugin from "@next/eslint-plugin-next"
 const eslintConfig = defineConfig([
   nextPlugin.configs["core-web-vitals"],
   // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
+  globalIgnores([]),
 ])
 
 export default eslintConfig
