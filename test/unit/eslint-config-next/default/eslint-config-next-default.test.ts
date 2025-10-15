@@ -44,9 +44,9 @@ describe('eslint-config-next', () => {
          "@",
          "react",
          "react-hooks:eslint-plugin-react-hooks@7.0.0",
-         "@next/next",
          "import",
          "jsx-a11y:eslint-plugin-jsx-a11y@6.10.2",
+         "@next/next:@next/eslint-plugin-next",
        ],
        "rules": {
          "@next/next/google-font-display": [
