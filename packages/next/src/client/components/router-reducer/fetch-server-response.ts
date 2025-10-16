@@ -94,6 +94,113 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
   }
 }
 
+/**
+ * Peek at the beginning of a ReadableStream to detect if it contains a valid RSC payload
+ * Returns both the detection result and an untouched stream for consumption
+ */
+async function peekAndSniff(
+  originalStream: ReadableStream<Uint8Array>
+): Promise<{ looksValid: boolean; stream: ReadableStream<Uint8Array> }> {
+  const PEEK_SIZE = 512 // Bytes to peek for detection
+  const [sniffStream, useStream] = originalStream.tee()
+
+  try {
+    const reader = sniffStream.getReader()
+    const chunks: Uint8Array[] = []
+    let totalBytes = 0
+
+    // Read up to PEEK_SIZE bytes for sniffing
+    while (totalBytes < PEEK_SIZE) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      chunks.push(value)
+      totalBytes += value.length
+    }
+
+    reader.releaseLock()
+
+    if (totalBytes === 0) {
+      return { looksValid: false, stream: useStream }
+    }
+
+    // Combine chunks into a single array for decoding
+    const combined = new Uint8Array(totalBytes)
+    let offset = 0
+    for (const chunk of chunks) {
+      combined.set(chunk, offset)
+      offset += chunk.length
+    }
+
+    // Decode as UTF-8, being tolerant of invalid sequences
+    const decoder = new TextDecoder('utf-8', { fatal: false })
+    const text = decoder.decode(
+      combined.slice(0, Math.min(PEEK_SIZE, totalBytes))
+    )
+
+    // Heuristics to detect RSC payload or valid text content
+    const looksValid = detectRscOrTextPayload(text)
+
+    return { looksValid, stream: useStream }
+  } catch (error) {
+    // If anything goes wrong during sniffing, be conservative
+    return { looksValid: false, stream: useStream }
+  }
+}
+
+/**
+ * Detect if the given text looks like a valid RSC payload or export text content
+ */
+function detectRscOrTextPayload(text: string): boolean {
+  if (!text || text.length === 0) return false
+
+  // Check for obvious HTML content that should trigger MPA navigation
+  const htmlMarkers = ['<!DOCTYPE', '<html', '<HTML', '<!doctype']
+  for (const marker of htmlMarkers) {
+    if (text.includes(marker)) {
+      return false
+    }
+  }
+
+  // RSC payload detection: look for common RSC patterns
+  // RSC payloads often start with patterns like "0:[" or contain ":" followed by brackets/quotes
+  const rscPatterns = [
+    /^\d+:\[/, // Starts with number:[
+    /^\d+:"/, // Starts with number:"
+    /:\[.*\]/, // Contains :[...]
+    /"[^"]*":\[/, // Contains "key":[
+  ]
+
+  for (const pattern of rscPatterns) {
+    if (pattern.test(text)) {
+      return true
+    }
+  }
+
+  // Text/plain detection: should be mostly printable ASCII without HTML
+  // Check that it's primarily printable characters
+  let printableCount = 0
+  let totalCount = 0
+
+  for (let i = 0; i < Math.min(text.length, 256); i++) {
+    const char = text.charCodeAt(i)
+    totalCount++
+    // Count printable ASCII chars (space to ~) plus common whitespace
+    if (
+      (char >= 32 && char <= 126) ||
+      char === 9 ||
+      char === 10 ||
+      char === 13
+    ) {
+      printableCount++
+    }
+  }
+
+  // If at least 90% printable and no obvious HTML, treat as valid text
+  const printableRatio = totalCount > 0 ? printableCount / totalCount : 0
+  return printableRatio >= 0.9
+}
+
 let abortController = new AbortController()
 
 if (typeof window !== 'undefined') {
@@ -175,7 +282,7 @@ export async function fetchServerResponse(
       }
     }
 
-    const res = await createFetch(
+    let res = await createFetch(
       url,
       headers,
       fetchPriority,
@@ -201,6 +308,22 @@ export async function fetchServerResponse(
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
         if (!isFlightResponse) {
           isFlightResponse = contentType.startsWith('text/plain')
+        }
+        // If Content-Type is missing or incorrect, peek at the body to detect valid RSC payload
+        if (!isFlightResponse && res.ok && res.body) {
+          const { looksValid, stream } = await peekAndSniff(res.body)
+          if (looksValid) {
+            isFlightResponse = true
+            // Create a proper response-like object that maintains all required properties and types
+            res = {
+              ok: res.ok,
+              redirected: res.redirected,
+              headers: res.headers,
+              body: stream,
+              status: res.status,
+              url: res.url,
+            } satisfies RSCResponse
+          }
         }
       }
     }
