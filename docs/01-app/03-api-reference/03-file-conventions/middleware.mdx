@@ -684,6 +684,75 @@ expect(getRewrittenUrl(response)).toEqual('https://other-domain.com/docs')
 
 Learn how to [configure Middleware](/docs/app/guides/self-hosting#middleware) when self-hosting Next.js.
 
+## Troubleshooting
+
+### Images not loading with authentication middleware
+
+If images fail to load on authenticated routes, ensure `_next/image` is excluded from the matcher:
+
+```tsx filename="middleware.ts"
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
+}
+```
+
+When middleware runs on image optimization requests, it can interfere with internal request forwarding. For protected images, create a secure API route with domain allowlisting to prevent SSRF attacks.
+
+### Middleware not running on routes
+
+Check your matcher pattern includes the intended paths:
+
+```tsx filename="middleware.ts"
+export const config = {
+  // Matches /dashboard and sub-routes
+  matcher: '/dashboard/:path*',
+
+  // Multiple paths
+  matcher: ['/dashboard/:path*', '/admin/:path*'],
+}
+```
+
+Use logging to debug which routes middleware processes:
+
+```tsx filename="middleware.ts"
+export function middleware(request: NextRequest) {
+  console.log('Processing:', request.nextUrl.pathname)
+  // ...
+}
+```
+
+### Performance issues
+
+Avoid database calls in middleware. Use cookie-based optimistic checks:
+
+```tsx filename="middleware.ts"
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get('session')?.value
+
+  if (!token) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  return NextResponse.next()
+}
+```
+
+Perform full authentication in page components or API routes.
+
+### Edge Runtime compatibility
+
+Use Edge Runtime compatible libraries:
+
+```bash
+# Compatible
+npm install jose
+
+# Not compatible
+npm install jsonwebtoken
+```
+
+Move complex logic to API routes for Node.js runtime access.
+
 ## Version history
 
 | Version   | Changes                                                                                       |

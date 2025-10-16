@@ -1124,6 +1124,60 @@ While Middleware can be useful for initial checks, it should not be your only li
 > - Middleware uses the [Edge Runtime](/docs/app/api-reference/edge), check if your Auth library and session management library are compatible.
 > - You can use the `matcher` property in the Middleware to specify which routes Middleware should run on. Although, for auth, it's recommended Middleware runs on all routes.
 
+#### Middleware Matcher
+
+The matcher pattern excludes specific paths from middleware execution:
+
+```tsx filename="middleware.ts"
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
+}
+```
+
+The pattern excludes:
+
+- `api` - API routes
+- `_next/static` - Static assets
+- `_next/image` - Image Optimization API
+- `.*\\.png$` - Image files
+
+> **Good to know**: Excluding `_next/image` prevents middleware from interfering with image optimization requests, which can cause images to fail loading on authenticated routes.
+
+#### Protected Images and Middleware
+
+The Image Optimizer doesn't forward client credentials when fetching internal images. If these images are protected by middleware, the requests will be rejected due to missing authentication.
+
+If your middleware rejects all requests without proper credentials, then images in your public folder may also be affected when accessed through the Image Optimization API.
+
+For protected images, use a dedicated API route:
+
+```tsx filename="app/api/image/route.ts"
+import { NextRequest, NextResponse } from 'next/server'
+import { verifySession } from '@/app/lib/dal'
+import { isAllowedImageUrl } from '@/app/lib/image-security'
+
+export async function GET(request: NextRequest) {
+  const session = await verifySession()
+  if (!session) {
+    return new NextResponse('Unauthorized', { status: 401 })
+  }
+
+  const imageUrl = request.nextUrl.searchParams.get('url')
+  if (!imageUrl || !isAllowedImageUrl(imageUrl)) {
+    return new NextResponse('Invalid image source', { status: 400 })
+  }
+
+  const response = await fetch(imageUrl)
+  if (!response.ok) {
+    return new NextResponse('Failed to fetch image', { status: 404 })
+  }
+
+  return new NextResponse(response.body, {
+    headers: { 'Content-Type': response.headers.get('Content-Type') },
+  })
+}
+```
+
 <AppOnly>
 
 ### Creating a Data Access Layer (DAL)
