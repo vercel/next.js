@@ -136,6 +136,10 @@ const DOMContentLoaded = function () {
     initialServerDataWriter.close()
     initialServerDataFlushed = true
     initialServerDataBuffer = undefined
+
+    // Also clear the global data array to release memory. Otherwise it will be held indefinitely.
+    delete self.__next_f
+    nextServerDataLoadingGlobal = undefined
   }
   initialServerDataLoaded = true
 }
