@@ -15,6 +15,7 @@ import {
   type NavigateAction,
   type ReadonlyReducerState,
   type ReducerState,
+  PrefetchKind,
 } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
@@ -25,6 +26,8 @@ import { listenForDynamicRequest, startPPRNavigation } from '../ppr-navigations'
 import {
   getOrCreatePrefetchCacheEntry,
   prunePrefetchCache,
+  createSeededPrefetchCacheEntry,
+  STATIC_STALETIME_MS,
 } from '../prefetch-cache-utils'
 import { clearCacheNodeDataForSegmentPath } from '../clear-cache-node-data-for-segment-path'
 import { handleAliasedPrefetchEntry } from '../aliased-prefetch-navigations'
@@ -510,6 +513,36 @@ export function navigateReducer(
       mutable.scrollableSegments = scrollableSegments
       mutable.hashFragment = hash
       mutable.shouldScroll = shouldScroll
+
+      if (
+        process.env.NODE_ENV !== 'development' &&
+        !process.env.__NEXT_CLIENT_SEGMENT_CACHE
+      ) {
+        const hasPrerenderedResponse = flightData.some(
+          (normalizedFlightData) => {
+            return (
+              normalizedFlightData.isRootRender &&
+              normalizedFlightData.seedData !== null
+            )
+          }
+        )
+
+        createSeededPrefetchCacheEntry({
+          url,
+          data: {
+            flightData,
+            canonicalUrl: canonicalUrlOverride,
+            couldBeIntercepted: false,
+            prerendered: hasPrerenderedResponse,
+            postponed,
+            staleTime: hasPrerenderedResponse ? STATIC_STALETIME_MS : -1,
+          },
+          tree: state.tree,
+          prefetchCache: state.prefetchCache,
+          nextUrl: state.nextUrl,
+          kind: hasPrerenderedResponse ? PrefetchKind.FULL : PrefetchKind.AUTO,
+        })
+      }
 
       return handleMutable(state, mutable)
     },
