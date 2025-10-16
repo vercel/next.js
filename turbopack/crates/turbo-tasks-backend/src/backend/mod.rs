@@ -467,7 +467,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let (mut task, reader_task) = if self.should_track_dependencies()
+            && !matches!(options.tracking, ReadTracking::Untracked)
+            && let Some(reader_id) = reader
+            && reader_id != task_id
+        {
+            // Having a task_pair here is not optimal, but otherwise this would lead to a race
+            // condition. See below.
+            // TODO(sokra): solve that in a more performant way.
+            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+            (task, Some(reader))
+        } else {
+            (ctx.task(task_id, TaskDataCategory::All), None)
+        };
 
         fn listen_to_done_event<B: BackingStorage>(
             this: &TurboTasksBackendInner<B>,
@@ -710,18 +722,22 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     )))
                 }
             };
-            if self.should_track_dependencies()
-                && let Some(reader) = reader
+            if let Some(mut reader_task) = reader_task
                 && options.tracking.should_track(result.is_err())
                 && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
+                let reader = reader.unwrap();
                 let _ = task.add(CachedDataItem::OutputDependent {
                     task: reader,
                     value: (),
                 });
                 drop(task);
 
-                let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
+                // Note that there is a potential race condition here, if the reader task would be
+                // locked after the task is unlocked. The output might be invalidated at
+                // this point, but it wouldn't find the backward dependency or see an outdated
+                // dependency. This way it would loose an invalidation.
+
                 if reader_task
                     .remove(&CachedDataItemKey::OutdatedOutputDependency { target: task_id })
                     .is_none()
@@ -735,6 +751,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             return result;
         }
+        drop(reader_task);
 
         let note = move || {
             let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
@@ -771,29 +788,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> Result<Result<TypedCellContent, EventListener>> {
         self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
 
-        fn add_cell_dependency<B: BackingStorage>(
-            backend: &TurboTasksBackendInner<B>,
+        fn add_cell_dependency(
+            task_id: TaskId,
             mut task: impl TaskGuard,
             reader: Option<TaskId>,
+            reader_task: Option<impl TaskGuard>,
             cell: CellId,
-            task_id: TaskId,
-            ctx: &mut impl ExecuteContext<'_>,
         ) {
-            if backend.should_track_dependencies()
-                && let Some(reader) = reader
-                // We never want to have a dependency on ourselves, otherwise we end up in a
-                // loop of re-executing the same task.
-                && reader != task_id
+            if let Some(mut reader_task) = reader_task
                 && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
                 let _ = task.add(CachedDataItem::CellDependent {
                     cell,
-                    task: reader,
+                    task: reader.unwrap(),
                     value: (),
                 });
                 drop(task);
 
-                let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
                 let target = CellRef {
                     task: task_id,
                     cell,
@@ -808,7 +819,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        let (mut task, reader_task) = if self.should_track_dependencies()
+            && matches!(options.tracking, ReadTracking::Tracked)
+            && let Some(reader_id) = reader
+            && reader_id != task_id
+        {
+            // Having a task_pair here is not optimal, but otherwise this would lead to a race
+            // condition. See below.
+            // TODO(sokra): solve that in a more performant way.
+            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::Data);
+            (task, Some(reader))
+        } else {
+            (ctx.task(task_id, TaskDataCategory::Data), None)
+        };
+
         let content = if options.final_read_hint {
             remove!(task, CellData { cell })
         } else if let Some(content) = get!(task, CellData { cell }) {
@@ -819,7 +843,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         if let Some(content) = content {
             if options.tracking.should_track(false) {
-                add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+                add_cell_dependency(task_id, task, reader, reader_task, cell);
             }
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
@@ -846,7 +870,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         .copied();
         let Some(max_id) = max_id else {
             if options.tracking.should_track(true) {
-                add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+                add_cell_dependency(task_id, task, reader, reader_task, cell);
             }
             bail!(
                 "Cell {cell:?} no longer exists in task {} (no cell of this type exists)",
@@ -855,7 +879,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         if cell.index >= max_id {
             if options.tracking.should_track(true) {
-                add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+                add_cell_dependency(task_id, task, reader, reader_task, cell);
             }
             bail!(
                 "Cell {cell:?} no longer exists in task {} (index out of bounds)",
