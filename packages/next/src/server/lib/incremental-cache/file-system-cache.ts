@@ -293,16 +293,6 @@ export default class FileSystemCache implements CacheHandler {
       }
     }
 
-    // If enabled, this will return the possibly stale data without validating
-    // that the tags have expired or not yet been revalidated.
-    if ('allowStale' in ctx && ctx.allowStale) {
-      if (FileSystemCache.debug) {
-        console.log('FileSystemCache: allow stale', ctx.allowStale)
-      }
-
-      return data ?? null
-    }
-
     if (
       data?.value?.kind === CachedRouteKind.APP_PAGE ||
       data?.value?.kind === CachedRouteKind.APP_ROUTE ||
