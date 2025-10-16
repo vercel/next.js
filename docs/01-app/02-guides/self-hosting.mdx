@@ -14,7 +14,7 @@ When [deploying](/docs/app/getting-started/deploying) your Next.js app, you may 
 
 [Image Optimization](/docs/app/api-reference/components/image) through `next/image` works self-hosted with zero configuration when deploying using `next start`. If you would prefer to have a separate service to optimize images, you can [configure an image loader](/docs/app/api-reference/components/image#loader).
 
-Image Optimization can be used with a [static export](/docs/app/guides/static-exports#image-optimization) by defining a custom image loader in `next.config.js`. Note that images are optimized at runtime, not during the build.
+Image Optimization can be used with a [static export](/docs/app/guides/static-exports#image-optimization) by defining a custom image loader in `next.config.js`. Note that images are optimized at runtime, not during the build. The optimization is done by the custom image loader, which is typically an external service.
 
 > **Good to know:**
 >
@@ -24,11 +24,25 @@ Image Optimization can be used with a [static export](/docs/app/guides/static-ex
 
 ## Middleware
 
+<AppOnly>
+
 [Middleware](/docs/app/api-reference/file-conventions/middleware) works self-hosted with zero configuration when deploying using `next start`. Since it requires access to the incoming request, it is not supported when using a [static export](/docs/app/guides/static-exports).
 
-Middleware uses the [Edge runtime](/docs/app/api-reference/edge), a subset of all available Node.js APIs to help ensure low latency, since it may run in front of every route or asset in your application. If you do not want this, you can use the [full Node.js runtime](/blog/next-15-2#nodejs-middleware-experimental) to run Middleware.
+Middleware uses the [Edge runtime](/docs/app/api-reference/edge), a subset of all available Node.js APIs to help ensure low latency, since it may run in front of every route or asset in your application. If you do not want this, you can use the [full Node.js runtime](/docs/app/api-reference/file-conventions/middleware#runtime) to run Middleware.
 
-If you are looking to add logic (or use an external package) that requires all Node.js APIs, you might be able to move this logic to a [layout](/docs/app/api-reference/file-conventions/layout) as a [Server Component](/docs/app/getting-started/server-and-client-components). For example, checking [headers](/docs/app/api-reference/functions/headers) and [redirecting](/docs/app/api-reference/functions/redirect). You can also use headers, cookies, or query parameters to [redirect](/docs/app/api-reference/config/next-config-js/redirects#header-cookie-and-query-matching) or [rewrite](/docs/app/api-reference/config/next-config-js/rewrites#header-cookie-and-query-matching) through `next.config.js`. If that does not work, you can also use a [custom server](/docs/pages/guides/custom-server).
+If you are looking to add logic (or use an external package) that requires all Node.js APIs, you might be able to move this logic to a [layout](/docs/app/api-reference/file-conventions/layout) as a [Server Component](/docs/app/getting-started/server-and-client-components). For example, checking [headers](/docs/app/api-reference/functions/headers) and [redirecting](/docs/app/api-reference/functions/redirect). You can also use headers, cookies, or query parameters to [redirect](/docs/app/api-reference/config/next-config-js/redirects#header-cookie-and-query-matching) or [rewrite](/docs/app/api-reference/config/next-config-js/rewrites#header-cookie-and-query-matching) through `next.config.js`. If that does not work, you can also use a [custom server](/docs/app/guides/custom-server).
+
+</AppOnly>
+
+<PagesOnly>
+
+[Middleware](/docs/pages/api-reference/file-conventions/middleware) works self-hosted with zero configuration when deploying using `next start`. Since it requires access to the incoming request, it is not supported when using a [static export](/docs/pages/guides/static-exports).
+
+Middleware uses the Edge runtime by default. If you prefer, you can use the Node.js runtime to run Middleware, but this is experimental and not recommended for production; it may require using the `next@canary` release. Learn more in the [Middleware documentation](/docs/pages/api-reference/file-conventions/middleware).
+
+If you are looking to add logic (or use an external package) that requires all Node.js APIs, consider moving this logic to [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props) or [API Routes](/docs/pages/building-your-application/routing/api-routes). You can also use headers, cookies, or query parameters to [redirect](/docs/pages/api-reference/config/next-config-js/redirects#header-cookie-and-query-matching) or [rewrite](/docs/pages/api-reference/config/next-config-js/rewrites#header-cookie-and-query-matching) through `next.config.js`. If that does not work, you can also use a [custom server](/docs/pages/guides/custom-server).
+
+</PagesOnly>
 
 ## Environment Variables
 
@@ -44,7 +58,7 @@ To read runtime environment variables, we recommend using `getServerSideProps` o
 
 <AppOnly>
 
-You safely read environment variables on the server during dynamic rendering.
+You can safely read environment variables on the server during dynamic rendering.
 
 ```tsx filename="app/page.ts" switcher
 import { connection } from 'next/server'
@@ -91,7 +105,21 @@ You can configure the Next.js cache location if you want to persist cached pages
 ### Automatic Caching
 
 - Next.js sets the `Cache-Control` header of `public, max-age=31536000, immutable` to truly immutable assets. It cannot be overridden. These immutable files contain a SHA-hash in the file name, so they can be safely cached indefinitely. For example, [Static Image Imports](/docs/app/getting-started/images#local-images). You can [configure the TTL](/docs/app/api-reference/components/image#minimumcachettl) for images.
+
+<AppOnly>
+
+- Revalidation (ISR) for statically rendered routes with a `revalidate` value include `Cache-Control: s-maxage=<revalidate>, stale-while-revalidate`. Configure the revalidation time per route with [`export const revalidate`](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) or per request with [`fetch(..., { next: { revalidate } })`](/docs/app/api-reference/functions/fetch). Values are in seconds. Setting `revalidate = false` caches indefinitely.
+
+</AppOnly>
+
+<PagesOnly>
+
 - Incremental Static Regeneration (ISR) sets the `Cache-Control` header of `s-maxage: <revalidate in getStaticProps>, stale-while-revalidate`. This revalidation time is defined in your [`getStaticProps` function](/docs/pages/building-your-application/data-fetching/get-static-props) in seconds. If you set `revalidate: false`, it will default to a one-year cache duration.
+
+</PagesOnly>
+
+- You can configure the `stale-while-revalidate` window with the [`expireTime` option](/docs/app/api-reference/config/next-config-js/expireTime). When set, Next.js computes `stale-while-revalidate` as `expireTime - revalidate` for ISR/static responses where `expireTime > revalidate`.
+
 - Dynamically rendered pages set a `Cache-Control` header of `private, no-cache, no-store, max-age=0, must-revalidate` to prevent user-specific data from being cached. This applies to both the App Router and Pages Router. This also includes [Draft Mode](/docs/app/guides/draft-mode).
 
 ### Static Assets
@@ -116,6 +144,10 @@ module.exports = {
 Then, create `cache-handler.js` in the root of your project, for example:
 
 ```jsx filename="cache-handler.js"
+// This is an illustrative code snippet.
+// Your production deployment should use a solution,
+// that makes the cache persistent
+// and available to multiple instances.
 const cache = new Map()
 
 module.exports = class CacheHandler {
@@ -216,11 +248,31 @@ module.exports = {
 
 When using a CDN in front on your Next.js application, the page will include `Cache-Control: private` response header when dynamic APIs are accessed. This ensures that the resulting HTML page is marked as non-cacheable. If the page is fully prerendered to static, it will include `Cache-Control: public` to allow the page to be cached on the CDN.
 
-If you don't need a mix of both static and dynamic components, you can make your entire route static and cache the output HTML on a CDN. This Automatic Static Optimization is the default behavior when running `next build` if dynamic APIs are not used.
+If you don't need a mix of both static and dynamic components, you can make your entire route static and cache the output HTML on a CDN. Static rendering is the default behavior when running `next build` if [dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering) are **NOT** used.
+
+Each deployment produces a new build ID and asset URLs under `/_next/` (for example, `/_next/<buildId>/...`). CDNs treat these as new resources, so assets typically require no purge. On platforms with per-deployment HTML caching, switching the alias routes traffic to the new deployment’s cache namespace. Rollbacks simply repoint the alias.
+
+For static HTML where `revalidate` is `false`, the response includes `s-maxage=<ONE_YEAR>` for shared caches by default. To ensure freshness at the edge, set a route-level `export const revalidate = <seconds>` or use `fetch(..., { next: { revalidate } })`. To emit a `stale-while-revalidate` window, configure [`expireTime`](/docs/app/api-reference/config/next-config-js/expireTime) so `stale-while-revalidate = expireTime - revalidate` when `expireTime > revalidate`.
+
+For other CDNs add a deploy step that purges HTML routes (or uses surrogate keys/tags) when you cut over to a new build. Immutable assets (hashed URLs) generally don’t need purging. If you prefer time-based freshness without purging, use `revalidate` and optional `expireTime` to control CDN TTL and SWR behavior.
 
 As Partial Prerendering moves to stable, we will provide support through the Deployment Adapters API.
 
 </AppOnly>
+
+<PagesOnly>
+
+## Usage with CDNs
+
+When using a CDN in front of your Next.js application, pages rendered with dynamic data should not be cached by shared caches. Fully static pages can be cached by the CDN.
+
+Each deployment produces a new build ID and asset URLs under `/_next/`. Assets are immutable and typically need no purge; HTML caching behavior depends on your CDN. If your CDN doesn’t isolate per-deployment HTML, add a purge step on deploy.
+
+Set `revalidate` in `getStaticProps` to include `s-maxage=<revalidate>` in the HTML response for shared caches. To emit a `stale-while-revalidate` window, configure [`expireTime`](/docs/app/api-reference/config/next-config-js/expireTime) so `stale-while-revalidate = expireTime - revalidate` when `expireTime > revalidate`.
+
+For other CDNs prefer purge-by-path or surrogate-key purges for HTML on deploy. Rely on immutable, hashed asset URLs for JS/CSS/images. If you want bounded staleness without purging, use `revalidate` and `expireTime`.
+
+</PagesOnly>
 
 <AppOnly>
 
