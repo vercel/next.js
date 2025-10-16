@@ -417,7 +417,6 @@ async fn parse_file_content(
                     | EcmascriptModuleAssetType::TypescriptDeclaration
             );
 
-            println!("{ident} helpers: {inline_helpers}");
             let helpers = Helpers::new(!inline_helpers);
             let span = tracing::trace_span!("swc_resolver").entered();
 
