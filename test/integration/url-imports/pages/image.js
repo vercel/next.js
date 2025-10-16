@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import logo from 'https://github.com/vercel/next.js/raw/canary/test/integration/url/public/vercel.png?_=image'
+import logo from 'https://github.com/vercel/next.js/raw/next-15-5/test/integration/url/public/vercel.png?_=image'
 
 export default () => (
   <div>
