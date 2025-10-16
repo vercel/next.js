@@ -16,34 +16,30 @@ const SECONDS_THRESHOLD_LOW_NANOSECONDS = 2_000_000_000 // 2 seconds in nanoseco
 const MILLISECONDS_THRESHOLD_NANOSECONDS = 1_000_000 // 1 millisecond in nanoseconds
 
 export function durationToString(compilerDuration: number) {
-  let durationString
   if (compilerDuration > MINUTES_THRESHOLD_SECONDS) {
-    durationString = `${(compilerDuration / SECONDS_IN_MINUTE).toFixed(1)}min`
+    return `${(compilerDuration / SECONDS_IN_MINUTE).toFixed(1)}min`
   } else if (compilerDuration > SECONDS_THRESHOLD_HIGH) {
-    durationString = `${compilerDuration.toFixed(0)}s`
+    return `${compilerDuration.toFixed(0)}s`
   } else if (compilerDuration > SECONDS_THRESHOLD_LOW) {
-    durationString = `${compilerDuration.toFixed(1)}s`
+    return `${compilerDuration.toFixed(1)}s`
   } else {
-    durationString = `${(compilerDuration * MILLISECONDS_PER_SECOND).toFixed(1)}ms`
+    return `${(compilerDuration * MILLISECONDS_PER_SECOND).toFixed(1)}ms`
   }
-  return durationString
 }
 
 function durationToStringWithNanoseconds(durationBigInt: bigint): string {
-  let durationString
   const duration = Number(durationBigInt)
   if (duration > MINUTES_THRESHOLD_NANOSECONDS) {
-    durationString = `${(duration / NANOSECONDS_IN_MINUTE).toFixed(1)}min`
+    return `${(duration / NANOSECONDS_IN_MINUTE).toFixed(1)}min`
   } else if (duration > SECONDS_THRESHOLD_HIGH_NANOSECONDS) {
-    durationString = `${(duration / NANOSECONDS_PER_SECOND).toFixed(0)}s`
+    return `${(duration / NANOSECONDS_PER_SECOND).toFixed(0)}s`
   } else if (duration > SECONDS_THRESHOLD_LOW_NANOSECONDS) {
-    durationString = `${(duration / NANOSECONDS_PER_SECOND).toFixed(1)}s`
+    return `${(duration / NANOSECONDS_PER_SECOND).toFixed(1)}s`
   } else if (duration > MILLISECONDS_THRESHOLD_NANOSECONDS) {
-    durationString = `${(duration / NANOSECONDS_PER_MILLISECOND).toFixed(0)}ms`
+    return `${(duration / NANOSECONDS_PER_MILLISECOND).toFixed(0)}ms`
   } else {
-    durationString = `${(duration / NANOSECONDS_PER_MICROSECOND).toFixed(0)}µs`
+    return `${(duration / NANOSECONDS_PER_MICROSECOND).toFixed(0)}µs`
   }
-  return durationString
 }
 
 export function hrtimeToSeconds(hrtime: [number, number]): number {
