@@ -139,7 +139,7 @@ const DOMContentLoaded = function () {
 
     // Also clear the global data array to release memory. Otherwise it will be held indefinitely.
     delete self.__next_f
-    nextServerDataLoadingGlobal = undefined
+    nextServerDataLoadingGlobal.length = 0
   }
   initialServerDataLoaded = true
 }
