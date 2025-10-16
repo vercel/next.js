@@ -1726,6 +1726,42 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
                 return Ok(());
             }
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeWorkerConstructor)
+                if analysis.analyze_mode.is_tracing() =>
+            {
+                // Only for tracing, not for bundling
+                let args = linked_args(args).await?;
+                if let Some(filename) = args.first() {
+                    let pat = js_value_to_pattern(filename);
+                    if !pat.has_constant_parts() {
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("new Worker({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                    }
+
+                    analysis.add_reference_code_gen(
+                        WorkerAssetReference::new(
+                            origin,
+                            Request::parse(pat).to_resolved().await?,
+                            issue_source(source, span),
+                            in_try,
+                        ),
+                        ast_path.to_vec().into(),
+                    );
+
+                    return Ok(());
+                }
+                // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
+                return Ok(());
+            }
             _ => {}
         }
 
@@ -3147,7 +3183,7 @@ async fn value_visitor_inner(
             ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-            "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+            "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
             _ => return Ok((v, false)),
