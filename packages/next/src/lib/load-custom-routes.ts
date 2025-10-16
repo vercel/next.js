@@ -31,6 +31,11 @@ export type Rewrite = {
    * @internal - used internally for routing
    */
   internal?: boolean
+
+  /**
+   * @internal - used internally for routing
+   */
+  regex?: string
 }
 
 export type Header = {
@@ -55,6 +60,7 @@ export type Redirect = {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+  priority?: boolean
 
   /**
    * @internal - used internally for routing
@@ -740,6 +746,7 @@ export default async function loadCustomRoutes(
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
           // don't run this redirect for _next/data requests
           missing: [
             {
@@ -754,6 +761,7 @@ export default async function loadCustomRoutes(
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         }
       )
       if (config.basePath) {
@@ -764,6 +772,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         })
       }
     } else {
@@ -773,6 +782,7 @@ export default async function loadCustomRoutes(
         permanent: true,
         locale: config.i18n ? false : undefined,
         internal: true,
+        priority: true,
       })
       if (config.basePath) {
         redirects.unshift({
@@ -782,6 +792,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
+          priority: true,
         })
       }
     }

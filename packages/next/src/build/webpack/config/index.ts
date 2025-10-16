@@ -19,7 +19,6 @@ export async function buildConfiguration(
     isEdgeRuntime,
     targetWeb,
     assetPrefix,
-    deploymentId,
     sassOptions,
     productionBrowserSourceMaps,
     future,
@@ -37,13 +36,13 @@ export async function buildConfiguration(
     isEdgeRuntime: boolean
     targetWeb: boolean
     assetPrefix: string
-    deploymentId: string | undefined
     sassOptions: any
     productionBrowserSourceMaps: boolean
     transpilePackages: NextConfigComplete['transpilePackages']
+    // @ts-expect-error TODO: remove any
     future: NextConfigComplete['future']
     experimental: NextConfigComplete['experimental']
-    disableStaticImages: NextConfigComplete['disableStaticImages']
+    disableStaticImages: NextConfigComplete['images']['disableStaticImages']
     serverSourceMaps: NextConfigComplete['experimental']['serverSourceMaps']
   }
 ): Promise<webpack.Configuration> {
@@ -63,7 +62,6 @@ export async function buildConfiguration(
         ? assetPrefix.slice(0, -1)
         : assetPrefix
       : '',
-    deploymentId,
     sassOptions,
     productionBrowserSourceMaps,
     transpilePackages,

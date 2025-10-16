@@ -29,4 +29,4 @@ variable = (???*0* | "true")
 - *0* ???*1*["variable"]
   ⚠️  unknown object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet

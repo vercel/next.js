@@ -6,13 +6,14 @@ on:
   workflow_dispatch:
     inputs:
       releaseType:
-        description: stable, canary, or release candidate?
+        description: stable, canary, beta, or release candidate?
         required: true
         type: choice
         options:
           - canary
           - stable
           - release-candidate
+          - beta
 
       semverType:
         description: semver type?
@@ -53,7 +54,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           check-latest: true
 
       - name: Clone Next.js repository

@@ -1,16 +1,18 @@
 import type {
   ActionFlightResponse,
   ActionResult,
-} from '../../../../server/app-render/types'
+} from '../../../../shared/lib/app-router-types'
 import { callServer } from '../../../app-call-server'
 import { findSourceMapURL } from '../../../app-find-source-map-url'
 import {
   ACTION_HEADER,
   NEXT_ACTION_NOT_FOUND_HEADER,
   NEXT_IS_PRERENDER_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
+  NEXT_REQUEST_ID_HEADER,
 } from '../../app-router-headers'
 import { UnrecognizedActionError } from '../../unrecognized-action-error'
 
@@ -34,7 +36,7 @@ import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
@@ -59,6 +61,19 @@ import { revalidateEntireCache } from '../../segment-cache'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
+
+let createDebugChannel:
+  | typeof import('../../../dev/debug-channel').createDebugChannel
+  | undefined
+
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEBUG_CHANNEL
+) {
+  createDebugChannel = (
+    require('../../../dev/debug-channel') as typeof import('../../../dev/debug-channel')
+  ).createDebugChannel
+}
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -89,27 +104,36 @@ async function fetchServerAction(
 
   const body = await encodeReply(usedArgs, { temporaryReferences })
 
-  const res = await fetch(state.canonicalUrl, {
-    method: 'POST',
-    headers: {
-      Accept: RSC_CONTENT_TYPE_HEADER,
-      [ACTION_HEADER]: actionId,
-      [NEXT_ROUTER_STATE_TREE_HEADER]: prepareFlightRouterStateForRequest(
-        state.tree
-      ),
-      ...(process.env.NEXT_DEPLOYMENT_ID
-        ? {
-            'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
-          }
-        : {}),
-      ...(nextUrl
-        ? {
-            [NEXT_URL]: nextUrl,
-          }
-        : {}),
-    },
-    body,
-  })
+  const headers: Record<string, string> = {
+    Accept: RSC_CONTENT_TYPE_HEADER,
+    [ACTION_HEADER]: actionId,
+    [NEXT_ROUTER_STATE_TREE_HEADER]: prepareFlightRouterStateForRequest(
+      state.tree
+    ),
+  }
+
+  if (process.env.NEXT_DEPLOYMENT_ID) {
+    headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
+  }
+
+  if (nextUrl) {
+    headers[NEXT_URL] = nextUrl
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    if (self.__next_r) {
+      headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
+    }
+
+    // Create a new request ID for the server action request. The server uses
+    // this to tag debug information sent via WebSocket to the client, which
+    // then routes those chunks to the debug channel associated with this ID.
+    headers[NEXT_REQUEST_ID_HEADER] = crypto
+      .getRandomValues(new Uint32Array(1))[0]
+      .toString(16)
+  }
+
+  const res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
 
   // Handle server actions that the server didn't recognize.
   const unrecognizedActionHeader = res.headers.get(NEXT_ACTION_NOT_FOUND_HEADER)
@@ -176,10 +200,16 @@ async function fetchServerAction(
 
   let actionResult: FetchServerActionResult['actionResult']
   let actionFlightData: FetchServerActionResult['actionFlightData']
+
   if (isRscResponse) {
     const response: ActionFlightResponse = await createFromFetch(
       Promise.resolve(res),
-      { callServer, findSourceMapURL, temporaryReferences }
+      {
+        callServer,
+        findSourceMapURL,
+        temporaryReferences,
+        debugChannel: createDebugChannel && createDebugChannel(headers),
+      }
     )
 
     // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
@@ -227,8 +257,14 @@ export function serverActionReducer(
   // Otherwise the server action might be intercepted with the wrong action id
   // (ie, one that corresponds with the intercepted route)
   const nextUrl =
-    state.nextUrl && hasInterceptionRouteInCurrentTree(state.tree)
-      ? state.nextUrl
+    // We always send the last next-url, not the current when
+    // performing a dynamic request. This is because we update
+    // the next-url after a navigation, but we want the same
+    // interception route to be matched that used the last
+    // next-url.
+    (state.previousNextUrl || state.nextUrl) &&
+    hasInterceptionRouteInCurrentTree(state.tree)
+      ? state.previousNextUrl || state.nextUrl
       : null
 
   const navigatedAt = Date.now()
@@ -289,6 +325,14 @@ export function serverActionReducer(
         revalidatedParts.paths.length > 0 ||
         revalidatedParts.tag ||
         revalidatedParts.cookie
+
+      // Store whether this action triggered any revalidation
+      // The action queue will use this information to potentially
+      // trigger a refresh action if the action was discarded
+      // (ie, due to a navigation, before the action completed)
+      if (actionRevalidated) {
+        action.didRevalidate = true
+      }
 
       for (const normalizedFlightData of flightData) {
         const {
@@ -395,6 +439,7 @@ export function serverActionReducer(
               // TODO: We should be able to set this if the server action
               // returned a fully static response.
               staleTime: -1,
+              debugInfo: null,
             },
             tree: state.tree,
             prefetchCache: state.prefetchCache,

@@ -129,7 +129,7 @@ pub async fn children_from_output_assets(
     for &reference in &*references {
         children.insert((
             key.clone(),
-            IntrospectableOutputAsset::new(*ResolvedVc::upcast(reference))
+            IntrospectableOutputAsset::new(*reference)
                 .to_resolved()
                 .await?,
         ));

@@ -393,7 +393,11 @@ Calling `redirect` [throws](/docs/app/api-reference/functions/redirect#behavior)
 
 ### Cookies
 
-You can `get`, `set`, and `delete` cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API:
+You can `get`, `set`, and `delete` cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API.
+
+When you [set or delete](/docs/app/api-reference/functions/cookies#understanding-cookie-behavior-in-server-actions) a cookie in a Server Action, Next.js re-renders the current page and its layouts on the server so the **UI reflects the new cookie value**.
+
+> **Good to know**: The server update applies to the current React tree, re-rendering, mounting, or unmounting components, as needed. Client state is preserved for re-rendered components, and effects re-run if their dependencies changed.
 
 ```ts filename="app/actions.ts" switcher
 'use server'

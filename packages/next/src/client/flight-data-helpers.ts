@@ -5,8 +5,8 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   Segment,
-} from '../server/app-render/types'
-import type { HeadData } from '../shared/lib/app-router-context.shared-runtime'
+  HeadData,
+} from '../shared/lib/app-router-types'
 import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
 
 export type NormalizedFlightData = {

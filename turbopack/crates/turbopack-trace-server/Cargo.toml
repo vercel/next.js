@@ -14,7 +14,7 @@ bench = false
 [dependencies]
 anyhow = { workspace = true, features = ["backtrace"] }
 either = { workspace = true }
-flate2 = { version = "1.0.28" }
+flate2 = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }

@@ -14,7 +14,7 @@ use crate::{
     id::TraitTypeId,
     macro_helpers::NativeFunction,
     magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed},
-    registry::{self, register_trait_type, register_value_type},
+    registry,
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
 };
@@ -34,7 +34,9 @@ type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
 /// Contains a list of traits and trait methods that are available on that type.
 pub struct ValueType {
     /// A readable name of the type
-    pub name: String,
+    pub name: &'static str,
+    /// The fully qualitifed global name of the type.
+    pub global_name: &'static str,
     /// Set of traits available
     traits: AutoSet<TraitTypeId>,
     /// List of trait methods available
@@ -87,7 +89,7 @@ impl Debug for ValueType {
 
 impl Display for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.name)
+        f.write_str(self.name)
     }
 }
 
@@ -105,9 +107,10 @@ pub fn any_as_serialize<T: Any + Serialize + Send + Sync + 'static>(
 
 impl ValueType {
     /// This is internally used by `#[turbo_tasks::value]`
-    pub fn new<T: VcValueType>() -> Self {
+    pub fn new<T: VcValueType>(global_name: &'static str) -> Self {
         Self {
-            name: std::any::type_name::<T>().to_string(),
+            name: std::any::type_name::<T>(),
+            global_name,
             traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
@@ -119,9 +122,12 @@ impl ValueType {
     /// This is internally used by `#[turbo_tasks::value]`
     pub fn new_with_any_serialization<
         T: VcValueType + Any + Serialize + for<'de> Deserialize<'de>,
-    >() -> Self {
+    >(
+        global_name: &'static str,
+    ) -> Self {
         Self {
-            name: std::any::type_name::<T>().to_string(),
+            name: std::any::type_name::<T>(),
+            global_name,
             traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
@@ -165,15 +171,12 @@ impl ValueType {
         self.any_serialization.map(|s| s.1)
     }
 
-    /// This is internally used by `#[turbo_tasks::value_impl]`
-    pub fn register_trait_method(
+    pub(crate) fn register_trait_method(
         &mut self,
-        trait_type: TraitTypeId,
-        name: &str,
+        trait_method: &'static TraitMethod,
         native_fn: &'static NativeFunction,
     ) {
-        self.trait_methods
-            .insert(registry::get_trait(trait_type).get(name), native_fn);
+        self.trait_methods.insert(trait_method, native_fn);
     }
 
     pub fn get_trait_method(
@@ -186,8 +189,7 @@ impl ValueType {
         }
     }
 
-    /// This is internally used by `#[turbo_tasks::value_impl]`
-    pub fn register_trait(&mut self, trait_type: TraitTypeId) {
+    pub(crate) fn register_trait(&mut self, trait_type: TraitTypeId) {
         self.traits.insert(trait_type);
     }
 
@@ -198,18 +200,12 @@ impl ValueType {
     pub fn traits_iter(&self) -> impl Iterator<Item = TraitTypeId> + '_ {
         self.traits.iter().cloned()
     }
-
-    pub fn register(
-        &'static self,
-        global_name: &'static str,
-        register_traits: impl FnOnce(crate::ValueTypeId),
-    ) {
-        let id = register_value_type(global_name, self);
-        if let Some(id) = id {
-            register_traits(id);
-        }
-    }
 }
+
+// A collectable struct for value types
+pub struct CollectableValueType(pub &'static once_cell::sync::Lazy<ValueType>);
+
+inventory::collect! {CollectableValueType}
 
 pub struct TraitMethod {
     pub(crate) trait_name: &'static str,
@@ -246,9 +242,11 @@ impl TraitMethod {
         )
     }
 }
+
 #[derive(Debug)]
 pub struct TraitType {
     pub name: &'static str,
+    pub global_name: &'static str,
     pub(crate) methods: AutoMap<&'static str, TraitMethod>,
 }
 
@@ -273,44 +271,38 @@ impl PartialEq for TraitType {
 }
 
 impl TraitType {
-    pub fn new(name: &'static str) -> Self {
+    pub fn new(
+        name: &'static str,
+        global_name: &'static str,
+        trait_methods: Vec<(&'static str, Option<&'static NativeFunction>)>,
+    ) -> Self {
+        let mut methods = AutoMap::new();
+        for (method_name, default_method) in trait_methods {
+            let prev = methods.insert(
+                method_name,
+                TraitMethod {
+                    trait_name: name,
+                    method_name,
+                    default_method,
+                },
+            );
+            debug_assert!(
+                prev.is_none(),
+                "duplicate methods {method_name} registered on {global_name}"
+            );
+        }
         Self {
             name,
-            methods: AutoMap::new(),
+            global_name,
+            methods,
         }
-    }
-
-    pub fn register_trait_method(&mut self, name: &'static str) {
-        self.methods.insert(
-            name,
-            TraitMethod {
-                trait_name: self.name,
-                method_name: name,
-                default_method: None,
-            },
-        );
-    }
-
-    pub fn register_default_trait_method(
-        &mut self,
-        name: &'static str,
-        native_fn: &'static NativeFunction,
-    ) {
-        self.methods.insert(
-            name,
-            TraitMethod {
-                trait_name: self.name,
-                method_name: name,
-                default_method: Some(native_fn),
-            },
-        );
     }
 
     pub fn get(&self, name: &str) -> &TraitMethod {
         self.methods.get(name).unwrap()
     }
-
-    pub fn register(&'static self, global_name: &'static str) {
-        register_trait_type(global_name, self);
-    }
 }
+
+pub struct CollectableTrait(pub &'static once_cell::sync::Lazy<TraitType>);
+
+inventory::collect! {CollectableTrait}

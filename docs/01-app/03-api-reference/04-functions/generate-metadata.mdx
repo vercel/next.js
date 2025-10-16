@@ -41,6 +41,10 @@ export default function Page() {}
 
 Dynamic metadata depends on **dynamic information**, such as the current route parameters, external data, or `metadata` in parent segments, can be set by exporting a `generateMetadata` function that returns a [`Metadata` object](#metadata-fields).
 
+Resolving `generateMetadata` is part of rendering the page. If the page can be pre-rendered and `generateMetadata` doesn't introduce dynamic behavior, the resulting metadata is included in the page’s initial HTML.
+
+Otherwise the metadata resolved from `generateMetadata` [can be streamed](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) after sending the initial UI.
+
 ```tsx filename="app/products/[id]/page.tsx" switcher
 import type { Metadata, ResolvingMetadata } from 'next'
 
@@ -95,6 +99,8 @@ export async function generateMetadata({ params, searchParams }, parent) {
 export default function Page({ params, searchParams }) {}
 ```
 
+For type completion of `params` and `searchParams`, you can type the first argument with [`PageProps<'/route'>`](/docs/app/api-reference/file-conventions/page#page-props-helper) or [`LayoutProps<'/route'>`](/docs/app/api-reference/file-conventions/layout#layout-props-helper) for pages and layouts respectively.
+
 > **Good to know**:
 >
 > - Metadata can be added to `layout.js` and `page.js` files.
@@ -102,7 +108,6 @@ export default function Page({ params, searchParams }) {}
 > - The `metadata` object and `generateMetadata` function exports are **only supported in Server Components**.
 > - You cannot export both the `metadata` object and `generateMetadata` function from the same route segment.
 > - `fetch` requests inside `generateMetadata` are automatically [memoized](/docs/app/guides/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components.
-> - Resolving `generateMetadata` is part of rendering the page. If the page can be pre-rendered and `generateMetadata` doesn't introduce dynamic behavior, its result is included in the page’s initial HTML.
 > - React [`cache` can be used](/docs/app/guides/caching#react-cache-function) if `fetch` is unavailable.
 > - [File-based metadata](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
 
@@ -113,7 +118,6 @@ export default function Page({ params, searchParams }) {}
 `generateMetadata` function accepts the following parameters:
 
 - `props` - An object containing the parameters of the current route:
-
   - `params` - An object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `generateMetadata` is called from. Examples:
 
     | Route                           | URL         | `params`                  |
@@ -230,11 +234,9 @@ export const metadata = {
 > **Good to know**:
 >
 > - `title.template` applies to **child** route segments and **not** the segment it's defined in. This means:
->
 >   - `title.default` is **required** when you add a `title.template`.
 >   - `title.template` defined in `layout.js` will not apply to a `title` defined in a `page.js` of the same route segment.
 >   - `title.template` defined in `page.js` has no effect because a page is always the terminating segment (it doesn't have any children route segments).
->
 > - `title.template` has **no effect** if a route has not defined a `title` or `title.default`.
 
 ##### `absolute`
@@ -284,11 +286,9 @@ export const metadata = {
 > **Good to know**:
 >
 > - `layout.js`
->
 >   - `title` (string) and `title.default` define the default title for child segments (that do not define their own `title`). It will augment `title.template` from the closest parent segment if it exists.
 >   - `title.absolute` defines the default title for child segments. It ignores `title.template` from parent segments.
 >   - `title.template` defines a new title template for child segments.
->
 > - `page.js`
 >   - If a page does not define its own title the closest parents resolved title will be used.
 >   - `title` (string) defines the routes title. It will augment `title.template` from the closest parent segment if it exists.
@@ -1172,21 +1172,21 @@ There are two default `meta` tags that are always added even if a route doesn't 
 
 ### Streaming metadata
 
-Metadata returned by `generateMetadata` is streamed to the client. This allows Next.js to inject metadata into the HTML as soon as it's resolved.
+Streaming metadata allows Next.js to render and send the initial UI to the browser, without waiting for `generateMetadata` to complete.
 
-Streamed metadata is appended to the `<body>` tag. Since metadata mainly targets bots and crawlers, Next.js streams metadata for bots that can execute JavaScript and inspect the full DOM (e.g. `Googlebot`). We have verified that these bots interpret the metadata correctly.
+When `generateMetadata` resolves, the resulting metadata tags are appended to the `<body>` tag. We have verified that metadata is interpreted correctly by bots that execute JavaScript and inspect the full DOM (e.g. `Googlebot`).
 
-For **HTML-limited** bots that can’t run JavaScript (e.g. `Twitterbot`), metadata continues to block page rendering and is placed in the `<head>` tag.
+For **HTML-limited bots** that can’t execute JavaScript (e.g. `facebookexternalhit`), metadata continues to block page rendering. The resulting metadata will be available in the `<head>` tag.
 
-Next.js automatically detects the user agent of incoming requests to determine whether to serve streaming metadata or fallback to blocking metadata.
+Next.js automatically detects **HTML-limited bots** by looking at the User Agent header. You can use the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) option in your Next.js config file to override the default [User Agent list](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/html-bots.ts).
 
-If you need to customize this list, you can define them manually using the `htmlLimitedBots` option in `next.config.js`. Next.js will ensure user agents matching this regex receive blocking metadata when requesting your web page.
+To fully disable streaming metadata:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
-  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
+  htmlLimitedBots: /.*/,
 }
 
 export default config
@@ -1194,11 +1194,11 @@ export default config
 
 ```js filename="next.config.js" switcher
 module.exports = {
-  htmlLimitedBots: /MySpecialBot|MyAnotherSpecialBot|SimpleCrawler/,
+  htmlLimitedBots: /.*/,
 }
 ```
 
-Specifying a `htmlLimitedBots` config will override the Next.js' default list, allowing you full control over what user agents should opt into this behavior.
+Streaming metadata improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and can help lowering [LCP](https://developer.mozilla.org/docs/Glossary/Largest_contentful_paint) time.
 
 Overriding `htmlLimitedBots` could lead to longer response times. Streaming metadata is an advanced feature, and the default should be sufficient for most cases.
 

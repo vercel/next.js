@@ -9,6 +9,14 @@ autobenches = false
 [lib]
 bench = false
 
+[[bench]]
+name = "analyzer"
+harness = false
+
+[[bench]]
+name = "references"
+harness = false
+
 [lints]
 workspace = true
 
@@ -76,12 +84,7 @@ swc_core = { workspace = true, features = [
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+turbo-tasks-backend = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 turbo-tasks-testing = { workspace = true }
-
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
-
-[[bench]]
-name = "mod"
-harness = false
+turbopack-test-utils = { workspace = true }

@@ -137,7 +137,7 @@ impl EsmAsyncAssetReferenceCodeGen {
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
-            Vc::upcast(chunking_context),
+            chunking_context,
             self.reference.resolve_reference(),
             if matches!(
                 *chunking_context.environment().chunk_loading().await?,

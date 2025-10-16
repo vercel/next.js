@@ -2,7 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
 describe('build-output-tree-view', () => {
-  describe('with mixed static and dynamic pages and app router routes', () => {
+  // TODO(NAR-423): Migrate to Cache Components.
+  describe.skip('with mixed static and dynamic pages and app router routes', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/mixed'),
       skipStart: true,
@@ -15,27 +16,25 @@ describe('build-output-tree-view', () => {
 
     it('should show info about prerendered and dynamic routes in a tree view', async () => {
       expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-       "Route (app)                      Size  First Load JS  Revalidate  Expire
-       ┌ ○ /_not-found                N/A kB         N/A kB
-       ├ ƒ /api                       N/A kB         N/A kB
-       ├ ○ /api/force-static          N/A kB         N/A kB
-       ├ ○ /app-static                N/A kB         N/A kB
-       ├ ○ /cache-life-custom         N/A kB         N/A kB         ≈7m     ≈2h
-       ├ ○ /cache-life-hours          N/A kB         N/A kB          1h      1d
-       ├ ƒ /dynamic                   N/A kB         N/A kB
-       ├ ◐ /ppr/[slug]                N/A kB         N/A kB          1w     30d
-       ├   ├ /ppr/[slug]                                             1w     30d
-       ├   ├ /ppr/days                                               1d      1w
-       ├   └ /ppr/weeks                                              1w     30d
-       └ ○ /revalidate                N/A kB         N/A kB         15m      1y
-       + First Load JS shared by all  N/A kB
+       "Route (app)             Revalidate  Expire
+       ┌ ○ /_not-found
+       ├ ƒ /api
+       ├ ○ /api/force-static
+       ├ ○ /app-static
+       ├ ○ /cache-life-custom         ≈7m     ≈2h
+       ├ ○ /cache-life-hours           1h      1d
+       ├ ƒ /dynamic
+       ├ ◐ /ppr/[slug]                 1w     30d
+       ├   ├ /ppr/[slug]               1w     30d
+       ├   ├ /ppr/days                 1d      1w
+       ├   └ /ppr/weeks                1w     30d
+       └ ○ /revalidate                15m      1y
 
-       Route (pages)                    Size  First Load JS  Revalidate  Expire
-       ┌ ƒ /api/hello                 N/A kB         N/A kB
-       ├ ● /gsp-revalidate            N/A kB         N/A kB          5m      1y
-       ├ ƒ /gssp                      N/A kB         N/A kB
-       └ ○ /static                    N/A kB         N/A kB
-       + First Load JS shared by all  N/A kB
+       Route (pages)           Revalidate  Expire
+       ┌ ƒ /api/hello
+       ├ ● /gsp-revalidate             5m      1y
+       ├ ƒ /gssp
+       └ ○ /static
 
        ○  (Static)             prerendered as static content
        ●  (SSG)                prerendered as static HTML (uses generateStaticParams)
@@ -58,14 +57,12 @@ describe('build-output-tree-view', () => {
 
     it('should show info about prerendered routes in a compact tree view', async () => {
       expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-       "Route (app)                      Size  First Load JS
-       ┌ ○ /                          N/A kB         N/A kB
-       └ ○ /_not-found                N/A kB         N/A kB
-       + First Load JS shared by all  N/A kB
+       "Route (app)
+       ┌ ○ /
+       └ ○ /_not-found
 
-       Route (pages)                    Size  First Load JS
-       ─ ○ /static                    N/A kB         N/A kB
-       + First Load JS shared by all  N/A kB
+       Route (pages)
+       ─ ○ /static
 
        ○  (Static)  prerendered as static content"
       `)
@@ -74,15 +71,15 @@ describe('build-output-tree-view', () => {
 })
 
 function getTreeView(cliOutput: string): string {
-  let foundBuildTracesLine = false
+  let foundStart = false
   const lines: string[] = []
 
   for (const line of cliOutput.split('\n')) {
-    if (foundBuildTracesLine) {
+    foundStart ||= line.startsWith('Route ')
+
+    if (foundStart) {
       lines.push(line)
     }
-
-    foundBuildTracesLine ||= line.includes('Collecting build traces')
   }
 
   return lines.join('\n').trim()

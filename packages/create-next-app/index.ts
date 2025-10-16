@@ -15,6 +15,7 @@ import { getPkgManager } from './helpers/get-pkg-manager'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
+import { Bundler } from './templates'
 
 let projectPath: string = ''
 
@@ -49,11 +50,14 @@ const program = new Command(packageJson.name)
   .option('--ts, --typescript', 'Initialize as a TypeScript project. (default)')
   .option('--js, --javascript', 'Initialize as a JavaScript project.')
   .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
+  .option('--react-compiler', 'Initialize with React Compiler enabled.')
   .option('--eslint', 'Initialize with ESLint config.')
+  .option('--biome', 'Initialize with Biome config.')
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
-  .option('--turbopack', 'Enable Turbopack by default for development.')
-  .option('--rspack', 'Using Rspack as the bundler')
+  .option('--turbopack', 'Enable Turbopack as the bundler.')
+  .option('--webpack', 'Enable Webpack as the bundler.')
+  .option('--rspack', 'Enable Rspack as the bundler')
   .option(
     '--import-alias <prefix/*>',
     'Specify import alias to use (default "@/*").'
@@ -223,12 +227,14 @@ async function run(): Promise<void> {
    * If the user does not provide the necessary flags, prompt them for their
    * preferences, unless `--yes` option was specified, or when running in CI.
    */
-  const skipPrompt = ciInfo.isCI || opts.yes
+  let skipPrompt = ciInfo.isCI || opts.yes
+  let useRecommendedDefaults = false
 
   if (!example) {
     const defaults: typeof preferences = {
       typescript: true,
       eslint: false,
+      linter: 'eslint',
       tailwind: true,
       app: true,
       srcDir: false,
@@ -237,9 +243,126 @@ async function run(): Promise<void> {
       empty: false,
       turbopack: true,
       disableGit: false,
+      reactCompiler: false,
     }
-    const getPrefOrDefault = (field: string) =>
-      preferences[field] ?? defaults[field]
+
+    type DisplayConfigItem = {
+      key: keyof typeof defaults
+      values?: Record<string, string>
+    }
+
+    const displayConfig: DisplayConfigItem[] = [
+      {
+        key: 'typescript',
+        values: { true: 'TypeScript', false: 'JavaScript' },
+      },
+      { key: 'linter', values: { eslint: 'ESLint', biome: 'Biome' } },
+      { key: 'reactCompiler', values: { true: 'React Compiler' } },
+      { key: 'tailwind', values: { true: 'Tailwind CSS' } },
+      { key: 'srcDir', values: { true: 'src/ dir' } },
+      { key: 'app', values: { true: 'App Router', false: 'Pages Router' } },
+      { key: 'turbopack', values: { true: 'Turbopack' } },
+    ]
+
+    // Helper to format settings for display based on displayConfig
+    const formatSettingsDescription = (
+      settings: Record<string, boolean | string>
+    ) => {
+      const descriptions: string[] = []
+
+      for (const config of displayConfig) {
+        const value = settings[config.key]
+
+        if (config.values) {
+          // Look up the display label for this value
+          const label = config.values[String(value)]
+          if (label) {
+            descriptions.push(label)
+          }
+        }
+      }
+
+      return descriptions.join(', ')
+    }
+
+    // Check if we have saved preferences
+    const hasSavedPreferences = Object.keys(preferences).length > 0
+
+    // Check if user provided any configuration flags
+    // If they did, skip the "recommended defaults" prompt and go straight to
+    // individual prompts for any missing options
+    const hasProvidedOptions = process.argv.some((arg) => arg.startsWith('--'))
+
+    // Only show the "recommended defaults" prompt if:
+    // - Not in CI and not using --yes flag
+    // - User hasn't provided any custom options
+    if (!skipPrompt && !hasProvidedOptions) {
+      const choices: Array<{
+        title: string
+        value: string
+        description?: string
+      }> = [
+        {
+          title: 'Yes, use recommended defaults',
+          value: 'recommended',
+          description: formatSettingsDescription(defaults),
+        },
+        {
+          title: 'No, customize settings',
+          value: 'customize',
+          description: 'Choose your own preferences',
+        },
+      ]
+
+      // Add "reuse previous settings" option if we have saved preferences
+      if (hasSavedPreferences) {
+        const prefDescription = formatSettingsDescription(preferences)
+        choices.splice(1, 0, {
+          title: 'No, reuse previous settings',
+          value: 'reuse',
+          description: prefDescription,
+        })
+      }
+
+      const { setupChoice } = await prompts(
+        {
+          type: 'select',
+          name: 'setupChoice',
+          message: 'Would you like to use the recommended Next.js defaults?',
+          choices,
+          initial: 0,
+        },
+        {
+          onCancel: () => {
+            console.error('Exiting.')
+            process.exit(1)
+          },
+        }
+      )
+
+      if (setupChoice === 'recommended') {
+        useRecommendedDefaults = true
+        skipPrompt = true
+      } else if (setupChoice === 'reuse') {
+        skipPrompt = true
+      }
+    }
+
+    // If using recommended defaults, populate preferences with defaults
+    // This ensures they are saved for reuse next time
+    if (useRecommendedDefaults) {
+      Object.assign(preferences, defaults)
+    }
+
+    const getPrefOrDefault = (field: string) => {
+      // If using recommended defaults, always use hardcoded defaults
+      if (useRecommendedDefaults) {
+        return defaults[field]
+      }
+
+      // If not using the recommended template, we prefer saved preferences, otherwise defaults.
+      return preferences[field] ?? defaults[field]
+    }
 
     if (!opts.typescript && !opts.javascript) {
       if (skipPrompt) {
@@ -272,27 +395,98 @@ async function run(): Promise<void> {
          * Depending on the prompt response, set the appropriate program flags.
          */
         opts.typescript = Boolean(typescript)
-        opts.javascript = !Boolean(typescript)
+        opts.javascript = !typescript
         preferences.typescript = Boolean(typescript)
       }
     }
 
-    if (!opts.eslint && !args.includes('--no-eslint') && !opts.api) {
+    // Determine linter choice if not specified via CLI flags
+    // Support both --no-linter (new) and --no-eslint (legacy) for backward compatibility
+    const noLinter =
+      args.includes('--no-linter') || args.includes('--no-eslint')
+
+    if (!opts.eslint && !opts.biome && !noLinter && !opts.api) {
       if (skipPrompt) {
-        opts.eslint = getPrefOrDefault('eslint')
+        const preferredLinter = getPrefOrDefault('linter')
+        opts.eslint = preferredLinter === 'eslint'
+        opts.biome = preferredLinter === 'biome'
+        // No need to set noLinter flag since we check args at runtime
       } else {
-        const styledEslint = blue('ESLint')
-        const { eslint } = await prompts({
+        const linterIndexMap = {
+          eslint: 0,
+          biome: 1,
+          none: 2,
+        }
+        const { linter } = await prompts({
+          onState: onPromptState,
+          type: 'select',
+          name: 'linter',
+          message: 'Which linter would you like to use?',
+          choices: [
+            {
+              title: 'ESLint',
+              value: 'eslint',
+              description: 'More comprehensive lint rules',
+            },
+            {
+              title: 'Biome',
+              value: 'biome',
+              description: 'Fast formatter and linter (fewer rules)',
+            },
+            {
+              title: 'None',
+              value: 'none',
+              description: 'Skip linter configuration',
+            },
+          ],
+          initial:
+            linterIndexMap[
+              getPrefOrDefault('linter') as keyof typeof linterIndexMap
+            ],
+        })
+
+        opts.eslint = linter === 'eslint'
+        opts.biome = linter === 'biome'
+        preferences.linter = linter
+
+        // Keep backwards compatibility with old eslint preference
+        preferences.eslint = linter === 'eslint'
+      }
+    } else if (opts.eslint) {
+      opts.biome = false
+      preferences.linter = 'eslint'
+      preferences.eslint = true
+    } else if (opts.biome) {
+      opts.eslint = false
+      preferences.linter = 'biome'
+      preferences.eslint = false
+    } else if (noLinter) {
+      opts.eslint = false
+      opts.biome = false
+      preferences.linter = 'none'
+      preferences.eslint = false
+    }
+
+    if (
+      !opts.reactCompiler &&
+      !args.includes('--no-react-compiler') &&
+      !opts.api
+    ) {
+      if (skipPrompt) {
+        opts.reactCompiler = getPrefOrDefault('reactCompiler')
+      } else {
+        const styledReactCompiler = blue('React Compiler')
+        const { reactCompiler } = await prompts({
           onState: onPromptState,
           type: 'toggle',
-          name: 'eslint',
-          message: `Would you like to use ${styledEslint}?`,
-          initial: getPrefOrDefault('eslint'),
+          name: 'reactCompiler',
+          message: `Would you like to use ${styledReactCompiler}?`,
+          initial: getPrefOrDefault('reactCompiler'),
           active: 'Yes',
           inactive: 'No',
         })
-        opts.eslint = Boolean(eslint)
-        preferences.eslint = Boolean(eslint)
+        opts.reactCompiler = Boolean(reactCompiler)
+        preferences.reactCompiler = Boolean(reactCompiler)
       }
     }
 
@@ -353,7 +547,12 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!opts.turbopack && !args.includes('--no-turbopack')) {
+    if (
+      !opts.turbopack &&
+      !args.includes('--no-turbopack') &&
+      !opts.webpack &&
+      !opts.rspack
+    ) {
       if (skipPrompt) {
         opts.turbopack = getPrefOrDefault('turbopack')
       } else {
@@ -362,7 +561,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'turbopack',
-          message: `Would you like to use ${styledTurbo} for \`next dev\`?`,
+          message: `Would you like to use ${styledTurbo}? (recommended)`,
           initial: getPrefOrDefault('turbopack'),
           active: 'Yes',
           inactive: 'No',
@@ -370,6 +569,8 @@ async function run(): Promise<void> {
         opts.turbopack = Boolean(turbopack)
         preferences.turbopack = Boolean(turbopack)
       }
+      // If Turbopack is not selected, default to Webpack
+      opts.webpack = !opts.turbopack
     }
 
     const importAliasPattern = /^[^*"]+\/\*\s*$/
@@ -417,6 +618,14 @@ async function run(): Promise<void> {
     }
   }
 
+  const bundler: Bundler = opts.turbopack
+    ? Bundler.Turbopack
+    : opts.webpack
+      ? Bundler.Webpack
+      : opts.rspack
+        ? Bundler.Rspack
+        : Bundler.Turbopack
+
   try {
     await createApp({
       appPath,
@@ -426,15 +635,16 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       tailwind: opts.tailwind,
       eslint: opts.eslint,
+      biome: opts.biome,
       app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
       empty: opts.empty,
       api: opts.api,
-      turbopack: opts.turbopack,
-      rspack: opts.rspack,
+      bundler,
       disableGit: opts.disableGit,
+      reactCompiler: opts.reactCompiler,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -459,15 +669,16 @@ async function run(): Promise<void> {
       packageManager,
       typescript: opts.typescript,
       eslint: opts.eslint,
+      biome: opts.biome,
       tailwind: opts.tailwind,
       app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
       empty: opts.empty,
-      turbopack: opts.turbopack,
-      rspack: opts.rspack,
+      bundler,
       disableGit: opts.disableGit,
+      reactCompiler: opts.reactCompiler,
     })
   }
   conf.set('preferences', preferences)

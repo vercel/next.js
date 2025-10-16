@@ -1,13 +1,13 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
 
-use std::{cell::RefCell, path::Path, time::Instant};
+use std::{cell::RefCell, path::Path, thread::available_parallelism, time::Instant};
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_tasks_malloc::TurboMalloc;
-use turbopack_cli::{arguments::Arguments, register};
+use turbopack_cli::arguments::Arguments;
 use turbopack_trace_utils::{
     exit::ExitHandler,
     filter_layer::FilterLayer,
@@ -42,10 +42,25 @@ fn main() {
             });
         });
 
+    let args = Arguments::parse();
+
+    let worker_threads = args
+        .worker_threads()
+        .map(|v| {
+            if v == 0 {
+                panic!("--worker-threads=0 is invalid, you must use at least one thread.");
+            } else {
+                v
+            }
+        })
+        .unwrap_or_else(|| available_parallelism().map(|n| n.get()).unwrap_or(1));
+
+    rt.worker_threads(worker_threads);
+    rt.max_blocking_threads(usize::MAX - worker_threads);
+
     #[cfg(not(codspeed))]
     rt.disable_lifo_slot();
 
-    let args = Arguments::parse();
     rt.build().unwrap().block_on(main_inner(args)).unwrap();
 }
 
@@ -56,7 +71,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
     if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
         // Trace presets
         match trace.as_str() {
-            "overview" => {
+            "overview" | "1" => {
                 trace = TRACING_OVERVIEW_TARGETS.join(",");
             }
             "turbopack" => {
@@ -89,8 +104,6 @@ async fn main_inner(args: Arguments) -> Result<()> {
 
         subscriber.init();
     }
-
-    register();
 
     match args {
         Arguments::Build(args) => turbopack_cli::build::build(&args).await,

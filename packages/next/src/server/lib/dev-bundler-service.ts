@@ -4,7 +4,8 @@ import type { WorkerRequestHandler } from './types'
 
 import { LRUCache } from './lru-cache'
 import { createRequestResponseMocks } from './mock-request'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
+import type { ReactDebugChannelForBrowser } from '../dev/debug-channel'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -23,7 +24,7 @@ export class DevBundlerService {
       function length() {
         return 16
       }
-    ) as any
+    )
   }
 
   public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (
@@ -94,16 +95,35 @@ export class DevBundlerService {
     return serializableManifest
   }
 
-  public setIsrStatus(key: string, value: boolean | null) {
-    if (value === null) {
+  public setIsrStatus(key: string, value: boolean | undefined) {
+    if (value === undefined) {
       this.appIsrManifestInner.remove(key)
     } else {
       this.appIsrManifestInner.set(key, value)
     }
-    this.bundler?.hotReloader?.send({
-      action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
+
+    // Only send the ISR manifest to legacy clients, i.e. Pages Router clients,
+    // or App Router clients that have Cache Components disabled. The ISR
+    // manifest is only used to inform the static indicator, which currently
+    // does not provide useful information if Cache Components is enabled due to
+    // its binary nature (i.e. it does not support showing info for partially
+    // static pages).
+    this.bundler?.hotReloader?.sendToLegacyClients({
+      type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
       data: this.appIsrManifest,
     })
+  }
+
+  public setReactDebugChannel(
+    debugChannel: ReactDebugChannelForBrowser,
+    htmlRequestId: string,
+    requestId: string
+  ): void {
+    this.bundler.hotReloader.setReactDebugChannel(
+      debugChannel,
+      htmlRequestId,
+      requestId
+    )
   }
 
   public close() {

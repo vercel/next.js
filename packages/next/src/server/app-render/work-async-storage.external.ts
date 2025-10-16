@@ -38,8 +38,6 @@ export interface WorkStore {
    */
   readonly hasReadableErrorStacks?: boolean
 
-  readonly isRevalidate?: boolean
-
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']
 
@@ -68,7 +66,10 @@ export interface WorkStore {
    * Tags that were revalidated during the current request. They need to be sent
    * to cache handlers to propagate their revalidation.
    */
-  pendingRevalidatedTags?: string[]
+  pendingRevalidatedTags?: Array<{
+    tag: string
+    profile?: string | { stale?: number; revalidate?: number; expire?: number }
+  }>
 
   /**
    * Tags that were previously revalidated (e.g. by a redirecting server action)
@@ -97,6 +98,7 @@ export interface WorkStore {
     Record<string, { files: string[] }>
   >
   readonly assetPrefix?: string
+  readonly nonce?: string
 
   cacheComponentsEnabled: boolean
   dev: boolean

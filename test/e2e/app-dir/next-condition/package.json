@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "my-cjs-package": "file:./packages/my-cjs-package",
+    "my-esm-package": "file:./packages/my-esm-package",
+    "my-external-cjs-package": "file:./packages/my-external-cjs-package",
+    "my-external-esm-package": "file:./packages/my-external-esm-package"
+  }
+}

@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import {
+  assertNoConsoleErrors,
+  assertNoErrorToast,
+  retry,
+} from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
 import { Playwright } from 'next-webdriver'
@@ -11,6 +15,9 @@ import { PrerenderManifest } from 'next/dist/build'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+
+const withCacheComponents =
+  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
 
 describe('use-cache', () => {
   const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup(
@@ -50,34 +57,30 @@ describe('use-cache', () => {
     expect(await browser.waitForElementByCss('#r').text()).toContain('rnd')
   })
 
-  if (!process.env.TURBOPACK_BUILD) {
-    it('should cache results custom handler', async () => {
-      const browser = await next.browser(`/custom-handler?n=1`)
-      expect(await browser.waitForElementByCss('#x').text()).toBe('1')
-      const random1a = await browser.waitForElementByCss('#y').text()
+  it('should cache results custom handler', async () => {
+    const browser = await next.browser(`/custom-handler?n=1`)
+    expect(await browser.waitForElementByCss('#x').text()).toBe('1')
+    const random1a = await browser.waitForElementByCss('#y').text()
 
-      await browser.loadPage(
-        new URL(`/custom-handler?n=2`, next.url).toString()
-      )
-      expect(await browser.waitForElementByCss('#x').text()).toBe('2')
-      const random2 = await browser.waitForElementByCss('#y').text()
+    await browser.loadPage(new URL(`/custom-handler?n=2`, next.url).toString())
+    expect(await browser.waitForElementByCss('#x').text()).toBe('2')
+    const random2 = await browser.waitForElementByCss('#y').text()
 
-      await browser.loadPage(
-        new URL(`/custom-handler?n=1&unrelated`, next.url).toString()
-      )
-      expect(await browser.waitForElementByCss('#x').text()).toBe('1')
-      const random1b = await browser.waitForElementByCss('#y').text()
+    await browser.loadPage(
+      new URL(`/custom-handler?n=1&unrelated`, next.url).toString()
+    )
+    expect(await browser.waitForElementByCss('#x').text()).toBe('1')
+    const random1b = await browser.waitForElementByCss('#y').text()
 
-      // The two navigations to n=1 should use a cached value.
-      expect(random1a).toBe(random1b)
+    // The two navigations to n=1 should use a cached value.
+    expect(random1a).toBe(random1b)
 
-      // The navigation to n=2 should be some other random value.
-      expect(random1a).not.toBe(random2)
+    // The navigation to n=2 should be some other random value.
+    expect(random1a).not.toBe(random2)
 
-      // Client component child should have rendered but not invalidated the cache.
-      expect(await browser.waitForElementByCss('#r').text()).toContain('rnd')
-    })
-  }
+    // Client component child should have rendered but not invalidated the cache.
+    expect(await browser.waitForElementByCss('#r').text()).toContain('rnd')
+  })
 
   it('should cache complex args', async () => {
     // Use two bytes that can't be encoded as UTF-8 to ensure serialization works.
@@ -217,13 +220,13 @@ describe('use-cache', () => {
     })
   })
 
-  it('should update after unstable_expireTag correctly', async () => {
+  it('should update after revalidateTag correctly', async () => {
     const browser = await next.browser('/cache-tag')
     const initial = await browser.elementByCss('#a').text()
 
     if (!isNextDev) {
       // Bust the ISR cache first, to populate the in-memory cache for the
-      // subsequent unstable_expireTag calls.
+      // subsequent revalidateTag calls.
       await browser.elementByCss('#revalidate-path').click()
       await retry(async () => {
         expect(await browser.elementByCss('#a').text()).not.toBe(initial)
@@ -444,14 +447,9 @@ describe('use-cache', () => {
         await next.readFile('.next/prerender-manifest.json')
       ) as PrerenderManifest
 
-      const withPPR = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
-      const withCacheComponents =
-        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
-
       let prerenderedRoutes = Object.entries(prerenderManifest.routes)
 
-      if (withPPR || withCacheComponents) {
+      if (withCacheComponents) {
         // For the purpose of this test we don't consider an incomplete shell.
         prerenderedRoutes = prerenderedRoutes.filter(([pathname, route]) => {
           const filename = pathname.replace(/^\//, '').replace(/^$/, 'index')
@@ -508,7 +506,7 @@ describe('use-cache', () => {
     })
 
     it('should match the expected revalidate and expire configs on the prerender manifest', async () => {
-      const { version, routes, dynamicRoutes } = JSON.parse(
+      const { version, routes } = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
       ) as PrerenderManifest
 
@@ -518,25 +516,37 @@ describe('use-cache', () => {
       expect(routes['/cache-life'].initialRevalidateSeconds).toBe(100)
       expect(routes['/cache-life'].initialExpireSeconds).toBe(300)
 
+      if (withCacheComponents) {
+        expect(
+          routes['/cache-life-with-dynamic'].initialRevalidateSeconds
+        ).toBe(100)
+        expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(
+          300
+        )
+      }
+
       // default expireTime
       expect(routes['/cache-fetch'].initialExpireSeconds).toBe(31536000)
 
       // The revalidate config from the fetch call should lower the revalidate
       // config for the page.
       expect(routes['/cache-tag'].initialRevalidateSeconds).toBe(42)
-
-      if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
-        // cache life profile "weeks"
-        expect(dynamicRoutes['/[id]'].fallbackRevalidate).toBe(604800)
-        expect(dynamicRoutes['/[id]'].fallbackExpire).toBe(2592000)
-      }
     })
 
     it('should match the expected stale config in the page header', async () => {
-      const meta = JSON.parse(
+      const cacheLifeMeta = JSON.parse(
         await next.readFile('.next/server/app/cache-life.meta')
       )
-      expect(meta.headers['x-nextjs-stale-time']).toBe('19')
+      expect(cacheLifeMeta.headers['x-nextjs-stale-time']).toBe('19')
+
+      if (withCacheComponents) {
+        const cacheLifeWithDynamicMeta = JSON.parse(
+          await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
+        )
+        expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
+          '19'
+        )
+      }
     })
 
     it('should send an SWR cache-control header based on the revalidate and expire values', async () => {
@@ -554,6 +564,30 @@ describe('use-cache', () => {
         // expireTime) => SWR 31535100
         's-maxage=900, stale-while-revalidate=31535100'
       )
+    })
+
+    if (withCacheComponents) {
+      it('should omit dynamic caches from prerendered shells', async () => {
+        const browser = await next.browser('/cache-life-with-dynamic', {
+          disableJavaScript: true,
+        })
+
+        expect(await browser.elementById('y').text()).toBe('Loading...')
+      })
+    }
+
+    it('should not have hydration errors when resuming a partial shell with dynamic caches', async () => {
+      const browser = await next.browser('/cache-life-with-dynamic', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      await retry(async () => {
+        expect(await browser.elementById('y').text()).not.toBe('Loading...')
+      })
+
+      // There should be no hydration errors due to a buildtime date being
+      // replaced by a new runtime date.
+      await assertNoConsoleErrors(browser)
     })
 
     it('should propagate unstable_cache tags correctly', async () => {
@@ -574,7 +608,7 @@ describe('use-cache', () => {
     })
   })
 
-  it('should be able to revalidate a page using unstable_expireTag', async () => {
+  it('should be able to revalidate a page using revalidateTag', async () => {
     const browser = await next.browser(`/form`)
     const time1 = await browser.waitForElementByCss('#t').text()
 
@@ -832,7 +866,7 @@ describe('use-cache', () => {
           const expectedErrorMessage = disableJavaScript
             ? 'Failed to load resource: the server responded with a status of 500 (Internal Server Error)'
             : isNextDev
-              ? 'Route /draft-mode/[mode] used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache'
+              ? 'Route /draft-mode/[mode] used `cookies()` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use `cookies()` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache'
               : GENERIC_RSC_ERROR
 
           expect(logs).toMatchObject(
@@ -962,8 +996,8 @@ describe('use-cache', () => {
     })
   }
 
-  if (isNextStart && process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
-    it('should exclude inner caches from the resume data cache (RDC)', async () => {
+  if (isNextStart && withCacheComponents) {
+    it('should exclude inner caches and omitted caches from the resume data cache (RDC)', async () => {
       await next.fetch('/rdc')
 
       const resumeDataCache = extractResumeDataCacheFromPostponedState(
@@ -974,11 +1008,21 @@ describe('use-cache', () => {
 
       // There should be no cache entry for the "middle" cache function, because
       // it's only used inside another cache scope ("outer"). Whereas "inner" is
-      // also used inside a prerender scope (the page). Note: We're matching on
-      // the "id" args that are encoded into the respective cache keys.
+      // also used inside a prerender scope (the page). Additionally, there
+      // should also be no cache entry for "short", because it has a short
+      // lifetime and is subsequently omitted from the prerendered shell. The
+      // following expectation is matching on the full list. If any additional
+      // keys are found, the test will fail and print the unexpected keys.
       expect(cacheKeys).toMatchObject([
+        // Note: We're matching on the args that are encoded into the respective
+        // cache keys.
         expect.stringContaining('["outer"]'),
         expect.stringContaining('["inner"]'),
+        ...(withCacheComponents
+          ? []
+          : // With legacy PPR, the "short" cache is included in the prerendered
+            // shell.
+            [expect.stringContaining('[{"id":"short"},"$undefined"]]')]),
       ])
     })
   }
@@ -1029,6 +1073,277 @@ describe('use-cache', () => {
     // the outer 'use cache'), and this expectation needs to be flipped.
     expect(description).not.toBe(initialDescription)
   })
+
+  if (withCacheComponents) {
+    it('can resume a cached generateMetadata function', async () => {
+      // First load the page with JavaScript disabled, to ensure that the
+      // generateMetadata result was included in the prerendered shell.
+      let browser = await next.browser('/generate-metadata-resume/nested', {
+        disableJavaScript: true,
+      })
+
+      // The title must be in the head if it was prerendered.
+      const title = await browser
+        .elementByCss('head title', { state: 'attached' })
+        .text()
+      expect(title).toBeDateString()
+
+      await browser.close()
+
+      // Load the page again, now with JavaScript enabled.
+      browser = await next.browser('/generate-metadata-resume/nested')
+
+      // If there was no cache hit from the RDC during the resume, we'd observe
+      // a different title.
+      expect(await browser.eval('document.title')).toBe(title)
+    })
+
+    // TODO(restart-on-cache-miss):
+    // in dev, cached Page components and generateMetadata can end up delayed into the dynamic stage
+    // even if they don't read params. This is because the `params` promise is delayed a task (for staging purposes),
+    // and thus encoding the cache key takes a task (but is not itself tracked as a cache read).
+    // If this happens, then we won't see a cache miss, and don't wait for caches to warm,
+    // so they'll end up delayed, like they're not cached at all.
+    // This breaks the tests expectations about what's in the static shell, so we're skipping it in dev for now.
+    if (!isNextDev) {
+      it('can resume a cached generateMetadata function that does not read params', async () => {
+        // First load the page with JavaScript disabled, to ensure that the
+        // generateMetadata result was included in the prerendered shell.
+        let browser = await next.browser(
+          '/generate-metadata-resume/params-unused/foo',
+          { disableJavaScript: true }
+        )
+
+        // The metadata must be in the head if it was prerendered.
+        const title = await browser
+          .elementByCss('head title', { state: 'attached' })
+          .text()
+        expect(title).toBeDateString()
+        const description = await browser
+          .elementByCss('head meta[name="description"]', { state: 'attached' })
+          .getAttribute('content')
+        expect(description).toBeDateString()
+
+        await browser.close()
+
+        // Load the page again, now with JavaScript enabled.
+        browser = await next.browser(
+          '/generate-metadata-resume/params-unused/foo'
+        )
+
+        // If there was no cache hit from the RDC during the resume, we'd observe
+        // different metadata.
+        const title2 = await browser.eval('document.title')
+        const description2 = await browser
+          // Select the last meta element, in case another one was added during
+          // the resume due to a cache miss.
+          .elementByCss('meta[name="description"]:last-of-type')
+          .getAttribute('content')
+
+        if (isNextDev) {
+          expect(title2).toBe(title)
+          expect(description2).toBe(description)
+        } else {
+          // TODO: Omitting unused params from cache keys (and upgrading cache
+          // keys when they are used) is not yet implemented. Remove this else
+          // branch once it is.
+          expect(title2).not.toBe(title)
+          expect(description2).not.toBe(description)
+        }
+      })
+    }
+
+    it('can serialize parent metadata as generateMetadata argument', async () => {
+      const browser = await next.browser('/generate-metadata-resume/nested')
+
+      // The metadata must be in the head if it was prerendered.
+      const canonicalUrl = await browser
+        .elementByCss('head link[rel="canonical"]', { state: 'attached' })
+        .getAttribute('href')
+
+      expect(canonicalUrl).toBe('https://example.com/baz/qux')
+
+      // There should be no timeout error.
+      await assertNoErrorToast(browser)
+    })
+
+    it('makes a cached generateMetadata function that implicitly depends on params dynamic during prerendering', async () => {
+      // First load the page with JavaScript disabled, to ensure that no
+      // generateMetadata result was included in the prerendered shell.
+      let browser = await next.browser(
+        '/generate-metadata-resume/canonical/foo',
+        { disableJavaScript: true }
+      )
+
+      // The metadata would be in the head if it was prerendered.
+      expect(
+        await browser
+          .elementByCss('head', { state: 'attached' })
+          .hasElementByCss('link[rel="canonical"]')
+      ).toBe(false)
+
+      // However, it should have been added to the body during the resume.
+      expect(
+        await browser.elementByCss('link[rel="canonical"]').getAttribute('href')
+      ).toBe('https://example.com/baz/qux')
+
+      await browser.close()
+
+      // Load the page again, now with JavaScript enabled.
+      browser = await next.browser('/generate-metadata-resume/canonical/foo')
+
+      // There should be no timeout error.
+      await assertNoErrorToast(browser)
+    })
+
+    it('makes a cached generateMetadata function that reads params dynamic during prerendering', async () => {
+      // First load the page with JavaScript disabled, to ensure that no
+      // generateMetadata result was included in the prerendered shell.
+      let browser = await next.browser(
+        '/generate-metadata-resume/params-used/foo',
+        { disableJavaScript: true }
+      )
+
+      // The metadata would be in the head if it was prerendered.
+      expect(
+        await browser
+          .elementByCss('head', { state: 'attached' })
+          .hasElementByCss('title')
+      ).toBe(false)
+      expect(
+        await browser
+          .elementByCss('head', { state: 'attached' })
+          .hasElementByCss('meta[name="description"]')
+      ).toBe(false)
+
+      // However, it should have been added to the body during the resume.
+      const title = await browser.eval('document.title')
+      expect(title).toBeDefined()
+      expect(title).toBeDateString()
+      const description = await browser
+        .elementByCss('meta[name="description"]')
+        .getAttribute('content')
+      expect(description).toBeDateString()
+
+      await browser.close()
+
+      // Load the page again, now with JavaScript enabled.
+      browser = await next.browser('/generate-metadata-resume/params-used/foo')
+
+      // We should see the same cached metadata again.
+      expect(await browser.eval('document.title')).toBe(title)
+      expect(
+        await browser
+          .elementByCss('meta[name="description"]')
+          .getAttribute('content')
+      ).toBe(description)
+    })
+
+    it('can resume a cached generateViewport function', async () => {
+      // First load the page with JavaScript disabled, to ensure that the
+      // generateViewport result was included in the prerendered shell.
+      let browser = await next.browser('/generate-viewport-resume', {
+        disableJavaScript: true,
+      })
+
+      // The meta tag must be in the head if it was prerendered.
+      const viewport = await browser
+        .elementByCss('head meta[name="viewport"]', { state: 'attached' })
+        .getAttribute('content')
+      const [, initialScale] = viewport.match(/initial-scale=([\d.]+)/) ?? []
+      expect(Number(initialScale)).toBeNumber()
+      await browser.close()
+
+      // Load the page again, now with JavaScript enabled.
+      browser = await next.browser('/generate-viewport-resume')
+
+      // If there was no cache hit from the RDC during the resume, we'd observe
+      // a different value.
+      const viewport2 = await browser
+        // Select the last meta element, in case another one was added during
+        // the resume due to a cache miss.
+        .elementByCss('meta[name="viewport"]:last-of-type', {
+          state: 'attached',
+        })
+        .getAttribute('content')
+      const [, initialScale2] = viewport2.match(/initial-scale=([\d.]+)/) ?? []
+      expect(initialScale2).toBe(initialScale)
+    })
+
+    it('can resume a cached generateViewport function that does not read params', async () => {
+      // First load the page with JavaScript disabled, to ensure that the
+      // generateViewport result was included in the prerendered shell.
+      let browser = await next.browser(
+        '/generate-viewport-resume/params-unused/red',
+        { disableJavaScript: true }
+      )
+
+      // The meta tag must be in the head if it was prerendered.
+      const viewport = await browser
+        .elementByCss('head meta[name="viewport"]', { state: 'attached' })
+        .getAttribute('content')
+      const [, initialScale, maximumScale] =
+        viewport.match(/initial-scale=([\d.]+), maximum-scale=([\d.]+)/) ?? []
+      expect(Number(initialScale)).toBeNumber()
+      expect(Number(maximumScale)).toBeNumber()
+
+      await browser.close()
+
+      // Load the page again, now with JavaScript enabled.
+      browser = await next.browser(
+        '/generate-viewport-resume/params-unused/red'
+      )
+
+      // If there was no cache hit from the RDC during the resume, we'd observe
+      // a different meta tag.
+      const viewport2 = await browser
+        // Select the last meta element, in case another one was added during
+        // the resume due to a cache miss.
+        .elementByCss('meta[name="viewport"]:last-of-type', {
+          state: 'attached',
+        })
+        .getAttribute('content')
+      const [, initialScale2, maximumScale2] =
+        viewport2.match(/initial-scale=([\d.]+), maximum-scale=([\d.]+)/) ?? []
+
+      if (isNextDev) {
+        expect(initialScale2).toBe(initialScale)
+        expect(maximumScale2).toBe(maximumScale)
+      } else {
+        // TODO: Omitting unused params from cache keys (and upgrading cache
+        // keys when they are used) is not yet implemented. Remove this else
+        // branch once it is.
+        expect(initialScale2).not.toBe(initialScale)
+        expect(maximumScale2).not.toBe(maximumScale)
+      }
+    })
+
+    it('makes a cached generateViewport function that reads params dynamic during prerendering', async () => {
+      // The page is fully dynamic, so we can only observe that the values are
+      // cached on subsequent requests.
+      let browser = await next.browser(
+        '/generate-viewport-resume/params-used/red'
+      )
+
+      const viewport = await browser
+        .elementByCss('meta[name="viewport"]', { state: 'attached' })
+        .getAttribute('content')
+      const [, initialScale, maximumScale] =
+        viewport.match(/initial-scale=([\d.]+), maximum-scale=([\d.]+)/) ?? []
+      expect(Number(initialScale)).toBeNumber()
+      expect(Number(maximumScale)).toBeNumber()
+
+      await browser.refresh()
+
+      const viewport2 = await browser
+        .elementByCss('meta[name="viewport"]', { state: 'attached' })
+        .getAttribute('content')
+      const [, initialScale2, maximumScale2] =
+        viewport2.match(/initial-scale=([\d.]+), maximum-scale=([\d.]+)/) ?? []
+      expect(initialScale2).toBe(initialScale)
+      expect(maximumScale2).toBe(maximumScale)
+    })
+  }
 })
 
 async function getSanitizedLogs(browser: Playwright): Promise<string[]> {

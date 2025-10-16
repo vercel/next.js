@@ -111,8 +111,7 @@ impl NextRootParamsMapper {
                                 })?;
                             Self::valid_import_map_result(collected_root_params)
                         }
-                        ServerContextType::PagesData { .. }
-                        | ServerContextType::PagesApi { .. }
+                        ServerContextType::PagesApi { .. }
                         | ServerContextType::Instrumentation { .. }
                         | ServerContextType::Middleware { .. } => {
                             // There's no sensible way to use root params outside of the app

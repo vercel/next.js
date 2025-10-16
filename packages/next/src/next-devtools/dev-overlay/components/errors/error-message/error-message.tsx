@@ -13,7 +13,6 @@ export function ErrorMessage({ errorMessage }: ErrorMessageProps) {
 
   useLayoutEffect(() => {
     if (messageRef.current) {
-      // eslint-disable-next-line react-hooks/react-compiler -- TODO
       setShouldTruncate(messageRef.current.scrollHeight > 200)
     }
   }, [errorMessage])

@@ -41,8 +41,8 @@ import { getHostname } from '../../shared/lib/get-hostname'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { MockedResponse } from './mock-request'
 import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  type AppIsrManifestAction,
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type AppIsrManifestMessage,
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
@@ -305,7 +305,6 @@ export async function initialize(opts: {
           await initResult?.requestHandler(req, res)
         } catch (err) {
           if (err instanceof NoFallbackError) {
-            // eslint-disable-next-line
             await handleRequest(handleIndex + 1)
             return
           }
@@ -724,6 +723,9 @@ export async function initialize(opts: {
       ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
       : (err: unknown) => !opts.quiet && Log.error(err),
     setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
+    setReactDebugChannel: config.experimental.reactDebugChannel
+      ? devBundlerService?.setReactDebugChannel.bind(devBundlerService)
+      : undefined,
   }
 
   const logError = async (
@@ -798,13 +800,22 @@ export async function initialize(opts: {
             req,
             socket,
             head,
-            (client) => {
-              client.send(
-                JSON.stringify({
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
-                  data: devBundlerService?.appIsrManifest || {},
-                } satisfies AppIsrManifestAction)
-              )
+            (client, { isLegacyClient }) => {
+              if (isLegacyClient) {
+                // Only send the ISR manifest to legacy clients, i.e. Pages
+                // Router clients, or App Router clients that have Cache
+                // Components disabled. The ISR manifest is only used to inform
+                // the static indicator, which currently does not provide useful
+                // information if Cache Components is enabled due to its binary
+                // nature (i.e. it does not support showing info for partially
+                // static pages).
+                client.send(
+                  JSON.stringify({
+                    type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
+                    data: devBundlerService?.appIsrManifest || {},
+                  } satisfies AppIsrManifestMessage)
+                )
+              }
             }
           )
         }

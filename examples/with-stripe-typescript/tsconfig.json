@@ -14,7 +14,7 @@
     "allowSyntheticDefaultImports": true,
     "isolatedModules": true,
     "incremental": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
       "@/actions/*": ["app/actions/*"],

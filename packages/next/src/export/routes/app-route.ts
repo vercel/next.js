@@ -20,7 +20,6 @@ import type {
   MockedResponse,
 } from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
-import { hasNextSupport } from '../../server/ci-info'
 import { isStaticGenEnabled } from '../../server/route-modules/app-route/helpers/is-static-gen-enabled'
 import type { ExperimentalConfig } from '../../server/config-shared'
 import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
@@ -92,10 +91,6 @@ export async function exportAppRoute(
     sharedContext: {
       buildId,
     },
-  }
-
-  if (hasNextSupport) {
-    context.renderOpts.isRevalidate = true
   }
 
   try {

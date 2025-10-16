@@ -43,9 +43,6 @@ describe('required server files app router', () => {
       nextConfig: {
         cacheHandler: './cache-handler.js',
         cacheMaxMemorySize: 0,
-        eslint: {
-          ignoreDuringBuilds: true,
-        },
         output: 'standalone',
       },
     })
@@ -99,6 +96,7 @@ describe('required server files app router', () => {
     await setupNext({ nextEnv: true, minimalMode: true })
   })
   afterAll(async () => {
+    delete process.env.NOW_BUILDER
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)

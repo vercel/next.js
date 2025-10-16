@@ -12,7 +12,7 @@ describe('interception-dynamic-segment-middleware', () => {
     await browser.elementByCss('[href="/foo/p/1"]').click()
     await check(() => browser.elementById('modal').text(), /intercepted/)
     await browser.refresh()
-    await check(() => browser.elementById('modal').text(), '')
+    await check(() => browser.elementById('modal').text(), 'default')
     await check(() => browser.elementById('children').text(), /not intercepted/)
   })
 })

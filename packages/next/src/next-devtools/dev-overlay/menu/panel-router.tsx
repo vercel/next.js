@@ -24,6 +24,7 @@ import {
   ACTION_ERROR_OVERLAY_OPEN,
 } from '../shared'
 import GearIcon from '../icons/gear-icon'
+import { LoadingIcon } from '../icons/loading-icon'
 import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
@@ -60,17 +61,24 @@ const MenuPanel = () => {
             }
           },
         },
-        {
-          title: `Current route is ${state.staticIndicator ? 'static' : 'dynamic'}.`,
-          label: 'Route',
-          value: state.staticIndicator ? 'Static' : 'Dynamic',
-          onClick: () => setPanel('route-type'),
-          attributes: {
-            'data-nextjs-route-type': state.staticIndicator
-              ? 'static'
-              : 'dynamic',
-          },
-        },
+        state.staticIndicator === 'disabled'
+          ? undefined
+          : state.staticIndicator === 'pending'
+            ? {
+                title: 'Loading...',
+                label: 'Route',
+                value: <LoadingIcon />,
+              }
+            : {
+                title: `Current route is ${state.staticIndicator}.`,
+                label: 'Route',
+                value:
+                  state.staticIndicator === 'static' ? 'Static' : 'Dynamic',
+                onClick: () => setPanel('route-type'),
+                attributes: {
+                  'data-nextjs-route-type': state.staticIndicator,
+                },
+              },
         !!process.env.TURBOPACK
           ? {
               title: 'Turbopack is enabled.',
@@ -84,15 +92,14 @@ const MenuPanel = () => {
               value: <ChevronRight />,
               onClick: () => setPanel('turbo-info'),
             },
-        !!process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER &&
-          isAppRouter && {
-            label: 'Route Info',
-            value: <ChevronRight />,
-            onClick: () => setPanel('segment-explorer'),
-            attributes: {
-              'data-segment-explorer': true,
-            },
+        isAppRouter && {
+          label: 'Route Info',
+          value: <ChevronRight />,
+          onClick: () => setPanel('segment-explorer'),
+          attributes: {
+            'data-segment-explorer': true,
           },
+        },
         {
           label: 'Preferences',
           value: <GearIcon />,
@@ -167,41 +174,41 @@ export const PanelRouter = () => {
         </DynamicPanel>
       </PanelRoute>
 
-      <PanelRoute name="route-type">
-        <DynamicPanel
-          key={state.staticIndicator ? 'static' : 'dynamic'}
-          sharePanelSizeGlobally={false}
-          sizeConfig={{
-            kind: 'fixed',
-            height: state.staticIndicator
-              ? 300 / state.scale
-              : 325 / state.scale,
-            width: 400 / state.scale,
-          }}
-          closeOnClickOutside
-          header={
-            <DevToolsHeader
-              title={`${state.staticIndicator ? 'Static' : 'Dynamic'} Route`}
-            />
-          }
-        >
-          <div className="panel-content">
-            <RouteInfoBody
-              routerType={state.routerType}
-              isStaticRoute={state.staticIndicator}
-            />
-            <InfoFooter
-              href={
-                learnMoreLink[state.routerType][
-                  state.staticIndicator ? 'static' : 'dynamic'
-                ]
+      {state.staticIndicator !== 'disabled' &&
+        state.staticIndicator !== 'pending' && (
+          <PanelRoute name="route-type">
+            <DynamicPanel
+              key={state.staticIndicator}
+              sharePanelSizeGlobally={false}
+              sizeConfig={{
+                kind: 'fixed',
+                height:
+                  state.staticIndicator === 'static'
+                    ? 300 / state.scale
+                    : 325 / state.scale,
+                width: 400 / state.scale,
+              }}
+              closeOnClickOutside
+              header={
+                <DevToolsHeader
+                  title={`${state.staticIndicator === 'static' ? 'Static' : 'Dynamic'} Route`}
+                />
               }
-            />
-          </div>
-        </DynamicPanel>
-      </PanelRoute>
+            >
+              <div className="panel-content">
+                <RouteInfoBody
+                  routerType={state.routerType}
+                  isStaticRoute={state.staticIndicator === 'static'}
+                />
+                <InfoFooter
+                  href={learnMoreLink[state.routerType][state.staticIndicator]}
+                />
+              </div>
+            </DynamicPanel>
+          </PanelRoute>
+        )}
 
-      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER && isAppRouter && (
+      {isAppRouter && (
         <PanelRoute name="segment-explorer">
           <DynamicPanel
             sharePanelSizeGlobally={false}

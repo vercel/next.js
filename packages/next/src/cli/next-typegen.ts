@@ -60,6 +60,7 @@ const nextTypegen = async (
     disableStaticImages: nextConfig.images.disableStaticImages,
     hasAppDir: !!appDir,
     hasPagesDir: !!pagesDir,
+    isolatedDevBuild: nextConfig.experimental.isolatedDevBuild,
   })
 
   console.log('Generating route types...')
@@ -89,6 +90,7 @@ const nextTypegen = async (
       pageExtensions: nextConfig.pageExtensions,
       pagesDir,
       appDir,
+      appDirOnly: !!appDir && !pagesDir,
     })
 
   const validFileMatcher = createValidFileMatcher(

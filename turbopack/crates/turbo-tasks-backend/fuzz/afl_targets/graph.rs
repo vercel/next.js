@@ -13,14 +13,8 @@ mod graph;
 // turbopack/crates/turbo-tasks-backend/fuzz/afl-out -- target/debug/afl_graph
 
 fn main() {
-    register();
     init();
     fuzz!(|data: Vec<TaskSpec>| {
         run(data);
     });
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    include!(concat!(env!("OUT_DIR"), "/register_afl_graph.rs"));
 }

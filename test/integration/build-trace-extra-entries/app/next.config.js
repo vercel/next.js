@@ -18,11 +18,13 @@ module.exports = {
     return cfg
   },
   outputFileTracingIncludes: {
-    '/index': ['include-me/**/*'],
-    '/route1': ['./include-me/**/*', 'node_modules/pkg-behind-symlink/*'],
+    // Full path includes "app" or "pages"
+    '/pages/index': ['include-me/**/*'],
+    '/app/route1': ['./include-me/**/*', 'node_modules/pkg-behind-symlink/*'],
     '/*': ['include-me-global.txt'],
   },
   outputFileTracingExcludes: {
+    // Subpaths should also work
     '/index': ['public/exclude-me/**/*'],
     '/route1': ['./public/exclude-me/**/*'],
   },

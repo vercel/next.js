@@ -15,12 +15,12 @@ import {
   type SetIncrementalResponseCacheContext,
 } from '../../response-cache'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
-
 import FileSystemCache from './file-system-cache'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 
 import {
   CACHE_ONE_YEAR,
+  NEXT_CACHE_TAGS_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
@@ -35,6 +35,7 @@ import type { Revalidate } from '../cache-control'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { DetachedPromise } from '../../../lib/detached-promise'
+import { areTagsExpired, areTagsStale } from './tags-manifest.external'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -49,7 +50,7 @@ export interface CacheHandlerContext {
 }
 
 export interface CacheHandlerValue {
-  lastModified?: number
+  lastModified: number
   age?: number
   cacheState?: string
   value: IncrementalCacheValue | null
@@ -73,7 +74,8 @@ export class CacheHandler {
   ): Promise<void> {}
 
   public async revalidateTag(
-    ..._args: Parameters<IncrementalCache['revalidateTag']>
+    _tags: string | string[],
+    _durations?: { expire?: number }
   ): Promise<void> {}
 
   public resetRequestCache(): void {}
@@ -89,8 +91,8 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly allowedRevalidateHeaderKeys?: string[]
   readonly minimalMode?: boolean
   readonly fetchCacheKeyPrefix?: string
-  readonly revalidatedTags?: string[]
   readonly isOnDemandRevalidate?: boolean
+  readonly revalidatedTags?: readonly string[]
 
   private static readonly debug: boolean =
     !!process.env.NEXT_PRIVATE_DEBUG_CACHE
@@ -145,13 +147,16 @@ export class IncrementalCache implements IncrementalCacheType {
       } else {
         if (fs && serverDistDir) {
           if (IncrementalCache.debug) {
-            console.log('using filesystem cache handler')
+            console.log('IncrementalCache: using filesystem cache handler')
           }
           CurCacheHandler = FileSystemCache
         }
       }
     } else if (IncrementalCache.debug) {
-      console.log('using custom cache handler', CurCacheHandler.name)
+      console.log(
+        'IncrementalCache: using custom cache handler',
+        CurCacheHandler.name
+      )
     }
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
@@ -179,7 +184,7 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     if (minimalMode) {
-      revalidatedTags = getPreviouslyRevalidatedTags(
+      revalidatedTags = this.revalidatedTags = getPreviouslyRevalidatedTags(
         requestHeaders,
         this.prerenderManifest?.preview?.previewModeId
       )
@@ -243,7 +248,7 @@ export class IncrementalCache implements IncrementalCacheType {
       const lock = this.locks.get(cacheKey)
 
       if (IncrementalCache.debug) {
-        console.log('lock get', cacheKey, !!lock)
+        console.log('IncrementalCache: lock get', cacheKey, !!lock)
       }
 
       // If no lock exists, we can proceed to acquire it
@@ -258,7 +263,7 @@ export class IncrementalCache implements IncrementalCacheType {
     const { resolve, promise } = new DetachedPromise<void>()
 
     if (IncrementalCache.debug) {
-      console.log('successfully locked', cacheKey)
+      console.log('IncrementalCache: successfully locked', cacheKey)
     }
 
     // Store the lock promise in the locks map
@@ -274,8 +279,11 @@ export class IncrementalCache implements IncrementalCacheType {
     }
   }
 
-  async revalidateTag(tags: string | string[]): Promise<void> {
-    return this.cacheHandler?.revalidateTag(tags)
+  async revalidateTag(
+    tags: string | string[],
+    durations?: { expire?: number }
+  ): Promise<void> {
+    return this.cacheHandler?.revalidateTag(tags, durations)
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
@@ -430,7 +438,17 @@ export class IncrementalCache implements IncrementalCacheType {
       if (resumeDataCache) {
         const memoryCacheData = resumeDataCache.fetch.get(cacheKey)
         if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
+          if (IncrementalCache.debug) {
+            console.log('IncrementalCache: rdc:hit', cacheKey)
+          }
+
           return { isStale: false, value: memoryCacheData }
+        } else if (IncrementalCache.debug) {
+          console.log('IncrementalCache: rdc:miss', cacheKey)
+        }
+      } else {
+        if (IncrementalCache.debug) {
+          console.log('IncrementalCache: rdc:no-resume-data')
         }
       }
     }
@@ -471,10 +489,35 @@ export class IncrementalCache implements IncrementalCacheType {
         combinedTags.some(
           (tag) =>
             this.revalidatedTags?.includes(tag) ||
-            workStore?.pendingRevalidatedTags?.includes(tag)
+            workStore?.pendingRevalidatedTags?.some((item) => item.tag === tag)
         )
       ) {
+        if (IncrementalCache.debug) {
+          console.log('IncrementalCache: expired tag', cacheKey)
+        }
+
         return null
+      }
+
+      // As we're able to get the cache entry for this fetch, and the prerender
+      // resume data cache (RDC) is available, it must have been populated by a
+      // previous fetch, but was not yet present in the in-memory cache. This
+      // could be the case when performing multiple renders in parallel during
+      // build time where we de-duplicate the fetch calls.
+      //
+      // We add it to the RDC so that the next fetch call will be able to use it
+      // and it won't have to reach into the fetch cache implementation.
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      if (workUnitStore) {
+        const prerenderResumeDataCache =
+          getPrerenderResumeDataCache(workUnitStore)
+        if (prerenderResumeDataCache) {
+          if (IncrementalCache.debug) {
+            console.log('IncrementalCache: rdc:set', cacheKey)
+          }
+
+          prerenderResumeDataCache.fetch.set(cacheKey, cacheData.value)
+        }
       }
 
       const revalidate = ctx.revalidate || cacheData.value.revalidate
@@ -484,8 +527,14 @@ export class IncrementalCache implements IncrementalCacheType {
           (cacheData.lastModified || 0)) /
         1000
 
-      const isStale = age > revalidate
+      let isStale = age > revalidate
       const data = cacheData.value.data
+
+      if (areTagsExpired(combinedTags, cacheData.lastModified)) {
+        return null
+      } else if (areTagsStale(combinedTags, cacheData.lastModified)) {
+        isStale = true
+      }
 
       return {
         isStale,
@@ -507,17 +556,40 @@ export class IncrementalCache implements IncrementalCacheType {
       isStale = -1
       revalidateAfter = -1 * CACHE_ONE_YEAR
     } else {
+      const now = performance.timeOrigin + performance.now()
+      const lastModified = cacheData?.lastModified || now
+
       revalidateAfter = this.calculateRevalidate(
         cacheKey,
-        cacheData?.lastModified || performance.timeOrigin + performance.now(),
+        lastModified,
         this.dev ?? false,
         ctx.isFallback
       )
+
       isStale =
-        revalidateAfter !== false &&
-        revalidateAfter < performance.timeOrigin + performance.now()
-          ? true
-          : undefined
+        revalidateAfter !== false && revalidateAfter < now ? true : undefined
+
+      // If the stale time couldn't be determined based on the revalidation
+      // time, we check if the tags are expired or stale.
+      if (
+        isStale === undefined &&
+        (cacheData?.value?.kind === CachedRouteKind.APP_PAGE ||
+          cacheData?.value?.kind === CachedRouteKind.APP_ROUTE)
+      ) {
+        const tagsHeader = cacheData.value.headers?.[NEXT_CACHE_TAGS_HEADER]
+
+        if (typeof tagsHeader === 'string') {
+          const cacheTags = tagsHeader.split(',')
+
+          if (cacheTags.length > 0) {
+            if (areTagsExpired(cacheTags, lastModified)) {
+              isStale = -1
+            } else if (areTagsStale(cacheTags, lastModified)) {
+              isStale = true
+            }
+          }
+        }
+      }
     }
 
     if (cacheData) {
@@ -575,6 +647,10 @@ export class IncrementalCache implements IncrementalCacheType {
         ? getPrerenderResumeDataCache(workUnitStore)
         : null
       if (prerenderResumeDataCache) {
+        if (IncrementalCache.debug) {
+          console.log('IncrementalCache: rdc:set', pathname)
+        }
+
         prerenderResumeDataCache.fetch.set(pathname, data)
       }
     }

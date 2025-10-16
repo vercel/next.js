@@ -15,6 +15,7 @@ use crate::analyzer::RequireContextValue;
 pub async fn replace_well_known(
     value: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
     Ok(match value {
         JsValue::Call(_, box JsValue::WellKnownFunction(kind), args) => (
@@ -23,6 +24,7 @@ pub async fn replace_well_known(
                 JsValue::unknown_empty(false, "this is not analyzed yet"),
                 args,
                 compile_time_info,
+                allow_project_root_tracing,
             )
             .await?,
             true,
@@ -43,6 +45,21 @@ pub async fn replace_well_known(
         JsValue::Member(_, box JsValue::WellKnownFunction(kind), box prop) => {
             well_known_function_member(kind, prop)
         }
+        JsValue::Member(_, box JsValue::Array { .. }, box ref prop) => match prop.as_str() {
+            Some("filter") => (
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ArrayFilter),
+                true,
+            ),
+            Some("forEach") => (
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ArrayForEach),
+                true,
+            ),
+            Some("map") => (
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ArrayMap),
+                true,
+            ),
+            _ => (value, false),
+        },
         _ => (value, false),
     })
 }
@@ -52,6 +69,7 @@ pub async fn well_known_function_call(
     _this: JsValue,
     args: Vec<JsValue>,
     compile_time_info: Vc<CompileTimeInfo>,
+    allow_project_root_tracing: bool,
 ) -> Result<JsValue> {
     Ok(match kind {
         WellKnownFunctionKind::ObjectAssign => object_assign(args),
@@ -61,13 +79,13 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::Import => import(args),
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::RequireContextRequire(value) => {
-            require_context_require(value, args).await?
+            require_context_require(value, args)?
         }
         WellKnownFunctionKind::RequireContextRequireKeys(value) => {
-            require_context_require_keys(value, args).await?
+            require_context_require_keys(value, args)?
         }
         WellKnownFunctionKind::RequireContextRequireResolve(value) => {
-            require_context_require_resolve(value, args).await?
+            require_context_require_resolve(value, args)?
         }
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
         WellKnownFunctionKind::OsArch => compile_time_info
@@ -85,8 +103,10 @@ pub async fn well_known_function_call(
             .as_str()
             .into(),
         WellKnownFunctionKind::ProcessCwd => {
-            if let Some(cwd) = &*compile_time_info.environment().cwd().await? {
-                cwd.clone().into()
+            if allow_project_root_tracing
+                && let Some(cwd) = &*compile_time_info.environment().cwd().await?
+            {
+                format!("/ROOT/{}", cwd.path).into()
             } else {
                 JsValue::unknown(
                     JsValue::call(Box::new(JsValue::WellKnownFunction(kind)), args),
@@ -118,7 +138,7 @@ pub async fn well_known_function_call(
     })
 }
 
-pub fn object_assign(args: Vec<JsValue>) -> JsValue {
+fn object_assign(args: Vec<JsValue>) -> JsValue {
     if args.iter().all(|arg| matches!(arg, JsValue::Object { .. })) {
         if let Some(mut merged_object) = args.into_iter().reduce(|mut acc, cur| {
             if let JsValue::Object { parts, mutable, .. } = &mut acc
@@ -161,7 +181,7 @@ pub fn object_assign(args: Vec<JsValue>) -> JsValue {
     }
 }
 
-pub fn path_join(args: Vec<JsValue>) -> JsValue {
+fn path_join(args: Vec<JsValue>) -> JsValue {
     if args.is_empty() {
         return rcstr!(".").into();
     }
@@ -217,7 +237,7 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
     JsValue::concat(results)
 }
 
-pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
+fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
     // If no path segments are passed, `path.resolve()` will return the absolute
     // path of the current working directory.
     if args.is_empty() {
@@ -292,7 +312,7 @@ pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
     JsValue::concat(results)
 }
 
-pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
+fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
     if let Some(arg) = args.iter_mut().next() {
         if let Some(str) = arg.as_str() {
             if let Some(i) = str.rfind('/') {
@@ -326,10 +346,10 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
 pub fn import(args: Vec<JsValue>) -> JsValue {
     match &args[..] {
         [JsValue::Constant(ConstantValue::Str(v))] => {
-            JsValue::promise(Box::new(JsValue::Module(ModuleValue {
+            JsValue::promise(JsValue::Module(ModuleValue {
                 module: v.as_atom().into_owned(),
                 annotations: ImportAnnotations::default(),
-            })))
+            }))
         }
         _ => JsValue::unknown(
             JsValue::call(
@@ -344,7 +364,7 @@ pub fn import(args: Vec<JsValue>) -> JsValue {
 
 /// Resolve the contents of a require call, throwing errors
 /// if we come across any unsupported syntax.
-pub fn require(args: Vec<JsValue>) -> JsValue {
+fn require(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         if let Some(s) = args[0].as_str() {
             JsValue::Module(ModuleValue {
@@ -374,7 +394,7 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
 }
 
 /// (try to) statically evaluate `require.context(...)()`
-async fn require_context_require(val: RequireContextValue, args: Vec<JsValue>) -> Result<JsValue> {
+fn require_context_require(val: RequireContextValue, args: Vec<JsValue>) -> Result<JsValue> {
     if args.is_empty() {
         return Ok(JsValue::unknown(
             JsValue::call(
@@ -422,10 +442,7 @@ async fn require_context_require(val: RequireContextValue, args: Vec<JsValue>) -
 }
 
 /// (try to) statically evaluate `require.context(...).keys()`
-async fn require_context_require_keys(
-    val: RequireContextValue,
-    args: Vec<JsValue>,
-) -> Result<JsValue> {
+fn require_context_require_keys(val: RequireContextValue, args: Vec<JsValue>) -> Result<JsValue> {
     Ok(if args.is_empty() {
         JsValue::array(val.0.keys().cloned().map(|k| k.into()).collect())
     } else {
@@ -443,7 +460,7 @@ async fn require_context_require_keys(
 }
 
 /// (try to) statically evaluate `require.context(...).resolve()`
-async fn require_context_require_resolve(
+fn require_context_require_resolve(
     val: RequireContextValue,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
@@ -490,7 +507,7 @@ async fn require_context_require_resolve(
     Ok(m.as_str().into())
 }
 
-pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
+fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         if let Some(path) = args[0].as_str() {
             Url::from_file_path(path)
@@ -533,7 +550,7 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     }
 }
 
-pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> (JsValue, bool) {
+fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> (JsValue, bool) {
     let new_value = match (kind, prop.as_str()) {
         (WellKnownFunctionKind::Require, Some("resolve")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
@@ -570,7 +587,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
     (new_value, true)
 }
 
-pub async fn well_known_object_member(
+async fn well_known_object_member(
     kind: WellKnownObjectKind,
     prop: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
@@ -583,6 +600,12 @@ pub async fn well_known_object_member(
         WellKnownObjectKind::FsModule
         | WellKnownObjectKind::FsModuleDefault
         | WellKnownObjectKind::FsModulePromises => fs_module_member(kind, prop),
+        WellKnownObjectKind::FsExtraModule | WellKnownObjectKind::FsExtraModuleDefault => {
+            fs_extra_module_member(kind, prop)
+        }
+        WellKnownObjectKind::ModuleModule | WellKnownObjectKind::ModuleModuleDefault => {
+            module_module_member(kind, prop)
+        }
         WellKnownObjectKind::UrlModule | WellKnownObjectKind::UrlModuleDefault => {
             url_module_member(kind, prop)
         }
@@ -621,7 +644,7 @@ fn global_object(prop: JsValue) -> JsValue {
     }
 }
 
-pub fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     match (kind, prop.as_str()) {
         (.., Some("join")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         (.., Some("dirname")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
@@ -645,7 +668,7 @@ pub fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     }
 }
 
-pub fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     if let Some(word) = prop.as_str() {
         match (kind, word) {
             (
@@ -676,7 +699,65 @@ pub fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     )
 }
 
-pub fn url_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+fn fs_extra_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+    if let Some(word) = prop.as_str() {
+        match (kind, word) {
+            // regular fs methods
+            (
+                ..,
+                "realpath" | "realpathSync" | "stat" | "statSync" | "existsSync"
+                | "createReadStream" | "exists" | "open" | "openSync" | "readFile" | "readFileSync",
+            ) => {
+                return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(
+                    word.into(),
+                ));
+            }
+            // fs-extra specific
+            (
+                ..,
+                "pathExists" | "pathExistsSync" | "readJson" | "readJSON" | "readJsonSync"
+                | "readJSONSync",
+            ) => {
+                return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(
+                    word.into(),
+                ));
+            }
+            (WellKnownObjectKind::FsExtraModule, "default") => {
+                return JsValue::WellKnownObject(WellKnownObjectKind::FsExtraModuleDefault);
+            }
+            _ => {}
+        }
+    }
+    JsValue::unknown(
+        JsValue::member(
+            Box::new(JsValue::WellKnownObject(WellKnownObjectKind::FsExtraModule)),
+            Box::new(prop),
+        ),
+        true,
+        "unsupported property on fs-extra module",
+    )
+}
+
+fn module_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+    match (kind, prop.as_str()) {
+        (.., Some("createRequire")) => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
+        }
+        (WellKnownObjectKind::ModuleModule, Some("default")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::ModuleModuleDefault)
+        }
+        _ => JsValue::unknown(
+            JsValue::member(
+                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::ModuleModule)),
+                Box::new(prop),
+            ),
+            true,
+            "unsupported property on Node.js `module` module",
+        ),
+    }
+}
+
+fn url_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     match (kind, prop.as_str()) {
         (.., Some("pathToFileURL")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl)
@@ -695,7 +776,7 @@ pub fn url_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     }
 }
 
-pub fn child_process_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+fn child_process_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     let prop_str = prop.as_str();
     match (kind, prop_str) {
         (.., Some("spawn" | "spawnSync" | "execFile" | "execFileSync")) => {

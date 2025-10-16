@@ -19,7 +19,7 @@ use crate::{
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
     pages_structure::{PagesStructure, PagesStructureItem},
-    util::{NextRuntime, file_content_rope, load_next_js_template, pages_middleware_function_name},
+    util::{NextRuntime, file_content_rope, load_next_js_template, pages_function_name},
 };
 
 #[turbo_tasks::value]
@@ -51,7 +51,8 @@ pub async fn create_page_ssr_entry_module(
         .await?;
 
     let template_file = match (&reference_type, runtime) {
-        (ReferenceType::Entry(EntryReferenceSubType::Page), _) => {
+        (ReferenceType::Entry(EntryReferenceSubType::Page), _)
+        | (ReferenceType::Entry(EntryReferenceSubType::PageData), _) => {
             // Load the Page entry file.
             "pages.js"
         }
@@ -77,10 +78,20 @@ pub async fn create_page_ssr_entry_module(
         ("VAR_USERLAND", &inner),
     ];
 
-    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
+    let is_page = matches!(
+        reference_type,
+        ReferenceType::Entry(EntryReferenceSubType::Page)
+            | ReferenceType::Entry(EntryReferenceSubType::PageData)
+    );
+    if is_page {
         replacements.push(("VAR_MODULE_DOCUMENT", &inner_document));
         replacements.push(("VAR_MODULE_APP", &inner_app));
     }
+    let source_ident = source.ident().await?;
+    // for PagesData we apply a ?server-data query parameter to avoid conflicts with the Page
+    // module.
+    // We need to copy that to all the modules we create.
+    let source_query = source_ident.query.clone();
 
     // Load the file from the next.js codebase.
     let mut source =
@@ -89,7 +100,7 @@ pub async fn create_page_ssr_entry_module(
     // When we're building the instrumentation page (only when the
     // instrumentation file conflicts with a page also labeled
     // /instrumentation) hoist the `register` method.
-    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page)
+    if is_page
         && (definition_page == "/instrumentation" || definition_page == "/src/instrumentation")
     {
         let file = &*file_content_rope(source.content().file_content()).await?;
@@ -104,8 +115,8 @@ pub async fn create_page_ssr_entry_module(
 
         let file = File::from(result.build());
 
-        source = Vc::upcast(VirtualSource::new(
-            source.ident().path().owned().await?,
+        source = Vc::upcast(VirtualSource::new_with_ident(
+            source.ident(),
             AssetContent::file(file.into()),
         ));
     }
@@ -116,28 +127,30 @@ pub async fn create_page_ssr_entry_module(
 
     let pages_structure_ref = pages_structure.await?;
 
-    let (app_module, document_module) =
-        if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
-            let document_module = process_global_item(
-                *pages_structure_ref.document,
-                reference_type.clone(),
-                ssr_module_context,
-            )
-            .to_resolved()
-            .await?;
-            let app_module = process_global_item(
-                *pages_structure_ref.app,
-                reference_type.clone(),
-                ssr_module_context,
-            )
-            .to_resolved()
-            .await?;
-            inner_assets.insert(inner_document, document_module);
-            inner_assets.insert(inner_app, app_module);
-            (Some(app_module), Some(document_module))
-        } else {
-            (None, None)
-        };
+    let (app_module, document_module) = if is_page {
+        // We process the document and app modules in the same context and reference type.
+        let document_module = process_global_item(
+            *pages_structure_ref.document,
+            reference_type.clone(),
+            source_query.clone(),
+            ssr_module_context,
+        )
+        .to_resolved()
+        .await?;
+        let app_module = process_global_item(
+            *pages_structure_ref.app,
+            reference_type.clone(),
+            source_query.clone(),
+            ssr_module_context,
+        )
+        .to_resolved()
+        .await?;
+        inner_assets.insert(inner_document, document_module);
+        inner_assets.insert(inner_app, app_module);
+        (Some(app_module), Some(document_module))
+    } else {
+        (None, None)
+    };
 
     let mut ssr_module = ssr_module_context
         .process(
@@ -147,7 +160,7 @@ pub async fn create_page_ssr_entry_module(
         .module();
 
     if matches!(runtime, NextRuntime::Edge) {
-        if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
+        if is_page {
             ssr_module = wrap_edge_page(
                 ssr_module_context,
                 project_root,
@@ -157,13 +170,14 @@ pub async fn create_page_ssr_entry_module(
                 reference_type,
                 pages_structure,
                 next_config,
+                source_query.clone(),
             );
         } else {
             ssr_module = wrap_edge_entry(
                 ssr_module_context,
                 project_root,
                 ssr_module,
-                pages_middleware_function_name(&definition_page).into(),
+                pages_function_name(&definition_page).into(),
             );
         }
     }
@@ -180,9 +194,13 @@ pub async fn create_page_ssr_entry_module(
 async fn process_global_item(
     item: Vc<PagesStructureItem>,
     reference_type: ReferenceType,
+    source_query: RcStr,
     module_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    let source = Vc::upcast(FileSource::new(item.file_path().owned().await?));
+    let source = Vc::upcast(FileSource::new_with_query(
+        item.file_path().owned().await?,
+        source_query,
+    ));
     Ok(module_context.process(source, reference_type).module())
 }
 
@@ -196,6 +214,7 @@ async fn wrap_edge_page(
     reference_type: ReferenceType,
     pages_structure: Vc<PagesStructure>,
     next_config: Vc<NextConfig>,
+    source_query: RcStr,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_PAGE_ENTRY";
 
@@ -254,16 +273,19 @@ async fn wrap_edge_page(
         INNER_DOCUMENT.into() => process_global_item(
             *pages_structure_ref.document,
             reference_type.clone(),
+            source_query.clone(),
             asset_context,
         ).to_resolved().await?,
         INNER_APP.into() => process_global_item(
             *pages_structure_ref.app,
             reference_type.clone(),
+            source_query.clone(),
             asset_context,
         ).to_resolved().await?,
         INNER_ERROR.into() => process_global_item(
             *pages_structure_ref.error,
             reference_type.clone(),
+            source_query.clone(),
             asset_context,
         ).to_resolved().await?,
     };
@@ -271,15 +293,20 @@ async fn wrap_edge_page(
     if let Some(error_500) = pages_structure_ref.error_500 {
         inner_assets.insert(
             INNER_ERROR_500.into(),
-            process_global_item(*error_500, reference_type.clone(), asset_context)
-                .to_resolved()
-                .await?,
+            process_global_item(
+                *error_500,
+                reference_type.clone(),
+                source_query.clone(),
+                asset_context,
+            )
+            .to_resolved()
+            .await?,
         );
     }
 
     let wrapped = asset_context
         .process(
-            Vc::upcast(source),
+            source,
             ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
@@ -288,7 +315,7 @@ async fn wrap_edge_page(
         asset_context,
         project_root,
         wrapped,
-        pages_middleware_function_name(&page).into(),
+        pages_function_name(&page).into(),
     ))
 }
 

@@ -67,7 +67,7 @@ describe('basePath', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -106,15 +106,6 @@ describe('basePath', () => {
     await browser.eval('window.history.forward()')
     await check(() => browser.elementByCss('p').text(), /second/)
     expect(await browser.eval('window.beforeNav')).toBe(1)
-  })
-
-  it('should respect basePath in amphtml link rel', async () => {
-    const html = await renderViaHTTP(next.url, `${basePath}/amp-hybrid`)
-    const $ = cheerio.load(html)
-    const expectedAmpHtmlUrl = isNextDev
-      ? `${basePath}/amp-hybrid?amp=1`
-      : `${basePath}/amp-hybrid.amp`
-    expect($('link[rel=amphtml]').first().attr('href')).toBe(expectedAmpHtmlUrl)
   })
 
   if (!isNextDev) {
