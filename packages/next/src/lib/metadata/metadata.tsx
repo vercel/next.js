@@ -116,8 +116,8 @@ export function createMetadataComponents({
   }
   Viewport.displayName = 'Next.Viewport'
 
-  function Metadata() {
-    const pendingMetadataTags = getResolvedMetadata(
+  async function Metadata() {
+    const metadataTags = await getResolvedMetadata(
       tree,
       pathnameForMetadata,
       searchParams,
@@ -145,27 +145,11 @@ export function createMetadataComponents({
       // We're going to throw the error from the metadata outlet so we just render null here instead
       return null
     })
-
-    // TODO: We shouldn't change what we render based on whether we are streaming or not.
-    // If we aren't streaming we should just block the response until we have resolved the
-    // metadata.
-    if (!serveStreamingMetadata) {
-      return (
-        <MetadataBoundary>
-          {/* @ts-expect-error -- Promise<ReactNode> not considered a valid child even though it is */}
-          {pendingMetadataTags}
-        </MetadataBoundary>
-      )
-    }
+    
     return (
-      <div hidden>
-        <MetadataBoundary>
-          <Suspense name="Next.Metadata">
-            {/* @ts-expect-error -- Promise<ReactNode> not considered a valid child even though it is */}
-            {pendingMetadataTags}
-          </Suspense>
-        </MetadataBoundary>
-      </div>
+      <MetadataBoundary>
+        {metadataTags}
+      </MetadataBoundary>
     )
   }
   Metadata.displayName = 'Next.Metadata'
