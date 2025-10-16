@@ -15,6 +15,18 @@ const SECONDS_THRESHOLD_HIGH_NANOSECONDS = 40_000_000_000 // 40 seconds in nanos
 const SECONDS_THRESHOLD_LOW_NANOSECONDS = 2_000_000_000 // 2 seconds in nanoseconds
 const MILLISECONDS_THRESHOLD_NANOSECONDS = 1_000_000 // 1 millisecond in nanoseconds
 
+/**
+ * Converts a duration in seconds to a human-readable string format.
+ * Formats duration based on magnitude for optimal readability:
+ * - >= 2 minutes: show in minutes with 1 decimal place (e.g., "2.5min")
+ * - >= 40 seconds: show in whole seconds (e.g., "45s")
+ * - >= 2 seconds: show in seconds with 1 decimal place (e.g., "3.2s")
+ * - < 2 seconds: show in milliseconds with 1 decimal place (e.g., "1500.0ms")
+ *
+ * @deprecated Use durationToStringWithNanoseconds instead, collect time in nanoseconds using process.hrtime.bigint().
+ * @param compilerDuration - Duration in seconds as a number
+ * @returns Formatted duration string with appropriate unit and precision
+ */
 export function durationToString(compilerDuration: number) {
   if (compilerDuration > MINUTES_THRESHOLD_SECONDS) {
     return `${(compilerDuration / SECONDS_IN_MINUTE).toFixed(1)}min`
@@ -27,6 +39,18 @@ export function durationToString(compilerDuration: number) {
   }
 }
 
+/**
+ * Converts a nanosecond duration to a human-readable string format.
+ * Formats duration based on magnitude for optimal readability:
+ * - >= 2 minutes: show in minutes with 1 decimal place (e.g., "2.5min")
+ * - >= 40 seconds: show in whole seconds (e.g., "45s")
+ * - >= 2 seconds: show in seconds with 1 decimal place (e.g., "3.2s")
+ * - >= 1 millisecond: show in whole milliseconds (e.g., "250ms")
+ * - < 1 millisecond: show in whole microseconds (e.g., "500µs")
+ *
+ * @param durationBigInt - Duration in nanoseconds as a BigInt
+ * @returns Formatted duration string with appropriate unit and precision
+ */
 function durationToStringWithNanoseconds(durationBigInt: bigint): string {
   const duration = Number(durationBigInt)
   if (duration > MINUTES_THRESHOLD_NANOSECONDS) {
@@ -42,15 +66,35 @@ function durationToStringWithNanoseconds(durationBigInt: bigint): string {
   }
 }
 
+/**
+ * Converts a high-resolution time tuple to seconds.
+ *
+ * @param hrtime - High-resolution time tuple of [seconds, nanoseconds]
+ * @returns Duration in seconds as a floating-point number
+ */
 export function hrtimeToSeconds(hrtime: [number, number]): number {
   // hrtime is a tuple of [seconds, nanoseconds]
   return hrtime[0] + hrtime[1] / NANOSECONDS_PER_SECOND
 }
 
+/**
+ * Converts a BigInt nanosecond duration to a human-readable string format.
+ * This is the preferred method for formatting high-precision durations.
+ *
+ * @param hrtime - Duration in nanoseconds as a BigInt (typically from process.hrtime.bigint())
+ * @returns Formatted duration string with appropriate unit and precision
+ */
 export function hrtimeBigIntDurationToString(hrtime: bigint) {
   return durationToStringWithNanoseconds(hrtime)
 }
 
+/**
+ * Converts a high-resolution time tuple to a human-readable string format.
+ *
+ * @deprecated Use hrtimeBigIntDurationToString with process.hrtime.bigint() for better precision.
+ * @param hrtime - High-resolution time tuple of [seconds, nanoseconds]
+ * @returns Formatted duration string with appropriate unit and precision
+ */
 export function hrtimeDurationToString(hrtime: [number, number]): string {
   return durationToString(hrtimeToSeconds(hrtime))
 }
