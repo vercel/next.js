@@ -15,11 +15,7 @@ describe('parallel-routes-leaf-segments-build-error', () => {
   }
 
   if (isNextDev) {
-    beforeEach(() => next.start())
-    afterEach(async () => {
-      await next.stop()
-      await next.clean()
-    })
+    beforeAll(() => next.start())
   } else {
     beforeAll(async () => {
       try {
@@ -35,11 +31,24 @@ describe('parallel-routes-leaf-segments-build-error', () => {
       if (isNextDev) {
         const browser = await next.browser('/with-children/child')
         await assertHasRedbox(browser)
-      }
 
-      await retry(() => {
-        expect(next.cliOutput).toContain('/with-children/@header/default.js')
-      })
+        await retry(async () => {
+          const logs = await browser.log()
+          expect(logs).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                message: expect.stringContaining(
+                  '/with-children/@header/default.js'
+                ),
+              }),
+            ])
+          )
+        })
+      } else {
+        await retry(() => {
+          expect(next.cliOutput).toContain('/with-children/@header/default.js')
+        })
+      }
     })
   })
 
@@ -48,13 +57,26 @@ describe('parallel-routes-leaf-segments-build-error', () => {
       if (isNextDev) {
         const browser = await next.browser('/with-groups-and-children/nested')
         await assertHasRedbox(browser)
-      }
 
-      await retry(() => {
-        expect(next.cliOutput).toContain(
-          '/with-groups-and-children/(dashboard)/(overview)/@metrics/default.js'
-        )
-      })
+        await retry(async () => {
+          const logs = await browser.log()
+          expect(logs).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                message: expect.stringContaining(
+                  '/with-groups-and-children/(dashboard)/(overview)/@metrics/default.js'
+                ),
+              }),
+            ])
+          )
+        })
+      } else {
+        await retry(() => {
+          expect(next.cliOutput).toContain(
+            '/with-groups-and-children/(dashboard)/(overview)/@metrics/default.js'
+          )
+        })
+      }
     })
   })
 })
