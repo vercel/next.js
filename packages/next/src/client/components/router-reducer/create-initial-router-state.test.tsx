@@ -4,7 +4,6 @@ import type {
   CacheNode,
 } from '../../../shared/lib/app-router-types'
 import { createInitialRouterState } from './create-initial-router-state'
-import { PrefetchCacheEntryStatus, PrefetchKind } from './router-reducer-types'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',
@@ -41,9 +40,6 @@ describe('createInitialRouterState', () => {
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
-      couldBeIntercepted: false,
-      postponed: false,
-      prerendered: false,
     })
 
     const state2 = createInitialRouterState({
@@ -52,9 +48,6 @@ describe('createInitialRouterState', () => {
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
-      couldBeIntercepted: false,
-      postponed: false,
-      prerendered: false,
     })
 
     const expectedCache: CacheNode = {
@@ -109,22 +102,6 @@ describe('createInitialRouterState', () => {
     const expected: ReturnType<typeof createInitialRouterState> = {
       tree: initialTree,
       canonicalUrl: initialCanonicalUrl,
-      prefetchCache: new Map([
-        [
-          '/linking',
-          {
-            key: '/linking',
-            data: expect.any(Promise),
-            prefetchTime: expect.any(Number),
-            kind: PrefetchKind.AUTO,
-            lastUsedTime: expect.any(Number),
-            treeAtTimeOfPrefetch: initialTree,
-            status: PrefetchCacheEntryStatus.fresh,
-            url: new URL('/linking', 'https://localhost'),
-            staleTime: -1,
-          },
-        ],
-      ]),
       pushRef: {
         pendingPush: false,
         mpaNavigation: false,

@@ -78,9 +78,6 @@ export function handleMutable(
     },
     // Apply cache.
     cache: mutable.cache ? mutable.cache : state.cache,
-    prefetchCache: mutable.prefetchCache
-      ? mutable.prefetchCache
-      : state.prefetchCache,
     // Apply patched router state.
     tree: isNotUndefined(mutable.patchedTree)
       ? mutable.patchedTree

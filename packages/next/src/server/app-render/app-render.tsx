@@ -1349,9 +1349,6 @@ function App<T>({
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
-    couldBeIntercepted: response.i,
-    postponed: response.s,
-    prerendered: response.S,
   })
 
   const actionQueue = createMutableActionQueue(initialState, null)
@@ -1419,9 +1416,6 @@ function ErrorApp<T>({
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
-    couldBeIntercepted: response.i,
-    postponed: response.s,
-    prerendered: response.S,
   })
 
   const actionQueue = createMutableActionQueue(initialState, null)

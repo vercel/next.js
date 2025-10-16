@@ -6,11 +6,6 @@ import type {
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
-import {
-  createSeededPrefetchCacheEntry,
-  STATIC_STALETIME_MS,
-} from './prefetch-cache-utils'
-import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
 import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 
@@ -20,9 +15,6 @@ export interface InitialRouterStateParameters {
   initialParallelRoutes: CacheNode['parallelRoutes']
   initialFlightData: FlightDataPath[]
   location: Location | null
-  couldBeIntercepted: boolean
-  postponed: boolean
-  prerendered: boolean
 }
 
 export function createInitialRouterState({
@@ -31,9 +23,6 @@ export function createInitialRouterState({
   initialCanonicalUrlParts,
   initialParallelRoutes,
   location,
-  couldBeIntercepted,
-  postponed,
-  prerendered,
 }: InitialRouterStateParameters) {
   // When initialized on the server, the canonical URL is provided as an array of parts.
   // This is to ensure that when the RSC payload streamed to the client, crawlers don't interpret it
@@ -73,8 +62,6 @@ export function createInitialRouterState({
 
   addRefreshMarkerToActiveParallelSegments(initialTree, canonicalUrl)
 
-  const prefetchCache = new Map<string, PrefetchCacheEntry>()
-
   // When the cache hasn't been seeded yet we fill the cache with the head.
   if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
     fillLazyItemsTillLeafWithHead(
@@ -83,15 +70,13 @@ export function createInitialRouterState({
       undefined,
       initialTree,
       initialSeedData,
-      initialHead,
-      undefined
+      initialHead
     )
   }
 
   const initialState = {
     tree: initialTree,
     cache,
-    prefetchCache,
     pushRef: {
       pendingPush: false,
       mpaNavigation: false,
@@ -112,48 +97,6 @@ export function createInitialRouterState({
       null,
     previousNextUrl: null,
     debugInfo: null,
-  }
-
-  if (process.env.NODE_ENV !== 'development' && location) {
-    // Seed the prefetch cache with this page's data.
-    // This is to prevent needlessly re-prefetching a page that is already reusable,
-    // and will avoid triggering a loading state/data fetch stall when navigating back to the page.
-    // We don't currently do this in development because links aren't prefetched in development
-    // so having a mismatch between prefetch/no prefetch provides inconsistent behavior based on which page
-    // was loaded first.
-    const url = new URL(
-      `${location.pathname}${location.search}`,
-      location.origin
-    )
-
-    createSeededPrefetchCacheEntry({
-      url,
-      data: {
-        flightData: [normalizedFlightData],
-        canonicalUrl: undefined,
-        couldBeIntercepted: !!couldBeIntercepted,
-        prerendered,
-        postponed,
-        // TODO: The initial RSC payload includes both static and dynamic data
-        // in the same response, even if PPR is enabled. So if there's any
-        // dynamic data at all, we can't set a stale time. In the future we may
-        // add a way to split a single Flight stream into static and dynamic
-        // parts. But in the meantime we should at least make this work for
-        // fully static pages.
-        staleTime:
-          // In the old router, there was only a single configurable staleTime (experimental.staleTimes)
-          // As an abundance of caution, this will only set the initial staleTime to the configured value
-          // if we're not leveraging the segment cache, which has its own prefetching semantics.
-          prerendered && !process.env.__NEXT_CLIENT_SEGMENT_CACHE
-            ? STATIC_STALETIME_MS
-            : -1,
-        debugInfo: null,
-      },
-      tree: initialState.tree,
-      prefetchCache: initialState.prefetchCache,
-      nextUrl: initialState.nextUrl,
-      kind: prerendered ? PrefetchKind.FULL : PrefetchKind.AUTO,
-    })
   }
 
   return initialState
