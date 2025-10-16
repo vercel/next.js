@@ -10,7 +10,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::OutputAssets,
+    output::{OutputAssets, OutputAssetsWithReferenced},
 };
 
 use super::module::WorkerLoaderModule;
@@ -33,7 +33,7 @@ pub struct WorkerLoaderChunkItem {
 #[turbo_tasks::value_impl]
 impl WorkerLoaderChunkItem {
     #[turbo_tasks::function]
-    async fn chunks(&self) -> Result<Vc<OutputAssets>> {
+    async fn chunk_group(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let module = self.module.await?;
 
         Ok(self.chunking_context.evaluated_chunk_group_assets(
@@ -49,7 +49,7 @@ impl WorkerLoaderChunkItem {
         let this = self.await?;
         Ok(ChunkData::from_assets(
             this.chunking_context.output_root().owned().await?,
-            self.chunks(),
+            *self.chunk_group().await?.assets,
         ))
     }
 }
@@ -94,12 +94,12 @@ impl ChunkItem for WorkerLoaderChunkItem {
 
     #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.chunks()
+        self.chunk_group().all_assets()
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]

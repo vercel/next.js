@@ -29,6 +29,7 @@ describe('create-next-app prompts', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         {
           cwd,
@@ -68,6 +69,7 @@ describe('create-next-app prompts', () => {
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         {
           cwd,
@@ -104,6 +106,7 @@ describe('create-next-app prompts', () => {
           '--no-turbopack',
           '--no-src-dir',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         {
           cwd,
@@ -140,6 +143,7 @@ describe('create-next-app prompts', () => {
           '--no-turbopack',
           '--no-tailwind',
           '--no-src-dir',
+          '--no-react-compiler',
         ],
         {
           cwd,
@@ -213,6 +217,106 @@ describe('create-next-app prompts', () => {
           ],
         }
       `)
+    })
+  })
+
+  it('should use recommended defaults when user selects that option', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'recommended-defaults'
+      const childProcess = createNextApp(
+        [projectName],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: [
+              'app',
+              'package.json',
+              'postcss.config.mjs', // tailwind
+              'tsconfig.json', // typescript
+            ],
+          })
+          resolve()
+        })
+
+        // Select "Yes, use recommended defaults" (default option, just press enter)
+        childProcess.stdin.write('\n')
+      })
+
+      const pkg = require(join(cwd, projectName, 'package.json'))
+      expect(pkg.name).toBe(projectName)
+      // Verify turbopack is in dev script
+      expect(pkg.scripts.dev).toContain('--turbo')
+    })
+  })
+
+  it('should show reuse previous settings option when preferences exist', async () => {
+    const Conf = require('next/dist/compiled/conf')
+
+    await useTempDir(async (cwd) => {
+      // Manually set preferences to simulate a previous run
+      const conf = new Conf({ projectName: 'create-next-app' })
+      conf.set('preferences', {
+        typescript: false,
+        eslint: true,
+        linter: 'eslint',
+        tailwind: false,
+        app: false,
+        srcDir: false,
+        importAlias: '@/*',
+        customizeImportAlias: false,
+        turbopack: false,
+        reactCompiler: false,
+      })
+
+      const projectName = 'reuse-prefs-project'
+      const childProcess = createNextApp(
+        [projectName],
+        {
+          cwd,
+        },
+        nextTgzFilename,
+        false // Don't clear preferences
+      )
+
+      await new Promise<void>(async (resolve) => {
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+
+        // Select "reuse previous settings" (cursor down once, then enter)
+        childProcess.stdin.write('\u001b[B\n')
+
+        // Wait for the prompt to appear with "reuse previous settings"
+        await check(() => output, /No, reuse previous settings/)
+
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: [
+              'pages', // pages router (not app)
+              'package.json',
+              'jsconfig.json', // javascript
+            ],
+          })
+          resolve()
+        })
+      })
+
+      const pkg = require(join(cwd, projectName, 'package.json'))
+      expect(pkg.name).toBe(projectName)
     })
   })
 

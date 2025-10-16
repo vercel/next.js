@@ -1,5 +1,5 @@
 import type {
-  MiddlewareConfig,
+  ProxyConfig,
   MiddlewareMatcher,
   RSCModuleType,
 } from '../../analysis/get-page-static-info'
@@ -39,7 +39,7 @@ export interface RouteMeta {
   page: string
   absolutePagePath: string
   preferredRegion: string | string[] | undefined
-  middlewareConfig: MiddlewareConfig
+  middlewareConfig: ProxyConfig
   // references to other modules that this route needs
   // e.g. related routes, not-found routes, etc
   relatedModules?: string[]

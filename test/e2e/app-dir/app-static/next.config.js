@@ -3,7 +3,18 @@ module.exports = {
   logging: {
     fetches: {},
   },
-  cacheHandler: process.env.CUSTOM_CACHE_HANDLER,
+  experimental: {
+    cacheLife: {
+      expireNow: {
+        stale: 0,
+        expire: 0,
+        revalidate: 0,
+      },
+    },
+  },
+  cacheHandler: process.env.CUSTOM_CACHE_HANDLER
+    ? require.resolve('./cache-handler.js')
+    : undefined,
 
   rewrites: async () => {
     return {

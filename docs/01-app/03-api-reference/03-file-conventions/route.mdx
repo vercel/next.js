@@ -102,6 +102,24 @@ export async function GET(request, { params }) {
 | `app/shop/[tag]/[item]/route.js` | `/shop/1/2`    | `Promise<{ tag: '1', item: '2' }>` |
 | `app/blog/[...slug]/route.js`    | `/blog/1/2`    | `Promise<{ slug: ['1', '2'] }>`    |
 
+### Route Context Helper
+
+You can type the Route Handler context using `RouteContext` to get strongly typed `params` from a route literal. `RouteContext` is a globally available helper.
+
+```ts filename="app/users/[id]/route.ts" switcher
+import type { NextRequest } from 'next/server'
+
+export async function GET(_req: NextRequest, ctx: RouteContext<'/users/[id]'>) {
+  const { id } = await ctx.params
+  return Response.json({ id })
+}
+```
+
+> **Good to know**
+>
+> - Types are generated during `next dev`, `next build` or `next typegen`.
+> - After type generation, the `RouteContext` helper is globally available. It doesn't need to be imported.
+
 ## Examples
 
 ### Cookies
@@ -529,7 +547,6 @@ export async function GET(request) {
 > **Good to know**:
 >
 > - To add CORS headers to multiple Route Handlers, you can use [Middleware](/docs/app/api-reference/file-conventions/middleware#cors) or the [`next.config.js` file](/docs/app/api-reference/config/next-config-js/headers#cors).
-> - Alternatively, see our [CORS example](https://github.com/vercel/examples/blob/main/edge-functions/cors/lib/cors.ts) package.
 
 ### Webhooks
 

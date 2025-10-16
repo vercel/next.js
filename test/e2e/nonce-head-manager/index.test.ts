@@ -13,7 +13,6 @@ describe('nonce head manager', () => {
         pages: new FileRef(join(__dirname, 'app/pages')),
         public: new FileRef(join(__dirname, 'app/public')),
       },
-      nextConfig: new FileRef(join(__dirname, 'app/next.config.js')),
     })
   })
   afterAll(() => next.destroy())

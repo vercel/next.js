@@ -418,7 +418,10 @@ async fn import_mapping_to_result(
             } else if let Some(request) = request.await?.request() {
                 request
             } else {
-                bail!("Cannot resolve external reference without request")
+                bail!(
+                    "Cannot resolve external reference with dynamic request {:?}",
+                    request.request_pattern().await?.describe_as_string()
+                )
             },
             *ty,
             *traced,
@@ -434,7 +437,10 @@ async fn import_mapping_to_result(
             } else if let Some(request) = request.await?.request() {
                 request
             } else {
-                bail!("Cannot resolve external reference without request")
+                bail!(
+                    "Cannot resolve external reference with dynamic request {:?}",
+                    request.request_pattern().await?.describe_as_string()
+                )
             },
             ty: *ty,
             traced: *traced,
@@ -517,6 +523,12 @@ impl ImportMap {
         // relative requests must not match global wildcard aliases.
 
         let request_pattern = request.request_pattern().await?;
+        if matches!(*request_pattern, Pattern::Dynamic | Pattern::DynamicNoSlash) {
+            // You could probably conceive of cases where this isn't correct. But the dynamic will
+            // just match every single entry in the import map, which is not what we want.
+            return Ok(ImportMapResult::NoEntry);
+        }
+
         let (req_rel, rest) = request_pattern.split_could_match("./");
         let (req_rel_parent, req_rest) =
             rest.map(|r| r.split_could_match("../")).unwrap_or_default();
@@ -540,12 +552,7 @@ impl ImportMap {
             .chain(lookup_rel_parent.into_iter())
             .chain(lookup.into_iter())
             .map(async |result| {
-                import_mapping_to_result(
-                    *result.try_join_into_self().await?,
-                    lookup_path.clone(),
-                    request,
-                )
-                .await
+                import_mapping_to_result(*result?.output.await?, lookup_path.clone(), request).await
             })
             .try_join()
             .await?;
@@ -614,6 +621,8 @@ pub struct ResolveOptions {
     pub enable_typescript_with_output_extension: bool,
     /// Warn instead of error for resolve errors
     pub loose_errors: bool,
+    /// Collect affecting sources for each resolve result.  Useful for tracing.
+    pub collect_affecting_sources: bool,
     /// Whether to parse data URIs into modules (as opposed to keeping them as externals)
     pub parse_data_uris: bool,
 

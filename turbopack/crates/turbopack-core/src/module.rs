@@ -1,16 +1,14 @@
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Copy, Debug, TaskInput, Hash)]
+#[turbo_tasks::value(shared)]
 pub enum StyleType {
     IsolatedStyle,
     GlobalStyle,
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionStyleType(Option<StyleType>);
 
 /// A module. This usually represents parsed source code, which has references
 /// to other modules.
@@ -20,6 +18,13 @@ pub trait Module: Asset {
     /// all properties of the [Module].
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent>;
+
+    /// The identifier of the [Module] as string. It's expected to be unique and capture
+    /// all properties of the [Module].
+    #[turbo_tasks::function]
+    fn ident_string(self: Vc<Self>) -> Vc<RcStr> {
+        self.ident().to_string()
+    }
 
     /// Other [Module]s or [OutputAsset]s referenced from this [Module].
     // TODO refactor to avoid returning [OutputAsset]s here
@@ -33,12 +38,13 @@ pub trait Module: Asset {
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
+}
 
+#[turbo_tasks::value_trait]
+pub trait StyleModule: Module + Asset {
     /// The style type of the module.
     #[turbo_tasks::function]
-    fn style_type(self: Vc<Self>) -> Vc<OptionStyleType> {
-        Vc::cell(None)
-    }
+    fn style_type(&self) -> Vc<StyleType>;
 }
 
 #[turbo_tasks::value(transparent)]

@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
 
 // Skip PPR test as it's covered in test/e2e/app-dir/ppr-metadata-streaming/ppr-metadata-streaming.test.ts
 ;(isPPREnabled ? describe.skip : describe)(
@@ -22,6 +22,7 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
         const staticRoutes = prerenderManifest.routes
         expect(Object.keys(staticRoutes).sort()).toEqual([
           '/',
+          '/_global-error',
           '/_not-found',
           '/slow/static',
           '/suspenseful/static',

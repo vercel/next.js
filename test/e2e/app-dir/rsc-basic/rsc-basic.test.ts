@@ -1,5 +1,5 @@
 import path from 'path'
-import { check } from 'next-test-utils'
+import { check, getDistDir } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 import {
@@ -10,7 +10,8 @@ import {
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
 // gates like this one into a single module.
-const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isPPREnabledByDefault =
+  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -42,7 +43,7 @@ describe('app dir - rsc basics', () => {
         const clientReferenceManifest = JSON.parse(
           (
             await next.readFile(
-              '.next/server/app/page_client-reference-manifest.js'
+              `${getDistDir()}/server/app/page_client-reference-manifest.js`
             )
           ).match(/]=(.+)$/)[1]
         )
@@ -75,37 +76,55 @@ describe('app dir - rsc basics', () => {
 
   it('should correctly render page returning null', async () => {
     const browser = await next.browser('/return-null/page')
-    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
+    expect(
+      await browser
+        .elementByCss('#return-null-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
     const browser = await next.browser('/return-null/component')
-    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
+    expect(
+      await browser
+        .elementByCss('#return-null-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
     const browser = await next.browser('/return-null/layout')
-    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
+    expect(
+      await browser
+        .elementByCss('#return-null-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should correctly render page returning undefined', async () => {
     const browser = await next.browser('/return-undefined/page')
     expect(
-      await browser.elementByCss('#return-undefined-layout').text()
+      await browser
+        .elementByCss('#return-undefined-layout', { state: 'attached' })
+        .text()
     ).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
     const browser = await next.browser('/return-undefined/component')
     expect(
-      await browser.elementByCss('#return-undefined-layout').text()
+      await browser
+        .elementByCss('#return-undefined-layout', { state: 'attached' })
+        .text()
     ).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
     const browser = await next.browser('/return-undefined/layout')
     expect(
-      await browser.elementByCss('#return-undefined-layout').text()
+      await browser
+        .elementByCss('#return-undefined-layout', { state: 'attached' })
+        .text()
     ).toBeEmpty()
   })
 
@@ -382,6 +401,15 @@ describe('app dir - rsc basics', () => {
     expect(dynamicRouteUrl).toBe(`${next.url}/edge/dynamic/123`)
   })
 
+  describe.each(['node', 'edge'])(`%s`, (runtime) => {
+    it('should handle dynamic routes when URL segment matches the folder bracket syntax', async () => {
+      const browser = await next.browser(`/${runtime}/dynamic/[id]`)
+      expect(await browser.elementByCss('body').text()).toBe(
+        'dynamic route [id] page'
+      )
+    })
+  })
+
   it('should support streaming for flight response', async () => {
     await next
       .fetch(`/?${NEXT_RSC_UNION_QUERY}`, {
@@ -433,7 +461,7 @@ describe('app dir - rsc basics', () => {
   // TODO: (PPR) remove once PPR is stable
   // TODO(new-dev-overlay): remove once new dev overlay is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
       ? '-experimental-'
       : '-canary-'
 
@@ -605,13 +633,15 @@ describe('app dir - rsc basics', () => {
   if (isNextStart) {
     it('should generate edge SSR manifests for Node.js', async () => {
       const requiredServerFiles = JSON.parse(
-        await next.readFile('.next/required-server-files.json')
+        await next.readFile(`${getDistDir()}/required-server-files.json`)
       ).files
 
       const files = ['middleware-build-manifest.js', 'middleware-manifest.json']
 
       let promises = files.map(async (file) => {
-        expect(await next.hasFile(path.join('.next/server', file))).toBe(true)
+        expect(
+          await next.hasFile(path.join(`${getDistDir()}/server`, file))
+        ).toBe(true)
       })
       await Promise.all(promises)
 

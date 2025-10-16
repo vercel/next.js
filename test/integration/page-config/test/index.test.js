@@ -32,7 +32,9 @@ describe('Page Config', () => {
           const { stderr } = await nextBuild(appDir, undefined, {
             stderr: true,
           })
-          expect(stderr).toMatch(/\/invalid-page-config/)
+          expect(stderr).toContain(
+            "Next.js can't recognize the exported `config`"
+          )
         } finally {
           await reset()
         }
@@ -45,7 +47,9 @@ describe('Page Config', () => {
           const { stderr } = await nextBuild(appDir, undefined, {
             stderr: true,
           })
-          expect(stderr).toMatch(/\/invalid-page-config/)
+          expect(stderr).toContain(
+            "Next.js can't recognize the exported `config`"
+          )
         } finally {
           await reset()
         }
@@ -58,33 +62,9 @@ describe('Page Config', () => {
           const { stderr } = await nextBuild(appDir, undefined, {
             stderr: true,
           })
-          expect(stderr).toMatch(/\/invalid-page-config/)
-        } finally {
-          await reset()
-        }
-      })
-
-      it('shows error when page config has invalid properties', async () => {
-        const reset = await uncommentExport('invalid/invalid-property.js')
-
-        try {
-          const { stderr } = await nextBuild(appDir, undefined, {
-            stderr: true,
-          })
-          expect(stderr).toMatch(/\/invalid-page-config/)
-        } finally {
-          await reset()
-        }
-      })
-
-      it('shows error when page config has invalid property value', async () => {
-        const reset = await uncommentExport('invalid/invalid-value.js')
-
-        try {
-          const { stderr } = await nextBuild(appDir, undefined, {
-            stderr: true,
-          })
-          expect(stderr).toMatch(/\/invalid-page-config/)
+          expect(stderr).toContain(
+            "Next.js can't recognize the exported `config`"
+          )
         } finally {
           await reset()
         }
@@ -97,7 +77,9 @@ describe('Page Config', () => {
           const { stderr } = await nextBuild(appDir, undefined, {
             stderr: true,
           })
-          expect(stderr).toMatch(/\/invalid-page-config/)
+          expect(stderr).toContain(
+            "Next.js can't recognize the exported `config`"
+          )
         } finally {
           await reset()
         }
@@ -110,7 +92,9 @@ describe('Page Config', () => {
           const { stderr } = await nextBuild(appDir, undefined, {
             stderr: true,
           })
-          expect(stderr).toMatch(/\/invalid-page-config/)
+          expect(stderr).toContain(
+            "Next.js can't recognize the exported `config`"
+          )
         } finally {
           await reset()
         }

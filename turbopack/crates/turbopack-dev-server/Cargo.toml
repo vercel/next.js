@@ -50,5 +50,3 @@ urlencoding = "2.1.2"
 [dev-dependencies]
 turbo-tasks-backend = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

@@ -18,6 +18,7 @@ import {
   hasAdjacentParameterIssues,
   normalizeAdjacentParameters,
   stripParameterSeparators,
+  stripNormalizedSeparators,
 } from '../../../../lib/route-pattern-normalizer'
 
 /**
@@ -59,6 +60,8 @@ export function safePathToRegexp(
 /**
  * Client-safe wrapper around compile that handles path-to-regexp 6.3.0+ validation errors.
  * No server-side error reporting to avoid bundling issues.
+ * When normalization is applied, the returned compiler function automatically strips
+ * the internal separator from the output URL.
  */
 export function safeCompile(
   route: string,
@@ -71,13 +74,29 @@ export function safeCompile(
     : route
 
   try {
-    return compile(routeToUse, options)
+    const compiler = compile(routeToUse, options)
+
+    // If we normalized the route, wrap the compiler to strip separators from output
+    // The normalization inserts _NEXTSEP_ as a literal string in the pattern to satisfy
+    // path-to-regexp validation, but we don't want it in the final compiled URL
+    if (needsNormalization) {
+      return (params: any) => {
+        return stripNormalizedSeparators(compiler(params))
+      }
+    }
+
+    return compiler
   } catch (error) {
     // Only try normalization if we haven't already normalized
     if (!needsNormalization) {
       try {
         const normalizedRoute = normalizeAdjacentParameters(route)
-        return compile(normalizedRoute, options)
+        const compiler = compile(normalizedRoute, options)
+
+        // Wrap the compiler to strip separators from output
+        return (params: any) => {
+          return stripNormalizedSeparators(compiler(params))
+        }
       } catch (retryError) {
         // If that doesn't work, fall back to original error
         throw error

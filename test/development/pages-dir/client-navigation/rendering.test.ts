@@ -2,7 +2,7 @@
 
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, getDistDir, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import path from 'path'
@@ -17,6 +17,7 @@ describe('Client Navigation rendering', () => {
       TEST_STRICT_NEXT_HEAD: String(true),
     },
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   function render(
     pathname: Parameters<typeof renderViaHTTP>[1],
@@ -282,6 +283,29 @@ describe('Client Navigation rendering', () => {
            ],
          }
         `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "aa is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "pages/error-in-the-global-scope.js (1:1) @ eval
+         > 1 | aa = 10 //eslint-disable-line
+             | ^",
+           "stack": [
+             "eval pages/error-in-the-global-scope.js (1:1)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
@@ -309,11 +333,13 @@ describe('Client Navigation rendering', () => {
       // build dynamic page
       await fetch('/dynamic/ssr')
 
-      const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
+      const buildManifest = await next.readJSON(
+        `${getDistDir()}/${BUILD_MANIFEST}`
+      )
       const reactLoadableManifest = await next.readJSON(
         process.env.IS_TURBOPACK_TEST
-          ? `.next/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
-          : `.next/${REACT_LOADABLE_MANIFEST}`
+          ? `${getDistDir()}/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
+          : `${getDistDir()}/${REACT_LOADABLE_MANIFEST}`
       )
       const resources = []
 

@@ -11,11 +11,17 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-
+const originalIsNextDev = global.isNextDev
 let appPort
 let app
 
 const runTest = (mode = 'server') => {
+  beforeAll(() => {
+    global.isNextDev = mode === 'dev'
+  })
+  afterAll(() => {
+    global.isNextDev = originalIsNextDev
+  })
   it('supports trailing slash', async () => {
     // Make sure the page is built before getting the file
     await renderViaHTTP(appPort, '/')

@@ -23,6 +23,12 @@ pub struct JoinHandle<T> {
     join_handle: tokio::task::JoinHandle<(Result<T, TurboTasksPanic>, Duration, AllocationInfo)>,
 }
 
+impl<T: Send + 'static> JoinHandle<T> {
+    pub fn join(self) -> T {
+        block_for_future(self)
+    }
+}
+
 impl<T> Future for JoinHandle<T> {
     type Output = T;
 
@@ -86,4 +92,24 @@ pub fn spawn_thread(func: impl FnOnce() + Send + 'static) {
             func();
         })
     });
+}
+
+/// Tells the scheduler about blocking work happening in the current thread.
+/// It will make sure to allocate extra threads for the pool.
+pub fn block_in_place<R>(f: impl FnOnce() -> R + Send) -> R
+where
+    R: Send,
+{
+    tokio::task::block_in_place(f)
+}
+
+/// Blocking waits for a future to complete. This blocks the current thread potentially staling
+/// other concurrent futures (but not other concurrent tasks). Try to avoid this method infavor of
+/// awaiting the future instead.
+pub fn block_for_future<T: Send>(future: impl Future<Output = T> + Send + 'static) -> T {
+    let handle = Handle::current();
+    block_in_place(|| {
+        let _span = info_span!("blocking").entered();
+        handle.block_on(future)
+    })
 }

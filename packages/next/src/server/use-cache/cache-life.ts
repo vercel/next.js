@@ -1,3 +1,4 @@
+import { InvariantError } from '../../shared/lib/invariant-error'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
@@ -87,7 +88,7 @@ function validateCacheLife(profile: CacheLife) {
 export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   if (!process.env.__NEXT_USE_CACHE) {
     throw new Error(
-      'cacheLife() is only available with the experimental.useCache config.'
+      '`cacheLife()` is only available with the `experimental.cacheComponents` config.'
     )
   }
 
@@ -103,7 +104,7 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     case 'unstable-cache':
     case undefined:
       throw new Error(
-        'cacheLife() can only be called inside a "use cache" function.'
+        '`cacheLife()` can only be called inside a "use cache" function.'
       )
     case 'cache':
     case 'private-cache':
@@ -116,13 +117,11 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     const workStore = workAsyncStorage.getStore()
     if (!workStore) {
       throw new Error(
-        'cacheLife() can only be called during App Router rendering at the moment.'
+        '`cacheLife()` can only be called during App Router rendering at the moment.'
       )
     }
     if (!workStore.cacheLifeProfiles) {
-      throw new Error(
-        'cacheLifeProfiles should always be provided. This is a bug in Next.js.'
-      )
+      throw new InvariantError('`cacheLifeProfiles` should always be provided.')
     }
 
     // TODO: This should be globally available and not require an AsyncLocalStorage.
@@ -130,12 +129,12 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     if (configuredProfile === undefined) {
       if (workStore.cacheLifeProfiles[profile.trim()]) {
         throw new Error(
-          `Unknown cacheLife profile "${profile}" is not configured in next.config.js\n` +
+          `Unknown \`cacheLife()\` profile "${profile}" is not configured in next.config.js\n` +
             `Did you mean "${profile.trim()}" without the spaces?`
         )
       }
       throw new Error(
-        `Unknown cacheLife profile "${profile}" is not configured in next.config.js\n` +
+        `Unknown \`cacheLife()\` profile "${profile}" is not configured in next.config.js\n` +
           'module.exports = {\n' +
           '  experimental: {\n' +
           '    cacheLife: {\n' +
@@ -152,7 +151,7 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     Array.isArray(profile)
   ) {
     throw new Error(
-      'Invalid cacheLife() option. Either pass a profile name or object.'
+      'Invalid `cacheLife()` option. Either pass a profile name or object.'
     )
   } else {
     validateCacheLife(profile)

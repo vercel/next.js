@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
 
 ;(isPPREnabled ? describe.skip : describe)(
   'app-dir - metadata-static-generation',
@@ -24,6 +24,7 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
         const staticRoutes = prerenderManifest.routes
         expect(Object.keys(staticRoutes).sort()).toEqual([
           '/',
+          '/_global-error',
           '/_not-found',
           '/suspenseful/static',
         ])

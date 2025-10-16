@@ -1,13 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
+import { runNextCommand } from 'next-test-utils'
 
 const expectedDts = `
 type AppRoutes = "/" | "/_shop/[[...category]]" | "/dashboard" | "/dashboard/settings" | "/docs/[...slug]" | "/gallery/photo/[id]" | "/project/[slug]"
-type AppRouteHandlerRoutes = "/api/docs/[...slug]" | "/api/shop/[[...category]]" | "/api/users/[id]"
+type AppRouteHandlerRoutes = "/api-test" | "/api/docs/[...slug]" | "/api/shop/[[...category]]" | "/api/users/[id]"
 type PageRoutes = "/about" | "/users/[id]"
 type LayoutRoutes = "/" | "/dashboard"
 type RedirectRoutes = "/blog/[category]/[[...slug]]" | "/project/[slug]"
 type RewriteRoutes = "/api-legacy/[version]/[[...endpoint]]" | "/docs-old/[...path]"
-type Routes = AppRoutes | AppRouteHandlerRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes
+type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes | AppRouteHandlerRoutes
 `
 
 describe('typed-routes', () => {
@@ -21,12 +22,12 @@ describe('typed-routes', () => {
   }
 
   it('should generate route types correctly', async () => {
-    const dts = await next.readFile('.next/types/routes.d.ts')
+    const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
     expect(dts).toContain(expectedDts)
   })
 
   it('should correctly convert custom route patterns from path-to-regexp to bracket syntax', async () => {
-    const dts = await next.readFile('.next/types/routes.d.ts')
+    const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
 
     // Test standard dynamic segment: :slug -> [slug]
     expect(dts).toContain('"/project/[slug]"')
@@ -51,7 +52,9 @@ describe('typed-routes', () => {
     `
       )
 
-      const routeTypesContent = await next.readFile('.next/types/routes.d.ts')
+      const routeTypesContent = await next.readFile(
+        `${next.distDir}/types/routes.d.ts`
+      )
 
       expect(routeTypesContent).toContain(
         'type LayoutRoutes = "/" | "/dashboard" | "/new-layout"'
@@ -60,7 +63,7 @@ describe('typed-routes', () => {
   }
 
   it('should generate RouteContext type for route handlers', async () => {
-    const dts = await next.readFile('.next/types/routes.d.ts')
+    const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
     expect(dts).toContain(
       'interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes>'
     )
@@ -79,6 +82,8 @@ type InvalidRoute = RouteContext<'/api/users/invalid'>`
       )
 
       const { cliOutput } = await next.build()
+      // clean up for future tests
+      await next.deleteFile('app/type-testing.ts')
 
       expect(cliOutput).toContain(
         `Type '"/dasboard"' does not satisfy the constraint 'AppRoutes'.`
@@ -88,4 +93,12 @@ type InvalidRoute = RouteContext<'/api/users/invalid'>`
       )
     })
   }
+
+  it('should exit typegen successfully', async () => {
+    const { code } = await runNextCommand(['typegen'], {
+      cwd: next.testDir,
+    })
+
+    expect(code).toBe(0)
+  })
 })

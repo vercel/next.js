@@ -261,11 +261,27 @@ async function createForwardedActionResponse(
 function getAppRelativeRedirectUrl(
   basePath: string,
   host: Host,
-  redirectUrl: string
+  redirectUrl: string,
+  currentPathname?: string
 ): URL | null {
-  if (redirectUrl.startsWith('/') || redirectUrl.startsWith('.')) {
-    // Make sure we are appending the basePath to relative URLS
+  if (redirectUrl.startsWith('/')) {
+    // Absolute path - just add basePath
     return new URL(`${basePath}${redirectUrl}`, 'http://n')
+  } else if (redirectUrl.startsWith('.')) {
+    // Relative path - resolve relative to current pathname
+    let base = currentPathname || '/'
+    // Ensure the base path ends with a slash so relative resolution works correctly
+    // e.g., "./subpage" from "/subdir" should resolve to "/subdir/subpage"
+    // not "/subpage"
+    if (!base.endsWith('/')) {
+      base = base + '/'
+    }
+    const resolved = new URL(redirectUrl, `http://n${base}`)
+    // Include basePath in the final URL
+    return new URL(
+      `${basePath}${resolved.pathname}${resolved.search}${resolved.hash}`,
+      'http://n'
+    )
   }
 
   const parsedRedirectUrl = new URL(redirectUrl)
@@ -288,7 +304,8 @@ async function createRedirectRenderResult(
   redirectUrl: string,
   redirectType: RedirectType,
   basePath: string,
-  workStore: WorkStore
+  workStore: WorkStore,
+  currentPathname?: string
 ) {
   res.setHeader('x-action-redirect', `${redirectUrl};${redirectType}`)
 
@@ -300,7 +317,8 @@ async function createRedirectRenderResult(
   const appRelativeRedirectUrl = getAppRelativeRedirectUrl(
     basePath,
     originalHost,
-    redirectUrl
+    redirectUrl,
+    currentPathname
   )
 
   if (appRelativeRedirectUrl) {
@@ -328,7 +346,7 @@ async function createRedirectRenderResult(
     if (workStore.pendingRevalidatedTags) {
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-        workStore.pendingRevalidatedTags.join(',')
+        workStore.pendingRevalidatedTags.map((item) => item.tag).join(',')
       )
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
@@ -1052,7 +1070,8 @@ export async function handleAction({
             redirectUrl,
             redirectType,
             ctx.renderOpts.basePath,
-            workStore
+            workStore,
+            requestStore.url.pathname
           ),
         }
       }

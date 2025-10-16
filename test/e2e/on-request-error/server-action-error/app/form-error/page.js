@@ -1,4 +1,7 @@
-export default function Page() {
+import { connection } from 'next/server'
+
+export default async function Page() {
+  await connection()
   async function action(formData) {
     'use server'
 
@@ -12,5 +15,3 @@ export default function Page() {
     </form>
   )
 }
-
-export const dynamic = 'force-dynamic'

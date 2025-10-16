@@ -64,7 +64,6 @@
             ),
         ],
         span: 268..275,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -368,7 +367,6 @@
             ),
         ],
         span: 328..332,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -473,7 +471,6 @@
             ),
         ],
         span: 366..379,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -748,9 +745,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "alert",
-                            ),
+                            var: "alert",
                             ast_path: [
                                 Program(
                                     Module,
@@ -842,7 +837,6 @@
                                 ),
                             ],
                             span: 489..494,
-                            in_try: false,
                         },
                         ImportedBinding {
                             esm_reference_index: 5,
@@ -951,7 +945,6 @@
                                 ),
                             ],
                             span: 495..501,
-                            in_try: false,
                         },
                         Call {
                             func: Member(

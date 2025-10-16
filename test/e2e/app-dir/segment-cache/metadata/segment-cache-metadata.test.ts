@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'router-act'
 
 describe('segment cache (metadata)', () => {
   const { next, isNextDev } = nextTestSetup({

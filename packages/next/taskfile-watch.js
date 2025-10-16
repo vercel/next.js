@@ -26,7 +26,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 const path = require('path')
-// eslint-disable-next-line import/no-extraneous-dependencies
 const Watchpack = require('watchpack')
 const toArr = (val) => (Array.isArray(val) ? val : val == null ? [] : [val])
 

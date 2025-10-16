@@ -349,7 +349,7 @@ function addTransitionType(type) {
       : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
   } else startTransition(addTransitionType.bind(null, type));
 }
-exports.Children = {
+var Children = {
   map: mapChildren,
   forEach: function (children, forEachFunc, forEachContext) {
     mapChildren(
@@ -382,12 +382,15 @@ exports.Children = {
     return children;
   }
 };
+exports.Activity = REACT_ACTIVITY_TYPE;
+exports.Children = Children;
 exports.Component = Component;
 exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.Profiler = REACT_PROFILER_TYPE;
 exports.PureComponent = PureComponent;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
+exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
 exports.__COMPILER_RUNTIME = {
@@ -396,6 +399,7 @@ exports.__COMPILER_RUNTIME = {
     return ReactSharedInternals.H.useMemoCache(size);
   }
 };
+exports.addTransitionType = addTransitionType;
 exports.cache = function (fn) {
   return function () {
     return fn.apply(null, arguments);
@@ -471,9 +475,6 @@ exports.createElement = function (type, config, children) {
 exports.createRef = function () {
   return { current: null };
 };
-exports.experimental_useEffectEvent = function (callback) {
-  return ReactSharedInternals.H.useEffectEvent(callback);
-};
 exports.experimental_useOptimistic = function (passthrough, reducer) {
   return useOptimistic(passthrough, reducer);
 };
@@ -498,8 +499,6 @@ exports.memo = function (type, compare) {
 exports.startTransition = startTransition;
 exports.unstable_Activity = REACT_ACTIVITY_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
-exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
-exports.unstable_addTransitionType = addTransitionType;
 exports.unstable_getCacheForType = function (resourceType) {
   var dispatcher = ReactSharedInternals.A;
   return dispatcher ? dispatcher.getCacheForType(resourceType) : resourceType();
@@ -556,6 +555,9 @@ exports.useDeferredValue = function (value, initialValue) {
 exports.useEffect = function (create, deps) {
   return ReactSharedInternals.H.useEffect(create, deps);
 };
+exports.useEffectEvent = function (callback) {
+  return ReactSharedInternals.H.useEffectEvent(callback);
+};
 exports.useId = function () {
   return ReactSharedInternals.H.useId();
 };
@@ -595,4 +597,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.2.0-experimental-a96a0f39-20250815";
+exports.version = "19.3.0-experimental-93f85932-20251016";

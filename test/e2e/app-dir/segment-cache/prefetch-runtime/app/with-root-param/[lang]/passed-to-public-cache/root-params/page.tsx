@@ -3,6 +3,11 @@ import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../../shared'
 import { connection } from 'next/server'
 import { lang } from 'next/root-params'
 
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ params: { lang: 'en' } }],
+}
+
 export default async function Page() {
   return (
     <main>
@@ -14,13 +19,13 @@ export default async function Page() {
         a hanging input.
       </p>
       <Suspense fallback="Loading 1...">
-        <DynamicallyPrefetchable />
+        <RuntimePrefetchable />
       </Suspense>
     </main>
   )
 }
 
-async function DynamicallyPrefetchable() {
+async function RuntimePrefetchable() {
   const currentLang = await publicCache(lang())
   return (
     <div style={{ border: '1px solid blue', padding: '1em' }}>

@@ -37,6 +37,7 @@ impl InnerAssets {
     Debug,
     Default,
     Clone,
+    Copy,
     Hash,
     TaskInput,
 )]
@@ -55,11 +56,13 @@ pub enum CommonJsReferenceSubType {
     serde::Deserialize,
     Debug,
     Clone,
+    Copy,
     Hash,
     TaskInput,
 )]
 pub enum ImportWithType {
     Json,
+    Bytes,
 }
 
 #[derive(
@@ -212,6 +215,7 @@ impl ImportContext {
     Debug,
     Default,
     Clone,
+    Copy,
     Hash,
     TaskInput,
 )]
@@ -239,6 +243,7 @@ pub enum CssReferenceSubType {
     Debug,
     Default,
     Clone,
+    Copy,
     Hash,
     TaskInput,
 )]
@@ -259,6 +264,7 @@ pub enum UrlReferenceSubType {
     serde::Deserialize,
     Debug,
     Clone,
+    Copy,
     Hash,
     TaskInput,
 )]
@@ -276,6 +282,7 @@ pub enum TypeScriptReferenceSubType {
     serde::Deserialize,
     Debug,
     Clone,
+    Copy,
     Hash,
     TaskInput,
 )]
@@ -298,12 +305,16 @@ pub enum WorkerReferenceSubType {
     serde::Deserialize,
     Debug,
     Clone,
+    Copy,
     Hash,
     TaskInput,
 )]
 pub enum EntryReferenceSubType {
     Web,
     Page,
+    // A development only type that is used in pages router to differentiate between server prop
+    // changes and template changes.
+    PageData,
     PagesApi,
     AppPage,
     AppRoute,

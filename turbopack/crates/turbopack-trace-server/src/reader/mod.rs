@@ -75,7 +75,7 @@ impl ObjectSafeTraceFormat for ErasedTraceFormat {
 
 #[derive(Default)]
 enum TraceFile {
-    Raw(File),
+    Raw(BufReader<File>),
     Zstd(zstd::Decoder<'static, BufReader<File>>),
     Gz(GzDecoder<BufReader<File>>),
     #[default]
@@ -112,7 +112,7 @@ impl TraceFile {
 
     fn size(&mut self) -> io::Result<u64> {
         match self {
-            Self::Raw(file) => file.metadata().map(|m| m.len()),
+            Self::Raw(file) => file.get_ref().metadata().map(|m| m.len()),
             Self::Zstd(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
             Self::Gz(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
             Self::Unloaded => unreachable!(),
@@ -145,13 +145,21 @@ impl TraceReader {
 
     fn trace_file_from_file(&self, file: File) -> io::Result<TraceFile> {
         let path = &self.path.to_string_lossy();
-        Ok(if path.ends_with(".zst") {
-            TraceFile::Zstd(zstd::Decoder::new(file)?)
-        } else if path.ends_with(".gz") {
-            TraceFile::Gz(GzDecoder::new(BufReader::new(file)))
-        } else {
-            TraceFile::Raw(file)
-        })
+        let mut file = BufReader::with_capacity(
+            // zstd max block size (1 << 17) + block header (3) + magic bytes (4)
+            (1 << 17) + 7,
+            file,
+        );
+        let magic_bytes = file.peek(4)?;
+        Ok(
+            if path.ends_with(".zst") || magic_bytes == [0x28, 0xb5, 0x2f, 0xfd] {
+                TraceFile::Zstd(zstd::Decoder::with_buffer(file)?)
+            } else if path.ends_with(".gz") || matches!(magic_bytes, [0x1f, 0x8b, _, _]) {
+                TraceFile::Gz(GzDecoder::new(file))
+            } else {
+                TraceFile::Raw(file)
+            },
+        )
     }
 
     fn try_read(&mut self) -> bool {
@@ -293,7 +301,9 @@ impl TraceReader {
                     }
                 }
                 Err(err) => {
-                    if err.kind() == io::ErrorKind::UnexpectedEof {
+                    if err.kind() == io::ErrorKind::UnexpectedEof
+                        || err.kind() == io::ErrorKind::InvalidInput
+                    {
                         if let Some(value) = self.wait_for_more_data(
                             &mut file,
                             &mut initial_read,

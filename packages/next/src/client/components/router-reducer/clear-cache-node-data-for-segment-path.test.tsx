@@ -1,6 +1,6 @@
 import React from 'react'
 import { clearCacheNodeDataForSegmentPath } from './clear-cache-node-data-for-segment-path'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 
 const navigatedAt = -1
 

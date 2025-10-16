@@ -28,8 +28,6 @@ export type RouterServerContext = Record<
       parsedUrl?: UrlWithParsedQuery,
       setHeaders?: boolean
     ) => Promise<void>
-    // current loaded public runtime config
-    publicRuntimeConfig?: NextConfigComplete['publicRuntimeConfig']
     // exposing nextConfig for dev mode specifically
     nextConfig?: NextConfigComplete
     // whether running in custom server mode
@@ -39,7 +37,12 @@ export type RouterServerContext = Record<
     // allow dev server to log with original stack
     logErrorWithOriginalStack?: (err: unknown, type: string) => void
     // allow setting ISR status in dev
-    setIsrStatus?: (key: string, value: boolean | null) => void
+    setIsrStatus?: (key: string, value: boolean | undefined) => void
+    setReactDebugChannel?: (
+      debugChannel: { readable: ReadableStream<Uint8Array> },
+      htmlRequestId: string,
+      requestId: string
+    ) => void
   }
 >
 

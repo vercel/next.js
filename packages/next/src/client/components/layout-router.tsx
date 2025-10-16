@@ -3,12 +3,12 @@
 import type {
   CacheNode,
   LazyCacheNode,
-  LoadingModuleData,
-} from '../../shared/lib/app-router-context.shared-runtime'
+} from '../../shared/lib/app-router-types'
+import type { LoadingModuleData } from '../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-} from '../../server/app-render/types'
+} from '../../shared/lib/app-router-types'
 import type { ErrorComponent } from './error-boundary'
 import {
   ACTION_SERVER_PATCH,
@@ -16,6 +16,7 @@ import {
 } from './router-reducer/router-reducer-types'
 
 import React, {
+  Activity,
   useContext,
   use,
   startTransition,
@@ -41,10 +42,6 @@ import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has
 import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-
-const Activity = process.env.__NEXT_ROUTER_BF_CACHE
-  ? (require('react') as typeof import('react')).unstable_Activity
-  : null!
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -392,7 +389,14 @@ function InnerLayoutRouter({
         new URL(url, location.origin),
         {
           flightRouterState: refetchTree,
-          nextUrl: includeNextUrl ? context.nextUrl : null,
+          nextUrl: includeNextUrl
+            ? // We always send the last next-url, not the current when
+              // performing a dynamic request. This is because we update
+              // the next-url after a navigation, but we want the same
+              // interception route to be matched that used the last
+              // next-url.
+              context.previousNextUrl || context.nextUrl
+            : null,
         }
       ).then((serverResponse) => {
         startTransition(() => {
@@ -608,10 +612,7 @@ export default function OuterLayoutRouter({
 
     let segmentBoundaryTriggerNode: React.ReactNode = null
     let segmentViewStateNode: React.ReactNode = null
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER
-    ) {
+    if (process.env.NODE_ENV !== 'production') {
       const { SegmentBoundaryTriggerNode, SegmentViewStateNode } =
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
 
