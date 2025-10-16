@@ -31,21 +31,21 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
     }
 
     if (isNextDev) {
-      // In development it's still dynamic rendering that metadata will be inserted into body
+      // With the fix, metadata is now in head even in development
       describe('static pages (development)', () => {
-        it('should contain async generated metadata in body for simple static page', async () => {
+        it('should contain async generated metadata in head for simple static page', async () => {
           const $ = await next.render$('/')
-          expect($('body title').text()).toBe('index page')
+          expect($('head title').text()).toBe('index page')
         })
 
-        it('should contain async generated metadata in body for slow static page', async () => {
+        it('should contain async generated metadata in head for slow static page', async () => {
           const $ = await next.render$('/slow/static')
-          expect($('body title').text()).toBe('slow page - static')
+          expect($('head title').text()).toBe('slow page - static')
         })
 
-        it('should contain async generated metadata in body static page with suspenseful content', async () => {
+        it('should contain async generated metadata in head static page with suspenseful content', async () => {
           const $ = await next.render$('/suspenseful/static')
-          expect($('body title').text()).toBe('suspenseful page - static')
+          expect($('head title').text()).toBe('suspenseful page - static')
         })
       })
     } else {
@@ -68,14 +68,14 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
     }
 
     describe('dynamic pages', () => {
-      it('should contain async generated metadata in body for simple dynamics page', async () => {
+      it('should contain async generated metadata in head for simple dynamics page', async () => {
         const $ = await next.render$('/suspenseful/dynamic')
-        expect($('body title').text()).toBe('suspenseful page - dynamic')
+        expect($('head title').text()).toBe('suspenseful page - dynamic')
       })
 
-      it('should contain async generated metadata in body for suspenseful dynamic page', async () => {
+      it('should contain async generated metadata in head for suspenseful dynamic page', async () => {
         const $ = await next.render$('/slow/dynamic')
-        expect($('body title').text()).toBe('slow page - dynamic')
+        expect($('head title').text()).toBe('slow page - dynamic')
       })
     })
 

@@ -6,10 +6,10 @@ describe('app-dir - metadata-streaming', () => {
     files: __dirname,
   })
 
-  it('should delay the metadata render to body', async () => {
+  it('should render metadata in head for SEO (fixes #84750)', async () => {
     const $ = await next.render$('/')
-    expect($('head title').length).toBe(0)
-    expect($('body title').length).toBe(1)
+    expect($('head title').length).toBe(1)
+    expect($('head title').text()).toBe('index page')
   })
 
   it('should still load viewport meta tags even if metadata is delayed', async () => {
@@ -73,34 +73,34 @@ describe('app-dir - metadata-streaming', () => {
     })
   })
 
-  it('should only insert metadata once into head or body', async () => {
+  it('should only insert metadata once in head', async () => {
     const browser = await next.browser('/slow')
 
-    // each metadata should be inserted only once
+    // each metadata should be inserted only once in head
+    expect(await browser.hasElementByCssSelector('head title')).toBe(true)
+    expect((await browser.elementsByCss('head title')).length).toBe(1)
 
-    expect(await browser.hasElementByCssSelector('head title')).toBe(false)
+    // all metadata should be rendered in head (charset, viewport, and 9 others = 11 total)
+    expect((await browser.elementsByCss('head meta')).length).toBeGreaterThanOrEqual(11)
 
-    // only charset and viewport are rendered in head
-    expect((await browser.elementsByCss('head meta')).length).toBe(2)
-    expect((await browser.elementsByCss('body title')).length).toBe(1)
-
-    // all metadata should be rendered in body
-    expect((await browser.elementsByCss('body meta')).length).toBe(9)
+    // no metadata in body
+    expect((await browser.elementsByCss('body title')).length).toBe(0)
+    expect((await browser.elementsByCss('body meta')).length).toBe(0)
   })
 
   describe('dynamic api', () => {
-    it('should render metadata to body', async () => {
+    it('should render metadata to head', async () => {
       const $ = await next.render$('/dynamic-api')
-      expect($('head title').length).toBe(0)
-      expect($('body title').length).toBe(1)
+      expect($('head title').length).toBe(1)
+      expect($('body title').length).toBe(0)
     })
 
     it('should load the metadata in browser', async () => {
       const browser = await next.browser('/dynamic-api')
       await retry(async () => {
-        expect(
-          await browser.elementByCss('body title', { state: 'attached' }).text()
-        ).toMatch(/Dynamic api \d+/)
+        expect(await browser.elementByCss('title').text()).toMatch(
+          /Dynamic api \d+/
+        )
       })
     })
   })
@@ -163,10 +163,10 @@ describe('app-dir - metadata-streaming', () => {
       expect($('title').text()).toBe('static page')
     })
 
-    it('should determine dynamic metadata in build and render in the body', async () => {
+    it('should determine dynamic metadata in build and render in the head', async () => {
       const $ = await next.render$('/static/partial')
       expect($('title').length).toBe(1)
-      expect($('body title').text()).toBe('partial static page')
+      expect($('head title').text()).toBe('partial static page')
     })
 
     it('should still render dynamic metadata in the head for html bots', async () => {
