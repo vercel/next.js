@@ -38,6 +38,212 @@ import { urlToUrlWithoutFlightMarker } from '../../route-params'
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
+// Client dynamic routes manifest for static export fallback
+let clientDynamicRoutesManifest: {
+  version: number
+  routes: Array<{
+    pattern: string
+    segments: Array<
+      | { type: 'static'; value: string }
+      | { type: 'dynamic'; name: string; catchAll: boolean; optional: boolean }
+    >
+  }>
+} | null = null
+
+// Retry state for manifest loading
+let manifestLoadAttempts = 0
+const MAX_MANIFEST_RETRIES = 3
+const MANIFEST_RETRY_DELAYS = [100, 500, 1000] // Exponential backoff in ms
+
+async function loadClientDynamicRoutesManifest(): Promise<void> {
+  // Only skip if we already have a valid manifest
+  if (clientDynamicRoutesManifest) {
+    return
+  }
+
+  if (process.env.__NEXT_CONFIG_OUTPUT !== 'export') return
+
+  // Retry with exponential backoff
+  while (manifestLoadAttempts < MAX_MANIFEST_RETRIES) {
+    try {
+      const buildId = getAppBuildId()
+      const manifestUrl = `/_next/static/${buildId}/_clientDynamicRoutesManifest.json`
+      const response = await fetch(manifestUrl)
+      if (response.ok) {
+        clientDynamicRoutesManifest = await response.json()
+        return // Success!
+      }
+    } catch (err) {
+      // Network error, will retry
+    }
+
+    manifestLoadAttempts++
+
+    // If we haven't exhausted retries, wait before trying again
+    if (manifestLoadAttempts < MAX_MANIFEST_RETRIES) {
+      const delay = MANIFEST_RETRY_DELAYS[manifestLoadAttempts - 1] || 1000
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+
+  // All retries exhausted, manifest not available
+}
+
+function matchClientDynamicRoute(
+  pathname: string
+): { pattern: string; params: Record<string, string | string[]> } | null {
+  if (!clientDynamicRoutesManifest) return null
+
+  for (const route of clientDynamicRoutesManifest.routes) {
+    const pathSegments = pathname.split('/').filter(Boolean)
+    const routeSegments = route.segments
+
+    // Calculate minimum required segments (static + non-optional dynamic)
+    const minRequiredSegments = routeSegments.filter(seg =>
+      seg.type === 'static' || (seg.type === 'dynamic' && !seg.optional)
+    ).length
+
+    if (pathSegments.length < minRequiredSegments) {
+      continue // Not enough required segments
+    }
+
+    const params: Record<string, string | string[]> = {}
+    let matches = true
+    let pathIdx = 0
+    let routeIdx = 0
+
+    while (routeIdx < routeSegments.length && pathIdx <= pathSegments.length) {
+      const routeSeg = routeSegments[routeIdx]
+
+      if (routeSeg.type === 'static') {
+        if (pathIdx >= pathSegments.length || pathSegments[pathIdx] !== routeSeg.value) {
+          matches = false
+          break
+        }
+        pathIdx++
+        routeIdx++
+      } else if (routeSeg.type === 'dynamic') {
+        if (routeSeg.catchAll) {
+          if (routeSeg.optional && pathIdx >= pathSegments.length) {
+            // Optional catch-all with no remaining segments
+            params[routeSeg.name] = []
+          } else if (pathIdx < pathSegments.length) {
+            // Catch-all consumes remaining segments
+            params[routeSeg.name] = pathSegments.slice(pathIdx)
+            pathIdx = pathSegments.length
+          } else if (!routeSeg.optional) {
+            // Required catch-all but no segments available
+            matches = false
+            break
+          }
+        } else {
+          // Regular dynamic segment
+          if (routeSeg.optional && pathIdx >= pathSegments.length) {
+            // Optional param with no segment - leave param undefined
+          } else if (pathIdx < pathSegments.length) {
+            // Regular dynamic segment with available path segment
+            params[routeSeg.name] = pathSegments[pathIdx]
+            pathIdx++
+          } else if (!routeSeg.optional) {
+            // Required param but no segment available
+            matches = false
+            break
+          }
+        }
+        routeIdx++
+      }
+    }
+
+    // Check if we've consumed all path segments and route segments
+    if (matches && pathIdx === pathSegments.length && routeIdx === routeSegments.length) {
+      return { pattern: route.pattern, params }
+    }
+  }
+
+  return null
+}
+
+function constructShellUrl(url: URL, pattern: string): URL {
+  const shellUrl = new URL(url)
+  // Replace dynamic segments with __shell__ placeholder
+  const shellPath = pattern.replace(/\[([^\]]+)\]/g, '__shell__')
+
+  // Construct the shell RSC payload URL
+  // For /client-dynamic/[slug], this becomes /client-dynamic/__shell__.txt
+  shellUrl.pathname = shellPath + '.txt'
+
+  return shellUrl
+}
+
+/**
+ * Patches __shell__ placeholder params in flight data with actual URL params
+ */
+function patchParamsInFlightData(
+  flightData: NormalizedFlightData[] | string,
+  actualParams: Record<string, string | string[]>
+): NormalizedFlightData[] | string {
+  if (typeof flightData === 'string') {
+    return flightData
+  }
+  return flightData.map((data) => patchFlightDataItem(data, actualParams))
+}
+
+function patchFlightDataItem(
+  data: NormalizedFlightData,
+  actualParams: Record<string, string | string[]>
+): NormalizedFlightData {
+  // Patch the tree in the NormalizedFlightData object
+  const patchedTree = patchFlightRouterState(data.tree, actualParams)
+  return {
+    ...data,
+    tree: patchedTree,
+  }
+}
+
+function patchFlightRouterState(
+  state: FlightRouterState,
+  actualParams: Record<string, string | string[]>
+): FlightRouterState {
+  // FlightRouterState is a tuple: [segment, parallelRoutes, url?, refresh?, isRootLayout?, hasLoadingBoundary?]
+  const [segment, parallelRoutes, ...rest] = state
+
+  // Patch the segment if it contains params
+  const patchedSegment = patchSegment(segment, actualParams)
+
+  // Recursively patch parallel routes
+  const patchedParallelRoutes: { [key: string]: FlightRouterState } = {}
+  for (const [key, childState] of Object.entries(parallelRoutes)) {
+    patchedParallelRoutes[key] = patchFlightRouterState(
+      childState,
+      actualParams
+    )
+  }
+
+  return [patchedSegment, patchedParallelRoutes, ...rest] as FlightRouterState
+}
+
+function patchSegment(
+  segment: string | [string, string, string],
+  actualParams: Record<string, string | string[]>
+): string | [string, string, string] {
+  // Segment can be either a string or [paramName, paramCacheKey, dynamicParamType]
+  if (Array.isArray(segment)) {
+    const [paramName, paramCacheKey, dynamicParamType] = segment
+
+    // If the paramCacheKey is __shell__, replace it with the actual param value
+    if (paramCacheKey === '__shell__' && actualParams[paramName]) {
+      const paramValue = actualParams[paramName]
+      // For catch-all routes, join array to form path
+      const valueStr = Array.isArray(paramValue) ? paramValue.join('/') : paramValue
+      return [paramName, valueStr, dynamicParamType]
+    }
+
+    return segment
+  }
+
+  return segment
+}
+
 let createDebugChannel:
   | typeof import('../../dev/debug-channel').createDebugChannel
   | undefined
@@ -161,6 +367,10 @@ export async function fetchServerResponse(
         : 'low'
       : 'auto'
 
+    // Track original URL before modifications for client dynamic route handling
+    const originalRequestUrl = new URL(url)
+    let clientDynamicMatch: { pattern: string; params: Record<string, string | string[]> } | null = null
+
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
         // In "output: export" mode, we can't rely on headers to distinguish
@@ -171,6 +381,18 @@ export async function fetchServerResponse(
           url.pathname += 'index.txt'
         } else {
           url.pathname += '.txt'
+        }
+
+        // For client dynamic routes, fetch the shell instead to avoid 404s
+        // Store the match info so we can patch the response later
+        await loadClientDynamicRoutesManifest()
+        const pathname = url.pathname.replace(/\.txt$/, '')
+        const match = matchClientDynamicRoute(pathname)
+        if (match) {
+          clientDynamicMatch = match
+          // Replace URL with shell URL
+          const shellUrl = constructShellUrl(url, match.pattern)
+          url = shellUrl
         }
       }
     }
@@ -208,6 +430,142 @@ export async function fetchServerResponse(
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
     if (!isFlightResponse || !res.ok || !res.body) {
+      // Try client dynamic route fallback for static export
+      if (
+        process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
+        !res.ok &&
+        res.status === 404
+      ) {
+        await loadClientDynamicRoutesManifest()
+        const originalUrl = new URL(url)
+        // Remove .txt extension to get the actual pathname
+        let pathname = originalUrl.pathname
+        if (pathname.endsWith('/index.txt')) {
+          pathname = pathname.slice(0, -10) + '/'
+        } else if (pathname.endsWith('.txt')) {
+          pathname = pathname.slice(0, -4)
+        }
+
+        const match = matchClientDynamicRoute(pathname)
+        if (match) {
+          // Construct shell URL and retry
+          const shellUrl = constructShellUrl(originalUrl, match.pattern)
+          const shellRes = await createFetch(
+            shellUrl,
+            headers,
+            fetchPriority,
+            abortController.signal
+          )
+
+          if (shellRes.ok && shellRes.body) {
+            const shellContentType = shellRes.headers.get('content-type') || ''
+            const isShellFlightResponse =
+              shellContentType.startsWith(RSC_CONTENT_TYPE_HEADER) ||
+              shellContentType.startsWith('text/plain')
+
+            if (isShellFlightResponse) {
+              try {
+                // Patch the shell RSC payload using streaming approach to avoid memory issues
+                // Build regex patterns for each param
+                const paramEntries = Object.entries(match.params)
+                const patterns: Array<{ regex: RegExp; replacement: string }> = []
+
+                for (const [paramName, paramValue] of paramEntries) {
+                  // Match patterns where param name is explicit:
+                  // - Segment tuples: ["paramName","__shell__","d"]
+                  // - Param objects: {"paramName":"__shell__"}
+                  // Match both literal and escaped quotes (\" in JSON strings)
+                  const valueStr = Array.isArray(paramValue)
+                    ? paramValue.join('/')
+                    : paramValue
+                  const pattern = new RegExp(
+                    '\\\\?"' + paramName + '\\\\?"[,:]\\\\?"__shell__\\\\?"',
+                    'g'
+                  )
+                  patterns.push({ regex: pattern, replacement: valueStr })
+                }
+
+                // Create a transform stream that patches chunks on-the-fly
+                const decoder = new TextDecoder()
+                const encoder = new TextEncoder()
+                let buffer = '' // Lookbehind buffer for pattern matches across chunk boundaries
+                const BUFFER_SIZE = 200 // Keep last 200 chars to handle boundary cases
+
+                const patchingTransform = new TransformStream({
+                  transform(chunk, controller) {
+                    // Decode chunk and append to buffer
+                    const text = decoder.decode(chunk, { stream: true })
+                    buffer += text
+
+                    // Only process if buffer is large enough, keep BUFFER_SIZE chars for next iteration
+                    if (buffer.length > BUFFER_SIZE) {
+                      const processLength = buffer.length - BUFFER_SIZE
+                      let processText = buffer.slice(0, processLength)
+
+                      // Apply all pattern replacements
+                      for (const { regex, replacement } of patterns) {
+                        processText = processText.replace(regex, (match) => {
+                          return match.replace('__shell__', replacement)
+                        })
+                      }
+
+                      // Enqueue processed text and keep buffer
+                      controller.enqueue(encoder.encode(processText))
+                      buffer = buffer.slice(processLength)
+                    }
+                  },
+                  flush(controller) {
+                    // Process remaining buffer
+                    if (buffer.length > 0) {
+                      let processText = buffer
+
+                      // Apply all pattern replacements
+                      for (const { regex, replacement } of patterns) {
+                        processText = processText.replace(regex, (match) => {
+                          return match.replace('__shell__', replacement)
+                        })
+                      }
+
+                      controller.enqueue(encoder.encode(processText))
+                    }
+                  },
+                })
+
+                // Pipe shell response through patching transform
+                const patchedStream = shellRes.body!.pipeThrough(patchingTransform)
+
+                const response = (await createFromNextReadableStream(
+                  patchedStream,
+                  headers
+                )) as Promise<NavigationFlightResponse>
+
+                if (getAppBuildId() !== (await response).b) {
+                  return doMpaNavigation(shellRes.url)
+                }
+
+                const resolvedResponse = await response
+                const flightData = normalizeFlightData(resolvedResponse.f)
+
+                // Use the original requested URL as canonical, not the shell URL
+                const canonicalUrlObj = new URL(originalUrl)
+                canonicalUrlObj.pathname = pathname
+
+                return {
+                  flightData,
+                  canonicalUrl: canonicalUrlObj,
+                  couldBeIntercepted: false,
+                  prerendered: resolvedResponse.S,
+                  postponed: false,
+                  staleTime: -1,
+                }
+              } catch (error) {
+                // If patching fails, fall through to MPA navigation
+              }
+            }
+          }
+        }
+      }
+
       // in case the original URL came with a hash, preserve it before redirecting to the new URL
       if (url.hash) {
         responseUrl.hash = url.hash
@@ -239,9 +597,16 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
+    let flightData = normalizeFlightData(response.f)
+
+    // If we fetched a shell for a client dynamic route, patch it with actual params
+    if (clientDynamicMatch) {
+      flightData = patchParamsInFlightData(flightData, clientDynamicMatch.params)
+    }
+
     return {
-      flightData: normalizeFlightData(response.f),
-      canonicalUrl: canonicalUrl,
+      flightData,
+      canonicalUrl: canonicalUrl ?? (clientDynamicMatch ? originalRequestUrl : undefined),
       couldBeIntercepted: interception,
       prerendered: response.S,
       postponed,

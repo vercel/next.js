@@ -146,6 +146,84 @@ export default function Page() {
 }
 ```
 
+### Client-Side Dynamic Routes
+
+You can use dynamic routes with client-side rendering by marking your page as a client component with `'use client'`. This enables Single-Page Application (SPA) style routing where dynamic segments are resolved in the browser:
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+'use client'
+
+import { useParams } from 'next/navigation'
+
+export default function BlogPost() {
+  const params = useParams()
+
+  // Fetch data client-side
+  const { data } = useSWR(`/api/posts/${params.slug}`, fetcher)
+
+  return <article>{data?.content}</article>
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+'use client'
+
+import { useParams } from 'next/navigation'
+
+export default function BlogPost() {
+  const params = useParams()
+
+  // Fetch data client-side
+  const { data } = useSWR(`/api/posts/${params.slug}`, fetcher)
+
+  return <article>{data?.content}</article>
+}
+```
+
+**How it works:**
+
+During `next build`, Next.js generates **shell files** with `__shell__` placeholders for dynamic segments:
+
+```
+out/
+├── blog/
+│   └── __shell__.html              # Template for [slug]
+├── products/
+│   └── __shell__/
+│       └── __shell__.html          # Template for [category]/[id]
+├── 404.html                        # SPA fallback
+└── _next/
+    └── static/
+        └── ${buildId}/
+            ├── _clientDynamicRoutesManifest.json
+            └── app-client-dynamic-fallback.js
+```
+
+When a user directly accesses a URL like `/blog/my-post`:
+
+1. The static server returns `404.html` (SPA fallback)
+2. The fallback script loads `_clientDynamicRoutesManifest.json`
+3. The script matches the URL pattern and fetches the appropriate shell file
+4. Dynamic segments are patched into the React Server Component (RSC) payload
+5. React renders the page client-side with the correct parameters
+
+**Supported patterns:**
+
+- Single parameters: `[slug]` → `/blog/__shell__.html`
+- Multiple parameters: `[category]/[id]` → `/products/__shell__/__shell__.html`
+- Catch-all routes: `[...slug]` → `/docs/__shell__.html`
+- Optional catch-all: `[[...slug]]` → `/docs/__shell__.html`
+
+**Important considerations:**
+
+- Shell files ARE pre-rendered during build, but with placeholder values
+- Direct URL access works via the 404.html SPA fallback mechanism
+- Client-side navigation between routes uses Next.js's App Router (no fallback needed)
+- The fallback script includes a 10-second timeout with user-friendly error handling
+- CSP-compliant: Uses external JavaScript file instead of inline scripts
+- For SEO-critical content, use `generateStaticParams()` with server components to pre-render specific paths instead
+- You may see React hydration warning #418 in development - this is expected behavior for client-side dynamic routes
+
 </AppOnly>
 
 <PagesOnly>
@@ -278,7 +356,7 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 <AppOnly>
 
 - [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) with `dynamicParams: true`
-- [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) without `generateStaticParams()`
+- [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) without `generateStaticParams()` in server components (client components with `'use client'` are supported for SPA-style routing)
 - [Route Handlers](/docs/app/api-reference/file-conventions/route) that rely on Request
 - [Cookies](/docs/app/api-reference/functions/cookies)
 - [Rewrites](/docs/app/api-reference/config/next-config-js/rewrites)
