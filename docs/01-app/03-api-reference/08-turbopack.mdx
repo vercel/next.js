@@ -224,7 +224,9 @@ If you encounter performance or memory issues and want to help the Next.js team 
 NEXT_TURBOPACK_TRACING=1 next dev
 ```
 
-This will produce a `.next/trace-turbopack` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
+This will produce a `.next/dev/trace-turbopack` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
+
+By default the development server outputs to `.next/dev`. Read more about [isolatedDevBuild](/docs/app/api-reference/config/next-config-js/isolatedDevBuild).
 
 ## Summary
 
@@ -232,9 +234,9 @@ Turbopack is a **Rust-based**, **incremental** bundler designed to make local de
 
 ## Version Changes
 
-| Version   | Changes                                                                                                           |
-| --------- | ----------------------------------------------------------------------------------------------------------------- |
-| `v16.0.0` | Turbopack becomes the default bundler for Next.js. Automatic support for Babel when a configuration file is found |
-| `v15.5.0` | Turbopack support for `build` beta                                                                                |
-| `v15.3.0` | Experimental support for `build`                                                                                  |
-| `v15.0.0` | Turbopack for `dev` stable                                                                                        |
+| Version   | Changes                                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------------ |
+| `v16.0.0` | Turbopack becomes the default bundler for Next.js. Automatic support for Babel when a configuration file is found. |
+| `v15.5.0` | Turbopack support for `build` beta                                                                                 |
+| `v15.3.0` | Experimental support for `build`                                                                                   |
+| `v15.0.0` | Turbopack for `dev` stable                                                                                         |

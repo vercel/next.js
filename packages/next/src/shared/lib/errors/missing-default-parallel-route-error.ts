@@ -8,5 +8,9 @@ export class MissingDefaultParallelRouteError extends Error {
     )
 
     this.name = 'MissingDefaultParallelRouteError'
+
+    // This error is meant to interrupt the server start/build process
+    // but the stack trace isn't meaningful, as it points to internal code.
+    this.stack = undefined
   }
 }

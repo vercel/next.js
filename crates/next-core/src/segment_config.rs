@@ -387,6 +387,7 @@ pub async fn parse_segment_config_from_source(
         },
         EcmascriptInputTransforms::empty(),
         false,
+        false,
     )
     .await?;
 

@@ -145,12 +145,8 @@ export function createMetadataComponents({
       // We're going to throw the error from the metadata outlet so we just render null here instead
       return null
     })
-    
-    return (
-      <MetadataBoundary>
-        {metadataTags}
-      </MetadataBoundary>
-    )
+
+    return <MetadataBoundary>{metadataTags}</MetadataBoundary>
   }
   Metadata.displayName = 'Next.Metadata'
 
