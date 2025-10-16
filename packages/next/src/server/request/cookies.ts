@@ -171,6 +171,11 @@ function makeHangingCookies(
 function makeUntrackedCookies(
   underlyingCookies: ReadonlyRequestCookies
 ): Promise<ReadonlyRequestCookies> {
+  // If CC is enabled, don't cache the promise.
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    return Promise.resolve(underlyingCookies)
+  }
+
   const cachedCookies = CachedCookies.get(underlyingCookies)
   if (cachedCookies) {
     return cachedCookies
@@ -186,14 +191,29 @@ function makeUntrackedCookiesWithDevWarnings(
   underlyingCookies: ReadonlyRequestCookies,
   route?: string
 ): Promise<ReadonlyRequestCookies> {
-  const cachedCookies = CachedCookies.get(underlyingCookies)
-  if (cachedCookies) {
+  // If CC is enabled, don't cache the promise.
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    return makeUntrackedCookiesWithDevWarningsImpl(underlyingCookies, route)
+  } else {
+    let cachedCookies = CachedCookies.get(underlyingCookies)
+    if (!cachedCookies) {
+      cachedCookies = makeUntrackedCookiesWithDevWarningsImpl(
+        underlyingCookies,
+        route
+      )
+      CachedCookies.set(underlyingCookies, cachedCookies)
+    }
     return cachedCookies
   }
+}
 
+function makeUntrackedCookiesWithDevWarningsImpl(
+  underlyingCookies: ReadonlyRequestCookies,
+  route?: string
+): Promise<ReadonlyRequestCookies> {
   const promise = makeDevtoolsIOAwarePromise(underlyingCookies)
 
-  const proxiedPromise = new Proxy(promise, {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
       switch (prop) {
         case Symbol.iterator: {
@@ -219,10 +239,6 @@ function makeUntrackedCookiesWithDevWarnings(
       return ReflectAdapter.get(target, prop, receiver)
     },
   })
-
-  CachedCookies.set(underlyingCookies, proxiedPromise)
-
-  return proxiedPromise
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(

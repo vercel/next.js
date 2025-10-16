@@ -358,6 +358,11 @@ export function makeErroringSearchParamsForUseCache(
 function makeUntrackedSearchParams(
   underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
+  // If CC is enabled, don't cache the promise.
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    return Promise.resolve(underlyingSearchParams)
+  }
+
   const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
   if (cachedSearchParams) {
     return cachedSearchParams
@@ -373,11 +378,29 @@ function makeUntrackedSearchParamsWithDevWarnings(
   underlyingSearchParams: SearchParams,
   store: WorkStore
 ): Promise<SearchParams> {
-  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
-  if (cachedSearchParams) {
+  // If CC is enabled, don't cache the promise.
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    return makeUntrackedSearchParamsWithDevWarningsImpl(
+      underlyingSearchParams,
+      store
+    )
+  } else {
+    let cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
+    if (!cachedSearchParams) {
+      cachedSearchParams = makeUntrackedSearchParamsWithDevWarningsImpl(
+        underlyingSearchParams,
+        store
+      )
+      CachedSearchParams.set(underlyingSearchParams, cachedSearchParams)
+    }
     return cachedSearchParams
   }
+}
 
+function makeUntrackedSearchParamsWithDevWarningsImpl(
+  underlyingSearchParams: SearchParams,
+  store: WorkStore
+): Promise<SearchParams> {
   // Track which properties we should warn for.
   const proxiedProperties = new Set<string>()
 
@@ -446,7 +469,7 @@ function makeUntrackedSearchParamsWithDevWarnings(
     }
   })
 
-  const proxiedPromise = new Proxy(promise, {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
       if (prop === 'then' && store.dynamicShouldError) {
         const expression = '`searchParams.then`'
@@ -499,9 +522,6 @@ function makeUntrackedSearchParamsWithDevWarnings(
       return Reflect.ownKeys(target)
     },
   })
-
-  CachedSearchParams.set(underlyingSearchParams, proxiedPromise)
-  return proxiedPromise
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(

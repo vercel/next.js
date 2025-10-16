@@ -180,6 +180,11 @@ function makeHangingHeaders(
 function makeUntrackedHeaders(
   underlyingHeaders: ReadonlyHeaders
 ): Promise<ReadonlyHeaders> {
+  // If CC is enabled, don't cache the promise.
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    return Promise.resolve(underlyingHeaders)
+  }
+
   const cachedHeaders = CachedHeaders.get(underlyingHeaders)
   if (cachedHeaders) {
     return cachedHeaders
@@ -195,14 +200,29 @@ function makeUntrackedHeadersWithDevWarnings(
   underlyingHeaders: ReadonlyHeaders,
   route?: string
 ): Promise<ReadonlyHeaders> {
-  const cachedHeaders = CachedHeaders.get(underlyingHeaders)
-  if (cachedHeaders) {
+  // If CC is enabled, don't cache the promise.
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    return makeUntrackedHeadersWithDevWarningsImpl(underlyingHeaders, route)
+  } else {
+    let cachedHeaders = CachedHeaders.get(underlyingHeaders)
+    if (!cachedHeaders) {
+      cachedHeaders = makeUntrackedHeadersWithDevWarningsImpl(
+        underlyingHeaders,
+        route
+      )
+      CachedHeaders.set(underlyingHeaders, cachedHeaders)
+    }
     return cachedHeaders
   }
+}
 
+function makeUntrackedHeadersWithDevWarningsImpl(
+  underlyingHeaders: ReadonlyHeaders,
+  route?: string
+): Promise<ReadonlyHeaders> {
   const promise = makeDevtoolsIOAwarePromise(underlyingHeaders)
 
-  const proxiedPromise = new Proxy(promise, {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
       switch (prop) {
         case Symbol.iterator: {
@@ -230,10 +250,6 @@ function makeUntrackedHeadersWithDevWarnings(
       return ReflectAdapter.get(target, prop, receiver)
     },
   })
-
-  CachedHeaders.set(underlyingHeaders, proxiedPromise)
-
-  return proxiedPromise
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(

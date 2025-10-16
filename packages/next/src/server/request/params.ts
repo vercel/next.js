@@ -431,6 +431,11 @@ function makeErroringParams(
 }
 
 function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
+  // If CC is enabled, don't cache the promise.
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    return Promise.resolve(underlyingParams)
+  }
+
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
     return cachedParams
@@ -447,11 +452,32 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   hasFallbackParams: boolean,
   store: WorkStore
 ): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
+  // If CC is enabled, don't cache the promise.
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    return makeDynamicallyTrackedParamsWithDevWarningsImpl(
+      underlyingParams,
+      hasFallbackParams,
+      store
+    )
+  } else {
+    let cachedParams = CachedParams.get(underlyingParams)
+    if (!cachedParams) {
+      cachedParams = makeDynamicallyTrackedParamsWithDevWarningsImpl(
+        underlyingParams,
+        hasFallbackParams,
+        store
+      )
+      CachedParams.set(underlyingParams, cachedParams)
+    }
     return cachedParams
   }
+}
 
+function makeDynamicallyTrackedParamsWithDevWarningsImpl(
+  underlyingParams: Params,
+  hasFallbackParams: boolean,
+  store: WorkStore
+): Promise<Params> {
   // We don't use makeResolvedReactPromise here because params
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
@@ -472,7 +498,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     }
   })
 
-  const proxiedPromise = new Proxy(promise, {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
       if (typeof prop === 'string') {
         if (
@@ -497,9 +523,6 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
       return Reflect.ownKeys(target)
     },
   })
-
-  CachedParams.set(underlyingParams, proxiedPromise)
-  return proxiedPromise
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
