@@ -132,4 +132,9 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'middleware-to-proxy',
     version: '15.6.0-canary.54',
   },
+  {
+    title: 'Remove `unstable_` prefix from stabilized API',
+    value: 'remove-unstable-prefix',
+    version: '16.0.0-canary.10',
+  },
 ]
