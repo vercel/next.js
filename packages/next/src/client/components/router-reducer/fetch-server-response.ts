@@ -234,6 +234,9 @@ export async function fetchServerResponse(
     // In prod, every page will have the same Webpack runtime.
     // In dev, the Webpack runtime is minimal for each page.
     // We need to ensure the Webpack runtime is updated before executing client-side JS of the new page.
+    // TODO: This needs to happen in the Flight Client.
+    // Or Webpack needs to include the runtime update in the Flight response as
+    // a blocking script.
     if (process.env.NODE_ENV !== 'production' && !process.env.TURBOPACK) {
       await (
         require('../../dev/hot-reloader/app/hot-reloader-app') as typeof import('../../dev/hot-reloader/app/hot-reloader-app')
