@@ -1793,6 +1793,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             output_dependent_tasks,
         }) = self.task_execution_completed_prepare(
             &mut ctx,
+            #[cfg(feature = "trace_task_details")]
             &span,
             task_id,
             result,
@@ -1864,7 +1865,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn task_execution_completed_prepare(
         &self,
         ctx: &mut impl ExecuteContext<'_>,
-        span: &Span,
+        #[cfg(feature = "trace_task_details")] span: &Span,
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
