@@ -46,5 +46,6 @@ export function restoreReducer(
     tree: treeToRestore,
     nextUrl: extractPathFromFlightRouterState(treeToRestore) ?? url.pathname,
     previousNextUrl: null,
+    debugInfo: null,
   }
 }

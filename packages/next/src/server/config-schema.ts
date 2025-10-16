@@ -313,7 +313,6 @@ export const experimentalSchema = {
   optimizeServerReact: z.boolean().optional(),
   clientTraceMetadata: z.array(z.string()).optional(),
   serverMinification: z.boolean().optional(),
-  enablePrerenderSourceMaps: z.boolean().optional(),
   serverSourceMaps: z.boolean().optional(),
   useWasmBinary: z.boolean().optional(),
   useLightningcss: z.boolean().optional(),
@@ -468,6 +467,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     distDir: z.string().min(1).optional(),
     env: z.record(z.string(), z.union([z.string(), z.undefined()])).optional(),
+    enablePrerenderSourceMaps: z.boolean().optional(),
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z.strictObject(experimentalSchema).optional(),
     exportPathMap: z

@@ -35,30 +35,45 @@ export function scheduleInSequentialTasks<R>(
  * We schedule on the same queue (setTimeout) at the same time to ensure no other events can sneak in between.
  * The function that runs in the second task gets access to the first tasks's result.
  */
-export function pipelineInSequentialTasks<A, B>(
-  render: () => A,
-  followup: (a: A) => B | Promise<B>
-): Promise<B> {
+export function pipelineInSequentialTasks<A, B, C>(
+  one: () => A,
+  two: (a: A) => B,
+  three: (b: B) => C | Promise<C>
+): Promise<C> {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
       '`pipelineInSequentialTasks` should not be called in edge runtime.'
     )
   } else {
     return new Promise((resolve, reject) => {
-      let renderResult: A | undefined = undefined
+      let oneResult: A | undefined = undefined
       setTimeout(() => {
         try {
-          renderResult = render()
+          oneResult = one()
         } catch (err) {
-          clearTimeout(followupId)
+          clearTimeout(twoId)
+          clearTimeout(threeId)
           reject(err)
         }
       }, 0)
-      const followupId = setTimeout(() => {
-        // if `render` threw, then the `followup` timeout would've been cleared,
-        // so if we got here, we're guaranteed to have a `renderResult`.
+
+      let twoResult: B | undefined = undefined
+      const twoId = setTimeout(() => {
+        // if `one` threw, then this timeout would've been cleared,
+        // so if we got here, we're guaranteed to have a value.
         try {
-          resolve(followup(renderResult!))
+          twoResult = two(oneResult!)
+        } catch (err) {
+          clearTimeout(threeId)
+          reject(err)
+        }
+      }, 0)
+
+      const threeId = setTimeout(() => {
+        // if `two` threw, then this timeout would've been cleared,
+        // so if we got here, we're guaranteed to have a value.
+        try {
+          resolve(three(twoResult!))
         } catch (err) {
           reject(err)
         }

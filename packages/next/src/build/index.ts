@@ -853,7 +853,7 @@ export function createStaticWorker(
       progress?.clear()
     },
     debuggerPortOffset,
-    enableSourceMaps: config.experimental.enablePrerenderSourceMaps,
+    enableSourceMaps: config.enablePrerenderSourceMaps,
     // remove --max-old-space-size flag as it can cause memory issues.
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
@@ -2912,7 +2912,7 @@ export default async function build(
                 const isDynamicError = appConfig?.dynamic === 'error'
 
                 const isRoutePPREnabled: boolean = appConfig
-                  ? checkIsRoutePPREnabled(config.experimental.ppr, appConfig)
+                  ? checkIsRoutePPREnabled(config.experimental.ppr)
                   : false
 
                 routes.forEach((route) => {
@@ -3105,7 +3105,7 @@ export default async function build(
             // partial pre-rendering.
             const isRoutePPREnabled: true | undefined =
               !isAppRouteHandler &&
-              checkIsRoutePPREnabled(config.experimental.ppr, appConfig)
+              checkIsRoutePPREnabled(config.experimental.ppr)
                 ? true
                 : undefined
 

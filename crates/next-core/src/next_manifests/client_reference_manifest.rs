@@ -165,11 +165,7 @@ async fn build_manifest(
         let mut entry_manifest: SerializedClientReferenceManifest = Default::default();
         let mut references = FxIndexSet::default();
         let chunk_suffix_path = next_config.chunk_suffix_path().owned().await?;
-        let prefix_path = next_config
-            .computed_asset_prefix()
-            .owned()
-            .await?
-            .unwrap_or_default();
+        let prefix_path = next_config.computed_asset_prefix().owned().await?;
         let suffix_path = chunk_suffix_path.unwrap_or_default();
 
         // TODO: Add `suffix` to the manifest for React to use.

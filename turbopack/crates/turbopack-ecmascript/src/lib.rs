@@ -300,10 +300,10 @@ impl Display for EcmascriptModuleAssetType {
             EcmascriptModuleAssetType::Typescript { tsx, analyze_types } => {
                 write!(f, "typescript")?;
                 if *tsx {
-                    write!(f, "with JSX")?;
+                    write!(f, " with JSX")?;
                 }
                 if *analyze_types {
-                    write!(f, "with types")?;
+                    write!(f, " with types")?;
                 }
                 Ok(())
             }
@@ -2543,9 +2543,9 @@ impl SourceMapper for CodeGenResultSourceMap {
     }
     fn span_to_snippet(&self, sp: Span) -> Result<String, Box<SpanSnippetError>> {
         match self {
-            CodeGenResultSourceMap::None => {
-                panic!("CodeGenResultSourceMap::None cannot span_to_snippet")
-            }
+            CodeGenResultSourceMap::None => Err(Box::new(SpanSnippetError::SourceNotAvailable {
+                filename: FileName::Anon,
+            })),
             CodeGenResultSourceMap::Single { source_map } => source_map.span_to_snippet(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,

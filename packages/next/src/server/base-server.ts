@@ -2015,7 +2015,11 @@ export default abstract class Server<
     if (
       !this.minimalMode &&
       this.nextConfig.experimental.validateRSCRequestHeaders &&
-      isRSCRequest
+      isRSCRequest &&
+      // In the event that we're serving a NoFallbackError, the headers will
+      // already be stripped so this comparison will always fail, resulting in
+      // a redirect loop.
+      !is404Page
     ) {
       const headers = req.headers
 
