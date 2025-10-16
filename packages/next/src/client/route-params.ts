@@ -21,9 +21,7 @@ export type RouteParam = {
   type: DynamicParamTypesShort
 }
 
-export function getRenderedSearch(
-  response: RSCResponse<unknown>
-): NormalizedSearch {
+export function getRenderedSearch(response: RSCResponse): NormalizedSearch {
   // If the server performed a rewrite, the search params used to render the
   // page will be different from the params in the request URL. In this case,
   // the response will include a header that gives the rewritten search query.
@@ -39,7 +37,7 @@ export function getRenderedSearch(
     .search as NormalizedSearch
 }
 
-export function getRenderedPathname(response: RSCResponse<unknown>): string {
+export function getRenderedPathname(response: RSCResponse): string {
   // If the server performed a rewrite, the pathname used to render the
   // page will be different from the pathname in the request URL. In this case,
   // the response will include a header that gives the rewritten pathname.

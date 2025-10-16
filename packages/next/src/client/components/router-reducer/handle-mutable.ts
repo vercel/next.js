@@ -87,6 +87,5 @@ export function handleMutable(
       : state.tree,
     nextUrl,
     previousNextUrl: previousNextUrl,
-    debugInfo: mutable.collectedDebugInfo ?? null,
   }
 }

@@ -1450,10 +1450,10 @@ export async function fetchRouteOnCacheMiss(
           routeCacheLru.updateSize(entry, size)
         }
       )
-      const serverData = await createFromNextReadableStream<RootTreePrefetch>(
+      const serverData = await (createFromNextReadableStream(
         prefetchStream,
         headers
-      )
+      ) as Promise<RootTreePrefetch>)
       if (serverData.buildId !== getAppBuildId()) {
         // The server build does not match the client. Treat as a 404. During
         // an actual navigation, the router will trigger an MPA navigation.
@@ -1502,11 +1502,10 @@ export async function fetchRouteOnCacheMiss(
           routeCacheLru.updateSize(entry, size)
         }
       )
-      const serverData =
-        await createFromNextReadableStream<NavigationFlightResponse>(
-          prefetchStream,
-          headers
-        )
+      const serverData = await (createFromNextReadableStream(
+        prefetchStream,
+        headers
+      ) as Promise<NavigationFlightResponse>)
       if (serverData.b !== getAppBuildId()) {
         // The server build does not match the client. Treat as a 404. During
         // an actual navigation, the router will trigger an MPA navigation.
@@ -1524,7 +1523,7 @@ export async function fetchRouteOnCacheMiss(
         // The non-PPR response format is what we'd get if we prefetched these segments
         // using the LoadingBoundary fetch strategy, so mark their cache entries accordingly.
         FetchStrategy.LoadingBoundary,
-        response as RSCResponse<NavigationFlightResponse>,
+        response,
         serverData,
         entry,
         couldBeIntercepted,
@@ -1788,7 +1787,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       Date.now(),
       task,
       fetchStrategy,
-      response as RSCResponse<NavigationFlightResponse>,
+      response,
       serverData,
       isResponsePartial,
       route,
@@ -1811,7 +1810,7 @@ function writeDynamicTreeResponseIntoCache(
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  response: RSCResponse<NavigationFlightResponse>,
+  response: RSCResponse,
   serverData: NavigationFlightResponse,
   entry: PendingRouteCacheEntry,
   couldBeIntercepted: boolean,
@@ -1916,7 +1915,7 @@ function writeDynamicRenderResponseIntoCache(
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  response: RSCResponse<NavigationFlightResponse>,
+  response: RSCResponse,
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
   route: FulfilledRouteCacheEntry,
@@ -2140,22 +2139,12 @@ function writeSeedDataIntoCache(
   }
 }
 
-async function fetchPrefetchResponse<T>(
+async function fetchPrefetchResponse(
   url: URL,
   headers: RequestHeaders
-): Promise<RSCResponse<T> | null> {
+): Promise<RSCResponse | null> {
   const fetchPriority = 'low'
-  // When issuing a prefetch request, don't immediately decode the response; we
-  // use the lower level `createFromResponse` API instead because we need to do
-  // some extra processing of the response stream. See
-  // `createPrefetchResponseStream` for more details.
-  const shouldImmediatelyDecode = false
-  const response = await createFetch<T>(
-    url,
-    headers,
-    fetchPriority,
-    shouldImmediatelyDecode
-  )
+  const response = await createFetch(url, headers, fetchPriority)
   if (!response.ok) {
     return null
   }
