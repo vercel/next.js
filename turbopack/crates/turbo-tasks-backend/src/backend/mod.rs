@@ -1769,7 +1769,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 Ok(value) => display(either::Either::Left(value)),
                 Err(err) => display(either::Either::Right(err)),
             },
-            immutable = Empty
+            immutable = Empty,
+            new_output = Empty,
+            output_dependents = Empty,
+            stale = Empty,
         )
         .entered();
         let mut ctx = self.execute_context(turbo_tasks);
@@ -1793,8 +1796,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         )
         else {
             // Task was stale and has been rescheduled
+            #[cfg(feature = "trace_task_details")]
+            span.record("stale", "true");
             return true;
         };
+
+        #[cfg(feature = "trace_task_details")]
+        span.record("new_output", new_output.is_some());
+        #[cfg(feature = "trace_task_details")]
+        span.record("output_dependents", output_dependent_tasks.len());
 
         // When restoring from filesystem cache the following might not be executed (since we can
         // suspend in `CleanupOldEdgesOperation`), but that's ok as the task is still dirty and
@@ -1818,6 +1828,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             && self.task_execution_completed_connect(&mut ctx, task_id, new_children)
         {
             // Task was stale and has been rescheduled
+            #[cfg(feature = "trace_task_details")]
+            span.record("stale", "true");
             return true;
         }
 
@@ -1831,6 +1843,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             is_now_immutable,
         ) {
             // Task was stale and has been rescheduled
+            #[cfg(feature = "trace_task_details")]
+            span.record("stale", "true");
             return true;
         }
 
@@ -2129,19 +2143,33 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut queue = AggregationUpdateQueue::new();
         for dependent_task_id in output_dependent_tasks {
+            #[cfg(feature = "trace_task_output_dependencies")]
+            let span = tracing::trace_span!(
+                "invalidate output dependency",
+                task = %task_id,
+                dependent_task = %dependent_task_id,
+                result = Empty,
+            )
+            .entered();
             if ctx.is_once_task(dependent_task_id) {
                 // once tasks are never invalidated
+                #[cfg(feature = "trace_task_output_dependencies")]
+                span.record("result", "once task");
                 continue;
             }
             let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
             if dependent.has_key(&CachedDataItemKey::OutdatedOutputDependency { target: task_id }) {
                 // output dependency is outdated, so it hasn't read the output yet
                 // and doesn't need to be invalidated
+                #[cfg(feature = "trace_task_output_dependencies")]
+                span.record("result", "outdated dependency");
                 continue;
             }
             if !dependent.has_key(&CachedDataItemKey::OutputDependency { target: task_id }) {
                 // output dependency has been removed, so the task doesn't depend on the
                 // output anymore and doesn't need to be invalidated
+                #[cfg(feature = "trace_task_output_dependencies")]
+                span.record("result", "no backward dependency");
                 continue;
             }
             make_task_dirty_internal(
@@ -2153,6 +2181,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 &mut queue,
                 ctx,
             );
+            #[cfg(feature = "trace_task_output_dependencies")]
+            span.record("result", "marked dirty");
         }
 
         queue.execute(ctx);
