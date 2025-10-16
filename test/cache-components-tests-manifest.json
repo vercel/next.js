@@ -73,6 +73,7 @@
       "test/development/acceptance-app/undefined-default-export.test.ts",
       "test/development/acceptance-app/version-staleness.test.ts",
       "test/development/app-dir/async-request-warnings/async-request-warnings.test.ts",
+      "test/development/app-dir/cache-indicator/cache-indicator.test.ts",
       "test/development/app-dir/capture-console-error-owner-stack/capture-console-error-owner-stack.test.ts",
       "test/development/app-dir/capture-console-error-owner-stack/capture-console-error-owner-stack.test.ts",
       "test/development/app-dir/dev-fetch-hmr/dev-fetch-hmr.test.ts",

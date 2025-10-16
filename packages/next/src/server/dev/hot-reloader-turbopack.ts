@@ -120,6 +120,7 @@ import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { getFileLogger } from './browser-logs/file-logger'
+import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -435,6 +436,7 @@ export async function createHotReloaderTurbopack(
 
   const clientsWithoutRequestId = new Set<ws>()
   const clientsByRequestId = new Map<string, ws>()
+  const cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
   const clientStates = new WeakMap<ws, ClientState>()
 
   function sendToClient(client: ws, message: HmrMessageSentToBrowser) {
@@ -880,9 +882,20 @@ export async function createHotReloaderTurbopack(
         // inferring it from the presence of a request ID.
         if (requestId) {
           clientsByRequestId.set(requestId, client)
-          onUpgrade(client, {
-            isLegacyClient: !nextConfig.cacheComponents,
-          })
+          const enableCacheComponents = nextConfig.cacheComponents
+          if (enableCacheComponents) {
+            onUpgrade(client, { isLegacyClient: false })
+            const cacheStatus = cacheStatusesByRequestId.get(requestId)
+            if (cacheStatus !== undefined) {
+              sendToClient(client, {
+                type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
+                state: cacheStatus,
+              })
+              cacheStatusesByRequestId.delete(requestId)
+            }
+          } else {
+            onUpgrade(client, { isLegacyClient: true })
+          }
         } else {
           clientsWithoutRequestId.add(client)
           onUpgrade(client, { isLegacyClient: true })
@@ -1110,6 +1123,25 @@ export async function createHotReloaderTurbopack(
 
       for (const client of clientsWithoutRequestId) {
         client.send(payload)
+      }
+    },
+
+    setCacheStatus(
+      status: ServerCacheStatus,
+      htmlRequestId: string,
+      requestId: string
+    ): void {
+      // Legacy clients don't have Cache Components.
+      const client = clientsByRequestId.get(htmlRequestId)
+      if (client !== undefined) {
+        sendToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
+          state: status,
+        })
+      } else {
+        // If the client is not connected, store the status so that we can send it
+        // when the client connects.
+        cacheStatusesByRequestId.set(requestId, status)
       }
     },
 

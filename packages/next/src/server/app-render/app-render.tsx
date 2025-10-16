@@ -2768,9 +2768,13 @@ async function renderWithRestartOnCacheMissInDev(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void
 ) {
-  const { renderOpts } = ctx
-  const { clientReferenceManifest, ComponentMod, setReactDebugChannel } =
-    renderOpts
+  const { htmlRequestId, renderOpts, requestId } = ctx
+  const {
+    clientReferenceManifest,
+    ComponentMod,
+    setCacheStatus,
+    setReactDebugChannel,
+  } = renderOpts
   assertClientReferenceManifest(clientReferenceManifest)
 
   // If the render is restarted, we'll recreate a fresh request store
@@ -2898,6 +2902,10 @@ async function renderWithRestartOnCacheMissInDev(
     }
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    setCacheStatus!('filling', htmlRequestId, requestId)
+  }
+
   // Cache miss. We will use the initial render to fill caches, and discard its result.
   // Then, we can render again with warm caches.
 
@@ -2966,6 +2974,12 @@ async function renderWithRestartOnCacheMissInDev(
       }
     )
   )
+
+  if (process.env.NODE_ENV === 'development') {
+    // TODO: Don't know if this is the right time.
+    // It's not wired up on the frontend though.
+    setCacheStatus!('filled', htmlRequestId, requestId)
+  }
 
   return {
     stream: finalServerStream,
