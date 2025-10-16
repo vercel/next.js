@@ -653,7 +653,9 @@ impl ReactServerComponentValidator {
                         "revalidateTag",
                         // "unstable_cache", // useless in client, but doesn't technically error
                         "cacheLife",
+                        "unstable_cacheLife",
                         "cacheTag",
+                        "unstable_cacheTag",
                         // "unstable_noStore" // no-op in client, but allowed for legacy reasons
                     ],
                 ),
