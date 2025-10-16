@@ -210,7 +210,8 @@ export function navigateReducer(
       state.cache,
       state.tree,
       state.nextUrl,
-      shouldScroll
+      shouldScroll,
+      mutable
     )
     return handleNavigationResult(url, state, mutable, pendingPush, result)
   }

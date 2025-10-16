@@ -790,7 +790,7 @@ export function listenForDynamicRequest(
   responsePromise: Promise<FetchServerResponseResult>
 ) {
   responsePromise.then(
-    ({ flightData }: FetchServerResponseResult) => {
+    ({ flightData, debugInfo }: FetchServerResponseResult) => {
       if (typeof flightData === 'string') {
         // Happens when navigating to page in `pages` from `app`. We shouldn't
         // get here because should have already handled this during
@@ -817,18 +817,19 @@ export function listenForDynamicRequest(
           segmentPath,
           serverRouterState,
           dynamicData,
-          dynamicHead
+          dynamicHead,
+          debugInfo
         )
       }
 
       // Now that we've exhausted all the data we received from the server, if
       // there are any remaining pending tasks in the tree, abort them now.
       // If there's any missing data, it will trigger a lazy fetch.
-      abortTask(task, null)
+      abortTask(task, null, debugInfo)
     },
     (error: any) => {
       // This will trigger an error during render
-      abortTask(task, error)
+      abortTask(task, error, null)
     }
   )
 }
@@ -838,7 +839,8 @@ function writeDynamicDataIntoPendingTask(
   segmentPath: FlightSegmentPath,
   serverRouterState: FlightRouterState,
   dynamicData: CacheNodeSeedData,
-  dynamicHead: HeadData
+  dynamicHead: HeadData,
+  debugInfo: Array<any> | null
 ) {
   // The data sent by the server represents only a subtree of the app. We need
   // to find the part of the task tree that matches the server response, and
@@ -877,7 +879,8 @@ function writeDynamicDataIntoPendingTask(
     task,
     serverRouterState,
     dynamicData,
-    dynamicHead
+    dynamicHead,
+    debugInfo
   )
 }
 
@@ -885,7 +888,8 @@ function finishTaskUsingDynamicDataPayload(
   task: SPANavigationTask,
   serverRouterState: FlightRouterState,
   dynamicData: CacheNodeSeedData,
-  dynamicHead: HeadData
+  dynamicHead: HeadData,
+  debugInfo: Array<any> | null
 ) {
   if (task.dynamicRequestTree === null) {
     // Everything in this subtree is already complete. Bail out.
@@ -906,7 +910,8 @@ function finishTaskUsingDynamicDataPayload(
         task.route,
         serverRouterState,
         dynamicData,
-        dynamicHead
+        dynamicHead,
+        debugInfo
       )
       // Set this to null to indicate that this task is now complete.
       task.dynamicRequestTree = null
@@ -937,7 +942,8 @@ function finishTaskUsingDynamicDataPayload(
           taskChild,
           serverRouterStateChild,
           dynamicDataChild,
-          dynamicHead
+          dynamicHead,
+          debugInfo
         )
       }
     }
@@ -1037,7 +1043,8 @@ function finishPendingCacheNode(
   taskState: FlightRouterState,
   serverState: FlightRouterState,
   dynamicData: CacheNodeSeedData,
-  dynamicHead: HeadData
+  dynamicHead: HeadData,
+  debugInfo: Array<any> | null
 ): void {
   // Writes a dynamic response into an existing Cache Node tree. This does _not_
   // create a new tree, it updates the existing tree in-place. So it must follow
@@ -1086,19 +1093,20 @@ function finishPendingCacheNode(
             taskStateChild,
             serverStateChild,
             dataChild,
-            dynamicHead
+            dynamicHead,
+            debugInfo
           )
         } else {
           // The server never returned data for this segment. Trigger a lazy
           // fetch during render. This shouldn't happen because the Route Tree
           // and the Seed Data tree sent by the server should always be the same
           // shape when part of the same server response.
-          abortPendingCacheNode(taskStateChild, cacheNodeChild, null)
+          abortPendingCacheNode(taskStateChild, cacheNodeChild, null, debugInfo)
         }
       } else {
         // The server never returned data for this segment. Trigger a lazy
         // fetch during render.
-        abortPendingCacheNode(taskStateChild, cacheNodeChild, null)
+        abortPendingCacheNode(taskStateChild, cacheNodeChild, null, debugInfo)
       }
     } else {
       // The server response matches what was expected to receive, but there's
@@ -1120,7 +1128,7 @@ function finishPendingCacheNode(
     // This is a deferred RSC promise. We can fulfill it with the data we just
     // received from the server. If it was already resolved by a different
     // navigation, then this does nothing because we can't overwrite data.
-    rsc.resolve(dynamicSegmentData)
+    rsc.resolve(dynamicSegmentData, debugInfo)
   } else {
     // This is not a deferred RSC promise, nor is it empty, so it must have
     // been populated by a different navigation. We must not overwrite it.
@@ -1131,7 +1139,7 @@ function finishPendingCacheNode(
   const loading = cacheNode.loading
   if (isDeferredRsc(loading)) {
     const dynamicLoading = dynamicData[3]
-    loading.resolve(dynamicLoading)
+    loading.resolve(dynamicLoading, debugInfo)
   }
 
   // Check if this is a leaf segment. If so, it will have a `head` property with
@@ -1139,11 +1147,15 @@ function finishPendingCacheNode(
   // the server.
   const head = cacheNode.head
   if (isDeferredRsc(head)) {
-    head.resolve(dynamicHead)
+    head.resolve(dynamicHead, debugInfo)
   }
 }
 
-export function abortTask(task: SPANavigationTask, error: any): void {
+export function abortTask(
+  task: SPANavigationTask,
+  error: any,
+  debugInfo: Array<any> | null
+): void {
   const cacheNode = task.node
   if (cacheNode === null) {
     // This indicates the task is already complete.
@@ -1154,13 +1166,13 @@ export function abortTask(task: SPANavigationTask, error: any): void {
   if (taskChildren === null) {
     // Reached the leaf task node. This is the root of a pending cache
     // node tree.
-    abortPendingCacheNode(task.route, cacheNode, error)
+    abortPendingCacheNode(task.route, cacheNode, error, debugInfo)
   } else {
     // This is an intermediate task node. Keep traversing until we reach a
     // task node with no children. That will be the root of the cache node tree
     // that needs to be resolved.
     for (const taskChild of taskChildren.values()) {
-      abortTask(taskChild, error)
+      abortTask(taskChild, error, debugInfo)
     }
   }
 
@@ -1171,7 +1183,8 @@ export function abortTask(task: SPANavigationTask, error: any): void {
 function abortPendingCacheNode(
   routerState: FlightRouterState,
   cacheNode: CacheNode,
-  error: any
+  error: any,
+  debugInfo: Array<any> | null
 ): void {
   // For every pending segment in the tree, resolve its `rsc` promise to `null`
   // to trigger a lazy fetch during render.
@@ -1192,7 +1205,7 @@ function abortPendingCacheNode(
     const segmentKeyChild = createRouterCacheKey(segmentChild)
     const cacheNodeChild = segmentMapChild.get(segmentKeyChild)
     if (cacheNodeChild !== undefined) {
-      abortPendingCacheNode(routerStateChild, cacheNodeChild, error)
+      abortPendingCacheNode(routerStateChild, cacheNodeChild, error, debugInfo)
     } else {
       // This shouldn't happen because we're traversing the same tree that was
       // used to construct the cache nodes in the first place.
@@ -1203,16 +1216,16 @@ function abortPendingCacheNode(
   if (isDeferredRsc(rsc)) {
     if (error === null) {
       // This will trigger a lazy fetch during render.
-      rsc.resolve(null)
+      rsc.resolve(null, debugInfo)
     } else {
       // This will trigger an error during rendering.
-      rsc.reject(error)
+      rsc.reject(error, debugInfo)
     }
   }
 
   const loading = cacheNode.loading
   if (isDeferredRsc(loading)) {
-    loading.resolve(null)
+    loading.resolve(null, debugInfo)
   }
 
   // Check if this is a leaf segment. If so, it will have a `head` property with
@@ -1221,7 +1234,7 @@ function abortPendingCacheNode(
   // the app. We want the segment to error, not the entire app.
   const head = cacheNode.head
   if (isDeferredRsc(head)) {
-    head.resolve(null)
+    head.resolve(null, debugInfo)
   }
 }
 
@@ -1293,25 +1306,28 @@ const DEFERRED = Symbol()
 
 type PendingDeferredRsc<T> = Promise<T> & {
   status: 'pending'
-  resolve: (value: T) => void
-  reject: (error: any) => void
+  resolve: (value: T, debugInfo: Array<any> | null) => void
+  reject: (error: any, debugInfo: Array<any> | null) => void
   tag: Symbol
+  _debugInfo: Array<any>
 }
 
 type FulfilledDeferredRsc<T> = Promise<T> & {
   status: 'fulfilled'
   value: T
-  resolve: (value: T) => void
-  reject: (error: any) => void
+  resolve: (value: T, debugInfo: Array<any> | null) => void
+  reject: (error: any, debugInfo: Array<any> | null) => void
   tag: Symbol
+  _debugInfo: Array<any>
 }
 
 type RejectedDeferredRsc<T> = Promise<T> & {
   status: 'rejected'
   reason: any
-  resolve: (value: T) => void
-  reject: (error: any) => void
+  resolve: (value: T, debugInfo: Array<any> | null) => void
+  reject: (error: any, debugInfo: Array<any> | null) => void
   tag: Symbol
+  _debugInfo: Array<any>
 }
 
 type DeferredRsc<T extends React.ReactNode = React.ReactNode> =
@@ -1330,6 +1346,21 @@ function isDeferredRsc(value: any): value is DeferredRsc {
 function createDeferredRsc<
   T extends React.ReactNode = React.ReactNode,
 >(): PendingDeferredRsc<T> {
+  // Create an unresolved promise that represents data derived from a Flight
+  // response. The promise will be resolved later as soon as we start receiving
+  // data from the server, i.e. as soon as the Flight client decodes and returns
+  // the top-level response object.
+
+  // The `_debugInfo` field contains profiling information. Promises that are
+  // created by Flight already have this info added by React; for any derived
+  // promise created by the router, we need to transfer the Flight debug info
+  // onto the derived promise.
+  //
+  // The debug info represents the latency between the start of the navigation
+  // and the start of rendering. (It does not represent the time it takes for
+  // whole stream to finish.)
+  const debugInfo: Array<any> = []
+
   let resolve: any
   let reject: any
   const pendingRsc = new Promise<T>((res, rej) => {
@@ -1337,22 +1368,32 @@ function createDeferredRsc<
     reject = rej
   }) as PendingDeferredRsc<T>
   pendingRsc.status = 'pending'
-  pendingRsc.resolve = (value: T) => {
+  pendingRsc.resolve = (value: T, responseDebugInfo: Array<any> | null) => {
     if (pendingRsc.status === 'pending') {
       const fulfilledRsc: FulfilledDeferredRsc<T> = pendingRsc as any
       fulfilledRsc.status = 'fulfilled'
       fulfilledRsc.value = value
+      if (responseDebugInfo !== null) {
+        // Transfer the debug info to the derived promise.
+        debugInfo.push.apply(debugInfo, responseDebugInfo)
+      }
       resolve(value)
     }
   }
-  pendingRsc.reject = (error: any) => {
+  pendingRsc.reject = (error: any, responseDebugInfo: Array<any> | null) => {
     if (pendingRsc.status === 'pending') {
       const rejectedRsc: RejectedDeferredRsc<T> = pendingRsc as any
       rejectedRsc.status = 'rejected'
       rejectedRsc.reason = error
+      if (responseDebugInfo !== null) {
+        // Transfer the debug info to the derived promise.
+        debugInfo.push.apply(debugInfo, responseDebugInfo)
+      }
       reject(error)
     }
   }
   pendingRsc.tag = DEFERRED
+  pendingRsc._debugInfo = debugInfo
+
   return pendingRsc
 }

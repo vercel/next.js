@@ -111,6 +111,7 @@ export function createInitialRouterState({
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
     previousNextUrl: null,
+    debugInfo: null,
   }
 
   if (process.env.NODE_ENV !== 'development' && location) {
@@ -146,6 +147,7 @@ export function createInitialRouterState({
           prerendered && !process.env.__NEXT_CLIENT_SEGMENT_CACHE
             ? STATIC_STALETIME_MS
             : -1,
+        debugInfo: null,
       },
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,

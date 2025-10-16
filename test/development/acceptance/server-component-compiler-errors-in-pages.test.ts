@@ -385,7 +385,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       'revalidatePath',
       'revalidateTag',
       'cacheLife',
-      'unstable_cacheTag',
+      'cacheTag',
       'revalidatePath',
       'revalidateTag',
     ])('%s is not allowed', async (api) => {

@@ -16,6 +16,7 @@ import {
   type PrerenderStoreModernRuntime,
   type StaticPrerenderStore,
   throwInvariantForMissingStore,
+  type RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -32,6 +33,7 @@ import {
   throwWithStaticGenerationBailoutErrorWithDynamicError,
   throwForSearchParamsAccessInUseCache,
 } from './utils'
+import { RenderStage } from '../app-render/staged-rendering'
 
 export type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -58,7 +60,11 @@ export function createSearchParamsFromClient(
           'createSearchParamsFromClient should not be called in cache contexts.'
         )
       case 'request':
-        return createRenderSearchParams(underlyingSearchParams, workStore)
+        return createRenderSearchParams(
+          underlyingSearchParams,
+          workStore,
+          workUnitStore
+        )
       default:
         workUnitStore satisfies never
     }
@@ -94,7 +100,11 @@ export function createServerSearchParamsForServerPage(
           workUnitStore
         )
       case 'request':
-        return createRenderSearchParams(underlyingSearchParams, workStore)
+        return createRenderSearchParams(
+          underlyingSearchParams,
+          workStore,
+          workUnitStore
+        )
       default:
         workUnitStore satisfies never
     }
@@ -181,7 +191,8 @@ function createRuntimePrerenderSearchParams(
 
 function createRenderSearchParams(
   underlyingSearchParams: SearchParams,
-  workStore: WorkStore
+  workStore: WorkStore,
+  requestStore: RequestStore
 ): Promise<SearchParams> {
   if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
@@ -194,7 +205,8 @@ function createRenderSearchParams(
       // as a proxy so we can statically exclude this code from production builds.
       return makeUntrackedSearchParamsWithDevWarnings(
         underlyingSearchParams,
-        workStore
+        workStore,
+        requestStore
       )
     } else {
       return makeUntrackedSearchParams(underlyingSearchParams)
@@ -371,9 +383,14 @@ function makeUntrackedSearchParams(
 
 function makeUntrackedSearchParamsWithDevWarnings(
   underlyingSearchParams: SearchParams,
-  store: WorkStore
+  workStore: WorkStore,
+  requestStore: RequestStore
 ): Promise<SearchParams> {
-  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
+  // Note: unlike some of the other functions here, we tie the lifetime of the cached search params
+  // to the request store, not `underlyingSearchParams`.
+  // If we didn't do that we'd end up re-using the same object across both renders in the restart-on-cache-miss flow,
+  // meaning that the `searchParams` promise would (incorrectly) be already resolved in the restarted render.
+  const cachedSearchParams = CachedSearchParams.get(requestStore)
   if (cachedSearchParams) {
     return cachedSearchParams
   }
@@ -391,10 +408,10 @@ function makeUntrackedSearchParamsWithDevWarnings(
   const proxiedUnderlying = new Proxy(underlyingSearchParams, {
     get(target, prop, receiver) {
       if (typeof prop === 'string' && promiseInitialized) {
-        if (store.dynamicShouldError) {
+        if (workStore.dynamicShouldError) {
           const expression = describeStringPropertyAccess('searchParams', prop)
           throwWithStaticGenerationBailoutErrorWithDynamicError(
-            store.route,
+            workStore.route,
             expression
           )
         }
@@ -403,13 +420,13 @@ function makeUntrackedSearchParamsWithDevWarnings(
     },
     has(target, prop) {
       if (typeof prop === 'string') {
-        if (store.dynamicShouldError) {
+        if (workStore.dynamicShouldError) {
           const expression = describeHasCheckingStringProperty(
             'searchParams',
             prop
           )
           throwWithStaticGenerationBailoutErrorWithDynamicError(
-            store.route,
+            workStore.route,
             expression
           )
         }
@@ -417,11 +434,11 @@ function makeUntrackedSearchParamsWithDevWarnings(
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
-      if (store.dynamicShouldError) {
+      if (workStore.dynamicShouldError) {
         const expression =
           '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
         throwWithStaticGenerationBailoutErrorWithDynamicError(
-          store.route,
+          workStore.route,
           expression
         )
       }
@@ -432,7 +449,11 @@ function makeUntrackedSearchParamsWithDevWarnings(
   // We don't use makeResolvedReactPromise here because searchParams
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
-  const promise = makeDevtoolsIOAwarePromise(proxiedUnderlying)
+  const promise = makeDevtoolsIOAwarePromise(
+    proxiedUnderlying,
+    requestStore,
+    RenderStage.Runtime
+  )
   promise.then(() => {
     promiseInitialized = true
   })
@@ -448,10 +469,10 @@ function makeUntrackedSearchParamsWithDevWarnings(
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {
-      if (prop === 'then' && store.dynamicShouldError) {
+      if (prop === 'then' && workStore.dynamicShouldError) {
         const expression = '`searchParams.then`'
         throwWithStaticGenerationBailoutErrorWithDynamicError(
-          store.route,
+          workStore.route,
           expression
         )
       }
@@ -464,7 +485,7 @@ function makeUntrackedSearchParamsWithDevWarnings(
             Reflect.has(target, prop) === false)
         ) {
           const expression = describeStringPropertyAccess('searchParams', prop)
-          warnForSyncAccess(store.route, expression)
+          warnForSyncAccess(workStore.route, expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -488,19 +509,19 @@ function makeUntrackedSearchParamsWithDevWarnings(
             'searchParams',
             prop
           )
-          warnForSyncAccess(store.route, expression)
+          warnForSyncAccess(workStore.route, expression)
         }
       }
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
       const expression = '`Object.keys(searchParams)` or similar'
-      warnForSyncAccess(store.route, expression)
+      warnForSyncAccess(workStore.route, expression)
       return Reflect.ownKeys(target)
     },
   })
 
-  CachedSearchParams.set(underlyingSearchParams, proxiedPromise)
+  CachedSearchParams.set(requestStore, proxiedPromise)
   return proxiedPromise
 }
 

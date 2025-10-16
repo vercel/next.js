@@ -81,7 +81,8 @@ export function navigate(
   currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
-  shouldScroll: boolean
+  shouldScroll: boolean,
+  accumulation: { collectedDebugInfo?: Array<unknown> }
 ): NavigationResult {
   const now = Date.now()
   const href = url.href
@@ -183,6 +184,10 @@ export function navigate(
   }
 
   // There's no matching prefetch for this route in the cache.
+  let collectedDebugInfo = accumulation.collectedDebugInfo ?? []
+  if (accumulation.collectedDebugInfo === undefined) {
+    collectedDebugInfo = accumulation.collectedDebugInfo = []
+  }
   return {
     tag: NavigationResultTag.Async,
     data: navigateDynamicallyWithNoPrefetch(
@@ -194,7 +199,8 @@ export function navigate(
       currentCacheNode,
       currentFlightRouterState,
       shouldScroll,
-      url.hash
+      url.hash,
+      collectedDebugInfo
     ),
   }
 }
@@ -404,7 +410,8 @@ async function navigateDynamicallyWithNoPrefetch(
   currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
   shouldScroll: boolean,
-  hash: string
+  hash: string,
+  collectedDebugInfo: Array<unknown>
 ): Promise<
   MPANavigationResult | SuccessfulNavigationResult | NoOpNavigationResult
 > {
@@ -424,8 +431,15 @@ async function navigateDynamicallyWithNoPrefetch(
     flightRouterState: currentFlightRouterState,
     nextUrl,
   })
-  const { flightData, canonicalUrl: canonicalUrlOverride } =
-    await promiseForDynamicServerResponse
+  const {
+    flightData,
+    canonicalUrl: canonicalUrlOverride,
+    debugInfo: debugInfoFromResponse,
+  } = await promiseForDynamicServerResponse
+
+  if (debugInfoFromResponse !== null) {
+    collectedDebugInfo.push(...debugInfoFromResponse)
+  }
 
   if (typeof flightData === 'string') {
     // This is an MPA navigation.

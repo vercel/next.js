@@ -16,7 +16,7 @@ const cacheExports = {
     require('next/dist/server/web/spec-extension/unstable-no-store')
       .unstable_noStore,
   cacheLife: require('next/dist/server/use-cache/cache-life').cacheLife,
-  unstable_cacheTag: require('next/dist/server/use-cache/cache-tag').cacheTag,
+  cacheTag: require('next/dist/server/use-cache/cache-tag').cacheTag,
 }
 
 // https://nodejs.org/api/esm.html#commonjs-namespaces
@@ -30,5 +30,5 @@ exports.revalidateTag = cacheExports.revalidateTag
 exports.updateTag = cacheExports.updateTag
 exports.unstable_noStore = cacheExports.unstable_noStore
 exports.cacheLife = cacheExports.cacheLife
-exports.unstable_cacheTag = cacheExports.unstable_cacheTag
+exports.cacheTag = cacheExports.cacheTag
 exports.refresh = cacheExports.refresh

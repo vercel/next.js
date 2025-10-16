@@ -538,7 +538,7 @@ declare module 'next/cache' {
 
   ${overloads}
 
-  export { cacheTag as unstable_cacheTag } from 'next/dist/server/use-cache/cache-tag'
+  export { cacheTag } from 'next/dist/server/use-cache/cache-tag'
 }
 `
 }
