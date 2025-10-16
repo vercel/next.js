@@ -690,6 +690,7 @@
     exports.createElement = function (type, config, children) {
       for (var i = 2; i < arguments.length; i++)
         validateChildKeys(arguments[i]);
+      var propName;
       i = {};
       var key = null;
       if (null != config)
@@ -730,13 +731,18 @@
             ? type.displayName || type.name || "Unknown"
             : type
         );
-      var propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++;
+      (propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++)
+        ? ((childArray = Error.stackTraceLimit),
+          (Error.stackTraceLimit = 10),
+          (childrenLength = Error("react-stack-top-frame")),
+          (Error.stackTraceLimit = childArray))
+        : (childrenLength = unknownOwnerDebugStack);
       return ReactElement(
         type,
         key,
         i,
         getOwner(),
-        propName ? Error("react-stack-top-frame") : unknownOwnerDebugStack,
+        childrenLength,
         propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };
@@ -850,5 +856,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.3.0-canary-56e84692-20251014";
+    exports.version = "19.3.0-canary-93f85932-20251016";
   })();
