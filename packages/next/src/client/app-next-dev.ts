@@ -1,5 +1,6 @@
 // TODO-APP: hydration warning
 
+import './next-test'
 import './app-webpack'
 
 import { renderAppDevOverlay } from 'next/dist/compiled/next-devtools'

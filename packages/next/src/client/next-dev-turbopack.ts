@@ -1,4 +1,5 @@
 // TODO: Remove use of `any` type.
+import './next-test'
 import { initialize, version, router, emitter } from './'
 import initHMR from './dev/hot-middleware-client'
 
