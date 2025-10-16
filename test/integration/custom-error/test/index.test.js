@@ -10,6 +10,7 @@ import {
   killApp,
   launchApp,
   retry,
+  waitFor,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -41,11 +42,14 @@ describe('Custom _error', () => {
         await retry(async () => {
           // retry because the page might not be built yet
           const html = await renderViaHTTP(appPort, '/404')
-          expect(html).toContain('Unexpected eof')
+          // Expected '</', got '<eof>'
+          expect(html).toContain("Expected '\\u003c/', got '\\u003ceof\\u003e'")
           expect(stderr).not.toMatch(customErrNo404Match)
         })
       } finally {
         await fs.remove(page404)
+        // Matches `next-dev.ts` patchFileDelay
+        await waitFor(1000)
       }
     })
   })
@@ -75,6 +79,8 @@ describe('Custom _error', () => {
         })
       } finally {
         await fs.remove(page404)
+        // Matches `next-dev.ts` patchFileDelay
+        await waitFor(1000)
       }
     })
 

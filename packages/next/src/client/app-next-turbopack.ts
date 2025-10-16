@@ -7,10 +7,10 @@ window.next.turbopack = true
 // eslint-disable-next-line @next/internal/typechecked-require
 const instrumentationHooks = require('../lib/require-instrumentation-client')
 
-appBootstrap(() => {
+appBootstrap((assetPrefix) => {
   const { hydrate } = require('./app-index') as typeof import('./app-index')
   try {
-    hydrate(instrumentationHooks)
+    hydrate(instrumentationHooks, assetPrefix)
   } finally {
     if (process.env.NODE_ENV !== 'production') {
       const { getOwnerStack } =

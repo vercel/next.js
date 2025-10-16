@@ -6,8 +6,9 @@ use next_core::{
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
-    next_server::{ServerContextType, get_server_runtime_entries},
-    util::{MiddlewareMatcherKind, NextRuntime, parse_config_from_source},
+    parse_segment_config_from_source,
+    segment_config::ParseSegmentMode,
+    util::{MiddlewareMatcherKind, NextRuntime},
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
@@ -25,7 +26,7 @@ use turbopack_core::{
         GraphEntries,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -86,10 +87,12 @@ impl MiddlewareEndpoint {
             userland_module,
         );
 
-        let config =
-            parse_config_from_source(*self.source, userland_module, NextRuntime::Edge).await?;
+        let runtime = parse_segment_config_from_source(*self.source, ParseSegmentMode::Base)
+            .await?
+            .runtime
+            .unwrap_or(NextRuntime::Edge);
 
-        if matches!(config.runtime, NextRuntime::NodeJs) {
+        if matches!(runtime, NextRuntime::NodeJs) {
             return Ok(module);
         }
         Ok(wrap_edge_entry(
@@ -101,36 +104,20 @@ impl MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn edge_files(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+    async fn edge_chunk_group(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         let module = self.entry_module().to_resolved().await?;
 
         let module_graph = this.project.module_graph(*module);
 
-        let evaluatable_assets = get_server_runtime_entries(
-            ServerContextType::Middleware {
-                app_dir: this.app_dir.clone(),
-                ecmascript_client_reference_transition_name: this
-                    .ecmascript_client_reference_transition_name
-                    .clone(),
-            },
-            this.project.next_mode(),
-        )
-        .resolve_entries(*this.asset_context)
-        .await?
-        .iter()
-        .map(|m| ResolvedVc::upcast(*m))
-        .chain(std::iter::once(module))
-        .collect();
-
         let edge_chunking_context = this.project.edge_chunking_context(false);
-        let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
+        let edge_chunk_grou = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            ChunkGroup::Entry(evaluatable_assets),
+            ChunkGroup::Entry(vec![module]),
             module_graph,
             AvailabilityInfo::Root,
         );
-        Ok(edge_files)
+        Ok(edge_chunk_grou)
     }
 
     #[turbo_tasks::function]
@@ -152,18 +139,9 @@ impl MiddlewareEndpoint {
                     .node_root()
                     .await?
                     .join("server/middleware.js")?,
-                get_server_runtime_entries(
-                    ServerContextType::Middleware {
-                        app_dir: this.app_dir.clone(),
-                        ecmascript_client_reference_transition_name: this
-                            .ecmascript_client_reference_transition_name
-                            .clone(),
-                    },
-                    this.project.next_mode(),
-                )
-                .resolve_entries(*this.asset_context)
-                .with_entry(*module),
+                Vc::cell(vec![module]),
                 module_graph,
+                OutputAssets::empty(),
                 OutputAssets::empty(),
                 AvailabilityInfo::Root,
             )
@@ -175,22 +153,20 @@ impl MiddlewareEndpoint {
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
 
-        let userland_module = self.userland_module();
-
         let config =
-            parse_config_from_source(*self.await?.source, userland_module, NextRuntime::Edge)
-                .await?;
+            parse_segment_config_from_source(*self.await?.source, ParseSegmentMode::Base).await?;
+        let runtime = config.runtime.unwrap_or(NextRuntime::Edge);
 
-        let next_config = this.project.next_config().await?;
-        let has_i18n = next_config.i18n.is_some();
-        let has_i18n_locales = next_config
-            .i18n
+        let next_config = this.project.next_config();
+        let i18n = next_config.i18n().await?;
+        let has_i18n = i18n.is_some();
+        let has_i18n_locales = i18n
             .as_ref()
             .map(|i18n| i18n.locales.len() > 1)
             .unwrap_or(false);
-        let base_path = next_config.base_path.as_ref();
+        let base_path = next_config.base_path().await?;
 
-        let matchers = if let Some(matchers) = config.matcher.as_ref() {
+        let matchers = if let Some(matchers) = config.middleware_matcher.as_ref() {
             matchers
                 .iter()
                 .map(|matcher| {
@@ -226,7 +202,7 @@ impl MiddlewareEndpoint {
 
                     source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
 
-                    if let Some(base_path) = base_path {
+                    if let Some(base_path) = base_path.as_ref() {
                         source.insert_str(0, base_path);
                     }
 
@@ -247,7 +223,7 @@ impl MiddlewareEndpoint {
             }]
         };
 
-        if matches!(config.runtime, NextRuntime::NodeJs) {
+        if matches!(runtime, NextRuntime::NodeJs) {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
             if this.project.next_mode().await?.is_production() {
@@ -279,24 +255,24 @@ impl MiddlewareEndpoint {
 
             Ok(Vc::cell(output_assets))
         } else {
-            let edge_files = self.edge_files();
-            let mut output_assets = edge_files.owned().await?;
+            let edge_chunk_group = self.edge_chunk_group();
+            let edge_all_assets = edge_chunk_group.all_assets();
 
             let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &output_assets).await?;
+                get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
+                    .await?;
 
-            let all_output_assets = all_assets_from_entries(edge_files).await?;
+            let mut output_assets = all_assets_from_entries(edge_all_assets).owned().await?;
 
             let wasm_paths_from_root =
-                get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
+                get_wasm_paths_from_root(&node_root_value, &output_assets).await?;
 
-            let all_assets =
-                get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
+            let all_assets = get_asset_paths_from_root(&node_root_value, &output_assets).await?;
 
-            let regions = if let Some(regions) = config.regions.as_ref() {
+            let regions = if let Some(regions) = config.preferred_region.as_ref() {
                 if regions.len() == 1 {
                     regions
                         .first()

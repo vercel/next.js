@@ -1,12 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
-import { Playwright } from 'next-webdriver'
-import {
-  browserConfigWithFixedTime,
-  createRequestsListener,
-  fastForwardTo,
-  getPathname,
-} from './test-utils'
+import { createRouterAct } from 'router-act'
+import { browserConfigWithFixedTime, fastForwardTo } from './test-utils'
 import path from 'path'
 
 describe('app dir client cache with parallel routes', () => {
@@ -21,62 +15,120 @@ describe('app dir client cache with parallel routes', () => {
   }
 
   describe('prefetch={true}', () => {
-    let browser: Playwright
-
-    beforeEach(async () => {
-      browser = await next.browser('/', browserConfigWithFixedTime)
-    })
-
     it('should prefetch the full page', async () => {
-      const { getRequests, clearRequests } =
-        await createRequestsListener(browser)
-      await check(() => {
-        return getRequests().some(
-          ([url, didPartialPrefetch]) =>
-            getPathname(url) === '/0' && !didPartialPrefetch
-        )
-          ? 'success'
-          : 'fail'
-      }, 'success')
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/', {
+        beforePageLoad(page) {
+          browserConfigWithFixedTime.beforePageLoad(page)
+          act = createRouterAct(page)
+        },
+      })
 
-      clearRequests()
-
-      await browser
-        .elementByCss('[href="/0"]')
-        .click()
-        .waitForElementByCss('#random-number')
-
-      expect(getRequests().every(([url]) => getPathname(url) !== '/0')).toEqual(
-        true
+      // Reveal the link to trigger prefetch and wait for it to complete
+      const link = await act(
+        async () => {
+          const reveal = await browser.elementByCss(
+            '[data-link-accordion="/0"]'
+          )
+          await reveal.click()
+          return await browser.elementByCss('[href="/0"]')
+        },
+        { includes: 'random-number' }
       )
+
+      // Navigate to /0 - should not make additional requests
+      await act(async () => {
+        await link.click()
+        await browser.waitForElementByCss('#random-number')
+      }, 'no-requests')
     })
 
     it('should re-use the cache for the full page, only for 5 mins', async () => {
-      const randomNumber = await browser
-        .elementByCss('[href="/0"]')
-        .click()
-        .waitForElementByCss('#random-number')
-        .text()
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/', {
+        beforePageLoad(page) {
+          browserConfigWithFixedTime.beforePageLoad(page)
+          act = createRouterAct(page)
+        },
+      })
 
-      await browser.elementByCss('[href="/"]').click()
+      // Toggle the link, assert on the prefetch content
+      const link = await act(
+        async () => {
+          const reveal = await browser.elementByCss(
+            '[data-link-accordion="/0"]'
+          )
+          await reveal.click()
+          return await browser.elementByCss('[href="/0"]')
+        },
+        { includes: 'random-number' }
+      )
 
-      const number = await browser
-        .elementByCss('[href="/0"]')
-        .click()
-        .waitForElementByCss('#random-number')
-        .text()
+      // Navigate to the page, assert no requests are made
+      const randomNumber = await act(async () => {
+        await link.click()
+        await browser.waitForElementByCss('#random-number')
+        return await browser.elementByCss('#random-number').text()
+      }, 'no-requests')
+
+      // Toggle the home link, assert on the homepage content
+      const homeLink = await act(
+        async () => {
+          const reveal = await browser.elementByCss('[data-link-accordion="/"]')
+          await reveal.click()
+          return await browser.elementByCss('[href="/"]')
+        },
+        { includes: 'home-page' }
+      )
+
+      // Navigate home, assert no requests are made
+      await act(async () => {
+        await homeLink.click()
+        await browser.waitForElementByCss('#home-page')
+      }, 'no-requests')
+
+      // Toggle the link to the other page again, navigate, assert no requests (because it's cached)
+      const number = await act(async () => {
+        const reveal = await browser.elementByCss('[data-link-accordion="/0"]')
+        await reveal.click()
+        const link = await browser.elementByCss('[href="/0"]')
+        await link.click()
+        await browser.waitForElementByCss('#random-number')
+        return await browser.elementByCss('#random-number').text()
+      }, 'no-requests')
 
       expect(number).toBe(randomNumber)
 
+      // Navigate back home
+      await act(async () => {
+        const reveal = await browser.elementByCss('[data-link-accordion="/"]')
+        await reveal.click()
+        const homeLink = await browser.elementByCss('[href="/"]')
+        await homeLink.click()
+        await browser.waitForElementByCss('#home-page')
+      }, 'no-requests')
+
+      // Fast forward 5 minutes
       await browser.eval(fastForwardTo, 5 * 60 * 1000)
 
-      await browser.elementByCss('[href="/"]').click()
+      // Toggle the link to the other page again, assert on prefetch content
+      const linkAfterExpiry = await act(
+        async () => {
+          const reveal = await browser.elementByCss(
+            '[data-link-accordion="/0"]'
+          )
+          await reveal.click()
+          return await browser.elementByCss('[href="/0"]')
+        },
+        { includes: 'random-number' }
+      )
 
-      const newNumber = await browser
-        .elementByCss('[href="/0"]')
-        .click()
-        .waitForElementByCss('#random-number')
-        .text()
+      // Navigate to the page and verify the content is fresh (different from cached)
+      const newNumber = await act(async () => {
+        await linkAfterExpiry.click()
+        await browser.waitForElementByCss('#random-number')
+        return await browser.elementByCss('#random-number').text()
+      }, 'no-requests')
 
       expect(newNumber).not.toBe(randomNumber)
     })

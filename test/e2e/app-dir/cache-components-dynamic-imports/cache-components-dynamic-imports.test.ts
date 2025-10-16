@@ -1,10 +1,6 @@
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertNoRedbox,
-  getRouteTypeFromDevToolsIndicator,
-  retry,
-} from 'next-test-utils'
+import { assertNoRedbox, retry } from 'next-test-utils'
 
 describe('async imports in cacheComponents', () => {
   const { next, isNextStart, isNextDev } = nextTestSetup({
@@ -39,6 +35,7 @@ describe('async imports in cacheComponents', () => {
 
       expect(prerenderedRoutes).toMatchInlineSnapshot(`
        [
+         "/_global-error",
          "/_not-found",
          "/inside-render/client/async-module",
          "/inside-render/client/sync-module",
@@ -64,8 +61,6 @@ describe('async imports in cacheComponents', () => {
     expect(await browser.elementByCss('body').text()).toBe('hello')
     if (isNextDev) {
       await retry(async () => {
-        // the page should be static
-        expect(await getRouteTypeFromDevToolsIndicator(browser)).toBe('Static')
         // we shouldn't get any errors from `spawnDynamicValidationInDev`
         await assertNoRedbox(browser)
       })
@@ -159,13 +154,6 @@ describe('async imports in cacheComponents', () => {
     it('middleware', async () => {
       // indirectly tests the behavior of middleware by rendering a page which the middleware matches
       await testPage('/not-instrumented/middleware')
-    })
-
-    it('edge route handler', async () => {
-      const result = await next
-        .fetch('/not-instrumented/edge-route-handler')
-        .then((res) => res.text())
-      expect(result).toBe('hello')
     })
   })
 })

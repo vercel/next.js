@@ -422,7 +422,7 @@ While the Pages Router does support streaming responses with API Routes, we reco
 
 Here's how you can stream a response from an API Route with `writeHead`:
 
-```js filename="pages/api/hello.js"
+```ts filename="pages/api/hello.ts" switcher
 import { NextApiRequest, NextApiResponse } from 'next'
 
 export default async function handler(
@@ -431,7 +431,23 @@ export default async function handler(
 ) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
-    'Cache-Control': "no-store",
+    'Cache-Control': 'no-store',
+  })
+  let i = 0
+  while (i < 10) {
+    res.write(`data: ${i}\n\n`)
+    i++
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+  res.end()
+}
+```
+
+```js filename="pages/api/hello.js" switcher
+export default async function handler(req, res) {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-store',
   })
   let i = 0
   while (i < 10) {

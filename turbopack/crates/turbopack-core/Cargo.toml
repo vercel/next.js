@@ -17,6 +17,7 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 browserslist-rs = { workspace = true }
+bytes-str = { workspace = true }
 const_format = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
@@ -30,7 +31,7 @@ rustc-hash = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_bytes = { workspace = true }
-serde_json = { workspace = true, features = ["preserve_order"] }
+serde_json = { workspace = true, features = ["preserve_order", "raw_value"] }
 smallvec = { workspace = true }
 swc_sourcemap = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
@@ -42,11 +43,11 @@ turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
+twox-hash = { workspace = true }
+url = { workspace = true }
 urlencoding = { workspace = true }
-bytes-str = { workspace = true }
+uuid = { workspace = true}
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
@@ -56,4 +57,3 @@ turbo-tasks-backend = { workspace = true }
 
 [features]
 default = []
-issue_path = []

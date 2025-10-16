@@ -9,7 +9,7 @@ use turbo_tasks_fetch::{
     FetchErrorKind,
 };
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 use turbopack_core::issue::{Issue, IssueSeverity, StyledString};
 
 static REGISTRATION: Registration = register!(turbo_tasks_fetch::register);
@@ -18,10 +18,10 @@ static REGISTRATION: Registration = register!(turbo_tasks_fetch::register);
 /// acquire and hold this lock to prevent potential flakiness.
 static GLOBAL_TEST_LOCK: TokioMutex<()> = TokioMutex::const_new(());
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn basic_get() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
             .mock("GET", "/foo.woff")
@@ -49,10 +49,10 @@ async fn basic_get() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sends_user_agent() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
             .mock("GET", "/foo.woff")
@@ -85,10 +85,10 @@ async fn sends_user_agent() {
 
 // This is temporary behavior.
 // TODO: Implement invalidation that respects Cache-Control headers.
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invalidation_does_not_invalidate() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
             .mock("GET", "/foo.woff")
@@ -130,10 +130,10 @@ fn get_issue_context() -> Vc<FileSystemPath> {
     DiskFileSystem::new(rcstr!("root"), rcstr!("/")).root()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn errors_on_failed_connection() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         // Try to connect to port 0 on localhost, which is never valid and immediately returns
         // `ECONNREFUSED`.
         // Other values (e.g. domain name, reserved IP address block) may result in long timeouts.
@@ -161,10 +161,10 @@ async fn errors_on_failed_connection() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn errors_on_404() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let mut server = mockito::Server::new_async().await;
         let resource_mock = server
             .mock("GET", "/")
@@ -196,7 +196,7 @@ async fn errors_on_404() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn client_cache() {
     // a simple fetch that should always succeed
     async fn simple_fetch(path: &str, client: FetchClient) -> anyhow::Result<()> {
@@ -227,7 +227,7 @@ async fn client_cache() {
     }
 
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         __test_only_reqwest_client_cache_clear();
         assert_eq!(__test_only_reqwest_client_cache_len(), 0);
 

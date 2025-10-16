@@ -1,6 +1,9 @@
-import { getFullUrl, waitFor } from 'next-test-utils'
+import { debugPrint, getFullUrl, waitFor } from 'next-test-utils'
 import os from 'os'
-import { Playwright } from './browsers/playwright'
+import {
+  Playwright,
+  PlaywrightNavigationWaitUntil,
+} from './browsers/playwright'
 import { Page } from 'playwright'
 
 export type { Playwright }
@@ -53,6 +56,10 @@ export interface WebdriverOptions {
    * allow retrying hydration wait if reload occurs
    */
   retryWaitHydration?: boolean
+  /**
+   * The browser event to wait for during the initial page load. Passed through to `browser.loadPage`
+   * */
+  waitUntil?: PlaywrightNavigationWaitUntil
   /**
    * disable cache for page load
    */
@@ -114,6 +121,7 @@ export default async function webdriver(
     cpuThrottleRate,
     pushErrorAsConsoleLog,
     userAgent,
+    waitUntil,
   } = options
 
   const { Playwright, quit } = await import('./browsers/playwright')
@@ -138,21 +146,22 @@ export default async function webdriver(
     isBrowserStack ? deviceIP : 'localhost'
   )
 
-  console.log(`\n> Loading browser with ${fullUrl}\n`)
+  debugPrint(`Loading browser with ${fullUrl}`)
 
   await browser.loadPage(fullUrl, {
     disableCache,
     cpuThrottleRate,
     beforePageLoad,
     pushErrorAsConsoleLog,
+    waitUntil,
   })
-  console.log(`\n> Loaded browser with ${fullUrl}\n`)
+  debugPrint(`Loaded browser with ${fullUrl}`)
 
   browserTeardown.push(browser.close.bind(browser))
 
   // Wait for application to hydrate
-  if (waitHydration) {
-    console.log(`\n> Waiting hydration for ${fullUrl}\n`)
+  if (!disableJavaScript && waitHydration) {
+    debugPrint(`Waiting hydration for ${fullUrl}`)
 
     const checkHydrated = async () => {
       await browser.eval(() => {
@@ -198,13 +207,15 @@ export default async function webdriver(
       }
     }
 
-    console.log(`\n> Hydration complete for ${fullUrl}\n`)
+    debugPrint(`Hydration complete for ${fullUrl}`)
   }
 
   // This is a temporary workaround for turbopack starting watching too late.
   // So we delay file changes to give it some time
   // to connect the WebSocket and start watching.
-  if (process.env.IS_TURBOPACK_TEST) {
+  // TODO: Is this still needed? Can we wait in a more useful way, like a socket connection event?
+  if (process.env.IS_TURBOPACK_TEST && process.env.TURBOPACK_DEV) {
+    debugPrint(`Waiting for for turbopack watcher to start`)
     await waitFor(1000)
   }
   return browser

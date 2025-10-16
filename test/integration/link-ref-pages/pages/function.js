@@ -2,13 +2,13 @@ import React from 'react'
 import Link from 'next/link'
 
 const MyLink = React.forwardRef((props, ref) => (
-  <a {...props} ref={ref}>
+  <span {...props} ref={ref}>
     Click me
-  </a>
+  </span>
 ))
 
 export default () => (
-  <Link href="/" passHref legacyBehavior>
+  <Link href="/">
     <MyLink />
   </Link>
 )

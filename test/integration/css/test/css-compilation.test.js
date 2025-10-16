@@ -22,9 +22,15 @@ describe('CSS Support', () => {
       describe('CSS Compilation and Prefixing', () => {
         const appDir = join(fixturesDir, 'compilation-and-prefixing')
         const nextConfig = new File(join(appDir, 'next.config.js'))
+        const packageJson = new File(join(appDir, 'package.json'))
 
         beforeAll(async () => {
           await remove(join(appDir, '.next'))
+          packageJson.write(`{"browserslist": ["chrome 60"]}`)
+        })
+
+        afterAll(async () => {
+          packageJson.delete()
         })
 
         describe.each([true, false])(
@@ -218,6 +224,32 @@ module.exports = {
                     "version": 3,
                   }
                 `)
+              }
+
+              const inlineStyle = $('style')
+              expect(inlineStyle.length).toBe(1)
+              const inlineCssContent = inlineStyle
+                .html()
+                .replace(
+                  /media-query-test.jsx-[a-f0-9]{16}/g,
+                  'media-query-test.jsx-HASH'
+                )
+              if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+                expect(inlineCssContent).toMatchInlineSnapshot(
+                  `".media-query-test.jsx-HASH{color:#00f}@media (max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
+                )
+              } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+                expect(inlineCssContent).toMatchInlineSnapshot(
+                  `".media-query-test.jsx-HASH{color:#00f}@media (max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
+                )
+              } else if (useLightningcss) {
+                expect(inlineCssContent).toMatchInlineSnapshot(
+                  `".media-query-test.jsx-HASH{color:blue}@media(max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
+                )
+              } else {
+                expect(inlineCssContent).toMatchInlineSnapshot(
+                  `".media-query-test.jsx-HASH{color:blue}@media(max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
+                )
               }
             })
           }

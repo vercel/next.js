@@ -74,7 +74,6 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
     })
   }, [source])
 
-  console.log({ file })
   const open = useOpenInEditor({
     file: file?.fileName,
     line1: file?.location?.line1 ?? 1,

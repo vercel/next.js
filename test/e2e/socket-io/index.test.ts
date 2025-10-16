@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('socket-io', () => {
   const { next } = nextTestSetup({
@@ -27,17 +27,32 @@ describe('socket-io', () => {
       },
     })
 
+    await Promise.all([
+      retry(async () =>
+        expect(await browser1.elementByCss('#status').text()).toBe('Connected')
+      ),
+      retry(async () =>
+        expect(await browser2.elementByCss('#status').text()).toBe('Connected')
+      ),
+    ])
+
     const input1 = await browser1.elementByCss('input')
     const input2 = await browser2.elementByCss('input')
 
     await input1.fill('hello world')
-    await check(() => input2.inputValue(), /hello world/)
+    await retry(
+      async () => expect(await input2.inputValue()).toContain('hello world'),
+      10000
+    )
 
     expect(requestsCount).toBeGreaterThan(0)
     const currentRequestsCount = requestsCount
 
     await input1.fill('123456')
-    await check(() => input2.inputValue(), /123456/)
+    await retry(
+      async () => expect(await input2.inputValue()).toContain('123456'),
+      10000
+    )
 
     // There should be no new requests (polling) and using the existing WS connection
     expect(requestsCount).toBe(currentRequestsCount)

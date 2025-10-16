@@ -6,6 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::ecma::ast::Id;
 
 use super::{JsValue, graph::VarGraph};
+use crate::analyzer::graph::VarMeta;
 
 pub async fn link<'a, B, RB, F, RF>(
     graph: &VarGraph,
@@ -122,17 +123,17 @@ where
                     if let Some(val) = var_cache_lock.as_deref().and_then(|cache| cache.get(&var)) {
                         total_nodes += val.total_nodes();
                         done.push(val.clone());
-                    } else if let Some(val) = graph.values.get(&var) {
+                    } else if let Some(VarMeta { value, .. }) = graph.values.get(&var) {
                         cycle_stack.insert(var.clone());
                         work_queue_stack.push(Step::LeaveVar(var));
-                        total_nodes += val.total_nodes();
-                        work_queue_stack.push(Step::Enter(val.clone()));
+                        total_nodes += value.total_nodes();
+                        work_queue_stack.push(Step::Enter(value.clone()));
                     } else {
                         total_nodes += 1;
                         done.push(JsValue::unknown(
                             JsValue::Variable(var.clone()),
                             false,
-                            "no value of this variable analysed",
+                            "no value of this variable analyzed",
                         ));
                     }
                 };
@@ -164,7 +165,7 @@ where
                     done.push(JsValue::unknown(
                         JsValue::Argument(func_ident, index),
                         false,
-                        "function calls are not analysed yet",
+                        "function calls are not analyzed yet",
                     ));
                 }
             }
@@ -173,7 +174,7 @@ where
             // the function return value after that.
             Step::Visit(JsValue::Call(
                 _,
-                box JsValue::Function(_, func_ident, return_value),
+                box JsValue::Function(function_nodes, func_ident, return_value),
                 args,
             )) => {
                 total_nodes -= 2; // Call + Function
@@ -192,7 +193,10 @@ where
                     }
                     total_nodes += 1;
                     done.push(JsValue::unknown(
-                        JsValue::call(Box::new(JsValue::function(func_ident, return_value)), args),
+                        JsValue::call(
+                            Box::new(JsValue::Function(function_nodes, func_ident, return_value)),
+                            args,
+                        ),
                         true,
                         "recursive function call",
                     ));

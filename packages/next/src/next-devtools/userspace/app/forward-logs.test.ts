@@ -1,10 +1,4 @@
-import { UNDEFINED_MARKER } from '../../shared/forward-logs-shared'
-import {
-  preLogSerializationClone,
-  PROMISE_MARKER,
-  UNAVAILABLE_MARKER,
-  logStringify,
-} from './forward-logs'
+import { preLogSerializationClone, logStringify } from './forward-logs-utils'
 
 const safeStringify = (data: unknown) =>
   logStringify(preLogSerializationClone(data))
@@ -16,7 +10,9 @@ describe('forward-logs serialization', () => {
       expect(preLogSerializationClone('hello')).toBe('hello')
       expect(preLogSerializationClone(true)).toBe(true)
       expect(preLogSerializationClone(null)).toBe(null)
-      expect(preLogSerializationClone(undefined)).toBe(UNDEFINED_MARKER)
+      expect(preLogSerializationClone(undefined)).toBe(
+        '__next_tagged_undefined'
+      )
     })
 
     it('should handle circular references', () => {
@@ -29,19 +25,19 @@ describe('forward-logs serialization', () => {
 
     it('should handle promises', () => {
       const promise = Promise.resolve(42)
-      expect(preLogSerializationClone(promise)).toBe(PROMISE_MARKER)
+      expect(preLogSerializationClone(promise)).toBe('Promise {}')
     })
 
     it('should handle arrays', () => {
       const arr = [1, 'test', undefined, null]
       const cloned = preLogSerializationClone(arr)
-      expect(cloned).toEqual([1, 'test', UNDEFINED_MARKER, null])
+      expect(cloned).toEqual([1, 'test', '__next_tagged_undefined', null])
     })
 
     it('should handle plain objects', () => {
       const obj = { a: 1, b: undefined, c: 'test' }
       const cloned = preLogSerializationClone(obj)
-      expect(cloned).toEqual({ a: 1, b: UNDEFINED_MARKER, c: 'test' })
+      expect(cloned).toEqual({ a: 1, b: '__next_tagged_undefined', c: 'test' })
     })
 
     it('should handle objects with getters that throw', () => {
@@ -54,7 +50,7 @@ describe('forward-logs serialization', () => {
 
       const cloned = preLogSerializationClone(obj)
       expect(cloned.normalProp).toBe('works')
-      expect(cloned.throwingGetter).toBe(UNAVAILABLE_MARKER)
+      expect(cloned.throwingGetter).toBe('[Unable to view]')
     })
 
     it('should handle non-plain objects as toString', () => {
@@ -80,7 +76,7 @@ describe('forward-logs serialization', () => {
       const arr = [1, throwingProxy, 'normal']
       const cloned = preLogSerializationClone(arr)
 
-      expect(cloned).toEqual([1, UNAVAILABLE_MARKER, 'normal'])
+      expect(cloned).toEqual([1, '[Unable to view]', 'normal'])
     })
   })
 
@@ -89,7 +85,7 @@ describe('forward-logs serialization', () => {
       expect(safeStringify(42)).toBe('42')
       expect(safeStringify('hello')).toBe('"hello"')
       expect(safeStringify(null)).toBe('null')
-      expect(safeStringify(undefined)).toBe(`"${UNDEFINED_MARKER}"`)
+      expect(safeStringify(undefined)).toBe(`"__next_tagged_undefined"`)
     })
 
     it('should handle objects with circular references', () => {
@@ -108,7 +104,7 @@ describe('forward-logs serialization', () => {
       }
 
       const result = safeStringify(problematicData)
-      expect(result).toBe(`"${UNAVAILABLE_MARKER}"`)
+      expect(result).toBe(`"[Unable to view]"`)
     })
   })
 })

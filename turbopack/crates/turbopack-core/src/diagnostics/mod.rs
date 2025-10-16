@@ -86,7 +86,7 @@ where
     T: Upcast<Box<dyn Diagnostic>>,
 {
     fn emit(self) {
-        let diagnostic = ResolvedVc::upcast::<Box<dyn Diagnostic>>(self);
+        let diagnostic = ResolvedVc::upcast_non_strict::<Box<dyn Diagnostic>>(self);
         emit(diagnostic);
     }
 }

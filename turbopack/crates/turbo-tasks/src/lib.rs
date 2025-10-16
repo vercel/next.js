@@ -37,6 +37,9 @@
 #![feature(never_type)]
 #![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
+#![feature(sync_unsafe_cell)]
+#![feature(vec_into_raw_parts)]
+#![feature(async_fn_traits)]
 
 pub mod backend;
 mod capture_future;
@@ -60,17 +63,17 @@ mod manager;
 mod marker_trait;
 pub mod message_queue;
 mod native_function;
-mod no_move_vec;
 mod once_map;
 mod output;
 pub mod panic_hooks;
+pub mod parallel;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
 mod read_options;
 mod read_ref;
 pub mod registry;
-mod scope;
+pub mod scope;
 mod serialization_invalidation;
 pub mod small_duration;
 mod spawn;
@@ -106,19 +109,20 @@ pub use key_value_pair::KeyValuePair;
 pub use magic_any::MagicAny;
 pub use manager::{
     CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
-    TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
-    dynamic_call, emit, mark_finished, mark_root, mark_session_dependent, mark_stateful,
-    prevent_gc, run_once, run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope,
+    TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit, mark_finished,
+    mark_root, mark_session_dependent, mark_stateful, prevent_gc, run, run_once,
+    run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope,
 };
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_options::ReadCellOptions;
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
-pub use scope::scope;
 pub use serialization_invalidation::SerializationInvalidator;
 pub use shrink_to_fit::ShrinkToFit;
-pub use spawn::{JoinHandle, spawn, spawn_blocking, spawn_thread};
+pub use spawn::{
+    JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread,
+};
 pub use state::{State, TransientState};
 pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
 pub use task_execution_reason::TaskExecutionReason;
@@ -128,8 +132,8 @@ pub use value::{TransientInstance, TransientValue};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
     Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-    Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead,
-    VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
+    Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead,
+    VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
 
 pub type SliceMap<K, V> = Box<[(K, V)]>;
@@ -236,7 +240,7 @@ macro_rules! fxindexset {
 /// ## `serialization = "..."`
 ///
 /// Affects serialization via [`serde::Serialize`] and [`serde::Deserialize`]. Serialization is
-/// required for persistent caching of tasks to disk.
+/// required for filesystem cache of tasks.
 ///
 /// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
 /// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization
@@ -301,8 +305,4 @@ pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 
 pub mod test_helpers {
     pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
-}
-
-pub fn register() {
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

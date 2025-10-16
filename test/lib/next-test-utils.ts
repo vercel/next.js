@@ -6,7 +6,7 @@ import {
   writeFileSync,
   createReadStream,
 } from 'fs'
-import { promisify } from 'util'
+import { inspect, promisify } from 'util'
 import http from 'http'
 import path from 'path'
 
@@ -40,6 +40,21 @@ export { shouldUseTurbopack }
 
 export const nextServer = server
 export const pkg = _pkg
+
+// This goes straight to Node’s stdout, avoiding Jest's verbose output:
+export const debugPrint = (...args: unknown[]) => {
+  const prettyArgs = args
+    .map((arg) =>
+      typeof arg === 'string'
+        ? arg
+        : inspect(arg, { colors: process.stdout.isTTY })
+    )
+    .join(' ')
+
+  const timestamp = new Date().toISOString().split('T')[1]
+
+  return process.stdout.write(`[${timestamp}] ${prettyArgs}\n`)
+}
 
 export function initNextServerScript(
   scriptPath: string,
@@ -217,12 +232,6 @@ export interface NextOptions {
   stdout?: true | 'log'
   ignoreFail?: boolean
 
-  /**
-   * If true, this enables the linting step in the build process. If false or
-   * undefined, it adds a `--no-lint` flag to the build command.
-   */
-  lint?: boolean
-
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
 }
@@ -249,7 +258,7 @@ export function runNextCommand(
   }
 
   return new Promise((resolve, reject) => {
-    console.log(`Running command "next ${argv.join(' ')}"`)
+    debugPrint(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
       [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
@@ -274,7 +283,7 @@ export function runNextCommand(
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStderr === 'function') {
           options.onStderr(chunk.toString())
@@ -293,7 +302,7 @@ export function runNextCommand(
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStdout === 'function') {
           options.onStdout(chunk.toString())
@@ -474,21 +483,7 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
-  // If the build hasn't requested it to be linted explicitly, disable linting
-  // if it's not already disabled.
-  if (!opts.lint && !args.includes('--no-lint')) {
-    args.push('--no-lint')
-  }
-
   return runNextCommand(['build', dir, ...args], opts)
-}
-
-export function nextLint(
-  dir: string,
-  args: string[] = [],
-  opts: NextOptions = {}
-) {
-  return runNextCommand(['lint', dir, ...args], opts)
 }
 
 export function nextTest(
@@ -820,7 +815,7 @@ export async function retry<T>(
         )
         throw err
       }
-      console.log(
+      debugPrint(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
       await waitFor(interval)
@@ -968,6 +963,7 @@ export async function getSegmentExplorerRoute(browser: Playwright) {
   return await browser
     .elementByCss('.segment-explorer-page-route-bar-path')
     .text()
+    .catch(() => '<empty>')
 }
 
 export async function getSegmentExplorerContent(browser: Playwright) {
@@ -1037,35 +1033,37 @@ export async function assertNoDevToolsIndicator(browser: Playwright) {
   }
 }
 
-export async function getRouteTypeFromDevToolsIndicator(
-  browser: Playwright
-): Promise<'Static' | 'Dynamic'> {
+export async function assertStaticIndicator(
+  browser: Playwright,
+  expectedRouteType: 'Static' | 'Dynamic' | undefined
+): Promise<void> {
   await openDevToolsIndicatorPopover(browser)
 
-  return browser.eval(() => {
+  const routeType = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
 
-    const root = portal?.shadowRoot
-
-    // 'Route\nStatic' || 'Route\nDynamic'
-    const routeTypeText = root?.querySelector(
-      '[data-nextjs-route-type]'
-    )?.innerText
-
-    if (!routeTypeText) {
-      throw new Error('No Route Type Text Found')
-    }
-
-    // 'Static' || 'Dynamic'
-    const routeType = routeTypeText.split('\n').pop()
-    if (routeType !== 'Static' && routeType !== 'Dynamic') {
-      throw new Error(`Invalid Route Type: ${routeType}`)
-    }
-
-    return routeType as 'Static' | 'Dynamic'
+    return (
+      portal?.shadowRoot
+        // 'Route\nStatic' || 'Route\nDynamic'
+        ?.querySelector('[data-nextjs-route-type]')
+        ?.innerText.split('\n')
+        .pop()
+    )
   })
+
+  if (routeType !== expectedRouteType) {
+    if (expectedRouteType) {
+      throw new Error(
+        `Expected static indicator with route type ${expectedRouteType}, found ${routeType} instead.`
+      )
+    } else {
+      throw new Error(
+        `Expected no static indicator, found ${routeType} instead.`
+      )
+    }
+  }
 }
 
 export function getRedboxHeader(browser: Playwright): Promise<string | null> {
@@ -1210,11 +1208,11 @@ function readJson(path: string) {
 }
 
 export function getBuildManifest(dir: string) {
-  return readJson(path.join(dir, '.next/build-manifest.json'))
+  return readJson(path.join(dir, getDistDir(), 'build-manifest.json'))
 }
 
 export function getImagesManifest(dir: string) {
-  return readJson(path.join(dir, '.next/images-manifest.json'))
+  return readJson(path.join(dir, getDistDir(), 'images-manifest.json'))
 }
 
 export function getPageFilesFromBuildManifest(dir: string, page: string) {
@@ -1234,7 +1232,7 @@ export function getContentOfPageFilesFromBuildManifest(
   const pageFiles = getPageFilesFromBuildManifest(dir, page)
 
   return pageFiles
-    .map((file) => readFileSync(path.join(dir, '.next', file), 'utf8'))
+    .map((file) => readFileSync(path.join(dir, getDistDir(), file), 'utf8'))
     .join('\n')
 }
 
@@ -1255,17 +1253,17 @@ export function getPageFileFromBuildManifest(dir: string, page: string) {
 
 export function readNextBuildClientPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromBuildManifest(appDir, page)
-  return readFileSync(path.join(appDir, '.next', pageFile), 'utf8')
+  return readFileSync(path.join(appDir, getDistDir(), pageFile), 'utf8')
 }
 
 export function getPagesManifest(dir: string) {
-  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+  const serverFile = path.join(dir, getDistDir(), 'server/pages-manifest.json')
 
   return readJson(serverFile)
 }
 
 export function updatePagesManifest(dir: string, content: any) {
-  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+  const serverFile = path.join(dir, getDistDir(), 'server/pages-manifest.json')
 
   return writeFile(serverFile, content)
 }
@@ -1282,13 +1280,16 @@ export function getPageFileFromPagesManifest(dir: string, page: string) {
 
 export function readNextBuildServerPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
-  return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
+  return readFileSync(
+    path.join(appDir, getDistDir(), 'server', pageFile),
+    'utf8'
+  )
 }
 
 export function getClientBuildManifest(dir: string) {
-  let buildId = readFileSync(path.join(dir, '.next/BUILD_ID'), 'utf8')
+  let buildId = readFileSync(path.join(dir, getDistDir(), 'BUILD_ID'), 'utf8')
   let code = readFileSync(
-    path.join(dir, '.next/static', buildId, '_buildManifest.js'),
+    path.join(dir, getDistDir(), 'static', buildId, '_buildManifest.js'),
     'utf8'
   )
   // eslint-disable-next-line no-eval
@@ -1581,7 +1582,7 @@ export function getUrlFromBackgroundImage(backgroundImage: string) {
 }
 
 export const getTitle = (browser: Playwright) =>
-  browser.elementByCss('title').text()
+  browser.elementByCss('title', { state: 'attached' }).text()
 
 async function checkMeta(
   browser: Playwright,
@@ -1869,4 +1870,12 @@ export function normalizeManifest<T>(
       JSON.stringify(manifest)
     )
   )
+}
+
+export function getDistDir(): '.next' | '.next/dev' {
+  // global.isNextDev is set in e2e/development/production tests.
+  // NEXT_TEST_MODE is set in CI or local test-* commands.
+  return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev'
+    ? '.next/dev'
+    : '.next'
 }

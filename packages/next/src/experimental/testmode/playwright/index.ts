@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
 import * as base from '@playwright/test'
 import type { NextFixture } from './next-fixture'
 import type { NextOptions, NextOptionsConfig } from './next-options'
@@ -9,7 +8,6 @@ import { defaultPlaywrightConfig } from './default-config'
 
 export { defaultPlaywrightConfig }
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 export * from '@playwright/test'
 
 // Export this second so it overrides the one from `@playwright/test`

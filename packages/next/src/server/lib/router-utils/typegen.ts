@@ -22,10 +22,10 @@ function generateRouteTypes(routesManifest: RouteTypesManifest): string {
     routesManifest.appRouteHandlerRoutes
   ).sort()
 
-  if (appRouteHandlerRoutes.length > 0) {
+  const hasAppRouteHandlers = appRouteHandlerRoutes.length > 0
+
+  if (hasAppRouteHandlers) {
     result += `type AppRouteHandlerRoutes = ${appRouteHandlerRoutes.map((route) => JSON.stringify(route)).join(' | ')}\n`
-  } else {
-    result += 'type AppRouteHandlerRoutes = never\n'
   }
 
   // Generate PageRoutes union type
@@ -60,8 +60,19 @@ function generateRouteTypes(routesManifest: RouteTypesManifest): string {
     result += 'type RewriteRoutes = never\n'
   }
 
-  result +=
-    'type Routes = AppRoutes | AppRouteHandlerRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes\n'
+  // Only include AppRouteHandlerRoutes in Routes union if there are actual route handlers
+  const routeUnionParts = [
+    'AppRoutes',
+    'PageRoutes',
+    'LayoutRoutes',
+    'RedirectRoutes',
+    'RewriteRoutes',
+  ]
+  if (hasAppRouteHandlers) {
+    routeUnionParts.push('AppRouteHandlerRoutes')
+  }
+
+  result += `type Routes = ${routeUnionParts.join(' | ')}\n`
 
   return result
 }
@@ -190,18 +201,24 @@ export function generateLinkTypesFile(
   routesManifest: RouteTypesManifest
 ): string {
   // Generate serialized static and dynamic routes for the internal namespace
-  const allRoutes = {
-    ...routesManifest.appRoutes,
-    ...routesManifest.pageRoutes,
-    ...routesManifest.redirectRoutes,
-    ...routesManifest.rewriteRoutes,
-  }
+  // Build a unified set of routes across app/pages/redirect/rewrite as well as
+  // app route handlers and Pages Router API routes.
+  const allRoutesSet = new Set<string>([
+    ...Object.keys(routesManifest.appRoutes),
+    ...Object.keys(routesManifest.pageRoutes),
+    ...Object.keys(routesManifest.redirectRoutes),
+    ...Object.keys(routesManifest.rewriteRoutes),
+    // Allow linking to App Route Handlers (e.g. `/logout/route.ts`)
+    ...Object.keys(routesManifest.appRouteHandlerRoutes),
+    // Allow linking to Pages Router API routes (e.g. `/api/*`)
+    ...Array.from(routesManifest.pageApiRoutes),
+  ])
 
   const staticRouteTypes: string[] = []
   const dynamicRouteTypes: string[] = []
 
   // Process each route using the same logic as the plugin
-  for (const route of Object.keys(allRoutes)) {
+  for (const route of allRoutesSet) {
     const { isDynamic, routeType } = formatRouteToRouteType(route)
     if (isDynamic) {
       dynamicRouteTypes.push(routeType)
@@ -281,6 +298,8 @@ declare module 'next' {
 }
 
 declare module 'next/link' {
+  export { useLinkStatus } from 'next/dist/client/link.js'
+
   import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link.js'
   import type { AnchorHTMLAttributes, DetailedHTMLProps } from 'react'
   import type { UrlObject } from 'url'
@@ -312,6 +331,8 @@ declare module 'next/navigation' {
   export * from 'next/dist/client/components/navigation.js'
 
   import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime.js'
+  import type { RedirectType } from 'next/dist/client/components/redirect-error.js'
+  
   interface AppRouterInstance extends OriginalAppRouterInstance {
     /**
      * Navigate to the provided href.
@@ -330,6 +351,41 @@ declare module 'next/navigation' {
   }
 
   export function useRouter(): AppRouterInstance;
+  
+  /**
+   * This function allows you to redirect the user to another URL. It can be used in
+   * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
+   * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
+   * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+   *
+   * - In a Server Component, this will insert a meta tag to redirect the user to the target page.
+   * - In a Route Handler or Server Action, it will serve a 307/303 to the caller.
+   * - In a Server Action, type defaults to 'push' and 'replace' elsewhere.
+   *
+   * Read more: [Next.js Docs: redirect](https://nextjs.org/docs/app/api-reference/functions/redirect)
+   */
+  export function redirect<RouteType>(
+    /** The URL to redirect to */
+    url: __next_route_internal_types__.RouteImpl<RouteType>,
+    type?: RedirectType
+  ): never;
+  
+  /**
+   * This function allows you to redirect the user to another URL. It can be used in
+   * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
+   * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
+   * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+   *
+   * - In a Server Component, this will insert a meta tag to redirect the user to the target page.
+   * - In a Route Handler or Server Action, it will serve a 308/303 to the caller.
+   *
+   * Read more: [Next.js Docs: redirect](https://nextjs.org/docs/app/api-reference/functions/redirect)
+   */
+  export function permanentRedirect<RouteType>(
+    /** The URL to redirect to */
+    url: __next_route_internal_types__.RouteImpl<RouteType>,
+    type?: RedirectType
+  ): never;
 }
 
 declare module 'next/form' {
@@ -390,12 +446,19 @@ export function generateValidatorFile(
             type === 'RouteHandlerConfig')
             ? `${type}<${JSON.stringify(route)}>`
             : type
+
+        // NOTE: we previously used `satisfies` here, but it's not supported by TypeScript 4.8 and below.
+        // If we ever raise the TS minimum version, we can switch back.
+
         return `// Validate ${filePath}
 {
+  type __IsExpected<Specific extends ${typeWithRoute}> = Specific
   const handler = {} as typeof import(${JSON.stringify(
     importPath.replace(/\.tsx?$/, '.js')
   )})
-  handler satisfies ${typeWithRoute}
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
 }`
       })
       .join('\n\n')
@@ -427,15 +490,14 @@ export function generateValidatorFile(
     routesManifest.filePathToRoute
   )
 
-  return `// This file is generated automatically by Next.js
-// Do not edit this file manually
-// This file validates that all pages and layouts export the correct types
+  const hasAppRouteHandlers =
+    Object.keys(routesManifest.appRouteHandlerRoutes).length > 0
 
-import type { AppRoutes, AppRouteHandlerRoutes, LayoutRoutes, ParamMap } from "./routes.js"
-import type { ResolvingMetadata, ResolvingViewport } from "next/dist/lib/metadata/types/metadata-interface.js"
-import type { NextRequest } from 'next/server.js'
+  // Build type definitions based on what's actually used
+  let typeDefinitions = ''
 
-type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
+  if (appPageValidations) {
+    typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
   default: React.ComponentType<{ params: Promise<ParamMap[Route]> } & any> | ((props: { params: Promise<ParamMap[Route]> } & any) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
   generateStaticParams?: (props: { params: ParamMap[Route] }) => Promise<any[]> | any[]
   generateMetadata?: (
@@ -450,7 +512,11 @@ type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
   viewport?: any
 }
 
-type PagesPageConfig = {
+`
+  }
+
+  if (pagesRouterPageValidations) {
+    typeDefinitions += `type PagesPageConfig = {
   default: React.ComponentType<any> | ((props: any) => React.ReactNode | Promise<React.ReactNode> | never | void)
   getStaticProps?: (context: any) => Promise<any> | any
   getStaticPaths?: (context: any) => Promise<any> | any
@@ -461,14 +527,17 @@ type PagesPageConfig = {
    * Validated at build-time by parsePagesSegmentConfig.
    */
   config?: {
-    amp?: boolean | 'hybrid'
     maxDuration?: number
     runtime?: 'edge' | 'experimental-edge' | 'nodejs' | string // necessary unless config is exported as const
     regions?: string[]
   }
 }
 
-type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
+`
+  }
+
+  if (layoutValidations) {
+    typeDefinitions += `type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
   default: React.ComponentType<LayoutProps<Route>> | ((props: LayoutProps<Route>) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
   generateStaticParams?: (props: { params: ParamMap[Route] }) => Promise<any[]> | any[]
   generateMetadata?: (
@@ -483,22 +552,30 @@ type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
   viewport?: any
 }
 
-type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRoutes> = {
-  GET?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  POST?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  PUT?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  PATCH?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  DELETE?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  HEAD?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  OPTIONS?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
+`
+  }
+
+  if (appRouteHandlerValidations) {
+    typeDefinitions += `type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRoutes> = {
+  GET?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  POST?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  PUT?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  PATCH?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  DELETE?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  HEAD?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  OPTIONS?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
 }
 
-type ApiRouteConfig = {
-  default: (req: any, res: any) => Promise<void> | void | Promise<Response> | Response
+`
+  }
+
+  if (pagesApiRouteValidations) {
+    typeDefinitions += `type ApiRouteConfig = {
+  default: (req: any, res: any) => ReturnType<NextApiHandler>
   config?: {
     api?: {
       bodyParser?: boolean | { sizeLimit?: string }
-      responseLimit?: string | number
+      responseLimit?: string | number | boolean
       externalResolver?: boolean
     }
     runtime?: 'edge' | 'experimental-edge' | 'nodejs' | string // necessary unless config is exported as const
@@ -506,6 +583,60 @@ type ApiRouteConfig = {
   }
 }
 
+`
+  }
+
+  // Build import statement based on what's actually needed
+  const routeImports = []
+
+  // Only import AppRoutes if there are app pages
+  if (appPageValidations) {
+    routeImports.push('AppRoutes')
+  }
+
+  // Only import LayoutRoutes if there are layouts
+  if (layoutValidations) {
+    routeImports.push('LayoutRoutes')
+  }
+
+  // Only import ParamMap if there are routes that use it
+  if (appPageValidations || layoutValidations || appRouteHandlerValidations) {
+    routeImports.push('ParamMap')
+  }
+
+  if (hasAppRouteHandlers) {
+    routeImports.push('AppRouteHandlerRoutes')
+  }
+
+  const routeImportStatement =
+    routeImports.length > 0
+      ? `import type { ${routeImports.join(', ')} } from "./routes.js"`
+      : ''
+
+  const nextRequestImport = hasAppRouteHandlers
+    ? "import type { NextRequest } from 'next/server.js'\n"
+    : ''
+
+  // Conditionally import types from next/types, merged into a single statement
+  const nextTypes: string[] = []
+  if (pagesApiRouteValidations) {
+    nextTypes.push('NextApiHandler')
+  }
+  if (appPageValidations || layoutValidations) {
+    nextTypes.push('ResolvingMetadata', 'ResolvingViewport')
+  }
+  const nextTypesImport =
+    nextTypes.length > 0
+      ? `import type { ${nextTypes.join(', ')} } from "next/types.js"\n`
+      : ''
+
+  return `// This file is generated automatically by Next.js
+// Do not edit this file manually
+// This file validates that all pages and layouts export the correct types
+
+${routeImportStatement}
+${nextTypesImport}${nextRequestImport}
+${typeDefinitions}
 ${appPageValidations}
 
 ${appRouteHandlerValidations}
@@ -525,6 +656,42 @@ export function generateRouteTypesFile(
   const paramTypes = generateParamTypes(routesManifest)
   const layoutSlotMap = generateLayoutSlotMap(routesManifest)
 
+  const hasAppRouteHandlers =
+    Object.keys(routesManifest.appRouteHandlerRoutes).length > 0
+
+  // Build export statement based on what's actually generated
+  const routeExports = [
+    'AppRoutes',
+    'PageRoutes',
+    'LayoutRoutes',
+    'RedirectRoutes',
+    'RewriteRoutes',
+    'ParamMap',
+  ]
+  if (hasAppRouteHandlers) {
+    routeExports.push('AppRouteHandlerRoutes')
+  }
+
+  const exportStatement = `export type { ${routeExports.join(', ')} }`
+
+  const routeContextInterface = hasAppRouteHandlers
+    ? `
+
+  /**
+   * Context for Next.js App Router route handlers
+   * @example
+   * \`\`\`tsx
+   * export async function GET(request: NextRequest, context: RouteContext<'/api/users/[id]'>) {
+   *   const { id } = await context.params
+   *   return Response.json({ id })
+   * }
+   * \`\`\`
+   */
+  interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes> {
+    params: Promise<ParamMap[AppRouteHandlerRoute]>
+  }`
+    : ''
+
   return `// This file is generated automatically by Next.js
 // Do not edit this file manually
 
@@ -536,7 +703,7 @@ export type ParamsOf<Route extends Routes> = ParamMap[Route]
 
 ${layoutSlotMap}
 
-export type { AppRoutes, AppRouteHandlerRoutes, PageRoutes, LayoutRoutes, RedirectRoutes, RewriteRoutes, ParamMap }
+${exportStatement}
 
 declare global {
   /**
@@ -568,21 +735,7 @@ declare global {
     children: React.ReactNode
   } & {
     [K in LayoutSlotMap[LayoutRoute]]: React.ReactNode
-  }
-
-  /**
-   * Context for Next.js App Router route handlers
-   * @example
-   * \`\`\`tsx
-   * export async function GET(request: NextRequest, context: RouteContext<'/api/users/[id]'>) {
-   *   const { id } = await context.params
-   *   return Response.json({ id })
-   * }
-   * \`\`\`
-   */
-  interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes> {
-    params: Promise<ParamMap[AppRouteHandlerRoute]>
-  }
+  }${routeContextInterface}
 }
 `
 }

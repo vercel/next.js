@@ -113,6 +113,11 @@ export async function runTransform(
     return require(transformerPath).default(filesExpanded, options)
   }
 
+  if (transformer === 'next-lint-to-eslint-cli') {
+    // next-lint-to-eslint-cli transform doesn't use jscodeshift directly
+    return require(transformerPath).default(filesExpanded, options)
+  }
+
   let args = []
 
   const { dry, print, runInBand, jscodeshift, verbose } = options

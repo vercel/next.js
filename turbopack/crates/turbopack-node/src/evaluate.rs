@@ -1,4 +1,6 @@
-use std::{borrow::Cow, iter, ops::ControlFlow, thread::available_parallelism, time::Duration};
+use std::{
+    borrow::Cow, iter, ops::ControlFlow, sync::Arc, thread::available_parallelism, time::Duration,
+};
 
 use anyhow::{Result, anyhow, bail};
 use async_stream::try_stream as generator;
@@ -13,9 +15,9 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, OperationVc, RawVc, ResolvedVc, TaskInput,
-    TryJoinIterExt, Vc, VcValueType, apply_effects, duration_span, fxindexmap, mark_finished,
-    prevent_gc, trace::TraceRawVcs, util::SharedError,
+    Completion, Effects, FxIndexMap, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc,
+    TaskInput, TryJoinIterExt, Vc, VcValueType, duration_span, fxindexmap, get_effects,
+    mark_finished, prevent_gc, trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -175,6 +177,7 @@ async fn emit_evaluate_pool_assets_operation(
             .with_entry(*ResolvedVc::try_downcast(entry_module).unwrap()),
         module_graph,
         OutputAssets::empty(),
+        OutputAssets::empty(),
     );
 
     let output_root = chunking_context.output_root().owned().await?;
@@ -193,22 +196,28 @@ async fn emit_evaluate_pool_assets_operation(
     .cell())
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct EmittedEvaluatePoolAssetsWithEffects {
+    assets: ReadRef<EmittedEvaluatePoolAssets>,
+    effects: Arc<Effects>,
+}
+
 #[turbo_tasks::function(operation)]
 async fn emit_evaluate_pool_assets_with_effects_operation(
     module_asset: ResolvedVc<Box<dyn Module>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
-) -> Result<Vc<EmittedEvaluatePoolAssets>> {
+) -> Result<Vc<EmittedEvaluatePoolAssetsWithEffects>> {
     let operation = emit_evaluate_pool_assets_operation(
         module_asset,
         asset_context,
         chunking_context,
         runtime_entries,
     );
-    let result = operation.resolve_strongly_consistent().await?;
-    apply_effects(operation).await?;
-    Ok(*result)
+    let assets = operation.read_strongly_consistent().await?;
+    let effects = Arc::new(get_effects(operation).await?);
+    Ok(EmittedEvaluatePoolAssetsWithEffects { assets, effects }.cell())
 }
 
 #[derive(
@@ -243,18 +252,21 @@ pub async fn get_evaluate_pool(
     debug: bool,
     env_var_tracking: EnvVarTracking,
 ) -> Result<Vc<NodeJsPool>> {
-    let EmittedEvaluatePoolAssets {
-        bootstrap,
-        output_root,
-        entrypoint,
-    } = &*emit_evaluate_pool_assets_with_effects_operation(
+    let operation = emit_evaluate_pool_assets_with_effects_operation(
         module_asset,
         asset_context,
         chunking_context,
         runtime_entries,
-    )
-    .read_strongly_consistent()
-    .await?;
+    );
+    let EmittedEvaluatePoolAssetsWithEffects { assets, effects } =
+        &*operation.read_strongly_consistent().await?;
+    effects.apply().await?;
+
+    let EmittedEvaluatePoolAssets {
+        bootstrap,
+        output_root,
+        entrypoint,
+    } = &**assets;
 
     let (Some(cwd), Some(entrypoint)) = (
         to_sys_path(cwd.clone()).await?,

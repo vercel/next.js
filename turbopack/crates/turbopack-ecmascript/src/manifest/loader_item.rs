@@ -67,10 +67,10 @@ impl ManifestLoaderChunkItem {
 
     #[turbo_tasks::function]
     pub async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
-        let chunks = self.manifest.manifest_chunks();
+        let chunks = self.manifest.manifest_chunk_group().await?.assets;
         Ok(ChunkData::from_assets(
             self.chunking_context.output_root().owned().await?,
-            chunks,
+            *chunks,
         ))
     }
 
@@ -93,19 +93,13 @@ impl ChunkItem for ManifestLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let mut references = this.manifest.manifest_chunks().owned().await?;
-        for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?);
-        }
-
-        Ok(Vc::cell(references))
+    fn references(&self) -> Vc<OutputAssets> {
+        self.manifest.manifest_chunk_group().all_assets()
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -140,7 +134,7 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         // exports a promise for all of the necessary chunk loads.
         let item_id = &*this
             .manifest
-            .chunk_item_id(*ResolvedVc::upcast(manifest.chunking_context))
+            .chunk_item_id(*manifest.chunking_context)
             .await?;
 
         // Finally, we need the id of the module that we're actually trying to
@@ -148,9 +142,7 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         let placeable =
             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.inner)
                 .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
-        let dynamic_id = &*placeable
-            .chunk_item_id(*ResolvedVc::upcast(manifest.chunking_context))
-            .await?;
+        let dynamic_id = &*placeable.chunk_item_id(*manifest.chunking_context).await?;
 
         // This is the code that will be executed when the dynamic import is reached.
         // It will load the manifest chunk, which will load all the chunks needed by

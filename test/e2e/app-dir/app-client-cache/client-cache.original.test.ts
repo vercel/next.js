@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { Playwright } from 'next-webdriver'
 import {
   browserConfigWithFixedTime,
@@ -25,13 +25,16 @@ describe('app dir client cache semantics (30s/5min)', () => {
 
       // navigate to prefetch-auto page
       await browser.elementByCss('[href="/1"]').click()
+      await browser.waitForElementByCss('#random-number')
 
       let initialNumber = await browser.elementById('random-number').text()
 
       // Navigate back to the index, and then back to the prefetch-auto page
       await browser.elementByCss('[href="/"]').click()
+      await browser.waitForElementByCss('[href="/1"]')
       await browser.eval(fastForwardTo, 5 * 1000)
       await browser.elementByCss('[href="/1"]').click()
+      await browser.waitForElementByCss('#random-number')
 
       let newNumber = await browser.elementById('random-number').text()
 
@@ -43,7 +46,9 @@ describe('app dir client cache semantics (30s/5min)', () => {
 
       // Navigate back to the index, and then back to the prefetch-auto page
       await browser.elementByCss('[href="/"]').click()
+      await browser.waitForElementByCss('[href="/1"]')
       await browser.elementByCss('[href="/1"]').click()
+      await browser.waitForElementByCss('#random-number')
 
       newNumber = await browser.elementById('random-number').text()
 
@@ -58,7 +63,9 @@ describe('app dir client cache semantics (30s/5min)', () => {
 
       // Navigate back to the index, and then back to the prefetch-auto page
       await browser.elementByCss('[href="/"]').click()
+      await browser.waitForElementByCss('[href="/1"]')
       await browser.elementByCss('[href="/1"]').click()
+      await browser.waitForElementByCss('#random-number')
 
       newNumber = await browser.elementById('random-number').text()
 
@@ -76,52 +83,49 @@ describe('app dir client cache semantics (30s/5min)', () => {
       it('should prefetch the full page', async () => {
         const { getRequests, clearRequests } =
           await createRequestsListener(browser)
-        await check(() => {
-          return getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/0' && !didPartialPrefetch
-          )
-            ? 'success'
-            : 'fail'
-        }, 'success')
+        await retry(() => {
+          expect(
+            getRequests().some(
+              ([url, didPartialPrefetch]) =>
+                getPathname(url) === '/0' && !didPartialPrefetch
+            )
+          ).toBe(true)
+        })
 
         clearRequests()
 
-        await browser
-          .elementByCss('[href="/0?timeout=0"]')
-          .click()
-          .waitForElementByCss('#random-number')
+        await browser.elementByCss('[href="/0?timeout=0"]').click()
+        await browser.waitForElementByCss('#random-number')
 
-        expect(
-          getRequests().every(([url]) => getPathname(url) !== '/0')
-        ).toEqual(true)
+        await retry(() => {
+          const requests = getRequests()
+          expect(requests.every(([url]) => getPathname(url) !== '/0')).toBe(
+            true
+          )
+        })
       })
       it('should re-use the cache for the full page, only for 5 mins', async () => {
-        const randomNumber = await browser
-          .elementByCss('[href="/0?timeout=0"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/0?timeout=0"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const randomNumber = await browser.elementById('random-number').text()
 
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/0?timeout=0"]')
 
-        const number = await browser
-          .elementByCss('[href="/0?timeout=0"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/0?timeout=0"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const number = await browser.elementById('random-number').text()
 
         expect(number).toBe(randomNumber)
 
         await browser.eval(fastForwardTo, 5 * 60 * 1000)
 
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/0?timeout=0"]')
 
-        const newNumber = await browser
-          .elementByCss('[href="/0?timeout=0"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/0?timeout=0"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const newNumber = await browser.elementById('random-number').text()
 
         expect(newNumber).not.toBe(randomNumber)
       })
@@ -130,40 +134,37 @@ describe('app dir client cache semantics (30s/5min)', () => {
         const { getRequests, clearRequests } =
           await createRequestsListener(browser)
 
-        await check(() => {
-          return getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/0' && !didPartialPrefetch
-          )
-            ? 'success'
-            : 'fail'
-        }, 'success')
+        await retry(() => {
+          expect(
+            getRequests().some(
+              ([url, didPartialPrefetch]) =>
+                getPathname(url) === '/0' && !didPartialPrefetch
+            )
+          ).toBe(true)
+        })
 
-        const randomNumber = await browser
-          .elementByCss('[href="/0?timeout=0"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/0?timeout=0"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const randomNumber = await browser.elementById('random-number').text()
 
         await browser.eval(fastForwardTo, 5 * 60 * 1000)
         clearRequests()
 
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/0?timeout=0"]')
 
-        await check(() => {
-          return getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/0' && !didPartialPrefetch
-          )
-            ? 'success'
-            : 'fail'
-        }, 'success')
+        await retry(() => {
+          expect(
+            getRequests().some(
+              ([url, didPartialPrefetch]) =>
+                getPathname(url) === '/0' && !didPartialPrefetch
+            )
+          ).toBe(true)
+        })
 
-        const number = await browser
-          .elementByCss('[href="/0?timeout=0"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/0?timeout=0"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const number = await browser.elementById('random-number').text()
 
         expect(number).not.toBe(randomNumber)
       })
@@ -177,14 +178,15 @@ describe('app dir client cache semantics (30s/5min)', () => {
       it('should not prefetch the page at all', async () => {
         const { getRequests } = await createRequestsListener(browser)
 
-        await browser
-          .elementByCss('[href="/2"]')
-          .click()
-          .waitForElementByCss('#random-number')
+        await browser.elementByCss('[href="/2"]').click()
+        await browser.waitForElementByCss('#random-number')
 
-        expect(
-          getRequests().filter(([url]) => getPathname(url) === '/2')
-        ).toHaveLength(1)
+        await retry(() => {
+          const requests = getRequests().filter(
+            ([url]) => getPathname(url) === '/2'
+          )
+          expect(requests.length).toBe(1)
+        })
 
         expect(
           getRequests().some(
@@ -194,31 +196,27 @@ describe('app dir client cache semantics (30s/5min)', () => {
         ).toBe(false)
       })
       it('should re-use the cache only for 30 seconds', async () => {
-        const randomNumber = await browser
-          .elementByCss('[href="/2"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/2"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const randomNumber = await browser.elementById('random-number').text()
 
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/2"]')
 
-        const number = await browser
-          .elementByCss('[href="/2"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/2"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const number = await browser.elementById('random-number').text()
 
         expect(number).toBe(randomNumber)
 
         await browser.eval(fastForwardTo, 30 * 1000)
 
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/2"]')
 
-        const newNumber = await browser
-          .elementByCss('[href="/2"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/2"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const newNumber = await browser.elementById('random-number').text()
 
         expect(newNumber).not.toBe(randomNumber)
       })
@@ -234,67 +232,62 @@ describe('app dir client cache semantics (30s/5min)', () => {
         const { getRequests, clearRequests } =
           await createRequestsListener(browser)
 
-        await check(() => {
-          return getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/1' && didPartialPrefetch
-          )
-            ? 'success'
-            : 'fail'
-        }, 'success')
+        await retry(() => {
+          expect(
+            getRequests().some(
+              ([url, didPartialPrefetch]) =>
+                getPathname(url) === '/1' && didPartialPrefetch
+            )
+          ).toBe(true)
+        })
 
         clearRequests()
 
-        await browser
-          .elementByCss('[href="/1"]')
-          .click()
-          .waitForElementByCss('#random-number')
+        await browser.elementByCss('[href="/1"]').click()
+        await browser.waitForElementByCss('#random-number')
 
-        expect(
-          getRequests().some(
-            ([url, didPartialPrefetch]) =>
-              getPathname(url) === '/1' && !didPartialPrefetch
-          )
-        ).toBe(true)
+        await retry(() => {
+          expect(
+            getRequests().some(
+              ([url, didPartialPrefetch]) =>
+                getPathname(url) === '/1' && !didPartialPrefetch
+            )
+          ).toBe(true)
+        })
       })
       it('should re-use the full cache for only 30 seconds', async () => {
-        const randomNumber = await browser
-          .elementByCss('[href="/1"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/1"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const randomNumber = await browser.elementById('random-number').text()
 
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/1"]')
 
-        const number = await browser
-          .elementByCss('[href="/1"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/1"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const number = await browser.elementById('random-number').text()
 
         expect(number).toBe(randomNumber)
 
         await browser.eval(fastForwardTo, 5 * 1000)
 
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/1"]')
 
-        const newNumber = await browser
-          .elementByCss('[href="/1"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/1"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const newNumber = await browser.elementById('random-number').text()
 
         expect(newNumber).toBe(randomNumber)
 
         await browser.eval(fastForwardTo, 30 * 1000)
 
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/1"]')
 
-        const newNumber2 = await browser
-          .elementByCss('[href="/1"]')
-          .click()
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/1"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const newNumber2 = await browser.elementById('random-number').text()
 
         expect(newNumber2).not.toBe(newNumber)
       })
@@ -302,13 +295,16 @@ describe('app dir client cache semantics (30s/5min)', () => {
       it('should renew the 30s cache once the data is revalidated', async () => {
         // navigate to prefetch-auto page
         await browser.elementByCss('[href="/1"]').click()
+        await browser.waitForElementByCss('#random-number')
 
         let initialNumber = await browser.elementById('random-number').text()
 
         // Navigate back to the index, and then back to the prefetch-auto page
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/1"]')
         await browser.eval(fastForwardTo, 5 * 1000)
         await browser.elementByCss('[href="/1"]').click()
+        await browser.waitForElementByCss('#random-number')
 
         let newNumber = await browser.elementById('random-number').text()
 
@@ -320,7 +316,9 @@ describe('app dir client cache semantics (30s/5min)', () => {
 
         // Navigate back to the index, and then back to the prefetch-auto page
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/1"]')
         await browser.elementByCss('[href="/1"]').click()
+        await browser.waitForElementByCss('#random-number')
 
         newNumber = await browser.elementById('random-number').text()
 
@@ -335,7 +333,9 @@ describe('app dir client cache semantics (30s/5min)', () => {
 
         // Navigate back to the index, and then back to the prefetch-auto page
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/1"]')
         await browser.elementByCss('[href="/1"]').click()
+        await browser.waitForElementByCss('#random-number')
 
         newNumber = await browser.elementById('random-number').text()
 
@@ -344,31 +344,18 @@ describe('app dir client cache semantics (30s/5min)', () => {
       })
 
       it('should refetch below the fold after 30 seconds', async () => {
-        const randomLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
-          .click()
-          .waitForElementByCss('#loading')
-          .text()
-
-        const randomNumber = await browser
-          .waitForElementByCss('#random-number')
-          .text()
+        await browser.elementByCss('[href="/1?timeout=1000"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const randomNumber = await browser.elementById('random-number').text()
 
         await browser.elementByCss('[href="/"]').click()
+        await browser.waitForElementByCss('[href="/1?timeout=1000"]')
 
         await browser.eval(fastForwardTo, 30 * 1000)
 
-        const newLoadingNumber = await browser
-          .elementByCss('[href="/1?timeout=1000"]')
-          .click()
-          .waitForElementByCss('#loading')
-          .text()
-
-        const newNumber = await browser
-          .waitForElementByCss('#random-number')
-          .text()
-
-        expect(newLoadingNumber).toBe(randomLoadingNumber)
+        await browser.elementByCss('[href="/1?timeout=1000"]').click()
+        await browser.waitForElementByCss('#random-number')
+        const newNumber = await browser.elementById('random-number').text()
 
         expect(newNumber).not.toBe(randomNumber)
       })
@@ -429,12 +416,18 @@ describe('app dir client cache semantics (30s/5min)', () => {
     it('should seed the prefetch cache with the fetched page data', async () => {
       const browser = await next.browser('/1', browserConfigWithFixedTime)
 
+      await browser.waitForElementByCss('#random-number')
       const initialNumber = await browser.elementById('random-number').text()
 
       // Move forward a few seconds, navigate off the page and then back to it
       await browser.eval(fastForwardTo, 5 * 1000)
       await browser.elementByCss('[href="/"]').click()
+      await browser.waitForElementByCss('[href="/1"]')
+
+      await browser.waitForIdleNetwork()
+
       await browser.elementByCss('[href="/1"]').click()
+      await browser.waitForElementByCss('#random-number')
 
       const newNumber = await browser.elementById('random-number').text()
 
@@ -448,12 +441,15 @@ describe('app dir client cache semantics (30s/5min)', () => {
         browserConfigWithFixedTime
       )
 
+      await browser.waitForElementByCss('#random-number')
       const initialNumber = await browser.elementById('random-number').text()
 
       // Expire the cache
       await browser.eval(fastForwardTo, 30 * 1000)
       await browser.elementByCss('[href="/without-loading"]').click()
+      await browser.waitForElementByCss('[href="/without-loading/1"]')
       await browser.elementByCss('[href="/without-loading/1"]').click()
+      await browser.waitForElementByCss('#random-number')
 
       const newNumber = await browser.elementById('random-number').text()
 

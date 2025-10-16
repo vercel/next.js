@@ -19,7 +19,8 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 console_error_panic_hook = "0.1.6"
-getrandom = { version = "0.3", default-features = false, features = ["wasm_js"] }
+getrandom2 = { package="getrandom", version = "0.2", default-features = false, features = ["js"] }
+getrandom3 = { package="getrandom", version = "0.3", default-features = false, features = ["wasm_js"] }
 js-sys = "0.3.59"
 next-custom-transforms = { workspace = true }
 next-taskless = { workspace = true }
@@ -57,4 +58,4 @@ wasm-opt = false
 
 [package.metadata.cargo-shear]
 # Needed to declare the `wasm_js` feature
-ignored = ["getrandom"]
+ignored = ["getrandom2", "getrandom3"]

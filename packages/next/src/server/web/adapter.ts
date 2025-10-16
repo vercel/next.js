@@ -239,7 +239,10 @@ export async function adapter(
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
     const isMiddleware =
-      params.page === '/middleware' || params.page === '/src/middleware'
+      params.page === '/middleware' ||
+      params.page === '/src/middleware' ||
+      params.page === '/proxy' ||
+      params.page === '/src/proxy'
 
     if (isMiddleware) {
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
@@ -252,7 +255,7 @@ export async function adapter(
       return getTracer().trace(
         MiddlewareSpan.execute,
         {
-          spanName: `middleware ${request.method} ${request.nextUrl.pathname}`,
+          spanName: `middleware ${request.method}`,
           attributes: {
             'http.target': request.nextUrl.pathname,
             'http.method': request.method,
@@ -380,10 +383,19 @@ export async function adapter(
       response.headers.set('x-nextjs-rewrite', relativeDestination)
     }
 
+    // Check to see if this is a non-relative rewrite. If it is, we need
+    // to check to see if it's an allowed origin to receive the rewritten
+    // headers.
+    const isAllowedOrigin = !isRelative
+      ? params.request.nextConfig?.experimental?.clientParamParsingOrigins?.some(
+          (origin) => new RegExp(origin).test(destination.origin)
+        )
+      : false
+
     // If this is an RSC request, and the pathname or search has changed, and
     // this isn't an external rewrite, we need to set the rewritten pathname and
     // query headers.
-    if (isRSCRequest && isRelative) {
+    if (isRSCRequest && (isRelative || isAllowedOrigin)) {
       if (requestURL.pathname !== destination.pathname) {
         response.headers.set(NEXT_REWRITTEN_PATH_HEADER, destination.pathname)
       }

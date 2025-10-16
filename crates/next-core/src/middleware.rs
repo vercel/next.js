@@ -9,7 +9,7 @@ use crate::util::load_next_js_template;
 #[turbo_tasks::function]
 pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<RcStr>>> {
     let extensions = page_extensions.await?;
-    let files = ["middleware.", "src/middleware."]
+    let files = ["middleware.", "src/middleware.", "proxy.", "src/proxy."]
         .into_iter()
         .flat_map(|f| {
             extensions
@@ -29,14 +29,16 @@ pub async fn get_middleware_module(
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_MIDDLEWARE_MODULE";
 
+    // Determine if this is a proxy file by checking the module path
+    let userland_path = userland_module.ident().path().await?;
+    let is_proxy = userland_path.file_stem() == Some("proxy");
+    let page_path = if is_proxy { "/proxy" } else { "/middleware" };
+
     // Load the file from the next.js codebase.
     let source = load_next_js_template(
         "middleware.js",
         project_root,
-        &[
-            ("VAR_USERLAND", INNER),
-            ("VAR_DEFINITION_PAGE", "/middleware"),
-        ],
+        &[("VAR_USERLAND", INNER), ("VAR_DEFINITION_PAGE", page_path)],
         &[],
         &[],
     )
