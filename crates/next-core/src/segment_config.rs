@@ -37,7 +37,7 @@ use turbopack_ecmascript::{
 use crate::{
     app_structure::AppPageLoaderTree,
     next_config::RouteHas,
-    next_manifests::MiddlewareMatcher,
+    next_manifests::ProxyMatcher,
     util::{MiddlewareMatcherKind, NextRuntime},
 };
 
@@ -1121,7 +1121,7 @@ async fn parse_route_matcher_from_js_value(
                 if let Some(matcher) = item.as_str() {
                     matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
                 } else if let JsValue::Object { parts, .. } = item {
-                    let mut matcher = MiddlewareMatcher::default();
+                    let mut matcher = ProxyMatcher::default();
                     let mut had_source = false;
                     for matcher_part in parts {
                         if let ObjectPart::KeyValue(key, value) = matcher_part {

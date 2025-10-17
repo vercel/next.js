@@ -40,7 +40,7 @@ import type {
   IncomingMessage,
   ServerResponse as HTTPServerResponse,
 } from 'http'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
 import type { InstrumentationModule } from './instrumentation/types'
@@ -157,7 +157,7 @@ export type FindComponentsResult = {
 export interface MiddlewareRoutingItem {
   page: string
   match: MiddlewareRouteMatch
-  matchers?: MiddlewareMatcher[]
+  matchers?: ProxyMatcher[]
 }
 
 export type RouteHandler<

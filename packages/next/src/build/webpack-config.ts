@@ -56,7 +56,7 @@ import type {
   SWC_TARGET_TRIPLE,
 } from './webpack/plugins/telemetry-plugin/telemetry-plugin'
 import type { Span } from '../trace'
-import type { MiddlewareMatcher } from './analysis/get-page-static-info'
+import type { ProxyMatcher } from './analysis/get-page-static-info'
 import loadJsConfig, {
   type JsConfig,
   type ResolvedBaseUrl,
@@ -346,7 +346,7 @@ export default async function getBaseWebpackConfig(
     originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
     appDir: string | undefined
-    middlewareMatchers?: MiddlewareMatcher[]
+    middlewareMatchers?: ProxyMatcher[]
     noMangling?: boolean
     jsConfig: any
     jsConfigPath?: string

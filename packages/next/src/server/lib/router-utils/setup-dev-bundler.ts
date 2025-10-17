@@ -1,7 +1,7 @@
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../../../build/analysis/get-page-static-info'
 import type { RoutesManifest } from '../../../build'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
@@ -124,7 +124,7 @@ export type ServerFields = {
     | {
         page: string
         match: MiddlewareRouteMatch
-        matchers?: MiddlewareMatcher[]
+        matchers?: ProxyMatcher[]
       }
     | undefined
   hasAppNotFound?: boolean
@@ -359,7 +359,7 @@ async function startWatcher(
     wp.on('aggregated', async () => {
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
-      let middlewareMatchers: MiddlewareMatcher[] | undefined
+      let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
       const appPaths: Record<string, string[]> = {}

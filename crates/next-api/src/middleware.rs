@@ -5,7 +5,7 @@ use next_core::{
     all_assets_from_entries,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
-    next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
+    next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
     parse_segment_config_from_source,
     segment_config::ParseSegmentMode,
     util::{MiddlewareMatcherKind, NextRuntime},
@@ -171,7 +171,7 @@ impl MiddlewareEndpoint {
                 .iter()
                 .map(|matcher| {
                     let mut matcher = match matcher {
-                        MiddlewareMatcherKind::Str(matcher) => MiddlewareMatcher {
+                        MiddlewareMatcherKind::Str(matcher) => ProxyMatcher {
                             original_source: matcher.as_str().into(),
                             ..Default::default()
                         },
@@ -216,7 +216,7 @@ impl MiddlewareEndpoint {
                 })
                 .collect()
         } else {
-            vec![MiddlewareMatcher {
+            vec![ProxyMatcher {
                 regexp: Some(rcstr!("^/.*$")),
                 original_source: rcstr!("/:path*"),
                 ..Default::default()

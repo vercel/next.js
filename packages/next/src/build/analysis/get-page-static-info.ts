@@ -44,7 +44,7 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 const PARSE_PATTERN =
   /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
 
-export type MiddlewareMatcher = {
+export type ProxyMatcher = {
   regexp: string
   locale?: false
   has?: RouteHas[]
@@ -54,13 +54,13 @@ export type MiddlewareMatcher = {
 
 export type ProxyConfig = {
   /**
-   * The matcher for the middleware. Read more: [Next.js Docs: Middleware `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/proxy#matcher),
-   * [Next.js Docs: Middleware matching paths](https://nextjs.org/docs/app/building-your-application/routing/middleware#matching-paths)
+   * The matcher for the proxy. Read more: [Next.js Docs: Proxy `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/proxy#matcher),
+   * [Next.js Docs: Proxy matching paths](https://nextjs.org/docs/app/building-your-application/routing/proxy#matching-paths)
    */
-  matchers?: MiddlewareMatcher[]
+  matchers?: ProxyMatcher[]
 
   /**
-   * The regions that the middleware should run in.
+   * The regions that the proxy should run in.
    */
   regions?: string | string[]
 
@@ -422,7 +422,7 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
 export function getMiddlewareMatchers(
   matcherOrMatchers: MiddlewareConfigMatcherInput,
   nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>
-): MiddlewareMatcher[] {
+): ProxyMatcher[] {
   const matchers = Array.isArray(matcherOrMatchers)
     ? matcherOrMatchers
     : [matcherOrMatchers]
