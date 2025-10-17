@@ -29,7 +29,7 @@ export function cacheLife(profile: 'default'): void
  * Cache this `"use cache"` for a timespan defined by the `"seconds"` profile.
  * ```
  *   stale:      30 seconds
- *   revalidate: 1 seconds
+ *   revalidate: 1 second
  *   expire:     1 minute
  * ```
  *
