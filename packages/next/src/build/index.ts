@@ -1190,23 +1190,52 @@ export default async function build(
         .sort(sortByPageExts(config.pageExtensions))
         .map((file) => path.join(rootDir, file).replace(dir, ''))
 
-      const hasInstrumentationHook = rootPaths.some((p) =>
-        p.includes(INSTRUMENTATION_HOOK_FILENAME)
-      )
-      const hasMiddlewareFile = rootPaths.some((p) =>
-        p.includes(MIDDLEWARE_FILENAME)
-      )
-      const hasProxyFile = rootPaths.some((p) => p.includes(PROXY_FILENAME))
-      if (hasMiddlewareFile) {
-        if (hasProxyFile) {
+      let instrumentationHookFilePath: string | undefined
+      let proxyFilePath: string | undefined
+      let middlewareFilePath: string | undefined
+
+      for (const rootPath of rootPaths) {
+        const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
+        const isAtConventionLevel =
+          fileDir === '/' ||
+          fileDir === '/src' ||
+          // rootPaths are currently relative paths from the root directory.
+          // Add safety check here for unexpected future changes.
+          fileDir === dir ||
+          fileDir === path.join(dir, 'src')
+
+        if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
+          middlewareFilePath = rootPath
+        }
+        if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+          proxyFilePath = rootPath
+        }
+        if (
+          isAtConventionLevel &&
+          fileBaseName === INSTRUMENTATION_HOOK_FILENAME
+        ) {
+          instrumentationHookFilePath = rootPath
+        }
+      }
+
+      if (middlewareFilePath) {
+        if (proxyFilePath) {
+          const cwd = process.cwd()
+          const absoluteProxyPath = path.join(rootDir, proxyFilePath)
+          const absoluteMiddlewarePath = path.join(rootDir, middlewareFilePath)
+
           throw new Error(
-            `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
+            `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, absoluteMiddlewarePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, absoluteProxyPath)}" are detected. Please use "./${path.relative(cwd, absoluteProxyPath)}" only.`
           )
         }
         Log.warnOnce(
           `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
         )
       }
+
+      const hasInstrumentationHook = Boolean(instrumentationHookFilePath)
+      const hasMiddlewareFile = Boolean(middlewareFilePath)
+      const hasProxyFile = Boolean(proxyFilePath)
 
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
