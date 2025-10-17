@@ -67,14 +67,14 @@ import { useRouter } from 'next/navigation'
 import { CustomLink } from '@components/link'
 
 export function PricingCard() {
-    const router = useRouter()
-    
-     return (
-          <div onMouseEnter={() => router.prefetch('/pricing')}>
-           {/* other UI elements */}
-           <CustomLink href="/pricing">View Pricing</CustomLink>
-          </div>
-     )
+  const router = useRouter()
+
+  return (
+    <div onMouseEnter={() => router.prefetch('/pricing')}>
+      {/* other UI elements */}
+      <CustomLink href="/pricing">View Pricing</CustomLink>
+    </div>
+  )
 }
 ```
 
