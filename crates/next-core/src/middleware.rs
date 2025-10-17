@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
@@ -142,10 +140,7 @@ impl Issue for MiddlewareMissingExportIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        let file_name = Path::new(&self.file_path.path)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or(&self.file_path.path);
+        let file_name = self.file_path.file_name();
 
         StyledString::Line(vec![
             StyledString::Text(rcstr!("The ")),
