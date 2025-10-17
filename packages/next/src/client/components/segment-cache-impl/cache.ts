@@ -34,6 +34,7 @@ import {
   isPrefetchTaskDirty,
   type PrefetchTask,
   type PrefetchSubtaskResult,
+  startRevalidationCooldown,
 } from './scheduler'
 import { getAppBuildId } from '../../app-build-id'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
@@ -315,14 +316,6 @@ export function getCurrentCacheVersion(): number {
   return currentCacheVersion
 }
 
-// Timestamp of the last cache revalidation. Used to implement a delay before
-// re-prefetching visible links, to allow CDN propagation.
-let lastRevalidationTimestamp: number | null = null
-
-export function getLastRevalidationTimestamp(): number | null {
-  return lastRevalidationTimestamp
-}
-
 /**
  * Used to clear the client prefetch cache when a server action calls
  * revalidatePath or revalidateTag. Eventually we will support only clearing the
@@ -335,9 +328,8 @@ export function revalidateEntireCache(
 ) {
   currentCacheVersion++
 
-  // Record the timestamp of this revalidation so we can delay re-prefetching
-  // to allow CDN cache propagation.
-  lastRevalidationTimestamp = Date.now()
+  // Start a cooldown before re-prefetching to allow CDN cache propagation.
+  startRevalidationCooldown()
 
   // Clearing the cache also effectively rejects any pending requests, because
   // when the response is received, it gets written into a cache entry that is
