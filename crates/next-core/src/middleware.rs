@@ -184,10 +184,18 @@ impl Issue for MiddlewareMissingExportIssue {
         let relative_path_str = self.get_relative_path();
         let type_description = self.get_type_description();
 
+        let migration_bullet = if self.file_type.as_str() == "Proxy" {
+            "- You are migrating from `middleware` to `proxy`, but haven't updated the exported \
+             function.\n"
+        } else {
+            ""
+        };
+
         // Rest of the message goes in description to avoid formatIssue indentation
         let description_text = format!(
             "This function is what Next.js runs for every request handled by this {}.\n\n\
              Why this happens:\n\
+             {}\
              - The file exists but doesn't export a function.\n\
              - The export is not a function (e.g., an object or constant).\n\
              - There's a syntax error preventing the export from being recognized.\n\n\
@@ -197,6 +205,7 @@ impl Issue for MiddlewareMissingExportIssue {
              - Restart the dev server if the error persists.\n\n\
              Learn more: https://nextjs.org/docs/messages/middleware-to-proxy",
             type_description,
+            migration_bullet,
             relative_path_str,
             self.function_name
         );

@@ -6,6 +6,7 @@ const errorMessage = `The file "./proxy.ts" must export a function, either as a 
 This function is what Next.js runs for every request handled by this proxy (previously called middleware).
 
 Why this happens:
+- You are migrating from \`middleware\` to \`proxy\`, but haven't updated the exported function.
 - The file exists but doesn't export a function.
 - The export is not a function (e.g., an object or constant).
 - There's a syntax error preventing the export from being recognized.
