@@ -8,7 +8,7 @@ use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString
 #[turbo_tasks::value(shared)]
 pub enum FetchErrorKind {
     Connect {
-        webpki_certs_only: bool,
+        has_system_certs: bool,
         has_rustls_cause: bool,
     },
     Timeout,
@@ -65,7 +65,7 @@ impl FetchError {
     ) -> FetchError {
         let kind = if error.is_connect() {
             FetchErrorKind::Connect {
-                webpki_certs_only,
+                has_system_certs: webpki_certs_only,
                 has_rustls_cause: has_rustls_cause(error),
             }
         } else if error.is_timeout() {
@@ -141,7 +141,7 @@ impl Issue for FetchIssue {
         Ok(Vc::cell(Some(
             match kind {
                 FetchErrorKind::Connect {
-                    webpki_certs_only,
+                    has_system_certs,
                     has_rustls_cause,
                 } => {
                     let base_message = StyledString::Line(vec![
@@ -150,7 +150,7 @@ impl Issue for FetchIssue {
                         )),
                         StyledString::Code(url.clone()),
                     ]);
-                    if *webpki_certs_only && *has_rustls_cause {
+                    if !*has_system_certs && *has_rustls_cause {
                         StyledString::Stack(vec![
                             base_message,
                             StyledString::Line(vec![

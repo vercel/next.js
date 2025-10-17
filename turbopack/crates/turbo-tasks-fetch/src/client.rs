@@ -142,7 +142,7 @@ impl FetchClientConfig {
                 Ok(Vc::cell(Err(FetchError::from_reqwest_error(
                     &err,
                     &url,
-                    !tls_built_in_native_certs,
+                    tls_built_in_native_certs,
                 )
                 .resolved_cell())))
             }

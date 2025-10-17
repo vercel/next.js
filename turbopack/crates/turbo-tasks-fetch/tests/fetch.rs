@@ -237,7 +237,7 @@ async fn errors_on_tls_connection() {
             *err.kind.await?,
             FetchErrorKind::Connect {
                 has_rustls_cause: true,
-                webpki_certs_only: true,
+                has_system_certs: false,
             }
         );
 
