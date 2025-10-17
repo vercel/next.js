@@ -64,7 +64,7 @@ export function refreshReducer(
         )
       }
 
-      const { flightData, canonicalUrl } = result
+      const { flightData, canonicalUrl, renderedSearch } = result
 
       // Remove cache.lazyData as it has been resolved at this point.
       cache.lazyData = null
@@ -136,6 +136,7 @@ export function refreshReducer(
 
         mutable.cache = cache
         mutable.patchedTree = newTree
+        mutable.renderedSearch = renderedSearch
 
         currentTree = newTree
       }

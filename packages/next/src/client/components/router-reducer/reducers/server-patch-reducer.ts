@@ -33,7 +33,7 @@ export function serverPatchReducer(
     )
   }
 
-  const { flightData, canonicalUrl } = serverResponse
+  const { flightData, canonicalUrl, renderedSearch } = serverResponse
 
   let currentTree = state.tree
   let currentCache = state.cache
@@ -74,6 +74,7 @@ export function serverPatchReducer(
     applyFlightData(navigatedAt, currentCache, cache, normalizedFlightData)
 
     mutable.patchedTree = newTree
+    mutable.renderedSearch = renderedSearch
     mutable.cache = cache
 
     currentCache = cache

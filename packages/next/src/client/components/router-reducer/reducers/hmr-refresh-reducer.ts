@@ -56,7 +56,7 @@ function hmrRefreshReducerImpl(
         )
       }
 
-      const { flightData, canonicalUrl } = result
+      const { flightData, canonicalUrl, renderedSearch } = result
 
       // Remove cache.lazyData as it has been resolved at this point.
       cache.lazyData = null
@@ -106,6 +106,7 @@ function hmrRefreshReducerImpl(
         }
 
         mutable.patchedTree = newTree
+        mutable.renderedSearch = renderedSearch
         mutable.canonicalUrl = createHrefFromUrl(canonicalUrl)
 
         currentTree = newTree

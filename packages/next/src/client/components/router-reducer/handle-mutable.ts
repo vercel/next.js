@@ -35,11 +35,8 @@ export function handleMutable(
 
   return {
     // Set href.
-    canonicalUrl: isNotUndefined(mutable.canonicalUrl)
-      ? mutable.canonicalUrl === state.canonicalUrl
-        ? state.canonicalUrl
-        : mutable.canonicalUrl
-      : state.canonicalUrl,
+    canonicalUrl: mutable.canonicalUrl ?? state.canonicalUrl,
+    renderedSearch: mutable.renderedSearch ?? state.renderedSearch,
     pushRef: {
       pendingPush: isNotUndefined(mutable.pendingPush)
         ? mutable.pendingPush

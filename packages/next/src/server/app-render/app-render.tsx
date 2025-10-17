@@ -1042,6 +1042,28 @@ function prepareInitialCanonicalUrl(url: RequestStore['url']) {
   return (url.pathname + url.search).split('/')
 }
 
+function querystringEncode(query: NextParsedUrlQuery): string {
+  // Inlined implementation of querystring.encode, which is not available in
+  // the Edge runtime.
+  const pairs = []
+  for (const key in query) {
+    const value = query[key]
+    if (value == null) continue
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        pairs.push(
+          `${encodeURIComponent(key)}=${encodeURIComponent(String(v))}`
+        )
+      }
+    } else {
+      pairs.push(
+        `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`
+      )
+    }
+  }
+  return pairs.join('&')
+}
+
 // This is the data necessary to render <AppRouter /> when no SSR errors are encountered
 async function getRSCPayload(
   tree: LoaderTree,
@@ -1157,6 +1179,7 @@ async function getRSCPayload(
     }),
     b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
+    q: querystringEncode(query),
     i: !!couldBeIntercepted,
     f: [
       [
@@ -1282,6 +1305,7 @@ async function getErrorRSCPayload(
   return {
     b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
+    q: querystringEncode(query),
     m: undefined,
     i: false,
     f: [
@@ -1345,6 +1369,7 @@ function App<T>({
     navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
+    initialRenderedSearch: response.q,
     initialParallelRoutes: new Map(),
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
@@ -1412,6 +1437,7 @@ function ErrorApp<T>({
     navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
+    initialRenderedSearch: response.q,
     initialParallelRoutes: new Map(),
     // location is not initialized in the SSR render
     // it's set to window.location during hydration

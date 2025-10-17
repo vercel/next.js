@@ -48,6 +48,7 @@ type SuccessfulNavigationResult = {
     flightRouterState: FlightRouterState
     cacheNode: CacheNode
     canonicalUrl: string
+    renderedSearch: string
     scrollableSegments: Array<FlightSegmentPath>
     shouldScroll: boolean
     hash: string
@@ -123,6 +124,7 @@ export function navigate(
     const prefetchHead = route.head
     const isPrefetchHeadPartial = route.isHeadPartial
     const newCanonicalUrl = route.canonicalUrl
+    const renderedSearch = route.renderedSearch
     return navigateUsingPrefetchedRouteTree(
       now,
       url,
@@ -136,6 +138,7 @@ export function navigate(
       prefetchHead,
       isPrefetchHeadPartial,
       newCanonicalUrl,
+      renderedSearch,
       shouldScroll,
       url.hash
     )
@@ -164,6 +167,7 @@ export function navigate(
       const prefetchHead = optimisticRoute.head
       const isPrefetchHeadPartial = optimisticRoute.isHeadPartial
       const newCanonicalUrl = optimisticRoute.canonicalUrl
+      const newRenderedSearch = optimisticRoute.renderedSearch
       return navigateUsingPrefetchedRouteTree(
         now,
         url,
@@ -177,6 +181,7 @@ export function navigate(
         prefetchHead,
         isPrefetchHeadPartial,
         newCanonicalUrl,
+        newRenderedSearch,
         shouldScroll,
         url.hash
       )
@@ -218,6 +223,7 @@ function navigateUsingPrefetchedRouteTree(
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
   canonicalUrl: string,
+  renderedSearch: string,
   shouldScroll: boolean,
   hash: string
 ): SuccessfulNavigationResult | NoOpNavigationResult | MPANavigationResult {
@@ -259,6 +265,7 @@ function navigateUsingPrefetchedRouteTree(
       task,
       currentCacheNode,
       canonicalUrl,
+      renderedSearch,
       scrollableSegments,
       shouldScroll,
       hash
@@ -279,6 +286,7 @@ function navigationTaskToResult(
   task: PPRNavigationTask,
   currentCacheNode: CacheNode,
   canonicalUrl: string,
+  renderedSearch: string,
   scrollableSegments: Array<FlightSegmentPath>,
   shouldScroll: boolean,
   hash: string
@@ -299,6 +307,7 @@ function navigationTaskToResult(
       flightRouterState,
       cacheNode: newCacheNode !== null ? newCacheNode : currentCacheNode,
       canonicalUrl,
+      renderedSearch,
       scrollableSegments,
       shouldScroll,
       hash,
@@ -441,7 +450,12 @@ async function navigateDynamicallyWithNoPrefetch(
     }
   }
 
-  const { flightData, canonicalUrl, debugInfo: debugInfoFromResponse } = result
+  const {
+    flightData,
+    canonicalUrl,
+    renderedSearch,
+    debugInfo: debugInfoFromResponse,
+  } = result
   if (debugInfoFromResponse !== null) {
     collectedDebugInfo.push(...debugInfoFromResponse)
   }
@@ -494,6 +508,7 @@ async function navigateDynamicallyWithNoPrefetch(
       task,
       currentCacheNode,
       createHrefFromUrl(canonicalUrl),
+      renderedSearch,
       scrollableSegments,
       shouldScroll,
       hash

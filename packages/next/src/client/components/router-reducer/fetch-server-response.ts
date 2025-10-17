@@ -36,7 +36,11 @@ import {
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
-import { urlToUrlWithoutFlightMarker } from '../../route-params'
+import {
+  getRenderedSearch,
+  urlToUrlWithoutFlightMarker,
+} from '../../route-params'
+import type { NormalizedSearch } from '../segment-cache'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -66,6 +70,7 @@ export interface FetchServerResponseOptions {
 type SpaFetchServerResponseResult = {
   flightData: NormalizedFlightData[]
   canonicalUrl: URL
+  renderedSearch: NormalizedSearch
   couldBeIntercepted: boolean
   prerendered: boolean
   postponed: boolean
@@ -270,6 +275,7 @@ export async function fetchServerResponse(
     return {
       flightData: normalizedFlightData,
       canonicalUrl: canonicalUrl,
+      renderedSearch: getRenderedSearch(res),
       couldBeIntercepted: interception,
       prerendered: flightResponse.S,
       postponed,
