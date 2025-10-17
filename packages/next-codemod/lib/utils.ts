@@ -137,4 +137,10 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'remove-unstable-prefix',
     version: '16.0.0-canary.10',
   },
+  {
+    title:
+      'Remove `experimental_ppr` Route Segment Config from App Router pages and layouts',
+    value: 'remove-experimental-ppr',
+    version: '16.0.0-canary.11',
+  },
 ]
