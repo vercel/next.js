@@ -14,13 +14,13 @@ There are a few ways you can handle redirects in Next.js. This page will go thro
 
 <AppOnly>
 
-| API                                                            | Purpose                                           | Where                                             | Status Code                            |
-| -------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------- | -------------------------------------- |
-| [`redirect`](#redirect-function)                               | Redirect user after a mutation or event           | Server Components, Server Actions, Route Handlers | 307 (Temporary) or 303 (Server Action) |
-| [`permanentRedirect`](#permanentredirect-function)             | Redirect user after a mutation or event           | Server Components, Server Actions, Route Handlers | 308 (Permanent)                        |
-| [`useRouter`](#userouter-hook)                                 | Perform a client-side navigation                  | Event Handlers in Client Components               | N/A                                    |
-| [`redirects` in `next.config.js`](#redirects-in-nextconfigjs)  | Redirect an incoming request based on a path      | `next.config.js` file                             | 307 (Temporary) or 308 (Permanent)     |
-| [`NextResponse.redirect`](#nextresponseredirect-in-middleware) | Redirect an incoming request based on a condition | Middleware                                        | Any                                    |
+| API                                                            | Purpose                                           | Where                                                                | Status Code                            |
+| -------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------- |
+| [`redirect`](#redirect-function)                               | Redirect user after a mutation or event           | Server Components, Client Components, Server Actions, Route Handlers | 307 (Temporary) or 303 (Server Action) |
+| [`permanentRedirect`](#permanentredirect-function)             | Redirect user after a mutation or event           | Server Components, Client Components, Server Actions, Route Handlers | 308 (Permanent)                        |
+| [`useRouter`](#userouter-hook)                                 | Perform a client-side navigation                  | Event Handlers in Client Components                                  | N/A                                    |
+| [`redirects` in `next.config.js`](#redirects-in-nextconfigjs)  | Redirect an incoming request based on a path      | `next.config.js` file                                                | 307 (Temporary) or 308 (Permanent)     |
+| [`NextResponse.redirect`](#nextresponseredirect-in-middleware) | Redirect an incoming request based on a condition | Middleware                                                           | Any                                    |
 
 </AppOnly>
 
@@ -82,7 +82,7 @@ export async function createPost(id) {
 >
 > - `redirect` returns a 307 (Temporary Redirect) status code by default. When used in a Server Action, it returns a 303 (See Other), which is commonly used for redirecting to a success page as a result of a POST request.
 > - `redirect` throws an error so it should be called **outside** the `try` block when using `try/catch` statements.
-> - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
+> - Although `redirect` can be used anywhere in Client Components, in client-side callbacks it is preferable to use the `push` and `replace` methods from the [`useRouter` hook](#userouter-hook).
 > - `redirect` also accepts absolute URLs and can be used to redirect to external links.
 > - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Middleware](#nextresponseredirect-in-middleware).
 
