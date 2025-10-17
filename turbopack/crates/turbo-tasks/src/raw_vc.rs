@@ -369,6 +369,7 @@ impl ReadRawVcFuture {
     /// using it could break cache invalidation.
     pub fn untracked(mut self) -> Self {
         self.read_output_options.tracking = ReadTracking::TrackOnlyError;
+        self.read_cell_options.tracking = ReadTracking::TrackOnlyError;
         self
     }
 
@@ -379,6 +380,7 @@ impl ReadRawVcFuture {
     /// using it could break cache invalidation.
     pub fn untracked_including_errors(mut self) -> Self {
         self.read_output_options.tracking = ReadTracking::Untracked;
+        self.read_cell_options.tracking = ReadTracking::Untracked;
         self
     }
 
