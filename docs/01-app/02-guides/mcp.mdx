@@ -1,0 +1,132 @@
+---
+title: Enabling Next.js MCP Server for Coding Agents
+nav_title: Next.js MCP Server
+description: Learn how to enable the experimental Next.js MCP server to allow agents access your application state
+---
+
+The Model Context Protocol (MCP) is an open standard that allows AI agents and coding assistants to interact with your applications through a standardized interface. The experimental Next.js MCP server enables agents to understand and work with your application's structure and state in real-time.
+
+When combined with [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp), your agent gets access to comprehensive Next.js development tools including documentation, browser testing capabilities, Chrome DevTools functionality, and automated MCP tools for common development tasks.
+
+## Enabling the MCP server
+
+To enable the experimental MCP server in your Next.js application, use Next.js v16 or above. Then add the following to your `next.config.js`:
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    mcpServer: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+### Configuring Next DevTools MCP
+
+When you enable the MCP server, configure [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) in a `.mcp.json` file at the root of your project to enhance the agent's capabilities with additional development tools:
+
+```json filename=".mcp.json"
+{
+  "mcpServers": {
+    "next-devtools": {
+      "command": "npx",
+      "args": ["-y", "next-devtools-mcp@latest"]
+    }
+  }
+}
+```
+
+See the [next-devtools-mcp documentation](https://www.npmjs.com/package/next-devtools-mcp) for more configuration options and features.
+
+## What the MCP server provides
+
+With `experimental.mcpServer` enabled and `next-devtools-mcp` configured, agents get access to:
+
+- **Next.js Knowledge Base** - Comprehensive Next.js documentation and best practices
+- **Debugging Insights** - Real-time error detection, build diagnostics, logs, and runtime information from your dev server
+- **Migration Tools** - Automated helpers for migrating your application, including upgrading to Next.js 16 with codemods and enabling Cache Components with automated setup and error detection
+
+## Using with agents
+
+When you have the MCP server enabled, MCP-compatible Coding Agents can automatically discover and connect to your Next.js application with the experimental `mcpServer` flag enabled. This provides agents with rich context about your project.
+
+### Benefits for agent-assisted development
+
+With the MCP server enabled, agents can:
+
+- **Understand your project layout** - Know exactly where routes, components, and utilities are located
+- **Make context-aware suggestions** - Recommend the right place to add new features based on your existing structure
+- **Query live application state** - Check current configuration, routes, and middleware during development
+- **Reduce context overhead** - No need to manually explain your app structure each conversation
+- **Provide accurate implementations** - Generate code that follows your project's patterns and conventions
+
+## Development workflow
+
+1. **Start your Next.js server** with the MCP server enabled:
+
+```bash filename="Terminal"
+npm run dev
+```
+
+2. **Connect your Coding Agent** to the running Next.js instance
+
+3. **Load your application in the browser** to trigger compilation and rendering. The MCP tools work by analyzing the compiled and rendered state of your application.
+
+4. **Query your agent** for insights and diagnostics:
+
+```
+What errors are currently in my application?
+```
+
+The agent will:
+
+- Call the debugging tools from next-devtools-mcp
+- Get real-time error information, logs, and build diagnostics from your running dev server
+- Provide actionable fixes based on the actual state of your compiled application
+
+5. **Use migration tools** when ready to upgrade or configure new features:
+
+```
+Help me upgrade my Next.js app to version 16
+```
+
+or
+
+```
+When should I use "use client" in App Router?
+```
+
+The agent will guide you through automated migrations with codemods and configuration updates.
+
+## Example: Error detection and diagnosis
+
+The agent can query your running Next.js application for real-time error information:
+
+```
+User: "What errors are currently in my application?"
+
+Agent action:
+- Calls the `get_errors` tool provided by next-devtools-mcp
+- Retrieves current build errors, runtime errors, and type errors
+- Analyzes the errors and provides actionable fixes
+
+Agent response:
+- Lists all errors with detailed explanations
+- Suggests code changes to fix each error
+- Prioritizes errors by severity and impact
+- Recommends best practices to prevent similar issues
+```
+
+This demonstrates the power of having the MCP server enabled: agents can get real-time diagnostics directly from your application instead of requiring static code analysis alone.
+
+## Troubleshooting
+
+### MCP server not connecting
+
+- Ensure `experimental.mcpServer: true` is set in `next.config.js`
+- Start your development server: `npm run dev`
+- Restart your development server
+- Check that your MCP client is configured with the correct path
+- Add MCP server to your agent's settings
