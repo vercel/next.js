@@ -26,6 +26,7 @@ import {
   resetRevalidatingSegmentEntry,
   getSegmentKeypath,
   canNewFetchStrategyProvideMoreContent,
+  getLastRevalidationTimestamp,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
 import { createCacheKey } from './cache-key'
@@ -196,6 +197,12 @@ let didScheduleMicrotask = false
 // priority at a time. We reserve special network bandwidth for this task only.
 let mostRecentlyHoveredLink: PrefetchTask | null = null
 
+// CDN cache propagation delay after revalidation (in milliseconds)
+const REVALIDATION_COOLDOWN_MS = 300
+
+// Flag to prevent scheduling multiple cooldown timeouts
+let didScheduleCooldownTimeout = false
+
 export type IncludeDynamicData = null | 'full' | 'dynamic'
 
 /**
@@ -344,12 +351,45 @@ function ensureWorkIsScheduled() {
 }
 
 /**
+ * Schedules a retry of the task queue after the revalidation cooldown expires.
+ * This ensures we don't prefetch stale data from CDN caches that haven't
+ * propagated yet.
+ */
+function scheduleRetryAfterRevalidationCooldown(
+  remainingCooldown: number
+): void {
+  if (!didScheduleCooldownTimeout) {
+    didScheduleCooldownTimeout = true
+    setTimeout(() => {
+      didScheduleCooldownTimeout = false
+      ensureWorkIsScheduled()
+    }, remainingCooldown)
+  }
+}
+
+/**
  * Checks if we've exceeded the maximum number of concurrent prefetch requests,
  * to avoid saturating the browser's internal network queue. This is a
  * cooperative limit — prefetch tasks should check this before issuing
  * new requests.
+ *
+ * Also checks if we're within the revalidation cooldown window, during which
+ * prefetch requests are delayed to allow CDN cache propagation.
  */
-function hasNetworkBandwidth(task: PrefetchTask): boolean {
+function hasNetworkBandwidth(now: number, task: PrefetchTask): boolean {
+  // Check if we're within the revalidation cooldown window
+  const lastRevalidation = getLastRevalidationTimestamp()
+  if (lastRevalidation !== null) {
+    const timeSinceRevalidation = now - lastRevalidation
+    if (timeSinceRevalidation < REVALIDATION_COOLDOWN_MS) {
+      // We're within the cooldown window. Schedule a retry after the cooldown
+      // expires, then return false to prevent prefetching.
+      const remainingCooldown = REVALIDATION_COOLDOWN_MS - timeSinceRevalidation
+      scheduleRetryAfterRevalidationCooldown(remainingCooldown)
+      return false
+    }
+  }
+
   // TODO: Also check if there's an in-progress navigation. We should never
   // add prefetch requests to the network queue if an actual navigation is
   // taking place, to ensure there's sufficient bandwidth for render-blocking
@@ -437,7 +477,7 @@ function processQueueInMicrotask() {
 
   // Process the task queue until we run out of network bandwidth.
   let task = heapPeek(taskHeap)
-  while (task !== null && hasNetworkBandwidth(task)) {
+  while (task !== null && hasNetworkBandwidth(now, task)) {
     task.cacheVersion = getCurrentCacheVersion()
 
     const exitStatus = pingRoute(now, task)
@@ -610,7 +650,7 @@ function pingRootRouteTree(
         return PrefetchTaskExitStatus.Done
       }
       // Recursively fill in the segment tree.
-      if (!hasNetworkBandwidth(task)) {
+      if (!hasNetworkBandwidth(now, task)) {
         // Stop prefetching segments until there's more bandwidth.
         return PrefetchTaskExitStatus.InProgress
       }
@@ -794,7 +834,7 @@ function pingSharedPartOfCacheComponentsTree(
   const newTreeChildren = newTree.slots
   if (newTreeChildren !== null) {
     for (const parallelRouteKey in newTreeChildren) {
-      if (!hasNetworkBandwidth(task)) {
+      if (!hasNetworkBandwidth(now, task)) {
         // Stop prefetching segments until there's more bandwidth.
         return PrefetchTaskExitStatus.InProgress
       }
@@ -890,7 +930,7 @@ function pingNewPartOfCacheComponentsTree(
   )
   pingStaticSegmentData(now, task, route, segment, task.key, tree)
   if (tree.slots !== null) {
-    if (!hasNetworkBandwidth(task)) {
+    if (!hasNetworkBandwidth(now, task)) {
       // Stop prefetching segments until there's more bandwidth.
       return PrefetchTaskExitStatus.InProgress
     }
