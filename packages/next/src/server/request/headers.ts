@@ -10,6 +10,7 @@ import {
   throwForMissingRequestStore,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
+  type RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
   delayUntilRuntimeStage,
@@ -26,6 +27,7 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
+import { RenderStage } from '../app-render/staged-rendering'
 
 /**
  * This function allows you to read the HTTP incoming request headers in
@@ -139,7 +141,8 @@ export function headers(): Promise<ReadonlyHeaders> {
             // as a proxy so we can statically exclude this code from production builds.
             return makeUntrackedHeadersWithDevWarnings(
               workUnitStore.headers,
-              workStore?.route
+              workStore?.route,
+              workUnitStore
             )
           } else {
             return makeUntrackedHeaders(workUnitStore.headers)
@@ -193,14 +196,19 @@ function makeUntrackedHeaders(
 
 function makeUntrackedHeadersWithDevWarnings(
   underlyingHeaders: ReadonlyHeaders,
-  route?: string
+  route: string | undefined,
+  requestStore: RequestStore
 ): Promise<ReadonlyHeaders> {
   const cachedHeaders = CachedHeaders.get(underlyingHeaders)
   if (cachedHeaders) {
     return cachedHeaders
   }
 
-  const promise = makeDevtoolsIOAwarePromise(underlyingHeaders)
+  const promise = makeDevtoolsIOAwarePromise(
+    underlyingHeaders,
+    requestStore,
+    RenderStage.Runtime
+  )
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {

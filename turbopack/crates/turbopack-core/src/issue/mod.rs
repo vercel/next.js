@@ -840,7 +840,7 @@ where
     }
 
     fn drop_issues(self) {
-        let _ = self.take_collectibles::<Box<dyn Issue>>();
+        self.drop_collectibles::<Box<dyn Issue>>();
     }
 }
 

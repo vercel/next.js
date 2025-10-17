@@ -4,7 +4,7 @@ module.exports = function withRspack(config) {
     // we have already been called.  This can happen when using build workers.
     return config
   }
-  if (process.env.TURBOPACK === 'auto') {
+  if (!process.env.TURBOPACK || process.env.TURBOPACK === 'auto') {
     delete process.env.TURBOPACK
     process.env.RSPACK_CONFIG_VALIDATE = 'loose-silent'
     process.env.NEXT_RSPACK = 'true'

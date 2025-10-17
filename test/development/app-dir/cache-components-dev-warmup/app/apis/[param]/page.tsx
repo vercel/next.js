@@ -28,7 +28,7 @@ export default function Page({ params, searchParams }) {
 
 function LogAfter({ label, api }: { label: string; api: () => Promise<any> }) {
   return (
-    <Suspense fallback={`Waiting for ${label}...`}>
+    <Suspense fallback={<div>Waiting for {label}...</div>}>
       <LogAfterInner label={label} api={api} />
     </Suspense>
   )
@@ -43,5 +43,5 @@ async function LogAfterInner({
 }) {
   await api()
   console.log(`after ${label}`)
-  return null
+  return <div>Finished {label}</div>
 }

@@ -56,7 +56,9 @@ impl StructuredImageModuleType {
         blur_placeholder_mode: BlurPlaceholderMode,
         module_asset_context: ResolvedVc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let static_asset = StaticUrlJsModule::new(*source).to_resolved().await?;
+        let static_asset = StaticUrlJsModule::new(*source, Some(rcstr!("client")))
+            .to_resolved()
+            .await?;
         Ok(module_asset_context
             .process(
                 Vc::upcast(

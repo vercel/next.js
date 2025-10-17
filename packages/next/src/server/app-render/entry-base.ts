@@ -10,7 +10,8 @@ export {
 // eslint-disable-next-line import/no-extraneous-dependencies
 export { prerender } from 'react-server-dom-webpack/static'
 
-export { captureOwnerStack } from 'react'
+// TODO: Just re-export `* as ReactServer`
+export { captureOwnerStack, createElement, Fragment } from 'react'
 
 export { default as LayoutRouter } from '../../client/components/layout-router'
 export { default as RenderFromTemplateContext } from '../../client/components/render-from-template-context'

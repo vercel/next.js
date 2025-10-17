@@ -29,7 +29,7 @@ describe('cache-components-dev-warmup', () => {
   ) {
     // Match logs that contain the message, with any environment.
     const logPattern = new RegExp(
-      `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Server)\\b).*`
+      `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Prefetch|Server)\\b).*`
     )
     const logMessages = logs.map((log) => log.message)
     const messages = logMessages.filter((message) => logPattern.test(message))
@@ -175,13 +175,13 @@ describe('cache-components-dev-warmup', () => {
 
           // Private caches are dynamic holes in static prerenders,
           // so they shouldn't resolve in the static stage.
-          assertLog(logs, 'after private cache read - page', 'Server') // TODO: 'Runtime Prerender'
-          assertLog(logs, 'after private cache read - layout', 'Server') // TODO: 'Runtime Prerender'
+          assertLog(logs, 'after private cache read - page', 'Prefetch')
+          assertLog(logs, 'after private cache read - layout', 'Prefetch')
           assertLog(
             logs,
             'after successive private cache reads - page',
-            'Server'
-          ) // TODO: 'Runtime Prerender'
+            'Prefetch'
+          )
 
           assertLog(logs, 'after uncached fetch - layout', 'Server')
           assertLog(logs, 'after uncached fetch - page', 'Server')
@@ -204,11 +204,31 @@ describe('cache-components-dev-warmup', () => {
 
           // Short lived caches are dynamic holes in static prerenders,
           // so they shouldn't resolve in the static stage.
-          assertLog(logs, 'after short-lived cache read - page', 'Server')
-          assertLog(logs, 'after short-lived cache read - layout', 'Server')
+          assertLog(logs, 'after short-lived cache read - page', 'Prefetch')
+          assertLog(logs, 'after short-lived cache read - layout', 'Prefetch')
 
           assertLog(logs, 'after uncached fetch - layout', 'Server')
           assertLog(logs, 'after uncached fetch - page', 'Server')
+        }
+
+        if (isInitialLoad) {
+          await testInitialLoad(path, assertLogs)
+        } else {
+          await testNavigation(path, assertLogs)
+        }
+      })
+
+      it('cache reads that reveal more components with more caches', async () => {
+        const path = '/successive-caches'
+
+        const assertLogs = async (browser: Playwright) => {
+          const logs = await browser.log()
+          // No matter how deeply we nest the component tree,
+          // if all the IO is cached, it should be labeled as Prerender.
+          assertLog(logs, 'after cache 1', 'Prerender')
+          assertLog(logs, 'after cache 2', 'Prerender')
+          assertLog(logs, 'after caches 1 and 2', 'Prerender')
+          assertLog(logs, 'after cache 3', 'Prerender')
         }
 
         if (isInitialLoad) {
@@ -226,18 +246,13 @@ describe('cache-components-dev-warmup', () => {
         const logs = await browser.log()
         assertLog(logs, 'after cache read - page', 'Prerender')
 
-        for (const apiName of [
-          'cookies',
-          'headers',
-          // TODO(restart-on-cache-miss): these two are currently broken/flaky,
-          // because they're created outside of render and can resolve too early.
-          // This will be fixed in a follow-up.
-          // 'params',
-          // 'searchParams',
-          'connection',
-        ]) {
-          assertLog(logs, `after ${apiName}`, 'Server')
-        }
+        // TODO: we should only label this as "Prefetch" if there's a prefetch config.
+        assertLog(logs, `after cookies`, 'Prefetch')
+        assertLog(logs, `after headers`, 'Prefetch')
+        assertLog(logs, `after params`, 'Prefetch')
+        assertLog(logs, `after searchParams`, 'Prefetch')
+
+        assertLog(logs, 'after connection', 'Server')
       }
 
       if (isInitialLoad) {

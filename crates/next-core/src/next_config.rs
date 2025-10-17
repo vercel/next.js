@@ -1388,7 +1388,12 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn page_extensions(&self) -> Vc<Vec<RcStr>> {
-        Vc::cell(self.page_extensions.clone())
+        // Sort page extensions by length descending. This mirrors the Webpack behavior in Next.js,
+        // which just builds a regex alternative, which greedily matches the longest
+        // extension: https://github.com/vercel/next.js/blob/32476071fe331948d89a35c391eb578aed8de979/packages/next/src/build/entries.ts#L409
+        let mut extensions = self.page_extensions.clone();
+        extensions.sort_by_key(|ext| std::cmp::Reverse(ext.len()));
+        Vc::cell(extensions)
     }
 
     #[turbo_tasks::function]
@@ -1672,10 +1677,10 @@ impl NextConfig {
     /// Returns the final asset prefix. If an assetPrefix is set, it's used.
     /// Otherwise, the basePath is used.
     #[turbo_tasks::function]
-    pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
+    pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<RcStr>> {
         let this = self.await?;
 
-        Ok(Vc::cell(Some(
+        Ok(Vc::cell(
             format!(
                 "{}/_next/",
                 if let Some(asset_prefix) = &this.asset_prefix {
@@ -1686,7 +1691,7 @@ impl NextConfig {
                 .trim_end_matches('/')
             )
             .into(),
-        )))
+        ))
     }
 
     /// Returns the suffix to use for chunk loading.

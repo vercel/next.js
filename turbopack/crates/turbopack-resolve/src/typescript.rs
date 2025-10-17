@@ -426,7 +426,7 @@ pub async fn type_resolve(
         fragment: _,
     } = &*request.await?
     {
-        let mut m = if let Some(mut stripped) = m.strip_prefix("@") {
+        let mut m = if let Some(mut stripped) = m.strip_prefix("@")? {
             stripped.replace_constants(&|c| Some(Pattern::Constant(c.replace("/", "__").into())));
             stripped
         } else {

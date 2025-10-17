@@ -1,5 +1,6 @@
 #![feature(iter_intersperse)]
 #![feature(box_patterns)]
+#![feature(bufreader_peek)]
 
 use std::{hash::BuildHasherDefault, sync::Arc};
 

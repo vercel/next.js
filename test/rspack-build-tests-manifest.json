@@ -491,10 +491,11 @@
   },
   "test/e2e/app-dir/app-client-cache/client-cache.parallel-routes.test.ts": {
     "passed": [
-      "app dir client cache with parallel routes prefetch={true} should prefetch the full page",
       "app dir client cache with parallel routes prefetch={true} should re-use the cache for the full page, only for 5 mins"
     ],
-    "failed": [],
+    "failed": [
+      "app dir client cache with parallel routes prefetch={true} should prefetch the full page"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -859,10 +860,11 @@
       "app dir - prefetching should not prefetch for a bot user agent",
       "app dir - prefetching should not re-render error component when triggering a prefetch action",
       "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params",
-      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment",
+      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment"
+    ],
+    "failed": [
       "app dir - prefetching should show layout eagerly when prefetched with loading one level down"
     ],
-    "failed": [],
     "pending": [
       "app dir - prefetching should not suppress prefetches after navigating back"
     ],
@@ -1750,6 +1752,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/cache-components-console/cache-components.console.test.ts": {
+    "passed": [
+      "cache-components - Console Dimming - Validation dims console calls during prospective rendering",
+      "cache-components - Logging after Abort (default) With Dimming - Client dims console calls after a prerender has aborted",
+      "cache-components - Logging after Abort (default) With Dimming - Server dims console calls after a prerender has aborted",
+      "cache-components - Logging after Abort With Hiding - Client hides console calls after a prerender has aborted",
+      "cache-components - Logging after Abort With Hiding - Server hides console calls after a prerender has aborted"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/cache-components-create-component-tree/cache-components-create-component-tree.test.ts": {
     "passed": [
       "hello-world should not indicate there is an error when incidental math.random calls occur during component tree generation during build"
@@ -1946,17 +1961,6 @@
     "passed": [
       "cache-components should be able to pass connection as a promise to another component and trigger an intermediate Suspense boundary",
       "cache-components should partially prerender pages that use connection"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.console.test.ts": {
-    "passed": [
-      "cache-components - Console Dimming - Logging after Abort in Client dims console calls after a prerender has aborted",
-      "cache-components - Console Dimming - Logging after Abort in Server dims console calls after a prerender has aborted",
-      "cache-components - Console Dimming - Validation dims console calls during prospective rendering"
     ],
     "failed": [],
     "pending": [],
@@ -4034,6 +4038,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/next-condition/next-condition.test.ts": {
+    "passed": [
+      "`next-js` Condition When Cache Components is disabled should not follow the next-js condition from a bundled commonjs package",
+      "`next-js` Condition When Cache Components is disabled should not follow the next-js condition from a bundled esm package",
+      "`next-js` Condition When Cache Components is disabled should not follow the next-js condition from an external commonjs package",
+      "`next-js` Condition When Cache Components is disabled should not follow the next-js condition from an external esm package"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/next-config-ts-native-mts/async-function/async-function-cjs.test.ts": {
     "passed": [],
     "failed": [],
@@ -5637,6 +5653,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/proxy-with-middleware/proxy-with-middleware.test.ts": {
+    "passed": [
+      "proxy-with-middleware should error when both middleware and proxy files are detected"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/random-in-sass/random-in-sass.test.ts": {
     "passed": ["random-in-sass should work using browser"],
     "failed": [],
@@ -6466,7 +6491,6 @@
       "segment cache (basic tests) does not cause infinite loop with cacheLife(\"seconds\")",
       "segment cache (basic tests) does not throw an error when navigating to a page with a server action",
       "segment cache (basic tests) navigate before any data has loaded into the prefetch cache",
-      "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
       "segment cache (basic tests) prefetch interception route",
       "segment cache (basic tests) prefetch interception route with params",
@@ -6475,7 +6499,9 @@
       "segment cache (basic tests) skips static layouts during partially static navigation"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -19025,8 +19051,7 @@
     "runtimeError": false
   },
   "test/integration/required-server-files-ssr-404/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com",
       "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello",
       "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello/world",
@@ -19052,9 +19077,10 @@
       "Required Server Files production mode should return data correctly with x-matched-path",
       "Required Server Files production mode should return data correctly with x-matched-path for optional catch-all route"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/integration/revalidate-as-path/test/index.test.js": {
     "passed": [
@@ -20491,15 +20517,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/app-dir/proxy-with-middleware/proxy-with-middleware.test.ts": {
-    "passed": [
-      "proxy-with-middleware should error when both middleware and proxy files are detected"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/production/app-dir/resume-data-cache/resume-data-cache.test.ts": {
     "passed": [
       "resume-data-cache should have consistent data between static and dynamic renders with fetch cache",
@@ -20692,6 +20709,24 @@
     "passed": [
       "ci-missing-typescript-deps should not throw an error if beta version of @types/react and @types/react-dom is installed",
       "ci-missing-typescript-deps should show missing TypeScript dependencies error in CI"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/config-validation-fatal-errors/index.test.ts": {
+    "passed": [
+      "config validation - fatal errors should show warnings first, then throw fatal error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/config-validation-warnings/index.test.ts": {
+    "passed": [
+      "config validation - warnings only should show warnings but not block the build"
     ],
     "failed": [],
     "pending": [],
@@ -21323,6 +21358,13 @@
     "failed": [
       "Production browser sourcemaps productionBrowserSourceMaps = true check sourcemaps for all browser files"
     ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/proxy-typescript/test/index.test.ts": {
+    "passed": ["proxy-typescript should have built and started"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

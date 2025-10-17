@@ -519,6 +519,13 @@ export function getResolveRoutes(
             addRequestMeta(req, 'invokeOutput', '')
             addRequestMeta(req, 'invokeQuery', {})
             addRequestMeta(req, 'middlewareInvoke', true)
+            if (opts.dev) {
+              addRequestMeta(
+                req,
+                'devRequestTimingMiddlewareStart',
+                process.hrtime.bigint()
+              )
+            }
             debug('invoking middleware', req.url, req.headers)
 
             let middlewareRes: Response | undefined = undefined
@@ -542,6 +549,14 @@ export function getResolveRoutes(
                       controller.close()
                     },
                   })
+                }
+              } finally {
+                if (opts.dev) {
+                  addRequestMeta(
+                    req,
+                    'devRequestTimingMiddlewareEnd',
+                    process.hrtime.bigint()
+                  )
                 }
               }
             } catch (e) {

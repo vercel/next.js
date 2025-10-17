@@ -1082,13 +1082,11 @@ impl Project {
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             debug_ids: self.next_config().turbopack_debug_ids(),
+            client_root: self.client_relative_path().owned().await?,
+            asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
         };
         Ok(if client_assets {
-            get_server_chunking_context_with_client_assets(
-                options,
-                self.client_relative_path().owned().await?,
-                self.next_config().computed_asset_prefix().owned().await?,
-            )
+            get_server_chunking_context_with_client_assets(options)
         } else {
             get_server_chunking_context(options)
         })
@@ -1111,13 +1109,11 @@ impl Project {
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            client_root: self.client_relative_path().owned().await?,
+            asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
         };
         Ok(if client_assets {
-            get_edge_chunking_context_with_client_assets(
-                options,
-                self.client_relative_path().owned().await?,
-                self.next_config().computed_asset_prefix(),
-            )
+            get_edge_chunking_context_with_client_assets(options)
         } else {
             get_edge_chunking_context(options)
         })

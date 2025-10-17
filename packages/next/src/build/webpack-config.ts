@@ -34,6 +34,7 @@ import type { NextConfigComplete } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
+import ForceCompleteRuntimePlugin from './webpack/plugins/force-complete-runtime'
 import MiddlewarePlugin, {
   getEdgePolyfilledModules,
   handleWebpackExternalForEdgeRuntime,
@@ -1952,6 +1953,9 @@ export default async function getBaseWebpackConfig(
       ],
     },
     plugins: [
+      // In prod Webpack will already have a runtime for all reachable chunks.
+      // During dev, it will update the runtime as chunks come in which may be too late for Flight.
+      dev && new ForceCompleteRuntimePlugin(),
       isNodeServer &&
         new bundler.NormalModuleReplacementPlugin(
           /\.\/(.+)\.shared-runtime$/,

@@ -399,6 +399,20 @@ export default defineConfig([
     },
   },
   {
+    files: [
+      'packages/next/src/server/**/*.js',
+      'packages/next/src/server/**/*.jsx',
+      'packages/next/src/server/**/*.ts',
+      'packages/next/src/server/**/*.tsx',
+    ],
+    plugins: {
+      '@next/internal': nextEslintPluginInternal,
+    },
+    rules: {
+      '@next/internal/no-ambiguous-jsx': 'error',
+    },
+  },
+  {
     files: ['examples/**/*'],
     linterOptions: {
       reportUnusedDisableDirectives: 'off',
