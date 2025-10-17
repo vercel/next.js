@@ -1,10 +1,10 @@
 ---
-title: experimental.middlewareClientMaxBodySize
-description: Configure the maximum request body size when using middleware.
+title: experimental.proxyClientMaxBodySize
+description: Configure the maximum request body size when using proxy.
 version: experimental
 ---
 
-When middleware is used, Next.js automatically clones the request body and buffers it in memory to enable multiple reads - both in middleware and the underlying route handler. To prevent excessive memory usage, this configuration option sets a size limit on the buffered body.
+When proxy is used, Next.js automatically clones the request body and buffers it in memory to enable multiple reads - both in proxy and the underlying route handler. To prevent excessive memory usage, this configuration option sets a size limit on the buffered body.
 
 By default, the maximum body size is **10MB**. If a request body exceeds this limit, the body will only be buffered up to the limit, and a warning will be logged indicating which route exceeded the limit.
 
@@ -19,7 +19,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    middlewareClientMaxBodySize: '1mb',
+    proxyClientMaxBodySize: '1mb',
   },
 }
 
@@ -30,7 +30,7 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    middlewareClientMaxBodySize: '1mb',
+    proxyClientMaxBodySize: '1mb',
   },
 }
 
@@ -48,7 +48,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    middlewareClientMaxBodySize: 1048576, // 1MB in bytes
+    proxyClientMaxBodySize: 1048576, // 1MB in bytes
   },
 }
 
@@ -59,7 +59,7 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    middlewareClientMaxBodySize: 1048576, // 1MB in bytes
+    proxyClientMaxBodySize: 1048576, // 1MB in bytes
   },
 }
 
@@ -77,17 +77,17 @@ When a request body exceeds the configured limit:
 
 If your application needs to process the full request body, you should either:
 
-- Increase the `middlewareClientMaxBodySize` limit
+- Increase the `proxyClientMaxBodySize` limit
 - Handle the partial body gracefully in your application logic
 
 ## Example
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Next.js automatically buffers the body with the configured size limit
-  // You can read the body in middleware...
+  // You can read the body in proxy...
   const body = await request.text()
 
   // If the body exceeded the limit, only partial data will be available
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
 ## Good to know
 
-- This setting only applies when middleware is used in your application
+- This setting only applies when proxy is used in your application
 - The default limit of 10MB is designed to balance memory usage and typical use cases
 - The limit applies per-request, not globally across all concurrent requests
 - For applications handling large file uploads, consider increasing the limit accordingly

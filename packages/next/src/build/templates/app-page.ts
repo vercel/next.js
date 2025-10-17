@@ -828,10 +828,6 @@ export async function handler(
             kind: IncrementalCacheKind.APP_PAGE,
             isRoutePPREnabled: true,
             isFallback: false,
-            // CRITICAL: we need to allow stale here as we'll revalidate in the
-            // background if it's stale. We _want_ to possibly serve a stale
-            // response here as it'll be consistent with the static render.
-            allowStale: true,
           }
         )
 

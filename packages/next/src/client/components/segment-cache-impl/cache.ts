@@ -34,6 +34,7 @@ import {
   isPrefetchTaskDirty,
   type PrefetchTask,
   type PrefetchSubtaskResult,
+  startRevalidationCooldown,
 } from './scheduler'
 import { getAppBuildId } from '../../app-build-id'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
@@ -75,7 +76,7 @@ import {
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
 } from '../../flight-data-helpers'
-import { STATIC_STALETIME_MS } from '../router-reducer/prefetch-cache-utils'
+import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import {
@@ -326,6 +327,9 @@ export function revalidateEntireCache(
   tree: FlightRouterState
 ) {
   currentCacheVersion++
+
+  // Start a cooldown before re-prefetching to allow CDN cache propagation.
+  startRevalidationCooldown()
 
   // Clearing the cache also effectively rejects any pending requests, because
   // when the response is received, it gets written into a cache entry that is

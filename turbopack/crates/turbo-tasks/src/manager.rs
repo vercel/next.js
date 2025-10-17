@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
@@ -20,8 +21,8 @@ use tracing::{Instrument, instrument};
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
-    ResolvedVc, SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait,
-    VcValueType,
+    ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead,
+    VcValueTrait, VcValueType,
     backend::{
         Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent,
@@ -103,27 +104,10 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn try_read_task_output(
         &self,
         task: TaskId,
-        consistency: ReadConsistency,
-    ) -> Result<Result<RawVc, EventListener>>;
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    fn try_read_task_output_untracked(
-        &self,
-        task: TaskId,
-        consistency: ReadConsistency,
+        options: ReadOutputOptions,
     ) -> Result<Result<RawVc, EventListener>>;
 
     fn try_read_task_cell(
-        &self,
-        task: TaskId,
-        index: CellId,
-        options: ReadCellOptions,
-    ) -> Result<Result<TypedCellContent, EventListener>>;
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: CellId,
@@ -158,7 +142,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: CellId,
@@ -301,16 +285,54 @@ pub enum TaskPersistence {
     Local,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
 pub enum ReadConsistency {
     /// The default behavior for most APIs. Reads are faster, but may return stale values, which
     /// may later trigger re-computation.
+    #[default]
     Eventual,
     /// Ensures all dependencies are fully resolved before returning the cell or output data, at
     /// the cost of slower reads.
     ///
     /// Top-level code that returns data to the user should use strongly consistent reads.
     Strong,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
+pub enum ReadTracking {
+    /// Reads are tracked as dependencies of the current task.
+    #[default]
+    Tracked,
+    /// The read is only tracked when there is an error, otherwise it is untracked.
+    ///
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    TrackOnlyError,
+    /// The read is not tracked as a dependency of the current task.
+    ///
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    Untracked,
+}
+
+impl ReadTracking {
+    pub fn should_track(&self, is_err: bool) -> bool {
+        match self {
+            ReadTracking::Tracked => true,
+            ReadTracking::TrackOnlyError => is_err,
+            ReadTracking::Untracked => false,
+        }
+    }
+}
+
+impl Display for ReadTracking {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReadTracking::Tracked => write!(f, "tracked"),
+            ReadTracking::TrackOnlyError => write!(f, "track only error"),
+            ReadTracking::Untracked => write!(f, "untracked"),
+        }
+    }
 }
 
 pub struct TurboTasks<B: Backend + 'static> {
@@ -927,8 +949,16 @@ impl<B: Backend + 'static> TurboTasks<B> {
         id: TaskId,
         consistency: ReadConsistency,
     ) -> Result<()> {
-        // INVALIDATION: This doesn't return a value, only waits for it to be ready.
-        read_task_output_untracked(self, id, consistency).await?;
+        read_task_output(
+            self,
+            id,
+            ReadOutputOptions {
+                // INVALIDATION: This doesn't return a value, only waits for it to be ready.
+                tracking: ReadTracking::Untracked,
+                consistency,
+            },
+        )
+        .await?;
         Ok(())
     }
 
@@ -1217,23 +1247,14 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     fn try_read_task_output(
         &self,
         task: TaskId,
-        consistency: ReadConsistency,
+        options: ReadOutputOptions,
     ) -> Result<Result<RawVc, EventListener>> {
         self.backend.try_read_task_output(
             task,
             current_task_if_available("reading Vcs"),
-            consistency,
+            options,
             self,
         )
-    }
-
-    fn try_read_task_output_untracked(
-        &self,
-        task: TaskId,
-        consistency: ReadConsistency,
-    ) -> Result<Result<RawVc, EventListener>> {
-        self.backend
-            .try_read_task_output(task, None, consistency, self)
     }
 
     fn try_read_task_cell(
@@ -1251,24 +1272,14 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         )
     }
 
-    fn try_read_task_cell_untracked(
-        &self,
-        task: TaskId,
-        index: CellId,
-        options: ReadCellOptions,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
-        self.backend
-            .try_read_task_cell(task, index, None, options, self)
-    }
-
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<TypedCellContent> {
         self.backend
-            .try_read_own_task_cell_untracked(current_task, index, options, self)
+            .try_read_own_task_cell(current_task, index, options, self)
     }
 
     fn try_read_local_output(
@@ -1340,8 +1351,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<TypedCellContent> {
-        // INVALIDATION: don't need to track a dependency to itself
-        self.try_read_own_task_cell_untracked(task, index, options)
+        self.try_read_own_task_cell(task, index, options)
     }
 
     fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent) {
@@ -1686,25 +1696,10 @@ pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
 pub(crate) async fn read_task_output(
     this: &dyn TurboTasksApi,
     id: TaskId,
-    consistency: ReadConsistency,
+    options: ReadOutputOptions,
 ) -> Result<RawVc> {
     loop {
-        match this.try_read_task_output(id, consistency)? {
-            Ok(result) => return Ok(result),
-            Err(listener) => listener.await,
-        }
-    }
-}
-
-/// INVALIDATION: Be careful with this, it will not track dependencies, so
-/// using it could break cache invalidation.
-pub(crate) async fn read_task_output_untracked(
-    this: &dyn TurboTasksApi,
-    id: TaskId,
-    consistency: ReadConsistency,
-) -> Result<RawVc> {
-    loop {
-        match this.try_read_task_output_untracked(id, consistency)? {
+        match this.try_read_task_output(id, options)? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }
@@ -1762,7 +1757,14 @@ impl CurrentCellRef {
     ) {
         let tt = turbo_tasks();
         let cell_content = tt
-            .read_own_task_cell(self.current_task, self.index, ReadCellOptions::default())
+            .read_own_task_cell(
+                self.current_task,
+                self.index,
+                ReadCellOptions {
+                    tracking: ReadTracking::Untracked,
+                    ..Default::default()
+                },
+            )
             .ok();
         let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
         if let Some(update) = update {
@@ -1873,7 +1875,14 @@ impl CurrentCellRef {
     pub fn update_with_shared_reference(&self, shared_ref: SharedReference) {
         let tt = turbo_tasks();
         let content = tt
-            .read_own_task_cell(self.current_task, self.index, ReadCellOptions::default())
+            .read_own_task_cell(
+                self.current_task,
+                self.index,
+                ReadCellOptions {
+                    tracking: ReadTracking::Untracked,
+                    ..Default::default()
+                },
+            )
             .ok();
         let update = if let Some(TypedCellContent(_, CellContent(Some(shared_ref_exp)))) = content {
             // pointer equality (not value equality)

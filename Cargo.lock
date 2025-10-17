@@ -1009,7 +1009,7 @@ dependencies = [
  "tracing",
  "url",
  "which",
- "winreg 0.51.0",
+ "winreg",
 ]
 
 [[package]]
@@ -2875,19 +2875,6 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tower-service",
-]
-
-[[package]]
-name = "hyper-tls"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6183ddfa99b85da61a140bea0efc93fdf56ceaa041b37d553518030827f9905"
-dependencies = [
- "bytes",
- "hyper 0.14.28",
- "native-tls",
- "tokio",
- "tokio-native-tls",
 ]
 
 [[package]]
@@ -5857,56 +5844,21 @@ checksum = "e3a8614ee435691de62bcffcf4a66d91b3594bf1428a5722e79103249a095690"
 
 [[package]]
 name = "reqwest"
-version = "0.11.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13293b639a097af28fc8a90f22add145a9c954e49d77da06263d58cf44d5fb91"
-dependencies = [
- "base64 0.21.4",
- "bytes",
- "encoding_rs",
- "futures-core",
- "futures-util",
- "h2 0.3.24",
- "http 0.2.11",
- "http-body 0.4.5",
- "hyper 0.14.28",
- "hyper-tls 0.5.0",
- "ipnet",
- "js-sys",
- "log",
- "mime",
- "native-tls",
- "once_cell",
- "percent-encoding",
- "pin-project-lite",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "tokio",
- "tokio-native-tls",
- "tower-service",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "winreg 0.10.1",
-]
-
-[[package]]
-name = "reqwest"
 version = "0.12.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cbc931937e6ca3a06e3b6c0aa7841849b160a90351d6ab467a8b9b9959767531"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "futures-channel",
  "futures-core",
+ "futures-util",
  "http 1.1.0",
  "http-body 1.0.1",
  "http-body-util",
  "hyper 1.7.0",
  "hyper-rustls",
- "hyper-tls 0.6.0",
+ "hyper-tls",
  "hyper-util",
  "js-sys",
  "log",
@@ -6377,7 +6329,7 @@ dependencies = [
 name = "send-trace-to-jaeger"
 version = "0.1.0"
 dependencies = [
- "reqwest 0.11.17",
+ "reqwest",
  "serde_json",
 ]
 
@@ -9333,7 +9285,7 @@ dependencies = [
  "anyhow",
  "mockito",
  "quick_cache",
- "reqwest 0.12.22",
+ "reqwest",
  "serde",
  "tokio",
  "turbo-rcstr",
@@ -11575,15 +11527,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74c7b26e3480b707944fc872477815d29a8e429d2f93a1ce000f5fa84a15cbcd"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "winreg"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80d0f4e272c85def139476380b12f9ac60926689dd2e01d4923222f40580869d"
-dependencies = [
- "winapi",
 ]
 
 [[package]]

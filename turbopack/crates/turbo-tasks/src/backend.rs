@@ -17,16 +17,11 @@ use tracing::Span;
 use turbo_rcstr::RcStr;
 
 use crate::{
-    RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
-    TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
-    event::EventListener,
-    macro_helpers::NativeFunction,
-    magic_any::MagicAny,
-    manager::{ReadConsistency, TurboTasksBackendApi},
-    raw_vc::CellId,
-    registry,
-    task::shared_reference::TypedSharedReference,
-    task_statistics::TaskStatisticsApi,
+    RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
+    TraitRef, TraitTypeId, TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
+    event::EventListener, macro_helpers::NativeFunction, magic_any::MagicAny,
+    manager::TurboTasksBackendApi, raw_vc::CellId, registry,
+    task::shared_reference::TypedSharedReference, task_statistics::TaskStatisticsApi,
     triomphe_utils::unchecked_sidecast_triomphe_arc,
 };
 
@@ -564,7 +559,7 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         reader: Option<TaskId>,
-        consistency: ReadConsistency,
+        options: ReadOutputOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 
@@ -581,7 +576,7 @@ pub trait Backend: Sync + Send {
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: CellId,

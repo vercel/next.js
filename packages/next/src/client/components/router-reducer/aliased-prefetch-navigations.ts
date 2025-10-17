@@ -31,6 +31,7 @@ export function handleAliasedPrefetchEntry(
   state: ReadonlyReducerState,
   flightData: string | NormalizedFlightData[],
   url: URL,
+  renderedSearch: string,
   mutable: Mutable
 ) {
   let currentTree = state.tree
@@ -140,6 +141,7 @@ export function handleAliasedPrefetchEntry(
   }
 
   mutable.patchedTree = currentTree
+  mutable.renderedSearch = renderedSearch
   mutable.cache = currentCache
   mutable.canonicalUrl = href
   mutable.hashFragment = url.hash

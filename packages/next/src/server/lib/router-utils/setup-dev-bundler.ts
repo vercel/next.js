@@ -1,7 +1,7 @@
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../../../build/analysis/get-page-static-info'
 import type { RoutesManifest } from '../../../build'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
@@ -124,7 +124,7 @@ export type ServerFields = {
     | {
         page: string
         match: MiddlewareRouteMatch
-        matchers?: MiddlewareMatcher[]
+        matchers?: ProxyMatcher[]
       }
     | undefined
   hasAppNotFound?: boolean
@@ -359,7 +359,7 @@ async function startWatcher(
     wp.on('aggregated', async () => {
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
-      let middlewareMatchers: MiddlewareMatcher[] | undefined
+      let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
       const appPaths: Record<string, string[]> = {}
@@ -391,8 +391,8 @@ async function startWatcher(
         sortByPageExts(nextConfig.pageExtensions)
       )
 
-      let hasMiddlewareFile = false
-      let hasProxyFile = false
+      let proxyFilePath: string | undefined
+      let middlewareFilePath: string | undefined
 
       for (const fileName of sortedKnownFiles) {
         if (
@@ -408,16 +408,18 @@ async function startWatcher(
           fileDir === dir || fileDir === path.join(dir, 'src')
 
         if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
-          hasMiddlewareFile = true
+          middlewareFilePath = fileName
         }
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
-          hasProxyFile = true
+          proxyFilePath = fileName
         }
 
-        if (hasMiddlewareFile) {
-          if (hasProxyFile) {
+        if (middlewareFilePath) {
+          if (proxyFilePath) {
+            const cwd = process.cwd()
+
             throw new Error(
-              `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
+              `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, middlewareFilePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, proxyFilePath)}" are detected. Please use "./${path.relative(cwd, proxyFilePath)}" only.`
             )
           }
           Log.warnOnce(

@@ -2,7 +2,6 @@ import type { CacheNode, Segment } from '../../../shared/lib/app-router-types'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { createRouterCacheKey } from './create-router-cache-key'
-import type { PrefetchCacheEntry } from './router-reducer-types'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 
@@ -14,7 +13,6 @@ function fillCacheHelper(
   newCache: CacheNode,
   existingCache: CacheNode,
   flightData: NormalizedFlightData,
-  prefetchEntry: PrefetchCacheEntry | undefined,
   fillLazyItems: boolean
 ): void {
   const {
@@ -95,8 +93,7 @@ function fillCacheHelper(
             existingChildCacheNode,
             treePatch,
             cacheNodeSeedData,
-            head,
-            prefetchEntry
+            head
           )
         }
 
@@ -137,32 +134,16 @@ export function fillCacheWithNewSubTreeData(
   navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
-  flightData: NormalizedFlightData,
-  prefetchEntry?: PrefetchCacheEntry
+  flightData: NormalizedFlightData
 ): void {
-  fillCacheHelper(
-    navigatedAt,
-    newCache,
-    existingCache,
-    flightData,
-    prefetchEntry,
-    true
-  )
+  fillCacheHelper(navigatedAt, newCache, existingCache, flightData, true)
 }
 
 export function fillCacheWithNewSubTreeDataButOnlyLoading(
   navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
-  flightData: NormalizedFlightData,
-  prefetchEntry?: PrefetchCacheEntry
+  flightData: NormalizedFlightData
 ): void {
-  fillCacheHelper(
-    navigatedAt,
-    newCache,
-    existingCache,
-    flightData,
-    prefetchEntry,
-    false
-  )
+  fillCacheHelper(navigatedAt, newCache, existingCache, flightData, false)
 }

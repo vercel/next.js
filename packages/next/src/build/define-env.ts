@@ -3,7 +3,7 @@ import type {
   I18NDomains,
   NextConfigComplete,
 } from '../server/config-shared'
-import type { MiddlewareMatcher } from './analysis/get-page-static-info'
+import type { ProxyMatcher } from './analysis/get-page-static-info'
 import type { Rewrite } from '../lib/load-custom-routes'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
@@ -32,7 +32,7 @@ export interface DefineEnvOptions {
   isClient: boolean
   isEdgeServer: boolean
   isNodeServer: boolean
-  middlewareMatchers: MiddlewareMatcher[] | undefined
+  middlewareMatchers: ProxyMatcher[] | undefined
   omitNonDeterministic?: boolean
   rewrites: {
     beforeFiles: Rewrite[]
@@ -46,7 +46,7 @@ interface DefineEnv {
     | string
     | string[]
     | boolean
-    | MiddlewareMatcher[]
+    | ProxyMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
     | I18NDomains

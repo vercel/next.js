@@ -12,8 +12,8 @@ use next_core::{
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        BuildManifest, ClientBuildManifest, EdgeFunctionDefinition, MiddlewareMatcher,
-        MiddlewaresManifestV2, PagesManifest, Regions,
+        BuildManifest, ClientBuildManifest, EdgeFunctionDefinition, MiddlewaresManifestV2,
+        PagesManifest, ProxyMatcher, Regions,
     },
     next_pages::create_page_ssr_entry_module,
     next_server::{
@@ -1500,7 +1500,7 @@ impl PageEndpoint {
                         };
 
                     let named_regex = get_named_middleware_regex(&this.pathname).into();
-                    let matchers = MiddlewareMatcher {
+                    let matchers = ProxyMatcher {
                         regexp: Some(named_regex),
                         original_source: this.pathname.clone(),
                         ..Default::default()

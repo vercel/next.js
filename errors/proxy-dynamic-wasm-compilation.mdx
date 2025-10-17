@@ -1,10 +1,10 @@
 ---
-title: Dynamic WASM compilation is not available in Middlewares
+title: Dynamic WASM compilation is not available in Proxies
 ---
 
 ## Why This Error Occurred
 
-Compiling WASM binaries dynamically is not allowed in Middlewares. Specifically,
+Compiling WASM binaries dynamically is not allowed in Proxies. Specifically,
 the following APIs are not supported:
 
 - `WebAssembly.compile`
@@ -14,11 +14,11 @@ the following APIs are not supported:
 
 Bundle your WASM binaries using `import`:
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextResponse } from 'next/server'
 import squareWasm from './square.wasm?module'
 
-export default async function middleware() {
+export default async function proxy() {
   const m = await WebAssembly.instantiate(squareWasm)
   const answer = m.exports.square(9)
   const response = NextResponse.next()
