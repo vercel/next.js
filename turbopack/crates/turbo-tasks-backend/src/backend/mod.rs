@@ -820,7 +820,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut ctx = self.execute_context(turbo_tasks);
         let (mut task, reader_task) = if self.should_track_dependencies()
-            && matches!(options.tracking, ReadTracking::Tracked)
+            && !matches!(options.tracking, ReadTracking::Untracked)
             && let Some(reader_id) = reader
             && reader_id != task_id
         {
