@@ -578,7 +578,7 @@ async function generateDynamicFlightRenderResult(
 ): Promise<RenderResult> {
   const {
     clientReferenceManifest,
-    componentMod,
+    componentMod: { renderToReadableStream, createElement },
     htmlRequestId,
     renderOpts,
     requestId,
@@ -606,12 +606,22 @@ async function generateDynamicFlightRenderResult(
   const RSCPayload: RSCPayload & {
     /** Only available during cacheComponents development builds. Used for logging errors. */
     _validation?: Promise<ReactNode>
+    _bypassCachesInDev?: React.ReactNode
   } = await workUnitAsyncStorage.run(
     requestStore,
     generateDynamicRSCPayload,
     ctx,
     options
   )
+
+  if (
+    process.env.NODE_ENV === 'development' &&
+    isBypassingCachesInDev(renderOpts, requestStore)
+  ) {
+    RSCPayload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
+      route: workStore.route,
+    })
+  }
 
   const debugChannel = setReactDebugChannel && createDebugChannel()
 
@@ -623,7 +633,7 @@ async function generateDynamicFlightRenderResult(
   // which contains the subset React.
   const flightReadableStream = workUnitAsyncStorage.run(
     requestStore,
-    componentMod.renderToReadableStream,
+    renderToReadableStream,
     RSCPayload,
     clientReferenceManifest.clientModules,
     {
@@ -1864,10 +1874,15 @@ async function renderToHTMLOrFlightImpl(
       if (isRuntimePrefetchRequest) {
         return generateRuntimePrefetchResult(req, res, ctx, requestStore)
       } else {
+        const bypassCachesInDev = isBypassingCachesInDev(
+          renderOpts,
+          requestStore
+        )
         if (
           process.env.NODE_ENV === 'development' &&
           process.env.NEXT_RUNTIME !== 'edge' &&
-          cacheComponents
+          cacheComponents &&
+          !bypassCachesInDev
         ) {
           return generateDynamicFlightRenderResultWithCachesInDev(
             req,
@@ -2174,14 +2189,24 @@ async function renderToStream(
   devValidatingFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<ReadableStream<Uint8Array>> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
-  const { assetPrefix, htmlRequestId, nonce, pagePath, renderOpts, requestId } =
-    ctx
+  const {
+    assetPrefix,
+    htmlRequestId,
+    nonce,
+    pagePath,
+    renderOpts,
+    requestId,
+    workStore,
+  } = ctx
 
   const {
     basePath,
     buildManifest,
     clientReferenceManifest,
-    ComponentMod,
+    ComponentMod: {
+      createElement,
+      renderToReadableStream: serverRenderToReadableStream,
+    },
     crossOrigin,
     dev = false,
     experimental,
@@ -2286,17 +2311,20 @@ async function renderToStream(
 
   try {
     if (
-      // We only want this behavior when running `next dev`
-      dev &&
       // We only want this behavior when we have React's dev builds available
       process.env.NODE_ENV === 'development' &&
+      // We only want this behavior when running `next dev`
+      dev &&
       // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
       process.env.NEXT_RUNTIME !== 'edge' &&
       // We only have a Prerender environment for projects opted into cacheComponents
       cacheComponents &&
       // We only do this flow if we can safely recreate the store from scratch
       // (which is not the case for renders after an action)
-      createRequestStore
+      createRequestStore &&
+      // We only do this flow if we're not bypassing caches in dev using
+      // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
+      !isBypassingCachesInDev(renderOpts, requestStore)
     ) {
       type RSCPayloadWithValidation = InitialRSCPayload & {
         /** Only available during cacheComponents development builds. Used for logging errors. */
@@ -2369,13 +2397,24 @@ async function renderToStream(
       )
     } else {
       // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
-      const RSCPayload = await workUnitAsyncStorage.run(
+      const RSCPayload: RSCPayload & {
+        _bypassCachesInDev?: React.ReactNode
+      } = await workUnitAsyncStorage.run(
         requestStore,
         getRSCPayload,
         tree,
         ctx,
         res.statusCode === 404
       )
+
+      if (isBypassingCachesInDev(renderOpts, requestStore)) {
+        // Mark the RSC payload to indicate that caches were bypassed in dev.
+        // This lets the client know not to cache anything based on this render.
+        RSCPayload._bypassCachesInDev = createElement(
+          WarnForBypassCachesInDev,
+          { route: workStore.route }
+        )
+      }
 
       const debugChannel = setReactDebugChannel && createDebugChannel()
 
@@ -2395,7 +2434,7 @@ async function renderToStream(
       reactServerResult = new ReactServerResult(
         workUnitAsyncStorage.run(
           requestStore,
-          ComponentMod.renderToReadableStream,
+          serverRenderToReadableStream,
           RSCPayload,
           clientReferenceManifest.clientModules,
           {
@@ -2624,7 +2663,7 @@ async function renderToStream(
 
     const errorServerStream = workUnitAsyncStorage.run(
       requestStore,
-      ComponentMod.renderToReadableStream,
+      serverRenderToReadableStream,
       errorRSCPayload,
       clientReferenceManifest.clientModules,
       {
@@ -5122,4 +5161,22 @@ async function collectSegmentData(
     clientReferenceManifest.clientModules as ManifestNode,
     serverConsumerManifest
   )
+}
+
+function isBypassingCachesInDev(
+  renderOpts: RenderOpts,
+  requestStore: RequestStore
+): boolean {
+  return (
+    process.env.NODE_ENV === 'development' &&
+    !!renderOpts.dev &&
+    requestStore.headers.get('cache-control') === 'no-cache'
+  )
+}
+
+function WarnForBypassCachesInDev({ route }: { route: string }) {
+  console.warn(
+    `Route ${route} is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev`
+  )
+  return null
 }
