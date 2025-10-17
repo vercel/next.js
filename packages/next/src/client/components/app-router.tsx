@@ -21,6 +21,8 @@ import {
   SearchParamsContext,
   PathnameContext,
   PathParamsContext,
+  NavigationPromisesContext,
+  type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -48,6 +50,53 @@ import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-
 const globalMutable: {
   pendingMpaPath?: string
 } = {}
+
+// Creates an instrumented promise for Suspense DevTools
+// These promises are always fulfilled and exist purely for
+// tracking in React's Suspense DevTools.
+// The value will be updated by the hooks before calling use()
+function createDevToolsInstrumentedNavigationPromise<T>(
+  displayName: string
+): Promise<T> & { status: 'fulfilled'; value: T; displayName: string } {
+  const promise = Promise.resolve(null as T) as Promise<T> & {
+    status: 'fulfilled'
+    value: T
+    displayName: string
+  }
+  promise.status = 'fulfilled'
+  promise.value = null as T
+  promise.displayName = displayName
+  return promise
+}
+
+// Create stable instrumented promises for navigation hooks (dev-only)
+// These are created once and reused throughout the app lifetime
+let navigationPromises: NavigationPromises | null = null
+function getNavigationPromises(): NavigationPromises | null {
+  if (process.env.NODE_ENV !== 'production') {
+    if (!navigationPromises) {
+      navigationPromises = {
+        pathname:
+          createDevToolsInstrumentedNavigationPromise<string>(
+            'usePathname (SSR)'
+          ),
+        searchParams: createDevToolsInstrumentedNavigationPromise<any>(
+          'useSearchParams (SSR)'
+        ),
+        params:
+          createDevToolsInstrumentedNavigationPromise<any>('useParams (SSR)'),
+        selectedLayoutSegment: createDevToolsInstrumentedNavigationPromise<
+          string | null
+        >('useSelectedLayoutSegment (SSR)'),
+        selectedLayoutSegments: createDevToolsInstrumentedNavigationPromise<
+          string[]
+        >('useSelectedLayoutSegments (SSR)'),
+      }
+    }
+    return navigationPromises
+  }
+  return null
+}
 
 function HistoryUpdater({
   appRouterState,
@@ -506,30 +555,35 @@ function Router({
     )
   }
 
+  const devNavigationPromises =
+    process.env.NODE_ENV !== 'production' ? getNavigationPromises() : null
+
   return (
     <>
       <HistoryUpdater appRouterState={state} />
       <RuntimeStyles />
-      <PathParamsContext.Provider value={pathParams}>
-        <PathnameContext.Provider value={pathname}>
-          <SearchParamsContext.Provider value={searchParams}>
-            <GlobalLayoutRouterContext.Provider
-              value={globalLayoutRouterContext}
-            >
-              {/* TODO: We should be able to remove this context. useRouter
-                  should import from app-router-instance instead. It's only
-                  necessary because useRouter is shared between Pages and
-                  App Router. We should fork that module, then remove this
-                  context provider. */}
-              <AppRouterContext.Provider value={publicAppRouterInstance}>
-                <LayoutRouterContext.Provider value={layoutRouterContext}>
-                  {content}
-                </LayoutRouterContext.Provider>
-              </AppRouterContext.Provider>
-            </GlobalLayoutRouterContext.Provider>
-          </SearchParamsContext.Provider>
-        </PathnameContext.Provider>
-      </PathParamsContext.Provider>
+      <NavigationPromisesContext.Provider value={devNavigationPromises}>
+        <PathParamsContext.Provider value={pathParams}>
+          <PathnameContext.Provider value={pathname}>
+            <SearchParamsContext.Provider value={searchParams}>
+              <GlobalLayoutRouterContext.Provider
+                value={globalLayoutRouterContext}
+              >
+                {/* TODO: We should be able to remove this context. useRouter
+                    should import from app-router-instance instead. It's only
+                    necessary because useRouter is shared between Pages and
+                    App Router. We should fork that module, then remove this
+                    context provider. */}
+                <AppRouterContext.Provider value={publicAppRouterInstance}>
+                  <LayoutRouterContext.Provider value={layoutRouterContext}>
+                    {content}
+                  </LayoutRouterContext.Provider>
+                </AppRouterContext.Provider>
+              </GlobalLayoutRouterContext.Provider>
+            </SearchParamsContext.Provider>
+          </PathnameContext.Provider>
+        </PathParamsContext.Provider>
+      </NavigationPromisesContext.Provider>
     </>
   )
 }

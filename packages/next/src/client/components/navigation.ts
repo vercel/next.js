@@ -1,7 +1,7 @@
 import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { Params } from '../../server/request/params'
 
-import { useContext, useMemo } from 'react'
+import { useContext, useMemo, use } from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -11,6 +11,7 @@ import {
   SearchParamsContext,
   PathnameContext,
   PathParamsContext,
+  NavigationPromisesContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
@@ -69,6 +70,18 @@ export function useSearchParams(): ReadonlyURLSearchParams {
     return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams]) as ReadonlyURLSearchParams
 
+  // Instrument with Suspense DevTools (dev-only)
+
+  if (process.env.NODE_ENV !== 'production') {
+    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const navigationPromises = useContext(NavigationPromisesContext)
+    if (navigationPromises) {
+      navigationPromises.searchParams.value = readonlySearchParams
+      return use(navigationPromises.searchParams)
+    }
+  }
+
   return readonlySearchParams
 }
 
@@ -95,7 +108,20 @@ export function usePathname(): string {
 
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
-  return useContext(PathnameContext) as string
+  const pathname = useContext(PathnameContext) as string
+
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production') {
+    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const navigationPromises = useContext(NavigationPromisesContext)
+    if (navigationPromises) {
+      navigationPromises.pathname.value = pathname
+      return use(navigationPromises.pathname)
+    }
+  }
+
+  return pathname
 }
 
 // Client components API
@@ -153,7 +179,20 @@ export function useRouter(): AppRouterInstance {
 export function useParams<T extends Params = Params>(): T {
   useDynamicRouteParams?.('useParams()')
 
-  return useContext(PathParamsContext) as T
+  const params = useContext(PathParamsContext) as T
+
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production') {
+    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const navigationPromises = useContext(NavigationPromisesContext)
+    if (navigationPromises) {
+      navigationPromises.params.value = params
+      return use(navigationPromises.params)
+    }
+  }
+
+  return params
 }
 
 /** Get the canonical parameters from the current level to the leaf node. */
@@ -228,7 +267,23 @@ export function useSelectedLayoutSegments(
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
 
-  return getSelectedLayoutSegmentPath(context.parentTree, parallelRouteKey)
+  const segments = getSelectedLayoutSegmentPath(
+    context.parentTree,
+    parallelRouteKey
+  )
+
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production') {
+    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const navigationPromises = useContext(NavigationPromisesContext)
+    if (navigationPromises) {
+      navigationPromises.selectedLayoutSegments.value = segments
+      return use(navigationPromises.selectedLayoutSegments)
+    }
+  }
+
+  return segments
 }
 
 /**
@@ -268,9 +323,21 @@ export function useSelectedLayoutSegment(
 
   // if the default slot is showing, we return null since it's not technically "selected" (it's a fallback)
   // and returning an internal value like `__DEFAULT__` would be confusing.
-  return selectedLayoutSegment === DEFAULT_SEGMENT_KEY
-    ? null
-    : selectedLayoutSegment
+  const segment =
+    selectedLayoutSegment === DEFAULT_SEGMENT_KEY ? null : selectedLayoutSegment
+
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production') {
+    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const navigationPromises = useContext(NavigationPromisesContext)
+    if (navigationPromises) {
+      navigationPromises.selectedLayoutSegment.value = segment
+      return use(navigationPromises.selectedLayoutSegment)
+    }
+  }
+
+  return segment
 }
 
 export { unstable_isUnrecognizedActionError } from './unrecognized-action-error'
