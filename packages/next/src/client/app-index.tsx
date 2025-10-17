@@ -136,10 +136,6 @@ const DOMContentLoaded = function () {
     initialServerDataWriter.close()
     initialServerDataFlushed = true
     initialServerDataBuffer = undefined
-
-    // Also clear the global data array to release memory. Otherwise it will be held indefinitely.
-    delete self.__next_f
-    nextServerDataLoadingGlobal.length = 0
   }
   initialServerDataLoaded = true
 }
@@ -153,7 +149,13 @@ if (document.readyState === 'loading') {
 }
 
 const nextServerDataLoadingGlobal = (self.__next_f = self.__next_f || [])
+
+// Consume all buffered chunks and clear the global data array right after to release memory.
+// Otherwise it will be retained indefinitely.
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
+nextServerDataLoadingGlobal.length = 0
+
+// Patch its push method so subsequent chunks are handled (but not actually pushed to the array).
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
 const readable = new ReadableStream({
