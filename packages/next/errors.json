@@ -879,5 +879,7 @@
   "878": "Config options `skipProxyUrlNormalize` and `skipMiddlewareUrlNormalize` cannot be set at the same time. Please use `skipProxyUrlNormalize` instead.",
   "879": "Config options `experimental.proxyClientMaxBodySize` and `experimental.middlewareClientMaxBodySize` cannot be set at the same time. Please use `experimental.proxyClientMaxBodySize` instead.",
   "880": "Config options `experimental.proxyPrefetch` and `experimental.middlewarePrefetch` cannot be set at the same time. Please use `experimental.proxyPrefetch` instead.",
-  "881": "Invalid render stage: %s"
+  "881": "Invalid render stage: %s",
+  "882": "The %s file \"./%s\" must export a function named \\`%s\\` or a default function.",
+  "883": "The %s file \"%s\" must export a function named \\`%s\\` or a default function."
 }

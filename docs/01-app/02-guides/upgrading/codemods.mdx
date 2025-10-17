@@ -26,6 +26,20 @@ Replacing `<transform>` and `<path>` with appropriate values.
 
 ### 16.0
 
+#### Remove `experimental_ppr` Route Segment Config from App Router pages and layouts
+
+##### `remove-experimental-ppr`
+
+```bash filename="Terminal"
+npx @next/codemod@latest remove-experimental-ppr .
+```
+
+This codemod removes the `experimental_ppr` Route Segment Config from App Router pages and layouts.
+
+```diff filename="app/page.tsx"
+- export const experimental_ppr = true;
+```
+
 #### Migrate from `next lint` to ESLint CLI
 
 ##### `next-lint-to-eslint-cli`

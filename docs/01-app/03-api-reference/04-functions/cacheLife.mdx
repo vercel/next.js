@@ -98,7 +98,13 @@ Cache profiles are objects that contain the following properties:
 
 The "stale" property differs from the [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) setting in that it specifically controls client-side router caching. While `staleTimes` is a global setting that affects all instances of both dynamic and static data, the `cacheLife` configuration allows you to define "stale" times on a per-function or per-route basis.
 
-> **Good to know**: The “stale” property does not set the `Cache-control: max-age` header. It instead controls the client-side router cache.
+### `stale` time in the client router cache
+
+The "stale" property does not set the `Cache-control: max-age` header. Instead, it controls the client-side router cache. The server sends this value to the client via the `x-nextjs-stale-time` response header (in seconds), which the client router uses to determine how long to cache the route before needing to revalidate.
+
+**The client enforces a minimum stale time of 30 seconds**: This ensures that prefetched data remains usable long enough for users to click on links after they've been prefetched. Without this minimum, very short stale times would cause prefetched data to expire before it could be used, making prefetching ineffective.
+
+This minimum only applies to time-based expiration. When you call [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag), [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath), [`updateTag`](/docs/app/api-reference/functions/updateTag), or [`refresh`](/docs/app/api-reference/functions/refresh) from a Server Action, the entire client cache is immediately cleared, bypassing the stale time entirely.
 
 ## Examples
 

@@ -115,8 +115,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
       existingCache,
       treePatch,
       cacheNodeSeedData,
-      head,
-      undefined
+      head
     )
 
     const expectedCache: CacheNode = {

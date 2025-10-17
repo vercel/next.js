@@ -24,6 +24,48 @@ describe('interception-dynamic-segment', () => {
     })
   })
 
+  it('should intercept consistently with back/forward navigation', async () => {
+    // Test that the fix works with browser back/forward navigation
+    const browser = await next.browser('/')
+
+    // Navigate with interception
+    await browser.elementByCss('[href="/foo/1"]').click()
+    await retry(async () => {
+      expect(await browser.elementById('modal').text()).toEqual('intercepted')
+    })
+
+    // Go back to root
+    await browser.back()
+    await retry(async () => {
+      const url = await browser.url()
+      expect(url).toContain('/')
+    })
+
+    // Go forward - should show intercepted version
+    await browser.forward()
+    await retry(async () => {
+      expect(await browser.elementById('modal').text()).toEqual('intercepted')
+    })
+  })
+
+  it('should intercept multiple times from root', async () => {
+    // Test that repeated interception from root works
+    const browser = await next.browser('/')
+
+    for (let i = 0; i < 2; i++) {
+      await browser.elementByCss('[href="/foo/1"]').click()
+      await retry(async () => {
+        expect(await browser.elementById('modal').text()).toEqual('intercepted')
+      })
+
+      await browser.back()
+      await retry(async () => {
+        const url = await browser.url()
+        expect(url).toMatch(/\/$/)
+      })
+    }
+  })
+
   if (isNextStart) {
     it('should correctly prerender segments with generateStaticParams', async () => {
       expect(next.cliOutput).toContain('/generate-static-params/a')
