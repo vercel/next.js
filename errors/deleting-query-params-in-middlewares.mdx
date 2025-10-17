@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server'
 
 export default function middleware(request: NextRequest) {
   const nextUrl = request.nextUrl
-  nextUrl.searchParams.delete('key') // <-- this is now possible! 🎉
+  nextUrl.searchParams.delete('key') // <-- this is now possible!
   return NextResponse.rewrite(nextUrl)
 }
 ```

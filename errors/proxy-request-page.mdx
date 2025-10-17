@@ -10,7 +10,7 @@ Your application is interacting with `request.page` which has been deprecated.
 import { NextRequest, NextResponse } from 'next/server'
 
 export function proxy(request: NextRequest) {
-  const { params } = event.request.page
+  const { params } = request.page
   const { locale, slug } = params
 
   if (locale && slug) {
