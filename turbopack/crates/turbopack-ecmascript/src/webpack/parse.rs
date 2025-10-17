@@ -195,6 +195,7 @@ pub async fn webpack_runtime(
         EcmascriptModuleAssetType::Ecmascript,
         transforms,
         false,
+        false,
     )
     .await?;
     match &*parsed {

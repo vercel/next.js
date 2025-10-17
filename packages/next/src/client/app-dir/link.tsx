@@ -403,7 +403,6 @@ export default function LinkComponent(
         }
       } else {
         // TypeScript trick for type-guarding:
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const _: never = key
       }
     })
@@ -480,7 +479,6 @@ export default function LinkComponent(
         }
       } else {
         // TypeScript trick for type-guarding:
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const _: never = key
       }
     })

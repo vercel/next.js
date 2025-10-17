@@ -236,6 +236,10 @@ impl<T> CollectiblesSource for OperationVc<T>
 where
     T: ?Sized,
 {
+    fn drop_collectibles<Vt: VcValueTrait>(self) {
+        self.node.node.drop_collectibles::<Vt>();
+    }
+
     fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
         self.node.node.take_collectibles()
     }

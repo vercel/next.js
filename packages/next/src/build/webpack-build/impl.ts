@@ -386,7 +386,10 @@ export async function workerMain(workerData: {
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
-    { debugPrerender: NextBuildContext.debugPrerender }
+    {
+      debugPrerender: NextBuildContext.debugPrerender,
+      reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+    }
   )
   NextBuildContext.nextBuildSpan = trace(
     `worker-main-${workerData.compilerName}`

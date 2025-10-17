@@ -134,6 +134,8 @@ This can lead to subtle rendering changes when adopting Turbopack, if applicatio
 
 ### Bundle Sizes
 
+From our testing on production applications, we observed that Turbopack generally produces bundles that are similar in size to Webpack. However, the comparison can be difficult since turbopack tends to produce fewer but larger chunks. Our advice is to focus on higher level metrics like [Core Web Vitals](https://web.dev/articles/vitals) or your own application level metrics to compare performance across the two bundlers. We are however aware of one gap that can occasionally cause a large regression.
+
 Turbopack does not yet have an equivalent to the [Inner Graph Optimization](https://webpack.js.org/configuration/optimization/#optimizationinnergraph) in webpack which is enabled by default. This optimization is useful to tree shake large modules. For example:
 
 ```js filename=large.module.js
@@ -148,7 +150,7 @@ export const CONSTANT_VALUE = 3
 
 If an application only uses `CONSTANT_VALUE` Turbopack will detect this and delete the `usesHeavy` export but not the corresponding `import`. However, with the Inner Graph Optimization, webpack can delete the `import` too which can drop the dependency as well.
 
-We are planning to offer an equivalent to the Inner Graph Optimization in Turbopack but it is still under development. If you are affected by this gap, consider manually splitting these modules.
+We are planning to offer an equivalent to the Inner Graph Optimization in Turbopack but it is still under development. If you are affected by this gap, consider manually splitting modules.
 
 ### Build Caching
 
@@ -222,7 +224,9 @@ If you encounter performance or memory issues and want to help the Next.js team 
 NEXT_TURBOPACK_TRACING=1 next dev
 ```
 
-This will produce a `.next/trace-turbopack` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
+This will produce a `.next/dev/trace-turbopack` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
+
+By default the development server outputs to `.next/dev`. Read more about [isolatedDevBuild](/docs/app/api-reference/config/next-config-js/isolatedDevBuild).
 
 ## Summary
 
@@ -230,9 +234,9 @@ Turbopack is a **Rust-based**, **incremental** bundler designed to make local de
 
 ## Version Changes
 
-| Version   | Changes                                                                                                           |
-| --------- | ----------------------------------------------------------------------------------------------------------------- |
-| `v16.0.0` | Turbopack becomes the default bundler for Next.js. Automatic support for Babel when a configuration file is found |
-| `v15.5.0` | Turbopack support for `build` beta                                                                                |
-| `v15.3.0` | Experimental support for `build`                                                                                  |
-| `v15.0.0` | Turbopack for `dev` stable                                                                                        |
+| Version   | Changes                                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------------ |
+| `v16.0.0` | Turbopack becomes the default bundler for Next.js. Automatic support for Babel when a configuration file is found. |
+| `v15.5.0` | Turbopack support for `build` beta                                                                                 |
+| `v15.3.0` | Experimental support for `build`                                                                                   |
+| `v15.0.0` | Turbopack for `dev` stable                                                                                         |

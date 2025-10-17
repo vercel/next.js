@@ -14,7 +14,7 @@ import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.1.0";
+const nextjsReactPeerVersion = "19.2.0";
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -271,8 +271,6 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       eslint: "^9",
       "eslint-config-next": version,
-      // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
-      "@eslint/eslintrc": "^3",
     };
   }
 

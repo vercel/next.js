@@ -823,7 +823,7 @@ export async function isPageStatic({
         // in incremental mode.
         isRoutePPREnabled =
           routeModule.definition.kind === RouteKind.APP_PAGE &&
-          checkIsRoutePPREnabled(pprConfig, appConfig)
+          checkIsRoutePPREnabled(pprConfig)
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -948,7 +948,6 @@ type ReducedAppConfig = Pick<
   | 'dynamic'
   | 'fetchCache'
   | 'preferredRegion'
-  | 'experimental_ppr'
   | 'runtime'
   | 'maxDuration'
 >
@@ -971,7 +970,6 @@ export function reduceAppConfig(
       fetchCache,
       preferredRegion,
       revalidate,
-      experimental_ppr,
       runtime,
       maxDuration,
     } = segment.config || {}
@@ -1002,12 +1000,6 @@ export function reduceAppConfig(
       (typeof config.revalidate !== 'number' || revalidate < config.revalidate)
     ) {
       config.revalidate = revalidate
-    }
-
-    // If partial prerendering has been set, only override it if the current
-    // value is provided as it's resolved from root layout to leaf page.
-    if (typeof experimental_ppr !== 'undefined') {
-      config.experimental_ppr = experimental_ppr
     }
 
     if (typeof runtime !== 'undefined') {

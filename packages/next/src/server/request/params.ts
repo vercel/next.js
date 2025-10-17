@@ -19,6 +19,7 @@ import {
   type StaticPrerenderStore,
   throwInvariantForMissingStore,
   type PrerenderStoreModernRuntime,
+  type RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -31,6 +32,7 @@ import {
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
+import { RenderStage } from '../app-render/staged-rendering'
 
 export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
@@ -70,7 +72,8 @@ export function createParamsFromClient(
           return createRenderParamsInDev(
             underlyingParams,
             devFallbackParams,
-            workStore
+            workStore,
+            workUnitStore
           )
         } else {
           return createRenderParamsInProd(underlyingParams)
@@ -120,7 +123,8 @@ export function createServerParamsForRoute(
           return createRenderParamsInDev(
             underlyingParams,
             devFallbackParams,
-            workStore
+            workStore,
+            workUnitStore
           )
         } else {
           return createRenderParamsInProd(underlyingParams)
@@ -165,7 +169,8 @@ export function createServerParamsForServerSegment(
           return createRenderParamsInDev(
             underlyingParams,
             devFallbackParams,
-            workStore
+            workStore,
+            workUnitStore
           )
         } else {
           return createRenderParamsInProd(underlyingParams)
@@ -298,7 +303,8 @@ function createRenderParamsInProd(underlyingParams: Params): Promise<Params> {
 function createRenderParamsInDev(
   underlyingParams: Params,
   devFallbackParams: OpaqueFallbackRouteParams | null | undefined,
-  workStore: WorkStore
+  workStore: WorkStore,
+  requestStore: RequestStore
 ): Promise<Params> {
   let hasFallbackParams = false
   if (devFallbackParams) {
@@ -313,7 +319,8 @@ function createRenderParamsInDev(
   return makeDynamicallyTrackedParamsWithDevWarnings(
     underlyingParams,
     hasFallbackParams,
-    workStore
+    workStore,
+    requestStore
   )
 }
 
@@ -445,7 +452,8 @@ function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
 function makeDynamicallyTrackedParamsWithDevWarnings(
   underlyingParams: Params,
   hasFallbackParams: boolean,
-  store: WorkStore
+  workStore: WorkStore,
+  requestStore: RequestStore
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -456,7 +464,11 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
   const promise = hasFallbackParams
-    ? makeDevtoolsIOAwarePromise(underlyingParams)
+    ? makeDevtoolsIOAwarePromise(
+        underlyingParams,
+        requestStore,
+        RenderStage.Runtime
+      )
     : // We don't want to force an environment transition when this params is not part of the fallback params set
       Promise.resolve(underlyingParams)
 
@@ -480,7 +492,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
           proxiedProperties.has(prop)
         ) {
           const expression = describeStringPropertyAccess('params', prop)
-          warnForSyncAccess(store.route, expression)
+          warnForSyncAccess(workStore.route, expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -493,7 +505,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     },
     ownKeys(target) {
       const expression = '`...params` or similar expression'
-      warnForSyncAccess(store.route, expression)
+      warnForSyncAccess(workStore.route, expression)
       return Reflect.ownKeys(target)
     },
   })

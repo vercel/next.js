@@ -554,8 +554,6 @@ export default abstract class Server<
           this.nextConfig.experimental.clientSegmentCache === 'client-only'
             ? 'client-only'
             : Boolean(this.nextConfig.experimental.clientSegmentCache),
-        clientParamParsing:
-          this.nextConfig.experimental.clientParamParsing ?? false,
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
@@ -2017,7 +2015,11 @@ export default abstract class Server<
     if (
       !this.minimalMode &&
       this.nextConfig.experimental.validateRSCRequestHeaders &&
-      isRSCRequest
+      isRSCRequest &&
+      // In the event that we're serving a NoFallbackError, the headers will
+      // already be stripped so this comparison will always fail, resulting in
+      // a redirect loop.
+      !is404Page
     ) {
       const headers = req.headers
 

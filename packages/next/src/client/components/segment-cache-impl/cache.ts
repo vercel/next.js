@@ -71,8 +71,11 @@ import type {
   FlightRouterState,
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
-import { normalizeFlightData } from '../../flight-data-helpers'
-import { STATIC_STALETIME_MS } from '../router-reducer/prefetch-cache-utils'
+import {
+  normalizeFlightData,
+  prepareFlightRouterStateForRequest,
+} from '../../flight-data-helpers'
+import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import {
@@ -1124,9 +1127,7 @@ function convertTreePrefetchToRouteTree(
         const renderedSearch = '' as NormalizedSearch
         const childParamKey =
           // The server omits this field from the prefetch response when
-          // clientParamParsing is enabled. The flag only exists while we're
-          // testing the feature, in case there's a bug and we need to revert.
-          // TODO: Remove once clientParamParsing is enabled everywhere.
+          // cacheComponents is enabled.
           childServerSentParamKey !== null
             ? childServerSentParamKey
             : // If no param key was sent, use the value parsed on the client.
@@ -1449,10 +1450,10 @@ export async function fetchRouteOnCacheMiss(
           routeCacheLru.updateSize(entry, size)
         }
       )
-      const serverData = await (createFromNextReadableStream(
+      const serverData = await createFromNextReadableStream<RootTreePrefetch>(
         prefetchStream,
         headers
-      ) as Promise<RootTreePrefetch>)
+      )
       if (serverData.buildId !== getAppBuildId()) {
         // The server build does not match the client. Treat as a 404. During
         // an actual navigation, the router will trigger an MPA navigation.
@@ -1501,10 +1502,11 @@ export async function fetchRouteOnCacheMiss(
           routeCacheLru.updateSize(entry, size)
         }
       )
-      const serverData = await (createFromNextReadableStream(
-        prefetchStream,
-        headers
-      ) as Promise<NavigationFlightResponse>)
+      const serverData =
+        await createFromNextReadableStream<NavigationFlightResponse>(
+          prefetchStream,
+          headers
+        )
       if (serverData.b !== getAppBuildId()) {
         // The server build does not match the client. Treat as a 404. During
         // an actual navigation, the router will trigger an MPA navigation.
@@ -1522,7 +1524,7 @@ export async function fetchRouteOnCacheMiss(
         // The non-PPR response format is what we'd get if we prefetched these segments
         // using the LoadingBoundary fetch strategy, so mark their cache entries accordingly.
         FetchStrategy.LoadingBoundary,
-        response,
+        response as RSCResponse<NavigationFlightResponse>,
         serverData,
         entry,
         couldBeIntercepted,
@@ -1696,9 +1698,8 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
   const nextUrl = task.key.nextUrl
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
-    [NEXT_ROUTER_STATE_TREE_HEADER]: encodeURIComponent(
-      JSON.stringify(dynamicRequestTree)
-    ),
+    [NEXT_ROUTER_STATE_TREE_HEADER]:
+      prepareFlightRouterStateForRequest(dynamicRequestTree),
   }
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
@@ -1787,7 +1788,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       Date.now(),
       task,
       fetchStrategy,
-      response,
+      response as RSCResponse<NavigationFlightResponse>,
       serverData,
       isResponsePartial,
       route,
@@ -1810,7 +1811,7 @@ function writeDynamicTreeResponseIntoCache(
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  response: RSCResponse,
+  response: RSCResponse<NavigationFlightResponse>,
   serverData: NavigationFlightResponse,
   entry: PendingRouteCacheEntry,
   couldBeIntercepted: boolean,
@@ -1915,7 +1916,7 @@ function writeDynamicRenderResponseIntoCache(
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
-  response: RSCResponse,
+  response: RSCResponse<NavigationFlightResponse>,
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
   route: FulfilledRouteCacheEntry,
@@ -2139,12 +2140,22 @@ function writeSeedDataIntoCache(
   }
 }
 
-async function fetchPrefetchResponse(
+async function fetchPrefetchResponse<T>(
   url: URL,
   headers: RequestHeaders
-): Promise<RSCResponse | null> {
+): Promise<RSCResponse<T> | null> {
   const fetchPriority = 'low'
-  const response = await createFetch(url, headers, fetchPriority)
+  // When issuing a prefetch request, don't immediately decode the response; we
+  // use the lower level `createFromResponse` API instead because we need to do
+  // some extra processing of the response stream. See
+  // `createPrefetchResponseStream` for more details.
+  const shouldImmediatelyDecode = false
+  const response = await createFetch<T>(
+    url,
+    headers,
+    fetchPriority,
+    shouldImmediatelyDecode
+  )
   if (!response.ok) {
     return null
   }

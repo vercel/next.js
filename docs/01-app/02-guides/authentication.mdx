@@ -871,7 +871,7 @@ To create and manage database sessions, you'll need to follow these steps:
 
 1. Create a table in your database to store session and data (or check if your Auth Library handles this).
 2. Implement functionality to insert, update, and delete sessions
-3. Encrypt the session ID before storing it in the user's browser, and ensure the database and cookie stay in sync (this is optional, but recommended for optimistic auth checks in [Middleware](#optimistic-checks-with-middleware-optional)).
+3. Encrypt the session ID before storing it in the user's browser, and ensure the database and cookie stay in sync (this is optional, but recommended for optimistic auth checks in [Proxy](#optimistic-checks-with-proxy-optional)).
 
 <AppOnly>
 
@@ -1019,20 +1019,20 @@ For both cases, we recommend:
 
 - Creating a [Data Access Layer](#creating-a-data-access-layer-dal) to centralize your authorization logic
 - Using [Data Transfer Objects (DTO)](#using-data-transfer-objects-dto) to only return the necessary data
-- Optionally use [Middleware](#optimistic-checks-with-middleware-optional) to perform optimistic checks.
+- Optionally use [Proxy](#optimistic-checks-with-proxy-optional) to perform optimistic checks.
 
-### Optimistic checks with Middleware (Optional)
+### Optimistic checks with Proxy (Optional)
 
-There are some cases where you may want to use [Middleware](/docs/app/api-reference/file-conventions/middleware) and redirect users based on permissions:
+There are some cases where you may want to use [Proxy](/docs/app/api-reference/file-conventions/proxy) and redirect users based on permissions:
 
-- To perform optimistic checks. Since Middleware runs on every route, it's a good way to centralize redirect logic and pre-filter unauthorized users.
+- To perform optimistic checks. Since Proxy runs on every route, it's a good way to centralize redirect logic and pre-filter unauthorized users.
 - To protect static routes that share data between users (e.g. content behind a paywall).
 
-However, since Middleware runs on every route, including [prefetched](/docs/app/getting-started/linking-and-navigating#prefetching) routes, it's important to only read the session from the cookie (optimistic checks), and avoid database checks to prevent performance issues.
+However, since Proxy runs on every route, including [prefetched](/docs/app/getting-started/linking-and-navigating#prefetching) routes, it's important to only read the session from the cookie (optimistic checks), and avoid database checks to prevent performance issues.
 
 For example:
 
-```tsx filename="middleware.ts" switcher
+```tsx filename="proxy.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 import { decrypt } from '@/app/lib/session'
 import { cookies } from 'next/headers'
@@ -1041,7 +1041,7 @@ import { cookies } from 'next/headers'
 const protectedRoutes = ['/dashboard']
 const publicRoutes = ['/login', '/signup', '/']
 
-export default async function middleware(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
   // 2. Check if the current route is protected or public
   const path = req.nextUrl.pathname
   const isProtectedRoute = protectedRoutes.includes(path)
@@ -1068,13 +1068,13 @@ export default async function middleware(req: NextRequest) {
   return NextResponse.next()
 }
 
-// Routes Middleware should not run on
+// Routes Proxy should not run on
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
 }
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 import { NextResponse } from 'next/server'
 import { decrypt } from '@/app/lib/session'
 import { cookies } from 'next/headers'
@@ -1083,7 +1083,7 @@ import { cookies } from 'next/headers'
 const protectedRoutes = ['/dashboard']
 const publicRoutes = ['/login', '/signup', '/']
 
-export default async function middleware(req) {
+export default async function proxy(req) {
   // 2. Check if the current route is protected or public
   const path = req.nextUrl.pathname
   const isProtectedRoute = protectedRoutes.includes(path)
@@ -1110,19 +1110,19 @@ export default async function middleware(req) {
   return NextResponse.next()
 }
 
-// Routes Middleware should not run on
+// Routes Proxy should not run on
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
 }
 ```
 
-While Middleware can be useful for initial checks, it should not be your only line of defense in protecting your data. The majority of security checks should be performed as close as possible to your data source, see [Data Access Layer](#creating-a-data-access-layer-dal) for more information.
+While Proxy can be useful for initial checks, it should not be your only line of defense in protecting your data. The majority of security checks should be performed as close as possible to your data source, see [Data Access Layer](#creating-a-data-access-layer-dal) for more information.
 
 > **Tips**:
 >
-> - In Middleware, you can also read cookies using `req.cookies.get('session').value`.
-> - Middleware uses the [Edge Runtime](/docs/app/api-reference/edge), check if your Auth library and session management library are compatible.
-> - You can use the `matcher` property in the Middleware to specify which routes Middleware should run on. Although, for auth, it's recommended Middleware runs on all routes.
+> - In Proxy, you can also read cookies using `req.cookies.get('session').value`.
+> - Proxy uses the [Edge Runtime](/docs/app/api-reference/edge), check if your Auth library and session management library are compatible.
+> - You can use the `matcher` property in the Proxy to specify which routes Proxy should run on. Although, for auth, it's recommended Proxy runs on all routes.
 
 <AppOnly>
 
@@ -1226,7 +1226,7 @@ export const getUser = cache(async () => {
 
 > **Tip**:
 >
-> - A DAL can be used to protect data fetched at request time. However, for static routes that share data between users, data will be fetched at build time and not at request time. Use [Middleware](#optimistic-checks-with-middleware-optional) to protect static routes.
+> - A DAL can be used to protect data fetched at request time. However, for static routes that share data between users, data will be fetched at build time and not at request time. Use [Proxy](#optimistic-checks-with-proxy-optional) to protect static routes.
 > - For secure checks, you can check if the session is valid by comparing the session ID with your database. Use React's [cache](https://react.dev/reference/react/cache) function to avoid unnecessary duplicate requests to the database during a render pass.
 > - You may wish to consolidate related data requests in a JavaScript class that runs `verifySession()` before any methods.
 

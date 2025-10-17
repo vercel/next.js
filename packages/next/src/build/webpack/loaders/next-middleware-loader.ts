@@ -1,5 +1,5 @@
 import type {
-  MiddlewareConfig,
+  ProxyConfig,
   MiddlewareMatcher,
 } from '../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from './get-module-build-info'
@@ -45,7 +45,7 @@ export default async function middlewareLoader(this: any) {
     absolutePagePath
   )
 
-  const middlewareConfig: MiddlewareConfig = JSON.parse(
+  const middlewareConfig: ProxyConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
   )
   const buildInfo = getModuleBuildInfo(this._module)
@@ -70,5 +70,8 @@ export default async function middlewareLoader(this: any) {
   return await loadEntrypoint('middleware', {
     VAR_USERLAND: pagePath,
     VAR_DEFINITION_PAGE: page,
+    // Turbopack sets `VAR_USERLAND` to `INNER_MIDDLEWARE_MODULE`, so use
+    // `VAR_MODULE_RELATIVE_PATH` for error messages.
+    VAR_MODULE_RELATIVE_PATH: pagePath,
   })
 }

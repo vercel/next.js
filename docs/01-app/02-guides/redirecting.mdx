@@ -6,7 +6,7 @@ related:
   links:
     - app/api-reference/functions/redirect
     - app/api-reference/functions/permanentRedirect
-    - app/api-reference/file-conventions/middleware
+    - app/api-reference/file-conventions/proxy
     - app/api-reference/config/next-config-js/redirects
 ---
 
@@ -14,23 +14,23 @@ There are a few ways you can handle redirects in Next.js. This page will go thro
 
 <AppOnly>
 
-| API                                                            | Purpose                                           | Where                                             | Status Code                            |
-| -------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------- | -------------------------------------- |
-| [`redirect`](#redirect-function)                               | Redirect user after a mutation or event           | Server Components, Server Actions, Route Handlers | 307 (Temporary) or 303 (Server Action) |
-| [`permanentRedirect`](#permanentredirect-function)             | Redirect user after a mutation or event           | Server Components, Server Actions, Route Handlers | 308 (Permanent)                        |
-| [`useRouter`](#userouter-hook)                                 | Perform a client-side navigation                  | Event Handlers in Client Components               | N/A                                    |
-| [`redirects` in `next.config.js`](#redirects-in-nextconfigjs)  | Redirect an incoming request based on a path      | `next.config.js` file                             | 307 (Temporary) or 308 (Permanent)     |
-| [`NextResponse.redirect`](#nextresponseredirect-in-middleware) | Redirect an incoming request based on a condition | Middleware                                        | Any                                    |
+| API                                                           | Purpose                                           | Where                                             | Status Code                            |
+| ------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------- | -------------------------------------- |
+| [`redirect`](#redirect-function)                              | Redirect user after a mutation or event           | Server Components, Server Actions, Route Handlers | 307 (Temporary) or 303 (Server Action) |
+| [`permanentRedirect`](#permanentredirect-function)            | Redirect user after a mutation or event           | Server Components, Server Actions, Route Handlers | 308 (Permanent)                        |
+| [`useRouter`](#userouter-hook)                                | Perform a client-side navigation                  | Event Handlers in Client Components               | N/A                                    |
+| [`redirects` in `next.config.js`](#redirects-in-nextconfigjs) | Redirect an incoming request based on a path      | `next.config.js` file                             | 307 (Temporary) or 308 (Permanent)     |
+| [`NextResponse.redirect`](#nextresponseredirect-in-proxy)     | Redirect an incoming request based on a condition | Proxy                                             | Any                                    |
 
 </AppOnly>
 
 <PagesOnly>
 
-| API                                                            | Purpose                                           | Where                 | Status Code                        |
-| -------------------------------------------------------------- | ------------------------------------------------- | --------------------- | ---------------------------------- |
-| [`useRouter`](#userouter-hook)                                 | Perform a client-side navigation                  | Components            | N/A                                |
-| [`redirects` in `next.config.js`](#redirects-in-nextconfigjs)  | Redirect an incoming request based on a path      | `next.config.js` file | 307 (Temporary) or 308 (Permanent) |
-| [`NextResponse.redirect`](#nextresponseredirect-in-middleware) | Redirect an incoming request based on a condition | Middleware            | Any                                |
+| API                                                           | Purpose                                           | Where                 | Status Code                        |
+| ------------------------------------------------------------- | ------------------------------------------------- | --------------------- | ---------------------------------- |
+| [`useRouter`](#userouter-hook)                                | Perform a client-side navigation                  | Components            | N/A                                |
+| [`redirects` in `next.config.js`](#redirects-in-nextconfigjs) | Redirect an incoming request based on a path      | `next.config.js` file | 307 (Temporary) or 308 (Permanent) |
+| [`NextResponse.redirect`](#nextresponseredirect-in-proxy)     | Redirect an incoming request based on a condition | Proxy                 | Any                                |
 
 </PagesOnly>
 
@@ -84,7 +84,7 @@ export async function createPost(id) {
 > - `redirect` throws an error so it should be called **outside** the `try` block when using `try/catch` statements.
 > - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
 > - `redirect` also accepts absolute URLs and can be used to redirect to external links.
-> - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Middleware](#nextresponseredirect-in-middleware).
+> - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Proxy](#nextresponseredirect-in-proxy).
 
 See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) for more information.
 
@@ -134,7 +134,7 @@ export async function updateUsername(username, formData) {
 >
 > - `permanentRedirect` returns a 308 (permanent redirect) status code by default.
 > - `permanentRedirect` also accepts absolute URLs and can be used to redirect to external links.
-> - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Middleware](#nextresponseredirect-in-middleware).
+> - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Proxy](#nextresponseredirect-in-proxy).
 
 See the [`permanentRedirect` API reference](/docs/app/api-reference/functions/permanentRedirect) for more information.
 
@@ -289,20 +289,20 @@ See the [`redirects` API reference](/docs/app/api-reference/config/next-config-j
 > **Good to know**:
 >
 > - `redirects` can return a 307 (Temporary Redirect) or 308 (Permanent Redirect) status code with the `permanent` option.
-> - `redirects` may have a limit on platforms. For example, on Vercel, there's a limit of 1,024 redirects. To manage a large number of redirects (1000+), consider creating a custom solution using [Middleware](/docs/app/api-reference/file-conventions/middleware). See [managing redirects at scale](#managing-redirects-at-scale-advanced) for more.
-> - `redirects` runs **before** Middleware.
+> - `redirects` may have a limit on platforms. For example, on Vercel, there's a limit of 1,024 redirects. To manage a large number of redirects (1000+), consider creating a custom solution using [Proxy](/docs/app/api-reference/file-conventions/proxy). See [managing redirects at scale](#managing-redirects-at-scale-advanced) for more.
+> - `redirects` runs **before** Proxy.
 
-## `NextResponse.redirect` in Middleware
+## `NextResponse.redirect` in Proxy
 
-Middleware allows you to run code before a request is completed. Then, based on the incoming request, redirect to a different URL using `NextResponse.redirect`. This is useful if you want to redirect users based on a condition (e.g. authentication, session management, etc) or have [a large number of redirects](#managing-redirects-at-scale-advanced).
+Proxy allows you to run code before a request is completed. Then, based on the incoming request, redirect to a different URL using `NextResponse.redirect`. This is useful if you want to redirect users based on a condition (e.g. authentication, session management, etc) or have [a large number of redirects](#managing-redirects-at-scale-advanced).
 
 For example, to redirect the user to a `/login` page if they are not authenticated:
 
-```ts filename="middleware.ts" switcher
+```ts filename="proxy.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
 import { authenticate } from 'auth-provider'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const isAuthenticated = authenticate(request)
 
   // If the user is authenticated, continue as normal
@@ -319,11 +319,11 @@ export const config = {
 }
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 import { NextResponse } from 'next/server'
 import { authenticate } from 'auth-provider'
 
-export function middleware(request) {
+export function proxy(request) {
   const isAuthenticated = authenticate(request)
 
   // If the user is authenticated, continue as normal
@@ -342,20 +342,20 @@ export const config = {
 
 > **Good to know**:
 >
-> - Middleware runs **after** `redirects` in `next.config.js` and **before** rendering.
+> - Proxy runs **after** `redirects` in `next.config.js` and **before** rendering.
 
-See the [Middleware](/docs/app/api-reference/file-conventions/middleware) documentation for more information.
+See the [Proxy](/docs/app/api-reference/file-conventions/proxy) documentation for more information.
 
 ## Managing redirects at scale (advanced)
 
-To manage a large number of redirects (1000+), you may consider creating a custom solution using Middleware. This allows you to handle redirects programmatically without having to redeploy your application.
+To manage a large number of redirects (1000+), you may consider creating a custom solution using Proxy. This allows you to handle redirects programmatically without having to redeploy your application.
 
 To do this, you'll need to consider:
 
 1. Creating and storing a redirect map.
 2. Optimizing data lookup performance.
 
-> **Next.js Example**: See our [Middleware with Bloom filter](https://redirects-bloom-filter.vercel.app/) example for an implementation of the recommendations below.
+> **Next.js Example**: See our [Proxy with Bloom filter](https://redirects-bloom-filter.vercel.app/) example for an implementation of the recommendations below.
 
 ### 1. Creating and storing a redirect map
 
@@ -376,9 +376,9 @@ Consider the following data structure:
 }
 ```
 
-In [Middleware](/docs/app/api-reference/file-conventions/middleware), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/edge-config/get-started) or [Redis](https://vercel.com/docs/redis), and redirect the user based on the incoming request:
+In [Proxy](/docs/app/api-reference/file-conventions/proxy), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/edge-config/get-started) or [Redis](https://vercel.com/docs/redis), and redirect the user based on the incoming request:
 
-```ts filename="middleware.ts" switcher
+```ts filename="proxy.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
 import { get } from '@vercel/edge-config'
 
@@ -387,7 +387,7 @@ type RedirectEntry = {
   permanent: boolean
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const redirectData = await get(pathname)
 
@@ -402,11 +402,11 @@ export async function middleware(request: NextRequest) {
 }
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 import { NextResponse } from 'next/server'
 import { get } from '@vercel/edge-config'
 
-export async function middleware(request) {
+export async function proxy(request) {
   const pathname = request.nextUrl.pathname
   const redirectData = await get(pathname)
 
@@ -428,11 +428,11 @@ Reading a large dataset for every incoming request can be slow and expensive. Th
 - Use a database that is optimized for fast reads
 - Use a data lookup strategy such as a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter) to efficiently check if a redirect exists **before** reading the larger redirects file or database.
 
-Considering the previous example, you can import a generated bloom filter file into Middleware, then, check if the incoming request pathname exists in the bloom filter.
+Considering the previous example, you can import a generated bloom filter file into Proxy, then, check if the incoming request pathname exists in the bloom filter.
 
-If it does, forward the request to a <AppOnly>[Route Handler](/docs/app/api-reference/file-conventions/route)</AppOnly> <PagesOnly>[API Routes](/docs/pages/building-your-application/routing/api-routes)</PagesOnly> which will check the actual file and redirect the user to the appropriate URL. This avoids importing a large redirects file into Middleware, which can slow down every incoming request.
+If it does, forward the request to a <AppOnly>[Route Handler](/docs/app/api-reference/file-conventions/route)</AppOnly> <PagesOnly>[API Routes](/docs/pages/building-your-application/routing/api-routes)</PagesOnly> which will check the actual file and redirect the user to the appropriate URL. This avoids importing a large redirects file into Proxy, which can slow down every incoming request.
 
-```ts filename="middleware.ts" switcher
+```ts filename="proxy.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
 import { ScalableBloomFilter } from 'bloom-filters'
 import GeneratedBloomFilter from './redirects/bloom-filter.json'
@@ -445,7 +445,7 @@ type RedirectEntry = {
 // Initialize bloom filter from a generated JSON file
 const bloomFilter = ScalableBloomFilter.fromJSON(GeneratedBloomFilter as any)
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Get the path for the incoming request
   const pathname = request.nextUrl.pathname
 
@@ -483,7 +483,7 @@ export async function middleware(request: NextRequest) {
 }
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 import { NextResponse } from 'next/server'
 import { ScalableBloomFilter } from 'bloom-filters'
 import GeneratedBloomFilter from './redirects/bloom-filter.json'
@@ -491,7 +491,7 @@ import GeneratedBloomFilter from './redirects/bloom-filter.json'
 // Initialize bloom filter from a generated JSON file
 const bloomFilter = ScalableBloomFilter.fromJSON(GeneratedBloomFilter)
 
-export async function middleware(request) {
+export async function proxy(request) {
   // Get the path for the incoming request
   const pathname = request.nextUrl.pathname
 

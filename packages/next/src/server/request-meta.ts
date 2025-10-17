@@ -1,4 +1,3 @@
-/* eslint-disable no-redeclare */
 import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
@@ -263,6 +262,14 @@ export interface RequestMeta {
    * DEV only: The fallback params that should be used when validating prerenders during dev
    */
   devValidatingFallbackParams?: OpaqueFallbackRouteParams
+
+  /**
+   * DEV only: Request timings in process.hrtime.bigint()
+   */
+  devRequestTimingStart?: bigint
+  devRequestTimingMiddlewareStart?: bigint
+  devRequestTimingMiddlewareEnd?: bigint
+  devRequestTimingInternalsEnd?: bigint
 }
 
 /**

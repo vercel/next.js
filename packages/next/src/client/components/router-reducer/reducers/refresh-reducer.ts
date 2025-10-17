@@ -121,14 +121,9 @@ export function refreshReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head,
-            undefined
+            head
           )
-          if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-            revalidateEntireCache(state.nextUrl, newTree)
-          } else {
-            mutable.prefetchCache = new Map()
-          }
+          revalidateEntireCache(state.nextUrl, newTree)
         }
 
         await refreshInactiveParallelSegments({

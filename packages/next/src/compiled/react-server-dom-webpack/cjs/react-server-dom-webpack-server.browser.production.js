@@ -459,7 +459,7 @@ function getChildFormatContext(parentContext, type, props) {
             });
             break;
           case "stylesheet":
-            preload(srcSet, "stylesheet", {
+            preload(srcSet, "style", {
               crossOrigin: props.crossOrigin,
               integrity: props.integrity,
               nonce: props.nonce,

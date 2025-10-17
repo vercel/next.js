@@ -108,7 +108,7 @@ function createPrerenderRootParamPromise(
 
   switch (prerenderStore.type) {
     case 'prerender': {
-      // We are in a dynamicIO prerender.
+      // We are in a cacheComponents prerender.
       // The param is a fallback, so it should be treated as dynamic.
       if (
         prerenderStore.fallbackRouteParams &&
@@ -123,7 +123,7 @@ function createPrerenderRootParamPromise(
       break
     }
     case 'prerender-ppr': {
-      // We aren't in a dynamicIO prerender, but the param is a fallback,
+      // We aren't in a cacheComponents prerender, but the param is a fallback,
       // so we need to make an erroring params object which will postpone/error if you access it
       if (
         prerenderStore.fallbackRouteParams &&
@@ -162,7 +162,7 @@ async function makeErroringRootParamPromise(
   // In most dynamic APIs, we also throw if `dynamic = "error"`.
   // However, root params are only dynamic when we're generating a fallback shell,
   // and even with `dynamic = "error"` we still support generating dynamic fallback shells.
-  // TODO: remove this comment when dynamicIO is the default since there will be no `dynamic = "error"`
+  // TODO: remove this comment when cacheComponents is the default since there will be no `dynamic = "error"`
   switch (prerenderStore.type) {
     case 'prerender-ppr': {
       return postponeWithTracking(

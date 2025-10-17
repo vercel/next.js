@@ -542,7 +542,6 @@ export function hasEntrypointForKey(
         )
     default: {
       // validation that we covered all cases, this should never run.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _: never = type
       return false
     }

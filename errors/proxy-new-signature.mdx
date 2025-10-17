@@ -1,0 +1,37 @@
+---
+title: Deprecated Proxy API Signature
+---
+
+## Why This Error Occurred
+
+Your application is using a Proxy function that is using parameters from the deprecated API.
+
+```ts filename="proxy.ts"
+import { NextResponse } from 'next/server'
+
+export function proxy(event) {
+  if (event.request.nextUrl.pathname === '/blocked') {
+    event.respondWith(
+      new NextResponse(null, {
+        status: 403,
+      })
+    )
+  }
+}
+```
+
+## Possible Ways to Fix It
+
+Update to use the new API for Proxy:
+
+```ts filename="proxy.ts"
+import { NextResponse } from 'next/server'
+
+export function proxy(request) {
+  if (request.nextUrl.pathname === '/blocked') {
+    return new NextResponse(null, {
+      status: 403,
+    })
+  }
+}
+```

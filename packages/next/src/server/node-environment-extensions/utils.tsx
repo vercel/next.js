@@ -86,7 +86,7 @@ export function io(expression: string, type: ApiType) {
       break
     }
     case 'request':
-      if (workUnitStore.prerenderPhase === true) {
+      if (process.env.NODE_ENV === 'development') {
         trackSynchronousPlatformIOAccessInDev(workUnitStore)
       }
       break

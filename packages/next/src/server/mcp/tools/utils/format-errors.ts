@@ -125,46 +125,74 @@ async function formatRuntimeError(
 }
 
 export async function formatErrors(
-  errorsByUrl: Map<string, OverlayState>
+  errorsByUrl: Map<string, OverlayState>,
+  nextInstanceErrors: { nextConfig: unknown[] } = { nextConfig: [] }
 ): Promise<string> {
-  let output = `# Found errors in ${errorsByUrl.size} browser session(s)\n\n`
+  let output = ''
 
-  for (const [url, overlayState] of errorsByUrl) {
-    const totalErrorCount =
-      overlayState.errors.length + (overlayState.buildError ? 1 : 0)
+  // Format Next.js instance errors first (e.g., next.config.js errors)
+  if (nextInstanceErrors.nextConfig.length > 0) {
+    output += `# Next.js Configuration Errors\n\n`
+    output += `**${nextInstanceErrors.nextConfig.length} error(s) found in next.config**\n\n`
 
-    if (totalErrorCount === 0) continue
-
-    let displayUrl = url
-    try {
-      const urlObj = new URL(url)
-      displayUrl = urlObj.pathname + urlObj.search + urlObj.hash
-    } catch {
-      // If URL parsing fails, use the original URL
-    }
-
-    output += `## Session: ${displayUrl}\n\n`
-    output += `**${totalErrorCount} error(s) found**\n\n`
-
-    // Build errors
-    if (overlayState.buildError) {
-      output += '### Build Error\n\n'
+    nextInstanceErrors.nextConfig.forEach((error, index) => {
+      output += `## Error ${index + 1}\n\n`
       output += '```\n'
-      output += overlayState.buildError
+      if (error instanceof Error) {
+        output += `${error.name}: ${error.message}\n`
+        if (error.stack) {
+          output += error.stack
+        }
+      } else {
+        output += String(error)
+      }
       output += '\n```\n\n'
-    }
-
-    // Runtime errors with source-mapped stack traces
-    if (overlayState.errors.length > 0) {
-      const runtimeErrors = await formatRuntimeError(
-        overlayState.errors,
-        overlayState.routerType === 'app'
-      )
-      output += runtimeErrors
-      output += '\n'
-    }
+    })
 
     output += '---\n\n'
+  }
+
+  // Format browser session errors
+  if (errorsByUrl.size > 0) {
+    output += `# Found errors in ${errorsByUrl.size} browser session(s)\n\n`
+
+    for (const [url, overlayState] of errorsByUrl) {
+      const totalErrorCount =
+        overlayState.errors.length + (overlayState.buildError ? 1 : 0)
+
+      if (totalErrorCount === 0) continue
+
+      let displayUrl = url
+      try {
+        const urlObj = new URL(url)
+        displayUrl = urlObj.pathname + urlObj.search + urlObj.hash
+      } catch {
+        // If URL parsing fails, use the original URL
+      }
+
+      output += `## Session: ${displayUrl}\n\n`
+      output += `**${totalErrorCount} error(s) found**\n\n`
+
+      // Build errors
+      if (overlayState.buildError) {
+        output += '### Build Error\n\n'
+        output += '```\n'
+        output += overlayState.buildError
+        output += '\n```\n\n'
+      }
+
+      // Runtime errors with source-mapped stack traces
+      if (overlayState.errors.length > 0) {
+        const runtimeErrors = await formatRuntimeError(
+          overlayState.errors,
+          overlayState.routerType === 'app'
+        )
+        output += runtimeErrors
+        output += '\n'
+      }
+
+      output += '---\n\n'
+    }
   }
 
   return output.trim()

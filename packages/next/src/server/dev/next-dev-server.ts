@@ -466,8 +466,14 @@ export default class DevServer extends Server {
       const loggingConfig = this.nextConfig.logging
 
       if (loggingConfig !== false) {
-        const start = Date.now()
-        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
+        // The closure variable is not used here because the request handler may be invoked twice for one request when middleware is added in the application.
+        // By setting the start time we can ensure that the middleware timing is correctly included.
+        if (!getRequestMeta(req, 'devRequestTimingStart')) {
+          const requestStart = process.hrtime.bigint()
+          addRequestMeta(req, 'devRequestTimingStart', requestStart)
+        }
+        const isMiddlewareRequest =
+          getRequestMeta(req, 'middlewareInvoke') ?? false
 
         if (!isMiddlewareRequest) {
           response.originalResponse.once('close', () => {
@@ -480,12 +486,22 @@ export default class DevServer extends Server {
               return
             }
 
-            logRequests({
+            // The closure variable is not used here because the request handler may be invoked twice for one request when middleware is added in the application.
+            // By setting the start time we can ensure that the middleware timing is correctly included.
+            const requestStart = getRequestMeta(req, 'devRequestTimingStart')
+            if (!requestStart) {
+              return
+            }
+            const requestEnd = process.hrtime.bigint()
+            logRequests(
               request,
               response,
               loggingConfig,
-              requestDurationInMs: Date.now() - start,
-            })
+              requestStart,
+              requestEnd,
+              getRequestMeta(req, 'devRequestTimingMiddlewareStart'),
+              getRequestMeta(req, 'devRequestTimingMiddlewareEnd')
+            )
           })
         }
       }

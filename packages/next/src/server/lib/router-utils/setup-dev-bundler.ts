@@ -113,7 +113,7 @@ export interface DevRoutesManifest {
   redirects: RoutesManifest['redirects']
   headers: RoutesManifest['headers']
   i18n: RoutesManifest['i18n']
-  skipMiddlewareUrlNormalize: RoutesManifest['skipMiddlewareUrlNormalize']
+  skipProxyUrlNormalize: RoutesManifest['skipProxyUrlNormalize']
 }
 
 export type ServerFields = {
@@ -145,6 +145,7 @@ async function verifyTypeScript(opts: SetupOpts) {
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
+    isolatedDevBuild: opts.nextConfig.experimental.isolatedDevBuild,
   })
 
   if (verifyResult.version) {
@@ -253,7 +254,7 @@ async function startWatcher(
     redirects: opts.fsChecker.redirects,
     headers: opts.fsChecker.headers,
     i18n: nextConfig.i18n || undefined,
-    skipMiddlewareUrlNormalize: nextConfig.skipMiddlewareUrlNormalize,
+    skipProxyUrlNormalize: nextConfig.skipProxyUrlNormalize,
   }
   await fs.promises.writeFile(
     routesManifestPath,
@@ -392,26 +393,6 @@ async function startWatcher(
 
       let hasMiddlewareFile = false
       let hasProxyFile = false
-      for (const fileName of sortedKnownFiles) {
-        const { name } = path.parse(fileName)
-        if (name === MIDDLEWARE_FILENAME) {
-          hasMiddlewareFile = true
-        }
-        if (name === PROXY_FILENAME) {
-          hasProxyFile = true
-        }
-      }
-
-      if (hasMiddlewareFile) {
-        if (hasProxyFile) {
-          throw new Error(
-            `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
-          )
-        }
-        Log.warn(
-          `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
-        )
-      }
 
       for (const fileName of sortedKnownFiles) {
         if (
@@ -420,6 +401,30 @@ async function startWatcher(
         ) {
           continue
         }
+
+        const { name: fileBaseName, dir: fileDir } = path.parse(fileName)
+
+        const isAtConventionLevel =
+          fileDir === dir || fileDir === path.join(dir, 'src')
+
+        if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
+          hasMiddlewareFile = true
+        }
+        if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+          hasProxyFile = true
+        }
+
+        if (hasMiddlewareFile) {
+          if (hasProxyFile) {
+            throw new Error(
+              `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
+            )
+          }
+          Log.warnOnce(
+            `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
+          )
+        }
+
         const meta = knownFiles.get(fileName)
 
         const watchTime = fileWatchTimes.get(fileName)
