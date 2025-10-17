@@ -54,7 +54,7 @@ export type MiddlewareMatcher = {
 
 export type ProxyConfig = {
   /**
-   * The matcher for the middleware. Read more: [Next.js Docs: Middleware `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/middleware#matcher),
+   * The matcher for the middleware. Read more: [Next.js Docs: Middleware `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/proxy#matcher),
    * [Next.js Docs: Middleware matching paths](https://nextjs.org/docs/app/building-your-application/routing/middleware#matching-paths)
    */
   matchers?: MiddlewareMatcher[]

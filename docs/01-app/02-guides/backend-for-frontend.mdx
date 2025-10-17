@@ -27,7 +27,7 @@ npx create-next-app@latest --api
 To implement this pattern, use:
 
 - [Route Handlers](/docs/app/api-reference/file-conventions/route)
-- [`middleware`](/docs/app/api-reference/file-conventions/middleware)
+- [`middleware`](/docs/app/api-reference/file-conventions/proxy)
 - In Pages Router, [API Routes](/docs/pages/building-your-application/routing/api-routes)
 
 ## Public Endpoints
@@ -559,7 +559,7 @@ Learn more about redirects in [`redirect`](/docs/app/api-reference/functions/red
 
 ## Middleware
 
-Only one middleware file is allowed per project. Use `config.matcher` to target specific paths. Learn more about [middleware](/docs/app/api-reference/file-conventions/middleware).
+Only one middleware file is allowed per project. Use `config.matcher` to target specific paths. Learn more about [middleware](/docs/app/api-reference/file-conventions/proxy).
 
 Use `middleware` to generate a response before the request reaches a route path.
 
@@ -742,9 +742,9 @@ export default createMiddleware()
 
 ## More examples
 
-See more examples on using [Router Handlers](/docs/app/api-reference/file-conventions/route#examples) and the [`middleware`](/docs/app/api-reference/file-conventions/middleware#examples) API references.
+See more examples on using [Router Handlers](/docs/app/api-reference/file-conventions/route#examples) and the [`middleware`](/docs/app/api-reference/file-conventions/proxy#examples) API references.
 
-These examples include, working with [Cookies](/docs/app/api-reference/file-conventions/route#cookies), [Headers](/docs/app/api-reference/file-conventions/route#headers), [Streaming](/docs/app/api-reference/file-conventions/route#streaming), Middleware [negative matching](/docs/app/api-reference/file-conventions/middleware#negative-matching), and other useful code snippets.
+These examples include, working with [Cookies](/docs/app/api-reference/file-conventions/route#cookies), [Headers](/docs/app/api-reference/file-conventions/route#headers), [Streaming](/docs/app/api-reference/file-conventions/route#streaming), Middleware [negative matching](/docs/app/api-reference/file-conventions/proxy#negative-matching), and other useful code snippets.
 
 ## Caveats
 
