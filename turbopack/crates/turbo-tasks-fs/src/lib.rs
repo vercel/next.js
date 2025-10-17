@@ -745,8 +745,8 @@ impl FileSystem for DiskFileSystem {
                 // we filter out any non unicode names
                 let file_name: RcStr = e.file_name().to_str()?.into();
                 // Filter out denied entries
-                if let Some(denied_entry) = denied_entry
-                    && denied_entry == file_name.as_str()
+                if let Some(denied_name) = denied_entry
+                    && denied_name == file_name.as_str()
                 {
                     return None;
                 }

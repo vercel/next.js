@@ -675,9 +675,9 @@ impl Project {
             Some(dist_dir_root) => dist_dir_root.into(),
             None => {
                 bail!(
-                    "Invalid distDirRoot: {dist_dir_root:?}. distDirRoot should not navigate out \
-                     of the projectPath.",
-                    dist_dir_root = self.dist_dir_root
+                    "Invalid distDirRoot: {:?}. distDirRoot should not navigate out of the \
+                     projectPath.",
+                    self.dist_dir_root
                 );
             }
         };
