@@ -790,13 +790,14 @@ export function listenForDynamicRequest(
   responsePromise: Promise<FetchServerResponseResult>
 ) {
   responsePromise.then(
-    ({ flightData, debugInfo }: FetchServerResponseResult) => {
-      if (typeof flightData === 'string') {
+    (result: FetchServerResponseResult) => {
+      if (typeof result === 'string') {
         // Happens when navigating to page in `pages` from `app`. We shouldn't
         // get here because should have already handled this during
         // the prefetch.
         return
       }
+      const { flightData, debugInfo } = result
       for (const normalizedFlightData of flightData) {
         const {
           segmentPath,

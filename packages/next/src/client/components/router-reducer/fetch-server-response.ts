@@ -63,15 +63,21 @@ export interface FetchServerResponseOptions {
   readonly isHmrRefresh?: boolean
 }
 
-export type FetchServerResponseResult = {
-  flightData: NormalizedFlightData[] | string
-  canonicalUrl: URL | undefined
+type SpaFetchServerResponseResult = {
+  flightData: NormalizedFlightData[]
+  canonicalUrl: URL
   couldBeIntercepted: boolean
   prerendered: boolean
   postponed: boolean
   staleTime: number
   debugInfo: Array<any> | null
 }
+
+type MpaFetchServerResponseResult = string
+
+export type FetchServerResponseResult =
+  | MpaFetchServerResponseResult
+  | SpaFetchServerResponseResult
 
 export type RequestHeaders = {
   [RSC_HEADER]?: '1'
@@ -88,17 +94,7 @@ export type RequestHeaders = {
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
-  return {
-    flightData: urlToUrlWithoutFlightMarker(
-      new URL(url, location.origin)
-    ).toString(),
-    canonicalUrl: undefined,
-    couldBeIntercepted: false,
-    prerendered: false,
-    postponed: false,
-    staleTime: -1,
-    debugInfo: null,
-  }
+  return urlToUrlWithoutFlightMarker(new URL(url, location.origin)).toString()
 }
 
 let abortController = new AbortController()
@@ -197,7 +193,7 @@ export async function fetchServerResponse(
     )
 
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
-    const canonicalUrl = res.redirected ? responseUrl : undefined
+    const canonicalUrl = res.redirected ? responseUrl : url
 
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
@@ -266,8 +262,13 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
+    const normalizedFlightData = normalizeFlightData(flightResponse.f)
+    if (typeof normalizedFlightData === 'string') {
+      return doMpaNavigation(normalizedFlightData)
+    }
+
     return {
-      flightData: normalizeFlightData(flightResponse.f),
+      flightData: normalizedFlightData,
       canonicalUrl: canonicalUrl,
       couldBeIntercepted: interception,
       prerendered: flightResponse.S,
@@ -286,15 +287,7 @@ export async function fetchServerResponse(
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
-    return {
-      flightData: url.toString(),
-      canonicalUrl: undefined,
-      couldBeIntercepted: false,
-      prerendered: false,
-      postponed: false,
-      staleTime: -1,
-      debugInfo: null,
-    }
+    return url.toString()
   }
 }
 

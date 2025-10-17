@@ -15,7 +15,7 @@ import {
   listenForDynamicRequest,
   type Task as PPRNavigationTask,
 } from '../router-reducer/ppr-navigations'
-import { createHrefFromUrl as createCanonicalUrl } from '../router-reducer/create-href-from-url'
+import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
   EntryStatus,
   readRouteCacheEntry,
@@ -431,23 +431,19 @@ async function navigateDynamicallyWithNoPrefetch(
     flightRouterState: currentFlightRouterState,
     nextUrl,
   })
-  const {
-    flightData,
-    canonicalUrl: canonicalUrlOverride,
-    debugInfo: debugInfoFromResponse,
-  } = await promiseForDynamicServerResponse
-
-  if (debugInfoFromResponse !== null) {
-    collectedDebugInfo.push(...debugInfoFromResponse)
-  }
-
-  if (typeof flightData === 'string') {
+  const result = await promiseForDynamicServerResponse
+  if (typeof result === 'string') {
     // This is an MPA navigation.
-    const newUrl = flightData
+    const newUrl = result
     return {
       tag: NavigationResultTag.MPA,
       data: newUrl,
     }
+  }
+
+  const { flightData, canonicalUrl, debugInfo: debugInfoFromResponse } = result
+  if (debugInfoFromResponse !== null) {
+    collectedDebugInfo.push(...debugInfoFromResponse)
   }
 
   // Since the response format of dynamic requests and prefetches is slightly
@@ -463,10 +459,6 @@ async function navigateDynamicallyWithNoPrefetch(
   const prefetchSeedData = null
   const prefetchHead = null
   const isPrefetchHeadPartial = true
-
-  const canonicalUrl = createCanonicalUrl(
-    canonicalUrlOverride ? canonicalUrlOverride : url
-  )
 
   // Now we proceed exactly as we would for normal navigation.
   const scrollableSegments: Array<FlightSegmentPath> = []
@@ -501,7 +493,7 @@ async function navigateDynamicallyWithNoPrefetch(
     return navigationTaskToResult(
       task,
       currentCacheNode,
-      canonicalUrl,
+      createHrefFromUrl(canonicalUrl),
       scrollableSegments,
       shouldScroll,
       hash
@@ -512,7 +504,7 @@ async function navigateDynamicallyWithNoPrefetch(
   return {
     tag: NavigationResultTag.NoOp,
     data: {
-      canonicalUrl,
+      canonicalUrl: createHrefFromUrl(canonicalUrl),
       shouldScroll,
     },
   }
