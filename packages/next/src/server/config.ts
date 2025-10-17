@@ -22,7 +22,7 @@ import { loadWebpackHook } from './config-utils'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import type { ImageConfig } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
-import { flushAndExit } from '../telemetry/flush-and-exit'
+import { flushTelemetry } from '../telemetry/flush-telemetry'
 import {
   findRootDirAndLockFiles,
   warnDuplicatedLockFiles,
@@ -46,46 +46,55 @@ import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
+import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 function normalizeNextConfigZodErrors(
   error: ZodError<NextConfig>
-): [errorMessages: string[], shouldExit: boolean] {
-  let shouldExit = false
+): [warnings: string[], fatalErrors: string[]] {
+  const warnings: string[] = []
+  const fatalErrors: string[] = []
   const issues = normalizeZodErrors(error)
-  return [
-    issues.flatMap(({ issue, message }) => {
-      if (issue.path[0] === 'images') {
-        // We exit the build when encountering an error in the images config
-        shouldExit = true
-      }
-      if (
-        issue.code === 'unrecognized_keys' &&
-        issue.path[0] === 'experimental'
-      ) {
-        if (message.includes('turbopackPersistentCachingForBuild')) {
-          // We exit the build when encountering an error in the turbopackPersistentCaching config
-          shouldExit = true
-          message +=
-            "\nUse 'experimental.turbopackFileSystemCacheForBuild' instead."
-          message +=
-            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
-        } else if (message.includes('turbopackPersistentCaching')) {
-          // We exit the build when encountering an error in the turbopackPersistentCaching config
-          shouldExit = true
-          message +=
-            "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
-          message +=
-            '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
-        }
-      }
 
-      return message
-    }),
-    shouldExit,
-  ]
+  for (const { issue, message: originalMessage } of issues) {
+    let message = originalMessage
+    let shouldExit = false
+
+    if (issue.path[0] === 'images') {
+      // We exit the build when encountering an error in the images config
+      shouldExit = true
+    }
+    if (
+      issue.code === 'unrecognized_keys' &&
+      issue.path[0] === 'experimental'
+    ) {
+      if (message.includes('turbopackPersistentCachingForBuild')) {
+        // We exit the build when encountering an error in the turbopackPersistentCaching config
+        shouldExit = true
+        message +=
+          "\nUse 'experimental.turbopackFileSystemCacheForBuild' instead."
+        message +=
+          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+      } else if (message.includes('turbopackPersistentCaching')) {
+        // We exit the build when encountering an error in the turbopackPersistentCaching config
+        shouldExit = true
+        message +=
+          "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
+        message +=
+          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+      }
+    }
+
+    if (shouldExit) {
+      fatalErrors.push(message)
+    } else {
+      warnings.push(message)
+    }
+  }
+
+  return [warnings, fatalErrors]
 }
 
 export function warnOptionHasBeenDeprecated(
@@ -121,14 +130,30 @@ function checkDeprecations(
   silent: boolean,
   dir: string
 ) {
-  if (userConfig.experimental?.dynamicIO !== undefined) {
-    warnOptionHasBeenDeprecated(
-      userConfig,
-      'experimental.dynamicIO',
-      `\`experimental.dynamicIO\` has been renamed to \`experimental.cacheComponents\`. Please update your ${configFileName} file accordingly.`,
-      silent
-    )
-  }
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.middlewarePrefetch',
+    `\`experimental.middlewarePrefetch\` is deprecated. Please use \`experimental.proxyPrefetch\` instead in ${configFileName}.`,
+    silent
+  )
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.middlewareClientMaxBodySize',
+    `\`experimental.middlewareClientMaxBodySize\` is deprecated. Please use \`experimental.proxyClientMaxBodySize\` instead in ${configFileName}.`,
+    silent
+  )
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.externalMiddlewareRewritesResolve',
+    `\`experimental.externalMiddlewareRewritesResolve\` is deprecated. Please use \`experimental.externalProxyRewritesResolve\` instead in ${configFileName}.`,
+    silent
+  )
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'skipMiddlewareUrlNormalize',
+    `\`skipMiddlewareUrlNormalize\` is deprecated. Please use \`skipProxyUrlNormalize\` instead in ${configFileName}.`,
+    silent
+  )
 
   warnOptionHasBeenDeprecated(
     userConfig,
@@ -235,7 +260,6 @@ function assignDefaultsAndValidate(
   dir: string,
   userConfig: NextConfig & { configFileName: string },
   silent: boolean,
-  configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
   phase: PHASE_TYPE
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
@@ -249,19 +273,6 @@ function assignDefaultsAndValidate(
       userConfig.trailingSlash = (userConfig as any).exportTrailingSlash
     }
     delete (userConfig as any).exportTrailingSlash
-  }
-
-  // Handle migration of experimental.dynamicIO to experimental.cacheComponents
-  if (userConfig.experimental?.dynamicIO !== undefined) {
-    // If cacheComponents was not explicitly set by the user (i.e., it's still the default value),
-    // use the dynamicIO value. We check against the user config, not the merged result.
-    if (userConfig.experimental?.cacheComponents === undefined) {
-      userConfig.experimental.cacheComponents =
-        userConfig.experimental.dynamicIO
-    }
-
-    // Remove the deprecated property
-    delete userConfig.experimental.dynamicIO
   }
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
@@ -696,6 +707,13 @@ function assignDefaultsAndValidate(
     configFileName,
     silent
   )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'enablePrerenderSourceMaps',
+    'enablePrerenderSourceMaps',
+    configFileName,
+    silent
+  )
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
@@ -719,18 +737,80 @@ function assignDefaultsAndValidate(
     }
   }
 
-  // Normalize & validate experimental.middlewareClientMaxBodySize
-  if (typeof result.experimental?.middlewareClientMaxBodySize !== 'undefined') {
-    const middlewareClientMaxBodySize =
-      result.experimental.middlewareClientMaxBodySize
+  // Throw if both Middleware and Proxy config are set.
+  if (
+    userConfig.experimental?.proxyClientMaxBodySize !== undefined &&
+    userConfig.experimental?.middlewareClientMaxBodySize !== undefined
+  ) {
+    throw new Error(
+      'Config options `experimental.proxyClientMaxBodySize` and `experimental.middlewareClientMaxBodySize` cannot be set at the same time. Please use `experimental.proxyClientMaxBodySize` instead.'
+    )
+  }
+  if (
+    userConfig.experimental?.proxyPrefetch !== undefined &&
+    userConfig.experimental?.middlewarePrefetch !== undefined
+  ) {
+    throw new Error(
+      'Config options `experimental.proxyPrefetch` and `experimental.middlewarePrefetch` cannot be set at the same time. Please use `experimental.proxyPrefetch` instead.'
+    )
+  }
+  if (
+    userConfig.experimental?.externalProxyRewritesResolve !== undefined &&
+    userConfig.experimental?.externalMiddlewareRewritesResolve !== undefined
+  ) {
+    throw new Error(
+      'Config options `experimental.externalProxyRewritesResolve` and `experimental.externalMiddlewareRewritesResolve` cannot be set at the same time. Please use `experimental.externalProxyRewritesResolve` instead.'
+    )
+  }
+  if (
+    userConfig.skipProxyUrlNormalize !== undefined &&
+    userConfig.skipMiddlewareUrlNormalize !== undefined
+  ) {
+    throw new Error(
+      'Config options `skipProxyUrlNormalize` and `skipMiddlewareUrlNormalize` cannot be set at the same time. Please use `skipProxyUrlNormalize` instead.'
+    )
+  }
+
+  // Map Proxy config to Middleware config as it is currently an alias.
+  if (
+    userConfig.experimental?.proxyClientMaxBodySize === undefined &&
+    userConfig.experimental?.middlewareClientMaxBodySize !== undefined
+  ) {
+    result.experimental.proxyClientMaxBodySize =
+      userConfig.experimental.middlewareClientMaxBodySize
+  }
+  if (
+    userConfig.experimental?.proxyPrefetch === undefined &&
+    userConfig.experimental?.middlewarePrefetch !== undefined
+  ) {
+    result.experimental.proxyPrefetch =
+      userConfig.experimental.middlewarePrefetch
+  }
+  if (
+    userConfig.experimental?.externalProxyRewritesResolve === undefined &&
+    userConfig.experimental?.externalMiddlewareRewritesResolve !== undefined
+  ) {
+    result.experimental.externalProxyRewritesResolve =
+      userConfig.experimental.externalMiddlewareRewritesResolve
+  }
+  if (
+    userConfig.skipProxyUrlNormalize === undefined &&
+    userConfig.skipMiddlewareUrlNormalize !== undefined
+  ) {
+    result.skipProxyUrlNormalize = userConfig.skipMiddlewareUrlNormalize
+  }
+
+  // Normalize & validate experimental.proxyClientMaxBodySize
+  if (typeof result.experimental?.proxyClientMaxBodySize !== 'undefined') {
+    const proxyClientMaxBodySize = result.experimental.proxyClientMaxBodySize
     let normalizedValue: number
 
-    if (typeof middlewareClientMaxBodySize === 'string') {
+    if (typeof proxyClientMaxBodySize === 'string') {
       const bytes =
         require('next/dist/compiled/bytes') as typeof import('next/dist/compiled/bytes')
-      normalizedValue = bytes.parse(middlewareClientMaxBodySize)
-    } else if (typeof middlewareClientMaxBodySize === 'number') {
-      normalizedValue = middlewareClientMaxBodySize
+      normalizedValue = bytes.parse(proxyClientMaxBodySize)
+    } else if (typeof proxyClientMaxBodySize === 'number') {
+      normalizedValue = proxyClientMaxBodySize
     } else {
       throw new Error(
         'Client Max Body Size must be a valid number (bytes) or filesize format string (e.g., "5mb")'
@@ -742,7 +822,7 @@ function assignDefaultsAndValidate(
     }
 
     // Store the normalized value as a number
-    result.experimental.middlewareClientMaxBodySize = normalizedValue
+    result.experimental.proxyClientMaxBodySize = normalizedValue
   }
 
   warnOptionHasBeenMovedOutOfExperimental(
@@ -1196,9 +1276,14 @@ function assignDefaultsAndValidate(
     result.experimental.mcpServer = true
   }
 
-  // TODO: remove once we've finished migrating internally to cacheComponents.
   if (result.experimental.cacheComponents) {
+    // TODO: remove once we've finished migrating internally to cacheComponents.
     result.experimental.ppr = true
+
+    // Prerender sourcemaps are enabled by default when using cacheComponents, unless explicitly disabled.
+    if (result.enablePrerenderSourceMaps === undefined) {
+      result.enablePrerenderSourceMaps = true
+    }
   }
 
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
@@ -1206,46 +1291,6 @@ function assignDefaultsAndValidate(
   // backwards compatibility.
   if (result.experimental.useCache === undefined) {
     result.experimental.useCache = result.experimental.cacheComponents
-  }
-
-  // If cacheComponents is enabled and the user hasn't configured
-  // rdcForNavigations, we enable it by default.
-  if (
-    result.experimental.cacheComponents &&
-    userConfig.experimental?.rdcForNavigations === undefined
-  ) {
-    result.experimental.rdcForNavigations = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'rdcForNavigations',
-        true,
-        'enabled by `experimental.cacheComponents`'
-      )
-    }
-  }
-
-  // If rdcForNavigations is enabled, but cacheComponents is not, we throw an error.
-  if (
-    result.experimental.rdcForNavigations &&
-    !result.experimental.cacheComponents
-  ) {
-    throw new Error(
-      '`experimental.rdcForNavigations` is enabled, but `experimental.cacheComponents` is not.'
-    )
-  }
-
-  // We require clientSegmentCache to be enabled if clientParamParsing is
-  // enabled. This is because clientParamParsing is only relevant when
-  // clientSegmentCache is enabled.
-  if (
-    result.experimental.clientParamParsing &&
-    !result.experimental.clientSegmentCache
-  ) {
-    throw new Error(
-      `\`experimental.clientParamParsing\` can not be \`true\` when \`experimental.clientSegmentCache\` is \`false\`. Client param parsing is only relevant when client segment cache is enabled.`
-    )
   }
 
   if (
@@ -1302,16 +1347,18 @@ function getCacheKey(
   dir: string,
   customConfig?: object | null,
   reactProductionProfiling?: boolean,
-  debugPrerender?: boolean
+  debugPrerender?: boolean,
+  pid?: number
 ): string {
   // The next.config.js is unique per project, so we can use the dir as the major key
-  // to generate the unique config key.
+  // to generate the unique config key. Include PID to invalidate on server restart.
   const keyData = JSON.stringify({
     dir,
     phase,
     hasCustomConfig: Boolean(customConfig),
     reactProductionProfiling: Boolean(reactProductionProfiling),
     debugPrerender: Boolean(debugPrerender),
+    pid: pid || 0,
   })
 
   return djb2Hash(keyData).toString(36)
@@ -1338,12 +1385,14 @@ export default async function loadConfig(
   } = {}
 ): Promise<NextConfigComplete> {
   // Generate cache key based on parameters that affect config output
+  // Include process.pid to invalidate cache on server restart
   const cacheKey = getCacheKey(
     phase,
     dir,
     customConfig,
     reactProductionProfiling,
-    debugPrerender
+    debugPrerender,
+    process.pid
   )
 
   // Check if we have a cached result
@@ -1360,6 +1409,10 @@ export default async function loadConfig(
     }
 
     return cachedResult.config
+  } else {
+    // Reset next.config errors before loading config
+    // This happens on every config load to ensure fresh validation
+    NextInstanceErrorState.nextConfig = []
   }
 
   // Original implementation continues below...
@@ -1418,7 +1471,6 @@ export default async function loadConfig(
           ...customConfig,
         },
         silent,
-        configuredExperimentalFeatures,
         phase
       ),
       phase,
@@ -1486,6 +1538,9 @@ export default async function loadConfig(
         return userConfigModule
       }
     } catch (err) {
+      // Capture the error for MCP tool reporting
+      NextInstanceErrorState.nextConfig.push(err)
+
       // TODO: Modify docs to add cases of failing next.config.ts transformation
       curLog.error(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
@@ -1527,7 +1582,18 @@ export default async function loadConfig(
 
     // Always validate the config against schema in non minimal mode
     if (!process.env.NEXT_MINIMAL && !silent) {
-      validateConfigSchema(userConfig, configFileName, curLog.warn)
+      await validateConfigSchema(
+        userConfig,
+        configFileName,
+        curLog.warn,
+        (messages) => {
+          // Capture validation messages for MCP error reporting
+          if (messages.length > 0) {
+            const fullMessage = messages.join('\n')
+            NextInstanceErrorState.nextConfig.push(new Error(fullMessage))
+          }
+        }
+      )
     }
 
     if ((userConfig as any).target && (userConfig as any).target !== 'server') {
@@ -1576,7 +1642,6 @@ export default async function loadConfig(
         ...userConfig,
       },
       silent,
-      configuredExperimentalFeatures,
       phase
     )
 
@@ -1632,7 +1697,6 @@ export default async function loadConfig(
     dir,
     { ...clonedDefaultConfig, configFileName },
     silent,
-    configuredExperimentalFeatures,
     phase
   ) as NextConfigComplete
 
@@ -1682,6 +1746,9 @@ function enforceExperimentalFeatures(
     debugPrerender &&
     (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
   ) {
+    // TODO: This is not an experimental feature, but should be enabled alongside other prerender debugging features.
+    config.enablePrerenderSourceMaps = true
+
     setExperimentalFeatureForDebugPrerender(
       config.experimental,
       'serverSourceMaps',
@@ -1698,36 +1765,10 @@ function enforceExperimentalFeatures(
 
     setExperimentalFeatureForDebugPrerender(
       config.experimental,
-      'enablePrerenderSourceMaps',
-      true,
-      configuredExperimentalFeatures
-    )
-
-    setExperimentalFeatureForDebugPrerender(
-      config.experimental,
       'prerenderEarlyExit',
       false,
       configuredExperimentalFeatures
     )
-  }
-
-  // TODO: Remove this once we've made Client Param Parsing the default.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.clientParamParsing === undefined ||
-      (isDefaultConfig && !config.experimental.clientParamParsing))
-  ) {
-    config.experimental.clientParamParsing = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'clientParamParsing',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
-      )
-    }
   }
 
   // TODO: Remove this once we've made Cache Components the default.
@@ -1743,25 +1784,6 @@ function enforceExperimentalFeatures(
       addConfiguredExperimentalFeature(
         configuredExperimentalFeatures,
         'cacheComponents',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
-      )
-    }
-  }
-
-  // TODO: Remove this once we've made RDC for Navigations the default for cache components.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.rdcForNavigations === undefined ||
-      (isDefaultConfig && !config.experimental.rdcForNavigations))
-  ) {
-    config.experimental.rdcForNavigations = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'rdcForNavigations',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
       )
@@ -1795,22 +1817,6 @@ function enforceExperimentalFeatures(
   ) {
     config.reactCompiler = true
     // TODO: Report if we enable non-experimental features via env
-  }
-
-  if (
-    config.experimental.enablePrerenderSourceMaps === undefined &&
-    config.experimental.cacheComponents === true
-  ) {
-    config.experimental.enablePrerenderSourceMaps = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'enablePrerenderSourceMaps',
-        true,
-        'enabled by `experimental.cacheComponents`'
-      )
-    }
   }
 }
 
@@ -1906,7 +1912,8 @@ function cloneObject(obj: any): any {
 async function validateConfigSchema(
   userConfig: NextConfig,
   configFileName: string,
-  warn: (message: string) => void
+  warn: (message: string) => void,
+  onValidationMessages?: (messages: string[]) => void
 ) {
   // We only validate the config against schema in non minimal mode
   const { configSchema } =
@@ -1914,31 +1921,57 @@ async function validateConfigSchema(
   const state = configSchema.safeParse(userConfig)
 
   if (!state.success) {
-    // error message header
-    const messages = [`Invalid ${configFileName} options detected: `]
+    const [warnings, fatalErrors] = normalizeNextConfigZodErrors(state.error)
+    const hasFatalErrors = fatalErrors.length > 0
 
-    const [errorMessages, shouldExit] = normalizeNextConfigZodErrors(
-      state.error
-    )
-    // ident list item
-    for (const error of errorMessages) {
-      messages.push(`    ${error.split('\n').join('\n    ')}`)
-    }
+    // Group warnings first
+    if (warnings.length > 0) {
+      const warningMessages = [`Invalid ${configFileName} options detected: `]
 
-    // error message footer
-    messages.push(
-      'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
-    )
-
-    if (shouldExit) {
-      for (const message of messages) {
-        console.error(message)
+      for (const error of warnings) {
+        warningMessages.push(`    ${error.split('\n').join('\n    ')}`)
       }
-      await flushAndExit(1)
-    } else {
-      for (const message of messages) {
+
+      warningMessages.push(
+        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+      )
+
+      // Call the callback with validation messages if provided
+      if (onValidationMessages) {
+        onValidationMessages(warningMessages)
+      }
+
+      for (const message of warningMessages) {
         warn(message)
       }
+    }
+
+    // Then throw hard errors
+    if (hasFatalErrors) {
+      await flushTelemetry()
+
+      const errorMessages = [
+        `Fatal next config errors found in ${configFileName} that must be fixed:`,
+      ]
+
+      for (const error of fatalErrors) {
+        errorMessages.push(`    ${error.split('\n').join('\n    ')}`)
+      }
+
+      errorMessages.push(
+        'These configuration options are required or have been migrated. Please update your configuration.'
+      )
+      errorMessages.push(
+        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+      )
+
+      // Call the callback with validation messages if provided
+      if (onValidationMessages) {
+        onValidationMessages(errorMessages)
+      }
+
+      const fullErrorMessage = errorMessages.join('\n')
+      throw new Error(fullErrorMessage)
     }
   }
 }

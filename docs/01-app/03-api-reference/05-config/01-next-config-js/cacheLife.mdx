@@ -47,7 +47,7 @@ module.exports = {
 You can now use this custom `blog` configuration in your component or function as follows:
 
 ```tsx filename="app/actions.ts" highlight={4,5} switcher
-import { unstable_cacheLife as cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 export async function getCachedData() {
   'use cache'
@@ -58,7 +58,7 @@ export async function getCachedData() {
 ```
 
 ```jsx filename="app/actions.js" highlight={4,5} switcher
-import { unstable_cacheLife as cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 export async function getCachedData() {
   'use cache'

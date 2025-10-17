@@ -522,7 +522,7 @@ const moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 const availableModules = new Map();
 const availableModuleChunks = new Map();
-function factoryNotAvailable(moduleId, sourceType, sourceData) {
+function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
     let instantiationReason;
     switch(sourceType){
         case 0:
@@ -537,7 +537,7 @@ function factoryNotAvailable(moduleId, sourceType, sourceData) {
         default:
             invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
     }
-    throw new Error(`Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`);
+    return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 function loadChunk(chunkData) {
     return loadChunkInternal(1, this.m.id, chunkData);
@@ -818,7 +818,7 @@ function instantiateModule(moduleId, sourceType, sourceData) {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
         // and contains e.g. a `require("something")` call.
-        factoryNotAvailable(id, sourceType, sourceData);
+        throw new Error(factoryNotAvailableMessage(id, sourceType, sourceData) + ' It might have been deleted in an HMR update.');
     }
     const hotData = moduleHotData.get(id);
     const { hot, hotState } = createModuleHot(id, hotData);

@@ -5,11 +5,9 @@ const MODERN_BROWSERSLIST_TARGET = require('./src/shared/lib/modern-browserslist
 
 const path = require('path')
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 const transform = require('@swc/core').transform
 
 module.exports = function (task) {
-  // eslint-disable-next-line require-yield
   task.plugin(
     'swc',
     {},

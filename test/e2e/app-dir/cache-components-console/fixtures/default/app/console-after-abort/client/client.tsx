@@ -9,7 +9,6 @@ function log(outBadge: string, errBadge: string) {
     'two'
   )
   console.log(
-    // eslint-disable-next-line no-useless-concat
     `${outBadge} /console-after-abort/client: This is a console page. Don't match the codeframe.`
   )
   console.warn(`${errBadge} /console-after-abort/client: not a template`, {

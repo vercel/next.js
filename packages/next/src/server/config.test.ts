@@ -157,21 +157,6 @@ describe('loadConfig', () => {
       delete process.env.__NEXT_VERSION
     })
 
-    it('errors when rdcForNavigations is enabled but cacheComponents is disabled', async () => {
-      await expect(
-        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-          customConfig: {
-            experimental: {
-              rdcForNavigations: true,
-              ppr: false,
-            },
-          },
-        })
-      ).rejects.toThrow(
-        '`experimental.rdcForNavigations` is enabled, but `experimental.cacheComponents` is not.'
-      )
-    })
-
     it('errors when ppr is set to incremental', async () => {
       await expect(
         loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
@@ -184,79 +169,6 @@ describe('loadConfig', () => {
       ).rejects.toThrow(
         /`experimental\.ppr` has been merged into `experimental\.cacheComponents`/
       )
-    })
-
-    it('defaults rdcForNavigations to true when cacheComponents is enabled', async () => {
-      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-        customConfig: {
-          experimental: {
-            cacheComponents: true,
-          },
-        },
-      })
-
-      expect(result.experimental.rdcForNavigations).toBe(true)
-    })
-
-    it('migrates experimental.dynamicIO to experimental.cacheComponents', async () => {
-      process.env.__NEXT_VERSION = 'canary'
-
-      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-        customConfig: {
-          experimental: {
-            dynamicIO: true,
-          },
-        },
-        silent: true,
-      })
-
-      expect(result.experimental.cacheComponents).toBe(true)
-      expect(result.experimental.dynamicIO).toBeUndefined()
-
-      delete process.env.__NEXT_VERSION
-    })
-
-    it('preserves cacheComponents when both dynamicIO and cacheComponents are set', async () => {
-      process.env.__NEXT_VERSION = 'canary'
-
-      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-        customConfig: {
-          experimental: {
-            dynamicIO: true,
-            cacheComponents: false,
-          },
-        },
-        silent: true,
-      })
-
-      expect(result.experimental.cacheComponents).toBe(false)
-      expect(result.experimental.dynamicIO).toBeUndefined()
-
-      delete process.env.__NEXT_VERSION
-    })
-
-    it('warns when using deprecated experimental.dynamicIO', async () => {
-      process.env.__NEXT_VERSION = 'canary'
-
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
-
-      await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-        customConfig: {
-          experimental: {
-            dynamicIO: true,
-          },
-        },
-        silent: false,
-      })
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          '`experimental.dynamicIO` has been renamed to `experimental.cacheComponents`'
-        )
-      )
-
-      consoleSpy.mockRestore()
-      delete process.env.__NEXT_VERSION
     })
   })
 })

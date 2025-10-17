@@ -722,7 +722,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                         };
 
-                        this.backend.task_execution_result(task_id, result, &*this);
                         let FinishedTaskState {
                             stateful,
                             has_invalidator,
@@ -733,6 +732,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             task_id,
                             duration,
                             alloc_info.memory_usage(),
+                            result,
                             &cell_counters,
                             stateful,
                             has_invalidator,

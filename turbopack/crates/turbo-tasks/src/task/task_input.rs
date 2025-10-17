@@ -19,6 +19,9 @@ use crate::{
 
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
+///
+/// Serialization must be deterministic and compatible with `eq` comparisons.  If two `TaskInputs`
+/// compare equal they must also serialize to the same bytes.
 pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs {
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         async { Ok(self.clone()) }
@@ -323,19 +326,6 @@ where
         Ok(new_map)
     }
 
-    fn is_resolved(&self) -> bool {
-        self.iter().all(TaskInput::is_resolved)
-    }
-
-    fn is_transient(&self) -> bool {
-        self.iter().any(TaskInput::is_transient)
-    }
-}
-
-impl<T> TaskInput for auto_hash_map::AutoSet<T>
-where
-    T: TaskInput,
-{
     fn is_resolved(&self) -> bool {
         self.iter().all(TaskInput::is_resolved)
     }

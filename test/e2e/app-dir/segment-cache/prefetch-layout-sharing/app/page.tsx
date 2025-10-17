@@ -1,9 +1,9 @@
 import { DebugLinkAccordion } from '../components/link-accordion'
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 export default async function Page() {
   'use cache'
-  unstable_cacheLife('minutes')
+  cacheLife('minutes')
   return (
     <main>
       <h2>shared layout prefetching - layout with cookies and dynamic data</h2>

@@ -286,9 +286,6 @@ export function hydrate(
                 initialCanonicalUrlParts: initialRSCPayload.c,
                 initialParallelRoutes: new Map(),
                 location: window.location,
-                couldBeIntercepted: initialRSCPayload.i,
-                postponed: initialRSCPayload.s,
-                prerendered: initialRSCPayload.S,
               }),
               instrumentationHooks
             )

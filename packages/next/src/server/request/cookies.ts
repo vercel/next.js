@@ -12,6 +12,7 @@ import {
   throwForMissingRequestStore,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
+  type RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
   delayUntilRuntimeStage,
@@ -28,6 +29,7 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
+import { RenderStage } from '../app-render/staged-rendering'
 
 export function cookies(): Promise<ReadonlyRequestCookies> {
   const callingExpression = 'cookies'
@@ -123,6 +125,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             // but since you would never use next dev with production NODE_ENV we use this
             // as a proxy so we can statically exclude this code from production builds.
             return makeUntrackedCookiesWithDevWarnings(
+              workUnitStore,
               underlyingCookies,
               workStore?.route
             )
@@ -183,6 +186,7 @@ function makeUntrackedCookies(
 }
 
 function makeUntrackedCookiesWithDevWarnings(
+  requestStore: RequestStore,
   underlyingCookies: ReadonlyRequestCookies,
   route?: string
 ): Promise<ReadonlyRequestCookies> {
@@ -191,7 +195,11 @@ function makeUntrackedCookiesWithDevWarnings(
     return cachedCookies
   }
 
-  const promise = makeDevtoolsIOAwarePromise(underlyingCookies)
+  const promise = makeDevtoolsIOAwarePromise(
+    underlyingCookies,
+    requestStore,
+    RenderStage.Runtime
+  )
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {

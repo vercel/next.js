@@ -145,17 +145,6 @@ const API_DOCS: Record<
       '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
   },
-  experimental_ppr: {
-    description: `Enables experimental Partial Prerendering (PPR) for this page / layout, when PPR is set to "incremental" mode.`,
-    link: 'https://nextjs.org/docs/app/api-reference/next-config-js/ppr',
-    options: {
-      true: 'Enable PPR for this route',
-      false: 'Disable PPR for this route',
-    } satisfies DocsOptionsObject<FullAppSegmentConfig['experimental_ppr']>,
-    isValid: (value: string) => {
-      return value === 'true' || value === 'false'
-    },
-  },
   unstable_prefetch: {
     description: `Specifies the default prefetching behavior for this segment. This configuration is currently under development and will change.`,
     link: '(docs coming soon)',

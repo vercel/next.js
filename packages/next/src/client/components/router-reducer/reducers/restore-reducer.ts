@@ -41,10 +41,10 @@ export function restoreReducer(
     },
     focusAndScrollRef: state.focusAndScrollRef,
     cache: newCache,
-    prefetchCache: state.prefetchCache,
     // Restore provided tree
     tree: treeToRestore,
     nextUrl: extractPathFromFlightRouterState(treeToRestore) ?? url.pathname,
     previousNextUrl: null,
+    debugInfo: null,
   }
 }

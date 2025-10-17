@@ -239,6 +239,9 @@ pub struct EcmascriptOptionsContext {
     /// Specifies how Source Maps are handled.
     pub source_maps: SourceMapsType,
 
+    // TODO should this be a part of Environment instead?
+    pub inline_helpers: bool,
+
     pub placeholder_for_future_extensions: (),
 }
 

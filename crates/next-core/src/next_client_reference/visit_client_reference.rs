@@ -53,6 +53,9 @@ impl ClientReference {
     }
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct ClientReferences(Vec<ClientReference>);
+
 #[derive(
     Copy,
     Clone,

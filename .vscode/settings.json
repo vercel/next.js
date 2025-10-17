@@ -16,7 +16,7 @@
     "typescript",
     "typescriptreact"
   ],
-  "eslint.useFlatConfig": false,
+  "eslint.useFlatConfig": true,
   // Set Jest runMode to on-demand as otherwise it will start running all tests the first time.
   // Equivalent to deprecated option "jest.autoRun": "off"
   "jest.runMode": "on-demand",

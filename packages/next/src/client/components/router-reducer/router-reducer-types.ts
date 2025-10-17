@@ -9,7 +9,6 @@ export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
 export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
-export const ACTION_PREFETCH = 'prefetch'
 export const ACTION_HMR_REFRESH = 'hmr-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
 
@@ -30,11 +29,11 @@ export interface Mutable {
   scrollableSegments?: FlightSegmentPath[]
   pendingPush?: boolean
   cache?: CacheNode
-  prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
   shouldScroll?: boolean
   preserveCustomHistoryState?: boolean
   onlyHashChange?: boolean
+  collectedDebugInfo?: Array<unknown>
 }
 
 export interface ServerActionMutable extends Mutable {
@@ -109,7 +108,6 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
-  allowAliasing: boolean
 }
 
 /**
@@ -158,11 +156,6 @@ export enum PrefetchKind {
  * - Adds the FlightData to the prefetch cache
  * - In ACTION_NAVIGATE the prefetch cache is checked and the router state tree and FlightData are applied.
  */
-export interface PrefetchAction {
-  type: typeof ACTION_PREFETCH
-  url: URL
-  kind: PrefetchKind
-}
 
 export interface PushRef {
   /**
@@ -198,25 +191,6 @@ export type FocusAndScrollRef = {
   onlyHashChange: boolean
 }
 
-export type PrefetchCacheEntry = {
-  treeAtTimeOfPrefetch: FlightRouterState
-  data: Promise<FetchServerResponseResult>
-  kind: PrefetchKind
-  prefetchTime: number
-  staleTime: number
-  lastUsedTime: number | null
-  key: string
-  status: PrefetchCacheEntryStatus
-  url: URL
-}
-
-export enum PrefetchCacheEntryStatus {
-  fresh = 'fresh',
-  reusable = 'reusable',
-  expired = 'expired',
-  stale = 'stale',
-}
-
 /**
  * Handles keeping the state of app-router.
  */
@@ -230,13 +204,8 @@ export type AppRouterState = {
   /**
    * The cache holds React nodes for every segment that is shown on screen as well as previously shown segments.
    * It also holds in-progress data requests.
-   * Prefetched data is stored separately in `prefetchCache`, that is applied during ACTION_NAVIGATE.
    */
   cache: CacheNode
-  /**
-   * Cache that holds prefetched Flight responses keyed by url.
-   */
-  prefetchCache: Map<string, PrefetchCacheEntry>
   /**
    * Decides if the update should create a new history entry and if the navigation has to trigger a browser navigation.
    */
@@ -259,16 +228,19 @@ export type AppRouterState = {
    * The previous next-url that was used previous to a dynamic navigation.
    */
   previousNextUrl: string | null
+
+  debugInfo: Array<unknown> | null
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>
-export type ReducerState = Promise<AppRouterState> | AppRouterState
+export type ReducerState =
+  | (Promise<AppRouterState> & { _debugInfo?: Array<unknown> })
+  | AppRouterState
 export type ReducerActions = Readonly<
   | RefreshAction
   | NavigateAction
   | RestoreAction
   | ServerPatchAction
-  | PrefetchAction
   | HmrRefreshAction
   | ServerActionAction
 >

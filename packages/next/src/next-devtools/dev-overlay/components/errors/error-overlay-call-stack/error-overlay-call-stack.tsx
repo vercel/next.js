@@ -37,6 +37,7 @@ export function ErrorOverlayCallStack({
         dialog!.removeEventListener('transitionend', onTransitionEnd)
         setIsIgnoreListOpen(false)
       }
+      // eslint-disable-next-line react-hooks/immutability -- Bug in react-hooks/react-compiler
       dialog.style.height = `${initialDialogHeight.current}px`
       dialog.addEventListener('transitionend', onTransitionEnd)
     } else {

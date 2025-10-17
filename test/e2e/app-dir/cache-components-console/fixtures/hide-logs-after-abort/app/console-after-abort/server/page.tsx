@@ -8,7 +8,6 @@ async function cachedConsoleCalls(outBadge: string, errBadge: string) {
     'two'
   )
   console.log(
-    // eslint-disable-next-line no-useless-concat
     `${outBadge} /console-after-abort/server: This is a console page` +
       ". Don't match the codeframe."
   )
@@ -51,7 +50,6 @@ export default async function ConsolePage() {
     'two'
   )
   console.log(
-    // eslint-disable-next-line no-useless-concat
     `${outBadge} /console-after-abort/server: This is a console page` +
       ". Don't match the codeframe."
   )

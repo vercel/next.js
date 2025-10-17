@@ -513,7 +513,7 @@ describe('config telemetry', () => {
           )
           // eslint-disable-next-line jest/no-standalone-expect
           expect(featureUsageEvents).toContainEqual({
-            featureName: 'skipMiddlewareUrlNormalize',
+            featureName: 'skipProxyUrlNormalize',
             invocationCount: 1,
           })
           // eslint-disable-next-line jest/no-standalone-expect

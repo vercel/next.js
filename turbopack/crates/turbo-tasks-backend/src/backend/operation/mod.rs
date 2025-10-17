@@ -6,7 +6,6 @@ mod invalidate;
 mod prepare_new_children;
 mod update_cell;
 mod update_collectible;
-mod update_output;
 
 use std::{
     fmt::{Debug, Formatter},
@@ -600,7 +599,6 @@ macro_rules! impl_operation {
 pub enum AnyOperation {
     ConnectChild(connect_child::ConnectChildOperation),
     Invalidate(invalidate::InvalidateOperation),
-    UpdateOutput(update_output::UpdateOutputOperation),
     UpdateCell(update_cell::UpdateCellOperation),
     CleanupOldEdges(cleanup_old_edges::CleanupOldEdgesOperation),
     AggregationUpdate(aggregation_update::AggregationUpdateQueue),
@@ -612,7 +610,6 @@ impl AnyOperation {
         match self {
             AnyOperation::ConnectChild(op) => op.execute(ctx),
             AnyOperation::Invalidate(op) => op.execute(ctx),
-            AnyOperation::UpdateOutput(op) => op.execute(ctx),
             AnyOperation::UpdateCell(op) => op.execute(ctx),
             AnyOperation::CleanupOldEdges(op) => op.execute(ctx),
             AnyOperation::AggregationUpdate(op) => op.execute(ctx),
@@ -627,7 +624,6 @@ impl AnyOperation {
 
 impl_operation!(ConnectChild connect_child::ConnectChildOperation);
 impl_operation!(Invalidate invalidate::InvalidateOperation);
-impl_operation!(UpdateOutput update_output::UpdateOutputOperation);
 impl_operation!(UpdateCell update_cell::UpdateCellOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
@@ -641,6 +637,7 @@ pub use self::{
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,
+    invalidate::make_task_dirty_internal,
     prepare_new_children::prepare_new_children,
     update_collectible::UpdateCollectibleOperation,
 };

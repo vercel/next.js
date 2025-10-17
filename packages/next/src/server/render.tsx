@@ -1,3 +1,4 @@
+/* eslint-disable @next/internal/no-ambiguous-jsx -- Pages router doesn't use react-server */
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ReactDOMServerReadableStream } from 'react-dom/server'

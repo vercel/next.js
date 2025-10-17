@@ -136,13 +136,6 @@ const AppSegmentConfigSchema = z.object({
   preferredRegion: z.union([z.string(), z.array(z.string())]).optional(),
 
   /**
-   * Whether the page supports partial prerendering. When true, the page will be
-   * served using partial prerendering. This setting will only take affect if
-   * it's enabled via the `experimental.ppr = "incremental"` option.
-   */
-  experimental_ppr: z.boolean().optional(),
-
-  /**
    * The runtime to use for the page.
    */
   runtime: z.enum(['edge', 'nodejs']).optional(),
@@ -239,13 +232,6 @@ export type AppSegmentConfig = {
    * The preferred region for the page.
    */
   preferredRegion?: string | string[]
-
-  /**
-   * Whether the page supports partial prerendering. When true, the page will be
-   * served using partial prerendering. This setting will only take affect if
-   * it's enabled via the `experimental.ppr = "incremental"` option.
-   */
-  experimental_ppr?: boolean
 
   /**
    * The runtime to use for the page.

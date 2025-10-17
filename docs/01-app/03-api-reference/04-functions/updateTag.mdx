@@ -3,15 +3,17 @@ title: updateTag
 description: API Reference for the updateTag function.
 ---
 
-`updateTag` allows you to update [cached data](/docs/app/guides/caching) on-demand for a specific cache tag from within Server Actions. This function is designed specifically for read-your-own-writes scenarios.
+`updateTag` allows you to update [cached data](/docs/app/guides/caching) on-demand for a specific cache tag from within [Server Actions](/docs/app/getting-started/updating-data).
+
+This function is designed for **read-your-own-writes** scenarios, where a user makes a change (like creating a post), and the UI immediately shows the change, rather than stale data.
 
 ## Usage
 
-`updateTag` can **only** be called from within Server Actions. It cannot be used in Route Handlers, Client Components, or any other context.
+`updateTag` can **only** be called from within [Server Actions](/docs/app/getting-started/updating-data). It cannot be used in Route Handlers, Client Components, or any other context.
 
 If you need to invalidate cache tags in Route Handlers or other contexts, use [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) instead.
 
-> **Good to know**: `updateTag` immediately expires the cached data for the specified tag, causing the next request to that resource to be a blocking revalidate/cache miss. This ensures that Server Actions can immediately see their own writes.
+> **Good to know**: `updateTag` immediately expires the cached data for the specified tag. The next request will wait to fetch fresh data rather than serving stale content from the cache, ensuring users see their changes immediately.
 
 ## Parameters
 
@@ -20,6 +22,26 @@ updateTag(tag: string): void;
 ```
 
 - `tag`: A string representing the cache tag associated with the data you want to update. Must not exceed 256 characters. This value is case-sensitive.
+
+Tags must first be assigned to cached data. You can do this in two ways:
+
+- Using the [`next.tags`](/docs/app/guides/caching#fetch-optionsnexttags-and-revalidatetag) option with `fetch` for caching external API requests:
+
+```tsx
+fetch(url, { next: { tags: ['posts'] } })
+```
+
+- Using [`cacheTag`](/docs/app/api-reference/functions/cacheTag) inside cached functions or components with the `'use cache'` directive:
+
+```tsx
+import { cacheTag } from 'next/cache'
+
+async function getData() {
+  'use cache'
+  cacheTag('posts')
+  // ...
+}
+```
 
 ## Returns
 
@@ -31,12 +53,12 @@ While both `updateTag` and `revalidateTag` invalidate cached data, they serve di
 
 - **`updateTag`**:
   - Can only be used in Server Actions
-  - Immediately expires the cache entry (blocking revalidate on next visit)
+  - Next request waits for fresh data (no stale content served)
   - Designed for read-your-own-writes scenarios
 
 - **`revalidateTag`**:
   - Can be used in Server Actions and Route Handlers
-  - With `profile="max"` (recommended): Uses stale-while-revalidate semantics
+  - With `profile="max"` (recommended): Serves cached data while fetching fresh data in the background (stale-while-revalidate)
   - With custom profile: Can be configured to any cache life profile for advanced usage
   - Without profile: legacy behavior which is equivalent to `updateTag`
 
@@ -59,11 +81,13 @@ export async function createPost(formData: FormData) {
     data: { title, content },
   })
 
-  // Update the cache so the new post is immediately visible
+  // Invalidate cache tags so the new post is immediately visible
+  // 'posts' tag: affects any page that displays a list of posts
   updateTag('posts')
+  // 'post-{id}' tag: affects the individual post detail page
   updateTag(`post-${post.id}`)
 
-  // Redirect to the new post
+  // Redirect to the new post - user will see fresh data, not cached
   redirect(`/posts/${post.id}`)
 }
 ```
@@ -83,11 +107,13 @@ export async function createPost(formData) {
     data: { title, content },
   })
 
-  // Update the cache so the new post is immediately visible
+  // Invalidate cache tags so the new post is immediately visible
+  // 'posts' tag: affects any page that displays a list of posts
   updateTag('posts')
+  // 'post-{id}' tag: affects the individual post detail page
   updateTag(`post-${post.id}`)
 
-  // Redirect to the new post
+  // Redirect to the new post - user will see fresh data, not cached
   redirect(`/posts/${post.id}`)
 }
 ```
@@ -98,11 +124,11 @@ export async function createPost(formData) {
 import { updateTag } from 'next/cache'
 
 export async function POST() {
-  // ❌ This will throw an error
+  // This will throw an error
   updateTag('posts')
   // Error: updateTag can only be called from within a Server Action
 
-  // ✅ Use revalidateTag instead in Route Handlers
+  // Use revalidateTag instead in Route Handlers
   revalidateTag('posts', 'max')
 }
 ```

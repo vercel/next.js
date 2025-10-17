@@ -128,10 +128,12 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
 
     // If this is a page segment, we've reached a leaf node
     if (name === PAGE_SEGMENT_KEY) {
-      // Add all segments in the current path
+      // Add all segments in the current path, preferring non-parallel segments
       updatedSegments.forEach((seg) => {
         const key = getSegmentKey(seg)
-        uniqueSegments.set(key, seg)
+        if (!uniqueSegments.has(key)) {
+          uniqueSegments.set(key, seg)
+        }
       })
     }
 
@@ -152,7 +154,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
 }
 
 function getSegmentKey(segment: AppSegment) {
-  return `${segment.name}-${segment.filePath ?? ''}-${segment.paramName ?? ''}`
+  return `${segment.name}-${segment.filePath ?? ''}-${segment.paramName ?? ''}-${segment.isParallelRouteSegment ? 'pr' : 'np'}`
 }
 
 /**
@@ -244,7 +246,7 @@ export function collectFallbackRouteParams(
     // Handle this segment (if it's a dynamic segment param).
     const segmentParam = getSegmentParam(name)
     if (segmentParam) {
-      const key = `${name}-${segmentParam.param}`
+      const key = `${name}-${segmentParam.param}-${isParallelRouteSegment ? 'pr' : 'np'}`
       if (!uniqueSegments.has(key)) {
         uniqueSegments.set(
           key,

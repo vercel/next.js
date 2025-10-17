@@ -399,7 +399,6 @@ async function exportAppImpl(
         nextConfig.experimental.clientSegmentCache === 'client-only'
           ? 'client-only'
           : Boolean(nextConfig.experimental.clientSegmentCache),
-      clientParamParsing: nextConfig.experimental.clientParamParsing ?? false,
       clientParamParsingOrigins:
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
@@ -414,7 +413,7 @@ async function exportAppImpl(
       (process.env.TURBOPACK
         ? nextConfig.experimental.turbopackMinify === false
         : nextConfig.experimental.serverMinification === false) &&
-      nextConfig.experimental.enablePrerenderSourceMaps === true,
+      nextConfig.enablePrerenderSourceMaps === true,
   }
 
   // We need this for server rendering the Link component.
