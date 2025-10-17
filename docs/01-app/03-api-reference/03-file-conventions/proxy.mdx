@@ -353,7 +353,7 @@ export function proxy(request) {
   })
   cookie = response.cookies.get('vercel')
   console.log(cookie) // => { name: 'vercel', value: 'fast', Path: '/' }
-  // The outgoing response will have a `Set-Cookie:vercel=fast;path=/test` header.
+  // The outgoing response will have a `Set-Cookie:vercel=fast;path=/` header.
 
   return response
 }
@@ -686,12 +686,13 @@ Learn how to [configure Proxy](/docs/app/guides/self-hosting#proxy) when self-ho
 
 ## Version history
 
-| Version   | Changes                                                                                    |
-| --------- | ------------------------------------------------------------------------------------------ |
-| `v15.5.0` | Proxy can now use the Node.js runtime (stable)                                             |
-| `v15.2.0` | Proxy can now use the Node.js runtime (experimental)                                       |
-| `v13.1.0` | Advanced Proxy flags added                                                                 |
-| `v13.0.0` | Proxy can modify request headers, response headers, and send responses                     |
-| `v12.2.0` | Proxy is stable, please see the [upgrade guide](/docs/messages/proxy-upgrade-guide)        |
-| `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410)) |
-| `v12.0.0` | Proxy (Beta) added                                                                         |
+| Version   | Changes                                                                                       |
+| --------- | --------------------------------------------------------------------------------------------- |
+| `v16.0.0` | Middleware is deprecated and renamed to Proxy                                                 |
+| `v15.5.0` | Middleware can now use the Node.js runtime (stable)                                           |
+| `v15.2.0` | Middleware can now use the Node.js runtime (experimental)                                     |
+| `v13.1.0` | Advanced Middleware flags added                                                               |
+| `v13.0.0` | Middleware can modify request headers, response headers, and send responses                   |
+| `v12.2.0` | Middleware is stable, please see the [upgrade guide](/docs/messages/middleware-upgrade-guide) |
+| `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410))    |
+| `v12.0.0` | Middleware (Beta) added                                                                       |
