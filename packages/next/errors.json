@@ -881,5 +881,6 @@
   "880": "Config options `experimental.proxyPrefetch` and `experimental.middlewarePrefetch` cannot be set at the same time. Please use `experimental.proxyPrefetch` instead.",
   "881": "Invalid render stage: %s",
   "882": "The %s file \"./%s\" must export a function named \\`%s\\` or a default function.",
-  "883": "The %s file \"%s\" must export a function named \\`%s\\` or a default function."
+  "883": "The %s file \"%s\" must export a function named \\`%s\\` or a default function.",
+  "884": "Both %s file \"./%s\" and %s file \"./%s\" are detected. Please use \"./%s\" only."
 }
