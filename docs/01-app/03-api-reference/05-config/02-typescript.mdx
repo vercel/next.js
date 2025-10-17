@@ -226,13 +226,13 @@ export default function Example() {
 }
 ```
 
-The same applies for redirecting routes defined by middleware:
+The same applies for redirecting routes defined by proxy:
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextRequest, NextResponse } from 'next/server'
 
-export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname === '/middleware-redirect') {
+export function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname === '/proxy-redirect') {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
@@ -244,7 +244,7 @@ export function middleware(request: NextRequest) {
 import type { Route } from 'next'
 
 export default function Page() {
-  return <Link href={'/middleware-redirect' as Route}>Link Text</Link>
+  return <Link href={'/proxy-redirect' as Route}>Link Text</Link>
 }
 ```
 
