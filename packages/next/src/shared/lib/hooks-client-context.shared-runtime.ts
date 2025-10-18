@@ -9,9 +9,8 @@ export const PathParamsContext = createContext<Params | null>(null)
 
 // Dev-only context for Suspense DevTools instrumentation
 // These promises are used to track navigation hook usage in React DevTools
-// The promise values are updated with actual hook values before calling use()
 // These are instrumented promises with additional properties that React DevTools expects
-type InstrumentedPromise<T> = Promise<T> & {
+export type InstrumentedPromise<T> = Promise<T> & {
   status: 'fulfilled'
   value: T
   displayName: string
@@ -21,12 +20,30 @@ export type NavigationPromises = {
   pathname: InstrumentedPromise<string>
   searchParams: InstrumentedPromise<any> // ReadonlyURLSearchParams
   params: InstrumentedPromise<any> // Params
-  selectedLayoutSegment: InstrumentedPromise<string | null>
-  selectedLayoutSegments: InstrumentedPromise<string[]>
+  // Layout segment hooks (updated at each layout boundary)
+  selectedLayoutSegmentPromises?: Map<
+    string,
+    InstrumentedPromise<string | null>
+  >
+  selectedLayoutSegmentsPromises?: Map<string, InstrumentedPromise<string[]>>
 }
 
 export const NavigationPromisesContext =
   createContext<NavigationPromises | null>(null)
+
+// Creates an instrumented promise for Suspense DevTools
+// These promises are always fulfilled and exist purely for
+// tracking in React's Suspense DevTools.
+export function createDevToolsInstrumentedPromise<T>(
+  displayName: string,
+  value: T
+): InstrumentedPromise<T> {
+  const promise = Promise.resolve(value) as InstrumentedPromise<T>
+  promise.status = 'fulfilled'
+  promise.value = value
+  promise.displayName = `${displayName} (SSR)`
+  return promise
+}
 
 if (process.env.NODE_ENV !== 'production') {
   SearchParamsContext.displayName = 'SearchParamsContext'

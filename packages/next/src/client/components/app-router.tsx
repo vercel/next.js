@@ -22,7 +22,7 @@ import {
   PathnameContext,
   PathParamsContext,
   NavigationPromisesContext,
-  type NavigationPromises,
+  createDevToolsInstrumentedPromise,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -50,53 +50,6 @@ import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-
 const globalMutable: {
   pendingMpaPath?: string
 } = {}
-
-// Creates an instrumented promise for Suspense DevTools
-// These promises are always fulfilled and exist purely for
-// tracking in React's Suspense DevTools.
-// The value will be updated by the hooks before calling use()
-function createDevToolsInstrumentedNavigationPromise<T>(
-  displayName: string
-): Promise<T> & { status: 'fulfilled'; value: T; displayName: string } {
-  const promise = Promise.resolve(null as T) as Promise<T> & {
-    status: 'fulfilled'
-    value: T
-    displayName: string
-  }
-  promise.status = 'fulfilled'
-  promise.value = null as T
-  promise.displayName = displayName
-  return promise
-}
-
-// Create stable instrumented promises for navigation hooks (dev-only)
-// These are created once and reused throughout the app lifetime
-let navigationPromises: NavigationPromises | null = null
-function getNavigationPromises(): NavigationPromises | null {
-  if (process.env.NODE_ENV !== 'production') {
-    if (!navigationPromises) {
-      navigationPromises = {
-        pathname:
-          createDevToolsInstrumentedNavigationPromise<string>(
-            'usePathname (SSR)'
-          ),
-        searchParams: createDevToolsInstrumentedNavigationPromise<any>(
-          'useSearchParams (SSR)'
-        ),
-        params:
-          createDevToolsInstrumentedNavigationPromise<any>('useParams (SSR)'),
-        selectedLayoutSegment: createDevToolsInstrumentedNavigationPromise<
-          string | null
-        >('useSelectedLayoutSegment (SSR)'),
-        selectedLayoutSegments: createDevToolsInstrumentedNavigationPromise<
-          string[]
-        >('useSelectedLayoutSegments (SSR)'),
-      }
-    }
-    return navigationPromises
-  }
-  return null
-}
 
 function HistoryUpdater({
   appRouterState,
@@ -460,6 +413,32 @@ function Router({
     return getSelectedParams(tree)
   }, [tree])
 
+  // Create instrumented promises for navigation hooks (dev-only)
+  // These are specially instrumented promises to show in the Suspense DevTools
+  const instrumentedNavigationPromises = useMemo(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      const readonlySearchParams = new (
+        require('./navigation.react-server') as typeof import('./navigation.react-server')
+      ).ReadonlyURLSearchParams(searchParams)
+
+      const { createLayoutSegmentPromises } =
+        require('./navigation-devtools') as typeof import('./navigation-devtools')
+
+      const layoutSegmentPromises = createLayoutSegmentPromises(tree)
+
+      return {
+        pathname: createDevToolsInstrumentedPromise('usePathname', pathname),
+        searchParams: createDevToolsInstrumentedPromise(
+          'useSearchParams',
+          readonlySearchParams
+        ),
+        params: createDevToolsInstrumentedPromise('useParams', pathParams),
+        ...layoutSegmentPromises,
+      }
+    }
+    return null
+  }, [pathname, searchParams, pathParams, tree])
+
   const layoutRouterContext = useMemo(() => {
     return {
       parentTree: tree,
@@ -555,14 +534,13 @@ function Router({
     )
   }
 
-  const devNavigationPromises =
-    process.env.NODE_ENV !== 'production' ? getNavigationPromises() : null
-
   return (
     <>
       <HistoryUpdater appRouterState={state} />
       <RuntimeStyles />
-      <NavigationPromisesContext.Provider value={devNavigationPromises}>
+      <NavigationPromisesContext.Provider
+        value={instrumentedNavigationPromises}
+      >
         <PathParamsContext.Provider value={pathParams}>
           <PathnameContext.Provider value={pathname}>
             <SearchParamsContext.Provider value={searchParams}>

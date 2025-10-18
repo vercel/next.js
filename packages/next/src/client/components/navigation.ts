@@ -1,4 +1,3 @@
-import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { Params } from '../../server/request/params'
 
 import { useContext, useMemo, use } from 'react'
@@ -13,8 +12,10 @@ import {
   PathParamsContext,
   NavigationPromisesContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
-import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
+import {
+  computeSelectedLayoutSegment,
+  getSelectedLayoutSegmentPath,
+} from '../../shared/lib/segment'
 import { ReadonlyURLSearchParams } from './navigation.react-server'
 
 const useDynamicRouteParams =
@@ -55,6 +56,7 @@ const useDynamicSearchParams =
 export function useSearchParams(): ReadonlyURLSearchParams {
   useDynamicSearchParams?.('useSearchParams()')
 
+  const navigationPromises = useContext(NavigationPromisesContext)
   const searchParams = useContext(SearchParamsContext)
 
   // In the case where this is `null`, the compat types added in
@@ -71,15 +73,8 @@ export function useSearchParams(): ReadonlyURLSearchParams {
   }, [searchParams]) as ReadonlyURLSearchParams
 
   // Instrument with Suspense DevTools (dev-only)
-
-  if (process.env.NODE_ENV !== 'production') {
-    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const navigationPromises = useContext(NavigationPromisesContext)
-    if (navigationPromises) {
-      navigationPromises.searchParams.value = readonlySearchParams
-      return use(navigationPromises.searchParams)
-    }
+  if (process.env.NODE_ENV !== 'production' && navigationPromises) {
+    return use(navigationPromises.searchParams)
   }
 
   return readonlySearchParams
@@ -106,19 +101,14 @@ export function useSearchParams(): ReadonlyURLSearchParams {
 export function usePathname(): string {
   useDynamicRouteParams?.('usePathname()')
 
+  const navigationPromises = useContext(NavigationPromisesContext)
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
   const pathname = useContext(PathnameContext) as string
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production') {
-    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const navigationPromises = useContext(NavigationPromisesContext)
-    if (navigationPromises) {
-      navigationPromises.pathname.value = pathname
-      return use(navigationPromises.pathname)
-    }
+  if (process.env.NODE_ENV !== 'production' && navigationPromises) {
+    return use(navigationPromises.pathname)
   }
 
   return pathname
@@ -179,57 +169,15 @@ export function useRouter(): AppRouterInstance {
 export function useParams<T extends Params = Params>(): T {
   useDynamicRouteParams?.('useParams()')
 
+  const navigationPromises = useContext(NavigationPromisesContext)
   const params = useContext(PathParamsContext) as T
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production') {
-    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const navigationPromises = useContext(NavigationPromisesContext)
-    if (navigationPromises) {
-      navigationPromises.params.value = params
-      return use(navigationPromises.params)
-    }
+  if (process.env.NODE_ENV !== 'production' && navigationPromises) {
+    return use(navigationPromises.params) as T
   }
 
   return params
-}
-
-/** Get the canonical parameters from the current level to the leaf node. */
-// Client components API
-function getSelectedLayoutSegmentPath(
-  tree: FlightRouterState,
-  parallelRouteKey: string,
-  first = true,
-  segmentPath: string[] = []
-): string[] {
-  let node: FlightRouterState
-  if (first) {
-    // Use the provided parallel route key on the first parallel route
-    node = tree[1][parallelRouteKey]
-  } else {
-    // After first parallel route prefer children, if there's no children pick the first parallel route.
-    const parallelRoutes = tree[1]
-    node = parallelRoutes.children ?? Object.values(parallelRoutes)[0]
-  }
-
-  if (!node) return segmentPath
-  const segment = node[0]
-
-  let segmentValue = getSegmentValue(segment)
-
-  if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) {
-    return segmentPath
-  }
-
-  segmentPath.push(segmentValue)
-
-  return getSelectedLayoutSegmentPath(
-    node,
-    parallelRouteKey,
-    false,
-    segmentPath
-  )
 }
 
 /**
@@ -263,27 +211,23 @@ export function useSelectedLayoutSegments(
 ): string[] {
   useDynamicRouteParams?.('useSelectedLayoutSegments()')
 
+  const navigationPromises = useContext(NavigationPromisesContext)
   const context = useContext(LayoutRouterContext)
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
 
-  const segments = getSelectedLayoutSegmentPath(
-    context.parentTree,
-    parallelRouteKey
-  )
-
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production') {
-    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const navigationPromises = useContext(NavigationPromisesContext)
-    if (navigationPromises) {
-      navigationPromises.selectedLayoutSegments.value = segments
-      return use(navigationPromises.selectedLayoutSegments)
+  if (process.env.NODE_ENV !== 'production' && navigationPromises) {
+    const promise =
+      navigationPromises.selectedLayoutSegmentsPromises?.get(parallelRouteKey)
+    if (promise) {
+      // We should always have a promise here, but if we don't, it's not worth erroring over.
+      // We just won't be able to instrument it, but can still provide the value.
+      return use(promise)
     }
   }
 
-  return segments
+  return getSelectedLayoutSegmentPath(context.parentTree, parallelRouteKey)
 }
 
 /**
@@ -309,35 +253,21 @@ export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string | null {
   useDynamicRouteParams?.('useSelectedLayoutSegment()')
-
+  const navigationPromises = useContext(NavigationPromisesContext)
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
 
-  if (!selectedLayoutSegments || selectedLayoutSegments.length === 0) {
-    return null
-  }
-
-  const selectedLayoutSegment =
-    parallelRouteKey === 'children'
-      ? selectedLayoutSegments[0]
-      : selectedLayoutSegments[selectedLayoutSegments.length - 1]
-
-  // if the default slot is showing, we return null since it's not technically "selected" (it's a fallback)
-  // and returning an internal value like `__DEFAULT__` would be confusing.
-  const segment =
-    selectedLayoutSegment === DEFAULT_SEGMENT_KEY ? null : selectedLayoutSegment
-
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production') {
-    // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const navigationPromises = useContext(NavigationPromisesContext)
-    if (navigationPromises) {
-      navigationPromises.selectedLayoutSegment.value = segment
-      return use(navigationPromises.selectedLayoutSegment)
+  if (process.env.NODE_ENV !== 'production' && navigationPromises) {
+    const promise =
+      navigationPromises.selectedLayoutSegmentPromises?.get(parallelRouteKey)
+    if (promise) {
+      // We should always have a promise here, but if we don't, it's not worth erroring over.
+      // We just won't be able to instrument it, but can still provide the value.
+      return use(promise)
     }
   }
 
-  return segment
+  return computeSelectedLayoutSegment(selectedLayoutSegments, parallelRouteKey)
 }
 
 export { unstable_isUnrecognizedActionError } from './unrecognized-action-error'

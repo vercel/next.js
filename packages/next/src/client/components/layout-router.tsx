@@ -19,6 +19,7 @@ import React, {
   Activity,
   useContext,
   use,
+  useMemo,
   startTransition,
   Suspense,
   useDeferredValue,
@@ -43,6 +44,7 @@ import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import { NavigationPromisesContext } from '../../shared/lib/hooks-client-context.shared-runtime'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -341,6 +343,8 @@ function InnerLayoutRouter({
   url: string
 }) {
   const context = useContext(GlobalLayoutRouterContext)
+  const parentNavPromises = useContext(NavigationPromisesContext)
+
   if (!context) {
     throw new Error('invariant global layout router not mounted')
   }
@@ -421,6 +425,38 @@ function InnerLayoutRouter({
   }
 
   // If we get to this point, then we know we have something we can render.
+  let content = resolvedRsc
+
+  // In dev, we create a NavigationPromisesContext containing the instrumented promises that provide
+  // `useSelectedLayoutSegment` and `useSelectedLayoutSegments`.
+  const navigationPromises = useMemo(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      const { createLayoutSegmentPromises } =
+        require('./navigation-devtools') as typeof import('./navigation-devtools')
+
+      const parallelRoutes = tree[1]
+      const parallelRouteKeys = Object.keys(parallelRoutes)
+
+      // Only create promises if there are parallel routes at this level
+      if (parallelRouteKeys.length > 0) {
+        const layoutSegmentPromises = createLayoutSegmentPromises(tree)
+        return {
+          ...parentNavPromises!,
+          ...layoutSegmentPromises,
+        }
+      }
+    }
+    return null
+  }, [tree, parentNavPromises])
+
+  if (navigationPromises) {
+    content = (
+      <NavigationPromisesContext.Provider value={navigationPromises}>
+        {resolvedRsc}
+      </NavigationPromisesContext.Provider>
+    )
+  }
+
   const subtree = (
     // The layout router context narrows down tree and childNodes at each level.
     <LayoutRouterContext.Provider
@@ -433,7 +469,7 @@ function InnerLayoutRouter({
         url: url,
       }}
     >
-      {resolvedRsc}
+      {content}
     </LayoutRouterContext.Provider>
   )
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
