@@ -22,12 +22,7 @@ import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import {
-  RESTART_EXIT_CODE,
-  getFormattedDebugAddress,
-  getNodeDebugType,
-  isDebugAddressEphemeral,
-} from './utils'
+import { RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
@@ -305,8 +300,6 @@ export async function startServer(
 
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
-      const nodeDebugType = getNodeDebugType()
-
       const addr = server.address()
       const actualHostname = formatHostname(
         typeof addr === 'object'
@@ -345,17 +338,6 @@ export async function startServer(
         : null
 
       const appUrl = `${protocol}://${formattedHostname}:${port}`
-
-      if (nodeDebugType) {
-        const formattedDebugAddress = getFormattedDebugAddress()
-        const isEphemeral = isDebugAddressEphemeral()
-        Log.info(
-          `the --${nodeDebugType} option was detected` +
-            (isEphemeral
-              ? ''
-              : `, the Next.js router server should be inspected at ${formattedDebugAddress}.`)
-        )
-      }
 
       // Store the selected port to:
       // - expose it to render workers

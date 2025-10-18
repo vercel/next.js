@@ -57,8 +57,6 @@ class NextRootCommand extends Command {
   createCommand(name: string) {
     const command = new Command(name)
 
-    command.addOption(new Option('--inspect').hideHelp())
-
     command.hook('preAction', (event) => {
       const commandName = event.name()
       const defaultEnv = commandName === 'dev' ? 'development' : 'production'
@@ -81,7 +79,7 @@ class NextRootCommand extends Command {
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-      if (event.getOptionValue('inspect') === true) {
+      if (commandName !== 'dev' && event.getOptionValue('inspect') === true) {
         console.error(
           `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${commandName}`
         )
@@ -162,6 +160,7 @@ program
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
     }
+
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
     return import('../cli/next-build.js').then((mod) =>
@@ -180,6 +179,10 @@ program
     `A directory on which to build the application. ${italic(
       'If no directory is provided, the current directory will be used.'
     )}`
+  )
+  .option(
+    '--inspect [[host:]port]',
+    'Allows inspecting server-side code. See https://nextjs.org/docs/app/guides/debugging#server-side-code'
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')

@@ -78,7 +78,7 @@ import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-serv
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
-import { getNodeDebugType } from '../lib/utils'
+import { getNodeDebugType, getParsedNodeOptions } from '../lib/utils'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
@@ -810,7 +810,8 @@ export async function createHotReloaderTurbopack(
   }
 
   let devtoolsFrontendUrl: string | undefined
-  const nodeDebugType = getNodeDebugType()
+  const nodeOptions = getParsedNodeOptions()
+  const nodeDebugType = getNodeDebugType(nodeOptions)
   if (nodeDebugType) {
     const debugPort = process.debugPort
     let debugInfo
