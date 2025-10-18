@@ -49,11 +49,15 @@ export function PreloadChunks({
         // For stylesheets we actually need to render the CSS because nothing else is going to do it so it needs to be part of the component tree.
         // The `preload` for stylesheet is not optional.
         if (isCss) {
+          // Match the precedence used by renderCssResource for consistency
+          const precedence =
+            process.env.NODE_ENV === 'development' ? 'next_' + chunk : 'next'
+
           return (
             <link
               key={chunk}
               // @ts-ignore
-              precedence="dynamic"
+              precedence={precedence}
               href={href}
               rel="stylesheet"
               as="style"
