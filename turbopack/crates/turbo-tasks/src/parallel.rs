@@ -6,7 +6,7 @@
 
 use crate::{
     scope::scope_and_block,
-    util::{good_chunk_size, into_chunks},
+    util::{Chunk, good_chunk_size, into_chunks},
 };
 
 struct Chunked {
@@ -228,6 +228,32 @@ where
         }
     })
     .flatten()
+    .collect()
+}
+
+pub fn map_collect_chunked_owned<'l, Item, PerItemResult, Result>(
+    items: Vec<Item>,
+    f: impl Fn(Chunk<Item>) -> PerItemResult + Send + Sync,
+) -> Result
+where
+    Item: Send + Sync,
+    PerItemResult: Send + Sync + 'l,
+    Result: FromIterator<PerItemResult>,
+{
+    let Some(Chunked {
+        chunk_size,
+        chunk_count,
+    }) = get_chunked(items.len())
+    else {
+        let len = items.len();
+        return Result::from_iter(into_chunks(items, len).map(f));
+    };
+    let f = &f;
+    scope_and_block(chunk_count, |scope| {
+        for chunk in into_chunks(items, chunk_size) {
+            scope.spawn(move || f(chunk))
+        }
+    })
     .collect()
 }
 
