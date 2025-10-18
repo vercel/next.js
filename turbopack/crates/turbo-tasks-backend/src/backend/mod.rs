@@ -733,10 +733,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 });
                 drop(task);
 
-                // Note that there is a potential race condition here, if the reader task would be
-                // locked after the task is unlocked. The output might be invalidated at
-                // this point, but it wouldn't find the backward dependency or see an outdated
-                // dependency. This way it would loose an invalidation.
+                // Note: We use `task_pair` earlier to lock the task and its reader at the same
+                // time. If we didn't and just locked the reader here, an invalidation could occur
+                // between grabbing the locks. If that happened, and if the task is "outdated" or
+                // doesn't have the dependency edge yet, the invalidation would be lost.
 
                 if reader_task
                     .remove(&CachedDataItemKey::OutdatedOutputDependency { target: task_id })
@@ -804,6 +804,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     value: (),
                 });
                 drop(task);
+
+                // Note: We use `task_pair` earlier to lock the task and its reader at the same
+                // time. If we didn't and just locked the reader here, an invalidation could occur
+                // between grabbing the locks. If that happened, and if the task is "outdated" or
+                // doesn't have the dependency edge yet, the invalidation would be lost.
 
                 let target = CellRef {
                     task: task_id,
