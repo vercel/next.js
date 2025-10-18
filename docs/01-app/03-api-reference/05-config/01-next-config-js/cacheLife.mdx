@@ -14,8 +14,8 @@ To define a profile, enable the [`cacheComponents` flag](/docs/app/api-reference
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  cacheComponents: true,
   experimental: {
-    cacheComponents: true,
     cacheLife: {
       blog: {
         stale: 3600, // 1 hour
@@ -31,8 +31,8 @@ export default nextConfig
 
 ```js filename="next.config.js" switcher
 module.exports = {
+  cacheComponents: true,
   experimental: {
-    cacheComponents: true,
     cacheLife: {
       blog: {
         stale: 3600, // 1 hour

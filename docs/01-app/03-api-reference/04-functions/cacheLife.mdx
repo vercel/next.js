@@ -22,9 +22,7 @@ To use `cacheLife`, enable the [`cacheComponents` flag](/docs/app/api-reference/
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -32,9 +30,7 @@ export default nextConfig
 
 ```js filename="next.config.js" switcher
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -116,8 +112,8 @@ You can create a reusable cache profile by defining them in your `next.config.ts
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  cacheComponents: true,
   experimental: {
-    cacheComponents: true,
     cacheLife: {
       biweekly: {
         stale: 60 * 60 * 24 * 14, // 14 days
@@ -133,8 +129,8 @@ module.exports = nextConfig
 
 ```js filename="next.config.js" switcher
 const nextConfig = {
+  cacheComponents: true,
   experimental: {
-    cacheComponents: true,
     cacheLife: {
       biweekly: {
         stale: 60 * 60 * 24 * 14, // 14 days
@@ -170,8 +166,8 @@ The example below shows how to override the default “days” cache profile:
 
 ```ts filename="next.config.ts"
 const nextConfig = {
+  cacheComponents: true,
   experimental: {
-    cacheComponents: true,
     cacheLife: {
       days: {
         stale: 3600, // 1 hour

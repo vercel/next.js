@@ -882,5 +882,8 @@
   "881": "Invalid render stage: %s",
   "882": "The %s file \"./%s\" must export a function named \\`%s\\` or a default function.",
   "883": "The %s file \"%s\" must export a function named \\`%s\\` or a default function.",
-  "884": "Both %s file \"./%s\" and %s file \"./%s\" are detected. Please use \"./%s\" only."
+  "884": "Both %s file \"./%s\" and %s file \"./%s\" are detected. Please use \"./%s\" only.",
+  "885": "Page \"%s\" cannot use \\`export const unstable_prefetch = ...\\` without enabling \\`cacheComponents\\` and \\`experimental.clientSegmentCache\\`.",
+  "886": "`cacheTag()` is only available with the `cacheComponents` config.",
+  "887": "`cacheLife()` is only available with the `cacheComponents` config."
 }

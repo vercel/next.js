@@ -657,12 +657,12 @@ export async function getAppPageStaticInfo({
 
   if (
     'unstable_prefetch' in config &&
-    (!nextConfig.experimental?.cacheComponents ||
+    (!nextConfig.cacheComponents ||
       // don't allow in `clientSegmentCache: 'client-only'` mode
       nextConfig.experimental?.clientSegmentCache !== true)
   ) {
     throw new Error(
-      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`experimental.cacheComponents\` and \`experimental.clientSegmentCache\`.`
+      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\` and \`experimental.clientSegmentCache\`.`
     )
   }
 

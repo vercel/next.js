@@ -681,12 +681,12 @@ jobs:
 
     secrets: inherit
 
-  test-new-tests-deploy-experimental:
-    name: Test new tests when deployed (experimental)
+  test-new-tests-deploy-cache-components:
+    name: Test new tests when deployed (cache components)
     needs:
       [
         'optimize-ci',
-        'test-experimental-prod',
+        'test-cache-components-prod',
         'test-new-tests-dev',
         'test-new-tests-start',
       ]
@@ -702,15 +702,15 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }}
-      stepName: 'test-new-tests-deploy-experimental-${{matrix.group}}'
+      stepName: 'test-new-tests-deploy-cache-components-${{matrix.group}}'
 
     secrets: inherit
 
@@ -921,10 +921,9 @@ jobs:
       stepName: 'test-firefox-safari'
     secrets: inherit
 
-  # TODO: Disable these when no more experiments are tested
   # Manifest generated via: https://gist.github.com/wyattjoh/2ceaebd82a5bcff4819600fd60126431
-  test-experimental-integration:
-    name: test experimental integration
+  test-cache-components-integration:
+    name: test cache components integration
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -932,20 +931,19 @@ jobs:
     with:
       nodeVersion: 20.9.0
       afterBuild: |
-        export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
-        export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export IS_WEBPACK_TEST=1
 
         node run-tests.js \
           --timings \
           --type integration
-      stepName: 'test-experimental-integration'
+      stepName: 'test-cache-components-integration'
     secrets: inherit
 
-  test-experimental-dev:
-    name: test experimental dev
+  test-cache-components-dev:
+    name: test cache components dev
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -956,10 +954,9 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
-        export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export IS_WEBPACK_TEST=1
 
@@ -967,11 +964,11 @@ jobs:
           --timings \
           -g ${{ matrix.group }} \
           --type development
-      stepName: 'test-experimental-dev-${{ matrix.group }}'
+      stepName: 'test-cache-components-dev-${{ matrix.group }}'
     secrets: inherit
 
-  test-experimental-prod:
-    name: test experimental prod
+  test-cache-components-prod:
+    name: test cache components prod
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -982,10 +979,9 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
-        export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
-        export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start
         export IS_WEBPACK_TEST=1
 
@@ -993,7 +989,7 @@ jobs:
           --timings \
           -g ${{ matrix.group }} \
           --type production
-      stepName: 'test-experimental-prod-${{ matrix.group }}'
+      stepName: 'test-cache-components-prod-${{ matrix.group }}'
     secrets: inherit
 
   tests-pass:
@@ -1011,9 +1007,9 @@ jobs:
         'test-prod',
         'test-integration',
         'test-firefox-safari',
-        'test-experimental-dev',
-        'test-experimental-prod',
-        'test-experimental-integration',
+        'test-cache-components-dev',
+        'test-cache-components-prod',
+        'test-cache-components-integration',
         'test-cargo-unit',
         'rust-check',
         'rustdoc-check',
@@ -1023,7 +1019,7 @@ jobs:
         'test-new-tests-dev',
         'test-new-tests-start',
         'test-new-tests-deploy',
-        'test-new-tests-deploy-experimental',
+        'test-new-tests-deploy-cache-components',
         'test-turbopack-production',
         'test-turbopack-production-integration',
         'test-unit-windows',

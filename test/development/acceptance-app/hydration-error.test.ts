@@ -9,7 +9,7 @@ import {
   retry,
 } from 'next-test-utils'
 
-const pprEnabled = process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+const pprEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('Error overlay for hydration errors in App router', () => {
   const { next, isTurbopack } = nextTestSetup({

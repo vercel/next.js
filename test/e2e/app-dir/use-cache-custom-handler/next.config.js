@@ -2,8 +2,8 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  cacheComponents: true,
   experimental: {
-    cacheComponents: true,
     cacheHandlers: {
       default: require.resolve('./handler.js'),
     },

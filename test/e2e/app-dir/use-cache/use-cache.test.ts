@@ -16,8 +16,7 @@ import { PrerenderManifest } from 'next/dist/build'
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
-const withCacheComponents =
-  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+const withCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('use-cache', () => {
   const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup(
@@ -929,7 +928,7 @@ describe('use-cache', () => {
   })
 
   if (isNextDev) {
-    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS !== 'true') {
+    if (process.env.__NEXT_CACHE_COMPONENTS !== 'true') {
       it('should not have unhandled rejection of Request data promises when use cache is enabled without cacheComponents', async () => {
         await next.render('/unhandled-promise-regression')
         // We assert both to better defend against changes in error messaging invalidating this test silently.
@@ -952,9 +951,7 @@ describe('use-cache', () => {
       const initialLogs = await getSanitizedLogs(browser)
 
       const expectedOutsideBadge =
-        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
-          ? 'Prerender'
-          : 'Server'
+        process.env.__NEXT_CACHE_COMPONENTS === 'true' ? 'Prerender' : 'Server'
 
       // We ignore the logged time string at the end of this message:
       const logMessageWithDateRegexp = /^ Cache {2}deep inside /

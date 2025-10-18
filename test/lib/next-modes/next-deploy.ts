@@ -100,9 +100,9 @@ export class NextDeployInstance extends NextInstance {
 
     // Add experimental feature flags
 
-    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
       additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS}`
+        `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
       )
     }
 

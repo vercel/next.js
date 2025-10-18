@@ -155,12 +155,11 @@ async function requestHandler(
       cacheLifeProfiles: nextConfig.experimental.cacheLife,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
-
+      cacheComponents: Boolean(nextConfig.cacheComponents),
       experimental: {
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
-        cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
         clientSegmentCache: Boolean(nextConfig.experimental.clientSegmentCache),
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),

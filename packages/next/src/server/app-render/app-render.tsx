@@ -1497,7 +1497,7 @@ async function renderToHTMLOrFlightImpl(
     serverActions,
     assetPrefix = '',
     enableTainting,
-    experimental,
+    cacheComponents,
   } = renderOpts
 
   // We need to expose the bundled `require` API globally for
@@ -1511,7 +1511,7 @@ async function renderToHTMLOrFlightImpl(
     // module loading from causing a prerender to abort too early.
 
     const shouldTrackModuleLoading = () => {
-      if (!renderOpts.experimental.cacheComponents) {
+      if (!cacheComponents) {
         return false
       }
       if (renderOpts.dev) {
@@ -1565,7 +1565,7 @@ async function renderToHTMLOrFlightImpl(
   if (
     process.env.NODE_ENV === 'development' &&
     renderOpts.setIsrStatus &&
-    !experimental.cacheComponents
+    !cacheComponents
   ) {
     // Reset the ISR status at start of request.
     const { pathname } = new URL(req.url || '/', 'http://n')
@@ -1844,7 +1844,7 @@ async function renderToHTMLOrFlightImpl(
     if (
       process.env.NODE_ENV === 'development' &&
       renderOpts.setIsrStatus &&
-      !experimental.cacheComponents &&
+      !cacheComponents &&
       // Only pages using the Node runtime can use ISR, so we only need to
       // update the status for those.
       // The type check here ensures that `req` is correctly typed, and the
@@ -1867,7 +1867,7 @@ async function renderToHTMLOrFlightImpl(
         if (
           process.env.NODE_ENV === 'development' &&
           process.env.NEXT_RUNTIME !== 'edge' &&
-          experimental.cacheComponents
+          cacheComponents
         ) {
           return generateDynamicFlightRenderResultWithCachesInDev(
             req,
@@ -2193,6 +2193,7 @@ async function renderToStream(
     shouldWaitOnAllReady,
     subresourceIntegrityManifest,
     supportsDynamicResponse,
+    cacheComponents,
   } = renderOpts
 
   assertClientReferenceManifest(clientReferenceManifest)
@@ -2292,7 +2293,7 @@ async function renderToStream(
       // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
       process.env.NEXT_RUNTIME !== 'edge' &&
       // We only have a Prerender environment for projects opted into cacheComponents
-      experimental.cacheComponents &&
+      cacheComponents &&
       // We only do this flow if we can safely recreate the store from scratch
       // (which is not the case for renders after an action)
       createRequestStore
@@ -3645,6 +3646,7 @@ async function prerenderToStream(
     page,
     reactMaxHeadersLength,
     subresourceIntegrityManifest,
+    cacheComponents,
   } = renderOpts
 
   assertClientReferenceManifest(clientReferenceManifest)
@@ -3750,7 +3752,7 @@ async function prerenderToStream(
   let prerenderStore: PrerenderStore | null = null
 
   try {
-    if (experimental.cacheComponents) {
+    if (cacheComponents) {
       /**
        * cacheComponents with PPR
        *
@@ -4344,13 +4346,13 @@ async function prerenderToStream(
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
             resumeDataCache,
-            experimental.cacheComponents
+            cacheComponents
           )
         } else {
           // Dynamic Data case
           metadata.postponed = await getDynamicDataPostponedState(
             resumeDataCache,
-            experimental.cacheComponents
+            cacheComponents
           )
         }
         reactServerResult.consume()
@@ -4576,13 +4578,13 @@ async function prerenderToStream(
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
             prerenderResumeDataCache,
-            experimental.cacheComponents
+            cacheComponents
           )
         } else {
           // Dynamic Data case.
           metadata.postponed = await getDynamicDataPostponedState(
             prerenderResumeDataCache,
-            experimental.cacheComponents
+            cacheComponents
           )
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
@@ -4608,7 +4610,7 @@ async function prerenderToStream(
         // Rendering the fallback case.
         metadata.postponed = await getDynamicDataPostponedState(
           prerenderResumeDataCache,
-          experimental.cacheComponents
+          cacheComponents
         )
 
         return {
@@ -5114,7 +5116,7 @@ async function collectSegmentData(
   const selectStaleTime = createSelectStaleTime(renderOpts.experimental)
   const staleTime = selectStaleTime(prerenderStore.stale)
   return await ComponentMod.collectSegmentData(
-    renderOpts.experimental.cacheComponents,
+    renderOpts.cacheComponents,
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,

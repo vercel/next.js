@@ -77,6 +77,7 @@ export interface RenderOptsPartial {
   err?: Error | null
   dev?: boolean
   basePath: string
+  cacheComponents: boolean
   trailingSlash: boolean
   images: ImageConfigComplete
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
@@ -130,7 +131,6 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
-    cacheComponents: boolean
     clientSegmentCache: boolean | 'client-only'
 
     /**

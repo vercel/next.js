@@ -845,8 +845,8 @@ export async function buildAppStaticPaths({
       incrementalCache,
       cacheLifeProfiles,
       supportsDynamicResponse: true,
+      cacheComponents,
       experimental: {
-        cacheComponents,
         authInterrupts,
       },
       waitUntil: afterRunner.context.waitUntil,

@@ -1535,9 +1535,7 @@ export default async function build(
         config.basePath ? `${config.basePath}${p}` : p
       )
 
-      const isAppCacheComponentsEnabled = Boolean(
-        config.experimental.cacheComponents
-      )
+      const isAppCacheComponentsEnabled = Boolean(config.cacheComponents)
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
@@ -1611,11 +1609,11 @@ export default async function build(
               prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
               prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
               prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
-              clientParamParsing: config.experimental.cacheComponents ?? false,
+              clientParamParsing: config.cacheComponents ?? false,
               clientParamParsingOrigins:
                 config.experimental.clientParamParsingOrigins,
               dynamicRSCPrerender:
-                isAppPPREnabled && config.experimental.cacheComponents === true,
+                isAppPPREnabled && config.cacheComponents === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -2738,7 +2736,7 @@ export default async function build(
       const features: EventBuildFeatureUsage[] = [
         {
           featureName: 'experimental/cacheComponents',
-          invocationCount: config.experimental.cacheComponents ? 1 : 0,
+          invocationCount: config.cacheComponents ? 1 : 0,
         },
         {
           featureName: 'experimental/optimizeCss',
@@ -2959,7 +2957,7 @@ export default async function build(
                     // completely static.
                     !(
                       config.experimental.clientSegmentCache &&
-                      config.experimental.cacheComponents
+                      config.cacheComponents
                     )
                   ) {
                     return
@@ -3275,7 +3273,7 @@ export default async function build(
                   // this route.
                   !(
                     config.experimental.clientSegmentCache &&
-                    config.experimental.cacheComponents &&
+                    config.cacheComponents &&
                     isRoutePPREnabled
                   )
                 ) {
@@ -3385,7 +3383,7 @@ export default async function build(
                     // this case. This only applies if we have PPR enabled for
                     // this route.
                     !config.experimental.clientSegmentCache ||
-                    !config.experimental.cacheComponents ||
+                    !config.cacheComponents ||
                     !isRoutePPREnabled
                   ) {
                     prefetchDataRoute = path.posix.join(
