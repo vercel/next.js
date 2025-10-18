@@ -240,7 +240,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
@@ -323,7 +323,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+        group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
         # Empty value uses default
         # TODO: Run with React 18.
         # Integration tests use the installed React version in next/package.json.
@@ -725,7 +725,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+        group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
         # Empty value uses default
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
@@ -838,7 +838,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+        group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
         # Empty value uses default
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
