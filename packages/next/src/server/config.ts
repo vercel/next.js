@@ -1784,15 +1784,6 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.cacheComponents))
   ) {
     config.cacheComponents = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'cacheComponents',
-        true,
-        'enabled by `__NEXT_CACHE_COMPONENTS`'
-      )
-    }
   }
 
   // TODO: Remove this once using the debug channel is the default.
