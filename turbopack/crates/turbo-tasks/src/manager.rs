@@ -1761,6 +1761,7 @@ impl CurrentCellRef {
                 self.current_task,
                 self.index,
                 ReadCellOptions {
+                    // INVALIDATION: Reading our own cell must be untracked
                     tracking: ReadTracking::Untracked,
                     ..Default::default()
                 },
@@ -1879,6 +1880,7 @@ impl CurrentCellRef {
                 self.current_task,
                 self.index,
                 ReadCellOptions {
+                    // INVALIDATION: Reading our own cell must be untracked
                     tracking: ReadTracking::Untracked,
                     ..Default::default()
                 },
