@@ -290,7 +290,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     FxIndexSet<ResolvedVc<Box<dyn Module>>>,
                 >,
             }
-            let span = tracing::info_span!("map").entered();
+            let span = tracing::info_span!("map chunk groups").entered();
 
             let result = turbo_tasks::parallel::map_collect_chunked_owned::<_, _, Result<Vec<_>>>(
                 // TODO without collect
@@ -410,7 +410,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             )?;
 
             drop(span);
-            let _span = tracing::info_span!("merging").entered();
+            let _span = tracing::info_span!("merging chunk group lists").entered();
 
             lists_reverse_indices
                 .reserve_exact(result.iter().map(|r| r.lists_reverse_indices.len()).sum());
