@@ -1309,7 +1309,7 @@ export interface NextConfig {
   }
 
   /**
-   * User Agent of bots that can handle streaming metadata.
+   * User Agent of bots that can not handle streaming metadata.
    * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
    *
    * @default
