@@ -113,13 +113,11 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  experimental: {
-    cacheLife: {
-      biweekly: {
-        stale: 60 * 60 * 24 * 14, // 14 days
-        revalidate: 60 * 60 * 24, // 1 day
-        expire: 60 * 60 * 24 * 14, // 14 days
-      },
+  cacheLife: {
+    biweekly: {
+      stale: 60 * 60 * 24 * 14, // 14 days
+      revalidate: 60 * 60 * 24, // 1 day
+      expire: 60 * 60 * 24 * 14, // 14 days
     },
   },
 }
@@ -130,13 +128,11 @@ module.exports = nextConfig
 ```js filename="next.config.js" switcher
 const nextConfig = {
   cacheComponents: true,
-  experimental: {
-    cacheLife: {
-      biweekly: {
-        stale: 60 * 60 * 24 * 14, // 14 days
-        revalidate: 60 * 60 * 24, // 1 day
-        expire: 60 * 60 * 24 * 14, // 14 days
-      },
+  cacheLife: {
+    biweekly: {
+      stale: 60 * 60 * 24 * 14, // 14 days
+      revalidate: 60 * 60 * 24, // 1 day
+      expire: 60 * 60 * 24 * 14, // 14 days
     },
   },
 }
@@ -167,13 +163,11 @@ The example below shows how to override the default “days” cache profile:
 ```ts filename="next.config.ts"
 const nextConfig = {
   cacheComponents: true,
-  experimental: {
-    cacheLife: {
-      days: {
-        stale: 3600, // 1 hour
-        revalidate: 900, // 15 minutes
-        expire: 86400, // 1 day
-      },
+  cacheLife: {
+    days: {
+      stale: 3600, // 1 hour
+      revalidate: 900, // 15 minutes
+      expire: 86400, // 1 day
     },
   },
 }

@@ -305,6 +305,9 @@ export interface ExperimentalConfig {
     dynamic?: number
     static?: number
   }
+  /**
+   * @deprecated use top-level `cacheLife` instead
+   */
   cacheLife?: {
     [profile: string]: {
       // How long the client can cache a value without checking with the server.
@@ -1270,6 +1273,20 @@ export interface NextConfig {
    */
   cacheComponents?: boolean
 
+  cacheLife?: {
+    [profile: string]: {
+      // How long the client can cache a value without checking with the server.
+      stale?: number
+      // How frequently you want the cache to refresh on the server.
+      // Stale values may be served while revalidating.
+      revalidate?: number
+      // In the worst case scenario, where you haven't had traffic in a while,
+      // how stale can a value be until you prefer deopting to dynamic.
+      // Must be longer than revalidate.
+      expire?: number
+    }
+  }
+
   /**
    * period (in seconds) where the server allow to serve stale cache
    */
@@ -1398,46 +1415,46 @@ export const defaultConfig = Object.freeze({
   // Will default to cacheComponents value.
   enablePrerenderSourceMaps: undefined,
   cacheComponents: false,
+  cacheLife: {
+    default: {
+      stale: undefined, // defaults to staleTimes.static
+      revalidate: 60 * 15, // 15 minutes
+      expire: INFINITE_CACHE,
+    },
+    seconds: {
+      stale: 30, // 30 seconds
+      revalidate: 1, // 1 second
+      expire: 60, // 1 minute
+    },
+    minutes: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60, // 1 minute
+      expire: 60 * 60, // 1 hour
+    },
+    hours: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60, // 1 hour
+      expire: 60 * 60 * 24, // 1 day
+    },
+    days: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60 * 24, // 1 day
+      expire: 60 * 60 * 24 * 7, // 1 week
+    },
+    weeks: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60 * 24 * 7, // 1 week
+      expire: 60 * 60 * 24 * 30, // 1 month
+    },
+    max: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60 * 24 * 30, // 1 month
+      expire: 60 * 60 * 24 * 365, // 1 year
+    },
+  },
   experimental: {
     adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     useSkewCookie: false,
-    cacheLife: {
-      default: {
-        stale: undefined, // defaults to staleTimes.static
-        revalidate: 60 * 15, // 15 minutes
-        expire: INFINITE_CACHE,
-      },
-      seconds: {
-        stale: 30, // 30 seconds
-        revalidate: 1, // 1 second
-        expire: 60, // 1 minute
-      },
-      minutes: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60, // 1 minute
-        expire: 60 * 60, // 1 hour
-      },
-      hours: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60, // 1 hour
-        expire: 60 * 60 * 24, // 1 day
-      },
-      days: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60 * 24, // 1 day
-        expire: 60 * 60 * 24 * 7, // 1 week
-      },
-      weeks: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60 * 24 * 7, // 1 week
-        expire: 60 * 60 * 24 * 30, // 1 month
-      },
-      max: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60 * 24 * 30, // 1 month
-        expire: 60 * 60 * 24 * 365, // 1 year
-      },
-    },
     cacheHandlers: {
       default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,
       remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,

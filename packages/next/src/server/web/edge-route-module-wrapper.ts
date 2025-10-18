@@ -111,7 +111,7 @@ export class EdgeRouteModuleWrapper {
         experimental: {
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
-        cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+        cacheLifeProfiles: this.nextConfig.cacheLife,
       },
       sharedContext: {
         buildId: '', // TODO: Populate this properly.

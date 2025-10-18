@@ -761,7 +761,7 @@ export default class DevServer extends Server {
           requestHeaders,
           cacheHandler: this.nextConfig.cacheHandler,
           cacheHandlers: this.nextConfig.experimental.cacheHandlers,
-          cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+          cacheLifeProfiles: this.nextConfig.cacheLife,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,

@@ -356,6 +356,15 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     bundlePagesRouterDependencies: z.boolean().optional(),
     cacheComponents: z.boolean().optional(),
     cacheHandler: z.string().min(1).optional(),
+    cacheLife: z
+      .record(
+        z.object({
+          stale: z.number().optional(),
+          revalidate: z.number().optional(),
+          expire: z.number().optional(),
+        })
+      )
+      .optional(),
     cacheMaxMemorySize: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
     compiler: z

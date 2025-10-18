@@ -195,7 +195,7 @@ export async function handler(
       cacheComponents: Boolean(nextConfig.cacheComponents),
       supportsDynamicResponse,
       incrementalCache: getRequestMeta(req, 'incrementalCache'),
-      cacheLifeProfiles: nextConfig.experimental?.cacheLife,
+      cacheLifeProfiles: nextConfig.cacheLife,
       waitUntil: ctx.waitUntil,
       onClose: (cb) => {
         res.on('close', cb)

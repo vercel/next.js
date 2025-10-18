@@ -2143,7 +2143,7 @@ export default async function getBaseWebpackConfig(
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          cacheLifeConfig: config.experimental.cacheLife,
+          cacheLifeConfig: config.cacheLife,
           originalRewrites,
           originalRedirects,
         }),

@@ -717,6 +717,13 @@ function assignDefaultsAndValidate(
     configFileName,
     silent
   )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'cacheLife',
+    'cacheLife',
+    configFileName,
+    silent
+  )
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
@@ -1086,12 +1093,12 @@ function assignDefaultsAndValidate(
     }
   }
 
-  if (result.experimental) {
-    result.experimental.cacheLife = {
-      ...defaultConfig.experimental?.cacheLife,
-      ...result.experimental.cacheLife,
+  if (result.cacheLife) {
+    result.cacheLife = {
+      ...defaultConfig.cacheLife,
+      ...result.cacheLife,
     }
-    const defaultDefault = defaultConfig.experimental?.cacheLife?.['default']
+    const defaultDefault = defaultConfig.cacheLife?.['default']
     if (
       !defaultDefault ||
       defaultDefault.revalidate === undefined ||
@@ -1100,9 +1107,9 @@ function assignDefaultsAndValidate(
     ) {
       throw new Error('No default cacheLife profile.')
     }
-    const defaultCacheLifeProfile = result.experimental.cacheLife['default']
+    const defaultCacheLifeProfile = result.cacheLife['default']
     if (!defaultCacheLifeProfile) {
-      result.experimental.cacheLife['default'] = defaultDefault
+      result.cacheLife['default'] = defaultDefault
     } else {
       if (defaultCacheLifeProfile.stale === undefined) {
         const staticStaleTime = result.experimental.staleTimes?.static

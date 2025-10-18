@@ -531,7 +531,7 @@ export async function handler(
 
           multiZoneDraftMode,
           incrementalCache,
-          cacheLifeProfiles: nextConfig.experimental.cacheLife,
+          cacheLifeProfiles: nextConfig.cacheLife,
           basePath: nextConfig.basePath,
           serverActions: nextConfig.experimental.serverActions,
 
