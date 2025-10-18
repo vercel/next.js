@@ -562,10 +562,8 @@ export function createPatchedFetcher(
                   cacheSignal.endRead()
                   cacheSignal = null
                 }
-                await workUnitStore.stagedRendering.delayUntilStage(
-                  RenderStage.Dynamic,
-                  undefined,
-                  undefined
+                await workUnitStore.stagedRendering.waitForStage(
+                  RenderStage.Dynamic
                 )
               }
               break
@@ -690,10 +688,8 @@ export function createPatchedFetcher(
                       cacheSignal.endRead()
                       cacheSignal = null
                     }
-                    await workUnitStore.stagedRendering.delayUntilStage(
-                      RenderStage.Dynamic,
-                      undefined,
-                      undefined
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
                     )
                   }
                   break
@@ -964,10 +960,8 @@ export function createPatchedFetcher(
                     process.env.NODE_ENV === 'development' &&
                     workUnitStore.stagedRendering
                   ) {
-                    await workUnitStore.stagedRendering.delayUntilStage(
-                      RenderStage.Dynamic,
-                      undefined,
-                      undefined
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
                     )
                   }
                   break
@@ -1094,10 +1088,8 @@ export function createPatchedFetcher(
                       cacheSignal.endRead()
                       cacheSignal = null
                     }
-                    await workUnitStore.stagedRendering.delayUntilStage(
-                      RenderStage.Dynamic,
-                      undefined,
-                      undefined
+                    await workUnitStore.stagedRendering.waitForStage(
+                      RenderStage.Dynamic
                     )
                   }
                   break
@@ -1142,10 +1134,8 @@ export function createPatchedFetcher(
                       process.env.NODE_ENV === 'development' &&
                       workUnitStore.stagedRendering
                     ) {
-                      await workUnitStore.stagedRendering.delayUntilStage(
-                        RenderStage.Dynamic,
-                        undefined,
-                        undefined
+                      await workUnitStore.stagedRendering.waitForStage(
+                        RenderStage.Dynamic
                       )
                     }
                     break
