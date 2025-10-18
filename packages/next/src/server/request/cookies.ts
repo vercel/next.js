@@ -201,9 +201,7 @@ function makeUntrackedCookiesWithDevWarnings(
         'Received a underlying cookies object that does not match either `cookies` or `mutableCookies`'
       )
     }
-    // TODO(restart-on-cache-miss): Instrument with warnings
-    // return instrumentCookiesPromiseWithDevWarnings(promise, route)
-    return promise
+    return instrumentCookiesPromiseWithDevWarnings(promise, route)
   }
 
   const cachedCookies = CachedCookies.get(underlyingCookies)

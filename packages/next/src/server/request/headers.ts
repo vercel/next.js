@@ -201,9 +201,7 @@ function makeUntrackedHeadersWithDevWarnings(
 ): Promise<ReadonlyHeaders> {
   if (requestStore.asyncApiPromises) {
     const promise = requestStore.asyncApiPromises.headers
-    // TODO(restart-on-cache-miss): Instrument with warnings
-    // return instrumentHeadersPromiseWithDevWarnings(promise, route)
-    return promise
+    return instrumentHeadersPromiseWithDevWarnings(promise, route)
   }
 
   const cachedHeaders = CachedHeaders.get(underlyingHeaders)

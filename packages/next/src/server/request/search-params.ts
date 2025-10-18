@@ -386,18 +386,34 @@ function makeUntrackedSearchParamsWithDevWarnings(
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<SearchParams> {
-  const shouldCachePromise = !!requestStore.asyncApiPromises
-  if (shouldCachePromise) {
-    // Note: unlike some of the other functions here, we tie the lifetime of the cached search params
-    // to the request store, not `underlyingSearchParams`.
-    // If we didn't do that we'd end up re-using the same object across both renders in the restart-on-cache-miss flow,
-    // meaning that the `searchParams` promise would (incorrectly) be already resolved in the restarted render.
-    const cachedSearchParams = CachedSearchParams.get(requestStore)
+  if (requestStore.asyncApiPromises) {
+    // Do not cache the resulting promise. If we do, we'll only show the first "awaited at"
+    // across all segments that receive searchParams.
+    return makeUntrackedSearchParamsWithDevWarningsImpl(
+      underlyingSearchParams,
+      workStore,
+      requestStore
+    )
+  } else {
+    const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
     if (cachedSearchParams) {
       return cachedSearchParams
     }
+    const promise = makeUntrackedSearchParamsWithDevWarningsImpl(
+      underlyingSearchParams,
+      workStore,
+      requestStore
+    )
+    CachedSearchParams.set(requestStore, promise)
+    return promise
   }
+}
 
+function makeUntrackedSearchParamsWithDevWarningsImpl(
+  underlyingSearchParams: SearchParams,
+  workStore: WorkStore,
+  requestStore: RequestStore
+): Promise<SearchParams> {
   const promiseInitialized = { current: false }
   const proxiedUnderlying = instrumentSearchParamsObjectWithDevWarnings(
     underlyingSearchParams,
@@ -407,6 +423,12 @@ function makeUntrackedSearchParamsWithDevWarnings(
 
   let promise: Promise<SearchParams>
   if (requestStore.asyncApiPromises) {
+    // Deliberately don't wrap each instance of params in a `new Promise()`.
+    // We want React Devtools to consider all the separate `searchParams` promises
+    // that we create for each segment to be triggered by one IO operation --
+    // the resolving of the underlying `sharedParamsParent` promise.
+    // It's created above any userspace code and has a `displayName`,
+    // so it should show up in "suspended by".
     promise = requestStore.asyncApiPromises.sharedSearchParamsParent.then(
       () => proxiedUnderlying
     )
@@ -432,22 +454,11 @@ function makeUntrackedSearchParamsWithDevWarnings(
     ignoreReject
   )
 
-  if (requestStore.asyncApiPromises) {
-    // TODO(restart-on-cache-miss): Instrument with warnings
-    return promise
-  }
-
-  const proxiedPromise = instrumentSearchParamsPromiseWithDevWarnings(
+  return instrumentSearchParamsPromiseWithDevWarnings(
     underlyingSearchParams,
     promise,
     workStore
   )
-
-  if (shouldCachePromise) {
-    CachedSearchParams.set(requestStore, proxiedPromise)
-  }
-
-  return proxiedPromise
 }
 
 function ignoreReject() {}

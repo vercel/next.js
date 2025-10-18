@@ -456,16 +456,20 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   requestStore: RequestStore
 ): Promise<Params> {
   if (requestStore.asyncApiPromises && hasFallbackParams) {
+    // Deliberately don't wrap each instance of params in a `new Promise()`.
+    // We want React Devtools to consider all the separate `params` promises
+    // that we create for each segment to be triggered by one IO operation --
+    // the resolving of the underlying `sharedParamsParent` promise.
+    // It's created above any userspace code and has a `displayName`,
+    // so it should show up in "suspended by".
     const promise = requestStore.asyncApiPromises.sharedParamsParent.then(
       () => underlyingParams
     )
-    // TODO(restart-on-cache-miss): Instrument with warnings
-    // return instrumentParamsPromiseWithDevWarnings(
-    //   underlyingParams,
-    //   promise,
-    //   workStore
-    // )
-    return promise
+    return instrumentParamsPromiseWithDevWarnings(
+      underlyingParams,
+      promise,
+      workStore
+    )
   }
 
   const cachedParams = CachedParams.get(underlyingParams)
