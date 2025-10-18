@@ -106,7 +106,9 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 10. Create a bare minimum custom WordPress theme, consisting of only 2 files:
 
 - [style.css](https://developer.wordpress.org/themes/basics/main-stylesheet-style-css/#basic-structure)
+- templates/index.html
 - functions.php (see the bottom of this README)
+
 
 ### Next.js
 
