@@ -307,6 +307,89 @@ describe('next-lint-to-eslint-cli', () => {
     })
   })
 
+  describe('flat-config-flat-compat-with-other-compat', () => {
+    it('should replace FlatCompat config with direct imports while preserving other configs', () => {
+      const testDir = path.join(fixturesDir, 'flat-config-flat-compat-with-other-compat')
+      // Check BEFORE state
+      const beforeConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.mjs'),
+        'utf8'
+      )
+
+      expect(beforeConfig).toMatchInlineSnapshot(`
+       "import { dirname } from 'path'
+       import { fileURLToPath } from 'url'
+       import { FlatCompat } from '@eslint/eslintrc'
+
+       const __filename = fileURLToPath(import.meta.url)
+       const __dirname = dirname(__filename)
+
+       const compat = new FlatCompat({
+         baseDirectory: __dirname,
+       })
+
+       const eslintConfig = [
+         ...compat.config({
+           extends: ['next/core-web-vitals', 'next/typescript'],
+         }),
+         ...compat.config({
+           extends: ['foo', 'bar'],
+         }),
+         {
+           ignores: [
+             'node_modules/**',
+             '.next/**',
+             'out/**',
+             'build/**',
+             'next-env.d.ts',
+           ],
+         },
+       ]
+
+       export default eslintConfig
+       "
+      `)
+
+      // Run transformer
+      transformer([testDir], { skipInstall: true })
+
+      // Check AFTER state
+      const actualConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.mjs'),
+        'utf8'
+      )
+      expect(actualConfig).toMatchInlineSnapshot(`
+       "import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+       import nextTypescript from "eslint-config-next/typescript";
+       import { dirname } from 'path'
+       import { fileURLToPath } from 'url'
+       import { FlatCompat } from '@eslint/eslintrc'
+
+       const __filename = fileURLToPath(import.meta.url)
+       const __dirname = dirname(__filename)
+
+       const compat = new FlatCompat({
+         baseDirectory: __dirname,
+       })
+
+       const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, ...compat.config({
+         extends: ['foo', 'bar']
+       }), {
+         ignores: [
+           'node_modules/**',
+           '.next/**',
+           'out/**',
+           'build/**',
+           'next-env.d.ts',
+         ],
+       }]
+
+       export default eslintConfig
+       "
+      `)
+    })
+  })
+
   describe('legacy-config', () => {
     it('should migrate legacy config to flat config and transform package.json', async () => {
       const testDir = path.join(fixturesDir, 'legacy-config')
