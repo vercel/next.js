@@ -702,10 +702,17 @@ function initializeModelChunk(chunk) {
   try {
     var value = JSON.parse(resolvedModel, response._fromJSON),
       resolveListeners = chunk.value;
-    null !== resolveListeners &&
-      ((chunk.value = null),
-      (chunk.reason = null),
-      wakeChunk(resolveListeners, value, chunk));
+    if (null !== resolveListeners)
+      for (
+        chunk.value = null, chunk.reason = null, resolvedModel = 0;
+        resolvedModel < resolveListeners.length;
+        resolvedModel++
+      ) {
+        var listener = resolveListeners[resolvedModel];
+        "function" === typeof listener
+          ? listener(value)
+          : fulfillReference(listener, value, chunk);
+      }
     if (null !== initializingHandler) {
       if (initializingHandler.errored) throw initializingHandler.reason;
       if (0 < initializingHandler.deps) {

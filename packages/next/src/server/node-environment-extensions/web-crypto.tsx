@@ -31,7 +31,7 @@ try {
   }
 } catch {
   console.error(
-    `Failed to install ${getRandomValuesExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
+    `Failed to install ${getRandomValuesExpression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
   )
 }
 
@@ -44,6 +44,6 @@ try {
   } as typeof _randomUUID
 } catch {
   console.error(
-    `Failed to install ${getRandomValuesExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
+    `Failed to install ${getRandomValuesExpression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
   )
 }

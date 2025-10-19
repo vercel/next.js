@@ -101,7 +101,7 @@ enum NextConfigProperty {
 impl Display for NextConfigProperty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NextConfigProperty::CacheComponents => write!(f, "experimental.cacheComponents"),
+            NextConfigProperty::CacheComponents => write!(f, "cacheComponents"),
             NextConfigProperty::UseCache => write!(f, "experimental.useCache"),
         }
     }
@@ -645,17 +645,17 @@ impl ReactServerComponentValidator {
             ],
 
             invalid_client_lib_apis_mapping: FxHashMap::from_iter([
-                ("next/server", vec!["after", "unstable_rootParams"]),
+                ("next/server", vec!["after"]),
                 (
                     "next/cache",
                     vec![
                         "revalidatePath",
                         "revalidateTag",
                         // "unstable_cache", // useless in client, but doesn't technically error
+                        "cacheLife",
                         "unstable_cacheLife",
+                        "cacheTag",
                         "unstable_cacheTag",
-                        "unstable_expirePath",
-                        "unstable_expireTag",
                         // "unstable_noStore" // no-op in client, but allowed for legacy reasons
                     ],
                 ),
@@ -845,7 +845,8 @@ impl ReactServerComponentValidator {
                             );
                         }
                     }
-                    "dynamicParams" | "dynamic" | "fetchCache" | "revalidate" => {
+                    "dynamicParams" | "dynamic" | "fetchCache" | "revalidate"
+                    | "experimental_ppr" => {
                         if self.cache_components_enabled {
                             possibly_invalid_exports.insert(
                                 export_name.clone(),

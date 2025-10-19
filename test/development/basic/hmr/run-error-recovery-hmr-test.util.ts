@@ -9,6 +9,7 @@ import {
   retry,
   waitFor,
   trimEndMultiline,
+  getDistDir,
 } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import { outdent } from 'outdent'
@@ -128,7 +129,6 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         await next.browser(basePath + '/does-not-exist')
 
         await retry(() => {
-          // eslint-disable-next-line jest/no-standalone-expect
           expect(next.cliOutput).toMatch(/getInitialProps called/)
         })
 
@@ -140,7 +140,6 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         const logOccurrences =
           next.cliOutput.slice(outputIndex).split('getInitialProps called')
             .length - 1
-        // eslint-disable-next-line jest/no-standalone-expect
         expect(logOccurrences).toBe(0)
       } finally {
         await next.deleteFile(errorPage)
@@ -767,7 +766,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
   if (!process.env.IS_TURBOPACK_TEST) {
     it('should have client HMR events in trace file', async () => {
-      const traceData = await next.readFile('.next/trace')
+      const traceData = await next.readFile(`${getDistDir()}/trace`)
       expect(traceData).toContain('client-hmr-latency')
       expect(traceData).toContain('client-error')
       expect(traceData).toContain('client-success')

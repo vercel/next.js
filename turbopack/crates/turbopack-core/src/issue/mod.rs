@@ -9,14 +9,13 @@ use std::{
 };
 
 use anyhow::{Result, anyhow};
-use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, IntoTraitRef, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc,
-    TaskInput, TransientInstance, TransientValue, TryJoinIterExt, Upcast, ValueDefault,
-    ValueToString, Vc, emit, trace::TraceRawVcs,
+    TaskInput, TransientValue, TryJoinIterExt, Upcast, ValueDefault, ValueToString, Vc, emit,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -163,7 +162,7 @@ pub trait ImportTracer {
     fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Vc<ImportTraces>;
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value]
 #[derive(Debug)]
 pub struct DelegatingImportTracer {
     delegates: AutoSet<ResolvedVc<Box<dyn ImportTracer>>>,
@@ -797,63 +796,57 @@ pub trait IssueReporter {
     ///
     /// # Arguments:
     ///
-    /// * `issues` - A [ReadRef] of [CapturedIssues]. Typically obtained with
-    ///   `source.peek_issues()`.
     /// * `source` - The root [Vc] from which issues are traced. Can be used by implementers to
-    ///   determine which issues are new.
+    ///   determine which issues are new.  This must be derived from the OperationVc so issues can
+    ///   be collected.
     /// * `min_failing_severity` - The minimum Vc<[IssueSeverity]>
     ///  The minimum issue severity level considered to fatally end the program.
     #[turbo_tasks::function]
     fn report_issues(
         self: Vc<Self>,
-        issues: TransientInstance<CapturedIssues>,
         source: TransientValue<RawVc>,
         min_failing_severity: IssueSeverity,
     ) -> Vc<bool>;
 }
 
-#[async_trait]
 pub trait CollectibleIssuesExt
 where
     Self: Sized,
 {
-    /// Returns all issues from `source` in a list with their associated
-    /// processing path.
-    async fn peek_issues(self) -> Result<CapturedIssues>;
+    /// Returns all issues from `source`
+    ///
+    /// Must be called in a turbo-task as this constructs a `cell`
+    fn peek_issues(self) -> CapturedIssues;
 
-    /// Returns all issues from `source` in a list with their associated
-    /// processing path.
+    /// Drops all issues from `source`
     ///
     /// This unemits the issues. They will not propagate up.
-    async fn take_issues(self) -> Result<CapturedIssues>;
+    fn drop_issues(self);
 }
 
-#[async_trait]
 impl<T> CollectibleIssuesExt for T
 where
     T: CollectiblesSource + Copy + Send,
 {
-    async fn peek_issues(self) -> Result<CapturedIssues> {
-        Ok(CapturedIssues {
+    fn peek_issues(self) -> CapturedIssues {
+        CapturedIssues {
             issues: self.peek_collectibles(),
 
-            tracer: DelegatingImportTracer::resolved_cell(DelegatingImportTracer {
+            tracer: DelegatingImportTracer {
                 delegates: self.peek_collectibles(),
-            }),
-        })
+            }
+            .resolved_cell(),
+        }
     }
 
-    async fn take_issues(self) -> Result<CapturedIssues> {
-        Ok(CapturedIssues {
-            issues: self.take_collectibles(),
-
-            tracer: DelegatingImportTracer::resolved_cell(DelegatingImportTracer {
-                delegates: self.take_collectibles(),
-            }),
-        })
+    fn drop_issues(self) {
+        self.drop_collectibles::<Box<dyn Issue>>();
     }
 }
 
+/// A helper function to print out issues to the console.
+///
+/// Must be called in a turbo-task as this constructs a `cell`
 pub async fn handle_issues<T: Send>(
     source_op: OperationVc<T>,
     issue_reporter: Vc<Box<dyn IssueReporter>>,
@@ -863,10 +856,8 @@ pub async fn handle_issues<T: Send>(
 ) -> Result<()> {
     let source_vc = source_op.connect();
     let _ = source_op.resolve_strongly_consistent().await?;
-    let issues = source_op.peek_issues().await?;
 
     let has_fatal = issue_reporter.report_issues(
-        TransientInstance::new(issues),
         TransientValue::new(Vc::into_raw(source_vc)),
         min_failing_severity,
     );

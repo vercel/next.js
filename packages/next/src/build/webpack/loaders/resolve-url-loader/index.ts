@@ -65,13 +65,10 @@ export default async function resolveUrlLoader(
     inputSourceMap: sourceMap,
     sourceMapConsumer: sourceMapConsumer,
   })
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     .catch(onFailure)
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     .then(onSuccess)
 
   function onFailure(error: Error) {
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     callback(encodeError('CSS error', error))
   }
 

@@ -9,6 +9,7 @@ import type { NextFontManifest } from '../../build/webpack/plugins/next-font-man
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { ImageConfigComplete } from '../../shared/lib/image-config'
 import type { __ApiPreviewProps } from '../api-utils'
 
 import s from 'next/dist/compiled/superstruct'
@@ -76,7 +77,9 @@ export interface RenderOptsPartial {
   err?: Error | null
   dev?: boolean
   basePath: string
+  cacheComponents: boolean
   trailingSlash: boolean
+  images: ImageConfigComplete
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   supportsDynamicResponse: boolean
   runtime?: ServerRuntime
@@ -93,7 +96,7 @@ export interface RenderOptsPartial {
   }
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
-  setIsrStatus?: (key: string, value: boolean) => void
+  setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
     debugChannel: { readable: ReadableStream<Uint8Array> },
     htmlRequestId: string,
@@ -128,9 +131,7 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
-    cacheComponents: boolean
     clientSegmentCache: boolean | 'client-only'
-    clientParamParsing: boolean
 
     /**
      * The origins that are allowed to write the rewritten headers when

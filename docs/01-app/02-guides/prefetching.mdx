@@ -58,16 +58,27 @@ Automatic prefetching runs only in production. Disable with `prefetch={false}` o
 
 ## Manual prefetch
 
+To do manual prefetching, import the `useRouter` hook from `next/navigation`, and call `router.prefetch()` to warm routes outside the viewport or in response to analytics, hover, scroll, etc.
+
 ```tsx
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { CustomLink } from '@components/link'
 
-const router = useRouter()
-router.prefetch('/pricing')
+export function PricingCard() {
+  const router = useRouter()
+
+  return (
+    <div onMouseEnter={() => router.prefetch('/pricing')}>
+      {/* other UI elements */}
+      <CustomLink href="/pricing">View Pricing</CustomLink>
+    </div>
+  )
+}
 ```
 
-Call `router.prefetch()` to warm routes outside the viewport or in response to analytics, hover, scroll, etc.
+If the intent is to prefetch a URL when a component loads, see the extending or rejecting a link [example].
 
 ## Hover-triggered prefetch
 

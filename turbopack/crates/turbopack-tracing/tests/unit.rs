@@ -22,7 +22,6 @@ use turbopack::{
     },
 };
 use turbopack_core::{
-    chunk::ChunkingType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -30,7 +29,7 @@ use turbopack_core::{
     ident::Layer,
     module::Module,
     output::OutputAsset,
-    reference::{all_assets_from_entries, primary_chunkable_referenced_modules},
+    reference::all_assets_from_entries,
     reference_type::ReferenceType,
     traced_asset::TracedAsset,
 };
@@ -44,12 +43,13 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // TODO fix failures
 #[rstest]
 #[case::amd_disable("amd-disable")]
-// #[case::array_emission("array-emission")]
+#[case::array_emission("array-emission")]
 #[case::array_holes("array-holes")]
+// Ternary currently becomes Unknown as opposed to Alternatives when the condition isn't static
 // #[case::asset_conditional("asset-conditional")]
 #[case::asset_fs_array_expr("asset-fs-array-expr")]
 #[case::asset_fs_array_expr_node_prefix("asset-fs-array-expr-node-prefix")]
-// #[case::asset_fs_extra("asset-fs-extra")]
+#[case::asset_fs_extra("asset-fs-extra")]
 #[case::asset_fs_inline_path_babel("asset-fs-inline-path-babel")]
 #[case::asset_fs_inline_path_enc_es("asset-fs-inline-path-enc-es")]
 #[case::asset_fs_inline_path_enc_es_2("asset-fs-inline-path-enc-es-2")]
@@ -65,10 +65,10 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::asset_fs_inlining_multi("asset-fs-inlining-multi")]
 #[case::asset_fs_logical("asset-fs-logical")]
 // #[case::asset_graceful_fs("asset-graceful-fs")]
-// #[case::asset_node_require("asset-node-require")]
+#[case::asset_node_require("asset-node-require")]
 #[case::asset_package_json("asset-package-json")]
 // #[case::asset_symlink("asset-symlink")]
-// #[case::basic_analysis_require("basic-analysis-require")]
+#[case::basic_analysis_require("basic-analysis-require")]
 // #[case::browser_remappings("browser-remappings")]
 // #[case::browser_remappings_disabled("browser-remappings-disabled")]
 // #[case::browser_remappings_false("browser-remappings-false")]
@@ -84,9 +84,9 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::dirname_emit("dirname-emit")]
 // #[case::dirname_emit_concat("dirname-emit-concat")]
 #[case::dirname_len("dirname-len")]
-// #[case::dot_dot("dot-dot")]
-// #[case::esm_dynamic_import("esm-dynamic-import")]
-// #[case::esm_export_wildcard("esm-export-wildcard")]
+#[case::dot_dot("dot-dot")]
+#[case::esm_dynamic_import("esm-dynamic-import")]
+#[case::esm_export_wildcard("esm-export-wildcard")]
 // #[case::esm_paths("esm-paths")]
 // #[case::esm_paths_trailer("esm-paths-trailer")]
 // #[case::exports("exports")]
@@ -110,7 +110,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::jsx_input("jsx-input")]
 // #[case::microtime_node_gyp("microtime-node-gyp")]
 // #[case::mixed_esm_cjs("mixed-esm-cjs")]
-// #[case::module_create_require("module-create-require")]
+#[case::module_create_require("module-create-require")]
 // #[case::module_register("module-register")]
 // #[case::module_require("module-require")]
 // #[case::module_sync_condition_cjs("module-sync-condition-cjs")]
@@ -186,9 +186,13 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
     let input_dir = workspace_fs.root().owned().await?;
     let input = input_dir.join(&input)?;
 
-    let source = FileSource::new(input);
+    let source = FileSource::new(input.clone());
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment::default().resolved_cell(),
+        NodeJsEnvironment {
+            cwd: ResolvedVc::cell(Some(input.parent())),
+            ..Default::default()
+        }
+        .resolved_cell(),
     ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
@@ -229,27 +233,11 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
         .process(Vc::upcast(source), ReferenceType::Undefined)
         .module();
 
-    // We treat the entry as bundled code, so start with the references.
-    let assets = primary_chunkable_referenced_modules(module, true)
-        .await?
-        .iter()
-        .flat_map(|(ty, _, modules)| {
-            if *ty == ChunkingType::Traced {
-                Some(modules.into_iter())
-            } else {
-                None
-            }
-        })
-        .flatten()
-        .map(async |m| {
-            Ok(ResolvedVc::upcast(
-                TracedAsset::new(**m).to_resolved().await?,
-            ))
-        })
-        .try_join()
-        .await?;
-
-    let mut paths = to_list(assets).await?;
+    // We treat the entry as an external
+    let mut paths = to_list(vec![ResolvedVc::upcast(
+        TracedAsset::new(module).to_resolved().await?,
+    )])
+    .await?;
     paths.push(module.ident().path().await?.path.clone());
 
     Ok(Vc::cell(paths))
@@ -269,6 +257,8 @@ async fn to_list(assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>) -> Result<Vec<Rc
 }
 
 static TRAILING_COMMA: LazyLock<Regex> = LazyLock::new(|| Regex::new(r",[\s\n]*\]").unwrap());
+static LINE_COMMENTS_COMMA: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)^\s*//.*$").unwrap());
 
 fn node_file_trace(input_path: &str) -> Result<()> {
     let r = &mut {
@@ -294,20 +284,17 @@ fn node_file_trace(input_path: &str) -> Result<()> {
                 .map(|s| s.to_string())
                 .collect::<FxIndexSet<_>>();
 
-            // println!(
-            //     "issues: {:#?}",
-            //     op.peek_issues_with_path().await?.get_plain_issues().await?
-            // );
+            // println!("issues: {:#?}", op.peek_issues().get_plain_issues().await?);
 
             let reference = std::fs::read_to_string(reference)?;
             // crude JS -> JSON conversion
-            let reference = TRAILING_COMMA
-                .replace(&reference, "]")
+            let reference = TRAILING_COMMA.replace(&reference, "]");
+            let reference = LINE_COMMENTS_COMMA
+                .replace_all(&reference, "")
                 .replace(";", "")
                 .replace('\'', "\"");
             let reference = serde_json::from_str::<Vec<String>>(&reference)?
                 .into_iter()
-                .filter(|m| m != "package.json")
                 .collect::<FxIndexSet<_>>();
 
             if reference == list {

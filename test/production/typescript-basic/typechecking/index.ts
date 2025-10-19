@@ -1,4 +1,3 @@
-import 'next/amp'
 import 'next/app'
 // FIXME
 // import 'next/babel';

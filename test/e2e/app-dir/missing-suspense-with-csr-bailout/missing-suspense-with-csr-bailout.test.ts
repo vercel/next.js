@@ -22,7 +22,7 @@ describe('missing-suspense-with-csr-bailout', () => {
   })
 
   const isCacheComponentsEnabled =
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+    process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
   describe('useSearchParams', () => {
     const message = isCacheComponentsEnabled

@@ -314,8 +314,14 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
   }
 }
 
-export function isPersistentCachingEnabled(
+export function isFileSystemCacheEnabledForDev(
   config: NextConfigComplete
 ): boolean {
-  return config.experimental?.turbopackPersistentCaching || false
+  return config.experimental?.turbopackFileSystemCacheForDev || false
+}
+
+export function isFileSystemCacheEnabledForBuild(
+  config: NextConfigComplete
+): boolean {
+  return config.experimental?.turbopackFileSystemCacheForBuild || false
 }

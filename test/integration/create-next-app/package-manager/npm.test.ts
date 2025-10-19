@@ -38,6 +38,7 @@ describe('create-next-app with package manager npm', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         nextTgzFilename,
         {
@@ -67,6 +68,7 @@ describe('create-next-app with package manager npm', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         nextTgzFilename,
         {

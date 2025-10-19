@@ -1,0 +1,26 @@
+{
+  "scripts": {
+    "lint": "next lint --fix --dir src --dir pages",
+    "lint:strict": "next lint --strict",
+    "lint:ci": "next lint --quiet --output-file lint-results.json",
+    "precommit": "next lint --fix && npm test",
+    "test": "jest && next lint",
+    "complex": "npm run build && next lint --dir . --ext .js,.jsx,.ts,.tsx 2>/dev/null",
+    "pipe": "next lint | tee lint.log",
+    "redirect": "next lint > output.txt 2>&1",
+    "multi": "next lint; next build; next lint --fix"
+  },
+  "dependencies": {
+    "react": "^19",
+    "react-dom": "^19",
+    "next": "^16"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^16"
+  }
+}

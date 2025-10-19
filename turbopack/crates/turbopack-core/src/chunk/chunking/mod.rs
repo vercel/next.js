@@ -321,7 +321,7 @@ pub async fn make_chunks(
     let mut chunks = Vec::new();
     for (ty, (chunk_items, batch_groups)) in map {
         let ty_name = ty.to_string().await?;
-        let span = tracing::trace_span!("make chunks for type", name = ty_name.as_str());
+        let span = tracing::trace_span!("make chunks for type", name = display(&ty_name));
         async {
             let mut split_context = SplitContext {
                 ty,

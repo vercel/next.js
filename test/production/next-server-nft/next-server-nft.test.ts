@@ -26,8 +26,8 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
     }
 
     async function readNormalizedNFT(name) {
-      let data = await next.readJSON(name)
-      let result = [
+      const data = await next.readJSON(name)
+      const result = [
         ...new Set(
           data.files
             .filter((file: string) => {
@@ -39,9 +39,14 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
               }
 
               // Filter out the many symlinks that power node_modules
-              let fileAbsolute = path.join(next.testDir, name, '..', file)
-              if (fs.lstatSync(fileAbsolute).isSymbolicLink()) {
-                return false
+              const fileAbsolute = path.join(next.testDir, name, '..', file)
+              try {
+                if (fs.lstatSync(fileAbsolute).isSymbolicLink()) {
+                  return false
+                }
+              } catch (e) {
+                // File doesn't exist - this is a bug in the NFT generation!
+                // Keep it in the list so the test can catch it
               }
               return true
             })
@@ -59,8 +64,8 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
               }
 
               // Strip double node_modules to simplify output
-              let firstNodeModules = file.indexOf('/node_modules/')
-              let lastNodeModules = file.lastIndexOf('/node_modules/')
+              const firstNodeModules = file.indexOf('/node_modules/')
+              const lastNodeModules = file.lastIndexOf('/node_modules/')
               if (firstNodeModules !== lastNodeModules) {
                 return file.slice(lastNodeModules)
               }
@@ -74,12 +79,12 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
     }
 
     it('should not trace too many files in next-server.js.nft.json', async () => {
-      let trace = await readNormalizedNFT('.next/next-server.js.nft.json')
+      const trace = await readNormalizedNFT('.next/next-server.js.nft.json')
 
       // Group the entries together so that the snapshot doesn't change too often.
       // This trace contains quite a lot of files that aren't actually needed. But there isn't much
       // that Turbopack itself can do about that.
-      let traceGrouped = [
+      const traceGrouped = [
         ...new Set(
           trace.map((file: string) => {
             if (file.startsWith('/node_modules/next/')) {
@@ -126,13 +131,8 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/next/dist/compiled/@hapi/accept/index.js",
          "/node_modules/next/dist/compiled/@mswjs/interceptors/ClientRequest/index.js",
          "/node_modules/next/dist/compiled/@opentelemetry/api/index.js",
-         "/node_modules/next/dist/compiled/babel-packages/packages-bundle.js",
-         "/node_modules/next/dist/compiled/babel/bundle.js",
+         "/node_modules/next/dist/compiled/babel-code-frame/index.js",
          "/node_modules/next/dist/compiled/babel/code-frame.js",
-         "/node_modules/next/dist/compiled/babel/core.js",
-         "/node_modules/next/dist/compiled/babel/parser.js",
-         "/node_modules/next/dist/compiled/babel/traverse.js",
-         "/node_modules/next/dist/compiled/babel/types.js",
          "/node_modules/next/dist/compiled/busboy/index.js",
          "/node_modules/next/dist/compiled/bytes/index.js",
          "/node_modules/next/dist/compiled/content-disposition/index.js",
@@ -143,9 +143,8 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/next/dist/compiled/image-detector/detector.js",
          "/node_modules/next/dist/compiled/image-size/index.js",
          "/node_modules/next/dist/compiled/is-animated/index.js",
-         "/node_modules/next/dist/compiled/json5/index.js",
+         "/node_modules/next/dist/compiled/is-local-address/index.js",
          "/node_modules/next/dist/compiled/jsonwebtoken/index.js",
-         "/node_modules/next/dist/compiled/lru-cache/index.js",
          "/node_modules/next/dist/compiled/nanoid/index.cjs",
          "/node_modules/next/dist/compiled/next-server/app-page-turbo-experimental.runtime.prod.js",
          "/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js",
@@ -157,7 +156,7 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/next/dist/compiled/react-is/cjs/react-is.development.js",
          "/node_modules/next/dist/compiled/react-is/cjs/react-is.production.js",
          "/node_modules/next/dist/compiled/react-is/index.js",
-         "/node_modules/next/dist/compiled/semver/index.js",
+         "/node_modules/next/dist/compiled/safe-stable-stringify/index.js",
          "/node_modules/next/dist/compiled/send/index.js",
          "/node_modules/next/dist/compiled/source-map/source-map.js",
          "/node_modules/next/dist/compiled/stacktrace-parser/stack-trace-parser.cjs.js",
@@ -234,8 +233,33 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
       `)
     })
 
+    it('should not include .next directory in traces despite dynamic fs operations', async () => {
+      // This test verifies that the denied_path feature prevents the .next directory
+      // from being included in traces. The app/dynamic-read page uses dynamic fs.readFileSync
+      // with path.join(process.cwd(), ...) which could theoretically read any file.
+
+      // Check the page-specific trace that has the dynamic fs operations
+      const pageTrace = await readNormalizedNFT(
+        '.next/server/app/dynamic-read/page.js.nft.json'
+      )
+
+      // Snapshot the non-node_modules and non-chunks files to see what's being traced
+      // We also filter out chunks because their names change with every build
+      const nonNodeModulesFiles = pageTrace.filter(
+        (file: string) =>
+          !file.includes('/node_modules/') && !file.includes('/chunks/')
+      )
+
+      expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
+       [
+         "./page/react-loadable-manifest.json",
+         "./page_client-reference-manifest.js",
+       ]
+      `)
+    })
+
     it('should not trace too many files in next-minimal-server.js.nft.json', async () => {
-      let trace = await readNormalizedNFT(
+      const trace = await readNormalizedNFT(
         '.next/next-minimal-server.js.nft.json'
       )
       expect(trace).toMatchInlineSnapshot(`
@@ -243,18 +267,10 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/client-only/index.js",
          "/node_modules/next/dist/client/components/app-router-headers.js",
          "/node_modules/next/dist/compiled/@opentelemetry/api/index.js",
-         "/node_modules/next/dist/compiled/babel-packages/packages-bundle.js",
-         "/node_modules/next/dist/compiled/babel/bundle.js",
+         "/node_modules/next/dist/compiled/babel-code-frame/index.js",
          "/node_modules/next/dist/compiled/babel/code-frame.js",
-         "/node_modules/next/dist/compiled/babel/core.js",
-         "/node_modules/next/dist/compiled/babel/parser.js",
-         "/node_modules/next/dist/compiled/babel/traverse.js",
-         "/node_modules/next/dist/compiled/babel/types.js",
-         "/node_modules/next/dist/compiled/debug/index.js",
-         "/node_modules/next/dist/compiled/json5/index.js",
-         "/node_modules/next/dist/compiled/lru-cache/index.js",
          "/node_modules/next/dist/compiled/next-server/server.runtime.prod.js",
-         "/node_modules/next/dist/compiled/semver/index.js",
+         "/node_modules/next/dist/compiled/safe-stable-stringify/index.js",
          "/node_modules/next/dist/compiled/source-map/source-map.js",
          "/node_modules/next/dist/compiled/stacktrace-parser/stack-trace-parser.cjs.js",
          "/node_modules/next/dist/compiled/ws/index.js",
@@ -265,9 +281,12 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/next/dist/lib/constants.js",
          "/node_modules/next/dist/lib/interop-default.js",
          "/node_modules/next/dist/lib/is-error.js",
+         "/node_modules/next/dist/lib/picocolors.js",
          "/node_modules/next/dist/server/app-render/after-task-async-storage-instance.js",
          "/node_modules/next/dist/server/app-render/after-task-async-storage.external.js",
          "/node_modules/next/dist/server/app-render/async-local-storage.js",
+         "/node_modules/next/dist/server/app-render/console-async-storage-instance.js",
+         "/node_modules/next/dist/server/app-render/console-async-storage.external.js",
          "/node_modules/next/dist/server/app-render/work-async-storage-instance.js",
          "/node_modules/next/dist/server/app-render/work-async-storage.external.js",
          "/node_modules/next/dist/server/app-render/work-unit-async-storage-instance.js",
@@ -282,9 +301,9 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/next/dist/server/lib/trace/constants.js",
          "/node_modules/next/dist/server/lib/trace/tracer.js",
          "/node_modules/next/dist/server/load-manifest.external.js",
+         "/node_modules/next/dist/server/node-environment-extensions/console-dim.external.js",
          "/node_modules/next/dist/server/response-cache/types.js",
          "/node_modules/next/dist/server/route-modules/app-page/module.compiled.js",
-         "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/amp-context.js",
          "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/app-router-context.js",
          "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/entrypoints.js",
          "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/head-manager-context.js",
@@ -293,7 +312,6 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/router-context.js",
          "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/server-inserted-html.js",
          "/node_modules/next/dist/server/route-modules/pages/module.compiled.js",
-         "/node_modules/next/dist/server/route-modules/pages/vendored/contexts/amp-context.js",
          "/node_modules/next/dist/server/route-modules/pages/vendored/contexts/app-router-context.js",
          "/node_modules/next/dist/server/route-modules/pages/vendored/contexts/entrypoints.js",
          "/node_modules/next/dist/server/route-modules/pages/vendored/contexts/head-manager-context.js",

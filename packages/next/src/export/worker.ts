@@ -50,6 +50,7 @@ import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
+import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
@@ -76,7 +77,6 @@ async function exportPageImpl(
     disableOptimizedLoading,
     debugOutput = false,
     enableExperimentalReact,
-    ampValidatorPath,
     trailingSlash,
     sriEnabled,
     renderOpts: commonRenderOpts,
@@ -123,8 +123,6 @@ async function exportPageImpl(
   const outDir = isAppDir ? join(distDir, 'server/app') : commonOutDir
 
   const filePath = normalizePagePath(path)
-  const ampPath = `${filePath}.amp`
-  let renderAmpPath = ampPath
 
   let updatedPath = exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
@@ -135,10 +133,6 @@ async function exportPageImpl(
     if (localePathResult.detectedLocale) {
       updatedPath = localePathResult.pathname
       locale = localePathResult.detectedLocale
-
-      if (locale === commonRenderOpts.defaultLocale) {
-        renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
-      }
     }
   }
 
@@ -245,6 +239,7 @@ async function exportPageImpl(
       commonRenderOpts.cacheLifeProfiles,
       htmlFilepath,
       fileWriter,
+      commonRenderOpts.cacheComponents,
       commonRenderOpts.experimental,
       buildId
     )
@@ -253,7 +248,6 @@ async function exportPageImpl(
   const renderOpts: WorkerRenderOpts = {
     ...components,
     ...commonRenderOpts,
-    ampPath: renderAmpPath,
     params,
     optimizeCss,
     disableOptimizedLoading,
@@ -314,10 +308,6 @@ async function exportPageImpl(
     params,
     htmlFilepath,
     htmlFilename,
-    ampPath,
-    subFolders,
-    outDir,
-    ampValidatorPath,
     pagesDataDir,
     buildExport,
     isDynamic,
@@ -348,7 +338,9 @@ export async function exportPages(
     renderResumeDataCachesByPage = {},
   } = input
 
-  if (nextConfig.experimental.enablePrerenderSourceMaps) {
+  installGlobalBehaviors(nextConfig)
+
+  if (nextConfig.enablePrerenderSourceMaps) {
     try {
       // Same as `next dev`
       // Limiting the stack trace to a useful amount of frames is handled by ignore-listing.
@@ -403,8 +395,6 @@ export async function exportPages(
             outDir,
             pagesDataDir,
             renderOpts,
-            ampValidatorPath:
-              nextConfig.experimental.amp?.validator || undefined,
             trailingSlash: nextConfig.trailingSlash,
             subFolders: nextConfig.trailingSlash && !options.buildExport,
             buildExport: options.buildExport,

@@ -12,6 +12,7 @@ import {
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
+  NEXT_REQUEST_ID_HEADER,
 } from '../../app-router-headers'
 import { UnrecognizedActionError } from '../../unrecognized-action-error'
 
@@ -23,12 +24,11 @@ import {
   encodeReply,
 } from 'react-server-dom-webpack/client'
 
-import {
-  PrefetchKind,
-  type ReadonlyReducerState,
-  type ReducerState,
-  type ServerActionAction,
-  type ServerActionMutable,
+import type {
+  ReadonlyReducerState,
+  ReducerState,
+  ServerActionAction,
+  ServerActionMutable,
 } from '../router-reducer-types'
 import { assignLocation } from '../../../assign-location'
 import { createHrefFromUrl } from '../create-href-from-url'
@@ -49,7 +49,6 @@ import {
 } from '../../../flight-data-helpers'
 import { getRedirectError } from '../../redirect'
 import { RedirectType } from '../../redirect-error'
-import { createSeededPrefetchCacheEntry } from '../prefetch-cache-utils'
 import { removeBasePath } from '../../../remove-base-path'
 import { hasBasePath } from '../../../has-base-path'
 import {
@@ -65,7 +64,10 @@ let createDebugChannel:
   | typeof import('../../../dev/debug-channel').createDebugChannel
   | undefined
 
-if (process.env.NODE_ENV !== 'production') {
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEBUG_CHANNEL
+) {
   createDebugChannel = (
     require('../../../dev/debug-channel') as typeof import('../../../dev/debug-channel')
   ).createDebugChannel
@@ -116,8 +118,17 @@ async function fetchServerAction(
     headers[NEXT_URL] = nextUrl
   }
 
-  if (process.env.NODE_ENV !== 'production' && self.__next_r) {
-    headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
+  if (process.env.NODE_ENV !== 'production') {
+    if (self.__next_r) {
+      headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
+    }
+
+    // Create a new request ID for the server action request. The server uses
+    // this to tag debug information sent via WebSocket to the client, which
+    // then routes those chunks to the debug channel associated with this ID.
+    headers[NEXT_REQUEST_ID_HEADER] = crypto
+      .getRandomValues(new Uint32Array(1))[0]
+      .toString(16)
   }
 
   const res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
@@ -195,7 +206,7 @@ async function fetchServerAction(
         callServer,
         findSourceMapURL,
         temporaryReferences,
-        debugChannel: createDebugChannel && createDebugChannel(res.headers),
+        debugChannel: createDebugChannel && createDebugChannel(headers),
       }
     )
 
@@ -244,8 +255,14 @@ export function serverActionReducer(
   // Otherwise the server action might be intercepted with the wrong action id
   // (ie, one that corresponds with the intercepted route)
   const nextUrl =
-    state.nextUrl && hasInterceptionRouteInCurrentTree(state.tree)
-      ? state.nextUrl
+    // We always send the last next-url, not the current when
+    // performing a dynamic request. This is because we update
+    // the next-url after a navigation, but we want the same
+    // interception route to be matched that used the last
+    // next-url.
+    (state.previousNextUrl || state.nextUrl) &&
+    hasInterceptionRouteInCurrentTree(state.tree)
+      ? state.previousNextUrl || state.nextUrl
       : null
 
   const navigatedAt = Date.now()
@@ -256,7 +273,6 @@ export function serverActionReducer(
       actionFlightData: flightData,
       redirectLocation,
       redirectType,
-      isPrerender,
       revalidatedParts,
     }) => {
       let redirectHref: string | undefined
@@ -371,16 +387,11 @@ export function serverActionReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head,
-            undefined
+            head
           )
 
           mutable.cache = cache
-          if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-            revalidateEntireCache(state.nextUrl, newTree)
-          } else {
-            mutable.prefetchCache = new Map()
-          }
+          revalidateEntireCache(state.nextUrl, newTree)
           if (actionRevalidated) {
             await refreshInactiveParallelSegments({
               navigatedAt,
@@ -398,37 +409,6 @@ export function serverActionReducer(
       }
 
       if (redirectLocation && redirectHref) {
-        if (!process.env.__NEXT_CLIENT_SEGMENT_CACHE && !actionRevalidated) {
-          // Because the RedirectBoundary will trigger a navigation, we need to seed the prefetch cache
-          // with the FlightData that we got from the server action for the target page, so that it's
-          // available when the page is navigated to and doesn't need to be re-fetched.
-          // We only do this if the server action didn't revalidate any data, as in that case the
-          // client cache will be cleared and the data will be re-fetched anyway.
-          // NOTE: We don't do this in the Segment Cache implementation.
-          // Dynamic data should never be placed into the cache, unless it's
-          // "converted" to static data using <Link prefetch={true}>. What we
-          // do instead is re-prefetch links and forms whenever the cache is
-          // invalidated.
-          createSeededPrefetchCacheEntry({
-            url: redirectLocation,
-            data: {
-              flightData,
-              canonicalUrl: undefined,
-              couldBeIntercepted: false,
-              prerendered: false,
-              postponed: false,
-              // TODO: We should be able to set this if the server action
-              // returned a fully static response.
-              staleTime: -1,
-            },
-            tree: state.tree,
-            prefetchCache: state.prefetchCache,
-            nextUrl: state.nextUrl,
-            kind: isPrerender ? PrefetchKind.FULL : PrefetchKind.AUTO,
-          })
-          mutable.prefetchCache = state.prefetchCache
-        }
-
         // If the action triggered a redirect, the action promise will be rejected with
         // a redirect so that it's handled by RedirectBoundary as we won't have a valid
         // action result to resolve the promise with. This will effectively reset the state of

@@ -92,6 +92,12 @@ async fn apply_module_type(
             postprocess,
             options,
         }
+        | ModuleType::EcmascriptExtensionless {
+            preprocess,
+            main,
+            postprocess,
+            options,
+        }
         | ModuleType::Typescript {
             preprocess,
             main,
@@ -134,6 +140,9 @@ async fn apply_module_type(
             match module_type {
                 ModuleType::Ecmascript { .. } => {
                     builder = builder.with_type(EcmascriptModuleAssetType::Ecmascript)
+                }
+                ModuleType::EcmascriptExtensionless { .. } => {
+                    builder = builder.with_type(EcmascriptModuleAssetType::EcmascriptExtensionless)
                 }
                 ModuleType::Typescript {
                     tsx, analyze_types, ..
@@ -262,12 +271,16 @@ async fn apply_module_type(
             .to_resolved()
             .await?,
         ),
-        ModuleType::StaticUrlJs => {
-            ResolvedVc::upcast(StaticUrlJsModule::new(*source).to_resolved().await?)
-        }
-        ModuleType::StaticUrlCss => {
-            ResolvedVc::upcast(StaticUrlCssModule::new(*source).to_resolved().await?)
-        }
+        ModuleType::StaticUrlJs { tag } => ResolvedVc::upcast(
+            StaticUrlJsModule::new(*source, tag.clone())
+                .to_resolved()
+                .await?,
+        ),
+        ModuleType::StaticUrlCss { tag } => ResolvedVc::upcast(
+            StaticUrlCssModule::new(*source, tag.clone())
+                .to_resolved()
+                .await?,
+        ),
         ModuleType::InlinedBytesJs => {
             ResolvedVc::upcast(InlinedBytesJsModule::new(*source).to_resolved().await?)
         }
@@ -477,10 +490,10 @@ async fn process_default(
         reference_type = display(&reference_type)
     );
     if !span.is_disabled() {
-        // Need to use record, otherwise future is not Send for some reason.
-        let module_asset_context_ref = module_asset_context.await?;
-        span.record("layer", module_asset_context_ref.layer.name().as_str());
+        // You can't await multiple times in the span macro call parameters.
+        span.record("layer", module_asset_context.await?.layer.name().as_str());
     }
+
     process_default_internal(
         module_asset_context,
         source,
@@ -713,7 +726,6 @@ async fn process_default_internal(
 
 #[turbo_tasks::function]
 pub async fn externals_tracing_module_context(
-    ty: ExternalType,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleAssetContext>> {
     let resolve_options = ResolveOptionsContext {
@@ -721,11 +733,7 @@ pub async fn externals_tracing_module_context(
         emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
         collect_affecting_sources: true,
-        custom_conditions: match ty {
-            ExternalType::CommonJs => vec![rcstr!("require"), rcstr!("node")],
-            ExternalType::EcmaScriptModule => vec![rcstr!("import"), rcstr!("node")],
-            ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![rcstr!("node")],
-        },
+        custom_conditions: vec![rcstr!("node")],
         ..Default::default()
     };
 
@@ -869,16 +877,14 @@ impl AssetContext for ModuleAssetContext {
                                     // anyway.
 
                                     let options = options.await?;
+                                    let origin = PlainResolveOrigin::new(
+                                        Vc::upcast(externals_tracing_module_context(
+                                            *options.compile_time_info,
+                                        )),
+                                        options.tracing_root.join("_")?,
+                                    );
                                     CachedExternalTracingMode::Traced {
-                                        externals_context: ResolvedVc::upcast(
-                                            externals_tracing_module_context(
-                                                ty,
-                                                *options.compile_time_info,
-                                            )
-                                            .to_resolved()
-                                            .await?,
-                                        ),
-                                        root_origin: options.tracing_root.join("_")?,
+                                        origin: ResolvedVc::upcast(origin.to_resolved().await?),
                                     }
                                 } else {
                                     CachedExternalTracingMode::Untraced

@@ -10,11 +10,11 @@ import { cyan, bold } from "picocolors";
 import { Sema } from "async-sema";
 import pkg from "../package.json";
 
-import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
+import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.1.0";
+const nextjsReactPeerVersion = "19.2.0";
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -45,8 +45,8 @@ export const installTemplate = async ({
   srcDir,
   importAlias,
   skipInstall,
-  turbopack,
-  rspack,
+  bundler,
+  reactCompiler,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -81,7 +81,7 @@ export const installTemplate = async ({
     },
   });
 
-  if (rspack) {
+  if (bundler === Bundler.Rspack) {
     const nextConfigFile = path.join(
       root,
       mode === "js" ? "next.config.mjs" : "next.config.ts",
@@ -94,6 +94,21 @@ export const installTemplate = async ({
           "export default withRspack(nextConfig);",
         ),
     );
+  }
+
+  if (reactCompiler) {
+    const nextConfigFile = path.join(
+      root,
+      mode === "js" ? "next.config.mjs" : "next.config.ts",
+    );
+    let configContent = await fs.readFile(nextConfigFile, "utf8");
+
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      "/* config options here */\n  reactCompiler: true,\n",
+    );
+
+    await fs.writeFile(nextConfigFile, configContent);
   }
 
   const tsconfigFile = path.join(
@@ -184,6 +199,7 @@ export const installTemplate = async ({
 
   /** Copy the version from package.json or override for tests. */
   const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version;
+  const bundlerFlags = `${bundler === Bundler.Turbopack ? " --turbopack" : ""}${bundler === Bundler.Webpack ? " --webpack" : ""}`;
 
   /** Create a package.json for the new project and write it to disk. */
   const packageJson: any = {
@@ -191,8 +207,8 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: `next dev${turbopack ? " --turbopack" : ""}`,
-      build: `next build${turbopack ? " --turbopack" : ""}`,
+      dev: `next dev${bundlerFlags}`,
+      build: `next build${bundlerFlags}`,
       start: "next start",
       ...(eslint && { lint: "eslint" }),
       ...(biome && { lint: "biome check", format: "biome format --write" }),
@@ -208,7 +224,7 @@ export const installTemplate = async ({
     devDependencies: {},
   };
 
-  if (rspack) {
+  if (bundler === Bundler.Rspack) {
     const NEXT_PRIVATE_TEST_VERSION = process.env.NEXT_PRIVATE_TEST_VERSION;
     if (
       NEXT_PRIVATE_TEST_VERSION &&
@@ -221,6 +237,10 @@ export const installTemplate = async ({
     } else {
       packageJson.dependencies["next-rspack"] = version;
     }
+  }
+
+  if (reactCompiler) {
+    packageJson.devDependencies["babel-plugin-react-compiler"] = "1.0.0";
   }
 
   /**
@@ -251,8 +271,6 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       eslint: "^9",
       "eslint-config-next": version,
-      // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
-      "@eslint/eslintrc": "^3",
     };
   }
 

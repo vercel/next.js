@@ -35,7 +35,7 @@ import type { Revalidate } from '../cache-control'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { DetachedPromise } from '../../../lib/detached-promise'
-import { isStale as isTagsStale } from './tags-manifest.external'
+import { areTagsExpired, areTagsStale } from './tags-manifest.external'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -74,7 +74,8 @@ export class CacheHandler {
   ): Promise<void> {}
 
   public async revalidateTag(
-    ..._args: Parameters<IncrementalCache['revalidateTag']>
+    _tags: string | string[],
+    _durations?: { expire?: number }
   ): Promise<void> {}
 
   public resetRequestCache(): void {}
@@ -278,8 +279,11 @@ export class IncrementalCache implements IncrementalCacheType {
     }
   }
 
-  async revalidateTag(tags: string | string[]): Promise<void> {
-    return this.cacheHandler?.revalidateTag(tags)
+  async revalidateTag(
+    tags: string | string[],
+    durations?: { expire?: number }
+  ): Promise<void> {
+    return this.cacheHandler?.revalidateTag(tags, durations)
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
@@ -485,11 +489,11 @@ export class IncrementalCache implements IncrementalCacheType {
         combinedTags.some(
           (tag) =>
             this.revalidatedTags?.includes(tag) ||
-            workStore?.pendingRevalidatedTags?.includes(tag)
+            workStore?.pendingRevalidatedTags?.some((item) => item.tag === tag)
         )
       ) {
         if (IncrementalCache.debug) {
-          console.log('IncrementalCache: stale tag', cacheKey)
+          console.log('IncrementalCache: expired tag', cacheKey)
         }
 
         return null
@@ -523,8 +527,14 @@ export class IncrementalCache implements IncrementalCacheType {
           (cacheData.lastModified || 0)) /
         1000
 
-      const isStale = age > revalidate
+      let isStale = age > revalidate
       const data = cacheData.value.data
+
+      if (areTagsExpired(combinedTags, cacheData.lastModified)) {
+        return null
+      } else if (areTagsStale(combinedTags, cacheData.lastModified)) {
+        isStale = true
+      }
 
       return {
         isStale,
@@ -560,7 +570,7 @@ export class IncrementalCache implements IncrementalCacheType {
         revalidateAfter !== false && revalidateAfter < now ? true : undefined
 
       // If the stale time couldn't be determined based on the revalidation
-      // time, we check if the tags are stale.
+      // time, we check if the tags are expired or stale.
       if (
         isStale === undefined &&
         (cacheData?.value?.kind === CachedRouteKind.APP_PAGE ||
@@ -570,8 +580,13 @@ export class IncrementalCache implements IncrementalCacheType {
 
         if (typeof tagsHeader === 'string') {
           const cacheTags = tagsHeader.split(',')
-          if (cacheTags.length > 0 && isTagsStale(cacheTags, lastModified)) {
-            isStale = -1
+
+          if (cacheTags.length > 0) {
+            if (areTagsExpired(cacheTags, lastModified)) {
+              isStale = -1
+            } else if (areTagsStale(cacheTags, lastModified)) {
+              isStale = true
+            }
           }
         }
       }

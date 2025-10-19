@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::asset::Asset;
@@ -15,6 +16,13 @@ pub trait OutputAsset: Asset {
     /// capture all properties of the [OutputAsset].
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath>;
+
+    /// The identifier of the [OutputAsset] as string. It's expected to be unique and
+    /// capture all properties of the [OutputAsset].
+    #[turbo_tasks::function]
+    fn path_string(self: Vc<Self>) -> Vc<RcStr> {
+        self.path().to_string()
+    }
 
     /// Other references [OutputAsset]s from this [OutputAsset].
     #[turbo_tasks::function]

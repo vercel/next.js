@@ -1,4 +1,7 @@
-import { fetchServerResponse } from '../fetch-server-response'
+import {
+  fetchServerResponse,
+  type FetchServerResponseResult,
+} from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
@@ -50,16 +53,18 @@ export function refreshReducer(
 
   const navigatedAt = Date.now()
   return cache.lazyData.then(
-    async ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
+    async (result: FetchServerResponseResult) => {
       // Handle case when navigating to page in `pages` from `app`
-      if (typeof flightData === 'string') {
+      if (typeof result === 'string') {
         return handleExternalUrl(
           state,
           mutable,
-          flightData,
+          result,
           state.pushRef.pendingPush
         )
       }
+
+      const { flightData, canonicalUrl, renderedSearch } = result
 
       // Remove cache.lazyData as it has been resolved at this point.
       cache.lazyData = null
@@ -99,13 +104,7 @@ export function refreshReducer(
           )
         }
 
-        const canonicalUrlOverrideHref = canonicalUrlOverride
-          ? createHrefFromUrl(canonicalUrlOverride)
-          : undefined
-
-        if (canonicalUrlOverride) {
-          mutable.canonicalUrl = canonicalUrlOverrideHref
-        }
+        mutable.canonicalUrl = createHrefFromUrl(canonicalUrl)
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (cacheNodeSeedData !== null) {
@@ -121,14 +120,9 @@ export function refreshReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head,
-            undefined
+            head
           )
-          if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-            revalidateEntireCache(state.nextUrl, newTree)
-          } else {
-            mutable.prefetchCache = new Map()
-          }
+          revalidateEntireCache(state.nextUrl, newTree)
         }
 
         await refreshInactiveParallelSegments({
@@ -142,6 +136,7 @@ export function refreshReducer(
 
         mutable.cache = cache
         mutable.patchedTree = newTree
+        mutable.renderedSearch = renderedSearch
 
         currentTree = newTree
       }

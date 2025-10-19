@@ -13,16 +13,19 @@ use swc_core::{
     },
     ecma::{
         ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
-        lints::{config::LintConfig, rules::LintParams},
+        lints::{self, config::LintConfig, rules::LintParams},
         parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
-        transforms::base::{
-            helpers::{HELPERS, Helpers},
-            resolver,
+        transforms::{
+            base::{
+                helpers::{HELPERS, Helpers},
+                resolver,
+            },
+            proposal::explicit_resource_management::explicit_resource_management,
         },
         visit::{Visit, VisitMutWith, VisitWith, noop_visit_type},
     },
 };
-use tracing::{Instrument, Level, instrument};
+use tracing::{Instrument, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc, util::WrapFuture};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
@@ -81,7 +84,7 @@ impl PartialEq for ParseResult {
 
 /// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
 /// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
-#[instrument(level = Level::INFO, skip_all)]
+#[instrument(level = "info", name = "generate source map", skip_all)]
 pub fn generate_js_source_map<'a>(
     files_map: &impl Files,
     mappings: Vec<(BytePos, LineCol)>,
@@ -173,13 +176,24 @@ pub async fn parse(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    is_external_tracing: bool,
+    inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
-    let name = source.ident().to_string().await?.to_string();
-    let span = tracing::info_span!("parse ecmascript", name = name, ty = display(&ty));
+    let span = tracing::info_span!(
+        "parse ecmascript",
+        name = display(source.ident().to_string().await?),
+        ty = display(&ty)
+    );
 
-    match parse_internal(source, ty, transforms)
-        .instrument(span)
-        .await
+    match parse_internal(
+        source,
+        ty,
+        transforms,
+        is_external_tracing && matches!(ty, EcmascriptModuleAssetType::EcmascriptExtensionless),
+        inline_helpers,
+    )
+    .instrument(span)
+    .await
     {
         Ok(result) => Ok(result),
         Err(error) => Err(error.context(format!(
@@ -193,6 +207,8 @@ async fn parse_internal(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    loose_errors: bool,
+    inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
     let fs_path = source.ident().path().owned().await?;
@@ -205,6 +221,11 @@ async fn parse_internal(
             ReadSourceIssue {
                 source: IssueSource::from_source_only(source),
                 error: error.clone(),
+                severity: if loose_errors {
+                    IssueSeverity::Warning
+                } else {
+                    IssueSeverity::Error
+                },
             }
             .resolved_cell()
             .emit();
@@ -231,6 +252,8 @@ async fn parse_internal(
                             source,
                             ty,
                             transforms,
+                            loose_errors,
+                            inline_helpers,
                         )
                         .await
                         {
@@ -251,10 +274,16 @@ async fn parse_internal(
                         .into();
                         ReadSourceIssue {
                             // Technically we could supply byte offsets to the issue source, but
-                            // that would cause another utf8 error to be produced when we attempt to
-                            // infer line/column offsets
+                            // that would cause another utf8 error to be produced when we
+                            // attempt to infer line/column
+                            // offsets
                             source: IssueSource::from_source_only(source),
                             error: error.clone(),
+                            severity: if loose_errors {
+                                IssueSeverity::Warning
+                            } else {
+                                IssueSeverity::Error
+                            },
                         }
                         .resolved_cell()
                         .emit();
@@ -279,6 +308,8 @@ async fn parse_file_content(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
+    loose_errors: bool,
+    inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
     let (emitter, collector) = IssueEmitter::new(
@@ -307,34 +338,35 @@ async fn parse_file_content(
             let mut parsed_program = {
                 let lexer = Lexer::new(
                     match ty {
-                        EcmascriptModuleAssetType::Ecmascript => Syntax::Es(EsSyntax {
-                            jsx: true,
-                            fn_bind: true,
-                            decorators: true,
-                            decorators_before_export: true,
-                            export_default_from: true,
-                            import_attributes: true,
-                            allow_super_outside_method: true,
-                            allow_return_outside_function: true,
-                            auto_accessors: true,
-                            explicit_resource_management: true,
-                        }),
+                        EcmascriptModuleAssetType::Ecmascript
+                        | EcmascriptModuleAssetType::EcmascriptExtensionless => {
+                            Syntax::Es(EsSyntax {
+                                jsx: true,
+                                fn_bind: true,
+                                decorators: true,
+                                decorators_before_export: true,
+                                export_default_from: true,
+                                import_attributes: true,
+                                allow_super_outside_method: true,
+                                allow_return_outside_function: true,
+                                auto_accessors: true,
+                                explicit_resource_management: true,
+                            })
+                        }
                         EcmascriptModuleAssetType::Typescript { tsx, .. } => {
                             Syntax::Typescript(TsSyntax {
                                 decorators: true,
                                 dts: false,
-                                no_early_errors: true,
                                 tsx,
-                                disallow_ambiguous_jsx_like: false,
+                                ..Default::default()
                             })
                         }
                         EcmascriptModuleAssetType::TypescriptDeclaration => {
                             Syntax::Typescript(TsSyntax {
                                 decorators: true,
                                 dts: true,
-                                no_early_errors: true,
                                 tsx: false,
-                                disallow_ambiguous_jsx_like: false,
+                                ..Default::default()
                             })
                         }
                     },
@@ -385,7 +417,7 @@ async fn parse_file_content(
                     | EcmascriptModuleAssetType::TypescriptDeclaration
             );
 
-            let helpers=Helpers::new(true);
+            let helpers = Helpers::new(!inline_helpers);
             let span = tracing::trace_span!("swc_resolver").entered();
 
             parsed_program.visit_mut_with(&mut resolver(
@@ -398,7 +430,7 @@ async fn parse_file_content(
             let span = tracing::trace_span!("swc_lint").entered();
 
             let lint_config = LintConfig::default();
-            let rules = swc_core::ecma::lints::rules::all(LintParams {
+            let rules = lints::rules::all(LintParams {
                 program: &parsed_program,
                 lint_config: &lint_config,
                 unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
@@ -407,13 +439,11 @@ async fn parse_file_content(
                 source_map: source_map.clone(),
             });
 
-            parsed_program.mutate(swc_core::ecma::lints::rules::lint_pass(rules));
+            parsed_program.mutate(lints::rules::lint_pass(rules));
             drop(span);
 
             HELPERS.set(&helpers, || {
-                parsed_program.mutate(
-                    swc_core::ecma::transforms::proposal::explicit_resource_management::explicit_resource_management(),
-                );
+                parsed_program.mutate(explicit_resource_management());
             });
 
             let var_with_ts_declare = if is_typescript {
@@ -433,7 +463,7 @@ async fn parse_file_content(
                 file_name_hash: file_path_hash,
                 query_str: query,
                 file_path: fs_path.clone(),
-                source
+                source,
             };
             let span = tracing::trace_span!("transforms");
             async {
@@ -444,8 +474,8 @@ async fn parse_file_content(
                 }
                 anyhow::Ok(())
             }
-                .instrument(span)
-                .await?;
+            .instrument(span)
+            .await?;
 
             if parser_handler.has_errors() {
                 let messages = if let Some(error) = collector_parse.last_emitted_issue() {
@@ -458,16 +488,15 @@ async fn parse_file_content(
                 } else {
                     None
                 };
-                let messages =
-                    Some(messages.unwrap_or_else(|| vec![fm.src.clone().into()]));
+                let messages = Some(messages.unwrap_or_else(|| vec![fm.src.clone().into()]));
                 return Ok(ParseResult::Unparsable { messages });
             }
 
             let helpers = Helpers::from_data(helpers);
             HELPERS.set(&helpers, || {
-                parsed_program.mutate(
-                    swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
-                );
+                parsed_program.mutate(swc_core::ecma::transforms::base::helpers::inject_helpers(
+                    unresolved_mark,
+                ));
             });
 
             let eval_context = EvalContext::new(
@@ -489,13 +518,9 @@ async fn parse_file_content(
                 source_map,
             })
         },
-        |f, cx| {
-            GLOBALS.set(globals_ref, || {
-                HANDLER.set(&handler, || f.poll(cx))
-            })
-        },
+        |f, cx| GLOBALS.set(globals_ref, || HANDLER.set(&handler, || f.poll(cx))),
     )
-        .await?;
+    .await?;
     if let ParseResult::Ok {
         globals: ref mut g, ..
     } = result
@@ -503,8 +528,8 @@ async fn parse_file_content(
         // Assign the correct globals
         *g = globals;
     }
-    collector.emit().await?;
-    collector_parse.emit().await?;
+    collector.emit(loose_errors).await?;
+    collector_parse.emit(loose_errors).await?;
     Ok(result.cell())
 }
 
@@ -512,6 +537,7 @@ async fn parse_file_content(
 struct ReadSourceIssue {
     source: IssueSource,
     error: RcStr,
+    severity: IssueSeverity,
 }
 
 #[turbo_tasks::value_impl]
@@ -542,7 +568,7 @@ impl Issue for ReadSourceIssue {
     }
 
     fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Error
+        self.severity
     }
 
     #[turbo_tasks::function]

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -25,13 +25,14 @@ use crate::output_asset::StaticOutputAsset;
 #[derive(Clone)]
 pub struct StaticUrlJsModule {
     pub source: ResolvedVc<Box<dyn Source>>,
+    pub tag: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticUrlJsModule {
     #[turbo_tasks::function]
-    pub fn new(source: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
-        Self::cell(StaticUrlJsModule { source })
+    pub fn new(source: ResolvedVc<Box<dyn Source>>, tag: Option<RcStr>) -> Vc<Self> {
+        Self::cell(StaticUrlJsModule { source, tag })
     }
 
     #[turbo_tasks::function]
@@ -39,7 +40,7 @@ impl StaticUrlJsModule {
         &self,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<StaticOutputAsset> {
-        StaticOutputAsset::new(*chunking_context, *self.source)
+        StaticOutputAsset::new(*chunking_context, *self.source, self.tag.clone())
     }
 }
 
@@ -47,9 +48,14 @@ impl StaticUrlJsModule {
 impl Module for StaticUrlJsModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source
+        let mut ident = self
+            .source
             .ident()
-            .with_modifier(rcstr!("static in ecmascript"))
+            .with_modifier(rcstr!("static in ecmascript"));
+        if let Some(tag) = &self.tag {
+            ident = ident.with_modifier(format!("tag {}", tag).into());
+        }
+        ident
     }
 }
 
@@ -77,6 +83,7 @@ impl ChunkableModule for StaticUrlJsModule {
                     .static_output_asset(*chunking_context)
                     .to_resolved()
                     .await?,
+                tag: self.await?.tag.clone(),
             },
         )))
     }
@@ -95,6 +102,7 @@ struct StaticUrlJsChunkItem {
     module: ResolvedVc<StaticUrlJsModule>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     static_asset: ResolvedVc<StaticOutputAsset>,
+    tag: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -137,7 +145,7 @@ impl EcmascriptChunkItem for StaticUrlJsChunkItem {
                 path = StringifyJs(
                     &self
                         .chunking_context
-                        .asset_url(self.static_asset.path().owned().await?)
+                        .asset_url(self.static_asset.path().owned().await?, self.tag.clone())
                         .await?
                 )
             )

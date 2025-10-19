@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect -- rule does not understand testGateWebpack */
 import { nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
@@ -7,7 +6,6 @@ import {
   getRedboxSource,
 } from 'next-test-utils'
 
-const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 const isRspack = process.env.NEXT_RSPACK !== undefined
@@ -44,89 +42,45 @@ describe('react-dom/server in React Server environment', () => {
 
     await assertNoRedbox(browser)
     if (isTurbopack) {
-      if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ]
-          }"
-        `)
-      } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "version"
-            ]
-          }"
-        `)
-      }
+      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+        "{
+          "default": [
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ],
+          "named": [
+            "default",
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ]
+        }"
+      `)
     } else {
-      if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ]
-          }"
-        `)
-      } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "version"
-            ]
-          }"
-        `)
-      }
+      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+        "{
+          "default": [
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ],
+          "named": [
+            "default",
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ]
+        }"
+      `)
     }
     const redbox = {
       description: await getRedboxDescription(browser),
@@ -156,89 +110,45 @@ describe('react-dom/server in React Server environment', () => {
 
     await assertNoRedbox(browser)
     if (isTurbopack) {
-      if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ]
-          }"
-        `)
-      } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-                  "{
-                    "default": [
-                      "renderToReadableStream",
-                      "renderToStaticMarkup",
-                      "renderToString",
-                      "version"
-                    ],
-                    "named": [
-                      "default",
-                      "renderToReadableStream",
-                      "renderToStaticMarkup",
-                      "renderToString",
-                      "version"
-                    ]
-                  }"
-              `)
-      }
+      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+        "{
+          "default": [
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ],
+          "named": [
+            "default",
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ]
+        }"
+      `)
     } else {
-      if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ]
-          }"
-        `)
-      } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "version"
-            ]
-          }"
-        `)
-      }
+      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+        "{
+          "default": [
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ],
+          "named": [
+            "default",
+            "renderToReadableStream",
+            "renderToStaticMarkup",
+            "renderToString",
+            "resume",
+            "version"
+          ]
+        }"
+      `)
     }
     const redbox = {
       description: await getRedboxDescription(browser),
@@ -547,98 +457,49 @@ describe('react-dom/server in React Server environment', () => {
 
     await assertNoRedbox(browser)
     if (isTurbopack) {
-      if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": {
-              "default": [
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "resume",
-                "version"
-              ],
-              "named": [
-                "default",
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "resume",
-                "version"
-              ]
-            }
-          }"
-        `)
-      } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-                  "{
-                    "default": {
-                      "default": [
-                        "renderToReadableStream",
-                        "renderToStaticMarkup",
-                        "renderToString",
-                        "version"
-                      ],
-                      "named": [
-                        "default",
-                        "renderToReadableStream",
-                        "renderToStaticMarkup",
-                        "renderToString",
-                        "version"
-                      ]
-                    }
-                  }"
-              `)
-      }
+      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+        "{
+          "default": {
+            "default": [
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "resume",
+              "version"
+            ],
+            "named": [
+              "default",
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "resume",
+              "version"
+            ]
+          }
+        }"
+      `)
     } else {
-      if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": {
-              "default": [
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "resume",
-                "version"
-              ],
-              "named": [
-                "default",
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "resume",
-                "version"
-              ]
-            }
-          }"
-        `)
-      } else {
-        await assertNoRedbox(browser)
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-            "{
-              "default": {
-                "default": [
-                  "renderToReadableStream",
-                  "renderToStaticMarkup",
-                  "renderToString",
-                  "version"
-                ],
-                "named": [
-                  "default",
-                  "renderToReadableStream",
-                  "renderToStaticMarkup",
-                  "renderToString",
-                  "version"
-                ]
-              }
-            }"
-          `)
-      }
+      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+        "{
+          "default": {
+            "default": [
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "resume",
+              "version"
+            ],
+            "named": [
+              "default",
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "resume",
+              "version"
+            ]
+          }
+        }"
+      `)
     }
     const redbox = {
       description: await getRedboxDescription(browser),
@@ -668,97 +529,49 @@ describe('react-dom/server in React Server environment', () => {
 
     await assertNoRedbox(browser)
     if (isTurbopack) {
-      if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": {
-              "default": [
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "resume",
-                "version"
-              ],
-              "named": [
-                "default",
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "resume",
-                "version"
-              ]
-            }
-          }"
-        `)
-      } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-                  "{
-                    "default": {
-                      "default": [
-                        "renderToReadableStream",
-                        "renderToStaticMarkup",
-                        "renderToString",
-                        "version"
-                      ],
-                      "named": [
-                        "default",
-                        "renderToReadableStream",
-                        "renderToStaticMarkup",
-                        "renderToString",
-                        "version"
-                      ]
-                    }
-                  }"
-              `)
-      }
+      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+        "{
+          "default": {
+            "default": [
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "resume",
+              "version"
+            ],
+            "named": [
+              "default",
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "resume",
+              "version"
+            ]
+          }
+        }"
+      `)
     } else {
-      if (isReactExperimental) {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": {
-              "default": [
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "resume",
-                "version"
-              ],
-              "named": [
-                "default",
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "resume",
-                "version"
-              ]
-            }
-          }"
-        `)
-      } else {
-        expect(await browser.elementByCss('main').text())
-          .toMatchInlineSnapshot(`
-          "{
-            "default": {
-              "default": [
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "version"
-              ],
-              "named": [
-                "default",
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "version"
-              ]
-            }
-          }"
-        `)
-      }
+      expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
+        "{
+          "default": {
+            "default": [
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "resume",
+              "version"
+            ],
+            "named": [
+              "default",
+              "renderToReadableStream",
+              "renderToStaticMarkup",
+              "renderToString",
+              "resume",
+              "version"
+            ]
+          }
+        }"
+      `)
     }
     const redbox = {
       description: await getRedboxDescription(browser),

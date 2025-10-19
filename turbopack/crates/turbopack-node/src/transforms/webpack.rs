@@ -408,12 +408,16 @@ pub enum RequestMessage {
         lookup_path: RcStr,
         request: RcStr,
     },
+    #[serde(rename_all = "camelCase")]
+    TrackFileRead { file: RcStr },
 }
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum ResponseMessage {
     Resolve { path: RcStr },
+    // Only used for tracking invalidations, no content is returned.
+    TrackFileRead {},
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Serialize, Deserialize, Debug, TraceRawVcs)]
@@ -607,6 +611,12 @@ impl EvaluateContext for WebpackLoaderContext {
                         lookup_path.value_to_string().await?
                     );
                 }
+            }
+            RequestMessage::TrackFileRead { file } => {
+                // Ignore result, we read on the JS side again to prevent some IPC overhead. Still
+                // await the read though to cover at least one class of race conditions.
+                let _ = &*self.cwd.join(&file)?.read().await?;
+                Ok(ResponseMessage::TrackFileRead {})
             }
         }
     }

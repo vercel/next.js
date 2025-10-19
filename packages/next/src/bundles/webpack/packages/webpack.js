@@ -3,10 +3,8 @@ exports.__esModule = true
 exports.default = undefined
 
 if (process.env.NEXT_RSPACK) {
-  // eslint-disable-next-line
   Object.assign(exports, getRspackCore())
   Object.assign(exports, {
-    // eslint-disable-next-line import/no-extraneous-dependencies
     StringXor: require('./bundle5')().StringXor,
   })
 } else if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
@@ -40,8 +38,7 @@ if (process.env.NEXT_RSPACK) {
 
 function getRspackCore() {
   try {
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    return require('@rspack/core')
+    return require('next-rspack/rspack-core')
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
       throw new Error(

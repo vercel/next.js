@@ -48,12 +48,24 @@ function diffRevalidationState(
   prev: RevalidationState,
   curr: RevalidationState
 ): RevalidationState {
-  const prevTags = new Set(prev.pendingRevalidatedTags)
+  const prevTagsWithProfile = new Set(
+    prev.pendingRevalidatedTags.map((item) => {
+      const profileKey =
+        typeof item.profile === 'object'
+          ? JSON.stringify(item.profile)
+          : item.profile || ''
+      return `${item.tag}:${profileKey}`
+    })
+  )
   const prevRevalidateWrites = new Set(prev.pendingRevalidateWrites)
   return {
-    pendingRevalidatedTags: curr.pendingRevalidatedTags.filter(
-      (tag) => !prevTags.has(tag)
-    ),
+    pendingRevalidatedTags: curr.pendingRevalidatedTags.filter((item) => {
+      const profileKey =
+        typeof item.profile === 'object'
+          ? JSON.stringify(item.profile)
+          : item.profile || ''
+      return !prevTagsWithProfile.has(`${item.tag}:${profileKey}`)
+    }),
     pendingRevalidates: Object.fromEntries(
       Object.entries(curr.pendingRevalidates).filter(
         ([key]) => !(key in prev.pendingRevalidates)
@@ -66,23 +78,105 @@ function diffRevalidationState(
 }
 
 async function revalidateTags(
-  tags: string[],
-  incrementalCache: IncrementalCache | undefined
+  tagsWithProfile: Array<{
+    tag: string
+    profile?: string | { expire?: number }
+  }>,
+  incrementalCache: IncrementalCache | undefined,
+  workStore?: WorkStore
 ): Promise<void> {
-  if (tags.length === 0) {
+  if (tagsWithProfile.length === 0) {
     return
   }
 
+  const handlers = getCacheHandlers()
   const promises: Promise<void>[] = []
 
-  if (incrementalCache) {
-    promises.push(incrementalCache.revalidateTag(tags))
+  // Group tags by profile for batch processing
+  const tagsByProfile = new Map<
+    | string
+    | { stale?: number; revalidate?: number; expire?: number }
+    | undefined,
+    string[]
+  >()
+
+  for (const item of tagsWithProfile) {
+    const profile = item.profile
+    // Find existing profile by comparing values
+    let existingKey = undefined
+    for (const [key] of tagsByProfile) {
+      if (
+        typeof key === 'string' &&
+        typeof profile === 'string' &&
+        key === profile
+      ) {
+        existingKey = key
+        break
+      }
+      if (
+        typeof key === 'object' &&
+        typeof profile === 'object' &&
+        JSON.stringify(key) === JSON.stringify(profile)
+      ) {
+        existingKey = key
+        break
+      }
+      if (key === profile) {
+        existingKey = key
+        break
+      }
+    }
+
+    const profileKey = existingKey || profile
+    if (!tagsByProfile.has(profileKey)) {
+      tagsByProfile.set(profileKey, [])
+    }
+    tagsByProfile.get(profileKey)!.push(item.tag)
   }
 
-  const handlers = getCacheHandlers()
-  if (handlers) {
-    for (const handler of handlers) {
-      promises.push(handler.expireTags(...tags))
+  // Process each profile group
+  for (const [profile, tagsForProfile] of tagsByProfile) {
+    // Look up the cache profile from workStore if available
+    let durations: { expire?: number } | undefined
+
+    if (profile) {
+      let cacheLife:
+        | { stale?: number; revalidate?: number; expire?: number }
+        | undefined
+
+      if (typeof profile === 'object') {
+        // Profile is already a cacheLife configuration object
+        cacheLife = profile
+      } else if (typeof profile === 'string') {
+        // Profile is a string key, look it up in workStore
+        cacheLife = workStore?.cacheLifeProfiles?.[profile]
+
+        if (!cacheLife) {
+          throw new Error(
+            `Invalid profile provided "${profile}" must be configured under cacheLife in next.config or be "max"`
+          )
+        }
+      }
+
+      if (cacheLife) {
+        durations = {
+          expire: cacheLife.expire,
+        }
+      }
+    }
+    // If profile is not found and not 'max', durations will be undefined
+    // which will trigger immediate expiration in the cache handler
+
+    for (const handler of handlers || []) {
+      if (profile) {
+        promises.push(handler.updateTags?.(tagsForProfile, durations))
+      } else {
+        promises.push(handler.updateTags?.(tagsForProfile))
+      }
+    }
+
+    if (incrementalCache) {
+      promises.push(incrementalCache.revalidateTag(tagsForProfile, durations))
     }
   }
 
@@ -103,7 +197,11 @@ export async function executeRevalidates(
     state?.pendingRevalidateWrites ?? workStore.pendingRevalidateWrites ?? []
 
   return Promise.all([
-    revalidateTags(pendingRevalidatedTags, workStore.incrementalCache),
+    revalidateTags(
+      pendingRevalidatedTags,
+      workStore.incrementalCache,
+      workStore
+    ),
     ...Object.values(pendingRevalidates),
     ...pendingRevalidateWrites,
   ])

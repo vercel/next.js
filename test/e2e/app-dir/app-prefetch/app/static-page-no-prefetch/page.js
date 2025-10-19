@@ -1,13 +1,15 @@
-import Link from 'next/link'
+import { LinkAccordion } from '../components/link-accordion'
 
 export default async function Page() {
   return (
     <>
-      <p id="static-page-no-prefetch">Static Page No Prefetch</p>
+      <p id="static-page-no-prefetch">
+        Static Page No Prefetch [prefetch-sentinel]
+      </p>
       <p>
-        <Link href="/" id="to-home">
+        <LinkAccordion href="/" id="to-home">
           To home
-        </Link>
+        </LinkAccordion>
       </p>
     </>
   )

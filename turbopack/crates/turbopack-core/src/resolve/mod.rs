@@ -143,7 +143,7 @@ impl ExportUsage {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
     pub primary: SliceMap<RequestKey, ModuleResolveResultItem>,
     /// Affecting sources are other files that influence the resolve result.  For example,
@@ -1464,10 +1464,11 @@ pub async fn resolve_raw(
 
     let mut results = Vec::new();
 
-    let lookup_dir_str = lookup_dir.value_to_string().await?;
     let pat = path.await?;
     if let Some(pat) = pat
         .filter_could_match("/ROOT/")
+        // Checks if this pattern is more specific than everything, so we test using a random path
+        // that is unlikely to actually exist
         .and_then(|pat| pat.filter_could_not_match("/ROOT/fsd8nz8og54z"))
     {
         let path = Pattern::new(pat);
@@ -1478,33 +1479,17 @@ pub async fn resolve_raw(
             path,
         )
         .await?;
-        if matches.len() > 10000 {
-            let path_str = path.to_string().await?;
-            println!(
-                "WARN: resolving abs pattern {} in {} leads to {} results",
-                path_str,
-                lookup_dir_str,
-                matches.len()
-            );
-        } else {
-            results.extend(
-                collect_matches(&matches, collect_affecting_sources)
-                    .await?
-                    .into_iter(),
-            );
-        }
+        results.extend(
+            collect_matches(&matches, collect_affecting_sources)
+                .await?
+                .into_iter(),
+        );
     }
 
     {
-        let matches = read_matches(lookup_dir, rcstr!(""), force_in_lookup_dir, path).await?;
-        if matches.len() > 10000 {
-            println!(
-                "WARN: resolving pattern {} in {} leads to {} results",
-                pat.describe_as_string(),
-                lookup_dir_str,
-                matches.len()
-            );
-        }
+        let matches =
+            read_matches(lookup_dir.clone(), rcstr!(""), force_in_lookup_dir, path).await?;
+
         results.extend(
             collect_matches(&matches, collect_affecting_sources)
                 .await?
@@ -1531,16 +1516,17 @@ pub async fn resolve_inline(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    let span = {
-        let lookup_path = lookup_path.value_to_string().await?.to_string();
-        let request = request.to_string().await?.to_string();
-        tracing::info_span!(
-            "resolving",
-            lookup_path = lookup_path,
-            name = request,
-            reference_type = display(&reference_type),
-        )
-    };
+    let span = tracing::info_span!(
+        "resolving",
+        lookup_path = display(lookup_path.value_to_string().await?),
+        name = tracing::field::Empty,
+        reference_type = display(&reference_type),
+    );
+    if !span.is_disabled() {
+        // You can't await multiple times in the span macro call parameters.
+        span.record("name", request.to_string().await?.as_str());
+    }
+
     async {
         let before_plugins_result = handle_before_resolve_plugins(
             lookup_path.clone(),
@@ -1740,15 +1726,16 @@ async fn resolve_internal_inline(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    let span = {
-        let lookup_path = lookup_path.value_to_string().await?.to_string();
-        let request = request.to_string().await?.to_string();
-        tracing::info_span!(
-            "internal resolving",
-            lookup_path = lookup_path,
-            name = request
-        )
-    };
+    let span = tracing::info_span!(
+        "internal resolving",
+        lookup_path = display(lookup_path.value_to_string().await?),
+        name = tracing::field::Empty
+    );
+    if !span.is_disabled() {
+        // You can't await multiple times in the span macro call parameters.
+        span.record("name", request.to_string().await?.as_str());
+    }
+
     async move {
         let options_value: &ResolveOptions = &*options.await?;
 

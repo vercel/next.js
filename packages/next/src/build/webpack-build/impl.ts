@@ -40,14 +40,9 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
-import { durationToString } from '../duration-to-string'
+import { durationToString, hrtimeToSeconds } from '../duration-to-string'
 
 const debug = origDebug('next:build:webpack-build')
-
-function hrtimeToSeconds(hrtime: [number, number]): number {
-  // hrtime is a tuple of [seconds, nanoseconds]
-  return hrtime[0] + hrtime[1] / 1e9
-}
 
 type CompilerResult = {
   errors: webpack.StatsError[]
@@ -391,7 +386,10 @@ export async function workerMain(workerData: {
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
-    { debugPrerender: NextBuildContext.debugPrerender }
+    {
+      debugPrerender: NextBuildContext.debugPrerender,
+      reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+    }
   )
   NextBuildContext.nextBuildSpan = trace(
     `worker-main-${workerData.compilerName}`

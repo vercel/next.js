@@ -260,7 +260,7 @@ export function hydrate(
     const { createWebSocket } =
       require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
 
-    staticIndicatorState = { pathname: null, appIsrManifest: {} }
+    staticIndicatorState = { pathname: null, appIsrManifest: null }
     webSocket = createWebSocket(assetPrefix, staticIndicatorState)
   }
 
@@ -284,11 +284,9 @@ export function hydrate(
                 navigatedAt: initialTimestamp,
                 initialFlightData: initialRSCPayload.f,
                 initialCanonicalUrlParts: initialRSCPayload.c,
+                initialRenderedSearch: initialRSCPayload.q,
                 initialParallelRoutes: new Map(),
                 location: window.location,
-                couldBeIntercepted: initialRSCPayload.i,
-                postponed: initialRSCPayload.s,
-                prerendered: initialRSCPayload.S,
               }),
               instrumentationHooks
             )

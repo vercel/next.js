@@ -128,7 +128,6 @@ export const getHandler = ({
     const hasGetInitialProps = Boolean(
       (userland.default || userland).getInitialProps
     )
-    const isAmp = query.amp && config?.amp
     let cacheKey: null | string = null
     let isIsrFallback = false
     let isNextDataRequest =
@@ -143,10 +142,10 @@ export const getHandler = ({
         (srcPage === '/' || resolvedPathname === '/') && locale
           ? ''
           : resolvedPathname
-      }${isAmp ? '.amp' : ''}`
+      }`
 
       if (is404Page || is500Page || isErrorPage) {
-        cacheKey = `${locale ? `/${locale}` : ''}${srcPage}${isAmp ? '.amp' : ''}`
+        cacheKey = `${locale ? `/${locale}` : ''}${srcPage}`
       }
 
       // ensure /index and / is normalized to one key
@@ -216,11 +215,6 @@ export const getHandler = ({
                     hasStaticProps && !isExperimentalCompile
                       ? ({
                           ...params,
-                          ...(isAmp
-                            ? {
-                                amp: query.amp,
-                              }
-                            : {}),
                         } as ParsedUrlQuery)
                       : {
                           ...query,
@@ -272,8 +266,6 @@ export const getHandler = ({
 
                     multiZoneDraftMode,
                     basePath: nextConfig.basePath,
-                    canonicalBase: nextConfig.amp.canonicalBase || '',
-                    ampOptimizerConfig: nextConfig.experimental.amp?.optimizer,
                     disableOptimizedLoading:
                       nextConfig.experimental.disableOptimizedLoading,
                     largePageDataBytes:
@@ -324,10 +316,6 @@ export const getHandler = ({
                       routeModule.relativeProjectDir,
                       routeModule.distDir
                     ),
-
-                    ampSkipValidation:
-                      nextConfig.experimental.amp?.skipValidation,
-                    ampValidator: getRequestMeta(req, 'ampValidator'),
                   },
                 })
                 .then((renderResult): ResponseCacheEntry => {
@@ -402,7 +390,7 @@ export const getHandler = ({
                     })
                     span.updateName(name)
                   } else {
-                    span.updateName(`${method} ${req.url}`)
+                    span.updateName(`${method} ${srcPage}`)
                   }
                 })
             } catch (err: unknown) {
@@ -724,7 +712,7 @@ export const getHandler = ({
           tracer.trace(
             BaseServerSpan.handleRequest,
             {
-              spanName: `${method} ${req.url}`,
+              spanName: `${method} ${srcPage}`,
               kind: SpanKind.SERVER,
               attributes: {
                 'http.method': method,

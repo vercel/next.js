@@ -262,6 +262,8 @@ export type InitialRSCPayload = {
   b: string
   /** initialCanonicalUrlParts */
   c: string[]
+  /** initialRenderedSearch */
+  q: string
   /** couldBeIntercepted */
   i: boolean
   /** initialFlightData */
