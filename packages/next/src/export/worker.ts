@@ -239,6 +239,7 @@ async function exportPageImpl(
       commonRenderOpts.cacheLifeProfiles,
       htmlFilepath,
       fileWriter,
+      commonRenderOpts.cacheComponents,
       commonRenderOpts.experimental,
       buildId
     )

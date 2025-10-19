@@ -354,6 +354,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
     bundlePagesRouterDependencies: z.boolean().optional(),
+    cacheComponents: z.boolean().optional(),
     cacheHandler: z.string().min(1).optional(),
     cacheMaxMemorySize: z.number().optional(),
     cleanDistDir: z.boolean().optional(),

@@ -38,31 +38,31 @@ describe('cache-components-segment-configs', () => {
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"  x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.cacheComponents\`. Please remove it."`
+          `"  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
         )
       }
       expect(redbox.source).toContain(
-        '"revalidate" is not compatible with `nextConfig.experimental.cacheComponents`. Please remove it.'
+        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
     } else {
       expect(next.cliOutput).toContain('./app/dynamic-params/[slug]/page.tsx')
       expect(next.cliOutput).toContain(
-        '"dynamicParams" is not compatible with `nextConfig.experimental.cacheComponents`. Please remove it.'
+        '"dynamicParams" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
       expect(next.cliOutput).toContain('./app/dynamic/nested/page.tsx')
       expect(next.cliOutput).toContain('./app/dynamic/page.tsx')
       expect(next.cliOutput).toContain(
-        '"dynamic" is not compatible with `nextConfig.experimental.cacheComponents`. Please remove it.'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
 
       expect(next.cliOutput).toContain('./app/fetch-cache/page.tsx')
       expect(next.cliOutput).toContain(
-        '"fetchCache" is not compatible with `nextConfig.experimental.cacheComponents`. Please remove it.'
+        '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
 
       expect(next.cliOutput).toContain('./app/revalidate/page.tsx')
       expect(next.cliOutput).toContain(
-        '"revalidate" is not compatible with `nextConfig.experimental.cacheComponents`. Please remove it.'
+        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
     }
   })
@@ -99,16 +99,16 @@ describe('cache-components-segment-configs', () => {
             )
           } else {
             expect(redbox.description).toMatchInlineSnapshot(
-              `"  x Route segment config "runtime" is not compatible with \`nextConfig.experimental.cacheComponents\`. Please remove it."`
+              `"  x Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
             )
           }
           expect(redbox.source).toContain(
-            '"runtime" is not compatible with `nextConfig.experimental.cacheComponents`. Please remove it.'
+            '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
           )
         } else {
           await retry(async () => {
             expect(next.cliOutput).toContain(
-              '"runtime" is not compatible with `nextConfig.experimental.cacheComponents`. Please remove it.'
+              '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
             )
 
             // the stack trace is different between turbopack/webpack

@@ -446,8 +446,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       // Router clients are also considered legacy clients. TODO: Maybe mark
       // clients as App Router / Pages Router clients explicitly, instead of
       // inferring it from the presence of a request ID.
-      const isLegacyClient =
-        !requestId || !this.config.experimental.cacheComponents
+      const isLegacyClient = !requestId || !this.config.cacheComponents
 
       callback(client, { isLegacyClient })
 

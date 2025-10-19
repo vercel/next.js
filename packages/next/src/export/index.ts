@@ -363,6 +363,7 @@ async function exportAppImpl(
     distDir,
     dev: false,
     basePath: nextConfig.basePath,
+    cacheComponents: nextConfig.cacheComponents ?? false,
     trailingSlash: nextConfig.trailingSlash,
     locales: i18n?.locales,
     locale: i18n?.defaultLocale,
@@ -394,7 +395,6 @@ async function exportAppImpl(
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,
-      cacheComponents: nextConfig.experimental.cacheComponents ?? false,
       clientSegmentCache:
         nextConfig.experimental.clientSegmentCache === 'client-only'
           ? 'client-only'
@@ -625,7 +625,7 @@ async function exportAppImpl(
   let initialPhaseExportPaths: ExportPathEntry[] = []
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
-  if (renderOpts.experimental.cacheComponents) {
+  if (renderOpts.cacheComponents) {
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
         finalPhaseExportPaths.push(exportPath)

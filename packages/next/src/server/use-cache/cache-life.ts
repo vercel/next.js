@@ -88,7 +88,7 @@ function validateCacheLife(profile: CacheLife) {
 export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   if (!process.env.__NEXT_USE_CACHE) {
     throw new Error(
-      '`cacheLife()` is only available with the `experimental.cacheComponents` config.'
+      '`cacheLife()` is only available with the `cacheComponents` config.'
     )
   }
 

@@ -183,7 +183,7 @@ export async function handler(
   // parallel routes. This is addressed with cacheComponents.
   const prerenderInfo =
     nextConfig.experimental.ppr &&
-    !nextConfig.experimental.cacheComponents &&
+    !nextConfig.cacheComponents &&
     isInterceptionRouteAppPath(resolvedPathname)
       ? null
       : routeModule.match(resolvedPathname, prerenderManifest)
@@ -296,7 +296,7 @@ export async function handler(
 
   // When a page supports cacheComponents, we can support RDC for Navigations
   const supportsRDCForNavigations =
-    isRoutePPREnabled && nextConfig.experimental.cacheComponents === true
+    isRoutePPREnabled && nextConfig.cacheComponents === true
 
   // In development, we always want to generate dynamic HTML.
   const supportsDynamicResponse: boolean =
@@ -545,12 +545,11 @@ export async function handler(
                 isDebugDynamicAccesses: isDebugDynamicAccesses,
               }
             : {}),
-
+          cacheComponents: Boolean(nextConfig.cacheComponents),
           experimental: {
             isRoutePPREnabled,
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,
-            cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
             clientSegmentCache: Boolean(
               nextConfig.experimental.clientSegmentCache
             ),
@@ -739,9 +738,7 @@ export async function handler(
         // contains param references, and therefore we can't use the fallback.
         if (
           isRoutePPREnabled &&
-          (nextConfig.experimental.cacheComponents
-            ? !isDynamicRSCRequest
-            : !isRSCRequest)
+          (nextConfig.cacheComponents ? !isDynamicRSCRequest : !isRSCRequest)
         ) {
           const cacheKey =
             isProduction && typeof prerenderInfo?.fallback === 'string'
@@ -1192,7 +1189,7 @@ export async function handler(
         if (typeof cachedData.rscData === 'undefined') {
           // If the response is not an RSC response, then we can't serve it.
           if (cachedData.html.contentType !== RSC_CONTENT_TYPE_HEADER) {
-            if (nextConfig.experimental.cacheComponents) {
+            if (nextConfig.cacheComponents) {
               res.statusCode = 404
               return sendRenderResult({
                 req,

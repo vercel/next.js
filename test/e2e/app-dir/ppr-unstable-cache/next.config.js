@@ -1,4 +1,5 @@
 module.exports = {
+  cacheComponents: true,
   experimental: {
     cacheLife: {
       expireNow: {
@@ -7,6 +8,5 @@ module.exports = {
         revalidate: 0,
       },
     },
-    cacheComponents: true,
   },
 }

@@ -577,8 +577,8 @@ export interface ExperimentalConfig {
   clientTraceMetadata?: string[]
 
   /**
-   * @deprecated This configuration option has been merged into `experimental.cacheComponents`.
-   * The Partial Prerendering feature is still available via `experimental.cacheComponents`.
+   * @deprecated This configuration option has been merged into `cacheComponents`.
+   * The Partial Prerendering feature is still available via `cacheComponents`.
    */
   ppr?: ExperimentalPPRConfig
 
@@ -686,6 +686,11 @@ export interface ExperimentalConfig {
   reactDebugChannel?: boolean
 
   /**
+   * @deprecated use top-level `cacheComponents` instead
+   */
+  cacheComponents?: boolean
+
+  /**
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
@@ -704,14 +709,6 @@ export interface ExperimentalConfig {
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
-
-  /**
-   * When enabled, will cause IO in App Router to be excluded from prerenders,
-   * unless explicitly cached. This also enables the experimental Partial
-   * Prerendering feature of Next.js, and it enables `react@experimental` being
-   * used for the `app` directory.
-   */
-  cacheComponents?: boolean
 
   /**
    * Render <style> tags inline in the HTML for imported CSS assets.
@@ -880,7 +877,7 @@ export type ExportPathMap = {
     /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
-     * the app has `experimental.ppr` and `experimental.cacheComponents` enabled, and
+     * the app has `experimental.ppr` and `cacheComponents` enabled, and
      * there are also routes prerendered with a more complete set of params.
      * Prerendering those routes would catch any invalid dynamic accesses.
      *
@@ -1265,6 +1262,15 @@ export interface NextConfig {
   enablePrerenderSourceMaps?: boolean
 
   /**
+   * When enabled, in development and build, Next.js will automatically cache
+   * page-level components and functions for faster builds and rendering. This
+   * includes Partial Prerendering support.
+   *
+   * @see [Cache Components documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents)
+   */
+  cacheComponents?: boolean
+
+  /**
    * period (in seconds) where the server allow to serve stale cache
    */
   expireTime?: number
@@ -1391,6 +1397,7 @@ export const defaultConfig = Object.freeze({
   allowedDevOrigins: undefined,
   // Will default to cacheComponents value.
   enablePrerenderSourceMaps: undefined,
+  cacheComponents: false,
   experimental: {
     adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     useSkewCookie: false,
@@ -1508,7 +1515,6 @@ export const defaultConfig = Object.freeze({
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
-    cacheComponents: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,

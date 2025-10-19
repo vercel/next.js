@@ -687,7 +687,7 @@ export default async function getBaseWebpackConfig(
     : distDir
 
   const conditionNames = [
-    ...(config.experimental?.cacheComponents === true ? ['next-js'] : []),
+    ...(config.cacheComponents === true ? ['next-js'] : []),
     ...(isEdgeServer ? [edgeConditionName] : []),
     // inherits Webpack's default conditions
     '...',
@@ -1555,8 +1555,8 @@ export default async function getBaseWebpackConfig(
         ...getNextRootParamsRules({
           isRootParamsEnabled:
             config.experimental.rootParams ??
-            // `experimental.cacheComponents` implies `experimental.rootParams`.
-            config.experimental.cacheComponents ??
+            // `cacheComponents` implies `experimental.rootParams`.
+            config.cacheComponents ??
             false,
           isClient,
           appDir,

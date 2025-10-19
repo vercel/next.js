@@ -190,9 +190,9 @@ export async function handler(
     prerenderManifest,
     renderOpts: {
       experimental: {
-        cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
       },
+      cacheComponents: Boolean(nextConfig.cacheComponents),
       supportsDynamicResponse,
       incrementalCache: getRequestMeta(req, 'incrementalCache'),
       cacheLifeProfiles: nextConfig.experimental?.cacheLife,

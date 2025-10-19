@@ -545,11 +545,11 @@ export default abstract class Server<
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format
       htmlLimitedBots: this.nextConfig.htmlLimitedBots,
+      cacheComponents: this.nextConfig.cacheComponents ?? false,
       experimental: {
         expireTime: this.nextConfig.expireTime,
         staleTimes: this.nextConfig.experimental.staleTimes,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
-        cacheComponents: this.nextConfig.experimental.cacheComponents ?? false,
         clientSegmentCache:
           this.nextConfig.experimental.clientSegmentCache === 'client-only'
             ? 'client-only'
@@ -2288,7 +2288,7 @@ export default abstract class Server<
         page: components.page,
         isAppPath,
       })
-      if (isAppPath && this.nextConfig.experimental.cacheComponents) {
+      if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
           let smallestFallbackRouteParams = null
           for (const route of pathsResults.prerenderedRoutes) {

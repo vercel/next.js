@@ -154,6 +154,7 @@ pub struct NextConfig {
     target: Option<String>,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
+    cache_components: Option<bool>,
     webpack: Option<serde_json::Value>,
 }
 
@@ -810,6 +811,8 @@ pub struct ExperimentalConfig {
     web_vitals_attribution: Option<Vec<RcStr>>,
     server_actions: Option<ServerActionsOrLegacyBool>,
     sri: Option<SubResourceIntegrity>,
+    /// @deprecated - use top-level cache_components instead.
+    /// This field is kept for backwards compatibility during migration.
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     root_params: Option<bool>,
@@ -1733,7 +1736,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn enable_cache_components(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.cache_components.unwrap_or(false))
+        Vc::cell(self.cache_components.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -1744,7 +1747,7 @@ impl NextConfig {
                 // "use cache" was originally implicitly enabled with the
                 // cacheComponents flag, so we transfer the value for cacheComponents to the
                 // explicit useCache flag to ensure backwards compatibility.
-                .unwrap_or(self.experimental.cache_components.unwrap_or(false)),
+                .unwrap_or(self.cache_components.unwrap_or(false)),
         )
     }
 
@@ -1754,7 +1757,7 @@ impl NextConfig {
             self.experimental
                 .root_params
                 // rootParams should be enabled implicitly in cacheComponents.
-                .unwrap_or(self.experimental.cache_components.unwrap_or(false)),
+                .unwrap_or(self.cache_components.unwrap_or(false)),
         )
     }
 

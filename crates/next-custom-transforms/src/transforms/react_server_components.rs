@@ -101,7 +101,7 @@ enum NextConfigProperty {
 impl Display for NextConfigProperty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NextConfigProperty::CacheComponents => write!(f, "experimental.cacheComponents"),
+            NextConfigProperty::CacheComponents => write!(f, "cacheComponents"),
             NextConfigProperty::UseCache => write!(f, "experimental.useCache"),
         }
     }
