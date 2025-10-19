@@ -665,7 +665,14 @@ async function generateDynamicFlightRenderResultWithCachesInDev(
     dev = false,
     onInstrumentationRequestError,
     setReactDebugChannel,
+    setCacheStatus,
   } = renderOpts
+
+  // Before we kick off the render, we set the cache status back to it's initial state
+  // in case a previous render bypassed the cache.
+  if (process.env.NODE_ENV === 'development') {
+    setCacheStatus!('ready', htmlRequestId, requestId)
+  }
 
   function onFlightDataRenderError(err: DigestedError) {
     return onInstrumentationRequestError?.(
@@ -1891,6 +1898,11 @@ async function renderToHTMLOrFlightImpl(
             createRequestStore
           )
         } else {
+          // Set cache status to bypass when specifically bypassing caches in dev
+          if (process.env.NODE_ENV === 'development' && bypassCachesInDev) {
+            const { setCacheStatus } = renderOpts
+            setCacheStatus!('bypass', htmlRequestId, requestId)
+          }
           return generateDynamicFlightRenderResult(req, ctx, requestStore)
         }
       }
