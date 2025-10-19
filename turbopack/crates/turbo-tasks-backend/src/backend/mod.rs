@@ -24,7 +24,7 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
-use tracing::{Span, field::Empty, info_span, trace_span};
+use tracing::{Span, info_span, trace_span};
 use turbo_tasks::{
     CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
     ReadOutputOptions, ReadTracking, SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId,
@@ -1766,7 +1766,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // at the start of every step.
 
         #[cfg(not(feature = "trace_task_details"))]
-        let span = tracing::trace_span!("task execution completed", immutable = Empty).entered();
+        let _span = tracing::trace_span!("task execution completed").entered();
         #[cfg(feature = "trace_task_details")]
         let span = tracing::trace_span!(
             "task execution completed",
@@ -1775,10 +1775,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 Ok(value) => display(either::Either::Left(value)),
                 Err(err) => display(either::Either::Right(err)),
             },
-            immutable = Empty,
-            new_output = Empty,
-            output_dependents = Empty,
-            stale = Empty,
+            immutable = tracing::field::Empty,
+            new_output = tracing::field::Empty,
+            output_dependents = tracing::field::Empty,
+            stale = tracing::field::Empty,
         )
         .entered();
         let mut ctx = self.execute_context(turbo_tasks);
