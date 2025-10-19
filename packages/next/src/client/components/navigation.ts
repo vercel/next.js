@@ -168,6 +168,11 @@ function getSelectedLayoutSegmentPath(
   if (first) {
     // Use the provided parallel route key on the first parallel route
     node = tree[1][parallelRouteKey]
+
+    if (parallelRouteKey !== 'children') {
+      if (!node) return segmentPath
+      return getSelectedLayoutSegmentPath(node, 'children', false, segmentPath)
+    }
   } else {
     // After first parallel route prefer children, if there's no children pick the first parallel route.
     const parallelRoutes = tree[1]
