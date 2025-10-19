@@ -103,6 +103,12 @@ export type ImageConfigComplete = {
   /** @see [Acceptable formats](https://nextjs.org/docs/api-reference/next/image#acceptable-formats) */
   formats: ImageFormat[]
 
+  /** @see [Maximum Redirects](https://nextjs.org/docs/api-reference/next/image#maximumredirects) */
+  maximumRedirects: number
+
+  /** @see [Dangerously Allow Local IP](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-local-ip) */
+  dangerouslyAllowLocalIP: boolean
+
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
   dangerouslyAllowSVG: boolean
 
@@ -140,6 +146,8 @@ export const imageConfigDefault: ImageConfigComplete = {
   disableStaticImages: false,
   minimumCacheTTL: 14400, // 4 hours
   formats: ['image/webp'],
+  maximumRedirects: 3,
+  dangerouslyAllowLocalIP: false,
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
   contentDispositionType: 'attachment',

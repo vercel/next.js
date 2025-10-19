@@ -40,7 +40,7 @@ import type {
   IncomingMessage,
   ServerResponse as HTTPServerResponse,
 } from 'http'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
 import type { InstrumentationModule } from './instrumentation/types'
@@ -64,7 +64,7 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
-import { getPreviouslyRevalidatedTags, getServerUtils } from './server-utils'
+import { getServerUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -141,7 +141,6 @@ import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segmen
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
-import { getCacheHandlers } from './use-cache/handlers'
 import { fixMojibake } from './lib/fix-mojibake'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
@@ -158,7 +157,7 @@ export type FindComponentsResult = {
 export interface MiddlewareRoutingItem {
   page: string
   match: MiddlewareRouteMatch
-  matchers?: MiddlewareMatcher[]
+  matchers?: ProxyMatcher[]
 }
 
 export type RouteHandler<
@@ -536,7 +535,7 @@ export default abstract class Server<
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       serverComponents: this.enabledDirectories.app,
-      cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+      cacheLifeProfiles: this.nextConfig.cacheLife,
       enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
@@ -546,17 +545,15 @@ export default abstract class Server<
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format
       htmlLimitedBots: this.nextConfig.htmlLimitedBots,
+      cacheComponents: this.nextConfig.cacheComponents ?? false,
       experimental: {
         expireTime: this.nextConfig.expireTime,
         staleTimes: this.nextConfig.experimental.staleTimes,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
-        cacheComponents: this.nextConfig.experimental.cacheComponents ?? false,
         clientSegmentCache:
           this.nextConfig.experimental.clientSegmentCache === 'client-only'
             ? 'client-only'
             : Boolean(this.nextConfig.experimental.clientSegmentCache),
-        clientParamParsing:
-          this.nextConfig.experimental.clientParamParsing ?? false,
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
@@ -1440,29 +1437,6 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      const cacheHandlers = getCacheHandlers()
-
-      if (cacheHandlers) {
-        await Promise.all(
-          [...cacheHandlers].map(async (cacheHandler) => {
-            if ('refreshTags' in cacheHandler) {
-              // Note: cacheHandler.refreshTags() is called lazily before the
-              // first cache entry is retrieved. It allows us to skip the
-              // refresh request if no caches are read at all.
-            } else {
-              const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
-                req.headers,
-                this.getPrerenderManifest().preview.previewModeId
-              )
-
-              await cacheHandler.receiveExpiredTags(
-                ...previouslyRevalidatedTags
-              )
-            }
-          })
-        )
-      }
-
       // set server components HMR cache to request meta so it can be passed
       // down for edge functions
       if (!getRequestMeta(req, 'serverComponentsHmrCache')) {
@@ -2041,7 +2015,11 @@ export default abstract class Server<
     if (
       !this.minimalMode &&
       this.nextConfig.experimental.validateRSCRequestHeaders &&
-      isRSCRequest
+      isRSCRequest &&
+      // In the event that we're serving a NoFallbackError, the headers will
+      // already be stripped so this comparison will always fail, resulting in
+      // a redirect loop.
+      !is404Page
     ) {
       const headers = req.headers
 
@@ -2310,7 +2288,7 @@ export default abstract class Server<
         page: components.page,
         isAppPath,
       })
-      if (isAppPath && this.nextConfig.experimental.cacheComponents) {
+      if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
           let smallestFallbackRouteParams = null
           for (const route of pathsResults.prerenderedRoutes) {

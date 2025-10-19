@@ -37,9 +37,9 @@ This enables you to build pages that are faster to load and eliminate [layout sh
 
 Depending on your needs, Next.js allows you to choose your data fetching strategy on a page and component basis. You can decide to fetch at build time, at request time on the server, or on the client. For example, you can fetch data from your CMS and render your blog posts at build time, which can then be efficiently cached on a CDN.
 
-### Middleware
+### Proxy
 
-[Next.js Middleware](/docs/app/api-reference/file-conventions/middleware) allows you to run code on the server before a request is completed. This is especially useful to avoid having a flash of unauthenticated content when the user visits an authenticated-only page by redirecting the user to a login page. The middleware is also useful for experimentation and [internationalization](/docs/app/guides/internationalization).
+[Next.js Proxy](/docs/app/api-reference/file-conventions/proxy) allows you to run code on the server before a request is completed. This is especially useful to avoid having a flash of unauthenticated content when the user visits an authenticated-only page by redirecting the user to a login page. The proxy is also useful for experimentation and [internationalization](/docs/app/guides/internationalization).
 
 ### Built-in Optimizations
 

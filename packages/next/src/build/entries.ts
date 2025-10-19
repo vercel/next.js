@@ -5,8 +5,8 @@ import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-ro
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
-  MiddlewareConfig,
-  MiddlewareMatcher,
+  ProxyConfig,
+  ProxyMatcher,
   PageStaticInfo,
 } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
@@ -47,7 +47,6 @@ import {
   isInstrumentationHookFilename,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
-import { getDefaultMiddlewareMatcher } from '../shared/lib/router/utils/get-default-middleware-matcher'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import type { ServerRuntime } from '../types'
@@ -596,12 +595,12 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: MappedPages
-  middleware?: Partial<MiddlewareConfig>
+  middleware?: Partial<ProxyConfig>
   pagesType: PAGE_TYPES
   appDirLoader?: string
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
-  middlewareConfig?: MiddlewareConfig
+  middlewareConfig?: ProxyConfig
 }) {
   if (
     opts.pagesType === 'app' &&
@@ -833,7 +832,7 @@ export async function createEntrypoints(
   const edgeServer: webpack.EntryObject = {}
   const server: webpack.EntryObject = {}
   const client: webpack.EntryObject = {}
-  let middlewareMatchers: MiddlewareMatcher[] | undefined = undefined
+  let middlewareMatchers: ProxyMatcher[] | undefined = undefined
 
   let appPathsPerRoute: Record<string, string[]> = {}
   if (appDir && appPaths) {
@@ -901,7 +900,7 @@ export async function createEntrypoints(
 
       if (isMiddlewareFile(page)) {
         middlewareMatchers = staticInfo.middleware?.matchers ?? [
-          getDefaultMiddlewareMatcher(params.config),
+          { regexp: '.*', originalSource: '/:path*' },
         ]
       }
 

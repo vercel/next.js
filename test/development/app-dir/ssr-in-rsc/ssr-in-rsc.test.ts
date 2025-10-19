@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect -- rule does not understand testGateWebpack */
 import { nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,

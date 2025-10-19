@@ -144,6 +144,7 @@ async function requestHandler(
       nextConfigOutput: nextConfig.output,
       crossOrigin: nextConfig.crossOrigin,
       trailingSlash: nextConfig.trailingSlash,
+      images: nextConfig.images,
       previewProps: prerenderManifest.preview,
       deploymentId: nextConfig.deploymentId,
       enableTainting: nextConfig.experimental.taint,
@@ -151,17 +152,15 @@ async function requestHandler(
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
-      cacheLifeProfiles: nextConfig.experimental.cacheLife,
+      cacheLifeProfiles: nextConfig.cacheLife,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
-
+      cacheComponents: Boolean(nextConfig.cacheComponents),
       experimental: {
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
-        cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
         clientSegmentCache: Boolean(nextConfig.experimental.clientSegmentCache),
-        clientParamParsing: Boolean(nextConfig.experimental.clientParamParsing),
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),

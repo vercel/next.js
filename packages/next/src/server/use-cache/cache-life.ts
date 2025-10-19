@@ -88,7 +88,7 @@ function validateCacheLife(profile: CacheLife) {
 export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   if (!process.env.__NEXT_USE_CACHE) {
     throw new Error(
-      '`cacheLife()` is only available with the `experimental.cacheComponents` config.'
+      '`cacheLife()` is only available with the `cacheComponents` config.'
     )
   }
 
@@ -136,10 +136,8 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
       throw new Error(
         `Unknown \`cacheLife()\` profile "${profile}" is not configured in next.config.js\n` +
           'module.exports = {\n' +
-          '  experimental: {\n' +
-          '    cacheLife: {\n' +
-          `      "${profile}": ...\n` +
-          '    }\n' +
+          '  cacheLife: {\n' +
+          `    "${profile}": ...\n` +
           '  }\n' +
           '}'
       )

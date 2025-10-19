@@ -255,12 +255,14 @@ export async function printTreeView(
     pageExtensions,
     middlewareManifest,
     useStaticPages404,
+    hasGSPAndRevalidateZero,
   }: {
     pagesDir?: string
     pageExtensions: PageExtensions
     buildManifest: BuildManifest
     middlewareManifest: MiddlewareManifest
     useStaticPages404: boolean
+    hasGSPAndRevalidateZero: Set<string>
   }
 ) {
   // Can be overridden for test purposes to omit the build duration output.
@@ -373,6 +375,23 @@ export async function printTreeView(
         symbol = 'ƒ'
       }
 
+      if (hasGSPAndRevalidateZero.has(item)) {
+        usedSymbols.add('ƒ')
+        messages.push([
+          `${border} ƒ ${item}${
+            totalDuration > MIN_DURATION
+              ? ` (${getPrettyDuration(totalDuration)})`
+              : ''
+          }`,
+          showRevalidate && pageInfo?.initialCacheControl
+            ? formatRevalidate(pageInfo.initialCacheControl)
+            : '',
+          showExpire && pageInfo?.initialCacheControl
+            ? formatExpire(pageInfo.initialCacheControl)
+            : '',
+        ])
+      }
+
       usedSymbols.add(symbol)
 
       messages.push([
@@ -392,6 +411,8 @@ export async function printTreeView(
       if (pageInfo?.ssgPageRoutes?.length) {
         const totalRoutes = pageInfo.ssgPageRoutes.length
         const contSymbol = i === arr.length - 1 ? ' ' : '├'
+
+        // HERE
 
         let routes: { route: string; duration: number; avgDuration?: number }[]
         if (pageInfo.ssgPageDurations?.some((d) => d > MIN_DURATION)) {
@@ -802,7 +823,7 @@ export async function isPageStatic({
         // in incremental mode.
         isRoutePPREnabled =
           routeModule.definition.kind === RouteKind.APP_PAGE &&
-          checkIsRoutePPREnabled(pprConfig, appConfig)
+          checkIsRoutePPREnabled(pprConfig)
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -927,7 +948,6 @@ type ReducedAppConfig = Pick<
   | 'dynamic'
   | 'fetchCache'
   | 'preferredRegion'
-  | 'experimental_ppr'
   | 'runtime'
   | 'maxDuration'
 >
@@ -950,7 +970,6 @@ export function reduceAppConfig(
       fetchCache,
       preferredRegion,
       revalidate,
-      experimental_ppr,
       runtime,
       maxDuration,
     } = segment.config || {}
@@ -981,12 +1000,6 @@ export function reduceAppConfig(
       (typeof config.revalidate !== 'number' || revalidate < config.revalidate)
     ) {
       config.revalidate = revalidate
-    }
-
-    // If partial prerendering has been set, only override it if the current
-    // value is provided as it's resolved from root layout to leaf page.
-    if (typeof experimental_ppr !== 'undefined') {
-      config.experimental_ppr = experimental_ppr
     }
 
     if (typeof runtime !== 'undefined') {

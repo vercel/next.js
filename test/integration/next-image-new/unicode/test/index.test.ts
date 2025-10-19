@@ -75,6 +75,7 @@ function runTests(mode: 'server' | 'dev') {
           contentDispositionType: 'attachment',
           contentSecurityPolicy:
             "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowLocalIP: false,
           dangerouslyAllowSVG: false,
           deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
           disableStaticImages: false,
@@ -94,6 +95,14 @@ function runTests(mode: 'server' | 'dev') {
               search: '',
             },
           ],
+          localPatterns: [
+            {
+              pathname:
+                '^(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)\\/?)$',
+              search: '',
+            },
+          ],
+          maximumRedirects: 3,
           minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [75],

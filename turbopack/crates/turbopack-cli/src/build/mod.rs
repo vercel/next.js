@@ -14,6 +14,7 @@ use turbo_tasks_backend::{
     BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
+use turbo_unix_path::join_path;
 use turbopack::{
     css::chunk::CssChunkType, ecmascript::chunk::EcmascriptChunkType,
     global_module_ids::get_global_module_id_strategy,
@@ -195,21 +196,28 @@ async fn build_internal(
     scope_hoist: bool,
 ) -> Result<Vc<()>> {
     let output_fs = output_fs(project_dir.clone());
-    let project_fs = project_fs(root_dir.clone(), /* watch= */ false);
+    const OUTPUT_DIR: &str = "dist";
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/")
         .into();
+    let project_fs = project_fs(
+        root_dir.clone(),
+        /* watch= */ false,
+        join_path(project_relative.as_str(), OUTPUT_DIR)
+            .unwrap()
+            .into(),
+    );
     let root_path = project_fs.root().owned().await?;
     let project_path = root_path.join(&project_relative)?;
-    let build_output_root = output_fs.root().await?.join("dist")?;
+    let build_output_root = output_fs.root().await?.join(OUTPUT_DIR)?;
 
     let node_env = NodeEnv::Production.cell();
 
     let build_output_root_to_root_path = project_path
-        .join("dist")?
+        .join(OUTPUT_DIR)?
         .get_relative_path_to(&root_path)
         .context("Project path is in root path")?;
 

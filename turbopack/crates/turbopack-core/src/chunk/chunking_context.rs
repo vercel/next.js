@@ -184,14 +184,17 @@ pub trait ChunkingContext {
 
     /// Returns a URL (relative or absolute, depending on the asset prefix) to
     /// the static asset based on its `ident`.
+    /// The `tag` is an arbitrary string that can be used to distinguish
+    /// different usages of the same asset (e.g. different base paths).
     #[turbo_tasks::function]
-    fn asset_url(self: Vc<Self>, ident: FileSystemPath) -> Result<Vc<RcStr>>;
+    fn asset_url(self: Vc<Self>, ident: FileSystemPath, tag: Option<RcStr>) -> Result<Vc<RcStr>>;
 
     #[turbo_tasks::function]
     fn asset_path(
         self: Vc<Self>,
         content_hash: RcStr,
         original_asset_ident: Vc<AssetIdent>,
+        tag: Option<RcStr>,
     ) -> Vc<FileSystemPath>;
 
     #[turbo_tasks::function]

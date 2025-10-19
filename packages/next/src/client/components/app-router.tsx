@@ -10,12 +10,12 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type {
-  CacheNode,
-  FlightRouterState,
-} from '../../shared/lib/app-router-types'
+import type { CacheNode } from '../../shared/lib/app-router-types'
 import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
-import type { AppRouterState } from './router-reducer/router-reducer-types'
+import type {
+  AppHistoryState,
+  AppRouterState,
+} from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
@@ -61,14 +61,20 @@ function HistoryUpdater({
       window.next.__pendingUrl = undefined
     }
 
-    const { tree, pushRef, canonicalUrl } = appRouterState
+    const { tree, pushRef, canonicalUrl, renderedSearch } = appRouterState
+
+    const appHistoryState: AppHistoryState = {
+      tree,
+      renderedSearch,
+    }
+
     const historyState = {
       ...(pushRef.preserveCustomHistoryState ? window.history.state : {}),
       // Identifier is shortened intentionally.
       // __NA is used to identify if the history entry can be handled by the app-router.
       // __N is used to identify if the history entry can be handled by the old router.
       __NA: true,
-      __PRIVATE_NEXTJS_INTERNALS_TREE: tree,
+      __PRIVATE_NEXTJS_INTERNALS_TREE: appHistoryState,
     }
     if (
       pushRef.pendingPush &&
@@ -180,8 +186,7 @@ function Router({
   }, [canonicalUrl])
 
   if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { cache, prefetchCache, tree } = state
+    const { cache, tree } = state
 
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -192,10 +197,9 @@ function Router({
       window.nd = {
         router: publicAppRouterInstance,
         cache,
-        prefetchCache,
         tree,
       }
-    }, [cache, prefetchCache, tree])
+    }, [cache, tree])
   }
 
   useEffect(() => {
@@ -219,7 +223,7 @@ function Router({
       dispatchAppRouterAction({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
-        tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+        historyState: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
       })
     }
 
@@ -302,14 +306,14 @@ function Router({
       url: string | URL | null | undefined
     ) => {
       const href = window.location.href
-      const tree: FlightRouterState | undefined =
+      const appHistoryState: AppHistoryState | undefined =
         window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
 
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_RESTORE,
           url: new URL(url ?? href, href),
-          tree,
+          historyState: appHistoryState,
         })
       })
     }

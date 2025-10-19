@@ -881,7 +881,7 @@ export async function createHotReloaderTurbopack(
         if (requestId) {
           clientsByRequestId.set(requestId, client)
           onUpgrade(client, {
-            isLegacyClient: !nextConfig.experimental.cacheComponents,
+            isLegacyClient: !nextConfig.cacheComponents,
           })
         } else {
           clientsWithoutRequestId.add(client)
@@ -1102,7 +1102,7 @@ export async function createHotReloaderTurbopack(
       // clients as App Router / Pages Router clients explicitly, instead of
       // inferring it from the presence of a request ID.
 
-      if (!nextConfig.experimental.cacheComponents) {
+      if (!nextConfig.cacheComponents) {
         for (const client of clientsByRequestId.values()) {
           client.send(payload)
         }

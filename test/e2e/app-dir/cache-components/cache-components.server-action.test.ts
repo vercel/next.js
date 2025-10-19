@@ -35,7 +35,6 @@ describe('cache-components', () => {
       await assertNoRedbox(browser)
     }
   })
-  /* eslint-enable jest/no-standalone-expect */
 
   it('should prerender pages with inline server actions', async () => {
     let $ = await next.render$('/server-action-inline', {})

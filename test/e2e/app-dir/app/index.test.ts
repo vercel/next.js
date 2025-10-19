@@ -587,7 +587,7 @@ describe('app dir - basic', () => {
   ;(isNextDev ||
     // When PPR is enabled, the shared layouts re-render because we prefetch
     // from the root. This will be addressed before GA.
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+    process.env.__NEXT_CACHE_COMPONENTS === 'true'
     ? it.skip
     : it)(
     'should not rerender layout when navigating between routes in the same layout',
@@ -1384,7 +1384,7 @@ describe('app dir - basic', () => {
     ;(isNextDev ||
       // When PPR is enabled, the shared layouts re-render because we prefetch
       // from the root. This will be addressed before GA.
-      process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      process.env.__NEXT_CACHE_COMPONENTS === 'true'
       ? it.skip
       : it)(
       'should render the template that is a server component and rerender on navigation',

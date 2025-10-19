@@ -65,7 +65,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.1.0";
+const nextjsReactPeerVersion = "19.2.0";
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -404,7 +404,7 @@ export class NextInstance {
 
           // alias experimental feature flags for deployment compatibility
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
-            process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
+            process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
           }
         `
           )

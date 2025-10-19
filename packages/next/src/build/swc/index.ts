@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { arch, platform } from 'os'
@@ -486,8 +485,7 @@ function bindingToApi(
 
   type NapiMiddleware = {
     endpoint: NapiEndpoint
-    runtime: 'nodejs' | 'edge'
-    matcher?: string[]
+    isProxy: boolean
   }
 
   type NapiInstrumentation = {
@@ -1054,8 +1052,7 @@ function bindingToApi(
     }
     const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
       endpoint: new EndpointImpl(middleware.endpoint),
-      runtime: middleware.runtime,
-      matcher: middleware.matcher,
+      isProxy: middleware.isProxy,
     })
     const middleware = entrypoints.middleware
       ? napiMiddlewareToMiddleware(entrypoints.middleware)

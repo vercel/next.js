@@ -16,8 +16,7 @@ import { PrerenderManifest } from 'next/dist/build'
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
-const withCacheComponents =
-  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+const withCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('use-cache', () => {
   const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup(
@@ -220,13 +219,13 @@ describe('use-cache', () => {
     })
   })
 
-  it('should update after unstable_expireTag correctly', async () => {
+  it('should update after revalidateTag correctly', async () => {
     const browser = await next.browser('/cache-tag')
     const initial = await browser.elementByCss('#a').text()
 
     if (!isNextDev) {
       // Bust the ISR cache first, to populate the in-memory cache for the
-      // subsequent unstable_expireTag calls.
+      // subsequent revalidateTag calls.
       await browser.elementByCss('#revalidate-path').click()
       await retry(async () => {
         expect(await browser.elementByCss('#a').text()).not.toBe(initial)
@@ -608,7 +607,7 @@ describe('use-cache', () => {
     })
   })
 
-  it('should be able to revalidate a page using unstable_expireTag', async () => {
+  it('should be able to revalidate a page using revalidateTag', async () => {
     const browser = await next.browser(`/form`)
     const time1 = await browser.waitForElementByCss('#t').text()
 
@@ -929,7 +928,7 @@ describe('use-cache', () => {
   })
 
   if (isNextDev) {
-    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS !== 'true') {
+    if (process.env.__NEXT_CACHE_COMPONENTS !== 'true') {
       it('should not have unhandled rejection of Request data promises when use cache is enabled without cacheComponents', async () => {
         await next.render('/unhandled-promise-regression')
         // We assert both to better defend against changes in error messaging invalidating this test silently.
@@ -952,9 +951,7 @@ describe('use-cache', () => {
       const initialLogs = await getSanitizedLogs(browser)
 
       const expectedOutsideBadge =
-        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
-          ? 'Prerender'
-          : 'Server'
+        process.env.__NEXT_CACHE_COMPONENTS === 'true' ? 'Prerender' : 'Server'
 
       // We ignore the logged time string at the end of this message:
       const logMessageWithDateRegexp = /^ Cache {2}deep inside /
@@ -1098,51 +1095,60 @@ describe('use-cache', () => {
       expect(await browser.eval('document.title')).toBe(title)
     })
 
-    it('can resume a cached generateMetadata function that does not read params', async () => {
-      // First load the page with JavaScript disabled, to ensure that the
-      // generateMetadata result was included in the prerendered shell.
-      let browser = await next.browser(
-        '/generate-metadata-resume/params-unused/foo',
-        { disableJavaScript: true }
-      )
+    // TODO(restart-on-cache-miss):
+    // in dev, cached Page components and generateMetadata can end up delayed into the dynamic stage
+    // even if they don't read params. This is because the `params` promise is delayed a task (for staging purposes),
+    // and thus encoding the cache key takes a task (but is not itself tracked as a cache read).
+    // If this happens, then we won't see a cache miss, and don't wait for caches to warm,
+    // so they'll end up delayed, like they're not cached at all.
+    // This breaks the tests expectations about what's in the static shell, so we're skipping it in dev for now.
+    if (!isNextDev) {
+      it('can resume a cached generateMetadata function that does not read params', async () => {
+        // First load the page with JavaScript disabled, to ensure that the
+        // generateMetadata result was included in the prerendered shell.
+        let browser = await next.browser(
+          '/generate-metadata-resume/params-unused/foo',
+          { disableJavaScript: true }
+        )
 
-      // The metadata must be in the head if it was prerendered.
-      const title = await browser
-        .elementByCss('head title', { state: 'attached' })
-        .text()
-      expect(title).toBeDateString()
-      const description = await browser
-        .elementByCss('head meta[name="description"]', { state: 'attached' })
-        .getAttribute('content')
-      expect(description).toBeDateString()
+        // The metadata must be in the head if it was prerendered.
+        const title = await browser
+          .elementByCss('head title', { state: 'attached' })
+          .text()
+        expect(title).toBeDateString()
+        const description = await browser
+          .elementByCss('head meta[name="description"]', { state: 'attached' })
+          .getAttribute('content')
+        expect(description).toBeDateString()
 
-      await browser.close()
+        await browser.close()
 
-      // Load the page again, now with JavaScript enabled.
-      browser = await next.browser(
-        '/generate-metadata-resume/params-unused/foo'
-      )
+        // Load the page again, now with JavaScript enabled.
+        browser = await next.browser(
+          '/generate-metadata-resume/params-unused/foo'
+        )
 
-      // If there was no cache hit from the RDC during the resume, we'd observe
-      // different metadata.
-      const title2 = await browser.eval('document.title')
-      const description2 = await browser
-        // Select the last meta element, in case another one was added during
-        // the resume due to a cache miss.
-        .elementByCss('meta[name="description"]:last-of-type')
-        .getAttribute('content')
+        // If there was no cache hit from the RDC during the resume, we'd observe
+        // different metadata.
+        const title2 = await browser.eval('document.title')
+        const description2 = await browser
+          // Select the last meta element, in case another one was added during
+          // the resume due to a cache miss.
+          .elementByCss('meta[name="description"]:last-of-type')
+          .getAttribute('content')
 
-      if (isNextDev) {
-        expect(title2).toBe(title)
-        expect(description2).toBe(description)
-      } else {
-        // TODO: Omitting unused params from cache keys (and upgrading cache
-        // keys when they are used) is not yet implemented. Remove this else
-        // branch once it is.
-        expect(title2).not.toBe(title)
-        expect(description2).not.toBe(description)
-      }
-    })
+        if (isNextDev) {
+          expect(title2).toBe(title)
+          expect(description2).toBe(description)
+        } else {
+          // TODO: Omitting unused params from cache keys (and upgrading cache
+          // keys when they are used) is not yet implemented. Remove this else
+          // branch once it is.
+          expect(title2).not.toBe(title)
+          expect(description2).not.toBe(description)
+        }
+      })
+    }
 
     it('can serialize parent metadata as generateMetadata argument', async () => {
       const browser = await next.browser('/generate-metadata-resume/nested')

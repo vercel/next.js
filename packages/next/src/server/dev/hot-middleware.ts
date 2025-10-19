@@ -269,7 +269,7 @@ export class WebpackHotMiddleware {
     // clients as App Router / Pages Router clients explicitly, instead of
     // inferring it from the presence of a request ID.
 
-    if (!this.config.experimental.cacheComponents) {
+    if (!this.config.cacheComponents) {
       for (const wsClient of this.clientsByRequestId.values()) {
         this.publishToClient(wsClient, message)
       }

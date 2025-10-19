@@ -279,6 +279,7 @@ export interface NapiRoute {
 }
 export interface NapiMiddleware {
   endpoint: ExternalObject<ExternalEndpoint>
+  isProxy: boolean
 }
 export interface NapiInstrumentation {
   nodeJs: ExternalObject<ExternalEndpoint>

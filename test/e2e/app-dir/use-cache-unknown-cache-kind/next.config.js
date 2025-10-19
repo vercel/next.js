@@ -2,8 +2,8 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  cacheComponents: true,
   experimental: {
-    cacheComponents: true,
     cacheHandlers: {}, // overwrite the default config
     prerenderEarlyExit: false,
   },

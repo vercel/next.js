@@ -346,7 +346,7 @@ async function createRedirectRenderResult(
     if (workStore.pendingRevalidatedTags) {
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-        workStore.pendingRevalidatedTags.join(',')
+        workStore.pendingRevalidatedTags.map((item) => item.tag).join(',')
       )
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,

@@ -22,9 +22,7 @@ To use `cacheTag`, enable the [`cacheComponents` flag](/docs/app/api-reference/c
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -32,9 +30,7 @@ export default nextConfig
 
 ```js filename="next.config.js" switcher
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -43,7 +39,7 @@ export default nextConfig
 The `cacheTag` function takes one or more string values.
 
 ```tsx filename="app/data.ts" switcher
-import { unstable_cacheTag as cacheTag } from 'next/cache'
+import { cacheTag } from 'next/cache'
 
 export async function getData() {
   'use cache'
@@ -54,7 +50,7 @@ export async function getData() {
 ```
 
 ```jsx filename="app/data.js" switcher
-import { unstable_cacheTag as cacheTag } from 'next/cache'
+import { cacheTag } from 'next/cache'
 
 export async function getData() {
   'use cache'
@@ -104,7 +100,7 @@ cacheTag('tag-one', 'tag-two')
 Tag your cached data by calling `cacheTag` within a cached function or component:
 
 ```tsx filename="app/components/bookings.tsx" switcher
-import { unstable_cacheTag as cacheTag } from 'next/cache'
+import { cacheTag } from 'next/cache'
 
 interface BookingsProps {
   type: string
@@ -124,7 +120,7 @@ export async function Bookings({ type = 'haircut' }: BookingsProps) {
 ```
 
 ```jsx filename="app/components/bookings.js" switcher
-import { unstable_cacheTag as cacheTag } from 'next/cache'
+import { cacheTag } from 'next/cache'
 
 export async function Bookings({ type = 'haircut' }) {
   'use cache'
@@ -144,7 +140,7 @@ export async function Bookings({ type = 'haircut' }) {
 You can use the data returned from an async function to tag the cache entry.
 
 ```tsx filename="app/components/bookings.tsx" switcher
-import { unstable_cacheTag as cacheTag } from 'next/cache'
+import { cacheTag } from 'next/cache'
 
 interface BookingsProps {
   type: string
@@ -162,7 +158,7 @@ export async function Bookings({ type = 'haircut' }: BookingsProps) {
 ```
 
 ```jsx filename="app/components/bookings.js" switcher
-import { unstable_cacheTag as cacheTag } from 'next/cache'
+import { cacheTag } from 'next/cache'
 
 export async function Bookings({ type = 'haircut' }) {
   async function getBookingsData() {

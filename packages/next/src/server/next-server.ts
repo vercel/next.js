@@ -71,7 +71,6 @@ import type { LoadComponentsReturnType } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { splitCookiesString, toNodeOutgoingHttpHeaders } from './web/utils'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
-import { getDefaultMiddlewareMatcher } from '../shared/lib/router/utils/get-default-middleware-matcher'
 import { loadEnvConfig } from '@next/env'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
@@ -124,6 +123,7 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
+import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
 
 export * from './base-server'
 
@@ -273,6 +273,8 @@ export default class NextNodeServer extends BaseServer<
   constructor(options: Options) {
     // Initialize super class
     super(options)
+
+    installGlobalBehaviors(this.nextConfig)
 
     const isDev = options.dev ?? false
     this.isDev = isDev
@@ -709,7 +711,6 @@ export default class NextNodeServer extends BaseServer<
           null,
           renderOpts,
           this.getServerComponentsHmrCache(),
-          false,
           {
             buildId: this.buildId,
           }
@@ -781,7 +782,11 @@ export default class NextNodeServer extends BaseServer<
       const { isAbsolute, href } = paramsResult
 
       const imageUpstream = isAbsolute
-        ? await fetchExternalImage(href)
+        ? await fetchExternalImage(
+            href,
+            this.nextConfig.images.dangerouslyAllowLocalIP,
+            this.nextConfig.images.maximumRedirects
+          )
         : await fetchInternalImage(
             href,
             req.originalRequest,
@@ -1456,13 +1461,13 @@ export default class NextNodeServer extends BaseServer<
       const middlewareModule = await this.loadNodeMiddleware()
 
       if (middlewareModule) {
-        const matchers = middlewareModule.config?.matchers || [
-          getDefaultMiddlewareMatcher(this.nextConfig),
-        ]
         return {
-          match: getMiddlewareRouteMatcher(matchers),
+          match: getMiddlewareRouteMatcher(
+            middlewareModule.config?.matchers || [
+              { regexp: '.*', originalSource: '/:path*' },
+            ]
+          ),
           page: '/',
-          matchers,
         }
       }
 
@@ -1472,7 +1477,6 @@ export default class NextNodeServer extends BaseServer<
     return {
       match: getMiddlewareMatcher(middleware),
       page: '/',
-      matchers: middleware.matchers,
     }
   }
 
@@ -1648,7 +1652,7 @@ export default class NextNodeServer extends BaseServer<
 
     let url: string
 
-    if (this.nextConfig.skipMiddlewareUrlNormalize) {
+    if (this.nextConfig.skipProxyUrlNormalize) {
       url = getRequestMeta(params.request, 'initURL')!
     } else {
       // For middleware to "fetch" we must always provide an absolute URL
@@ -1953,7 +1957,7 @@ export default class NextNodeServer extends BaseServer<
 
     if (!isUpgradeReq) {
       const bodySizeLimit = this.nextConfig.experimental
-        ?.middlewareClientMaxBodySize as number | undefined
+        ?.proxyClientMaxBodySize as number | undefined
       addRequestMeta(
         req,
         'clonableBody',

@@ -151,7 +151,6 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { getDefaultMiddlewareMatcher } from '../shared/lib/router/utils/get-default-middleware-matcher'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -469,8 +468,8 @@ export type RoutesManifest = {
     prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
 
     /**
-     * Whether the client param parsing is enabled. This is only relevant for
-     * app pages when PPR is enabled.
+     * Whether the client param parsing is enabled. This is automatically enabled when
+     * cacheComponents is enabled.
      */
     clientParamParsing: boolean
 
@@ -486,7 +485,7 @@ export type RoutesManifest = {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
     queryHeader: typeof NEXT_REWRITTEN_QUERY_HEADER
   }
-  skipMiddlewareUrlNormalize?: boolean
+  skipProxyUrlNormalize?: boolean
   caseSensitive?: boolean
   /**
    * Configuration related to Partial Prerendering.
@@ -766,17 +765,22 @@ async function writeStandaloneDirectory(
         )
       }
 
-      await recursiveCopy(
-        path.join(distDir, SERVER_DIRECTORY, 'pages'),
-        path.join(
-          distDir,
-          STANDALONE_DIRECTORY,
-          path.relative(outputFileTracingRoot, distDir),
-          SERVER_DIRECTORY,
-          'pages'
-        ),
-        { overwrite: true }
-      )
+      const originalPagesDir = path.join(distDir, SERVER_DIRECTORY, 'pages')
+
+      if (existsSync(originalPagesDir)) {
+        await recursiveCopy(
+          originalPagesDir,
+          path.join(
+            distDir,
+            STANDALONE_DIRECTORY,
+            path.relative(outputFileTracingRoot, distDir),
+            SERVER_DIRECTORY,
+            'pages'
+          ),
+          { overwrite: true }
+        )
+      }
+
       if (appDir) {
         const originalServerApp = path.join(distDir, SERVER_DIRECTORY, 'app')
         if (existsSync(originalServerApp)) {
@@ -849,7 +853,7 @@ export function createStaticWorker(
       progress?.clear()
     },
     debuggerPortOffset,
-    enableSourceMaps: config.experimental.enablePrerenderSourceMaps,
+    enableSourceMaps: config.enablePrerenderSourceMaps,
     // remove --max-old-space-size flag as it can cause memory issues.
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
@@ -1111,11 +1115,12 @@ export default async function build(
       )
 
       // Always log next version first then start rest jobs
-      const { envInfo, experimentalFeatures } = await getStartServerInfo({
-        dir,
-        dev: false,
-        debugPrerender,
-      })
+      const { envInfo, experimentalFeatures, cacheComponents } =
+        await getStartServerInfo({
+          dir,
+          dev: false,
+          debugPrerender,
+        })
 
       logStartInfo({
         networkUrl: null,
@@ -1123,6 +1128,7 @@ export default async function build(
         envInfo,
         experimentalFeatures,
         logBundler: true,
+        cacheComponents,
       })
 
       const typeCheckingOptions: Parameters<typeof startTypeChecking>[0] = {
@@ -1186,23 +1192,52 @@ export default async function build(
         .sort(sortByPageExts(config.pageExtensions))
         .map((file) => path.join(rootDir, file).replace(dir, ''))
 
-      const hasInstrumentationHook = rootPaths.some((p) =>
-        p.includes(INSTRUMENTATION_HOOK_FILENAME)
-      )
-      const hasMiddlewareFile = rootPaths.some((p) =>
-        p.includes(MIDDLEWARE_FILENAME)
-      )
-      const hasProxyFile = rootPaths.some((p) => p.includes(PROXY_FILENAME))
-      if (hasMiddlewareFile) {
-        if (hasProxyFile) {
+      let instrumentationHookFilePath: string | undefined
+      let proxyFilePath: string | undefined
+      let middlewareFilePath: string | undefined
+
+      for (const rootPath of rootPaths) {
+        const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
+        const isAtConventionLevel =
+          fileDir === '/' ||
+          fileDir === '/src' ||
+          // rootPaths are currently relative paths from the root directory.
+          // Add safety check here for unexpected future changes.
+          fileDir === dir ||
+          fileDir === path.join(dir, 'src')
+
+        if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
+          middlewareFilePath = rootPath
+        }
+        if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+          proxyFilePath = rootPath
+        }
+        if (
+          isAtConventionLevel &&
+          fileBaseName === INSTRUMENTATION_HOOK_FILENAME
+        ) {
+          instrumentationHookFilePath = rootPath
+        }
+      }
+
+      if (middlewareFilePath) {
+        if (proxyFilePath) {
+          const cwd = process.cwd()
+          const absoluteProxyPath = path.join(rootDir, proxyFilePath)
+          const absoluteMiddlewarePath = path.join(rootDir, middlewareFilePath)
+
           throw new Error(
-            `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
+            `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, absoluteMiddlewarePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, absoluteProxyPath)}" are detected. Please use "./${path.relative(cwd, absoluteProxyPath)}" only.`
           )
         }
-        Log.warn(
+        Log.warnOnce(
           `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
         )
       }
+
+      const hasInstrumentationHook = Boolean(instrumentationHookFilePath)
+      const hasMiddlewareFile = Boolean(middlewareFilePath)
+      const hasProxyFile = Boolean(proxyFilePath)
 
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
@@ -1502,9 +1537,7 @@ export default async function build(
         config.basePath ? `${config.basePath}${p}` : p
       )
 
-      const isAppCacheComponentsEnabled = Boolean(
-        config.experimental.cacheComponents
-      )
+      const isAppCacheComponentsEnabled = Boolean(config.cacheComponents)
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
@@ -1578,30 +1611,17 @@ export default async function build(
               prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
               prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
               prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
-              clientParamParsing:
-                // NOTE: once this is the default for `clientSegmentCache`, this
-                // should exclusively be based on the `clientSegmentCache` flag.
-                config.experimental.clientParamParsing ?? false,
-              clientParamParsingOrigins: config.experimental.clientParamParsing
-                ? config.experimental.clientParamParsingOrigins
-                : undefined,
+              clientParamParsing: config.cacheComponents ?? false,
+              clientParamParsingOrigins:
+                config.experimental.clientParamParsingOrigins,
               dynamicRSCPrerender:
-                // Only enable RDC for Navigations if the feature is enabled.
-                // Once we've made RDC for Navigations the default for PPR, we
-                // can remove the check for `config.experimental.rdcForNavigations`.
-                isAppPPREnabled &&
-                config.experimental.rdcForNavigations === true &&
-                // Temporarily we require that clientParamParsing is enabled for
-                // RDC for Navigations. This is due to a builder configuration
-                // bug that manifests as invalid query params being passed to
-                // the resume lambdas.
-                config.experimental.clientParamParsing === true,
+                isAppPPREnabled && config.cacheComponents === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
               queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
             },
-            skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
+            skipProxyUrlNormalize: config.skipProxyUrlNormalize,
             ppr: isAppPPREnabled
               ? {
                   chain: {
@@ -1959,7 +1979,7 @@ export default async function build(
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
-              cacheLifeProfiles: config.experimental.cacheLife,
+              cacheLifeProfiles: config.cacheLife,
               buildId,
               sriEnabled,
             })
@@ -2180,7 +2200,7 @@ export default async function build(
                             maxMemoryCacheSize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
-                            cacheLifeProfiles: config.experimental.cacheLife,
+                            cacheLifeProfiles: config.cacheLife,
                             buildId,
                             sriEnabled,
                           })
@@ -2585,7 +2605,10 @@ export default async function build(
           functionsConfigManifest.functions['/_middleware'] = {
             runtime: staticInfo.runtime,
             matchers: staticInfo.middleware?.matchers ?? [
-              getDefaultMiddlewareMatcher(config),
+              {
+                regexp: '^.*$',
+                originalSource: '/:path*',
+              },
             ],
           }
 
@@ -2715,7 +2738,7 @@ export default async function build(
       const features: EventBuildFeatureUsage[] = [
         {
           featureName: 'experimental/cacheComponents',
-          invocationCount: config.experimental.cacheComponents ? 1 : 0,
+          invocationCount: config.cacheComponents ? 1 : 0,
         },
         {
           featureName: 'experimental/optimizeCss',
@@ -2810,6 +2833,8 @@ export default async function build(
       await updateBuildDiagnostics({
         buildStage: 'static-generation',
       })
+
+      const hasGSPAndRevalidateZero = new Set<string>()
 
       // we need to trigger automatic exporting when we have
       // - static 404/500
@@ -2916,7 +2941,7 @@ export default async function build(
                 const isDynamicError = appConfig?.dynamic === 'error'
 
                 const isRoutePPREnabled: boolean = appConfig
-                  ? checkIsRoutePPREnabled(config.experimental.ppr, appConfig)
+                  ? checkIsRoutePPREnabled(config.experimental.ppr)
                   : false
 
                 routes.forEach((route) => {
@@ -2934,7 +2959,7 @@ export default async function build(
                     // completely static.
                     !(
                       config.experimental.clientSegmentCache &&
-                      config.experimental.clientParamParsing
+                      config.cacheComponents
                     )
                   ) {
                     return
@@ -3087,6 +3112,8 @@ export default async function build(
             const appConfig = appDefaultConfigs.get(originalAppPath)
             if (!appConfig) throw new InvariantError('App config not found')
 
+            const ssgPageRoutesSet = new Set(pageInfos.get(page)?.ssgPageRoutes)
+
             let hasRevalidateZero =
               appConfig.revalidate === 0 ||
               getCacheControl(page).revalidate === 0
@@ -3107,7 +3134,7 @@ export default async function build(
             // partial pre-rendering.
             const isRoutePPREnabled: true | undefined =
               !isAppRouteHandler &&
-              checkIsRoutePPREnabled(config.experimental.ppr, appConfig)
+              checkIsRoutePPREnabled(config.experimental.ppr)
                 ? true
                 : undefined
 
@@ -3248,7 +3275,7 @@ export default async function build(
                   // this route.
                   !(
                     config.experimental.clientSegmentCache &&
-                    config.experimental.clientParamParsing &&
+                    config.cacheComponents &&
                     isRoutePPREnabled
                   )
                 ) {
@@ -3282,13 +3309,35 @@ export default async function build(
                 }
               } else {
                 hasRevalidateZero = true
-                // we might have determined during prerendering that this page
-                // used dynamic data
-                pageInfos.set(route.pathname, {
-                  ...(pageInfos.get(route.pathname) as PageInfo),
-                  isSSG: false,
-                  isStatic: false,
-                })
+
+                if (ssgPageRoutesSet.has(route.pathname)) {
+                  const pageInfo = pageInfos.get(page) as PageInfo
+                  // Remove the route from the SSG page routes if it bailed out
+                  // during prerendering.
+                  ssgPageRoutesSet.delete(route.pathname)
+
+                  // Mark the route as having a GSP and revalidate zero.
+                  if (ssgPageRoutesSet.size === 0) {
+                    hasGSPAndRevalidateZero.delete(page)
+                  } else {
+                    hasGSPAndRevalidateZero.add(page)
+                  }
+
+                  pageInfos.set(page, {
+                    ...pageInfo,
+                    ssgPageRoutes: Array.from(ssgPageRoutesSet),
+                    // If there are no SSG page routes left, then the page is not SSG.
+                    isSSG: ssgPageRoutesSet.size === 0 ? false : pageInfo.isSSG,
+                  })
+                } else {
+                  // we might have determined during prerendering that this page
+                  // used dynamic data
+                  pageInfos.set(route.pathname, {
+                    ...(pageInfos.get(route.pathname) as PageInfo),
+                    isSSG: false,
+                    isStatic: false,
+                  })
+                }
               }
             }
 
@@ -3336,7 +3385,7 @@ export default async function build(
                     // this case. This only applies if we have PPR enabled for
                     // this route.
                     !config.experimental.clientSegmentCache ||
-                    !config.experimental.clientParamParsing ||
+                    !config.cacheComponents ||
                     !isRoutePPREnabled
                   ) {
                     prefetchDataRoute = path.posix.join(
@@ -4167,6 +4216,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           buildManifest,
           middlewareManifest,
+          hasGSPAndRevalidateZero,
         })
       )
 
