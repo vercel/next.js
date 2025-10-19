@@ -304,7 +304,7 @@ impl Issue for TooManyMatchesWarning {
     }
 
     fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Error
+        IssueSeverity::Warning
     }
 
     #[turbo_tasks::function]

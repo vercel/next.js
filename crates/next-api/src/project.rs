@@ -479,18 +479,15 @@ impl ProjectContainer {
             current_node_js_version = options.current_node_js_version.clone();
         }
 
-        let dist_dir = next_config
-            .dist_dir()
-            .await?
-            .as_ref()
-            .map_or_else(|| rcstr!(".next"), |d| d.clone());
-
+        let dist_dir = next_config.dist_dir().owned().await?;
+        let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
             root_path,
             project_path,
             watch,
             next_config: next_config.to_resolved().await?,
             dist_dir,
+            dist_dir_root,
             env: ResolvedVc::upcast(env_map.to_resolved().await?),
             define_env: define_env.to_resolved().await?,
             browserslist_query,
@@ -553,6 +550,11 @@ pub struct Project {
     /// Unix path. Corresponds to next.config.js's `distDir`.
     /// E.g. `.next`
     dist_dir: RcStr,
+
+    /// The root directory of the distDir. Generally the same as `distDir` but when
+    /// `isolatedDevBuild` is true it is the parent directory of `distDir`.  This is used to
+    /// ensure that the bundler doesn't traverse into the output directory.
+    dist_dir_root: RcStr,
 
     /// Filesystem watcher options.
     watch: WatchOptions,
@@ -668,8 +670,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub fn project_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), self.root_path.clone())
+    pub fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
+        let denied_path = match join_path(&self.project_path, &self.dist_dir_root) {
+            Some(dist_dir_root) => dist_dir_root.into(),
+            None => {
+                bail!(
+                    "Invalid distDirRoot: {:?}. distDirRoot should not navigate out of the \
+                     projectPath.",
+                    self.dist_dir_root
+                );
+            }
+        };
+
+        Ok(DiskFileSystem::new_with_denied_path(
+            rcstr!(PROJECT_FILESYSTEM_NAME),
+            self.root_path.clone(),
+            denied_path,
+        ))
     }
 
     #[turbo_tasks::function]

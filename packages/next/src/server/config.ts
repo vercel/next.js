@@ -380,11 +380,7 @@ function assignDefaultsAndValidate(
 
   if (isStableBuild()) {
     // Prevents usage of certain experimental features outside of canary
-    if (result.experimental?.cacheComponents) {
-      throw new CanaryOnlyConfigError({
-        feature: 'experimental.cacheComponents',
-      })
-    } else if (result.experimental?.turbopackFileSystemCacheForBuild) {
+    if (result.experimental?.turbopackFileSystemCacheForBuild) {
       throw new CanaryOnlyConfigError({
         feature: 'experimental.turbopackFileSystemCacheForBuild',
       })
@@ -393,7 +389,7 @@ function assignDefaultsAndValidate(
 
   if (result.experimental.ppr) {
     throw new HardDeprecatedConfigError(
-      `\`experimental.ppr\` has been merged into \`experimental.cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`experimental.cacheComponents\`. Please update your ${configFileName} accordingly.`
+      `\`experimental.ppr\` has been merged into \`cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`cacheComponents\`. Please update your ${configFileName} accordingly.`
     )
   }
 
@@ -711,6 +707,20 @@ function assignDefaultsAndValidate(
     result,
     'enablePrerenderSourceMaps',
     'enablePrerenderSourceMaps',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'cacheComponents',
+    'cacheComponents',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'cacheLife',
+    'cacheLife',
     configFileName,
     silent
   )
@@ -1083,12 +1093,12 @@ function assignDefaultsAndValidate(
     }
   }
 
-  if (result.experimental) {
-    result.experimental.cacheLife = {
-      ...defaultConfig.experimental?.cacheLife,
-      ...result.experimental.cacheLife,
+  if (result.cacheLife) {
+    result.cacheLife = {
+      ...defaultConfig.cacheLife,
+      ...result.cacheLife,
     }
-    const defaultDefault = defaultConfig.experimental?.cacheLife?.['default']
+    const defaultDefault = defaultConfig.cacheLife?.['default']
     if (
       !defaultDefault ||
       defaultDefault.revalidate === undefined ||
@@ -1097,9 +1107,9 @@ function assignDefaultsAndValidate(
     ) {
       throw new Error('No default cacheLife profile.')
     }
-    const defaultCacheLifeProfile = result.experimental.cacheLife['default']
+    const defaultCacheLifeProfile = result.cacheLife['default']
     if (!defaultCacheLifeProfile) {
-      result.experimental.cacheLife['default'] = defaultDefault
+      result.cacheLife['default'] = defaultDefault
     } else {
       if (defaultCacheLifeProfile.stale === undefined) {
         const staticStaleTime = result.experimental.staleTimes?.static
@@ -1276,7 +1286,7 @@ function assignDefaultsAndValidate(
     result.experimental.mcpServer = true
   }
 
-  if (result.experimental.cacheComponents) {
+  if (result.cacheComponents) {
     // TODO: remove once we've finished migrating internally to cacheComponents.
     result.experimental.ppr = true
 
@@ -1290,9 +1300,11 @@ function assignDefaultsAndValidate(
   // we transfer the value for cacheComponents to the explicit useCache flag to ensure
   // backwards compatibility.
   if (result.experimental.useCache === undefined) {
-    result.experimental.useCache = result.experimental.cacheComponents
+    result.experimental.useCache = result.cacheComponents
   }
 
+  // Store the distDirRoot in the config before it is modified by the isolatedDevBuild flag
+  ;(result as NextConfigComplete).distDirRoot = result.distDir
   if (
     phase === PHASE_DEVELOPMENT_SERVER &&
     result.experimental?.isolatedDevBuild
@@ -1773,21 +1785,12 @@ function enforceExperimentalFeatures(
 
   // TODO: Remove this once we've made Cache Components the default.
   if (
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
+    process.env.__NEXT_CACHE_COMPONENTS === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.experimental.cacheComponents === undefined ||
-      (isDefaultConfig && !config.experimental.cacheComponents))
+    (config.cacheComponents === undefined ||
+      (isDefaultConfig && !config.cacheComponents))
   ) {
-    config.experimental.cacheComponents = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'cacheComponents',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
-      )
-    }
+    config.cacheComponents = true
   }
 
   // TODO: Remove this once using the debug channel is the default.

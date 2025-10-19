@@ -31,6 +31,10 @@ export function DevToolsIndicator() {
     <Toast
       id="devtools-indicator"
       data-nextjs-toast
+      // TODO: Remove once we have actual UI for this.
+      data-nextjs-cache-indicator={
+        state.cacheIndicator === 'disabled' ? undefined : state.cacheIndicator
+      }
       style={
         {
           '--animate-out-duration-ms': `${MENU_DURATION_MS}ms`,

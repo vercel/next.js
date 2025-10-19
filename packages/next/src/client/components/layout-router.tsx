@@ -42,6 +42,7 @@ import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has
 import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -476,6 +477,7 @@ function LoadingBoundary({
     const loadingScripts = loadingModuleData[2]
     return (
       <Suspense
+        name="loading.tsx"
         fallback={
           <>
             {loadingStyles}
@@ -688,8 +690,10 @@ export default function OuterLayoutRouter({
     }
 
     if (process.env.__NEXT_ROUTER_BF_CACHE) {
+      const boundaryName = getBoundaryNameForSuspenseDevTools(tree)
       child = (
         <Activity
+          name={boundaryName}
           key={stateKey}
           mode={stateKey === activeStateKey ? 'visible' : 'hidden'}
         >
@@ -704,4 +708,51 @@ export default function OuterLayoutRouter({
   } while (bfcacheEntry !== null)
 
   return children
+}
+
+function getBoundaryNameForSuspenseDevTools(
+  subtree: FlightRouterState
+): string | undefined {
+  const segment = subtree[0]
+
+  if (typeof segment === 'string') {
+    const children = subtree[1]
+    const isPage = Object.keys(children).length === 0
+    if (isPage) {
+      // Page segment
+      return '/'
+    }
+
+    // Layout segment
+
+    // Skip over "virtual" layouts that don't correspond to app-
+    // defined components.
+    if (
+      segment === '' ||
+      // For some reason, the loader tree sometimes includes extra __PAGE__
+      // "layouts" when part of a parallel route. But it's not a leaf node.
+      // Otherwise, we wouldn't need this special case because pages are
+      // always leaf nodes.
+      // TODO: Investigate why the loader produces these fake page segments.
+      segment.startsWith(PAGE_SEGMENT_KEY) ||
+      // This is inserted by the loader. We should consider encoding these
+      // in a more special way instead of checking the name, to distinguish them
+      // from app-defined groups.
+      segment[0] === '(virtual)'
+    ) {
+      return undefined
+    }
+
+    if (segment === '/_not-found') {
+      // Special case. For some reason, the name itself already has a
+      // leading slash.
+      return '/_not-found/'
+    }
+
+    return `/${segment}/`
+  }
+
+  // Parameterized segments are always layouts
+  const paramCacheKey = segment[1]
+  return `/${paramCacheKey}/`
 }
