@@ -134,10 +134,11 @@ export function eventCliSession(
       typeof nextConfig.reactCompiler !== 'boolean'
         ? (nextConfig.reactCompiler?.panicThreshold ?? null)
         : null,
+    // Default mcpServer to true if not set
     mcpServer:
       typeof nextConfig.experimental.mcpServer === 'boolean'
         ? nextConfig.experimental.mcpServer
-        : null,
+        : true,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }
