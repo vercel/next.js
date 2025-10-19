@@ -12,7 +12,9 @@ We recommend using both MCP servers together for the best agent experience:
 
 ### 1. Next.js MCP Server (Built-in)
 
-The experimental Next.js MCP server (`experimental.mcpServer`) exposes your application's internals, allowing agents to:
+**Available in Next.js 16 and above**
+
+The Next.js MCP server exposes your application's internals, allowing agents to:
 
 - Access real-time application state and runtime information
 - Query page metadata, routes, and rendering details
@@ -30,28 +32,17 @@ This server runs within your Next.js dev server and provides direct access to yo
 - **Cache Components Guide** - Setup and configuration assistance for Cache Components
 - **Browser Testing** - [Playwright MCP](https://github.com/microsoft/playwright-mcp) integration for verifying pages in the browser
 
-Additionally, `next-devtools-mcp` can automatically discover running Next.js servers with `experimental.mcpServer` enabled and communicate with them to access their MCP tools (`get_errors`, `get_logs`, `get_page_metadata`, etc.). This integration allows agents to seamlessly use both high-level development guidance and low-level application internals to help you develop better.
+Additionally, `next-devtools-mcp` can automatically discover and communicate directly with running Next.js dev servers to access their MCP tools (`get_errors`, `get_logs`, `get_page_metadata`, etc.). This integration allows agents to seamlessly use both high-level development guidance and low-level application internals to help you develop better.
 
 Together, these two MCP servers give agents both low-level application internals and high-level development guidance.
 
-## Enabling the MCP server
+## Getting started
 
-To enable the experimental MCP server in your Next.js application, use Next.js v16 or above. Then add the following to your `next.config.js`:
-
-```js filename="next.config.js"
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    mcpServer: true,
-  },
-}
-
-module.exports = nextConfig
-```
+The Next.js MCP server is enabled by default in Next.js v16 or above when running in development mode.
 
 ### Configuring Next DevTools MCP
 
-When you enable the MCP server, configure [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) in a `.mcp.json` file at the root of your project to enhance the agent's capabilities with additional development tools:
+To enhance the agent's capabilities with additional development tools, configure [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) in a `.mcp.json` file at the root of your project:
 
 ```json filename=".mcp.json"
 {
@@ -68,11 +59,11 @@ See the [next-devtools-mcp documentation](https://www.npmjs.com/package/next-dev
 
 ## Using with agents
 
-When you have the MCP server enabled, MCP-compatible Coding Agents can automatically discover and connect to your Next.js application with the experimental `mcpServer` flag enabled. This provides agents with rich context about your project.
+MCP-compatible Coding Agents can automatically discover and connect to your Next.js development server. This provides agents with rich context about your project.
 
 ### Benefits for agent-assisted development
 
-With the MCP server enabled, agents can:
+Agents can:
 
 - **Make context-aware suggestions** - Recommend the right place to add new features based on your existing structure
 - **Query live application state** - Check current configuration, routes, and middleware during development
@@ -81,7 +72,7 @@ With the MCP server enabled, agents can:
 
 ## Development workflow
 
-1. **Start your Next.js server** with the MCP server enabled:
+1. **Start your Next.js development server**:
 
 ```bash filename="Terminal"
 npm run dev
@@ -152,7 +143,7 @@ This demonstrates the power of having both MCP servers enabled: the Next.js MCP 
 
 ### MCP server not connecting
 
-- Ensure `experimental.mcpServer: true` is set in `next.config.js`
+- Ensure you're using Next.js v16 or above
 - Start your development server: `npm run dev`
 - Restart your development server
 - Check that your MCP client is configured with the correct path
