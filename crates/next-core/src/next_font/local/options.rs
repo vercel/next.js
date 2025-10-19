@@ -9,25 +9,7 @@ use super::request::{
     AdjustFontFallback, NextFontLocalRequest, NextFontLocalRequestArguments, SrcDescriptor,
     SrcRequest,
 };
-
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    TaskInput,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-)]
-pub(super) struct NextFontLocalDeclaration {
-    pub prop: RcStr,
-    pub value: RcStr,
-}
+use crate::next_font::local::request::NextFontLocalDeclaration;
 
 /// A normalized, Vc-friendly struct derived from validating and transforming
 /// [[NextFontLocalRequest]]
