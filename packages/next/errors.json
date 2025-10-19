@@ -890,5 +890,6 @@
   "889": "Unknown \\`cacheLife()\\` profile \"%s\" is not configured in next.config.js\\nmodule.exports = {\n  cacheLife: {\n      \"%s\": ...\\n    }\n}",
   "890": "Received an underlying cookies object that does not match either `cookies` or `mutableCookies`",
   "891": "Failed to read build paths file \"%s\": %s",
-  "892": "Failed to resolve glob pattern \"%s\": %s"
+  "892": "Failed to resolve glob pattern \"%s\": %s",
+  "893": "The \"sassOptions.functions\" option is not supported when using Turbopack. Custom Sass functions are only available with webpack. Please remove the \"functions\" property from your sassOptions in %s."
 }

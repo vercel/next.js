@@ -378,6 +378,19 @@ function assignDefaultsAndValidate(
     )
   }
 
+  // Validate sassOptions.functions is not used with Turbopack
+  if (
+    process.env.TURBOPACK &&
+    result.sassOptions &&
+    'functions' in result.sassOptions
+  ) {
+    throw new Error(
+      `The "sassOptions.functions" option is not supported when using Turbopack. ` +
+        `Custom Sass functions are only available with webpack. ` +
+        `Please remove the "functions" property from your sassOptions in ${configFileName}.`
+    )
+  }
+
   if (isStableBuild()) {
     // Prevents usage of certain experimental features outside of canary
     if (result.experimental?.turbopackFileSystemCacheForBuild) {
