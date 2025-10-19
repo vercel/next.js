@@ -5,6 +5,7 @@ import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import type { CompilerOptions } from 'typescript'
 import * as Log from '../../build/output/log'
+import path from 'path'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:
@@ -267,7 +268,10 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  const nextAppTypes: string[] = [`${distDir}/types/**/*.ts`]
+  // Normalize paths to POSIX style and dedupe to avoid duplicates on Windows
+  const toPosix = (p: string) => p.split(path.sep).join(path.posix.sep)
+
+  const nextAppTypes: string[] = [toPosix(`${distDir}/types/**/*.ts`)]
 
   // When isolatedDevBuild is enabled, Next.js uses different distDir paths:
   // - Development: "{distDir}/dev"
@@ -275,17 +279,23 @@ export async function writeConfigurationDefaults(
   // To prevent tsconfig updates when switching between dev/build modes,
   // we proactively include both type paths regardless of current environment.
   if (isolatedDevBuild !== false) {
-    nextAppTypes.push(
+    const extra =
       process.env.NODE_ENV === 'development'
         ? // In dev, distDir is "{distDir}/dev", which is already in the array above, but we also need "{distDir}/types".
           // Here we remove "/dev" at the end of distDir for consistency.
-          `${distDir.replace(/\/dev$/, '')}/types/**/*.ts`
+          toPosix(`${distDir.replace(/\/dev$/, '')}/types/**/*.ts`)
         : // In build, distDir is "{distDir}", which is already in the array above, but we also need "{distDir}/dev/types".
           // Here we add "/dev" at the end of distDir for consistency.
-          `${distDir}/dev/types/**/*.ts`
-    )
-    // Sort the array to ensure consistent order.
-    nextAppTypes.sort((a, b) => a.length - b.length)
+          toPosix(`${distDir}/dev/types/**/*.ts`)
+
+    nextAppTypes.push(extra)
+
+    // Dedupe and sort the array to ensure consistent order.
+    const deduped = Array.from(new Set(nextAppTypes))
+    deduped.sort((a, b) => a.length - b.length)
+    // replace contents
+    nextAppTypes.length = 0
+    nextAppTypes.push(...deduped)
   }
 
   if (!('include' in userTsConfig)) {
