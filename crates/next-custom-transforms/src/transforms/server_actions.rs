@@ -1535,15 +1535,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
                         if !named.type_only {
-                            if named.src.is_some()
-                                && named.specifiers.iter().any(|s| match s {
+                            if named.src.is_some() {
+                                if named.specifiers.iter().any(|s| match s {
                                     ExportSpecifier::Namespace(_) | ExportSpecifier::Default(_) => {
                                         true
                                     }
                                     ExportSpecifier::Named(s) => !s.is_type_only,
-                                })
-                            {
-                                disallowed_export_span = named.span;
+                                }) {
+                                    disallowed_export_span = named.span;
+                                }
                             } else {
                                 for spec in &mut named.specifiers {
                                     if let ExportSpecifier::Named(ExportNamedSpecifier {
