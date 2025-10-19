@@ -888,5 +888,7 @@
   "887": "`cacheLife()` is only available with the `cacheComponents` config.",
   "888": "Unknown \\`cacheLife()\\` profile \"%s\" is not configured in next.config.js\\nmodule.exports = {\n  cacheLife: {\n    \"%s\": ...\\n  }\n}",
   "889": "Unknown \\`cacheLife()\\` profile \"%s\" is not configured in next.config.js\\nmodule.exports = {\n  cacheLife: {\n      \"%s\": ...\\n    }\n}",
-  "890": "Received an underlying cookies object that does not match either `cookies` or `mutableCookies`"
+  "890": "Received an underlying cookies object that does not match either `cookies` or `mutableCookies`",
+  "891": "Failed to read build paths file \"%s\": %s",
+  "892": "Failed to resolve glob pattern \"%s\": %s"
 }
