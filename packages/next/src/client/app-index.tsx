@@ -3,7 +3,10 @@ import ReactDOMClient from 'react-dom/client'
 import React from 'react'
 // TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
+import {
+  createFromReadableStream as createFromReadableStreamBrowser,
+  createFromFetch as createFromFetchBrowser,
+} from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import {
@@ -22,11 +25,14 @@ import { createInitialRouterState } from './components/router-reducer/create-ini
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
 import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-app'
+import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
 
 /// <reference types="react-dom/experimental" />
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
+const createFromFetch =
+  createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
 const appElement: HTMLElement | Document = document
 
@@ -173,16 +179,38 @@ if (
   debugChannel = createDebugChannel(undefined)
 }
 
-const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
-  readable,
-  {
-    callServer,
-    findSourceMapURL,
-    debugChannel,
-    // @ts-expect-error This is not yet part of the React types
-    startTime: 0,
-  }
-)
+const clientResumeFetch: Promise<Response> | undefined =
+  // @ts-expect-error
+  window.__NEXT_CLIENT_RESUME
+
+let initialServerResponse: Promise<InitialRSCPayload>
+if (clientResumeFetch) {
+  initialServerResponse = Promise.resolve(
+    createFromFetch<InitialRSCPayload>(clientResumeFetch, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      // @ts-expect-error This is not yet part of the React types
+      startTime: 0,
+    })
+  ).then(async (fallbackInitialRSCPayload) =>
+    createInitialRSCPayloadFromFallbackPrerender(
+      await clientResumeFetch,
+      fallbackInitialRSCPayload
+    )
+  )
+} else {
+  initialServerResponse = createFromReadableStream<InitialRSCPayload>(
+    readable,
+    {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      // @ts-expect-error This is not yet part of the React types
+      startTime: 0,
+    }
+  )
+}
 
 function ServerRoot({
   initialRSCPayload,

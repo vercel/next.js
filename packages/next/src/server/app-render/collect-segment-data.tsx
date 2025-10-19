@@ -154,6 +154,9 @@ export async function collectSegmentData(
   const treeBuffer = await streamToBuffer(treeStream)
   resultMap.set('/_tree' as SegmentRequestKey, treeBuffer)
 
+  // Also output the entire full page data response
+  resultMap.set('/_full' as SegmentRequestKey, fullPageDataBuffer)
+
   // Now that we've finished rendering the route tree, all the segment tasks
   // should have been spawned. Await them in parallel and write the segment
   // prefetches to the result map.

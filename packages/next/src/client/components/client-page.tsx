@@ -4,11 +4,10 @@ import type { ParsedUrlQuery } from 'querystring'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 import type { Params } from '../../server/request/params'
-import {
-  GlobalLayoutRouterContext,
-  LayoutRouterContext,
-} from '../../shared/lib/app-router-context.shared-runtime'
+import { LayoutRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
 import { use } from 'react'
+import { urlSearchParamsToParsedUrlQuery } from '../route-params'
+import { SearchParamsContext } from '../../shared/lib/hooks-client-context.shared-runtime'
 
 /**
  * When the Page is a client component we send the params and searchParams to this client wrapper
@@ -35,16 +34,18 @@ export function ClientPageRoot({
     searchParams = serverProvidedParams.searchParams
     params = serverProvidedParams.params
   } else {
-    // When Cache Components is enabled, the server does not pass the params
-    // as props; they are parsed on the client and passed via context.
-    const globalLayoutRouterContext = use(GlobalLayoutRouterContext)
-    searchParams =
-      globalLayoutRouterContext !== null
-        ? globalLayoutRouterContext.renderedSearchParams
-        : {}
+    // When Cache Components is enabled, the server does not pass the params as
+    // props; they are parsed on the client and passed via context.
     const layoutRouterContext = use(LayoutRouterContext)
     params =
       layoutRouterContext !== null ? layoutRouterContext.parentParams : {}
+
+    // This is an intentional behavior change: when Cache Components is enabled,
+    // client segments receive the "canonical" search params, not the
+    // rewritten ones. Users should either call useSearchParams directly or pass
+    // the rewritten ones in from a Server Component.
+    // TODO: Log a deprecation error when this object is accessed
+    searchParams = urlSearchParamsToParsedUrlQuery(use(SearchParamsContext)!)
   }
 
   if (typeof window === 'undefined') {

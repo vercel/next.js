@@ -45,6 +45,7 @@ import {
   continueDynamicHTMLResume,
   streamToBuffer,
   streamToString,
+  continueStaticFallbackPrerender,
 } from '../stream-utils/node-web-streams-helper'
 import { stripInternalQueries } from '../internal-utils'
 import {
@@ -4590,14 +4591,7 @@ async function prerenderToStream(
         renderOpts
       )
 
-      // If there are fallback route params, the RSC data is inherently dynamic
-      // today because it's encoded into the flight router state. Until we can
-      // move the fallback route params out of the flight router state, we need
-      // to always perform a dynamic resume after the static prerender.
-      const hasFallbackRouteParams =
-        fallbackRouteParams && fallbackRouteParams.size > 0
-
-      if (serverIsDynamic || hasFallbackRouteParams) {
+      if (serverIsDynamic) {
         // Dynamic case
         // We will always need to perform a "resume" render of some kind when this route is accessed
         // because the RSC data itself is dynamic. We determine if there are any HTML holes or not
@@ -4685,10 +4679,52 @@ async function prerenderToStream(
           htmlStream = chainStreams(prelude, resumeStream)
         }
 
-        return {
-          digestErrorsMap: reactServerErrorsByDigest,
-          ssrErrors: allCapturedErrors,
-          stream: await continueStaticPrerender(htmlStream, {
+        let finalStream
+        const hasFallbackRouteParams =
+          fallbackRouteParams && fallbackRouteParams.size > 0
+        if (hasFallbackRouteParams) {
+          // This is a "static fallback" prerender: although the page didn't
+          // access any runtime params in a Server Component, it may have
+          // accessed a runtime param in a client segment.
+          //
+          // TODO: If there were no client segments, we can use the fully static
+          // path instead.
+          //
+          // Rather than use a dynamic server resume to fill in the params,
+          // we can rely on the client to parse the params from the URL and use
+          // that to hydrate the page.
+          //
+          // Send an empty InitialRSCPayload to the server component renderer
+          // The data will be fetched by the client instead.
+          // TODO: In the future, rather than defer the entire hydration payload
+          // to be fetched by the client, we should only defer the client
+          // segments, since those are the only ones whose data is not complete.
+          const emptyReactServerResult =
+            await createReactServerPrerenderResultFromRender(
+              ComponentMod.renderToReadableStream(
+                [],
+                clientReferenceManifest.clientModules,
+                {
+                  filterStackFrame,
+                  onError: serverComponentsErrorHandler,
+                }
+              )
+            )
+          finalStream = await continueStaticFallbackPrerender(htmlStream, {
+            inlinedDataStream: createInlinedDataReadableStream(
+              emptyReactServerResult.consumeAsStream(),
+              nonce,
+              formState
+            ),
+            getServerInsertedHTML,
+            getServerInsertedMetadata,
+            isBuildTimePrerendering:
+              ctx.workStore.isBuildTimePrerendering === true,
+            buildId: ctx.workStore.buildId,
+          })
+        } else {
+          // Normal static prerender case, no fallback param handling needed
+          finalStream = await continueStaticPrerender(htmlStream, {
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
               nonce,
@@ -4699,7 +4735,13 @@ async function prerenderToStream(
             isBuildTimePrerendering:
               ctx.workStore.isBuildTimePrerendering === true,
             buildId: ctx.workStore.buildId,
-          }),
+          })
+        }
+
+        return {
+          digestErrorsMap: reactServerErrorsByDigest,
+          ssrErrors: allCapturedErrors,
+          stream: finalStream,
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
             clientDynamicTracking

@@ -238,13 +238,13 @@ describe('Cache Components Errors', () => {
                    at ScrollAndFocusHandler (bundler:///<next-src>)
                    at RenderFromTemplateContext (bundler:///<next-src>)
                    at OuterLayoutRouter (bundler:///<next-src>)
-                 335 |  */
-                 336 | function InnerLayoutRouter({
-               > 337 |   tree,
+                 337 |  */
+                 338 | function InnerLayoutRouter({
+               > 339 |   tree,
                      |   ^
-                 338 |   segmentPath,
-                 339 |   cacheNode,
-                 340 |   url,
+                 340 |   segmentPath,
+                 341 |   cacheNode,
+                 342 |   params,
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-metadata-error-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -745,13 +745,13 @@ describe('Cache Components Errors', () => {
                    at ScrollAndFocusHandler (bundler:///<next-src>)
                    at RenderFromTemplateContext (bundler:///<next-src>)
                    at OuterLayoutRouter (bundler:///<next-src>)
-                 335 |  */
-                 336 | function InnerLayoutRouter({
-               > 337 |   tree,
+                 337 |  */
+                 338 | function InnerLayoutRouter({
+               > 339 |   tree,
                      |   ^
-                 338 |   segmentPath,
-                 339 |   cacheNode,
-                 340 |   url,
+                 340 |   segmentPath,
+                 341 |   cacheNode,
+                 342 |   params,
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -2141,13 +2141,13 @@ describe('Cache Components Errors', () => {
                      at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (<anonymous>)
                      at OuterLayoutRouter (bundler:///<next-src>)
-                   335 |  */
-                   336 | function InnerLayoutRouter({
-                 > 337 |   tree,
+                   337 |  */
+                   338 | function InnerLayoutRouter({
+                 > 339 |   tree,
                        |   ^
-                   338 |   segmentPath,
-                   339 |   cacheNode,
-                   340 |   url,
+                   340 |   segmentPath,
+                   341 |   cacheNode,
+                   342 |   params,
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -3157,13 +3157,13 @@ describe('Cache Components Errors', () => {
                      at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (bundler:///<next-src>)
                      at OuterLayoutRouter (bundler:///<next-src>)
-                   335 |  */
-                   336 | function InnerLayoutRouter({
-                 > 337 |   tree,
+                   337 |  */
+                   338 | function InnerLayoutRouter({
+                 > 339 |   tree,
                        |   ^
-                   338 |   segmentPath,
-                   339 |   cacheNode,
-                   340 |   url,
+                   340 |   segmentPath,
+                   341 |   cacheNode,
+                   342 |   params,
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
 
