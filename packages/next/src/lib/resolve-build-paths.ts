@@ -1,5 +1,6 @@
 import { promisify } from 'util'
 import globOriginal from 'next/dist/compiled/glob'
+import * as Log from '../build/output/log'
 import path from 'path'
 import fs from 'fs'
 import isError from './is-error'
@@ -42,6 +43,10 @@ export async function resolveBuildPaths(
         const matches = (await glob(trimmed, {
           cwd: projectDir,
         })) as string[]
+
+        if (matches.length === 0) {
+          Log.warn(`Glob pattern "${trimmed}" did not match any files`)
+        }
 
         for (const file of matches) {
           // Skip directories, only process files
