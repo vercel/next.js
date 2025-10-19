@@ -887,5 +887,6 @@
   "886": "`cacheTag()` is only available with the `cacheComponents` config.",
   "887": "`cacheLife()` is only available with the `cacheComponents` config.",
   "888": "Unknown \\`cacheLife()\\` profile \"%s\" is not configured in next.config.js\\nmodule.exports = {\n  cacheLife: {\n    \"%s\": ...\\n  }\n}",
-  "889": "Unknown \\`cacheLife()\\` profile \"%s\" is not configured in next.config.js\\nmodule.exports = {\n  cacheLife: {\n      \"%s\": ...\\n    }\n}"
+  "889": "Unknown \\`cacheLife()\\` profile \"%s\" is not configured in next.config.js\\nmodule.exports = {\n  cacheLife: {\n      \"%s\": ...\\n    }\n}",
+  "890": "Received an underlying cookies object that does not match either `cookies` or `mutableCookies`"
 }
