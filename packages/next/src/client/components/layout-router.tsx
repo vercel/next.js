@@ -19,7 +19,6 @@ import React, {
   Activity,
   useContext,
   use,
-  useMemo,
   startTransition,
   Suspense,
   useDeferredValue,
@@ -44,7 +43,10 @@ import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import { NavigationPromisesContext } from '../../shared/lib/hooks-client-context.shared-runtime'
+import {
+  NavigationPromisesContext,
+  type NavigationPromises,
+} from '../../shared/lib/hooks-client-context.shared-runtime'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -429,25 +431,17 @@ function InnerLayoutRouter({
 
   // In dev, we create a NavigationPromisesContext containing the instrumented promises that provide
   // `useSelectedLayoutSegment` and `useSelectedLayoutSegments`.
-  const navigationPromises = useMemo(() => {
-    if (process.env.NODE_ENV !== 'production') {
-      const { createLayoutSegmentPromises } =
-        require('./navigation-devtools') as typeof import('./navigation-devtools')
+  // Promises are cached outside of render to survive suspense retries.
+  let navigationPromises: NavigationPromises | null = null
+  if (process.env.NODE_ENV !== 'production') {
+    const { createNestedLayoutNavigationPromises } =
+      require('./navigation-devtools') as typeof import('./navigation-devtools')
 
-      const parallelRoutes = tree[1]
-      const parallelRouteKeys = Object.keys(parallelRoutes)
-
-      // Only create promises if there are parallel routes at this level
-      if (parallelRouteKeys.length > 0) {
-        const layoutSegmentPromises = createLayoutSegmentPromises(tree)
-        return {
-          ...parentNavPromises!,
-          ...layoutSegmentPromises,
-        }
-      }
-    }
-    return null
-  }, [tree, parentNavPromises])
+    navigationPromises = createNestedLayoutNavigationPromises(
+      tree,
+      parentNavPromises
+    )
+  }
 
   if (navigationPromises) {
     content = (

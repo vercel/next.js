@@ -22,7 +22,7 @@ import {
   PathnameContext,
   PathParamsContext,
   NavigationPromisesContext,
-  createDevToolsInstrumentedPromise,
+  type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -415,29 +415,19 @@ function Router({
 
   // Create instrumented promises for navigation hooks (dev-only)
   // These are specially instrumented promises to show in the Suspense DevTools
-  const instrumentedNavigationPromises = useMemo(() => {
-    if (process.env.NODE_ENV !== 'production') {
-      const readonlySearchParams = new (
-        require('./navigation.react-server') as typeof import('./navigation.react-server')
-      ).ReadonlyURLSearchParams(searchParams)
+  // Promises are cached outside of render to survive suspense retries.
+  let instrumentedNavigationPromises: NavigationPromises | null = null
+  if (process.env.NODE_ENV !== 'production') {
+    const { createRootNavigationPromises } =
+      require('./navigation-devtools') as typeof import('./navigation-devtools')
 
-      const { createLayoutSegmentPromises } =
-        require('./navigation-devtools') as typeof import('./navigation-devtools')
-
-      const layoutSegmentPromises = createLayoutSegmentPromises(tree)
-
-      return {
-        pathname: createDevToolsInstrumentedPromise('usePathname', pathname),
-        searchParams: createDevToolsInstrumentedPromise(
-          'useSearchParams',
-          readonlySearchParams
-        ),
-        params: createDevToolsInstrumentedPromise('useParams', pathParams),
-        ...layoutSegmentPromises,
-      }
-    }
-    return null
-  }, [pathname, searchParams, pathParams, tree])
+    instrumentedNavigationPromises = createRootNavigationPromises(
+      tree,
+      pathname,
+      searchParams,
+      pathParams
+    )
+  }
 
   const layoutRouterContext = useMemo(() => {
     return {
