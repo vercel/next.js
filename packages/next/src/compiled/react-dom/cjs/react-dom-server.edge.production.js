@@ -132,12 +132,12 @@ var LocalPromise = Promise,
   writtenBytes = 0;
 function writeChunk(destination, chunk) {
   if (0 !== chunk.byteLength)
-    if (2048 < chunk.byteLength)
+    if (4096 < chunk.byteLength)
       0 < writtenBytes &&
         (destination.enqueue(
           new Uint8Array(currentView.buffer, 0, writtenBytes)
         ),
-        (currentView = new Uint8Array(2048)),
+        (currentView = new Uint8Array(4096)),
         (writtenBytes = 0)),
         destination.enqueue(chunk);
     else {
@@ -148,7 +148,7 @@ function writeChunk(destination, chunk) {
           : (currentView.set(chunk.subarray(0, allowableBytes), writtenBytes),
             destination.enqueue(currentView),
             (chunk = chunk.subarray(allowableBytes))),
-        (currentView = new Uint8Array(2048)),
+        (currentView = new Uint8Array(4096)),
         (writtenBytes = 0));
       currentView.set(chunk, writtenBytes);
       writtenBytes += chunk.byteLength;
@@ -7060,7 +7060,7 @@ function flushPartiallyCompletedSegment(
 }
 var flushingPartialBoundaries = !1;
 function flushCompletedQueues(request, destination) {
-  currentView = new Uint8Array(2048);
+  currentView = new Uint8Array(4096);
   writtenBytes = 0;
   try {
     if (!(0 < request.pendingRootTasks)) {
@@ -7259,7 +7259,7 @@ function flushCompletedQueues(request, destination) {
         }
       completedBoundaries.splice(0, i);
       completeWriting(destination);
-      currentView = new Uint8Array(2048);
+      currentView = new Uint8Array(4096);
       writtenBytes = 0;
       flushingPartialBoundaries = !0;
       var partialBoundaries = request.partialBoundaries;
@@ -7474,11 +7474,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-1324e1bb-20251016" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-58bdc0bb-20251019" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-canary-1324e1bb-20251016\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-canary-58bdc0bb-20251019\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7732,4 +7732,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-canary-1324e1bb-20251016";
+exports.version = "19.3.0-canary-58bdc0bb-20251019";

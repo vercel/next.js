@@ -425,4 +425,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.3.0-canary-1324e1bb-20251016";
+exports.version = "19.3.0-canary-58bdc0bb-20251019";

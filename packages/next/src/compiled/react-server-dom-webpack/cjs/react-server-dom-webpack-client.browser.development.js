@@ -1151,6 +1151,8 @@
     function getIODescription(value) {
       try {
         switch (typeof value) {
+          case "function":
+            return value.name || "";
           case "object":
             if (null === value) return "";
             if (value instanceof Error) return String(value.message);
@@ -4920,10 +4922,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-1324e1bb-20251016",
+      version: "19.3.0-canary-58bdc0bb-20251019",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-1324e1bb-20251016",
+      reconcilerVersion: "19.3.0-canary-58bdc0bb-20251019",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

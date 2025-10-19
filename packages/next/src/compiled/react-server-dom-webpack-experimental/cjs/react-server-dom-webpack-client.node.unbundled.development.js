@@ -1315,6 +1315,8 @@
     function getIODescription(value) {
       try {
         switch (typeof value) {
+          case "function":
+            return value.name || "";
           case "object":
             if (null === value) return "";
             if (value instanceof Error) return String(value.message);

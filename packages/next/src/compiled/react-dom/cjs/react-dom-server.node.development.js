@@ -192,13 +192,13 @@
     function writeChunk(destination, chunk) {
       if ("string" === typeof chunk) {
         if (0 !== chunk.length)
-          if (2048 < 3 * chunk.length)
+          if (4096 < 3 * chunk.length)
             0 < writtenBytes &&
               (writeToDestination(
                 destination,
                 currentView.subarray(0, writtenBytes)
               ),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = 0)),
               writeToDestination(destination, chunk);
           else {
@@ -212,25 +212,25 @@
                 destination,
                 currentView.subarray(0, writtenBytes)
               ),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = textEncoder.encodeInto(
                 chunk.slice(read),
                 currentView
               ).written));
-            2048 === writtenBytes &&
+            4096 === writtenBytes &&
               (writeToDestination(destination, currentView),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = 0));
           }
       } else
         0 !== chunk.byteLength &&
-          (2048 < chunk.byteLength
+          (4096 < chunk.byteLength
             ? (0 < writtenBytes &&
                 (writeToDestination(
                   destination,
                   currentView.subarray(0, writtenBytes)
                 ),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0)),
               writeToDestination(destination, chunk))
             : ((target = currentView.length - writtenBytes),
@@ -241,13 +241,13 @@
                     (writtenBytes += target),
                     writeToDestination(destination, currentView),
                     (chunk = chunk.subarray(target))),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0)),
               currentView.set(chunk, writtenBytes),
               (writtenBytes += chunk.byteLength),
-              2048 === writtenBytes &&
+              4096 === writtenBytes &&
                 (writeToDestination(destination, currentView),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0))));
     }
     function writeToDestination(destination, view) {
@@ -268,7 +268,7 @@
     }
     function stringToPrecomputedChunk(content) {
       content = textEncoder.encode(content);
-      2048 < content.byteLength &&
+      4096 < content.byteLength &&
         console.error(
           "precomputed chunks must be smaller than the view size configured for this host. This is a bug in React."
         );
@@ -8355,7 +8355,7 @@
       return destination;
     }
     function flushCompletedQueues(request, destination) {
-      currentView = new Uint8Array(2048);
+      currentView = new Uint8Array(4096);
       writtenBytes = 0;
       destinationHasCapacity$1 = !0;
       try {
@@ -8634,7 +8634,7 @@
             }
           completedBoundaries.splice(0, i);
           completeWriting(destination);
-          currentView = new Uint8Array(2048);
+          currentView = new Uint8Array(4096);
           writtenBytes = 0;
           flushingPartialBoundaries = destinationHasCapacity$1 = !0;
           var partialBoundaries = request.partialBoundaries;
@@ -8864,11 +8864,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-1324e1bb-20251016" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-58bdc0bb-20251019" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-1324e1bb-20251016\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-58bdc0bb-20251019\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -10979,5 +10979,5 @@
         }
       };
     };
-    exports.version = "19.3.0-canary-1324e1bb-20251016";
+    exports.version = "19.3.0-canary-58bdc0bb-20251019";
   })();

@@ -274,12 +274,12 @@
     }
     function writeChunk(destination, chunk) {
       if (0 !== chunk.byteLength)
-        if (2048 < chunk.byteLength)
+        if (4096 < chunk.byteLength)
           0 < writtenBytes &&
             (destination.enqueue(
               new Uint8Array(currentView.buffer, 0, writtenBytes)
             ),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0)),
             destination.enqueue(chunk);
         else {
@@ -293,7 +293,7 @@
                 ),
                 destination.enqueue(currentView),
                 (chunk = chunk.subarray(allowableBytes))),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0));
           currentView.set(chunk, writtenBytes);
           writtenBytes += chunk.byteLength;
@@ -317,7 +317,7 @@
     }
     function stringToPrecomputedChunk(content) {
       content = textEncoder.encode(content);
-      2048 < content.byteLength &&
+      4096 < content.byteLength &&
         console.error(
           "precomputed chunks must be smaller than the view size configured for this host. This is a bug in React."
         );
@@ -8465,7 +8465,7 @@
       return destination;
     }
     function flushCompletedQueues(request, destination) {
-      currentView = new Uint8Array(2048);
+      currentView = new Uint8Array(4096);
       writtenBytes = 0;
       try {
         if (!(0 < request.pendingRootTasks)) {
@@ -8754,7 +8754,7 @@
             }
           completedBoundaries.splice(0, i);
           completeWriting(destination);
-          currentView = new Uint8Array(2048);
+          currentView = new Uint8Array(4096);
           writtenBytes = 0;
           flushingPartialBoundaries = !0;
           var partialBoundaries = request.partialBoundaries;
@@ -8990,11 +8990,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-1324e1bb-20251016" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-58bdc0bb-20251019" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-1324e1bb-20251016\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-58bdc0bb-20251019\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -10795,5 +10795,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-canary-1324e1bb-20251016";
+    exports.version = "19.3.0-canary-58bdc0bb-20251019";
   })();
