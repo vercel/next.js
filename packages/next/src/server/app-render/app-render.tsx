@@ -716,7 +716,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   req: BaseNextRequest,
   ctx: AppRenderContext,
   initialRequestStore: RequestStore,
-  createRequestStore: (() => RequestStore) | undefined
+  createRequestStore: (() => RequestStore) | undefined,
+  tree: LoaderTree
 ): Promise<RenderResult> {
   const {
     htmlRequestId,
@@ -746,6 +747,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     onFlightDataRenderError
   )
 
+  const [resolveValidation, validationOutlet] = createValidationOutlet()
+
   const getPayload = async (requestStore: RequestStore) => {
     const payload: RSCPayload & RSCPayloadDevProperties =
       await workUnitAsyncStorage.run(
@@ -762,6 +765,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         route: workStore.route,
       })
     }
+
+    payload._validation = validationOutlet
 
     return payload
   }
@@ -821,6 +826,24 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   if (debugChannel && setReactDebugChannel) {
     setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
   }
+
+  const devValidatingFallbackParams =
+    getRequestMeta(req, 'devValidatingFallbackParams') || null
+
+  // TODO(restart-on-cache-miss):
+  // This can probably be optimized to do less work,
+  // because we've already made sure that we have warm caches.
+  consoleAsyncStorage.run(
+    { dim: true },
+    spawnDynamicValidationInDev,
+    resolveValidation,
+    tree,
+    ctx,
+    false,
+    ctx.clientReferenceManifest,
+    initialRequestStore,
+    devValidatingFallbackParams
+  )
 
   return new FlightRenderResult(stream, {
     fetchMetrics: workStore.fetchMetrics,
@@ -2016,7 +2039,8 @@ async function renderToHTMLOrFlightImpl(
             req,
             ctx,
             requestStore,
-            createRequestStore
+            createRequestStore,
+            loaderTree
           )
         } else {
           return generateDynamicFlightRenderResult(req, ctx, requestStore)
