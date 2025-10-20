@@ -100,18 +100,46 @@ The agent can query your running Next.js application for real-time error informa
 
 ```
 User: "What errors are currently in my application?"
+```
 
 Agent action:
+
 - Calls the `get_errors` tool provided by the Next.js MCP server
 - Retrieves current build errors, runtime errors, and type errors from the dev server
 - Analyzes the errors and provides actionable fixes
 
-Agent response:
-- Lists all errors with detailed explanations
-- Suggests code changes to fix each error
-- Prioritizes errors by severity and impact
-- Recommends best practices to prevent similar issues
+<details>
+<summary>Agent response (click to expand)</summary>
+
 ```
+> fix errors on the page
+
+⏺ I'll help you fix the errors on the page. Let me first check what errors exist by looking at the
+  current state of the project.
+
+⏺ next-devtools - nextjs_runtime (MCP)(action: "discover_servers")
+⏺ next-devtools - nextjs_runtime (MCP)(action: "call_tool", toolName: "get_errors")
+
+⏺ I found a hydration error on the /about page. The error shows that the server is rendering
+  "server" but the client is rendering "client", causing a mismatch. Let me create a todo list and fix
+   this issue.
+
+⏺ Perfect! Now let me check for errors on the page.           01:14 PM  claude-sonnet-4-5-20250929
+
+⏺ next-devtools - nextjs_runtime (MCP)(action: "call_tool", toolName: "get_errors")
+  ⎿ {
+      "success": true,
+      "port": 3000,
+      "toolName": "get_errors",
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "# Found errors in 1 browser session(s)\n\n## Session: /about\n\n**1 error(s)
+     found**\n\n### Runtime Errors\n\n#### Error 1 (Type: recoverable)\n\n**Error**: Hydration failed
+```
+
+</details>
 
 This demonstrates the power of having both MCP servers enabled: the Next.js MCP server provides real-time diagnostics directly from your application, while next-devtools-mcp can provide guidance on best practices and migration paths.
 
