@@ -135,7 +135,7 @@ export async function exportAppPage(
       if (
         !fallbackRouteParams ||
         fallbackRouteParams.size === 0 ||
-        renderOpts.experimental.cacheComponents
+        renderOpts.cacheComponents
       ) {
         throw new Error(`Invariant: failed to get page data for ${path}`)
       }
@@ -241,7 +241,7 @@ export async function exportAppPage(
       renderResumeDataCache: renderResumeDataCache
         ? await stringifyResumeDataCache(
             renderResumeDataCache,
-            renderOpts.experimental.cacheComponents
+            renderOpts.cacheComponents
           )
         : undefined,
     }

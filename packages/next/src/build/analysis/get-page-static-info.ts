@@ -2,6 +2,7 @@ import type { NextConfig } from '../../server/config-shared'
 import type { RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
+import { basename } from 'path'
 import { LRUCache } from '../../server/lib/lru-cache'
 import {
   extractExportedConstValue,
@@ -9,7 +10,11 @@ import {
 } from './extract-const-value'
 import { parseModule } from './parse-module'
 import * as Log from '../output/log'
-import { SERVER_RUNTIME } from '../../lib/constants'
+import {
+  SERVER_RUNTIME,
+  MIDDLEWARE_FILENAME,
+  PROXY_FILENAME,
+} from '../../lib/constants'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
@@ -37,9 +42,9 @@ import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
 
-export type MiddlewareMatcher = {
+export type ProxyMatcher = {
   regexp: string
   locale?: false
   has?: RouteHas[]
@@ -49,13 +54,13 @@ export type MiddlewareMatcher = {
 
 export type ProxyConfig = {
   /**
-   * The matcher for the middleware. Read more: [Next.js Docs: Middleware `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/middleware#matcher),
-   * [Next.js Docs: Middleware matching paths](https://nextjs.org/docs/app/building-your-application/routing/middleware#matching-paths)
+   * The matcher for the proxy. Read more: [Next.js Docs: Proxy `matcher`](https://nextjs.org/docs/app/api-reference/file-conventions/proxy#matcher),
+   * [Next.js Docs: Proxy matching paths](https://nextjs.org/docs/app/building-your-application/routing/proxy#matching-paths)
    */
-  matchers?: MiddlewareMatcher[]
+  matchers?: ProxyMatcher[]
 
   /**
-   * The regions that the middleware should run in.
+   * The regions that the proxy should run in.
    */
   regions?: string | string[]
 
@@ -296,6 +301,108 @@ function checkExports(
   return {}
 }
 
+function validateMiddlewareProxyExports({
+  ast,
+  page,
+  pageFilePath,
+}: {
+  ast: any
+  page: string
+  pageFilePath: string
+}): void {
+  // Only validate in build. In development, it will error at runtime.
+  if (process.env.NODE_ENV !== 'production') {
+    return
+  }
+
+  // Check if this is middleware/proxy
+  const isMiddleware =
+    page === `/${MIDDLEWARE_FILENAME}` || page === `/src/${MIDDLEWARE_FILENAME}`
+  const isProxy =
+    page === `/${PROXY_FILENAME}` || page === `/src/${PROXY_FILENAME}`
+
+  if (!isMiddleware && !isProxy) {
+    return
+  }
+
+  if (!ast || !Array.isArray(ast.body)) {
+    return
+  }
+
+  const fileName = isProxy ? 'proxy' : 'middleware'
+
+  // Parse AST to get export info (since checkExports doesn't return middleware/proxy info)
+  let hasDefaultExport = false
+  let hasMiddlewareExport = false
+  let hasProxyExport = false
+
+  for (const node of ast.body) {
+    if (
+      node.type === 'ExportDefaultDeclaration' ||
+      node.type === 'ExportDefaultExpression'
+    ) {
+      hasDefaultExport = true
+    }
+
+    if (
+      node.type === 'ExportDeclaration' &&
+      node.declaration?.type === 'FunctionDeclaration'
+    ) {
+      const id = node.declaration.identifier?.value
+      if (id === 'middleware') {
+        hasMiddlewareExport = true
+      }
+      if (id === 'proxy') {
+        hasProxyExport = true
+      }
+    }
+
+    if (
+      node.type === 'ExportDeclaration' &&
+      node.declaration?.type === 'VariableDeclaration'
+    ) {
+      const id = node.declaration?.declarations[0]?.id.value
+      if (id === 'middleware') {
+        hasMiddlewareExport = true
+      }
+      if (id === 'proxy') {
+        hasProxyExport = true
+      }
+    }
+
+    if (node.type === 'ExportNamedDeclaration') {
+      for (const specifier of node.specifiers) {
+        if (
+          specifier.type === 'ExportSpecifier' &&
+          specifier.orig?.type === 'Identifier'
+        ) {
+          // Use the exported name if it exists (for aliased exports like `export { foo as proxy }`),
+          // otherwise fall back to the original name (for simple re-exports like `export { proxy }`)
+          const exportedIdentifier = specifier.exported || specifier.orig
+          const value = exportedIdentifier.value
+          if (value === 'middleware') {
+            hasMiddlewareExport = true
+          }
+          if (value === 'proxy') {
+            hasProxyExport = true
+          }
+        }
+      }
+    }
+  }
+
+  const hasValidExport =
+    hasDefaultExport ||
+    (isMiddleware && hasMiddlewareExport) ||
+    (isProxy && hasProxyExport)
+
+  if (!hasValidExport) {
+    throw new Error(
+      `The ${fileName === 'proxy' ? 'Proxy' : 'Middleware'} file "./${basename(pageFilePath)}" must export a function named \`${fileName}\` or a default function.`
+    )
+  }
+}
+
 async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   try {
     return await fs.readFile(filePath, {
@@ -315,7 +422,7 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
 export function getMiddlewareMatchers(
   matcherOrMatchers: MiddlewareConfigMatcherInput,
   nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>
-): MiddlewareMatcher[] {
+): ProxyMatcher[] {
   const matchers = Array.isArray(matcherOrMatchers)
     ? matcherOrMatchers
     : [matcherOrMatchers]
@@ -497,6 +604,7 @@ export async function getAppPageStaticInfo({
   }
 
   const ast = await parseModule(pageFilePath, content)
+  validateMiddlewareProxyExports({ ast, page, pageFilePath })
 
   const {
     generateStaticParams,
@@ -549,12 +657,12 @@ export async function getAppPageStaticInfo({
 
   if (
     'unstable_prefetch' in config &&
-    (!nextConfig.experimental?.cacheComponents ||
+    (!nextConfig.cacheComponents ||
       // don't allow in `clientSegmentCache: 'client-only'` mode
       nextConfig.experimental?.clientSegmentCache !== true)
   ) {
     throw new Error(
-      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`experimental.cacheComponents\` and \`experimental.clientSegmentCache\`.`
+      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\` and \`experimental.clientSegmentCache\`.`
     )
   }
 
@@ -592,6 +700,7 @@ export async function getPagesPageStaticInfo({
   }
 
   const ast = await parseModule(pageFilePath, content)
+  validateMiddlewareProxyExports({ ast, page, pageFilePath })
 
   const { getServerSideProps, getStaticProps, exports } = checkExports(
     ast,

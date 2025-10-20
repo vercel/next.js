@@ -239,6 +239,7 @@ async function exportPageImpl(
       commonRenderOpts.cacheLifeProfiles,
       htmlFilepath,
       fileWriter,
+      commonRenderOpts.cacheComponents,
       commonRenderOpts.experimental,
       buildId
     )
@@ -339,7 +340,7 @@ export async function exportPages(
 
   installGlobalBehaviors(nextConfig)
 
-  if (nextConfig.experimental.enablePrerenderSourceMaps) {
+  if (nextConfig.enablePrerenderSourceMaps) {
     try {
       // Same as `next dev`
       // Limiting the stack trace to a useful amount of frames is handled by ignore-listing.

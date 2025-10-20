@@ -238,7 +238,7 @@ impl Default for MiddlewaresManifest {
     NonLocalValue,
 )]
 #[serde(rename_all = "camelCase", default)]
-pub struct MiddlewareMatcher {
+pub struct ProxyMatcher {
     // When skipped next.js with fill that during merging.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regexp: Option<RcStr>,
@@ -251,7 +251,7 @@ pub struct MiddlewareMatcher {
     pub original_source: RcStr,
 }
 
-impl Default for MiddlewareMatcher {
+impl Default for ProxyMatcher {
     fn default() -> Self {
         Self {
             regexp: None,
@@ -272,7 +272,7 @@ pub struct EdgeFunctionDefinition {
     pub files: Vec<RcStr>,
     pub name: RcStr,
     pub page: RcStr,
-    pub matchers: Vec<MiddlewareMatcher>,
+    pub matchers: Vec<ProxyMatcher>,
     pub wasm: Vec<AssetBinding>,
     pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -446,14 +446,14 @@ mod tests {
     #[test]
     fn test_middleware_matcher_serialization() {
         let matchers = vec![
-            MiddlewareMatcher {
+            ProxyMatcher {
                 regexp: None,
                 locale: false,
                 has: None,
                 missing: None,
                 original_source: rcstr!(""),
             },
-            MiddlewareMatcher {
+            ProxyMatcher {
                 regexp: Some(rcstr!(".*")),
                 locale: true,
                 has: Some(vec![RouteHas::Query {
@@ -469,7 +469,7 @@ mod tests {
         ];
 
         let serialized = serde_json::to_string(&matchers).unwrap();
-        let deserialized: Vec<MiddlewareMatcher> = serde_json::from_str(&serialized).unwrap();
+        let deserialized: Vec<ProxyMatcher> = serde_json::from_str(&serialized).unwrap();
 
         assert_eq!(matchers, deserialized);
     }

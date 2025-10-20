@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::hash_map::Entry};
+use std::borrow::Cow;
 
 use anyhow::{Ok, Result};
 use either::Either;
@@ -28,7 +28,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    client_references::{ClientManifestEntryType, ClientReferenceManifest, map_client_references},
+    client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
     dynamic_imports::{DynamicImportEntries, DynamicImportEntriesMapType, map_next_dynamic},
     server_actions::{AllActions, AllModuleActions, map_server_actions, to_rsc_context},
 };
@@ -244,7 +244,7 @@ pub struct ClientReferencesGraph {
     is_single_page: bool,
     graph: ResolvedVc<SingleModuleGraph>,
     /// List of client references (modules that entries into the client graph)
-    data: ResolvedVc<ClientReferenceManifest>,
+    data: ResolvedVc<ClientReferenceData>,
 }
 
 #[turbo_tasks::value_impl]
@@ -289,129 +289,116 @@ impl ClientReferencesGraph {
             // Because we care about 'evaluation order' we need to collect client references in the
             // post_order callbacks which is the same as evaluation order
             let mut client_references = Vec::new();
-            let mut client_reference_modules = Vec::new();
-            let mut server_components = FxIndexSet::default();
             let mut server_utils = FxIndexSet::default();
 
-            // Track how we reached each client reference.  This way if a client reference is
-            // referenced by the root and by a server component we don't only associate it with the
-            // server component.
-            #[derive(PartialEq, Eq, Copy, Clone)]
-            enum ParentType {
-                ServerComponent,
-                Page,
-                Both,
-            }
-            impl ParentType {
-                fn merge(left: Self, right: Self) -> Self {
-                    if left == right {
-                        left
-                    } else {
-                        // One is Both or one is ServerComponent and the other is Page, which means
-                        // Both
-                        Self::Both
-                    }
-                }
-            }
-            // Perform a DFS traversal to collect all client references and the set of server
-            // components for each module.
-            graph.traverse_edges_from_entries_dfs(
+            let mut server_components = FxIndexSet::default();
+
+            // Perform a DFS traversal to find all server components included by this page.
+            graph.traverse_nodes_from_entries(
                 entries,
-                // state_map is `module -> ParentType` to track whether the module is reachable
-                // directly from an entry point.
-                &mut FxHashMap::default(),
-                |parent_info, node, state_map| {
-                    let module = node.module();
-                    let module_type = data.manifest.get(&module);
-
-                    let parent_type =
-                        if let Some(ClientManifestEntryType::ServerComponent(_)) = module_type {
-                            ParentType::ServerComponent
-                        } else if let Some((parent_node, _)) = parent_info {
-                            *state_map.get(&parent_node.module).unwrap()
-                        } else {
-                            // a root node
-                            ParentType::Page
-                        };
-
-                    match state_map.entry(module) {
-                        Entry::Occupied(mut occupied_entry) => {
-                            let current = occupied_entry.get_mut();
-                            let merged = ParentType::merge(*current, parent_type);
-                            if merged != parent_type {
-                                *current = merged;
-                            }
-                        }
-                        Entry::Vacant(vacant_entry) => {
-                            vacant_entry.insert(parent_type);
-                        }
-                    }
-
+                &mut (),
+                |node, _| {
+                    let module_type = data.get(&node.module);
                     Ok(match module_type {
                         Some(
                             ClientManifestEntryType::EcmascriptClientReference { .. }
-                            | ClientManifestEntryType::CssClientReference { .. },
+                            | ClientManifestEntryType::CssClientReference { .. }
+                            | ClientManifestEntryType::ServerComponent { .. },
                         ) => GraphTraversalAction::Skip,
-                        _ => GraphTraversalAction::Continue,
+                        None => GraphTraversalAction::Continue,
                     })
                 },
-                |_, node, state_map| {
-                    let module = node.module();
+                |node, _| {
                     if let Some(server_util_module) =
-                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(module)
+                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(node.module)
                     {
+                        // Server utility used by the template, not a server component
                         server_utils.insert(server_util_module);
+                        return Ok(());
                     }
 
-                    let Some(module_type) = data.manifest.get(&module) else {
-                        return Ok(());
-                    };
+                    let module_type = data.get(&node.module);
 
                     let ty = match module_type {
-                        ClientManifestEntryType::EcmascriptClientReference {
+                        Some(ClientManifestEntryType::EcmascriptClientReference {
                             module,
                             ssr_module: _,
-                        } => ClientReferenceType::EcmascriptClientReference(*module),
-                        ClientManifestEntryType::CssClientReference(module) => {
+                        }) => ClientReferenceType::EcmascriptClientReference(*module),
+                        Some(ClientManifestEntryType::CssClientReference(module)) => {
                             ClientReferenceType::CssClientReference(*module)
                         }
-                        ClientManifestEntryType::ServerComponent(sc) => {
+                        Some(ClientManifestEntryType::ServerComponent(sc)) => {
                             server_components.insert(*sc);
+                            return Ok(());
+                        }
+                        None => {
                             return Ok(());
                         }
                     };
 
-                    if *state_map.get(&module).unwrap() == ParentType::ServerComponent {
-                        // This is only reachable through server components, we need to wait to
-                        // compute the client references until we have seen all server components
-                        // reachable by this entrypoint, then we can intersect that with the set of
-                        // server components that depend on this client reference
-                        client_reference_modules.push((module, ty));
-                    } else {
-                        // Otherwise there is some path from the root directly to the reference,
-                        // just associate it with the root.
-                        client_references.push(ClientReference {
-                            server_component: None,
-                            ty,
-                        })
-                    }
+                    // Client reference used by the template, not a server component
+                    client_references.push(ClientReference {
+                        server_component: None,
+                        ty,
+                    });
 
                     Ok(())
                 },
             )?;
 
-            // Now compute all the parent components for each client reference module reachable from
-            // server components
-            client_references.extend(client_reference_modules.into_iter().flat_map(
-                |(module, ty)| {
-                    data.server_components_for_client_reference(module)
-                        .filter(|sc| server_components.contains(sc))
-                        .map(move |sc| ClientReference {
+            // Traverse each server component separately. Because not all server components are
+            // necessarily rendered at the same time (not-found, or parallel routes), we need to
+            // determine the order of client references individually for each server component.
+            for sc in server_components.iter().copied() {
+                graph.traverse_nodes_from_entries(
+                    std::iter::once(ResolvedVc::upcast(sc)),
+                    &mut (),
+                    |node, _| {
+                        let module = node.module;
+                        let module_type = data.get(&module);
+
+                        Ok(match module_type {
+                            Some(
+                                ClientManifestEntryType::EcmascriptClientReference { .. }
+                                | ClientManifestEntryType::CssClientReference { .. },
+                            ) => GraphTraversalAction::Skip,
+                            _ => GraphTraversalAction::Continue,
+                        })
+                    },
+                    |node, _| {
+                        let module = node.module;
+                        if let Some(server_util_module) =
+                            ResolvedVc::try_downcast_type::<NextServerUtilityModule>(module)
+                        {
+                            server_utils.insert(server_util_module);
+                        }
+
+                        let Some(module_type) = data.get(&module) else {
+                            return Ok(());
+                        };
+
+                        let ty = match module_type {
+                            ClientManifestEntryType::EcmascriptClientReference {
+                                module,
+                                ssr_module: _,
+                            } => ClientReferenceType::EcmascriptClientReference(*module),
+                            ClientManifestEntryType::CssClientReference(module) => {
+                                ClientReferenceType::CssClientReference(*module)
+                            }
+                            ClientManifestEntryType::ServerComponent(_) => {
+                                return Ok(());
+                            }
+                        };
+
+                        client_references.push(ClientReference {
                             server_component: Some(sc),
                             ty,
-                        })
-                },
-            ));
+                        });
+
+                        Ok(())
+                    },
+                )?;
+            }
 
             Ok(ClientReferenceGraphResult {
                 client_references: client_references.into_iter().collect(),

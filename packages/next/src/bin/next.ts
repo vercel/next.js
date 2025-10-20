@@ -154,6 +154,10 @@ program
     '--experimental-next-config-strip-types',
     'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
   )
+  .option(
+    '--debug-build-paths <patterns>',
+    'Comma-separated glob patterns or explicit paths for selective builds. Examples: "app/*", "app/page.tsx", "app/**/page.tsx"'
+  )
   .action((directory: string, options: NextBuildOptions) => {
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'

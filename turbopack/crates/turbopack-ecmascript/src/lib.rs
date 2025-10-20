@@ -270,6 +270,8 @@ pub struct EcmascriptOptions {
     // node_modules.
     /// Whether to replace `typeof window` with some constant value.
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
+
+    pub inline_helpers: bool,
 }
 
 #[turbo_tasks::value]
@@ -687,11 +689,13 @@ impl EcmascriptModuleAsset {
 
 impl EcmascriptModuleAsset {
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
+        let options = self.options.await?;
         Ok(parse(
             *self.source,
             self.ty,
             *self.transforms,
-            self.options.await?.analyze_mode == AnalyzeMode::Tracing,
+            options.analyze_mode == AnalyzeMode::Tracing,
+            options.inline_helpers,
         ))
     }
 
@@ -2543,9 +2547,9 @@ impl SourceMapper for CodeGenResultSourceMap {
     }
     fn span_to_snippet(&self, sp: Span) -> Result<String, Box<SpanSnippetError>> {
         match self {
-            CodeGenResultSourceMap::None => {
-                panic!("CodeGenResultSourceMap::None cannot span_to_snippet")
-            }
+            CodeGenResultSourceMap::None => Err(Box::new(SpanSnippetError::SourceNotAvailable {
+                filename: FileName::Anon,
+            })),
             CodeGenResultSourceMap::Single { source_map } => source_map.span_to_snippet(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,

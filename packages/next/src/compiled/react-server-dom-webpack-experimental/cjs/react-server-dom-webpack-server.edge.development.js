@@ -48,12 +48,12 @@
     }
     function writeChunkAndReturn(destination, chunk) {
       if (0 !== chunk.byteLength)
-        if (2048 < chunk.byteLength)
+        if (4096 < chunk.byteLength)
           0 < writtenBytes &&
             (destination.enqueue(
               new Uint8Array(currentView.buffer, 0, writtenBytes)
             ),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0)),
             destination.enqueue(chunk);
         else {
@@ -67,7 +67,7 @@
                 ),
                 destination.enqueue(currentView),
                 (chunk = chunk.subarray(allowableBytes))),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0));
           currentView.set(chunk, writtenBytes);
           writtenBytes += chunk.byteLength;
@@ -2988,12 +2988,11 @@
         void 0 !== tainted && throwTaintViolation(tainted.message);
       }
       debug ? request.pendingDebugChunks++ : request.pendingChunks++;
-      tainted = new Uint8Array(
+      typedArray = new Uint8Array(
         typedArray.buffer,
         typedArray.byteOffset,
         typedArray.byteLength
       );
-      typedArray = 2048 < typedArray.byteLength ? tainted.slice() : tainted;
       tainted = typedArray.byteLength;
       id = id.toString(16) + ":" + tag + tainted.toString(16) + ",";
       id = stringToChunk(id);
@@ -3748,7 +3747,7 @@
     function flushCompletedChunks(request) {
       if (null !== request.debugDestination) {
         var debugDestination = request.debugDestination;
-        currentView = new Uint8Array(2048);
+        currentView = new Uint8Array(4096);
         writtenBytes = 0;
         try {
           for (
@@ -3765,7 +3764,7 @@
       }
       debugDestination = request.destination;
       if (null !== debugDestination) {
-        currentView = new Uint8Array(2048);
+        currentView = new Uint8Array(4096);
         writtenBytes = 0;
         try {
           var importsChunks = request.completedImportChunks;

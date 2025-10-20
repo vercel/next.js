@@ -15,7 +15,7 @@ import {
   listenForDynamicRequest,
   type Task as PPRNavigationTask,
 } from '../router-reducer/ppr-navigations'
-import { createHrefFromUrl as createCanonicalUrl } from '../router-reducer/create-href-from-url'
+import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
   EntryStatus,
   readRouteCacheEntry,
@@ -48,6 +48,7 @@ type SuccessfulNavigationResult = {
     flightRouterState: FlightRouterState
     cacheNode: CacheNode
     canonicalUrl: string
+    renderedSearch: string
     scrollableSegments: Array<FlightSegmentPath>
     shouldScroll: boolean
     hash: string
@@ -123,6 +124,7 @@ export function navigate(
     const prefetchHead = route.head
     const isPrefetchHeadPartial = route.isHeadPartial
     const newCanonicalUrl = route.canonicalUrl
+    const renderedSearch = route.renderedSearch
     return navigateUsingPrefetchedRouteTree(
       now,
       url,
@@ -136,6 +138,7 @@ export function navigate(
       prefetchHead,
       isPrefetchHeadPartial,
       newCanonicalUrl,
+      renderedSearch,
       shouldScroll,
       url.hash
     )
@@ -164,6 +167,7 @@ export function navigate(
       const prefetchHead = optimisticRoute.head
       const isPrefetchHeadPartial = optimisticRoute.isHeadPartial
       const newCanonicalUrl = optimisticRoute.canonicalUrl
+      const newRenderedSearch = optimisticRoute.renderedSearch
       return navigateUsingPrefetchedRouteTree(
         now,
         url,
@@ -177,6 +181,7 @@ export function navigate(
         prefetchHead,
         isPrefetchHeadPartial,
         newCanonicalUrl,
+        newRenderedSearch,
         shouldScroll,
         url.hash
       )
@@ -218,6 +223,7 @@ function navigateUsingPrefetchedRouteTree(
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
   canonicalUrl: string,
+  renderedSearch: string,
   shouldScroll: boolean,
   hash: string
 ): SuccessfulNavigationResult | NoOpNavigationResult | MPANavigationResult {
@@ -259,6 +265,7 @@ function navigateUsingPrefetchedRouteTree(
       task,
       currentCacheNode,
       canonicalUrl,
+      renderedSearch,
       scrollableSegments,
       shouldScroll,
       hash
@@ -279,6 +286,7 @@ function navigationTaskToResult(
   task: PPRNavigationTask,
   currentCacheNode: CacheNode,
   canonicalUrl: string,
+  renderedSearch: string,
   scrollableSegments: Array<FlightSegmentPath>,
   shouldScroll: boolean,
   hash: string
@@ -299,6 +307,7 @@ function navigationTaskToResult(
       flightRouterState,
       cacheNode: newCacheNode !== null ? newCacheNode : currentCacheNode,
       canonicalUrl,
+      renderedSearch,
       scrollableSegments,
       shouldScroll,
       hash,
@@ -431,23 +440,24 @@ async function navigateDynamicallyWithNoPrefetch(
     flightRouterState: currentFlightRouterState,
     nextUrl,
   })
-  const {
-    flightData,
-    canonicalUrl: canonicalUrlOverride,
-    debugInfo: debugInfoFromResponse,
-  } = await promiseForDynamicServerResponse
-
-  if (debugInfoFromResponse !== null) {
-    collectedDebugInfo.push(...debugInfoFromResponse)
-  }
-
-  if (typeof flightData === 'string') {
+  const result = await promiseForDynamicServerResponse
+  if (typeof result === 'string') {
     // This is an MPA navigation.
-    const newUrl = flightData
+    const newUrl = result
     return {
       tag: NavigationResultTag.MPA,
       data: newUrl,
     }
+  }
+
+  const {
+    flightData,
+    canonicalUrl,
+    renderedSearch,
+    debugInfo: debugInfoFromResponse,
+  } = result
+  if (debugInfoFromResponse !== null) {
+    collectedDebugInfo.push(...debugInfoFromResponse)
   }
 
   // Since the response format of dynamic requests and prefetches is slightly
@@ -463,10 +473,6 @@ async function navigateDynamicallyWithNoPrefetch(
   const prefetchSeedData = null
   const prefetchHead = null
   const isPrefetchHeadPartial = true
-
-  const canonicalUrl = createCanonicalUrl(
-    canonicalUrlOverride ? canonicalUrlOverride : url
-  )
 
   // Now we proceed exactly as we would for normal navigation.
   const scrollableSegments: Array<FlightSegmentPath> = []
@@ -501,7 +507,8 @@ async function navigateDynamicallyWithNoPrefetch(
     return navigationTaskToResult(
       task,
       currentCacheNode,
-      canonicalUrl,
+      createHrefFromUrl(canonicalUrl),
+      renderedSearch,
       scrollableSegments,
       shouldScroll,
       hash
@@ -512,7 +519,7 @@ async function navigateDynamicallyWithNoPrefetch(
   return {
     tag: NavigationResultTag.NoOp,
     data: {
-      canonicalUrl,
+      canonicalUrl: createHrefFromUrl(canonicalUrl),
       shouldScroll,
     },
   }

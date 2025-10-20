@@ -101,7 +101,7 @@ enum NextConfigProperty {
 impl Display for NextConfigProperty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NextConfigProperty::CacheComponents => write!(f, "experimental.cacheComponents"),
+            NextConfigProperty::CacheComponents => write!(f, "cacheComponents"),
             NextConfigProperty::UseCache => write!(f, "experimental.useCache"),
         }
     }
@@ -653,7 +653,9 @@ impl ReactServerComponentValidator {
                         "revalidateTag",
                         // "unstable_cache", // useless in client, but doesn't technically error
                         "cacheLife",
+                        "unstable_cacheLife",
                         "cacheTag",
+                        "unstable_cacheTag",
                         // "unstable_noStore" // no-op in client, but allowed for legacy reasons
                     ],
                 ),

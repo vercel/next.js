@@ -491,10 +491,10 @@
   },
   "test/e2e/app-dir/app-client-cache/client-cache.parallel-routes.test.ts": {
     "passed": [
-      "app dir client cache with parallel routes prefetch={true} should re-use the cache for the full page, only for 5 mins"
+      "app dir client cache with parallel routes prefetch={true} should prefetch the full page"
     ],
     "failed": [
-      "app dir client cache with parallel routes prefetch={true} should prefetch the full page"
+      "app dir client cache with parallel routes prefetch={true} should re-use the cache for the full page, only for 5 mins"
     ],
     "pending": [],
     "flakey": [],
@@ -860,11 +860,10 @@
       "app dir - prefetching should not prefetch for a bot user agent",
       "app dir - prefetching should not re-render error component when triggering a prefetch action",
       "app dir - prefetching should not unintentionally modify the requested prefetch by escaping the uri encoded query params",
-      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment"
-    ],
-    "failed": [
+      "app dir - prefetching should only prefetch the loading state and not the component tree when prefetching at the same segment",
       "app dir - prefetching should show layout eagerly when prefetched with loading one level down"
     ],
+    "failed": [],
     "pending": [
       "app dir - prefetching should not suppress prefetches after navigating back"
     ],
@@ -1753,15 +1752,15 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/cache-components-console/cache-components.console.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "cache-components - Console Dimming - Validation dims console calls during prospective rendering",
       "cache-components - Logging after Abort (default) With Dimming - Client dims console calls after a prerender has aborted",
       "cache-components - Logging after Abort (default) With Dimming - Server dims console calls after a prerender has aborted",
       "cache-components - Logging after Abort With Hiding - Client hides console calls after a prerender has aborted",
       "cache-components - Logging after Abort With Hiding - Server hides console calls after a prerender has aborted"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -1877,7 +1876,6 @@
       "Cache Components Errors Build With --prerender-debug Sync IO - Random - Math.random() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build With --prerender-debug Sync IO - Web Crypto - getRandomValue() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build With --prerender-debug Sync IO - Web Crypto - randomUUID() should error the build if sync IO is used in a Server Component while prerendering",
-      "Cache Components Errors Build With --prerender-debug Unhandled Rejection Suppression should suppress unhandled rejections after prerender abort",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` in `unstable_cache` should error the build",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` in `use cache` should error the build",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
@@ -1917,14 +1915,16 @@
       "Cache Components Errors Build Without --prerender-debug Sync IO - Random - Math.random() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build Without --prerender-debug Sync IO - Web Crypto - getRandomValue() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build Without --prerender-debug Sync IO - Web Crypto - randomUUID() should error the build if sync IO is used in a Server Component while prerendering",
-      "Cache Components Errors Build Without --prerender-debug Unhandled Rejection Suppression should suppress unhandled rejections after prerender abort",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `unstable_cache` should error the build",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `use cache` should error the build",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` without Suspense should error the build"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Cache Components Errors Build With --prerender-debug Unhandled Rejection Suppression should suppress unhandled rejections after prerender abort",
+      "Cache Components Errors Build Without --prerender-debug Unhandled Rejection Suppression should suppress unhandled rejections after prerender abort"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -5189,6 +5189,28 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-routes-root-param-dynamic-child/parallel-routes-root-param-dynamic-child.test.ts": {
+    "passed": [
+      "parallel-routes-root-param-dynamic-child Base Routes should render a 200 for /en (in generateStaticParams)",
+      "parallel-routes-root-param-dynamic-child Base Routes should render a 200 for /fr (in generateStaticParams)",
+      "parallel-routes-root-param-dynamic-child Base Routes should render a 404 for /es (not in generateStaticParams)",
+      "parallel-routes-root-param-dynamic-child Prefetching prefetches the 404 pages correctly",
+      "parallel-routes-root-param-dynamic-child With generateStaticParams (gsp) Dynamic params (dynamic-123) should render a 404 for /en/gsp/stories/dynamic-123 (slug not in generateStaticParams)",
+      "parallel-routes-root-param-dynamic-child With generateStaticParams (gsp) Dynamic params (dynamic-123) should render a 404 for /es/gsp/stories/dynamic-123 (both locale and slug not allowed)",
+      "parallel-routes-root-param-dynamic-child With generateStaticParams (gsp) Dynamic params (dynamic-123) should render a 404 for /fr/gsp/stories/dynamic-123 (slug not in generateStaticParams)",
+      "parallel-routes-root-param-dynamic-child With generateStaticParams (gsp) Static params (static-123) should render a 200 for /en/gsp/stories/static-123",
+      "parallel-routes-root-param-dynamic-child With generateStaticParams (gsp) Static params (static-123) should render a 200 for /fr/gsp/stories/static-123",
+      "parallel-routes-root-param-dynamic-child With generateStaticParams (gsp) Static params (static-123) should render a 404 for /es/gsp/stories/static-123 (locale not in generateStaticParams)",
+      "parallel-routes-root-param-dynamic-child Without generateStaticParams (no-gsp) should allow dynamic params even with /es locale",
+      "parallel-routes-root-param-dynamic-child Without generateStaticParams (no-gsp) should render a 200 for /en/no-gsp/stories/dynamic-123",
+      "parallel-routes-root-param-dynamic-child Without generateStaticParams (no-gsp) should render a 200 for /es/no-gsp/stories/dynamic-123",
+      "parallel-routes-root-param-dynamic-child Without generateStaticParams (no-gsp) should render a 200 for /fr/no-gsp/stories/dynamic-123"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-routes-root-slot/parallel-routes-root-slot.test.ts": {
     "passed": [
       "parallel-routes-root-slot Should render the root parallel route"
@@ -5559,7 +5581,6 @@
   "test/e2e/app-dir/ppr-partial-hydration/ppr-partial-hydration.test.ts": {
     "passed": [
       "PPR - partial hydration No static shell, no streaming metadata should display the shell without JS",
-      "PPR - partial hydration No static shell, no streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
       "PPR - partial hydration No static shell, no streaming metadata should produce a valid HTML document",
       "PPR - partial hydration No static shell, streaming metadata should display the shell without JS",
       "PPR - partial hydration No static shell, streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
@@ -5568,10 +5589,12 @@
       "PPR - partial hydration Static shell, no streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
       "PPR - partial hydration Static shell, no streaming metadata should produce a valid HTML document",
       "PPR - partial hydration Static shell, streaming metadata should display the shell without JS",
-      "PPR - partial hydration Static shell, streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
       "PPR - partial hydration Static shell, streaming metadata should produce a valid HTML document"
     ],
-    "failed": [],
+    "failed": [
+      "PPR - partial hydration No static shell, no streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
+      "PPR - partial hydration Static shell, streaming metadata should hydrate the shell without waiting for slow suspense boundaries"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10373,6 +10396,56 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/url-imports/url-imports.test.ts": {
+    "passed": [
+      "Handle url imports should allow url import in css",
+      "Handle url imports should client-render the /ssg page",
+      "Handle url imports should client-render the /ssr page",
+      "Handle url imports should client-render the /static page",
+      "Handle url imports should render a static url image import",
+      "Handle url imports should render the /ssg page",
+      "Handle url imports should render the /ssr page",
+      "Handle url imports should render the /static page",
+      "Handle url imports should respond on value api"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/url/url.test.ts": {
+    "passed": [
+      "Handle new URL asset references app router should client-render the /client page",
+      "Handle new URL asset references app router should client-render the /rsc page",
+      "Handle new URL asset references app router should render the /client page",
+      "Handle new URL asset references app router should render the /rsc page",
+      "Handle new URL asset references app router should respond on API",
+      "Handle new URL asset references app router should respond on opengraph-image",
+      "Handle new URL asset references app router should respond on webmanifest",
+      "Handle new URL asset references pages router should client-render the /pages/ssg page",
+      "Handle new URL asset references pages router should client-render the /pages/ssr page",
+      "Handle new URL asset references pages router should client-render the /pages/static page",
+      "Handle new URL asset references pages router should render the /pages/ssg page",
+      "Handle new URL asset references pages router should render the /pages/ssr page",
+      "Handle new URL asset references pages router should render the /pages/static page",
+      "Handle new URL asset references pages router should respond on API",
+      "Handle new URL asset references pages router should respond on edge API",
+      "Handle new URL asset references should respond on middleware api"
+    ],
+    "failed": [],
+    "pending": [
+      "Handle new URL asset references app router should client-render the /client-edge page",
+      "Handle new URL asset references app router should client-render the /rsc-edge page",
+      "Handle new URL asset references app router should render the /client-edge page",
+      "Handle new URL asset references app router should render the /rsc-edge page",
+      "Handle new URL asset references pages router should client-render the /pages-edge/ssr page",
+      "Handle new URL asset references pages router should client-render the /pages-edge/static page",
+      "Handle new URL asset references pages router should render the /pages-edge/ssr page",
+      "Handle new URL asset references pages router should render the /pages-edge/static page"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -19849,56 +19922,6 @@
     "pending": [
       "undefined webpack config error production mode should show in production mode"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/url-imports/test/index.test.js": {
-    "passed": [
-      "Handle url imports with next build should allow url import in css",
-      "Handle url imports with next build should client-render the /ssg page",
-      "Handle url imports with next build should client-render the /ssr page",
-      "Handle url imports with next build should client-render the /static page",
-      "Handle url imports with next build should render a static url image import",
-      "Handle url imports with next build should render the /ssg page",
-      "Handle url imports with next build should render the /ssr page",
-      "Handle url imports with next build should render the /static page",
-      "Handle url imports with next build should respond on value api",
-      "Handle url imports with next dev should allow url import in css",
-      "Handle url imports with next dev should client-render the /ssg page",
-      "Handle url imports with next dev should client-render the /ssr page",
-      "Handle url imports with next dev should client-render the /static page",
-      "Handle url imports with next dev should render a static url image import",
-      "Handle url imports with next dev should render the /ssg page",
-      "Handle url imports with next dev should render the /ssr page",
-      "Handle url imports with next dev should render the /static page",
-      "Handle url imports with next dev should respond on value api"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/url/test/index.test.js": {
-    "passed": [
-      "Handle new URL asset references in next build should client-render the /ssg page",
-      "Handle new URL asset references in next build should client-render the /ssr page",
-      "Handle new URL asset references in next build should client-render the /static page",
-      "Handle new URL asset references in next build should render the /ssg page",
-      "Handle new URL asset references in next build should render the /ssr page",
-      "Handle new URL asset references in next build should render the /static page",
-      "Handle new URL asset references in next build should respond on basename api",
-      "Handle new URL asset references in next build should respond on size api",
-      "Handle new URL asset references in next dev should client-render the /ssg page",
-      "Handle new URL asset references in next dev should client-render the /ssr page",
-      "Handle new URL asset references in next dev should client-render the /static page",
-      "Handle new URL asset references in next dev should render the /ssg page",
-      "Handle new URL asset references in next dev should render the /ssr page",
-      "Handle new URL asset references in next dev should render the /static page",
-      "Handle new URL asset references in next dev should respond on basename api",
-      "Handle new URL asset references in next dev should respond on size api"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

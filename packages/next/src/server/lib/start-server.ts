@@ -367,10 +367,12 @@ export async function startServer(
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
       let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
+      let cacheComponents: boolean | undefined
       try {
         if (isDev) {
           const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
           envInfo = startServerInfo.envInfo
+          cacheComponents = startServerInfo.cacheComponents
           experimentalFeatures = startServerInfo.experimentalFeatures
         }
         logStartInfo({
@@ -378,6 +380,7 @@ export async function startServer(
           appUrl,
           envInfo,
           experimentalFeatures,
+          cacheComponents,
           logBundler: isDev,
         })
 

@@ -853,7 +853,7 @@ export function createStaticWorker(
       progress?.clear()
     },
     debuggerPortOffset,
-    enableSourceMaps: config.experimental.enablePrerenderSourceMaps,
+    enableSourceMaps: config.enablePrerenderSourceMaps,
     // remove --max-old-space-size flag as it can cause memory issues.
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
@@ -910,7 +910,9 @@ export default async function build(
   appDirOnly = false,
   bundler = Bundler.Turbopack,
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
-  traceUploadUrl: string | undefined
+  traceUploadUrl: string | undefined,
+  debugBuildAppPaths?: string[],
+  debugBuildPagePaths?: string[]
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
@@ -1115,11 +1117,12 @@ export default async function build(
       )
 
       // Always log next version first then start rest jobs
-      const { envInfo, experimentalFeatures } = await getStartServerInfo({
-        dir,
-        dev: false,
-        debugPrerender,
-      })
+      const { envInfo, experimentalFeatures, cacheComponents } =
+        await getStartServerInfo({
+          dir,
+          dev: false,
+          debugPrerender,
+        })
 
       logStartInfo({
         networkUrl: null,
@@ -1127,6 +1130,7 @@ export default async function build(
         envInfo,
         experimentalFeatures,
         logBundler: true,
+        cacheComponents,
       })
 
       const typeCheckingOptions: Parameters<typeof startTypeChecking>[0] = {
@@ -1164,6 +1168,20 @@ export default async function build(
               .traceAsyncFn(() => collectPagesFiles(pagesDir, validFileMatcher))
           : []
 
+      // Apply debug build paths filter if specified
+      // If debugBuildPagePaths is defined (even if empty), only build specified pages
+      if (debugBuildPagePaths !== undefined) {
+        if (debugBuildPagePaths.length > 0) {
+          const debugPathsSet = new Set(debugBuildPagePaths)
+          pagesPaths = pagesPaths.filter((pagePath) =>
+            debugPathsSet.has(pagePath)
+          )
+        } else {
+          // Empty array means build no pages
+          pagesPaths = []
+        }
+      }
+
       const middlewareDetectionRegExp = new RegExp(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
@@ -1190,23 +1208,52 @@ export default async function build(
         .sort(sortByPageExts(config.pageExtensions))
         .map((file) => path.join(rootDir, file).replace(dir, ''))
 
-      const hasInstrumentationHook = rootPaths.some((p) =>
-        p.includes(INSTRUMENTATION_HOOK_FILENAME)
-      )
-      const hasMiddlewareFile = rootPaths.some((p) =>
-        p.includes(MIDDLEWARE_FILENAME)
-      )
-      const hasProxyFile = rootPaths.some((p) => p.includes(PROXY_FILENAME))
-      if (hasMiddlewareFile) {
-        if (hasProxyFile) {
+      let instrumentationHookFilePath: string | undefined
+      let proxyFilePath: string | undefined
+      let middlewareFilePath: string | undefined
+
+      for (const rootPath of rootPaths) {
+        const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
+        const isAtConventionLevel =
+          fileDir === '/' ||
+          fileDir === '/src' ||
+          // rootPaths are currently relative paths from the root directory.
+          // Add safety check here for unexpected future changes.
+          fileDir === dir ||
+          fileDir === path.join(dir, 'src')
+
+        if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
+          middlewareFilePath = rootPath
+        }
+        if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+          proxyFilePath = rootPath
+        }
+        if (
+          isAtConventionLevel &&
+          fileBaseName === INSTRUMENTATION_HOOK_FILENAME
+        ) {
+          instrumentationHookFilePath = rootPath
+        }
+      }
+
+      if (middlewareFilePath) {
+        if (proxyFilePath) {
+          const cwd = process.cwd()
+          const absoluteProxyPath = path.join(rootDir, proxyFilePath)
+          const absoluteMiddlewarePath = path.join(rootDir, middlewareFilePath)
+
           throw new Error(
-            `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
+            `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, absoluteMiddlewarePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, absoluteProxyPath)}" are detected. Please use "./${path.relative(cwd, absoluteProxyPath)}" only.`
           )
         }
         Log.warnOnce(
           `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
         )
       }
+
+      const hasInstrumentationHook = Boolean(instrumentationHookFilePath)
+      const hasMiddlewareFile = Boolean(middlewareFilePath)
+      const hasProxyFile = Boolean(proxyFilePath)
 
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
@@ -1244,7 +1291,7 @@ export default async function build(
         let layoutPaths: string[]
 
         if (Boolean(process.env.NEXT_PRIVATE_APP_PATHS)) {
-          // used for testing?
+          // used for testing
           appPaths = providedAppPaths
           layoutPaths = []
         } else {
@@ -1255,6 +1302,20 @@ export default async function build(
 
           appPaths = result.appPaths
           layoutPaths = result.layoutPaths
+
+          // Apply debug build paths filter if specified
+          // If debugBuildAppPaths is defined (even if empty), only build specified app paths
+          if (debugBuildAppPaths !== undefined) {
+            if (debugBuildAppPaths.length > 0) {
+              const debugPathsSet = new Set(debugBuildAppPaths)
+              appPaths = appPaths.filter((appPath) =>
+                debugPathsSet.has(appPath)
+              )
+            } else {
+              // Empty array means build no app paths
+              appPaths = []
+            }
+          }
           // Note: defaultPaths are not used in the build process, only for slot detection in generating route types
         }
 
@@ -1506,9 +1567,7 @@ export default async function build(
         config.basePath ? `${config.basePath}${p}` : p
       )
 
-      const isAppCacheComponentsEnabled = Boolean(
-        config.experimental.cacheComponents
-      )
+      const isAppCacheComponentsEnabled = Boolean(config.cacheComponents)
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
@@ -1582,11 +1641,11 @@ export default async function build(
               prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
               prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
               prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
-              clientParamParsing: config.experimental.cacheComponents ?? false,
+              clientParamParsing: config.cacheComponents ?? false,
               clientParamParsingOrigins:
                 config.experimental.clientParamParsingOrigins,
               dynamicRSCPrerender:
-                isAppPPREnabled && config.experimental.cacheComponents === true,
+                isAppPPREnabled && config.cacheComponents === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -1950,7 +2009,7 @@ export default async function build(
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
-              cacheLifeProfiles: config.experimental.cacheLife,
+              cacheLifeProfiles: config.cacheLife,
               buildId,
               sriEnabled,
             })
@@ -2171,7 +2230,7 @@ export default async function build(
                             maxMemoryCacheSize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
-                            cacheLifeProfiles: config.experimental.cacheLife,
+                            cacheLifeProfiles: config.cacheLife,
                             buildId,
                             sriEnabled,
                           })
@@ -2709,7 +2768,7 @@ export default async function build(
       const features: EventBuildFeatureUsage[] = [
         {
           featureName: 'experimental/cacheComponents',
-          invocationCount: config.experimental.cacheComponents ? 1 : 0,
+          invocationCount: config.cacheComponents ? 1 : 0,
         },
         {
           featureName: 'experimental/optimizeCss',
@@ -2930,7 +2989,7 @@ export default async function build(
                     // completely static.
                     !(
                       config.experimental.clientSegmentCache &&
-                      config.experimental.cacheComponents
+                      config.cacheComponents
                     )
                   ) {
                     return
@@ -3246,7 +3305,7 @@ export default async function build(
                   // this route.
                   !(
                     config.experimental.clientSegmentCache &&
-                    config.experimental.cacheComponents &&
+                    config.cacheComponents &&
                     isRoutePPREnabled
                   )
                 ) {
@@ -3356,7 +3415,7 @@ export default async function build(
                     // this case. This only applies if we have PPR enabled for
                     // this route.
                     !config.experimental.clientSegmentCache ||
-                    !config.experimental.cacheComponents ||
+                    !config.cacheComponents ||
                     !isRoutePPREnabled
                   ) {
                     prefetchDataRoute = path.posix.join(

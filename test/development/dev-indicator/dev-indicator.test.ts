@@ -1,8 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { assertStaticIndicator, retry } from 'next-test-utils'
 
-const withCacheComponents =
-  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+const withCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('dev indicator - route type', () => {
   const { next } = nextTestSetup({

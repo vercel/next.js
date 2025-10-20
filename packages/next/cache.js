@@ -19,6 +19,33 @@ const cacheExports = {
   cacheTag: require('next/dist/server/use-cache/cache-tag').cacheTag,
 }
 
+let didWarnCacheLife = false
+function unstable_cacheLife() {
+  if (!didWarnCacheLife) {
+    didWarnCacheLife = true
+    const error = new Error(
+      '`unstable_cacheLife` was recently stabilized and should be imported as `cacheLife`. The `unstable` prefixed form will be removed in a future version of Next.js.'
+    )
+    console.error(error)
+  }
+  return cacheExports.cacheLife.apply(this, arguments)
+}
+
+let didWarnCacheTag = false
+function unstable_cacheTag() {
+  if (!didWarnCacheTag) {
+    didWarnCacheTag = true
+    const error = new Error(
+      '`unstable_cacheTag` was recently stabilized and should be imported as `cacheTag`. The `unstable` prefixed form will be removed in a future version of Next.js.'
+    )
+    console.error(error)
+  }
+  return cacheExports.cacheTag.apply(this, arguments)
+}
+
+cacheExports.unstable_cacheLife = unstable_cacheLife
+cacheExports.unstable_cacheTag = unstable_cacheTag
+
 // https://nodejs.org/api/esm.html#commonjs-namespaces
 // When importing CommonJS modules, the module.exports object is provided as the default export
 module.exports = cacheExports
@@ -30,5 +57,7 @@ exports.revalidateTag = cacheExports.revalidateTag
 exports.updateTag = cacheExports.updateTag
 exports.unstable_noStore = cacheExports.unstable_noStore
 exports.cacheLife = cacheExports.cacheLife
+exports.unstable_cacheLife = cacheExports.unstable_cacheLife
 exports.cacheTag = cacheExports.cacheTag
+exports.unstable_cacheTag = cacheExports.unstable_cacheTag
 exports.refresh = cacheExports.refresh

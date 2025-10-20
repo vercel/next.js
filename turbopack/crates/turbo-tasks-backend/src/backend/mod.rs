@@ -15,7 +15,6 @@ use std::{
         Arc,
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     },
-    thread::available_parallelism,
 };
 
 use anyhow::{Result, bail};
@@ -28,8 +27,8 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, field::Empty, info_span, trace_span};
 use turbo_tasks::{
     CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
-    SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId, TurboTasksBackendApi,
-    ValueTypeId,
+    ReadOutputOptions, ReadTracking, SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId,
+    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent,
@@ -67,7 +66,7 @@ use crate::{
     },
     utils::{
         bi_map::BiMap, chunked_vec::ChunkedVec, dash_map_drop_contents::drop_contents,
-        ptr_eq_arc::PtrEqArc, sharded::Sharded, swap_retain,
+        ptr_eq_arc::PtrEqArc, shard_amount::compute_shard_amount, sharded::Sharded, swap_retain,
     },
 };
 
@@ -134,6 +133,10 @@ pub struct BackendOptions {
     /// Enables the backing storage.
     pub storage_mode: Option<StorageMode>,
 
+    /// Number of tokio worker threads. It will be used to compute the shard amount of parallel
+    /// datastructures. If `None`, it will use the available parallelism.
+    pub num_workers: Option<usize>,
+
     /// Avoid big preallocations for faster startup. Should only be used for testing purposes.
     pub small_preallocation: bool,
 }
@@ -144,6 +147,7 @@ impl Default for BackendOptions {
             dependency_tracking: true,
             active_tracking: true,
             storage_mode: Some(StorageMode::ReadWrite),
+            num_workers: None,
             small_preallocation: false,
         }
     }
@@ -228,8 +232,7 @@ impl<B: BackingStorage> TurboTasksBackend<B> {
 
 impl<B: BackingStorage> TurboTasksBackendInner<B> {
     pub fn new(mut options: BackendOptions, backing_storage: B) -> Self {
-        let shard_amount =
-            (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
+        let shard_amount = compute_shard_amount(options.num_workers, options.small_preallocation);
         let need_log = matches!(options.storage_mode, Some(StorageMode::ReadWrite));
         if !options.dependency_tracking {
             options.active_tracking = false;
@@ -256,7 +259,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task_cache: BiMap::new(),
             transient_tasks: FxDashMap::default(),
             local_is_partial: AtomicBool::new(next_task_id != TaskId::MIN),
-            storage: Storage::new(small_preallocation),
+            storage: Storage::new(shard_amount, small_preallocation),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
             operations_suspended: Condvar::new(),
@@ -458,26 +461,39 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self: &Arc<Self>,
         task_id: TaskId,
         reader: Option<TaskId>,
-        consistency: ReadConsistency,
+        options: ReadOutputOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<RawVc, EventListener>> {
         self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let (mut task, reader_task) = if self.should_track_dependencies()
+            && !matches!(options.tracking, ReadTracking::Untracked)
+            && let Some(reader_id) = reader
+            && reader_id != task_id
+        {
+            // Having a task_pair here is not optimal, but otherwise this would lead to a race
+            // condition. See below.
+            // TODO(sokra): solve that in a more performant way.
+            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+            (task, Some(reader))
+        } else {
+            (ctx.task(task_id, TaskDataCategory::All), None)
+        };
 
         fn listen_to_done_event<B: BackingStorage>(
             this: &TurboTasksBackendInner<B>,
             reader: Option<TaskId>,
+            tracking: ReadTracking,
             done_event: &Event,
         ) -> EventListener {
             done_event.listen_with_note(move || {
                 let reader_desc = reader.map(|r| this.get_task_desc_fn(r));
                 move || {
                     if let Some(reader_desc) = reader_desc.as_ref() {
-                        format!("try_read_task_output from {}", reader_desc())
+                        format!("try_read_task_output from {} ({})", reader_desc(), tracking)
                     } else {
-                        "try_read_task_output (untracked)".to_string()
+                        format!("try_read_task_output ({})", tracking)
                     }
                 }
             })
@@ -487,16 +503,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             this: &TurboTasksBackendInner<B>,
             task: &impl TaskGuard,
             reader: Option<TaskId>,
+            tracking: ReadTracking,
             ctx: &impl ExecuteContext<'_>,
         ) -> Option<std::result::Result<std::result::Result<RawVc, EventListener>, anyhow::Error>>
         {
             match get!(task, InProgress) {
-                Some(InProgressState::Scheduled { done_event, .. }) => {
-                    Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
-                }
+                Some(InProgressState::Scheduled { done_event, .. }) => Some(Ok(Err(
+                    listen_to_done_event(this, reader, tracking, done_event),
+                ))),
                 Some(InProgressState::InProgress(box InProgressStateInner {
                     done_event, ..
-                })) => Some(Ok(Err(listen_to_done_event(this, reader, done_event)))),
+                })) => Some(Ok(Err(listen_to_done_event(
+                    this, reader, tracking, done_event,
+                )))),
                 Some(InProgressState::Canceled) => Some(Err(anyhow::anyhow!(
                     "{} was canceled",
                     ctx.get_task_description(task.id())
@@ -505,7 +524,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        if matches!(consistency, ReadConsistency::Strong) {
+        if matches!(options.consistency, ReadConsistency::Strong) {
             // Ensure it's an root node
             loop {
                 let aggregation_number = get_aggregation_number(&task);
@@ -687,7 +706,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        if let Some(value) = check_in_progress(self, &task, reader, &ctx) {
+        if let Some(value) = check_in_progress(self, &task, reader, options.tracking, &ctx) {
             return value;
         }
 
@@ -703,17 +722,22 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     )))
                 }
             };
-            if self.should_track_dependencies()
-                && let Some(reader) = reader
+            if let Some(mut reader_task) = reader_task
+                && options.tracking.should_track(result.is_err())
                 && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
+                let reader = reader.unwrap();
                 let _ = task.add(CachedDataItem::OutputDependent {
                     task: reader,
                     value: (),
                 });
                 drop(task);
 
-                let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
+                // Note: We use `task_pair` earlier to lock the task and its reader at the same
+                // time. If we didn't and just locked the reader here, an invalidation could occur
+                // between grabbing the locks. If that happened, and if the task is "outdated" or
+                // doesn't have the dependency edge yet, the invalidation would be lost.
+
                 if reader_task
                     .remove(&CachedDataItemKey::OutdatedOutputDependency { target: task_id })
                     .is_none()
@@ -727,6 +751,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             return result;
         }
+        drop(reader_task);
 
         let note = move || {
             let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
@@ -763,29 +788,28 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> Result<Result<TypedCellContent, EventListener>> {
         self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
 
-        fn add_cell_dependency<B: BackingStorage>(
-            backend: &TurboTasksBackendInner<B>,
+        fn add_cell_dependency(
+            task_id: TaskId,
             mut task: impl TaskGuard,
             reader: Option<TaskId>,
+            reader_task: Option<impl TaskGuard>,
             cell: CellId,
-            task_id: TaskId,
-            ctx: &mut impl ExecuteContext<'_>,
         ) {
-            if backend.should_track_dependencies()
-                && let Some(reader) = reader
-                // We never want to have a dependency on ourselves, otherwise we end up in a
-                // loop of re-executing the same task.
-                && reader != task_id
+            if let Some(mut reader_task) = reader_task
                 && (!task.is_immutable() || cfg!(feature = "verify_immutable"))
             {
                 let _ = task.add(CachedDataItem::CellDependent {
                     cell,
-                    task: reader,
+                    task: reader.unwrap(),
                     value: (),
                 });
                 drop(task);
 
-                let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
+                // Note: We use `task_pair` earlier to lock the task and its reader at the same
+                // time. If we didn't and just locked the reader here, an invalidation could occur
+                // between grabbing the locks. If that happened, and if the task is "outdated" or
+                // doesn't have the dependency edge yet, the invalidation would be lost.
+
                 let target = CellRef {
                     task: task_id,
                     cell,
@@ -800,7 +824,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        let (mut task, reader_task) = if self.should_track_dependencies()
+            && !matches!(options.tracking, ReadTracking::Untracked)
+            && let Some(reader_id) = reader
+            && reader_id != task_id
+        {
+            // Having a task_pair here is not optimal, but otherwise this would lead to a race
+            // condition. See below.
+            // TODO(sokra): solve that in a more performant way.
+            let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::Data);
+            (task, Some(reader))
+        } else {
+            (ctx.task(task_id, TaskDataCategory::Data), None)
+        };
+
         let content = if options.final_read_hint {
             remove!(task, CellData { cell })
         } else if let Some(content) = get!(task, CellData { cell }) {
@@ -810,7 +847,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             None
         };
         if let Some(content) = content {
-            add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+            if options.tracking.should_track(false) {
+                add_cell_dependency(task_id, task, reader, reader_task, cell);
+            }
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
                 CellContent(Some(content.reference)),
@@ -835,14 +874,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         )
         .copied();
         let Some(max_id) = max_id else {
-            add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+            if options.tracking.should_track(true) {
+                add_cell_dependency(task_id, task, reader, reader_task, cell);
+            }
             bail!(
                 "Cell {cell:?} no longer exists in task {} (no cell of this type exists)",
                 ctx.get_task_description(task_id)
             );
         };
         if cell.index >= max_id {
-            add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+            if options.tracking.should_track(true) {
+                add_cell_dependency(task_id, task, reader, reader_task, cell);
+            }
             bail!(
                 "Cell {cell:?} no longer exists in task {} (index out of bounds)",
                 ctx.get_task_description(task_id)
@@ -2457,7 +2500,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         })
     }
 
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         task_id: TaskId,
         cell: CellId,
@@ -3139,11 +3182,11 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         reader: Option<TaskId>,
-        consistency: ReadConsistency,
+        options: ReadOutputOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>> {
         self.0
-            .try_read_task_output(task_id, reader, consistency, turbo_tasks)
+            .try_read_task_output(task_id, reader, options, turbo_tasks)
     }
 
     fn try_read_task_cell(
@@ -3158,7 +3201,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
             .try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
     }
 
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         task_id: TaskId,
         cell: CellId,
@@ -3166,7 +3209,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
         self.0
-            .try_read_own_task_cell_untracked(task_id, cell, options, turbo_tasks)
+            .try_read_own_task_cell(task_id, cell, options, turbo_tasks)
     }
 
     fn read_task_collectibles(

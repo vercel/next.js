@@ -102,7 +102,7 @@ async fn node_file_trace_operation(
         .cell(),
         ResolveOptionsContext {
             enable_node_native_modules: true,
-            enable_node_modules: Some(input_dir.clone()),
+            enable_node_modules: Some(input_dir),
             custom_conditions: vec![rcstr!("node")],
             loose_errors: true,
             collect_affecting_sources: true,

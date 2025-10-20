@@ -56,7 +56,7 @@ import type {
   SWC_TARGET_TRIPLE,
 } from './webpack/plugins/telemetry-plugin/telemetry-plugin'
 import type { Span } from '../trace'
-import type { MiddlewareMatcher } from './analysis/get-page-static-info'
+import type { ProxyMatcher } from './analysis/get-page-static-info'
 import loadJsConfig, {
   type JsConfig,
   type ResolvedBaseUrl,
@@ -346,7 +346,7 @@ export default async function getBaseWebpackConfig(
     originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
     appDir: string | undefined
-    middlewareMatchers?: MiddlewareMatcher[]
+    middlewareMatchers?: ProxyMatcher[]
     noMangling?: boolean
     jsConfig: any
     jsConfigPath?: string
@@ -687,7 +687,7 @@ export default async function getBaseWebpackConfig(
     : distDir
 
   const conditionNames = [
-    ...(config.experimental?.cacheComponents === true ? ['next-js'] : []),
+    ...(config.cacheComponents === true ? ['next-js'] : []),
     ...(isEdgeServer ? [edgeConditionName] : []),
     // inherits Webpack's default conditions
     '...',
@@ -1555,8 +1555,8 @@ export default async function getBaseWebpackConfig(
         ...getNextRootParamsRules({
           isRootParamsEnabled:
             config.experimental.rootParams ??
-            // `experimental.cacheComponents` implies `experimental.rootParams`.
-            config.experimental.cacheComponents ??
+            // `cacheComponents` implies `experimental.rootParams`.
+            config.cacheComponents ??
             false,
           isClient,
           appDir,
@@ -2143,7 +2143,7 @@ export default async function getBaseWebpackConfig(
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          cacheLifeConfig: config.experimental.cacheLife,
+          cacheLifeConfig: config.cacheLife,
           originalRewrites,
           originalRedirects,
         }),

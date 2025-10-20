@@ -455,6 +455,23 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<Params> {
+  if (requestStore.asyncApiPromises && hasFallbackParams) {
+    // Deliberately don't wrap each instance of params in a `new Promise()`.
+    // We want React Devtools to consider all the separate `params` promises
+    // that we create for each segment to be triggered by one IO operation --
+    // the resolving of the underlying `sharedParamsParent` promise.
+    // It's created above any userspace code and has a `displayName`,
+    // so it should show up in "suspended by".
+    const promise = requestStore.asyncApiPromises.sharedParamsParent.then(
+      () => underlyingParams
+    )
+    return instrumentParamsPromiseWithDevWarnings(
+      underlyingParams,
+      promise,
+      workStore
+    )
+  }
+
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
     return cachedParams
@@ -472,6 +489,20 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     : // We don't want to force an environment transition when this params is not part of the fallback params set
       Promise.resolve(underlyingParams)
 
+  const proxiedPromise = instrumentParamsPromiseWithDevWarnings(
+    underlyingParams,
+    promise,
+    workStore
+  )
+  CachedParams.set(underlyingParams, proxiedPromise)
+  return proxiedPromise
+}
+
+function instrumentParamsPromiseWithDevWarnings(
+  underlyingParams: Params,
+  promise: Promise<Params>,
+  workStore: WorkStore
+): Promise<Params> {
   // Track which properties we should warn for.
   const proxiedProperties = new Set<string>()
 
@@ -484,7 +515,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     }
   })
 
-  const proxiedPromise = new Proxy(promise, {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
       if (typeof prop === 'string') {
         if (
@@ -509,9 +540,6 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
       return Reflect.ownKeys(target)
     },
   })
-
-  CachedParams.set(underlyingParams, proxiedPromise)
-  return proxiedPromise
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
