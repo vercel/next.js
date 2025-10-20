@@ -105,6 +105,14 @@ export function isMiddlewareFilename(file?: string | null) {
   )
 }
 
+export function isMiddlewareOnlyFilename(file?: string | null) {
+  return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+}
+
+export function isProxyFilename(file?: string | null) {
+  return file === PROXY_FILENAME || file === `src/${PROXY_FILENAME}`
+}
+
 export function isInstrumentationHookFilename(file?: string | null) {
   return (
     file === INSTRUMENTATION_HOOK_FILENAME ||

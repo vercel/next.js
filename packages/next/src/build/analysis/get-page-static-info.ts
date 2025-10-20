@@ -756,6 +756,18 @@ export async function getPagesPageStaticInfo({
     warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
   }
 
+  if (
+    (page === `/${PROXY_FILENAME}` || page === `/src/${PROXY_FILENAME}`) &&
+    isEdgeRuntime(resolvedRuntime)
+  ) {
+    const message = `Proxy does not support Edge runtime.`
+    if (isDev) {
+      Log.error(message)
+    } else {
+      throw new Error(message)
+    }
+  }
+
   if (resolvedRuntime === SERVER_RUNTIME.edge && page && !isAnAPIRoute) {
     const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
     if (isDev) {

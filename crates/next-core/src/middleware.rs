@@ -32,12 +32,12 @@ pub async fn get_middleware_module(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_root: FileSystemPath,
     userland_module: ResolvedVc<Box<dyn Module>>,
+    is_proxy: bool,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_MIDDLEWARE_MODULE";
 
     // Determine if this is a proxy file by checking the module path
     let userland_path = userland_module.ident().path().await?;
-    let is_proxy = userland_path.file_stem() == Some("proxy");
     let (file_type, function_name, page_path) = if is_proxy {
         ("Proxy", "proxy", "/proxy")
     } else {

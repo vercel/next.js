@@ -81,20 +81,32 @@ impl MiddlewareEndpoint {
             )
             .module();
 
+        let userland_path = userland_module.ident().path().await?;
+        let is_proxy = userland_path.file_stem() == Some("proxy");
+
         let module = get_middleware_module(
             *self.asset_context,
             self.project.project_path().owned().await?,
             userland_module,
+            is_proxy,
         );
 
-        let runtime = parse_segment_config_from_source(*self.source, ParseSegmentMode::Base)
-            .await?
-            .runtime
-            .unwrap_or(NextRuntime::Edge);
+        let runtime = parse_segment_config_from_source(
+            *self.source,
+            if is_proxy {
+                ParseSegmentMode::Proxy
+            } else {
+                ParseSegmentMode::Base
+            },
+        )
+        .await?
+        .runtime
+        .unwrap_or(NextRuntime::NodeJs);
 
         if matches!(runtime, NextRuntime::NodeJs) {
             return Ok(module);
         }
+
         Ok(wrap_edge_entry(
             *self.asset_context,
             self.project.project_path().owned().await?,

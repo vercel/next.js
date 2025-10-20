@@ -11,35 +11,9 @@ import { isNextRouterError } from '../../client/components/is-next-router-error'
 
 const mod = { ..._mod }
 
-const page = 'VAR_DEFINITION_PAGE'
-// Turbopack does not add a `./` prefix to the relative file path, but Webpack does.
-const relativeFilePath = 'VAR_MODULE_RELATIVE_PATH'
-// @ts-expect-error `page` will be replaced during build
+const page: string = 'VAR_DEFINITION_PAGE'
 const isProxy = page === '/proxy' || page === '/src/proxy'
 const handler = (isProxy ? mod.proxy : mod.middleware) || mod.default
-
-if (typeof handler !== 'function') {
-  const fileName = isProxy ? 'proxy' : 'middleware'
-  // Webpack starts the path with "." as relative, but Turbopack does not.
-  const resolvedRelativeFilePath = relativeFilePath.startsWith('.')
-    ? relativeFilePath
-    : `./${relativeFilePath}`
-
-  throw new Error(
-    `The file "${resolvedRelativeFilePath}" must export a function, either as a default export or as a named "${fileName}" export.\n` +
-      `This function is what Next.js runs for every request handled by this ${fileName === 'proxy' ? 'proxy (previously called middleware)' : 'middleware'}.\n\n` +
-      `Why this happens:\n` +
-      (isProxy
-        ? "- You are migrating from `middleware` to `proxy`, but haven't updated the exported function.\n"
-        : '') +
-      `- The file exists but doesn't export a function.\n` +
-      `- The export is not a function (e.g., an object or constant).\n` +
-      `- There's a syntax error preventing the export from being recognized.\n\n` +
-      `To fix it:\n` +
-      `- Ensure this file has either a default or "${fileName}" function export.\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
-  )
-}
 
 // Proxy will only sent out the FetchEvent to next server,
 // so load instrumentation module here and track the error inside proxy module.
