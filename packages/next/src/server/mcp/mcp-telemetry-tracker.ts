@@ -48,3 +48,36 @@ class McpTelemetryTracker {
 
 // Singleton instance
 export const mcpTelemetryTracker = new McpTelemetryTracker()
+
+/**
+ * Get MCP tool usage telemetry
+ */
+export function getMcpTelemetryUsage(): McpToolUsage[] {
+  return mcpTelemetryTracker.getUsages()
+}
+
+/**
+ * Reset MCP telemetry tracker
+ */
+export function resetMcpTelemetry(): void {
+  mcpTelemetryTracker.reset()
+}
+
+/**
+ * Record MCP telemetry usage to the telemetry instance
+ */
+export function recordMcpTelemetry(telemetry: {
+  record: (event: any) => void
+}): void {
+  const mcpUsages = getMcpTelemetryUsage()
+  if (mcpUsages.length === 0) {
+    return
+  }
+
+  const { eventMcpToolUsage } =
+    require('../../telemetry/events/build') as typeof import('../../telemetry/events/build')
+  const events = eventMcpToolUsage(mcpUsages)
+  for (const event of events) {
+    telemetry.record(event)
+  }
+}

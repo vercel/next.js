@@ -51,7 +51,8 @@ describe('mcp-server telemetry tracking', () => {
     await callMcpTool('get_errors')
 
     // Stop the dev server to trigger telemetry recording
-    await next.stop()
+    // Use SIGTERM so cleanup handlers can run
+    await next.stop('SIGTERM')
 
     // Parse telemetry from CLI output
     const output = next.cliOutput

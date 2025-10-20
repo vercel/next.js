@@ -5,8 +5,6 @@ import { registerGetPageMetadataTool } from './tools/get-page-metadata'
 import { registerGetLogsTool } from './tools/get-logs'
 import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
-import { mcpTelemetryTracker } from './mcp-telemetry-tracker'
-import type { McpToolUsage } from './mcp-telemetry-tracker'
 
 export interface McpServerOptions {
   projectPath: string
@@ -47,18 +45,4 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
   registerGetActionByIdTool(mcpServer, options.distDir)
 
   return mcpServer
-}
-
-/**
- * Get MCP tool usage telemetry
- */
-export function getMcpTelemetryUsage(): McpToolUsage[] {
-  return mcpTelemetryTracker.getUsages()
-}
-
-/**
- * Reset MCP telemetry tracker
- */
-export function resetMcpTelemetry(): void {
-  mcpTelemetryTracker.reset()
 }
