@@ -103,7 +103,7 @@ Use the Server Action to validate the form fields on the server. If your authent
 Using Zod as an example, you can define a form schema with appropriate error messages:
 
 ```ts filename="app/lib/definitions.ts" switcher
-import { z } from 'zod'
+import * as z from 'zod'
 
 export const SignupFormSchema = z.object({
   name: z
@@ -135,7 +135,7 @@ export type FormState =
 ```
 
 ```js filename="app/lib/definitions.js" switcher
-import { z } from 'zod'
+import * as z from 'zod'
 
 export const SignupFormSchema = z.object({
   name: z
