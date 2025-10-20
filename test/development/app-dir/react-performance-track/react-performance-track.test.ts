@@ -61,7 +61,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bparams [Prefetch]',
+          name: '\u200bparams [Prefetchable]',
           properties: [],
         },
       ])
@@ -80,7 +80,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bsearchParams [Prefetch]',
+          name: '\u200bsearchParams [Prefetchable]',
           properties: [],
         },
       ])
@@ -97,7 +97,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bcookies [Prefetch]',
+          name: '\u200bcookies [Prefetchable]',
           properties: [],
         },
         // TODO: The error message makes this seem like it shouldn't pop up here.
@@ -123,7 +123,7 @@ describe('react-performance-track', () => {
     })
 
     const track = await browser.eval('window.reactServerRequests.getSnapshot()')
-    // TODO: Should include "draftMode [Prefetch]".
+    // TODO: Should include "draftMode [Prefetchable]".
     expect(track).toEqual([
       {
         name: '\u200b',
@@ -142,7 +142,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bheaders [Prefetch]',
+          name: '\u200bheaders [Prefetchable]',
           properties: [],
         },
         // TODO: The error message makes this seem like it shouldn't pop up here.
