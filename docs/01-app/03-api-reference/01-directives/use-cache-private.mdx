@@ -197,13 +197,13 @@ This ensures user-specific data is never accidentally shared between users while
 > **Note:** Functions with a `cacheLife` stale time less than 30 seconds will not be runtime prefetched, even when using `'use cache: private'`. This prevents prefetching of rapidly changing data that would likely be stale by navigation time.
 
 ```tsx
-// ✅ Will be runtime prefetched (stale ≥ 30s)
+// Will be runtime prefetched (stale ≥ 30s)
 cacheLife({ stale: 60 })
 
-// ✅ Will be runtime prefetched (stale ≥ 30s)
+// Will be runtime prefetched (stale ≥ 30s)
 cacheLife({ stale: 30 })
 
-// ❌ Will NOT be runtime prefetched (stale < 30s)
+// Will NOT be runtime prefetched (stale < 30s)
 cacheLife({ stale: 10 })
 ```
 
@@ -213,10 +213,10 @@ The following request-specific APIs can be used inside `'use cache: private'` fu
 
 | API            | Allowed in `use cache` | Allowed in `'use cache: private'` |
 | -------------- | ---------------------- | --------------------------------- |
-| `cookies()`    | ❌ No                  | ✅ Yes                            |
-| `headers()`    | ❌ No                  | ✅ Yes                            |
-| `searchParams` | ❌ No                  | ✅ Yes                            |
-| `connection()` | ❌ No                  | ❌ No                             |
+| `cookies()`    | No                     | Yes                               |
+| `headers()`    | No                     | Yes                               |
+| `searchParams` | No                     | Yes                               |
+| `connection()` | No                     | No                                |
 
 > **Note:** The `connection()` API is prohibited in both `use cache` and `'use cache: private'` as it provides connection-specific information that cannot be safely cached.
 
@@ -224,9 +224,9 @@ The following request-specific APIs can be used inside `'use cache: private'` fu
 
 Private caches have specific nesting rules to prevent cache pollution:
 
-- ✅ Private caches **can** be nested inside other private caches
-- ❌ Private caches **cannot** be nested inside public caches
-- ✅ Public caches **can** be nested inside private caches
+- Private caches **can** be nested inside other private caches
+- Private caches **cannot** be nested inside public caches
+- Public caches **can** be nested inside private caches
 
 ```tsx
 // ✅ VALID: Private inside private
@@ -241,7 +241,7 @@ async function innerPrivate() {
   return getData()
 }
 
-// ❌ INVALID: Private inside public
+// INVALID: Private inside public
 async function outerPublic() {
   'use cache'
   const result = await innerPrivate() // Error!
