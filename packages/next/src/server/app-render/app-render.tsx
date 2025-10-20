@@ -213,6 +213,7 @@ import { ImageConfigContext } from '../../shared/lib/image-config-context.shared
 import { imageConfigDefault } from '../../shared/lib/image-config'
 import { RenderStage, StagedRenderingController } from './staged-rendering'
 import { anySegmentHasRuntimePrefetchEnabled } from './staged-validation'
+import { warnOnce } from '../../shared/lib/utils/warn-once'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -5268,7 +5269,7 @@ function isBypassingCachesInDev(
 }
 
 function WarnForBypassCachesInDev({ route }: { route: string }) {
-  console.warn(
+  warnOnce(
     `Route ${route} is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev`
   )
   return null

@@ -169,6 +169,13 @@ function checkDeprecations(
     silent
   )
 
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'eslint',
+    `\`eslint\` configuration in ${configFileName} is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options`,
+    silent
+  )
+
   if (userConfig.images?.domains?.length) {
     warnOptionHasBeenDeprecated(
       userConfig,
