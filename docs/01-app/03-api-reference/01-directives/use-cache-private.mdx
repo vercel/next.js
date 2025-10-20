@@ -19,15 +19,13 @@ The `'use cache: private'` directive enables runtime prefetching of personalized
 
 ## Usage
 
-To use `'use cache: private'`, enable the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) experimental flag in your `next.config.ts` file:
+To use `'use cache: private'`, enable the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag in your `next.config.ts` file:
 
 ```tsx filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -36,9 +34,7 @@ export default nextConfig
 ```jsx filename="next.config.js" switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -389,4 +385,4 @@ async function getSearchResults(query: string) {
 
 | Version   | Changes                                                       |
 | --------- | ------------------------------------------------------------- |
-| `v15.1.0` | `'use cache: private'` introduced as an experimental feature. |
+| `v16.0.0` | `'use cache: private'` introduced as an experimental feature. |
