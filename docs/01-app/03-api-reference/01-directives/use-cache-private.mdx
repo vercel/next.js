@@ -99,6 +99,7 @@ async function getRecommendations(productId: string) {
 ```
 
 ```jsx filename="app/product/[id]/page.js" switcher
+import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { cacheLife, cacheTag } from 'next/cache'
 
@@ -216,18 +217,18 @@ The following request-specific APIs can be used inside `'use cache: private'` fu
 | `searchParams` | No                     | Yes                               |
 | `connection()` | No                     | No                                |
 
-> **Note:** The `connection()` API is prohibited in both `use cache` and `'use cache: private'` as it provides connection-specific information that cannot be safely cached.
+> **Note:** The [`connection()`](https://nextjs.org/docs/app/api-reference/functions/connection) API is prohibited in both `use cache` and `'use cache: private'` as it provides connection-specific information that cannot be safely cached.
 
 ## Nesting rules
 
-Private caches have specific nesting rules to prevent cache pollution:
+Private caches have specific nesting rules to prevent user-specific data from leaking into shared caches:
 
 - Private caches **can** be nested inside other private caches
-- Private caches **cannot** be nested inside public caches
+- Private caches **cannot** be nested inside public caches (`'use cache'`, `'use cache: remote'`)
 - Public caches **can** be nested inside private caches
 
 ```tsx
-// ✅ VALID: Private inside private
+// VALID: Private inside private
 async function outerPrivate() {
   'use cache: private'
   const result = await innerPrivate()
