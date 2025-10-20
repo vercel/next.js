@@ -53,7 +53,7 @@ To use the Next Devtools MCP, add [`next-devtools-mcp`](https://www.npmjs.com/pa
 }
 ```
 
-See the [next-devtools-mcp documentation](https://www.npmjs.com/package/next-devtools-mcp) for more configuration options and features.
+For more devtools functionalities and configuration options, check out the [next-devtools-mcp repository](https://github.com/vercel/next-devtools-mcp).
 
 ## Using with agents
 
@@ -149,19 +149,17 @@ You can also ask for help with Next.js concepts and migrations:
 
 ```
 User: "Help me upgrade my Next.js app to version 16"
-
-Agent action:
-- Uses next-devtools-mcp to analyze your current version
-- Guides you through automated migrations with codemods
-- Provides step-by-step instructions for breaking changes
-
-User: "When should I use 'use client' in App Router?"
-
-Agent action:
-- Queries the Next.js knowledge base via next-devtools-mcp
-- Provides documentation-backed explanations
-- Shows examples from your current codebase
 ```
+
+The agent will use next-devtools-mcp to analyze your current version, guide you through automated migrations with codemods, and provide step-by-step instructions for handling breaking changes like async Request APIs, dynamic route segments, and route handler return types.
+
+You can also ask conceptual questions:
+
+```
+User: "When should I use 'use client' in App Router?"
+```
+
+The agent will query the Next.js knowledge base via next-devtools-mcp and provide documentation-backed explanations with examples from your codebase.
 
 ## Troubleshooting
 
