@@ -1,6 +1,6 @@
 import './app-globals'
 import ReactDOMClient from 'react-dom/client'
-import React, { use } from 'react'
+import React from 'react'
 // TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
@@ -179,17 +179,16 @@ const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
 )
 
 function ServerRoot({
-  pendingActionQueue,
+  initialRSCPayload,
+  actionQueue,
   webSocket,
   staticIndicatorState,
 }: {
-  pendingActionQueue: Promise<AppRouterActionQueue>
+  initialRSCPayload: InitialRSCPayload
+  actionQueue: AppRouterActionQueue
   webSocket: WebSocket | undefined
   staticIndicatorState: StaticIndicatorState | undefined
 }): React.ReactNode {
-  const initialRSCPayload = use(initialServerResponse)
-  const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
-
   const router = (
     <AppRouter
       actionQueue={actionQueue}
@@ -249,7 +248,7 @@ export type ClientInstrumentationHooks = {
   ) => void
 }
 
-export function hydrate(
+export async function hydrate(
   instrumentationHooks: ClientInstrumentationHooks | null,
   assetPrefix: string
 ) {
@@ -263,38 +262,22 @@ export function hydrate(
     staticIndicatorState = { pathname: null, appIsrManifest: null }
     webSocket = createWebSocket(assetPrefix, staticIndicatorState)
   }
+  const initialRSCPayload = await initialServerResponse
+  // setAppBuildId should be called only once, during JS initialization
+  // and before any components have hydrated.
+  setAppBuildId(initialRSCPayload.b)
 
-  // React overrides `.then` and doesn't return a new promise chain,
-  // so we wrap the action queue in a promise to ensure that its value
-  // is defined when the promise resolves.
-  // https://github.com/facebook/react/blob/163365a07872337e04826c4f501565d43dbd2fd4/packages/react-client/src/ReactFlightClient.js#L189-L190
-  const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
-    (resolve, reject) => {
-      initialServerResponse.then(
-        (initialRSCPayload) => {
-          // setAppBuildId should be called only once, during JS initialization
-          // and before any components have hydrated.
-          setAppBuildId(initialRSCPayload.b)
-
-          const initialTimestamp = Date.now()
-
-          resolve(
-            createMutableActionQueue(
-              createInitialRouterState({
-                navigatedAt: initialTimestamp,
-                initialFlightData: initialRSCPayload.f,
-                initialCanonicalUrlParts: initialRSCPayload.c,
-                initialRenderedSearch: initialRSCPayload.q,
-                initialParallelRoutes: new Map(),
-                location: window.location,
-              }),
-              instrumentationHooks
-            )
-          )
-        },
-        (err: Error) => reject(err)
-      )
-    }
+  const initialTimestamp = Date.now()
+  const actionQueue: AppRouterActionQueue = createMutableActionQueue(
+    createInitialRouterState({
+      navigatedAt: initialTimestamp,
+      initialFlightData: initialRSCPayload.f,
+      initialCanonicalUrlParts: initialRSCPayload.c,
+      initialRenderedSearch: initialRSCPayload.q,
+      initialParallelRoutes: new Map(),
+      location: window.location,
+    }),
+    instrumentationHooks
   )
 
   const reactEl = (
@@ -302,7 +285,8 @@ export function hydrate(
       <HeadManagerContext.Provider value={{ appDir: true }}>
         <Root>
           <ServerRoot
-            pendingActionQueue={pendingActionQueue}
+            initialRSCPayload={initialRSCPayload}
+            actionQueue={actionQueue}
             webSocket={webSocket}
             staticIndicatorState={staticIndicatorState}
           />
