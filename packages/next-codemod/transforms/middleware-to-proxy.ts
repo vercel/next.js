@@ -833,7 +833,25 @@ function removeRuntimeConfig(root: Collection<any>, j: API['j']): boolean {
     )
 
   if (runtimeVariableDeclarations.size() > 0) {
-    runtimeVariableDeclarations.remove()
+    runtimeVariableDeclarations.forEach((path) => {
+      const originalDeclarations = path.node.declarations
+      const filteredDeclarations = originalDeclarations.filter((decl) => {
+        if (j.VariableDeclarator.check(decl) && j.Identifier.check(decl.id)) {
+          return decl.id.name !== 'runtime'
+        }
+        return true
+      })
+
+      // If we filtered out some declarations, update the node
+      if (filteredDeclarations.length !== originalDeclarations.length) {
+        // Remove the entire declaration only if no declarators left
+        if (filteredDeclarations.length === 0) {
+          j(path).remove()
+        } else {
+          path.node.declarations = filteredDeclarations
+        }
+      }
+    })
     hasChanges = true
   }
 
