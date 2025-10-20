@@ -72,9 +72,15 @@ describe('Error overlay - editor links', () => {
         return Boolean(
           [].slice
             .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) =>
-              p.shadowRoot.querySelector('[data-next-mark-loading="false"]')
-            )
+            .find((p) => {
+              const badge = p.shadowRoot.querySelector('[data-next-badge]')
+              // Check if badge exists and is not showing any loading status
+              return (
+                badge &&
+                (badge.getAttribute('data-status') === 'none' ||
+                  !badge.getAttribute('data-status'))
+              )
+            })
         )
       })
       expect(loaded).toBe(true)
