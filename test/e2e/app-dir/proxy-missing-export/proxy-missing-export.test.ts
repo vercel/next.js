@@ -2,8 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { join } from 'node:path'
 import { writeFile } from 'node:fs/promises'
 
-const errorMessage = `The file "./proxy.ts" must export a function, either as a default export or as a named "proxy" export.
-This function is what Next.js runs for every request handled by this proxy (previously called middleware).
+const errorMessage = `This function is what Next.js runs for every request handled by this proxy (previously called middleware).
 
 Why this happens:
 - You are migrating from \`middleware\` to \`proxy\`, but haven't updated the exported function.
@@ -12,8 +11,7 @@ Why this happens:
 - There's a syntax error preventing the export from being recognized.
 
 To fix it:
-- Check your "./proxy.ts" file.
-- Ensure it has either a default or "proxy" function export.
+- Ensure this file has either a default or "proxy" function export.
 
 Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
 
@@ -34,14 +32,25 @@ describe('proxy-missing-export', () => {
       'export function middleware() {}'
     )
 
+    let cliOutput: string
+
     if (isNextDev) {
       await next.start().catch(() => {})
       // Use .catch() because Turbopack errors during compile and exits before runtime.
       await next.browser('/').catch(() => {})
-      expect(next.cliOutput).toContain(errorMessage)
+      cliOutput = next.cliOutput
     } else {
-      const { cliOutput } = await next.build()
-      expect(cliOutput).toContain(errorMessage)
+      cliOutput = (await next.build()).cliOutput
+    }
+
+    if (process.env.IS_TURBOPACK_TEST) {
+      expect(cliOutput).toContain(`./proxy.ts
+Proxy is missing expected function export name
+${errorMessage}`)
+    } else {
+      expect(cliOutput)
+        .toContain(`The file "./proxy.ts" must export a function, either as a default export or as a named "proxy" export.
+${errorMessage}`)
     }
 
     await next.stop()
@@ -106,16 +115,26 @@ describe('proxy-missing-export', () => {
       'const proxy = () => {}; export { proxy as handler };'
     )
 
+    let cliOutput: string
+
     if (isNextDev) {
       await next.start().catch(() => {})
       // Use .catch() because Turbopack errors during compile and exits before runtime.
       await next.browser('/').catch(() => {})
-      expect(next.cliOutput).toContain(errorMessage)
+      cliOutput = next.cliOutput
     } else {
-      const { cliOutput } = await next.build()
-      expect(cliOutput).toContain(errorMessage)
+      cliOutput = (await next.build()).cliOutput
     }
 
+    if (process.env.IS_TURBOPACK_TEST) {
+      expect(cliOutput).toContain(`./proxy.ts
+Proxy is missing expected function export name
+${errorMessage}`)
+    } else {
+      expect(cliOutput)
+        .toContain(`The file "./proxy.ts" must export a function, either as a default export or as a named "proxy" export.
+${errorMessage}`)
+    }
     await next.stop()
   })
 })

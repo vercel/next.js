@@ -1,7 +1,4 @@
-use std::env;
-
 use anyhow::Result;
-use pathdiff::diff_paths;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
@@ -125,30 +122,6 @@ struct MiddlewareMissingExportIssue {
     file_path: FileSystemPath,
 }
 
-impl MiddlewareMissingExportIssue {
-    fn get_relative_path(&self) -> String {
-        // Get relative path from current working directory (like process.cwd() in JavaScript)
-        let cwd = env::current_dir().ok();
-        let file_path_str = self.file_path.path.as_str();
-        let relative_path = if let Some(cwd) = cwd {
-            diff_paths(file_path_str, cwd)
-                .and_then(|p| p.to_str().map(|s| s.to_string()))
-                .unwrap_or_else(|| self.file_path.file_name().to_string())
-        } else {
-            self.file_path.file_name().to_string()
-        };
-        format!("./{}", relative_path)
-    }
-
-    fn get_type_description(&self) -> &str {
-        if self.file_type.as_str() == "Proxy" {
-            "proxy (previously called middleware)"
-        } else {
-            "middleware"
-        }
-    }
-}
-
 #[turbo_tasks::value_impl]
 impl Issue for MiddlewareMissingExportIssue {
     #[turbo_tasks::function]
@@ -167,13 +140,9 @@ impl Issue for MiddlewareMissingExportIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        let relative_path_str = self.get_relative_path();
-
-        // Only the first line goes in title to avoid formatIssue indentation
         let title_text = format!(
-            "The file \"{}\" must export a function, either as a default export or as a named \
-             \"{}\" export.",
-            relative_path_str, self.function_name
+            "{} is missing expected function export name",
+            self.file_type
         );
 
         Ok(StyledString::Text(title_text.into()).cell())
@@ -181,10 +150,13 @@ impl Issue for MiddlewareMissingExportIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let relative_path_str = self.get_relative_path();
-        let type_description = self.get_type_description();
+        let type_description = if self.file_type == "Proxy" {
+            "proxy (previously called middleware)"
+        } else {
+            "middleware"
+        };
 
-        let migration_bullet = if self.file_type.as_str() == "Proxy" {
+        let migration_bullet = if self.file_type == "Proxy" {
             "- You are migrating from `middleware` to `proxy`, but haven't updated the exported \
              function.\n"
         } else {
@@ -200,12 +172,10 @@ impl Issue for MiddlewareMissingExportIssue {
              - The export is not a function (e.g., an object or constant).\n\
              - There's a syntax error preventing the export from being recognized.\n\n\
              To fix it:\n\
-             - Check your \"{}\" file.\n\
-             - Ensure it has either a default or \"{}\" function export.\n\n\
+             - Ensure this file has either a default or \"{}\" function export.\n\n\
              Learn more: https://nextjs.org/docs/messages/middleware-to-proxy",
             type_description,
             migration_bullet,
-            relative_path_str,
             self.function_name
         );
 
