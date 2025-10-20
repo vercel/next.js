@@ -180,7 +180,7 @@ describe.each([
       }
     }
 
-    const RUNTIME_ENV = hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
+    const RUNTIME_ENV = hasRuntimePrefetch ? 'Prefetch' : 'Server'
 
     describe.each([
       { description: 'initial load', isInitialLoad: true },

@@ -2799,7 +2799,10 @@ async function renderWithRestartOnCacheMissInDev(
       case RenderStage.Static:
         return 'Prerender'
       case RenderStage.Runtime:
-        return hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
+        // If we're not warming caches reachable in the runtime phase,
+        // we can't trust the "Prefetch" labelling to be correct
+        // due to potential delays caused by cache misses.
+        return hasRuntimePrefetch ? 'Prefetch' : 'Server'
       case RenderStage.Dynamic:
         return 'Server'
       default:
@@ -2848,6 +2851,8 @@ async function renderWithRestartOnCacheMissInDev(
   let debugChannel = setReactDebugChannel && createDebugChannel()
 
   const initialRscPayload = await getPayload(requestStore)
+
+  let hadCacheMissInPreviousStages = false
   const maybeInitialServerStream = await workUnitAsyncStorage.run(
     requestStore,
     () =>
@@ -2875,30 +2880,45 @@ async function renderWithRestartOnCacheMissInDev(
         },
         (stream) => {
           // Runtime stage
-          initialStageController.advanceStage(RenderStage.Runtime)
 
-          // If we had a cache miss in the static stage, we'll have to disard this stream
-          // and render again once the caches are warm.
-          if (cacheSignal.hasPendingReads()) {
+          hadCacheMissInPreviousStages = cacheSignal.hasPendingReads()
+
+          // If runtime prefetching isn't enabled for any segment in this page,
+          // then we don't need to validate anything in the runtime phase.
+          // Thus, there's no need for us to warm runtime caches.
+          // We can avoid advancing to the runtime stage and unblocking runtime APIs during the warmup,
+          // which'll make it faster (because we won't wait for any caches hidden behind `await cookies()` etc)
+          if (!hasRuntimePrefetch && hadCacheMissInPreviousStages) {
             return null
           }
 
-          // If there's no cache misses, we'll continue rendering,
-          // and see if there's any cache misses in the runtime stage.
+          // If there's no cache misses, we'll continue rendering.
+          initialStageController.advanceStage(RenderStage.Runtime)
           return stream
         },
-        async (maybeStream) => {
+        (maybeStream) => {
           // Dynamic stage
 
-          // If we had cache misses in either of the previous stages,
-          // then we'll only use this render for filling caches.
-          // We won't advance the stage, and thus leave dynamic APIs hanging,
-          // because they won't be cached anyway, so it'd be wasted work.
-          if (maybeStream === null || cacheSignal.hasPendingReads()) {
+          // If the previous stage bailed out of the render due to a cache miss,
+          // we shouldn't do anything more.
+          if (maybeStream === null) {
             return null
           }
 
-          // If there's no cache misses, we'll use this render, so let it advance to the dynamic stage.
+          hadCacheMissInPreviousStages ||= cacheSignal.hasPendingReads()
+
+          // If runtime prefetching is enabled for any segment in this page,
+          // then we need a proper runtime phase for validation.
+          // Thus, if we had cache misses in either of the previous stages,
+          // We have to bail out and warm all the caches before retrying.
+          // We won't advance the stage, and thus leave dynamic APIs hanging,
+          // because they won't be cached anyway, so it'd be wasted work.
+          if (hasRuntimePrefetch && hadCacheMissInPreviousStages) {
+            return null
+          }
+
+          // If we didn't bail out earlier, that means there's no cache misses,
+          // and we use this render. Let it advance to the dynamic stage.
           initialStageController.advanceStage(RenderStage.Dynamic)
           return maybeStream
         }
@@ -2921,12 +2941,7 @@ async function renderWithRestartOnCacheMissInDev(
   // Cache miss. We will use the initial render to fill caches, and discard its result.
   // Then, we can render again with warm caches.
 
-  // TODO(restart-on-cache-miss):
-  // This might end up waiting for more caches than strictly necessary,
-  // because we can't abort the render yet, and we'll let runtime/dynamic APIs resolve.
-  // Ideally we'd only wait for caches that are needed in the static stage.
-  // This will be optimized in the future by not allowing runtime/dynamic APIs to resolve.
-
+  // TODO: potential deadlock if we started reads for caches delayed until runtime/dynamic
   await cacheSignal.cacheReady()
   initialReactController.abort()
 
