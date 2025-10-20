@@ -671,8 +671,8 @@ async function generateDynamicFlightRenderResultWithCachesInDev(
 
   // Before we kick off the render, we set the cache status back to it's initial state
   // in case a previous render bypassed the cache.
-  if (process.env.NODE_ENV === 'development') {
-    setCacheStatus!('ready', htmlRequestId, requestId)
+  if (process.env.NODE_ENV === 'development' && setCacheStatus) {
+    setCacheStatus('ready', htmlRequestId, requestId)
   }
 
   function onFlightDataRenderError(err: DigestedError) {
@@ -1899,9 +1899,13 @@ async function renderToHTMLOrFlightImpl(
           )
         } else {
           // Set cache status to bypass when specifically bypassing caches in dev
-          if (process.env.NODE_ENV === 'development' && bypassCachesInDev) {
+          if (
+            process.env.NODE_ENV === 'development' &&
+            bypassCachesInDev &&
+            renderOpts.setCacheStatus
+          ) {
             const { setCacheStatus } = renderOpts
-            setCacheStatus!('bypass', htmlRequestId, requestId)
+            setCacheStatus('bypass', htmlRequestId, requestId)
           }
           return generateDynamicFlightRenderResult(req, ctx, requestStore)
         }
@@ -2925,8 +2929,8 @@ async function renderWithRestartOnCacheMissInDev(
     }
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    setCacheStatus!('filling', htmlRequestId, requestId)
+  if (process.env.NODE_ENV === 'development' && setCacheStatus) {
+    setCacheStatus('filling', htmlRequestId, requestId)
   }
 
   // Cache miss. We will use the initial render to fill caches, and discard its result.
@@ -2998,10 +3002,8 @@ async function renderWithRestartOnCacheMissInDev(
     )
   )
 
-  if (process.env.NODE_ENV === 'development') {
-    // TODO: Don't know if this is the right time.
-    // It's not wired up on the frontend though.
-    setCacheStatus!('filled', htmlRequestId, requestId)
+  if (process.env.NODE_ENV === 'development' && setCacheStatus) {
+    setCacheStatus('filled', htmlRequestId, requestId)
   }
 
   return {
