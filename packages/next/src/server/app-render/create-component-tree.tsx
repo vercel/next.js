@@ -415,7 +415,6 @@ async function createComponentTreeInternal(
   }
 
   // Resolve the segment param
-  const actualSegment = segmentParam ? segmentParam.treeSegment : segment
   const isSegmentViewEnabled = !!ctx.renderOpts.dev
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
@@ -674,7 +673,6 @@ async function createComponentTreeInternal(
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!MaybeComponent) {
     return [
-      actualSegment,
       createElement(
         Fragment,
         {
@@ -708,7 +706,6 @@ async function createComponentTreeInternal(
     experimental.isRoutePPREnabled
   ) {
     return [
-      actualSegment,
       createElement(
         Fragment,
         {
@@ -812,7 +809,6 @@ async function createComponentTreeInternal(
         : pageElement
 
     return [
-      actualSegment,
       createElement(
         Fragment,
         {
@@ -1022,7 +1018,6 @@ async function createComponentTreeInternal(
 
     // For layouts we just render the component
     return [
-      actualSegment,
       wrappedSegmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,

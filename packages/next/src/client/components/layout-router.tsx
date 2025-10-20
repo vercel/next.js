@@ -43,6 +43,10 @@ import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import {
+  NavigationPromisesContext,
+  type NavigationPromises,
+} from '../../shared/lib/hooks-client-context.shared-runtime'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -341,6 +345,8 @@ function InnerLayoutRouter({
   url: string
 }) {
   const context = useContext(GlobalLayoutRouterContext)
+  const parentNavPromises = useContext(NavigationPromisesContext)
+
   if (!context) {
     throw new Error('invariant global layout router not mounted')
   }
@@ -421,6 +427,30 @@ function InnerLayoutRouter({
   }
 
   // If we get to this point, then we know we have something we can render.
+  let content = resolvedRsc
+
+  // In dev, we create a NavigationPromisesContext containing the instrumented promises that provide
+  // `useSelectedLayoutSegment` and `useSelectedLayoutSegments`.
+  // Promises are cached outside of render to survive suspense retries.
+  let navigationPromises: NavigationPromises | null = null
+  if (process.env.NODE_ENV !== 'production') {
+    const { createNestedLayoutNavigationPromises } =
+      require('./navigation-devtools') as typeof import('./navigation-devtools')
+
+    navigationPromises = createNestedLayoutNavigationPromises(
+      tree,
+      parentNavPromises
+    )
+  }
+
+  if (navigationPromises) {
+    content = (
+      <NavigationPromisesContext.Provider value={navigationPromises}>
+        {resolvedRsc}
+      </NavigationPromisesContext.Provider>
+    )
+  }
+
   const subtree = (
     // The layout router context narrows down tree and childNodes at each level.
     <LayoutRouterContext.Provider
@@ -433,7 +463,7 @@ function InnerLayoutRouter({
         url: url,
       }}
     >
-      {resolvedRsc}
+      {content}
     </LayoutRouterContext.Provider>
   )
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`

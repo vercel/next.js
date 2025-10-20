@@ -8,8 +8,8 @@ mod response;
 
 pub use crate::{
     client::{
-        __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len, FetchClient,
-        ProxyConfig,
+        __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len,
+        FetchClientConfig, ProxyConfig,
     },
     error::{FetchError, FetchErrorKind, FetchIssue},
     response::{FetchResult, HttpResponse, HttpResponseBody},

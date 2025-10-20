@@ -169,6 +169,13 @@ function checkDeprecations(
     silent
   )
 
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'eslint',
+    `\`eslint\` configuration in ${configFileName} is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options`,
+    silent
+  )
+
   if (userConfig.images?.domains?.length) {
     warnOptionHasBeenDeprecated(
       userConfig,
@@ -375,6 +382,19 @@ function assignDefaultsAndValidate(
   ) {
     throw new Error(
       `The experimental.allowDevelopmentBuild option requires NODE_ENV to be explicitly set to 'development'.`
+    )
+  }
+
+  // Validate sassOptions.functions is not used with Turbopack
+  if (
+    process.env.TURBOPACK &&
+    result.sassOptions &&
+    'functions' in result.sassOptions
+  ) {
+    throw new Error(
+      `The "sassOptions.functions" option is not supported when using Turbopack. ` +
+        `Custom Sass functions are only available with webpack. ` +
+        `Please remove the "functions" property from your sassOptions in ${configFileName}.`
     )
   }
 

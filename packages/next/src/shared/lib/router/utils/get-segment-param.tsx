@@ -53,3 +53,29 @@ export function isCatchAll(
     type === 'optional-catchall'
   )
 }
+
+export function getParamProperties(paramType: DynamicParamTypes): {
+  repeat: boolean
+  optional: boolean
+} {
+  let repeat = false
+  let optional = false
+
+  switch (paramType) {
+    case 'catchall':
+    case 'catchall-intercepted':
+      repeat = true
+      break
+    case 'optional-catchall':
+      repeat = true
+      optional = true
+      break
+    case 'dynamic':
+    case 'dynamic-intercepted':
+      break
+    default:
+      paramType satisfies never
+  }
+
+  return { repeat, optional }
+}

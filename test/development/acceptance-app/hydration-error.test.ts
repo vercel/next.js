@@ -142,27 +142,26 @@ describe('Error overlay for hydration errors in App router', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                       <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
-                         <RedirectBoundary>
-                           <RedirectErrorBoundary router={{...}}>
-                             <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                               <SegmentViewNode type="layout" pagePath="(extra-att...">
-                                 <SegmentTrieNode>
-                                 <script>
-                                 <script>
-                                 <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                                   <Root params={Promise}>
-                                     <html
-       -                               className="server-html"
-                                     >
-                             ...
-                 ...",
+           <ScrollAndFocusHandler segmentPath={[...]}>
+             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                 <LoadingBoundary loading={null}>
+                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
+                       <RedirectBoundary>
+                         <RedirectErrorBoundary router={{...}}>
+                           <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                             <SegmentViewNode type="layout" pagePath="(extra-att...">
+                               <SegmentTrieNode>
+                               <script>
+                               <script>
+                               <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                                 <Root params={Promise}>
+                                   <html
+       -                             className="server-html"
+                                   >
+                           ...
+               ...",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
@@ -179,25 +178,24 @@ describe('Error overlay for hydration errors in App router', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                       <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
-                         <RedirectBoundary>
-                           <RedirectErrorBoundary router={{...}}>
-                             <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
-                               <SegmentViewNode type="layout" pagePath="(extra-att...">
-                                 <SegmentTrieNode>
-                                 <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                                   <Root params={Promise}>
-                                     <html
-       -                               className="server-html"
-                                     >
-                             ...
-                 ...",
+           <ScrollAndFocusHandler segmentPath={[...]}>
+             <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                 <LoadingBoundary loading={null}>
+                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
+                       <RedirectBoundary>
+                         <RedirectErrorBoundary router={{...}}>
+                           <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                             <SegmentViewNode type="layout" pagePath="(extra-att...">
+                               <SegmentTrieNode>
+                               <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                                 <Root params={Promise}>
+                                   <html
+       -                             className="server-html"
+                                   >
+                           ...
+               ...",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Console Error",
@@ -920,8 +918,7 @@ describe('Error overlay for hydration errors in App router', () => {
                                        <Script src="https://ex..." strategy="beforeInte...">
          >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                                ...
-                   ...
-             ...",
+                   ...",
              "description": "In HTML, <script> cannot be a child of <html>.
          This will cause a hydration error.",
              "environmentLabel": null,
@@ -983,8 +980,7 @@ describe('Error overlay for hydration errors in App router', () => {
                                        <Script src="https://ex..." strategy="beforeInte...">
          >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                                ...
-                   ...
-             ...",
+                   ...",
              "description": "In HTML, <script> cannot be a child of <html>.
          This will cause a hydration error.",
              "environmentLabel": null,

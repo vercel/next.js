@@ -399,14 +399,7 @@ function readRenderSnapshotFromCache(
       null,
       tree.isRootLayout,
     ],
-    seedData: [
-      segment,
-      rsc,
-      childSeedDatas,
-      loading,
-      isPartial,
-      hasRuntimePrefetch,
-    ],
+    seedData: [rsc, childSeedDatas, loading, isPartial, hasRuntimePrefetch],
   }
 }
 

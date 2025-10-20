@@ -212,6 +212,8 @@ import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolv
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { imageConfigDefault } from '../../shared/lib/image-config'
 import { RenderStage, StagedRenderingController } from './staged-rendering'
+import { anySegmentHasRuntimePrefetchEnabled } from './staged-validation'
+import { warnOnce } from '../../shared/lib/utils/warn-once'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -665,7 +667,14 @@ async function generateDynamicFlightRenderResultWithCachesInDev(
     dev = false,
     onInstrumentationRequestError,
     setReactDebugChannel,
+    setCacheStatus,
   } = renderOpts
+
+  // Before we kick off the render, we set the cache status back to it's initial state
+  // in case a previous render bypassed the cache.
+  if (process.env.NODE_ENV === 'development' && setCacheStatus) {
+    setCacheStatus('ready', htmlRequestId, requestId)
+  }
 
   function onFlightDataRenderError(err: DigestedError) {
     return onInstrumentationRequestError?.(
@@ -1278,7 +1287,6 @@ async function getErrorRSCPayload(
   // For metadata notFound error there's no global not found boundary on top
   // so we create a not found page with AppRouter
   const seedData: CacheNodeSeedData = [
-    initialTree[0],
     createElement(
       'html',
       {
@@ -1891,6 +1899,15 @@ async function renderToHTMLOrFlightImpl(
             createRequestStore
           )
         } else {
+          // Set cache status to bypass when specifically bypassing caches in dev
+          if (
+            process.env.NODE_ENV === 'development' &&
+            bypassCachesInDev &&
+            renderOpts.setCacheStatus
+          ) {
+            const { setCacheStatus } = renderOpts
+            setCacheStatus('bypass', htmlRequestId, requestId)
+          }
           return generateDynamicFlightRenderResult(req, ctx, requestStore)
         }
       }
@@ -2768,7 +2785,16 @@ async function renderWithRestartOnCacheMissInDev(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void
 ) {
-  const { htmlRequestId, renderOpts, requestId } = ctx
+  const {
+    htmlRequestId,
+    renderOpts,
+    requestId,
+    componentMod: {
+      routeModule: {
+        userland: { loaderTree },
+      },
+    },
+  } = ctx
   const {
     clientReferenceManifest,
     ComponentMod,
@@ -2776,6 +2802,9 @@ async function renderWithRestartOnCacheMissInDev(
     setReactDebugChannel,
   } = renderOpts
   assertClientReferenceManifest(clientReferenceManifest)
+
+  const hasRuntimePrefetch =
+    await anySegmentHasRuntimePrefetchEnabled(loaderTree)
 
   // If the render is restarted, we'll recreate a fresh request store
   let requestStore: RequestStore = initialRequestStore
@@ -2786,8 +2815,7 @@ async function renderWithRestartOnCacheMissInDev(
       case RenderStage.Static:
         return 'Prerender'
       case RenderStage.Runtime:
-        // TODO: only label as "Prefetch" if the page has a `prefetch` config.
-        return 'Prefetch'
+        return hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
       case RenderStage.Dynamic:
         return 'Server'
       default:
@@ -2902,8 +2930,8 @@ async function renderWithRestartOnCacheMissInDev(
     }
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    setCacheStatus!('filling', htmlRequestId, requestId)
+  if (process.env.NODE_ENV === 'development' && setCacheStatus) {
+    setCacheStatus('filling', htmlRequestId, requestId)
   }
 
   // Cache miss. We will use the initial render to fill caches, and discard its result.
@@ -2975,10 +3003,8 @@ async function renderWithRestartOnCacheMissInDev(
     )
   )
 
-  if (process.env.NODE_ENV === 'development') {
-    // TODO: Don't know if this is the right time.
-    // It's not wired up on the frontend though.
-    setCacheStatus!('filled', htmlRequestId, requestId)
+  if (process.env.NODE_ENV === 'development' && setCacheStatus) {
+    setCacheStatus('filled', htmlRequestId, requestId)
   }
 
   return {
@@ -5243,7 +5269,7 @@ function isBypassingCachesInDev(
 }
 
 function WarnForBypassCachesInDev({ route }: { route: string }) {
-  console.warn(
+  warnOnce(
     `Route ${route} is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev`
   )
   return null

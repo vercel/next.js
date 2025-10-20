@@ -910,7 +910,9 @@ export default async function build(
   appDirOnly = false,
   bundler = Bundler.Turbopack,
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
-  traceUploadUrl: string | undefined
+  traceUploadUrl: string | undefined,
+  debugBuildAppPaths?: string[],
+  debugBuildPagePaths?: string[]
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
@@ -1166,6 +1168,20 @@ export default async function build(
               .traceAsyncFn(() => collectPagesFiles(pagesDir, validFileMatcher))
           : []
 
+      // Apply debug build paths filter if specified
+      // If debugBuildPagePaths is defined (even if empty), only build specified pages
+      if (debugBuildPagePaths !== undefined) {
+        if (debugBuildPagePaths.length > 0) {
+          const debugPathsSet = new Set(debugBuildPagePaths)
+          pagesPaths = pagesPaths.filter((pagePath) =>
+            debugPathsSet.has(pagePath)
+          )
+        } else {
+          // Empty array means build no pages
+          pagesPaths = []
+        }
+      }
+
       const middlewareDetectionRegExp = new RegExp(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
@@ -1275,7 +1291,7 @@ export default async function build(
         let layoutPaths: string[]
 
         if (Boolean(process.env.NEXT_PRIVATE_APP_PATHS)) {
-          // used for testing?
+          // used for testing
           appPaths = providedAppPaths
           layoutPaths = []
         } else {
@@ -1286,6 +1302,20 @@ export default async function build(
 
           appPaths = result.appPaths
           layoutPaths = result.layoutPaths
+
+          // Apply debug build paths filter if specified
+          // If debugBuildAppPaths is defined (even if empty), only build specified app paths
+          if (debugBuildAppPaths !== undefined) {
+            if (debugBuildAppPaths.length > 0) {
+              const debugPathsSet = new Set(debugBuildAppPaths)
+              appPaths = appPaths.filter((appPath) =>
+                debugPathsSet.has(appPath)
+              )
+            } else {
+              // Empty array means build no app paths
+              appPaths = []
+            }
+          }
           // Note: defaultPaths are not used in the build process, only for slot detection in generating route types
         }
 
