@@ -83,9 +83,20 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
       // Since sitemap is separated from the page rendering, there's not metadataBase accessible yet.
       // we give the default setting that won't effect the languages resolving.
       for (const language in languages) {
+        const url = languages[language as keyof typeof languages]
+        if (!url) continue
         content += `<xhtml:link rel="alternate" hreflang="${language}" href="${
-          languages[language as keyof typeof languages]
+          url
         }" />\n`
+      }
+    }
+
+    const medias = item.alternates?.media
+    if (medias && Object.keys(medias).length) {
+      for (const media in medias) {
+        const url = medias[media as keyof typeof medias]
+        if (!url) continue
+        content += `<xhtml:link rel="alternate" media="${media}" href="${url}" />\n`
       }
     }
     if (item.images?.length) {
