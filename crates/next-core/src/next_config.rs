@@ -10,7 +10,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fetch::FetchClient;
+use turbo_tasks_fetch::FetchClientConfig;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     ConditionItem, ConditionPath, LoaderRuleItem, WebpackRules,
@@ -1914,7 +1914,10 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn fetch_client(&self, env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<FetchClient>> {
+    pub async fn fetch_client(
+        &self,
+        env: Vc<Box<dyn ProcessEnv>>,
+    ) -> Result<Vc<FetchClientConfig>> {
         // Support both an env var and the experimental flag to provide more flexibility to
         // developers on locked down systems, depending on if they want to configure this on a
         // per-system or per-project basis.
@@ -1928,7 +1931,7 @@ impl NextConfig {
             })
             .or(self.experimental.turbopack_use_system_tls_certs)
             .unwrap_or(false);
-        Ok(FetchClient {
+        Ok(FetchClientConfig {
             tls_built_in_webpki_certs: !use_system_tls_certs,
             tls_built_in_native_certs: use_system_tls_certs,
         }
