@@ -9,7 +9,6 @@ export const PathParamsContext = createContext<Params | null>(null)
 
 // Dev-only context for Suspense DevTools instrumentation
 // These promises are used to track navigation hook usage in React DevTools
-// These are instrumented promises with additional properties that React DevTools expects
 export type InstrumentedPromise<T> = Promise<T> & {
   status: 'fulfilled'
   value: T

@@ -16,7 +16,7 @@ import {
   computeSelectedLayoutSegment,
   getSelectedLayoutSegmentPath,
 } from '../../shared/lib/segment'
-import { ReadonlyURLSearchParams } from './navigation.react-server'
+import { ReadonlyURLSearchParams } from './readonly-url-search-params'
 
 const useDynamicRouteParams =
   typeof window === 'undefined'
@@ -56,7 +56,6 @@ const useDynamicSearchParams =
 export function useSearchParams(): ReadonlyURLSearchParams {
   useDynamicSearchParams?.('useSearchParams()')
 
-  const navigationPromises = useContext(NavigationPromisesContext)
   const searchParams = useContext(SearchParamsContext)
 
   // In the case where this is `null`, the compat types added in
@@ -73,8 +72,11 @@ export function useSearchParams(): ReadonlyURLSearchParams {
   }, [searchParams]) as ReadonlyURLSearchParams
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production' && navigationPromises) {
-    return use(navigationPromises.searchParams)
+  if (process.env.NODE_ENV !== 'production') {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      return use(navigationPromises.searchParams)
+    }
   }
 
   return readonlySearchParams
@@ -101,14 +103,16 @@ export function useSearchParams(): ReadonlyURLSearchParams {
 export function usePathname(): string {
   useDynamicRouteParams?.('usePathname()')
 
-  const navigationPromises = useContext(NavigationPromisesContext)
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
   const pathname = useContext(PathnameContext) as string
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production' && navigationPromises) {
-    return use(navigationPromises.pathname)
+  if (process.env.NODE_ENV !== 'production') {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      return use(navigationPromises.pathname)
+    }
   }
 
   return pathname
@@ -169,12 +173,14 @@ export function useRouter(): AppRouterInstance {
 export function useParams<T extends Params = Params>(): T {
   useDynamicRouteParams?.('useParams()')
 
-  const navigationPromises = useContext(NavigationPromisesContext)
   const params = useContext(PathParamsContext) as T
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production' && navigationPromises) {
-    return use(navigationPromises.params) as T
+  if (process.env.NODE_ENV !== 'production') {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      return use(navigationPromises.params) as T
+    }
   }
 
   return params
@@ -211,19 +217,21 @@ export function useSelectedLayoutSegments(
 ): string[] {
   useDynamicRouteParams?.('useSelectedLayoutSegments()')
 
-  const navigationPromises = useContext(NavigationPromisesContext)
   const context = useContext(LayoutRouterContext)
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production' && navigationPromises) {
-    const promise =
-      navigationPromises.selectedLayoutSegmentsPromises?.get(parallelRouteKey)
-    if (promise) {
-      // We should always have a promise here, but if we don't, it's not worth erroring over.
-      // We just won't be able to instrument it, but can still provide the value.
-      return use(promise)
+  if (process.env.NODE_ENV !== 'production') {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      const promise =
+        navigationPromises.selectedLayoutSegmentsPromises?.get(parallelRouteKey)
+      if (promise) {
+        // We should always have a promise here, but if we don't, it's not worth erroring over.
+        // We just won't be able to instrument it, but can still provide the value.
+        return use(promise)
+      }
     }
   }
 

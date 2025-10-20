@@ -9,7 +9,7 @@ import {
   computeSelectedLayoutSegment,
   getSelectedLayoutSegmentPath,
 } from '../../shared/lib/segment'
-import { ReadonlyURLSearchParams } from './navigation.react-server'
+import { ReadonlyURLSearchParams } from './readonly-url-search-params'
 
 /**
  * Promises are cached by tree to ensure stability across suspense retries.
@@ -62,7 +62,7 @@ export function createLayoutSegmentPromises(
     )
   }
 
-  const result = {
+  const result: LayoutSegmentPromisesCache = {
     selectedLayoutSegmentPromises: segmentPromises,
     selectedLayoutSegmentsPromises: segmentsPromises,
   }
