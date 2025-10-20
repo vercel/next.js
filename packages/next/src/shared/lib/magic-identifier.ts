@@ -137,7 +137,8 @@ export function removeFreeCallWrapper(text: string): string {
  * 3. Removing free call wrappers
  */
 export function deobfuscateText(text: string): string {
-  // First, remove free call wrappers, by doing this
+  // First, remove free call wrappers, doing this first is important since the demangling might
+  // introduce whitespace character that complicate the matching.
   let result = removeFreeCallWrapper(text)
 
   // Then decode magic identifiers and clean up module IDs

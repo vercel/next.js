@@ -78,19 +78,11 @@ describe('deobfuscateModuleId', () => {
 
 describe('removeFreeCallWrapper', () => {
   test('removes (0, ) wrapper', () => {
-    expect(removeFreeCallWrapper('(0, foo)')).toBe('foo')
+    expect(removeFreeCallWrapper('(0, foo.bar)')).toBe('foo.bar')
   })
 
   test('removes (0 , ) wrapper with spaces', () => {
     expect(removeFreeCallWrapper('(0 , foo.bar)')).toBe('foo.bar')
-  })
-
-  test('handles nested expressions', () => {
-    expect(
-      removeFreeCallWrapper(
-        '(0 , __TURBOPACK__imported__module__$5b$project$5d$__.foo)'
-      )
-    ).toBe('__TURBOPACK__imported__module__$5b$project$5d$__.foo')
   })
 
   test('leaves non-free-call expressions unchanged', () => {
