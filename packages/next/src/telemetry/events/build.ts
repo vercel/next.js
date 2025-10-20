@@ -230,6 +230,32 @@ export function eventPackageUsedInGetServerSideProps(
   }))
 }
 
+export const EVENT_MCP_TOOL_USAGE = 'NEXT_MCP_TOOL_USAGE'
+
+export type McpToolName =
+  | 'mcp/get_errors'
+  | 'mcp/get_logs'
+  | 'mcp/get_page_metadata'
+  | 'mcp/get_project_metadata'
+  | 'mcp/get_server_action_by_id'
+
+export type EventMcpToolUsage = {
+  toolName: McpToolName
+  invocationCount: number
+}
+
+export function eventMcpToolUsage(
+  usages: Array<{ featureName: McpToolName; invocationCount: number }>
+): Array<{ eventName: string; payload: EventMcpToolUsage }> {
+  return usages.map(({ featureName, invocationCount }) => ({
+    eventName: EVENT_MCP_TOOL_USAGE,
+    payload: {
+      toolName: featureName,
+      invocationCount,
+    },
+  }))
+}
+
 export const ERROR_THROWN_EVENT = 'NEXT_ERROR_THROWN'
 type ErrorThrownEvent = {
   eventName: typeof ERROR_THROWN_EVENT

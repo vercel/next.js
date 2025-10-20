@@ -109,6 +109,8 @@ import {
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import { getMcpTelemetryUsage } from '../mcp/get-or-create-mcp-server'
+import { eventMcpToolUsage } from '../../telemetry/events/build'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 
@@ -1810,6 +1812,17 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   public close() {
+    // Report MCP telemetry if MCP server is enabled
+    if (this.config.experimental.mcpServer) {
+      const mcpUsages = getMcpTelemetryUsage()
+      if (mcpUsages.length > 0) {
+        const events = eventMcpToolUsage(mcpUsages)
+        for (const event of events) {
+          this.telemetry.record(event)
+        }
+      }
+    }
+
     this.webpackHotMiddleware?.close()
   }
 }

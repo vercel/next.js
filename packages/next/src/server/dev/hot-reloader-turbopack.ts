@@ -119,6 +119,8 @@ import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import { getMcpTelemetryUsage } from '../mcp/get-or-create-mcp-server'
+import { eventMcpToolUsage } from '../../telemetry/events/build'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 
@@ -1390,6 +1392,17 @@ export async function createHotReloaderTurbopack(
         })
     },
     close() {
+      // Report MCP telemetry if MCP server is enabled
+      if (nextConfig.experimental.mcpServer) {
+        const mcpUsages = getMcpTelemetryUsage()
+        if (mcpUsages.length > 0) {
+          const events = eventMcpToolUsage(mcpUsages)
+          for (const event of events) {
+            opts.telemetry.record(event)
+          }
+        }
+      }
+
       for (const wsClient of [
         ...clientsWithoutRequestId,
         ...clientsByRequestId.values(),
