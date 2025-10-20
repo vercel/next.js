@@ -263,7 +263,7 @@ function createRequestStoreImpl(
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
-    devFallbackParams,
+    devFallbackParams: devFallbackParams ?? null,
   }
 }
 

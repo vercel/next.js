@@ -23,10 +23,10 @@
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import type {
   WorkUnitStore,
-  RequestStore,
   PrerenderStoreLegacy,
   PrerenderStoreModern,
   PrerenderStoreModernRuntime,
+  DevRequestStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
@@ -296,14 +296,18 @@ export function abortOnSynchronousPlatformIOAccess(
 }
 
 export function trackSynchronousPlatformIOAccessInDev(
-  requestStore: RequestStore
+  requestStore: DevRequestStoreModern,
+  errorWithStack: Error
 ): void {
+  const { stagedRendering, dynamicTracking } = requestStore
   // We don't actually have a controller to abort but we do the semantic equivalent by
   // advancing the request store out of the prerender stage
-  if (requestStore.stagedRendering) {
-    // TODO: error for sync IO in the runtime stage
-    // (which is not currently covered by the validation render in `spawnDynamicValidationInDev`)
-    requestStore.stagedRendering.advanceStage(RenderStage.Dynamic)
+
+  // TODO: error for sync IO in the runtime stage
+  // (which is not currently covered by the validation render in `spawnDynamicValidationInDev`)
+  stagedRendering.advanceStage(RenderStage.Dynamic)
+  if (dynamicTracking.syncDynamicErrorWithStack === null) {
+    dynamicTracking.syncDynamicErrorWithStack = errorWithStack
   }
 }
 

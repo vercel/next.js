@@ -1,6 +1,7 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
+  type DevRequestStoreModern,
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 import {
@@ -87,7 +88,31 @@ export function io(expression: string, type: ApiType) {
     }
     case 'request':
       if (process.env.NODE_ENV === 'development') {
-        trackSynchronousPlatformIOAccessInDev(workUnitStore)
+        if (workUnitStore.stagedRendering) {
+          // If the prerender signal is already aborted we don't need to construct
+          // any stacks because something else actually terminated the prerender.
+          let message: string
+          switch (type) {
+            case 'time':
+              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or \`connection()\`. Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
+              break
+            case 'random':
+              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or \`connection()\`. Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
+              break
+            case 'crypto':
+              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or \`connection()\`. Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
+              break
+            default:
+              throw new InvariantError(
+                'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
+              )
+          }
+
+          trackSynchronousPlatformIOAccessInDev(
+            workUnitStore,
+            applyOwnerStack(new Error(message), workUnitStore)
+          )
+        }
       }
       break
     case 'prerender-ppr':
@@ -101,7 +126,10 @@ export function io(expression: string, type: ApiType) {
   }
 }
 
-function applyOwnerStack(error: Error, workUnitStore: PrerenderStoreModern) {
+function applyOwnerStack(
+  error: Error,
+  workUnitStore: PrerenderStoreModern | DevRequestStoreModern
+) {
   // TODO: Instead of stitching the stacks here, we should log the original
   // error as-is when it occurs, and let `patchErrorInspect` handle adding the
   // owner stack, instead of logging it deferred in the `LogSafely` component

@@ -17,6 +17,7 @@ import { prerender } from 'react-server-dom-webpack/static'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import type {
+  DevRequestStore,
   PrerenderStoreModernClient,
   PrerenderStoreModernRuntime,
   PrivateUseCacheStore,
@@ -1848,7 +1849,7 @@ function isRecentlyRevalidatedTag(tag: string, workStore: WorkStore): boolean {
 
 async function delayBeforeCacheReadStartInDev(
   stage: NonStaticRenderStage,
-  requestStore: RequestStore
+  requestStore: DevRequestStore
 ): Promise<void> {
   const { stagedRendering } = requestStore
   if (stagedRendering && stagedRendering.currentStage < stage) {
@@ -1859,7 +1860,7 @@ async function delayBeforeCacheReadStartInDev(
 /** Note: Only call this after a `cacheSignal.beginRead()`. */
 async function delayOrHangStartedCacheReadInDev(
   stage: NonStaticRenderStage,
-  requestStore: RequestStore,
+  requestStore: DevRequestStore,
   cacheSignal: CacheSignal | null,
   route: string,
   expression: string
