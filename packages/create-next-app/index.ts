@@ -109,6 +109,10 @@ const program = new Command(packageJson.name)
 `
   )
   .option('--disable-git', `Skip initializing a git repository.`)
+  .option(
+    '--mcp',
+    'Initialize with MCP (Model Context Protocol) configuration.'
+  )
   .action((name) => {
     // Commander does not implicitly support negated options. When they are used
     // by the user they will be interpreted as the positional argument (name) in
@@ -244,6 +248,7 @@ async function run(): Promise<void> {
       turbopack: true,
       disableGit: false,
       reactCompiler: false,
+      mcp: true,
     }
 
     type DisplayConfigItem = {
@@ -262,6 +267,7 @@ async function run(): Promise<void> {
       { key: 'srcDir', values: { true: 'src/ dir' } },
       { key: 'app', values: { true: 'App Router', false: 'Pages Router' } },
       { key: 'turbopack', values: { true: 'Turbopack' } },
+      { key: 'mcp', values: { true: 'MCP' } },
     ]
 
     // Helper to format settings for display based on displayConfig
@@ -616,6 +622,25 @@ async function run(): Promise<void> {
         }
       }
     }
+
+    if (!opts.mcp && !args.includes('--no-mcp')) {
+      if (skipPrompt) {
+        opts.mcp = getPrefOrDefault('mcp')
+      } else {
+        const styledMcp = blue('MCP (Model Context Protocol)')
+        const { mcp } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'mcp',
+          message: `Would you like to initialize ${styledMcp} configuration?`,
+          initial: getPrefOrDefault('mcp'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        opts.mcp = Boolean(mcp)
+        preferences.mcp = Boolean(mcp)
+      }
+    }
   }
 
   const bundler: Bundler = opts.turbopack
@@ -645,6 +670,7 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      mcp: opts.mcp,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -679,6 +705,7 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      mcp: opts.mcp,
     })
   }
   conf.set('preferences', preferences)

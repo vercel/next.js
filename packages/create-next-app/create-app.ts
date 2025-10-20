@@ -1,6 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import retry from 'async-retry'
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { cyan, green, red } from 'picocolors'
 import type { RepoInfo } from './helpers/examples'
@@ -42,6 +42,7 @@ export async function createApp({
   bundler,
   disableGit,
   reactCompiler,
+  mcp,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -60,6 +61,7 @@ export async function createApp({
   bundler: Bundler
   disableGit?: boolean
   reactCompiler: boolean
+  mcp: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -260,6 +262,23 @@ export async function createApp({
     console.log()
   } else if (tryGitInit(root)) {
     console.log('Initialized a git repository.')
+    console.log()
+  }
+
+  if (mcp) {
+    const mcpConfig = {
+      mcpServers: {
+        'next-devtools': {
+          command: 'npx',
+          args: ['-y', 'next-devtools-mcp@latest'],
+        },
+      },
+    }
+    writeFileSync(
+      join(root, '.mcp.json'),
+      JSON.stringify(mcpConfig, null, 2) + '\n'
+    )
+    console.log('Initialized MCP configuration.')
     console.log()
   }
 
