@@ -56,7 +56,9 @@ describe('app-dir - metadata-streaming', () => {
 
     const $ = await next.render$('/parallel-routes-default')
     expect($('title').length).toBe(1)
-    expect($('body title').text()).toBe('parallel-routes-default layout title')
+    // Metadata is now correctly in head, not body
+    expect($('head title').text()).toBe('parallel-routes-default layout title')
+    expect($('body title').length).toBe(0)
   })
 
   it('should change metadata when navigating between two pages under a slot when children is not rendered', async () => {

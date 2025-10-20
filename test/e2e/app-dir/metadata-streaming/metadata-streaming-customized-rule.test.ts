@@ -26,7 +26,9 @@ describe('app-dir - metadata-streaming-customized-rule', () => {
     expect(await $('body title').length).toBe(0)
   })
 
-  it('should send streaming response for headless browser bots', async () => {
+  it('should send blocking response for all user agents', async () => {
+    // With the metadata fix, all user agents now get metadata in head
+    // regardless of htmlLimitedBots configuration
     const $ = await next.render$(
       '/',
       undefined, // no query
@@ -36,8 +38,8 @@ describe('app-dir - metadata-streaming-customized-rule', () => {
         },
       }
     )
-    expect(await $('head title').length).toBe(0)
-    expect(await $('body title').length).toBe(1)
+    expect(await $('head title').text()).toBe('index page')
+    expect(await $('body title').length).toBe(0)
   })
 
   if (isNextDev) {

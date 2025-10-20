@@ -6,7 +6,7 @@ describe('app-dir - metadata-streaming', () => {
     files: __dirname,
   })
 
-  it('should render metadata in head for SEO (fixes #84750)', async () => {
+  it('should render metadata in head for SEO', async () => {
     const $ = await next.render$('/')
     expect($('head title').length).toBe(1)
     expect($('head title').text()).toBe('index page')

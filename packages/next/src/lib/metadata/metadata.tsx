@@ -1,4 +1,4 @@
-import React, { Suspense, cache, cloneElement } from 'react'
+import React, { cache, cloneElement } from 'react'
 import type { ParsedUrlQuery } from 'querystring'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
@@ -57,7 +57,6 @@ export function createMetadataComponents({
   getDynamicParamFromSegment,
   errorType,
   workStore,
-  serveStreamingMetadata,
 }: {
   tree: LoaderTree
   pathname: string
@@ -81,8 +80,12 @@ export function createMetadataComponents({
     workStore
   )
 
-  function Viewport() {
-    const pendingViewportTags = getResolvedViewport(
+  // Metadata must be part of the initial SSR HTML response for React's server-side
+  // hoisting to work. When metadata is sent via RSC Flight data, it bypasses React's
+  // hoisting logic and stays in <body>. Therefore, we always await metadata to ensure
+  // it's included in the initial HTML where React can properly hoist it to <head>.
+  async function Viewport() {
+    const viewportTags = await getResolvedViewport(
       tree,
       searchParams,
       getDynamicParamFromSegment,
@@ -107,12 +110,7 @@ export function createMetadataComponents({
       return null
     })
 
-    return (
-      <ViewportBoundary>
-        {/* @ts-expect-error -- Promise<ReactNode> not considered a valid child even though it is */}
-        {pendingViewportTags}
-      </ViewportBoundary>
-    )
+    return <ViewportBoundary>{viewportTags}</ViewportBoundary>
   }
   Viewport.displayName = 'Next.Viewport'
 
@@ -170,17 +168,7 @@ export function createMetadataComponents({
       ),
     ]).then(() => null)
 
-    // TODO: We shouldn't change what we render based on whether we are streaming or not.
-    // If we aren't streaming we should just block the response until we have resolved the
-    // metadata.
-    if (!serveStreamingMetadata) {
-      return <OutletBoundary>{pendingOutlet}</OutletBoundary>
-    }
-    return (
-      <OutletBoundary>
-        <Suspense name="Next.MetadataOutlet">{pendingOutlet}</Suspense>
-      </OutletBoundary>
-    )
+    return <OutletBoundary>{pendingOutlet}</OutletBoundary>
   }
   MetadataOutlet.displayName = 'Next.MetadataOutlet'
 
