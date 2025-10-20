@@ -26,7 +26,7 @@ This server runs within your Next.js dev server and provides direct access to yo
 [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) is a separate package that provides high-level development tools and guidance:
 
 - **Next.js Knowledge Base**: Query comprehensive Next.js documentation and best practices
-- **Migration & Upgrade Tools**: Automated helpers for upgrading to Next.js 16 with codemods
+- **Migration and Upgrade Tools**: Automated helpers for upgrading to Next.js 16 with codemods
 - **Cache Components Guide**: Setup and configuration assistance for Cache Components
 - **Browser Testing**: [Playwright MCP](https://github.com/microsoft/playwright-mcp) integration for verifying pages in the browser
 
@@ -40,7 +40,7 @@ The built-in Next.js MCP server is enabled by default in development in Next.js 
 
 ### Configuring Next DevTools MCP
 
-To use the Next Devtools MCP, add  [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) to the `.mcp.json` file at the root of your project
+To use the Next Devtools MCP, add [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) to the `.mcp.json` file at the root of your project
 
 ```json filename=".mcp.json"
 {
@@ -63,7 +63,7 @@ MCP-compatible Coding Agents can automatically discover and connect to your Next
 
 Agents can:
 
-- **Make context-aware suggestions**:  Recommend the right place to add new features based on your existing structure
+- **Make context-aware suggestions**: Recommend the right place to add new features based on your existing structure
 - **Query live application state**: Check current configuration, routes, and middleware during development
 - **Understand your app router pages layout**: Know exactly which page and layout are rendered in the page
 - **Provide accurate implementations**: Generate code that follows your project's patterns and conventions
@@ -71,6 +71,7 @@ Agents can:
 ## Development workflow
 
 1. Start your Next.js development server:
+
 ```bash filename="Terminal"
 npm run dev
 ```
@@ -79,19 +80,7 @@ npm run dev
 
 3. Load your application in the browser to load the page.
 
-4. Query your agent for insights and diagnostics:
-
-```bash filename="Terminal"
-What errors are currently in my application?
-```
-What errors are currently in my application?
-```
-
-The agent will:
-
-- Call the `get_errors` tool from the Next.js MCP server
-- Get real-time error information, logs, and build diagnostics from your running dev server
-- Provide actionable fixes based on the actual state of your compiled application
+4. Query your agent for insights and diagnostics (see examples below)
 
 ### Available Next.js MCP Tools
 
@@ -103,21 +92,9 @@ The experimental Next.js MCP server provides the following tools:
 - **get_project_metadata**: Retrieve project structure, configuration, and overall metadata
 - **get_server_action_by_id**: Look up Server Actions by their ID for debugging and inspection
 
-Examples: 
+## Examples
 
-```
-Help me upgrade my Next.js app to version 16
-```
-
-or
-
-```
-When should I use "use client" in App Router?
-```
-
-The agent will use next-devtools-mcp to guide you through automated migrations with codemods and query the Next.js documentation for best practices.
-
-## Example: Error detection and diagnosis
+### Error detection and diagnosis
 
 The agent can query your running Next.js application for real-time error information:
 
@@ -137,6 +114,26 @@ Agent response:
 ```
 
 This demonstrates the power of having both MCP servers enabled: the Next.js MCP server provides real-time diagnostics directly from your application, while next-devtools-mcp can provide guidance on best practices and migration paths.
+
+### Upgrading and best practices
+
+You can also ask for help with Next.js concepts and migrations:
+
+```
+User: "Help me upgrade my Next.js app to version 16"
+
+Agent action:
+- Uses next-devtools-mcp to analyze your current version
+- Guides you through automated migrations with codemods
+- Provides step-by-step instructions for breaking changes
+
+User: "When should I use 'use client' in App Router?"
+
+Agent action:
+- Queries the Next.js knowledge base via next-devtools-mcp
+- Provides documentation-backed explanations
+- Shows examples from your current codebase
+```
 
 ## Troubleshooting
 
