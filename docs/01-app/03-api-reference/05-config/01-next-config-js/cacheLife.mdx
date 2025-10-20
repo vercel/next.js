@@ -14,14 +14,12 @@ To define a profile, enable the [`cacheComponents` flag](/docs/app/api-reference
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    cacheComponents: true,
-    cacheLife: {
-      blog: {
-        stale: 3600, // 1 hour
-        revalidate: 900, // 15 minutes
-        expire: 86400, // 1 day
-      },
+  cacheComponents: true,
+  cacheLife: {
+    blog: {
+      stale: 3600, // 1 hour
+      revalidate: 900, // 15 minutes
+      expire: 86400, // 1 day
     },
   },
 }
@@ -31,14 +29,12 @@ export default nextConfig
 
 ```js filename="next.config.js" switcher
 module.exports = {
-  experimental: {
-    cacheComponents: true,
-    cacheLife: {
-      blog: {
-        stale: 3600, // 1 hour
-        revalidate: 900, // 15 minutes
-        expire: 86400, // 1 day
-      },
+  cacheComponents: true,
+  cacheLife: {
+    blog: {
+      stale: 3600, // 1 hour
+      revalidate: 900, // 15 minutes
+      expire: 86400, // 1 day
     },
   },
 }

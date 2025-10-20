@@ -25,6 +25,7 @@ export type RouterChangeByServerResponse = ({
 export interface Mutable {
   mpaNavigation?: boolean
   patchedTree?: FlightRouterState
+  renderedSearch?: string
   canonicalUrl?: string
   scrollableSegments?: FlightSegmentPath[]
   pendingPush?: boolean
@@ -122,7 +123,12 @@ export interface NavigateAction {
 export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
-  tree: FlightRouterState | undefined
+  historyState: AppHistoryState | undefined
+}
+
+export type AppHistoryState = {
+  tree: FlightRouterState
+  renderedSearch: string
 }
 
 /**
@@ -219,6 +225,7 @@ export type AppRouterState = {
    * - This is the url you see in the browser.
    */
   canonicalUrl: string
+  renderedSearch: string
   /**
    * The underlying "url" representing the UI state, which is used for intercepting routes.
    */

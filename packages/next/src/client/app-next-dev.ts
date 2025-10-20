@@ -15,6 +15,7 @@ appBootstrap((assetPrefix) => {
   try {
     hydrate(instrumentationHooks, assetPrefix)
   } finally {
-    renderAppDevOverlay(getOwnerStack, isRecoverableError)
+    const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
+    renderAppDevOverlay(getOwnerStack, isRecoverableError, enableCacheIndicator)
   }
 })

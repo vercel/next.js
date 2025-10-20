@@ -284,6 +284,7 @@ export function hydrate(
                 navigatedAt: initialTimestamp,
                 initialFlightData: initialRSCPayload.f,
                 initialCanonicalUrlParts: initialRSCPayload.c,
+                initialRenderedSearch: initialRSCPayload.q,
                 initialParallelRoutes: new Map(),
                 location: window.location,
               }),

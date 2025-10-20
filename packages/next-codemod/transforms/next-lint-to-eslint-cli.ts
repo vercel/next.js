@@ -136,6 +136,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
   root.find(j.CallExpression).forEach((astPath) => {
     const node = astPath.value
 
+    // Detect compat.extends() calls and identify which configs are being used
     if (
       node.callee.type === 'MemberExpression' &&
       (node.callee as any).object.type === 'Identifier' &&
@@ -154,6 +155,46 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
             // Preserve other configs (non-Next.js or other Next.js variants)
             otherConfigs.push(arg.value)
           }
+        }
+      })
+    }
+
+    // Detect compat.config({ extends: [...] }) calls and identify which configs are being used
+    if (
+      node.callee.type === 'MemberExpression' &&
+      (node.callee as any).object.type === 'Identifier' &&
+      (node.callee as any).object.name === 'compat' &&
+      (node.callee as any).property.type === 'Identifier' &&
+      (node.callee as any).property.name === 'config'
+    ) {
+      // Look for extends property in the object argument
+      node.arguments.forEach((arg: any) => {
+        if (arg.type === 'ObjectExpression') {
+          arg.properties?.forEach((prop: any) => {
+            if (
+              prop.type === 'ObjectProperty' &&
+              prop.key.type === 'Identifier' &&
+              prop.key.name === 'extends' &&
+              prop.value.type === 'ArrayExpression'
+            ) {
+              // Process the extends array
+              prop.value.elements?.forEach((element: any) => {
+                if (
+                  element.type === 'Literal' ||
+                  element.type === 'StringLiteral'
+                ) {
+                  if (element.value === 'next/core-web-vitals') {
+                    needsNextVitals = true
+                  } else if (element.value === 'next/typescript') {
+                    needsNextTs = true
+                  } else if (typeof element.value === 'string') {
+                    // Preserve other configs (non-Next.js or other Next.js variants)
+                    otherConfigs.push(element.value)
+                  }
+                }
+              })
+            }
+          })
         }
       })
     }
@@ -258,6 +299,8 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
   // Replace FlatCompat extends with spread imports
   root.find(j.SpreadElement).forEach((astPath) => {
     const node = astPath.value
+
+    // Replace spread of compat.extends(...) calls with direct imports
     if (
       node.argument.type === 'CallExpression' &&
       node.argument.callee.type === 'MemberExpression' &&
@@ -300,6 +343,101 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
           const index = parent.value.elements.indexOf(node)
           if (index !== -1) {
             parent.value.elements.splice(index, 1, ...replacements)
+          }
+        }
+      }
+    }
+
+    // Replace spread of compat.config({ extends: [...] }) calls with direct imports
+    if (
+      node.argument.type === 'CallExpression' &&
+      node.argument.callee.type === 'MemberExpression' &&
+      node.argument.callee.object.type === 'Identifier' &&
+      node.argument.callee.object.name === 'compat' &&
+      node.argument.callee.property.type === 'Identifier' &&
+      node.argument.callee.property.name === 'config'
+    ) {
+      const replacements = []
+      const preservedConfigs = []
+
+      // Process each argument to compat.config
+      node.argument.arguments.forEach((arg: any) => {
+        if (arg.type === 'ObjectExpression') {
+          const updatedProperties = []
+
+          arg.properties?.forEach((prop: any) => {
+            if (
+              prop.type === 'ObjectProperty' &&
+              prop.key.type === 'Identifier' &&
+              prop.key.name === 'extends' &&
+              prop.value.type === 'ArrayExpression'
+            ) {
+              const nonNextConfigs = []
+
+              // Process extends array
+              prop.value.elements?.forEach((element: any) => {
+                if (
+                  element.type === 'Literal' ||
+                  element.type === 'StringLiteral'
+                ) {
+                  if (element.value === 'next/core-web-vitals') {
+                    replacements.push(
+                      j.spreadElement(j.identifier('nextCoreWebVitals'))
+                    )
+                  } else if (element.value === 'next/typescript') {
+                    replacements.push(
+                      j.spreadElement(j.identifier('nextTypescript'))
+                    )
+                  } else if (typeof element.value === 'string') {
+                    // Keep non-Next.js configs
+                    nonNextConfigs.push(element)
+                  }
+                }
+              })
+
+              // If there are non-Next.js configs, preserve the extends property with them
+              if (nonNextConfigs.length > 0) {
+                updatedProperties.push(
+                  j.property(
+                    'init',
+                    j.identifier('extends'),
+                    j.arrayExpression(nonNextConfigs)
+                  )
+                )
+              }
+            } else {
+              // Preserve other properties (not extends)
+              updatedProperties.push(prop)
+            }
+          })
+
+          // If we still have properties to preserve, keep the compat.config call
+          if (updatedProperties.length > 0) {
+            preservedConfigs.push(
+              j.spreadElement(
+                j.callExpression(
+                  j.memberExpression(
+                    j.identifier('compat'),
+                    j.identifier('config')
+                  ),
+                  [j.objectExpression(updatedProperties)]
+                )
+              )
+            )
+          }
+        }
+      })
+
+      // Add all replacements
+      const allReplacements = [...replacements, ...preservedConfigs]
+
+      if (allReplacements.length > 0) {
+        // Replace the current spread element with multiple spread elements
+        const parent = astPath.parent
+        if (parent.value.type === 'ArrayExpression') {
+          const index = parent.value.elements.indexOf(node)
+          if (index !== -1) {
+            parent.value.elements.splice(index, 1, ...allReplacements)
           }
         }
       }

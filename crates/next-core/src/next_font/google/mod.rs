@@ -10,7 +10,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
-use turbo_tasks_fetch::{FetchClient, HttpResponseBody};
+use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath,
     json::parse_json_with_source_context,
@@ -183,7 +183,7 @@ pub struct NextFontGoogleCssModuleReplacer {
     project_path: FileSystemPath,
     execution_context: ResolvedVc<ExecutionContext>,
     next_mode: ResolvedVc<NextMode>,
-    fetch_client: ResolvedVc<FetchClient>,
+    fetch_client: ResolvedVc<FetchClientConfig>,
 }
 
 #[turbo_tasks::value_impl]
@@ -193,7 +193,7 @@ impl NextFontGoogleCssModuleReplacer {
         project_path: FileSystemPath,
         execution_context: ResolvedVc<ExecutionContext>,
         next_mode: ResolvedVc<NextMode>,
-        fetch_client: ResolvedVc<FetchClient>,
+        fetch_client: ResolvedVc<FetchClientConfig>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleCssModuleReplacer {
             project_path,
@@ -376,13 +376,16 @@ struct NextFontGoogleFontFileOptions {
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleFontFileReplacer {
     project_path: FileSystemPath,
-    fetch_client: ResolvedVc<FetchClient>,
+    fetch_client: ResolvedVc<FetchClientConfig>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: FileSystemPath, fetch_client: ResolvedVc<FetchClient>) -> Vc<Self> {
+    pub fn new(
+        project_path: FileSystemPath,
+        fetch_client: ResolvedVc<FetchClientConfig>,
+    ) -> Vc<Self> {
         Self::cell(NextFontGoogleFontFileReplacer {
             project_path,
             fetch_client,
@@ -670,7 +673,7 @@ fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontGoogleFontF
 }
 
 async fn fetch_real_stylesheet(
-    fetch_client: Vc<FetchClient>,
+    fetch_client: Vc<FetchClientConfig>,
     stylesheet_url: RcStr,
     css_virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<RcStr>>> {
@@ -680,7 +683,7 @@ async fn fetch_real_stylesheet(
 }
 
 async fn fetch_from_google_fonts(
-    fetch_client: Vc<FetchClient>,
+    fetch_client: Vc<FetchClientConfig>,
     url: RcStr,
     virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<HttpResponseBody>>> {

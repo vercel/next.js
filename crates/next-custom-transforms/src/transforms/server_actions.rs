@@ -120,7 +120,7 @@ enum ServerActionsErrorKind {
         span: Span,
         cache_kind: RcStr,
     },
-    UseCacheWithoutExperimentalFlag {
+    UseCacheWithoutCacheComponents {
         span: Span,
         directive: String,
     },
@@ -2753,7 +2753,7 @@ impl DirectiveVisitor<'_> {
                         });
                     } else if self.is_allowed_position {
                         if !self.config.use_cache_enabled {
-                            emit_error(ServerActionsErrorKind::UseCacheWithoutExperimentalFlag {
+                            emit_error(ServerActionsErrorKind::UseCacheWithoutCacheComponents {
                                 span: *span,
                                 directive: value.to_string(),
                             });
@@ -3195,11 +3195,11 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
                 "#
             },
         ),
-        ServerActionsErrorKind::UseCacheWithoutExperimentalFlag { span, directive } => (
+        ServerActionsErrorKind::UseCacheWithoutCacheComponents { span, directive } => (
             span,
             formatdoc! {
                 r#"
-                    To use "{directive}", please enable the feature flag `experimental.cacheComponents` in your Next.js config.
+                    To use "{directive}", please enable the feature flag `cacheComponents` in your Next.js config.
 
                     Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
                 "#

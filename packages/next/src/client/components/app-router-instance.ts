@@ -9,6 +9,7 @@ import {
   type NavigateAction,
   ACTION_HMR_REFRESH,
   PrefetchKind,
+  type AppHistoryState,
 } from './router-reducer/router-reducer-types'
 import { reducer } from './router-reducer/router-reducer'
 import { startTransition } from 'react'
@@ -27,7 +28,6 @@ import type {
   PrefetchOptions,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
-import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { ClientInstrumentationHooks } from '../app-index'
 import type { GlobalErrorComponent } from './builtin/global-error'
 
@@ -305,7 +305,7 @@ export function dispatchNavigateAction(
 
 export function dispatchTraverseAction(
   href: string,
-  tree: FlightRouterState | undefined
+  historyState: AppHistoryState | undefined
 ) {
   const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
   if (onRouterTransitionStart !== null) {
@@ -314,7 +314,7 @@ export function dispatchTraverseAction(
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
     url: new URL(href),
-    tree,
+    historyState,
   })
 }
 

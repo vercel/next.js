@@ -108,6 +108,7 @@ function handleNavigationResult(
       // Received a new result.
       mutable.cache = result.data.cacheNode
       mutable.patchedTree = result.data.flightRouterState
+      mutable.renderedSearch = result.data.renderedSearch
       mutable.canonicalUrl = result.data.canonicalUrl
       mutable.scrollableSegments = result.data.scrollableSegments
       mutable.shouldScroll = result.data.shouldScroll

@@ -10,7 +10,7 @@ import { recursiveReadDir } from '../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
 import type { Revalidate } from '../../server/lib/cache-control'
 import type { NextConfigComplete } from '../../server/config-shared'
-import type { MiddlewareMatcher } from '../analysis/get-page-static-info'
+import type { ProxyMatcher } from '../analysis/get-page-static-info'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { AdapterOutputType, type PHASE_TYPE } from '../../shared/lib/constants'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -212,7 +212,7 @@ export interface AdapterOutput {
       /**
        * matchers are the configured matchers for middleware
        */
-      matchers?: MiddlewareMatcher[]
+      matchers?: ProxyMatcher[]
 
       /**
        * bypassToken is the generated token that signals a prerender cache
@@ -246,7 +246,7 @@ export interface AdapterOutput {
       /**
        * matchers are the configured matchers for middleware
        */
-      matchers?: MiddlewareMatcher[]
+      matchers?: ProxyMatcher[]
     }
   }
 }

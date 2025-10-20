@@ -26,8 +26,8 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
     }
 
     async function readNormalizedNFT(name) {
-      let data = await next.readJSON(name)
-      let result = [
+      const data = await next.readJSON(name)
+      const result = [
         ...new Set(
           data.files
             .filter((file: string) => {
@@ -39,9 +39,14 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
               }
 
               // Filter out the many symlinks that power node_modules
-              let fileAbsolute = path.join(next.testDir, name, '..', file)
-              if (fs.lstatSync(fileAbsolute).isSymbolicLink()) {
-                return false
+              const fileAbsolute = path.join(next.testDir, name, '..', file)
+              try {
+                if (fs.lstatSync(fileAbsolute).isSymbolicLink()) {
+                  return false
+                }
+              } catch (e) {
+                // File doesn't exist - this is a bug in the NFT generation!
+                // Keep it in the list so the test can catch it
               }
               return true
             })
@@ -59,8 +64,8 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
               }
 
               // Strip double node_modules to simplify output
-              let firstNodeModules = file.indexOf('/node_modules/')
-              let lastNodeModules = file.lastIndexOf('/node_modules/')
+              const firstNodeModules = file.indexOf('/node_modules/')
+              const lastNodeModules = file.lastIndexOf('/node_modules/')
               if (firstNodeModules !== lastNodeModules) {
                 return file.slice(lastNodeModules)
               }
@@ -74,12 +79,12 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
     }
 
     it('should not trace too many files in next-server.js.nft.json', async () => {
-      let trace = await readNormalizedNFT('.next/next-server.js.nft.json')
+      const trace = await readNormalizedNFT('.next/next-server.js.nft.json')
 
       // Group the entries together so that the snapshot doesn't change too often.
       // This trace contains quite a lot of files that aren't actually needed. But there isn't much
       // that Turbopack itself can do about that.
-      let traceGrouped = [
+      const traceGrouped = [
         ...new Set(
           trace.map((file: string) => {
             if (file.startsWith('/node_modules/next/')) {
@@ -228,8 +233,33 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
       `)
     })
 
+    it('should not include .next directory in traces despite dynamic fs operations', async () => {
+      // This test verifies that the denied_path feature prevents the .next directory
+      // from being included in traces. The app/dynamic-read page uses dynamic fs.readFileSync
+      // with path.join(process.cwd(), ...) which could theoretically read any file.
+
+      // Check the page-specific trace that has the dynamic fs operations
+      const pageTrace = await readNormalizedNFT(
+        '.next/server/app/dynamic-read/page.js.nft.json'
+      )
+
+      // Snapshot the non-node_modules and non-chunks files to see what's being traced
+      // We also filter out chunks because their names change with every build
+      const nonNodeModulesFiles = pageTrace.filter(
+        (file: string) =>
+          !file.includes('/node_modules/') && !file.includes('/chunks/')
+      )
+
+      expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
+       [
+         "./page/react-loadable-manifest.json",
+         "./page_client-reference-manifest.js",
+       ]
+      `)
+    })
+
     it('should not trace too many files in next-minimal-server.js.nft.json', async () => {
-      let trace = await readNormalizedNFT(
+      const trace = await readNormalizedNFT(
         '.next/next-minimal-server.js.nft.json'
       )
       expect(trace).toMatchInlineSnapshot(`

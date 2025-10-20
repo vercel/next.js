@@ -69,6 +69,13 @@ export const getHandler = ({
       waitUntil: (prom: Promise<void>) => void
     }
   ): Promise<void> {
+    if (routeModule.isDev) {
+      addRequestMeta(
+        req,
+        'devRequestTimingInternalsEnd',
+        process.hrtime.bigint()
+      )
+    }
     let srcPage = originalSrcPage
     // turbopack doesn't normalize `/index` in the page name
     // so we need to to process dynamic routes properly

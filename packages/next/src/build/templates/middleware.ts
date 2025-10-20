@@ -24,18 +24,18 @@ if (typeof handler !== 'function') {
   )
 }
 
-// Middleware will only sent out the FetchEvent to next server,
-// so load instrumentation module here and track the error inside middleware module.
+// Proxy will only sent out the FetchEvent to next server,
+// so load instrumentation module here and track the error inside proxy module.
 function errorHandledHandler(fn: AdapterOptions['handler']) {
   return async (...args: Parameters<AdapterOptions['handler']>) => {
     try {
       return await fn(...args)
     } catch (err) {
       // In development, error the navigation API usage in runtime,
-      // since it's not allowed to be used in middleware as it's outside of react component tree.
+      // since it's not allowed to be used in proxy as it's outside of react component tree.
       if (process.env.NODE_ENV !== 'production') {
         if (isNextRouterError(err)) {
-          err.message = `Next.js navigation API is not allowed to be used in Middleware.`
+          err.message = `Next.js navigation API is not allowed to be used in ${isProxy ? 'Proxy' : 'Middleware'}.`
           throw err
         }
       }
@@ -51,8 +51,8 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
         },
         {
           routerKind: 'Pages Router',
-          routePath: '/middleware',
-          routeType: 'middleware',
+          routePath: '/proxy',
+          routeType: 'proxy',
           revalidateReason: undefined,
         }
       )

@@ -30,12 +30,12 @@ export function cacheLife(profile: 'default'): void
 /**
  * Cache this `"use cache"` for a timespan defined by the `"seconds"` profile.
  * ```
- *   stale:      0 seconds
- *   revalidate: 1 seconds
+ *   stale:      30 seconds
+ *   revalidate: 1 second
  *   expire:     1 minute
  * ```
  *
- * This cache may be stale on clients for 0 seconds before checking with the server.
+ * This cache may be stale on clients for 30 seconds before checking with the server.
  * If the server receives a new request after 1 second, start revalidating new values in the background.
  * If this entry has no traffic for 1 minute it will expire. The next request will recompute it.
  */

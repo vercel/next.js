@@ -47,13 +47,13 @@ function writeToDestination(destination, view) {
 function writeChunkAndReturn(destination, chunk) {
   if ("string" === typeof chunk) {
     if (0 !== chunk.length)
-      if (2048 < 3 * chunk.length)
+      if (4096 < 3 * chunk.length)
         0 < writtenBytes &&
           (writeToDestination(
             destination,
             currentView.subarray(0, writtenBytes)
           ),
-          (currentView = new Uint8Array(2048)),
+          (currentView = new Uint8Array(4096)),
           (writtenBytes = 0)),
           writeToDestination(destination, chunk);
       else {
@@ -67,25 +67,25 @@ function writeChunkAndReturn(destination, chunk) {
             destination,
             currentView.subarray(0, writtenBytes)
           ),
-          (currentView = new Uint8Array(2048)),
+          (currentView = new Uint8Array(4096)),
           (writtenBytes = textEncoder.encodeInto(
             chunk.slice(read),
             currentView
           ).written));
-        2048 === writtenBytes &&
+        4096 === writtenBytes &&
           (writeToDestination(destination, currentView),
-          (currentView = new Uint8Array(2048)),
+          (currentView = new Uint8Array(4096)),
           (writtenBytes = 0));
       }
   } else
     0 !== chunk.byteLength &&
-      (2048 < chunk.byteLength
+      (4096 < chunk.byteLength
         ? (0 < writtenBytes &&
             (writeToDestination(
               destination,
               currentView.subarray(0, writtenBytes)
             ),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0)),
           writeToDestination(destination, chunk))
         : ((target = currentView.length - writtenBytes),
@@ -96,13 +96,13 @@ function writeChunkAndReturn(destination, chunk) {
                 (writtenBytes += target),
                 writeToDestination(destination, currentView),
                 (chunk = chunk.subarray(target))),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0)),
           currentView.set(chunk, writtenBytes),
           (writtenBytes += chunk.byteLength),
-          2048 === writtenBytes &&
+          4096 === writtenBytes &&
             (writeToDestination(destination, currentView),
-            (currentView = new Uint8Array(2048)),
+            (currentView = new Uint8Array(4096)),
             (writtenBytes = 0))));
   return destinationHasCapacity;
 }
@@ -2095,7 +2095,7 @@ function finishHaltedTask(task, request) {
 function flushCompletedChunks(request) {
   var destination = request.destination;
   if (null !== destination) {
-    currentView = new Uint8Array(2048);
+    currentView = new Uint8Array(4096);
     writtenBytes = 0;
     destinationHasCapacity = !0;
     try {

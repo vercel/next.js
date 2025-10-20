@@ -36,16 +36,18 @@ describe('createInitialRouterState', () => {
 
     const state = createInitialRouterState({
       navigatedAt,
-      initialFlightData: [[initialTree, ['', children, {}, null]]],
+      initialFlightData: [[initialTree, [children, {}, null]]],
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
+      initialRenderedSearch: '',
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
     const state2 = createInitialRouterState({
       navigatedAt,
-      initialFlightData: [[initialTree, ['', children, {}, null]]],
+      initialFlightData: [[initialTree, [children, {}, null]]],
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
+      initialRenderedSearch: '',
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -102,6 +104,7 @@ describe('createInitialRouterState', () => {
     const expected: ReturnType<typeof createInitialRouterState> = {
       tree: initialTree,
       canonicalUrl: initialCanonicalUrl,
+      renderedSearch: '',
       pushRef: {
         pendingPush: false,
         mpaNavigation: false,

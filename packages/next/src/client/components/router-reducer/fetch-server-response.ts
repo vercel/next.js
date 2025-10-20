@@ -36,7 +36,11 @@ import {
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
-import { urlToUrlWithoutFlightMarker } from '../../route-params'
+import {
+  getRenderedSearch,
+  urlToUrlWithoutFlightMarker,
+} from '../../route-params'
+import type { NormalizedSearch } from '../segment-cache'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -63,15 +67,22 @@ export interface FetchServerResponseOptions {
   readonly isHmrRefresh?: boolean
 }
 
-export type FetchServerResponseResult = {
-  flightData: NormalizedFlightData[] | string
-  canonicalUrl: URL | undefined
+type SpaFetchServerResponseResult = {
+  flightData: NormalizedFlightData[]
+  canonicalUrl: URL
+  renderedSearch: NormalizedSearch
   couldBeIntercepted: boolean
   prerendered: boolean
   postponed: boolean
   staleTime: number
   debugInfo: Array<any> | null
 }
+
+type MpaFetchServerResponseResult = string
+
+export type FetchServerResponseResult =
+  | MpaFetchServerResponseResult
+  | SpaFetchServerResponseResult
 
 export type RequestHeaders = {
   [RSC_HEADER]?: '1'
@@ -88,17 +99,7 @@ export type RequestHeaders = {
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
-  return {
-    flightData: urlToUrlWithoutFlightMarker(
-      new URL(url, location.origin)
-    ).toString(),
-    canonicalUrl: undefined,
-    couldBeIntercepted: false,
-    prerendered: false,
-    postponed: false,
-    staleTime: -1,
-    debugInfo: null,
-  }
+  return urlToUrlWithoutFlightMarker(new URL(url, location.origin)).toString()
 }
 
 let abortController = new AbortController()
@@ -157,6 +158,10 @@ export async function fetchServerResponse(
     headers[NEXT_URL] = nextUrl
   }
 
+  // In static export mode, we need to modify the URL to request the .txt file,
+  // but we should preserve the original URL for the canonical URL and error handling.
+  const originalUrl = url
+
   try {
     // When creating a "temporary" prefetch (the "on-demand" prefetch that gets created on navigation, if one doesn't exist)
     // we send the request with a "high" priority as it's in response to a user interaction that could be blocking a transition.
@@ -197,7 +202,7 @@ export async function fetchServerResponse(
     )
 
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
-    const canonicalUrl = res.redirected ? responseUrl : undefined
+    const canonicalUrl = res.redirected ? responseUrl : originalUrl
 
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
@@ -266,9 +271,15 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
+    const normalizedFlightData = normalizeFlightData(flightResponse.f)
+    if (typeof normalizedFlightData === 'string') {
+      return doMpaNavigation(normalizedFlightData)
+    }
+
     return {
-      flightData: normalizeFlightData(flightResponse.f),
+      flightData: normalizedFlightData,
       canonicalUrl: canonicalUrl,
+      renderedSearch: getRenderedSearch(res),
       couldBeIntercepted: interception,
       prerendered: flightResponse.S,
       postponed,
@@ -278,7 +289,7 @@ export async function fetchServerResponse(
   } catch (err) {
     if (!abortController.signal.aborted) {
       console.error(
-        `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
+        `Failed to fetch RSC payload for ${originalUrl}. Falling back to browser navigation.`,
         err
       )
     }
@@ -286,15 +297,7 @@ export async function fetchServerResponse(
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
-    return {
-      flightData: url.toString(),
-      canonicalUrl: undefined,
-      couldBeIntercepted: false,
-      prerendered: false,
-      postponed: false,
-      staleTime: -1,
-      debugInfo: null,
-    }
+    return originalUrl.toString()
   }
 }
 

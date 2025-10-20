@@ -212,6 +212,7 @@ import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolv
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { imageConfigDefault } from '../../shared/lib/image-config'
 import { RenderStage, StagedRenderingController } from './staged-rendering'
+import { anySegmentHasRuntimePrefetchEnabled } from './staged-validation'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -578,7 +579,7 @@ async function generateDynamicFlightRenderResult(
 ): Promise<RenderResult> {
   const {
     clientReferenceManifest,
-    componentMod,
+    componentMod: { renderToReadableStream, createElement },
     htmlRequestId,
     renderOpts,
     requestId,
@@ -606,12 +607,22 @@ async function generateDynamicFlightRenderResult(
   const RSCPayload: RSCPayload & {
     /** Only available during cacheComponents development builds. Used for logging errors. */
     _validation?: Promise<ReactNode>
+    _bypassCachesInDev?: React.ReactNode
   } = await workUnitAsyncStorage.run(
     requestStore,
     generateDynamicRSCPayload,
     ctx,
     options
   )
+
+  if (
+    process.env.NODE_ENV === 'development' &&
+    isBypassingCachesInDev(renderOpts, requestStore)
+  ) {
+    RSCPayload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
+      route: workStore.route,
+    })
+  }
 
   const debugChannel = setReactDebugChannel && createDebugChannel()
 
@@ -623,7 +634,7 @@ async function generateDynamicFlightRenderResult(
   // which contains the subset React.
   const flightReadableStream = workUnitAsyncStorage.run(
     requestStore,
-    componentMod.renderToReadableStream,
+    renderToReadableStream,
     RSCPayload,
     clientReferenceManifest.clientModules,
     {
@@ -655,7 +666,14 @@ async function generateDynamicFlightRenderResultWithCachesInDev(
     dev = false,
     onInstrumentationRequestError,
     setReactDebugChannel,
+    setCacheStatus,
   } = renderOpts
+
+  // Before we kick off the render, we set the cache status back to it's initial state
+  // in case a previous render bypassed the cache.
+  if (process.env.NODE_ENV === 'development') {
+    setCacheStatus!('ready', htmlRequestId, requestId)
+  }
 
   function onFlightDataRenderError(err: DigestedError) {
     return onInstrumentationRequestError?.(
@@ -1042,6 +1060,28 @@ function prepareInitialCanonicalUrl(url: RequestStore['url']) {
   return (url.pathname + url.search).split('/')
 }
 
+function querystringEncode(query: NextParsedUrlQuery): string {
+  // Inlined implementation of querystring.encode, which is not available in
+  // the Edge runtime.
+  const pairs = []
+  for (const key in query) {
+    const value = query[key]
+    if (value == null) continue
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        pairs.push(
+          `${encodeURIComponent(key)}=${encodeURIComponent(String(v))}`
+        )
+      }
+    } else {
+      pairs.push(
+        `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`
+      )
+    }
+  }
+  return pairs.join('&')
+}
+
 // This is the data necessary to render <AppRouter /> when no SSR errors are encountered
 async function getRSCPayload(
   tree: LoaderTree,
@@ -1157,6 +1197,7 @@ async function getRSCPayload(
     }),
     b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
+    q: querystringEncode(query),
     i: !!couldBeIntercepted,
     f: [
       [
@@ -1245,7 +1286,6 @@ async function getErrorRSCPayload(
   // For metadata notFound error there's no global not found boundary on top
   // so we create a not found page with AppRouter
   const seedData: CacheNodeSeedData = [
-    initialTree[0],
     createElement(
       'html',
       {
@@ -1282,6 +1322,7 @@ async function getErrorRSCPayload(
   return {
     b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
+    q: querystringEncode(query),
     m: undefined,
     i: false,
     f: [
@@ -1345,6 +1386,7 @@ function App<T>({
     navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
+    initialRenderedSearch: response.q,
     initialParallelRoutes: new Map(),
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
@@ -1412,6 +1454,7 @@ function ErrorApp<T>({
     navigatedAt: -1,
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
+    initialRenderedSearch: response.q,
     initialParallelRoutes: new Map(),
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
@@ -1471,7 +1514,7 @@ async function renderToHTMLOrFlightImpl(
     serverActions,
     assetPrefix = '',
     enableTainting,
-    experimental,
+    cacheComponents,
   } = renderOpts
 
   // We need to expose the bundled `require` API globally for
@@ -1485,7 +1528,7 @@ async function renderToHTMLOrFlightImpl(
     // module loading from causing a prerender to abort too early.
 
     const shouldTrackModuleLoading = () => {
-      if (!renderOpts.experimental.cacheComponents) {
+      if (!cacheComponents) {
         return false
       }
       if (renderOpts.dev) {
@@ -1539,7 +1582,7 @@ async function renderToHTMLOrFlightImpl(
   if (
     process.env.NODE_ENV === 'development' &&
     renderOpts.setIsrStatus &&
-    !experimental.cacheComponents
+    !cacheComponents
   ) {
     // Reset the ISR status at start of request.
     const { pathname } = new URL(req.url || '/', 'http://n')
@@ -1818,7 +1861,7 @@ async function renderToHTMLOrFlightImpl(
     if (
       process.env.NODE_ENV === 'development' &&
       renderOpts.setIsrStatus &&
-      !experimental.cacheComponents &&
+      !cacheComponents &&
       // Only pages using the Node runtime can use ISR, so we only need to
       // update the status for those.
       // The type check here ensures that `req` is correctly typed, and the
@@ -1838,10 +1881,15 @@ async function renderToHTMLOrFlightImpl(
       if (isRuntimePrefetchRequest) {
         return generateRuntimePrefetchResult(req, res, ctx, requestStore)
       } else {
+        const bypassCachesInDev = isBypassingCachesInDev(
+          renderOpts,
+          requestStore
+        )
         if (
           process.env.NODE_ENV === 'development' &&
           process.env.NEXT_RUNTIME !== 'edge' &&
-          experimental.cacheComponents
+          cacheComponents &&
+          !bypassCachesInDev
         ) {
           return generateDynamicFlightRenderResultWithCachesInDev(
             req,
@@ -1850,6 +1898,11 @@ async function renderToHTMLOrFlightImpl(
             createRequestStore
           )
         } else {
+          // Set cache status to bypass when specifically bypassing caches in dev
+          if (process.env.NODE_ENV === 'development' && bypassCachesInDev) {
+            const { setCacheStatus } = renderOpts
+            setCacheStatus!('bypass', htmlRequestId, requestId)
+          }
           return generateDynamicFlightRenderResult(req, ctx, requestStore)
         }
       }
@@ -2148,14 +2201,24 @@ async function renderToStream(
   devValidatingFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<ReadableStream<Uint8Array>> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
-  const { assetPrefix, htmlRequestId, nonce, pagePath, renderOpts, requestId } =
-    ctx
+  const {
+    assetPrefix,
+    htmlRequestId,
+    nonce,
+    pagePath,
+    renderOpts,
+    requestId,
+    workStore,
+  } = ctx
 
   const {
     basePath,
     buildManifest,
     clientReferenceManifest,
-    ComponentMod,
+    ComponentMod: {
+      createElement,
+      renderToReadableStream: serverRenderToReadableStream,
+    },
     crossOrigin,
     dev = false,
     experimental,
@@ -2167,6 +2230,7 @@ async function renderToStream(
     shouldWaitOnAllReady,
     subresourceIntegrityManifest,
     supportsDynamicResponse,
+    cacheComponents,
   } = renderOpts
 
   assertClientReferenceManifest(clientReferenceManifest)
@@ -2259,17 +2323,20 @@ async function renderToStream(
 
   try {
     if (
-      // We only want this behavior when running `next dev`
-      dev &&
       // We only want this behavior when we have React's dev builds available
       process.env.NODE_ENV === 'development' &&
+      // We only want this behavior when running `next dev`
+      dev &&
       // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
       process.env.NEXT_RUNTIME !== 'edge' &&
       // We only have a Prerender environment for projects opted into cacheComponents
-      experimental.cacheComponents &&
+      cacheComponents &&
       // We only do this flow if we can safely recreate the store from scratch
       // (which is not the case for renders after an action)
-      createRequestStore
+      createRequestStore &&
+      // We only do this flow if we're not bypassing caches in dev using
+      // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
+      !isBypassingCachesInDev(renderOpts, requestStore)
     ) {
       type RSCPayloadWithValidation = InitialRSCPayload & {
         /** Only available during cacheComponents development builds. Used for logging errors. */
@@ -2342,13 +2409,24 @@ async function renderToStream(
       )
     } else {
       // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
-      const RSCPayload = await workUnitAsyncStorage.run(
+      const RSCPayload: RSCPayload & {
+        _bypassCachesInDev?: React.ReactNode
+      } = await workUnitAsyncStorage.run(
         requestStore,
         getRSCPayload,
         tree,
         ctx,
         res.statusCode === 404
       )
+
+      if (isBypassingCachesInDev(renderOpts, requestStore)) {
+        // Mark the RSC payload to indicate that caches were bypassed in dev.
+        // This lets the client know not to cache anything based on this render.
+        RSCPayload._bypassCachesInDev = createElement(
+          WarnForBypassCachesInDev,
+          { route: workStore.route }
+        )
+      }
 
       const debugChannel = setReactDebugChannel && createDebugChannel()
 
@@ -2368,7 +2446,7 @@ async function renderToStream(
       reactServerResult = new ReactServerResult(
         workUnitAsyncStorage.run(
           requestStore,
-          ComponentMod.renderToReadableStream,
+          serverRenderToReadableStream,
           RSCPayload,
           clientReferenceManifest.clientModules,
           {
@@ -2597,7 +2675,7 @@ async function renderToStream(
 
     const errorServerStream = workUnitAsyncStorage.run(
       requestStore,
-      ComponentMod.renderToReadableStream,
+      serverRenderToReadableStream,
       errorRSCPayload,
       clientReferenceManifest.clientModules,
       {
@@ -2702,10 +2780,26 @@ async function renderWithRestartOnCacheMissInDev(
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void
 ) {
-  const { renderOpts } = ctx
-  const { clientReferenceManifest, ComponentMod, setReactDebugChannel } =
-    renderOpts
+  const {
+    htmlRequestId,
+    renderOpts,
+    requestId,
+    componentMod: {
+      routeModule: {
+        userland: { loaderTree },
+      },
+    },
+  } = ctx
+  const {
+    clientReferenceManifest,
+    ComponentMod,
+    setCacheStatus,
+    setReactDebugChannel,
+  } = renderOpts
   assertClientReferenceManifest(clientReferenceManifest)
+
+  const hasRuntimePrefetch =
+    await anySegmentHasRuntimePrefetchEnabled(loaderTree)
 
   // If the render is restarted, we'll recreate a fresh request store
   let requestStore: RequestStore = initialRequestStore
@@ -2716,8 +2810,7 @@ async function renderWithRestartOnCacheMissInDev(
       case RenderStage.Static:
         return 'Prerender'
       case RenderStage.Runtime:
-        // TODO: only label as "Prefetch" if the page has a `prefetch` config.
-        return 'Prefetch'
+        return hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
       case RenderStage.Dynamic:
         return 'Server'
       default:
@@ -2755,6 +2848,12 @@ async function renderWithRestartOnCacheMissInDev(
   // so not having a resume data cache won't break any expectations in case we don't need to restart.
   requestStore.renderResumeDataCache = null
   requestStore.stagedRendering = initialStageController
+  requestStore.asyncApiPromises = createAsyncApiPromisesInDev(
+    initialStageController,
+    requestStore.cookies,
+    requestStore.mutableCookies,
+    requestStore.headers
+  )
   requestStore.cacheSignal = cacheSignal
 
   let debugChannel = setReactDebugChannel && createDebugChannel()
@@ -2826,6 +2925,10 @@ async function renderWithRestartOnCacheMissInDev(
     }
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    setCacheStatus!('filling', htmlRequestId, requestId)
+  }
+
   // Cache miss. We will use the initial render to fill caches, and discard its result.
   // Then, we can render again with warm caches.
 
@@ -2855,6 +2958,12 @@ async function renderWithRestartOnCacheMissInDev(
   )
   requestStore.stagedRendering = finalStageController
   requestStore.cacheSignal = null
+  requestStore.asyncApiPromises = createAsyncApiPromisesInDev(
+    finalStageController,
+    requestStore.cookies,
+    requestStore.mutableCookies,
+    requestStore.headers
+  )
 
   // The initial render already wrote to its debug channel.
   // We're not using it, so we need to create a new one.
@@ -2889,10 +2998,58 @@ async function renderWithRestartOnCacheMissInDev(
     )
   )
 
+  if (process.env.NODE_ENV === 'development') {
+    // TODO: Don't know if this is the right time.
+    // It's not wired up on the frontend though.
+    setCacheStatus!('filled', htmlRequestId, requestId)
+  }
+
   return {
     stream: finalServerStream,
     debugChannel,
     requestStore,
+  }
+}
+
+function createAsyncApiPromisesInDev(
+  stagedRendering: StagedRenderingController,
+  cookies: RequestStore['cookies'],
+  mutableCookies: RequestStore['mutableCookies'],
+  headers: RequestStore['headers']
+): NonNullable<RequestStore['asyncApiPromises']> {
+  return {
+    // Runtime APIs
+    cookies: stagedRendering.delayUntilStage(
+      RenderStage.Runtime,
+      'cookies',
+      cookies
+    ),
+    mutableCookies: stagedRendering.delayUntilStage(
+      RenderStage.Runtime,
+      'cookies',
+      mutableCookies as RequestStore['cookies']
+    ),
+    headers: stagedRendering.delayUntilStage(
+      RenderStage.Runtime,
+      'headers',
+      headers
+    ),
+    // These are not used directly, but we chain other `params`/`searchParams` promises off of them.
+    sharedParamsParent: stagedRendering.delayUntilStage(
+      RenderStage.Runtime,
+      'params',
+      '<internal params>'
+    ),
+    sharedSearchParamsParent: stagedRendering.delayUntilStage(
+      RenderStage.Runtime,
+      'searchParams',
+      '<internal searchParams>'
+    ),
+    connection: stagedRendering.delayUntilStage(
+      RenderStage.Dynamic,
+      'connection',
+      undefined
+    ),
   }
 }
 
@@ -3619,6 +3776,7 @@ async function prerenderToStream(
     page,
     reactMaxHeadersLength,
     subresourceIntegrityManifest,
+    cacheComponents,
   } = renderOpts
 
   assertClientReferenceManifest(clientReferenceManifest)
@@ -3724,7 +3882,7 @@ async function prerenderToStream(
   let prerenderStore: PrerenderStore | null = null
 
   try {
-    if (experimental.cacheComponents) {
+    if (cacheComponents) {
       /**
        * cacheComponents with PPR
        *
@@ -4318,13 +4476,13 @@ async function prerenderToStream(
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
             resumeDataCache,
-            experimental.cacheComponents
+            cacheComponents
           )
         } else {
           // Dynamic Data case
           metadata.postponed = await getDynamicDataPostponedState(
             resumeDataCache,
-            experimental.cacheComponents
+            cacheComponents
           )
         }
         reactServerResult.consume()
@@ -4550,13 +4708,13 @@ async function prerenderToStream(
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
             prerenderResumeDataCache,
-            experimental.cacheComponents
+            cacheComponents
           )
         } else {
           // Dynamic Data case.
           metadata.postponed = await getDynamicDataPostponedState(
             prerenderResumeDataCache,
-            experimental.cacheComponents
+            cacheComponents
           )
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
@@ -4582,7 +4740,7 @@ async function prerenderToStream(
         // Rendering the fallback case.
         metadata.postponed = await getDynamicDataPostponedState(
           prerenderResumeDataCache,
-          experimental.cacheComponents
+          cacheComponents
         )
 
         return {
@@ -5088,10 +5246,28 @@ async function collectSegmentData(
   const selectStaleTime = createSelectStaleTime(renderOpts.experimental)
   const staleTime = selectStaleTime(prerenderStore.stale)
   return await ComponentMod.collectSegmentData(
-    renderOpts.experimental.cacheComponents,
+    renderOpts.cacheComponents,
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,
     serverConsumerManifest
   )
+}
+
+function isBypassingCachesInDev(
+  renderOpts: RenderOpts,
+  requestStore: RequestStore
+): boolean {
+  return (
+    process.env.NODE_ENV === 'development' &&
+    !!renderOpts.dev &&
+    requestStore.headers.get('cache-control') === 'no-cache'
+  )
+}
+
+function WarnForBypassCachesInDev({ route }: { route: string }) {
+  console.warn(
+    `Route ${route} is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev`
+  )
+  return null
 }

@@ -370,6 +370,9 @@ pub fn project_new(
     }
     let mut compress = Compression::None;
     if let Some(mut trace) = trace {
+        println!("Turbopack tracing enabled with targets: {trace}");
+        println!("  Note that this might have a small performance impact.");
+
         trace = trace
             .split(",")
             .filter_map(|item| {
@@ -574,7 +577,7 @@ async fn benchmark_file_io(turbo_tasks: NextTurboTasks, directory: FileSystemPat
         ))?
         .await?;
 
-    let directory = fs.to_sys_path(directory)?;
+    let directory = fs.to_sys_path(&directory);
     let temp_path = directory.join(format!(
         "tmp_file_io_benchmark_{:x}",
         rand::random::<u128>()
