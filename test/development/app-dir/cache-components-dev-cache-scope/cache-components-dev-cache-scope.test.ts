@@ -75,16 +75,12 @@ describe('Cache Components Dev Errors', () => {
     await openRedbox(browser)
     desc = await getRedboxDescription(browser)
 
-    expect(desc).toContain(
-      'Route "/uncached": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it'
-    )
+    expect(desc).toContain('https://nextjs.org/docs/messages/blocking-route')
 
     await browser.refresh()
     await openRedbox(browser)
     desc = await getRedboxDescription(browser)
 
-    expect(desc).toContain(
-      'Route "/uncached": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it'
-    )
+    expect(desc).toContain('https://nextjs.org/docs/messages/blocking-route')
   })
 })
