@@ -1,3 +1,28 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
+
+/* Navigation overlay background matches site theme */
+[data-overlay],
+[data-fd-dialog-overlay],
+.fd-dialog-overlay,
+[role='dialog'] ~ [data-radix-dialog-overlay],
+[data-state='open'][data-radix-dialog-overlay],
+[data-radix-dialog-overlay],
+[data-vaul-drawer-wrapper] [data-vaul-overlay],
+[data-vaul-overlay],
+.vaul-overlay {
+  background-color: hsla(0, 0%, 7.04%, 0.8) !important;
+}
+
+.dark [data-overlay],
+.dark [data-fd-dialog-overlay],
+.dark .fd-dialog-overlay,
+.dark [role='dialog'] ~ [data-radix-dialog-overlay],
+.dark [data-state='open'][data-radix-dialog-overlay],
+.dark [data-radix-dialog-overlay],
+.dark [data-vaul-drawer-wrapper] [data-vaul-overlay],
+.dark [data-vaul-overlay],
+.dark .vaul-overlay {
+  background-color: hsla(0, 0%, 7.04%, 0.95) !important;
+}
