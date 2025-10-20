@@ -2679,6 +2679,7 @@
       findSourceMapURL,
       replayConsole,
       environmentName,
+      debugStartTime,
       debugChannel
     ) {
       var chunks = new Map();
@@ -2710,7 +2711,8 @@
         (this._debugRootTask = console.createTask(
           '"use ' + environmentName.toLowerCase() + '"'
         ));
-      this._debugStartTime = performance.now();
+      this._debugStartTime =
+        null == debugStartTime ? performance.now() : debugStartTime;
       this._debugIOStarted = !1;
       setTimeout(markIOStarted.bind(this), 0);
       this._debugFindSourceMapURL = findSourceMapURL;
@@ -4568,6 +4570,7 @@
         options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
         options ? !1 !== options.replayConsoleLogs : !0,
         options && options.environmentName ? options.environmentName : void 0,
+        options && null != options.startTime ? options.startTime : void 0,
         debugChannel
       )._weakResponse;
     }
@@ -4922,10 +4925,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-58bdc0bb-20251019",
+      version: "19.3.0-canary-f6a48828-20251019",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-58bdc0bb-20251019",
+      reconcilerVersion: "19.3.0-canary-f6a48828-20251019",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
