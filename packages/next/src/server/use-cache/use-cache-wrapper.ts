@@ -1508,43 +1508,65 @@ export function cache(
             // If this is stale, and we're not in a prerender (i.e. this is
             // dynamic render), then we should warm up the cache with a fresh
             // revalidated entry.
-            const result = await generateCacheEntry(
-              workStore,
-              // This is not running within the context of this unit.
-              { kind: cacheContext.kind, outerWorkUnitStore: undefined },
-              clientReferenceManifest,
-              encodedCacheKeyParts,
-              fn,
-              sharedErrorStack
-            )
+            const revalidateAndWriteNewEntry = async () => {
+              const result = await generateCacheEntry(
+                workStore,
+                // This is not running within the context of this unit.
+                { kind: cacheContext.kind, outerWorkUnitStore: undefined },
+                clientReferenceManifest,
+                encodedCacheKeyParts,
+                fn,
+                sharedErrorStack
+              )
 
-            if (result.type === 'cached') {
-              const { stream: ignoredStream, pendingCacheEntry } = result
-              let savedCacheEntry: Promise<CacheEntry>
+              if (result.type === 'cached') {
+                const { stream: ignoredStream, pendingCacheEntry } = result
+                let savedCacheEntry: Promise<CacheEntry>
 
-              if (prerenderResumeDataCache) {
-                const split = clonePendingCacheEntry(pendingCacheEntry)
-                savedCacheEntry = getNthCacheEntry(split, 0)
-                prerenderResumeDataCache.cache.set(
-                  serializedCacheKey,
-                  getNthCacheEntry(split, 1)
-                )
-              } else {
-                savedCacheEntry = pendingCacheEntry
+                // TODO: do we ever want to mutate the `prerenderResumeDataCache` while a render is ongoing?
+                if (
+                  prerenderResumeDataCache &&
+                  // This is not covered by a cache read, so in a dev staged render
+                  // we don't want to overwrite the existing cache entry
+                  // both to avoid timing issues (with cache entries ehtat aren't finished yet) and tearing.
+                  !(
+                    process.env.NODE_ENV === 'development' &&
+                    workUnitStore &&
+                    // eslint-disable-next-line no-restricted-syntax
+                    workUnitStore.type === 'request' &&
+                    workUnitStore.stagedRendering
+                  )
+                ) {
+                  const split = clonePendingCacheEntry(pendingCacheEntry)
+                  savedCacheEntry = getNthCacheEntry(split, 0)
+                  prerenderResumeDataCache.cache.set(
+                    serializedCacheKey,
+                    getNthCacheEntry(split, 1)
+                  )
+                } else {
+                  savedCacheEntry = pendingCacheEntry
+                }
+
+                let pendingWrite: Promise<void> | undefined
+                if (cacheHandler) {
+                  pendingWrite = cacheHandler.set(
+                    serializedCacheKey,
+                    savedCacheEntry
+                  )
+                }
+
+                await ignoredStream.cancel()
+                return pendingWrite
               }
-
-              if (cacheHandler) {
-                const promise = cacheHandler.set(
-                  serializedCacheKey,
-                  savedCacheEntry
-                )
-
-                workStore.pendingRevalidateWrites ??= []
-                workStore.pendingRevalidateWrites.push(promise)
-              }
-
-              await ignoredStream.cancel()
             }
+
+            // TODO: ideally, this'd be scheduled to run after the render is finished
+            // to avoid interfering with any critical work.
+            const pendingRevalidatePromise = new Promise((resolve) =>
+              setTimeout(resolve)
+            ).then(() => revalidateAndWriteNewEntry())
+            workStore.pendingRevalidateWrites ??= []
+            workStore.pendingRevalidateWrites.push(pendingRevalidatePromise)
           }
         }
       }
