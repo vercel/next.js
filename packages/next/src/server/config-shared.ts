@@ -802,7 +802,7 @@ export interface ExperimentalConfig {
    * When enabled, Next.js will expose an MCP server at `/_next/mcp` that provides
    * code intelligence and project context to AI assistants.
    *
-   * @default false
+   * @default true
    */
   mcpServer?: boolean
 
@@ -1541,6 +1541,7 @@ export const defaultConfig = Object.freeze({
     isolatedDevBuild: true,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
+    mcpServer: true,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

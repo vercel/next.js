@@ -1,5 +1,1 @@
-module.exports = {
-  experimental: {
-    mcpServer: true,
-  },
-}
+module.exports = {}

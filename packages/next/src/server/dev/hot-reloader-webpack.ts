@@ -110,6 +110,7 @@ import {
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { getFileLogger } from './browser-logs/file-logger'
+import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -252,6 +253,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
+  private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -441,12 +443,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.webpackHotMiddleware.onHMR(client, requestId)
       this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
 
+      const enableCacheComponents = this.config.cacheComponents
       // Clients with a request ID are inferred App Router clients. If Cache
       // Components is not enabled, we consider those legacy clients. Pages
       // Router clients are also considered legacy clients. TODO: Maybe mark
       // clients as App Router / Pages Router clients explicitly, instead of
       // inferring it from the presence of a request ID.
-      const isLegacyClient = !requestId || !this.config.cacheComponents
+      const isLegacyClient = !requestId || !enableCacheComponents
 
       callback(client, { isLegacyClient })
 
@@ -629,6 +632,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           requestId,
           this.sendToClient.bind(this, client)
         )
+        if (enableCacheComponents) {
+          const status = this.cacheStatusesByRequestId.get(requestId)
+          if (status) {
+            this.sendToClient(client, {
+              type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
+              state: status,
+            })
+            this.cacheStatusesByRequestId.delete(requestId)
+          }
+        }
       }
 
       client.on('close', () => {
@@ -1718,6 +1731,24 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
   public sendToLegacyClients(message: HmrMessageSentToBrowser): void {
     this.webpackHotMiddleware!.publishToLegacyClients(message)
+  }
+
+  public setCacheStatus(
+    status: ServerCacheStatus,
+    htmlRequestId: string,
+    requestId: string
+  ): void {
+    const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
+    if (client !== undefined) {
+      this.sendToClient(client, {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
+        state: status,
+      })
+    } else {
+      // If the client is not connected, store the status so that we can send it
+      // when the client connects.
+      this.cacheStatusesByRequestId.set(requestId, status)
+    }
   }
 
   public setReactDebugChannel(

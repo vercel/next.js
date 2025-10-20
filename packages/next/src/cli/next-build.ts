@@ -11,6 +11,10 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 import { parseBundlerArgs } from '../lib/bundler'
+import {
+  resolveBuildPaths,
+  parseBuildPathsInput,
+} from '../lib/resolve-build-paths'
 
 export type NextBuildOptions = {
   debug?: boolean
@@ -26,9 +30,10 @@ export type NextBuildOptions = {
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env'
   experimentalUploadTrace?: string
   experimentalNextConfigStripTypes?: boolean
+  debugBuildPaths?: string
 }
 
-const nextBuild = (options: NextBuildOptions, directory?: string) => {
+const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   process.on('SIGTERM', () => process.exit(143))
   process.on('SIGINT', () => process.exit(130))
 
@@ -41,6 +46,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     experimentalAppOnly,
     experimentalBuildMode,
     experimentalUploadTrace,
+    debugBuildPaths,
   } = options
 
   let traceUploadUrl: string | undefined
@@ -81,6 +87,27 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
 
   const bundler = parseBundlerArgs(options)
 
+  // Resolve selective build paths
+  let resolvedAppPaths: string[] | undefined
+  let resolvedPagePaths: string[] | undefined
+
+  if (debugBuildPaths) {
+    try {
+      const patterns = parseBuildPathsInput(debugBuildPaths)
+
+      if (patterns.length > 0) {
+        const resolved = await resolveBuildPaths(patterns, dir)
+        // Pass empty arrays to indicate "build nothing" vs undefined for "build everything"
+        resolvedAppPaths = resolved.appPaths
+        resolvedPagePaths = resolved.pagePaths
+      }
+    } catch (err) {
+      printAndExit(
+        `Failed to resolve build paths: ${isError(err) ? err.message : String(err)}`
+      )
+    }
+  }
+
   return build(
     dir,
     profile,
@@ -90,7 +117,9 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     experimentalAppOnly,
     bundler,
     experimentalBuildMode,
-    traceUploadUrl
+    traceUploadUrl,
+    resolvedAppPaths,
+    resolvedPagePaths
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {
