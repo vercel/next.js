@@ -64,7 +64,7 @@ const linterConfigWithMultipleDirectories = {
     ],
   },
 }
-const linterConfigWithNestedContentRootDirDirectory = {
+const linterConfigWithCustomPageExtensions: any = {\n  ...linterConfig,\n  settings: {\n    ...(linterConfig.settings ?? {}),\n    next: {\n      ...((linterConfig.settings && linterConfig.settings.next) ?? {}),\n      pageExtensions: ['page.tsx'],\n    },\n  },\n}\n\nconst linterConfigWithNestedContentRootDirDirectory = {
   ...linterConfig,
   settings: {
     next: {
@@ -389,6 +389,40 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       thirdReport.message,
       'Do not use an `<a>` element to navigate to `/list/lorem-ipsum/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid static route with custom page extensions', function () {
+    const [report] = linters.withCustomPageExtensions.verify(
+      invalidStaticCode,
+      linterConfigWithCustomPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid dynamic route with custom page extensions', function () {
+    const [report] = linters.withCustomPageExtensions.verify(
+      invalidDynamicCode,
+      linterConfigWithCustomPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/list/foo/bar/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+    const [secondReport] = linters.withCustomPageExtensions.verify(
+      secondInvalidDynamicCode,
+      linterConfigWithCustomPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(secondReport, undefined, 'No lint errors found.')
+    assert.equal(
+      secondReport.message,
+      'Do not use an `<a>` element to navigate to `/list/foo/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
   it('valid link element with appDir', function () {
