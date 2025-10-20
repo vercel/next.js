@@ -88,6 +88,7 @@ import {
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile } from '../../../build/lockfile'
+import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -1224,6 +1225,9 @@ async function startWatcher(
     err: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
+    if (err instanceof Error) {
+      err.message = deobfuscateText(err.message)
+    }
     if (err instanceof ModuleBuildError) {
       // Errors that may come from issues from the user's code
       Log.error(err.message)
