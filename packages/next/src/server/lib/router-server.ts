@@ -172,11 +172,6 @@ export async function initialize(opts: {
         return requestHandlers[opts.dir](req, res)
       }
     )
-
-    // Register bundler service close with cleanup listeners
-    opts.onDevServerCleanup?.(async () => {
-      devBundlerService?.close()
-    })
   }
 
   renderServer.instance =
