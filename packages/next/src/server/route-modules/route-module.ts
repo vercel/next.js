@@ -381,12 +381,15 @@ export abstract class RouteModule<
     nextConfig: NextConfigComplete
   ) {
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      const { cacheHandlers } = nextConfig.experimental
+      const {
+        cacheMaxMemorySize,
+        experimental: { cacheHandlers },
+      } = nextConfig
       if (!cacheHandlers) return
 
       // If we've already initialized the cache handlers interface, don't do it
       // again.
-      if (!initializeCacheHandlers()) return
+      if (!initializeCacheHandlers(cacheMaxMemorySize)) return
 
       for (const [kind, handler] of Object.entries(cacheHandlers)) {
         if (!handler) continue

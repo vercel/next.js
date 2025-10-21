@@ -27,7 +27,7 @@ export interface ExportPagesInput {
   pagesDataDir: string
   renderOpts: WorkerRenderOptsPartial
   nextConfig: NextConfigComplete
-  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize'] | undefined
+  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize']
   fetchCache: boolean | undefined
   cacheHandler: string | undefined
   fetchCacheKeyPrefix: string | undefined

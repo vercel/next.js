@@ -29,12 +29,12 @@ import { CloseController } from '../../server/web/web-on-close'
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
 
-// Initialize the cache handlers interface.
-initializeCacheHandlers()
-
 // injected by the loader afterwards.
 declare const nextConfig: NextConfigComplete
 // INJECT:nextConfig
+
+// Initialize the cache handlers interface.
+initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
