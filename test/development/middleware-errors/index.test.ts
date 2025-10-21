@@ -297,7 +297,7 @@ describe('middleware - development errors', () => {
         isTurbopack
           ? '\n ⨯ Error: booooom!' +
               // TODO(veil): Should be sourcemapped
-              '\n    at __TURBOPACK__module__evaluation__ (middleware.js:3:13)'
+              '\n    at module evaluation (middleware.js:3:13)'
           : '\n ⨯ Error: booooom!' +
               // TODO: Should be anonymous method without a method name
               '\n    at <unknown> (middleware.js:3)' +
@@ -317,11 +317,11 @@ describe('middleware - development errors', () => {
            "description": "booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "middleware.js (3:13) @ {module evaluation}
+           "source": "middleware.js (3:13) @ module evaluation
          > 3 |       throw new Error('booooom!')
              |             ^",
            "stack": [
-             "{module evaluation} middleware.js (3:13)",
+             "module evaluation middleware.js (3:13)",
            ],
          }
         `)

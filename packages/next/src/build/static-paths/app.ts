@@ -24,6 +24,7 @@ import type { WorkStore } from '../../server/app-render/work-async-storage.exter
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
+import { throwEmptyGenerateStaticParamsError } from '../../shared/lib/errors/empty-generate-static-params-error'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -635,7 +636,8 @@ export async function generateRouteStaticParams(
   segments: ReadonlyArray<
     Readonly<Pick<AppSegment, 'config' | 'generateStaticParams'>>
   >,
-  store: Pick<WorkStore, 'fetchCache'>
+  store: Pick<WorkStore, 'fetchCache'>,
+  isRoutePPREnabled: boolean
 ): Promise<Params[]> {
   // Early return if no segments to process
   if (segments.length === 0) return []
@@ -686,6 +688,8 @@ export async function generateRouteStaticParams(
           for (const item of result) {
             nextParams.push({ ...parentParams, ...item })
           }
+        } else if (isRoutePPREnabled) {
+          throwEmptyGenerateStaticParamsError()
         } else {
           // No results, just pass through parent params
           nextParams.push(parentParams)
@@ -694,6 +698,10 @@ export async function generateRouteStaticParams(
     } else {
       // No parent params, call generateStaticParams with empty object
       const result = await current.generateStaticParams({ params: {} })
+      if (result.length === 0 && isRoutePPREnabled) {
+        throwEmptyGenerateStaticParamsError()
+      }
+
       nextParams.push(...result)
     }
 
@@ -852,8 +860,12 @@ export async function buildAppStaticPaths({
     previouslyRevalidatedTags: [],
   })
 
-  const routeParams = await ComponentMod.workAsyncStorage.run(store, () =>
-    generateRouteStaticParams(segments, store)
+  const routeParams = await ComponentMod.workAsyncStorage.run(
+    store,
+    generateRouteStaticParams,
+    segments,
+    store,
+    isRoutePPREnabled
   )
 
   await afterRunner.executeAfter()

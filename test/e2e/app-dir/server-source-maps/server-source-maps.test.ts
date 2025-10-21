@@ -444,10 +444,10 @@ describe('app-dir - server source maps', () => {
           '' +
             '\nError: module-evaluation' +
             // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
-            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/module.js:1:22)' +
+            '\n    at module evaluation (app/module-evaluation/module.js:1:22)' +
             // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
-            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/page.js:1:1)' +
-            '\n    at __TURBOPACK__module__evaluation__ (.next'
+            '\n    at module evaluation (app/module-evaluation/page.js:1:1)' +
+            '\n    at module evaluation (.next'
         )
       } else {
         expect(cliOutput).toContain(
@@ -473,13 +473,13 @@ describe('app-dir - server source maps', () => {
            "description": "module-evaluation",
            "environmentLabel": "Prerender",
            "label": "Console Error",
-           "source": "app/module-evaluation/module.js (1:22) @ {module evaluation}
+           "source": "app/module-evaluation/module.js (1:22) @ module evaluation
          > 1 | export const error = new Error('module-evaluation')
              |                      ^",
            "stack": [
-             "{module evaluation} app/module-evaluation/module.js (1:22)",
-             "{module evaluation} app/module-evaluation/page.js (1:1)",
-             "{module evaluation} app/module-evaluation/page.js (6:1)",
+             "module evaluation app/module-evaluation/module.js (1:22)",
+             "module evaluation app/module-evaluation/page.js (1:1)",
+             "module evaluation app/module-evaluation/page.js (6:1)",
              "Page <anonymous>",
            ],
          }
@@ -531,7 +531,7 @@ describe('app-dir - server source maps', () => {
           '' +
             '\nError: module-evaluation' +
             // TODO(veil): Turbopack internals. Feel free to update. Tracked in https://linear.app/vercel/issue/NEXT-4362
-            '\n    at __TURBOPACK__module__evaluation__ (bundler:///app/module-evaluation/module.js:1:22)'
+            '\n    at module evaluation (bundler:///app/module-evaluation/module.js:1:22)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
