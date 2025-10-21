@@ -768,8 +768,7 @@ export async function getPagesPageStaticInfo({
 
   let resolvedRuntime = config.runtime ?? config.config?.runtime
 
-  // Turbopack will handle error during compilation with better code frame.
-  if (!process.env.TURBOPACK && isProxyFile(page) && resolvedRuntime) {
+  if (isProxyFile(page) && resolvedRuntime) {
     const relativePath = relative(process.cwd(), pageFilePath)
     const resolvedPath = relativePath.startsWith('.')
       ? relativePath
