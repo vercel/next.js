@@ -456,15 +456,17 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   requestStore: RequestStore
 ): Promise<Params> {
   if (requestStore.asyncApiPromises && hasFallbackParams) {
-    // Deliberately don't wrap each instance of params in a `new Promise()`.
-    // We want React Devtools to consider all the separate `params` promises
-    // that we create for each segment to be triggered by one IO operation --
-    // the resolving of the underlying `sharedParamsParent` promise.
-    // It's created above any userspace code and has a `displayName`,
-    // so it should show up in "suspended by".
-    const promise = requestStore.asyncApiPromises.sharedParamsParent.then(
-      () => underlyingParams
-    )
+    // We wrap each instance of params in a `new Promise()`, because deduping
+    // them across requests doesn't work anyway and this let us show each
+    // await a different set of values. This is important when all awaits
+    // are in third party which would otherwise track all the way to the
+    // internal params.
+    const sharedParamsParent = requestStore.asyncApiPromises.sharedParamsParent
+    const promise: Promise<Params> = new Promise((resolve, reject) => {
+      sharedParamsParent.then(() => resolve(underlyingParams), reject)
+    })
+    // @ts-expect-error
+    promise.displayName = 'params'
     return instrumentParamsPromiseWithDevWarnings(
       underlyingParams,
       promise,
