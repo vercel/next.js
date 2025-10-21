@@ -750,7 +750,7 @@ export async function getPagesPageStaticInfo({
   const config = parsePagesSegmentConfig(exportedConfig, route)
   const isAnAPIRoute = isAPIRoute(route)
 
-  const resolvedRuntime = config.runtime ?? config.config?.runtime
+  let resolvedRuntime = config.runtime ?? config.config?.runtime
 
   if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
     warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
@@ -760,6 +760,7 @@ export async function getPagesPageStaticInfo({
     (page === `/${PROXY_FILENAME}` || page === `/src/${PROXY_FILENAME}`) &&
     isEdgeRuntime(resolvedRuntime)
   ) {
+    resolvedRuntime = SERVER_RUNTIME.nodejs
     const message = `Proxy does not support Edge runtime.`
     if (isDev) {
       Log.error(message)
