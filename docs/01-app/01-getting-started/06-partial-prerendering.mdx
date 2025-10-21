@@ -1,15 +1,33 @@
 ---
-title: Partial Prerendering
-description: Learn how to use Partial Prerendering and combine the benefits of static and dynamic rendering.
-version: experimental
+title: Cache Components
+description: Learn how to use Cache Components and combine the benefits of static and dynamic rendering.
+version: beta
 related:
   title: Next Steps
-  description: Learn more about the config option for Partial Prerendering.
+  description: Learn more about the config option for Cache Components.
   links:
-    - app/api-reference/config/next-config-js/ppr
+    - app/api-reference/config/next-config-js/cacheComponents
+    - app/api-reference/directives/use-cache
+    - app/api-reference/functions/cacheLife
+    - app/api-reference/functions/cacheTag
 ---
 
-Partial Prerendering (PPR) is a rendering strategy that allows you to combine static and dynamic content in the same route. This improves the initial page performance while still supporting personalized, dynamic data.
+Cache Components is a new approach to rendering and caching in Next.js that provides fine-grained control over what gets cached and when, while ensuring a great user experience through Partial Prerendering (PPR).
+
+## Static or Dynamic
+
+When building dynamic applications, you face a tradeoff:
+
+- **Fully static pages** load fast but can't show personalized or real-time data
+- **Fully dynamic pages** can show fresh data but require rendering everything on each request, leading to slower initial loads
+
+With Cache Components enabled, Next.js treats all routes as **dynamic by default**. Every request renders with the latest available data. However, this means static content is re-rendered on every request, and dynamic code must resolve before sending UI to the client—both of which can result in a poor user experience.
+
+> **Before Cache Components**, Next.js tried to statically optimize entire pages automatically, which could lead to unexpected behavior when adding dynamic code.
+
+## Cache Components
+
+Cache Components work together with **Partial Prerendering (PPR)** to give you the best of both worlds:
 
 <Image
   alt="Partially Prerendered Product Page showing static nav and product information, and dynamic cart and recommended products"
@@ -21,21 +39,22 @@ Partial Prerendering (PPR) is a rendering strategy that allows you to combine st
 
 When a user visits a route:
 
-- The server sends a **shell** containing the static content, ensuring a fast initial load.
-- The shell leaves **holes** for the dynamic content that will load in asynchronously.
-- The dynamic holes are **streamed in parallel**, reducing the overall load time of the page.
+- The server sends a **static shell** containing cached content, ensuring a fast initial load
+- The shell leaves **holes** for dynamic content that will load asynchronously
+- Dynamic content is **streamed in parallel**, reducing overall load time
+- You control what's cached using `"use cache"` and what's dynamic using `Suspense` boundaries
 
 > **🎥 Watch:** Why PPR and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
 
-## How does Partial Prerendering work?
+## Understanding the Rendering Model
 
-To understand Partial Prerendering, it helps to be familiar with the rendering strategies available in Next.js.
+To use Cache Components effectively, it helps to understand the rendering strategies available in Next.js.
 
 ### Static Rendering
 
 With Static Rendering, HTML is generated ahead of time—either at build time or through [revalidation](/docs/app/guides/incremental-static-regeneration). The result is cached and shared across users and requests.
 
-In Partial Prerendering, Next.js prerenders a **static shell** for a route. This can include the layout and any other components that don't depend on request-time data.
+In Partial Prerendering, Next.js pre-renders a **static shell** for a route. This can include the layout and any other components that don't depend on request-time data.
 
 ### Dynamic Rendering
 
@@ -51,25 +70,63 @@ A component becomes dynamic if it uses the following APIs:
 - [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
 - [`fetch`](/docs/app/api-reference/functions/fetch) with `{ cache: 'no-store' }`
 
-In Partial Prerendering, using these APIs throws a special React error that informs Next.js the component cannot be statically rendered, causing a build error. You can use a [Suspense](#suspense) boundary to wrap your component to defer rendering until runtime.
+## The Suspense Boundary Contract
+
+**This is a key contract enforced by Cache Components:** Dynamic code that is not wrapped by a `Suspense` boundary raises a **"blocking route"** error.
+
+For example, with `cacheComponents` enabled, this blog page causes an error:
+
+```tsx
+// app/blog/page.tsx
+export default async function Page() {
+  const res = await fetch('http://api.cms.com/posts')
+  const { posts } = await res.json()
+
+  return <div>{/* ... */}</div>
+}
+```
+
+```console
+Route "/blog": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.
+```
+
+To solve this error, refactor the fetch operation into a separate component and wrap it with a `Suspense` boundary:
+
+```tsx
+// app/blog/page.tsx
+export default async function Page() {
+  return (
+    <Suspense fallback={<Skeleton />}>
+      <Posts />
+    </Suspense>
+  )
+}
+
+async function Posts() {
+  const res = await fetch('http://api.cms.com/posts')
+  const { posts } = await res.json()
+
+  return <div>{/* ... */}</div>
+}
+```
+
+You can also place a `Suspense` boundary in `app/blog/layout.tsx`, use a [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) file, or place the boundary higher up in the React tree.
 
 ### Suspense
 
 React [Suspense](https://react.dev/reference/react/Suspense) is used to defer rendering parts of your application until some condition is met.
 
-In Partial Prerendering, Suspense is used to mark **dynamic boundaries** in your component tree.
+In Cache Components, Suspense is used to mark **dynamic boundaries** in your component tree.
 
-At build time, Next.js prerenders the static content and the `fallback` UI. The dynamic content is **postponed** until the user requests the route.
+At build time, Next.js pre-renders the static content and the `fallback` UI. The dynamic content is **postponed** until the user requests the route.
 
-Wrapping a component in Suspense doesn't make the component itself dynamic (your API usage does), but rather Suspense is used as a boundary that encapsulates dynamic content and enable [streaming](#streaming)
+Wrapping a component in Suspense doesn't make the component itself dynamic (your API usage does), but rather Suspense is used as a boundary that encapsulates dynamic content and enables [streaming](#streaming).
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
 import StaticComponent from './StaticComponent'
 import DynamicComponent from './DynamicComponent'
 import Fallback from './Fallback'
-
-export const experimental_ppr = true
 
 export default function Page() {
   return (
@@ -80,6 +137,72 @@ export default function Page() {
       </Suspense>
     </>
   )
+}
+```
+
+## Using `"use cache"`
+
+While Suspense boundaries manage dynamic content, the [`"use cache"`](/docs/app/api-reference/directives/use-cache) directive is available for caching data or computations that don't change often.
+
+### Basic Usage
+
+Add `"use cache"` to cache a page, component, or async function, and define a lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife):
+
+```tsx filename="app/page.tsx" highlight={1,4,5} switcher
+import { cacheLife } from 'next/cache'
+
+export default async function Page() {
+  'use cache'
+  cacheLife('hours')
+  // fetch or compute
+  return <div>...</div>
+}
+```
+
+```jsx filename="app/page.js" highlight={1,4,5} switcher
+import { cacheLife } from 'next/cache'
+
+export default async function Page() {
+  'use cache'
+  cacheLife('hours')
+  // fetch or compute
+  return <div>...</div>
+}
+```
+
+### Tagging and Revalidating
+
+Tag cached data with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and revalidate it after mutations using [`updateTag`](/docs/app/api-reference/functions/revalidateTag):
+
+```tsx filename="app/actions.ts" highlight={1,4,10} switcher
+import { cacheTag, updateTag } from 'next/cache'
+
+export async function getPosts() {
+  'use cache'
+  cacheTag('posts')
+  // fetch data
+}
+
+export async function createPost() {
+  'use server'
+  // write data
+  updateTag('posts')
+}
+```
+
+```jsx filename="app/actions.js" highlight={1,4,10} switcher
+import { cacheTag, updateTag } from 'next/cache'
+
+export async function getPosts() {
+  'use cache'
+  cacheTag('posts')
+  // fetch data
+}
+
+export async function createPost() {
+  'use server'
+  // write data
+  updateTag('posts')
 }
 ```
 
@@ -105,19 +228,17 @@ In Partial Prerendering, dynamic components wrapped in Suspense start streaming 
   height="525"
 />
 
-To reduce network overhead, the full response—including static HTML and streamed dynamic parts—is sent in a **single HTTP request**. This avoids extra roundtrips and improves both initial load and overall performance.
+To reduce network overhead, the full response—including static HTML and streamed dynamic parts—is sent in a **single HTTP request**. This avoids extra round-trips and improves both initial load and overall performance.
 
-## Enabling Partial Prerendering
+## Enabling Cache Components
 
-You can enable PPR by adding the [`ppr`](https://rc.nextjs.org/docs/app/api-reference/next-config-js/ppr) option to your `next.config.ts` file:
+You can enable Cache Components (which includes PPR) by adding the [`cacheComponents`](/docs/app/api-reference/next-config-js/cacheComponents) option to your `next.config.ts` file:
 
 ```ts filename="next.config.ts" highlight={5} switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    ppr: 'incremental',
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -126,36 +247,52 @@ export default nextConfig
 ```js filename="next.config.js" highlight={4} switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    ppr: 'incremental',
-  },
+  cacheComponents: true,
 }
+
+module.exports = nextConfig
 ```
 
-The `'incremental'` value allows you to adopt PPR for specific routes:
+## Before vs. After Cache Components
 
-```tsx filename="/app/dashboard/layout.tsx" switcher
-export const experimental_ppr = true
+Understanding how Cache Components changes your mental model:
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  // ...
-}
-```
+### Before Cache Components
 
-```jsx filename="/app/dashboard/layout.jsx" switcher
-export const experimental_ppr = true
+- **Static by default**: Next.js tried to cache as much as possible for you unless you opted out
+- **Route-level controls**: Switches like `dynamic`, `revalidate`, `fetchCache` controlled caching for the whole page
+- **Limits of `fetch`**: Using `fetch` alone was incomplete—it didn't cover direct database clients or other server-side IO. A nested `fetch` switching to dynamic (e.g., `{ cache: 'no-store' }`) could unintentionally change the entire route behavior
 
-export default function Layout({ children }) {
-  // ...
-}
-```
+### With Cache Components
 
-Routes that don't have `experimental_ppr` will default to `false` and will not be prerendered using PPR. You need to explicitly opt-in to PPR for each route.
+- **Dynamic by default**: Everything is dynamic by default. You decide which parts to cache by adding [`"use cache"`](/docs/app/api-reference/directives/use-cache) where it helps
+- **Fine-grained control**: File/component/function-level [`"use cache"`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife) control caching exactly where you need it
+- **Streaming stays**: Use `<Suspense>` or a `loading.(js|tsx)` file to stream dynamic parts while the shell shows immediately
+- **Beyond `fetch`**: `fetch` remains useful, but caching now applies to all server IO (database calls, APIs, computations). Nested `fetch` calls won't silently flip an entire route because behavior is governed by explicit cache boundaries and Suspense
 
-> **Good to know**:
->
-> - `experimental_ppr` will apply to all children of the route segment, including nested layouts and pages. You don't have to add it to every file, only the top segment of a route.
-> - To disable PPR for children segments, you can set `experimental_ppr` to `false` in the child segment.
+## Frequently Asked Questions
+
+### Does this replace Partial Prerendering (PPR)?
+
+No. Cache Components work **with** PPR. PPR provides the static shell and streaming infrastructure; `"use cache"` lets you include optimized dynamic output in that shell when beneficial.
+
+### Do I still need Suspense?
+
+Yes. Suspense marks dynamic boundaries and enables streaming so the shell can render instantly. It's a required contract when using Cache Components.
+
+### What should I cache first?
+
+Start with slow or expensive sections like:
+
+- Lists and dashboards that don't change frequently
+- Headers with stable content
+- Component trees with heavy computations
+
+Then iterate based on your application's performance characteristics.
+
+### How do I update cached content quickly?
+
+Use [`cacheTag`](/docs/app/api-reference/functions/cacheTag) to tag your cached data, then trigger [`updateTag`](/docs/app/api-reference/functions/revalidateTag) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) after writes. You can also use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) to refresh an entire route subtree.
 
 ## Examples
 
@@ -187,8 +324,6 @@ The `<User />` component will be streamed while any other content inside `<Page 
 import { Suspense } from 'react'
 import { User, AvatarSkeleton } from './user'
 
-export const experimental_ppr = true
-
 export default function Page() {
   return (
     <section>
@@ -204,8 +339,6 @@ export default function Page() {
 ```jsx filename="app/page.js" switcher
 import { Suspense } from 'react'
 import { User, AvatarSkeleton } from './user'
-
-export const experimental_ppr = true
 
 export default function Page() {
   return (
