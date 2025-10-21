@@ -130,19 +130,43 @@ export function removeFreeCallWrapper(text: string): string {
   )
 }
 
-/**
- * Deobfuscates text by:
- * 1. Decoding magic identifiers
- * 2. Cleaning up module IDs
- * 3. Removing free call wrappers
- */
-export function deobfuscateText(text: string): string {
-  // First, remove free call wrappers, doing this first is important since the demangling might
-  // introduce whitespace character that complicate the matching.
-  let result = removeFreeCallWrapper(text)
+export type TextPartType = 'raw' | 'deobfuscated'
 
-  // Then decode magic identifiers and clean up module IDs
-  result = result.replaceAll(MAGIC_IDENTIFIER_REGEX, (ident) => {
+/**
+ * Deobfuscates text and returns an array of discriminated parts.
+ * Each part is a tuple of [type, string] where type is either 'raw' (unchanged text)
+ * or 'deobfuscated' (a magic identifier that was decoded).
+ *
+ * This is useful when you need to process or display deobfuscated and raw text differently.
+ */
+export function deobfuscateTextParts(
+  text: string
+): Array<[TextPartType, string]> {
+  // First, remove free call wrappers
+  const withoutFreeCall = removeFreeCallWrapper(text)
+
+  const parts: Array<[TextPartType, string]> = []
+  let lastIndex = 0
+
+  // Create a new regex instance for global matching
+  const regex = new RegExp(MAGIC_IDENTIFIER_REGEX.source, 'g')
+
+  for (
+    let match = regex.exec(withoutFreeCall);
+    match !== null;
+    match = regex.exec(withoutFreeCall)
+  ) {
+    const matchStart = match.index
+    const matchEnd = regex.lastIndex
+    const ident = match[0]
+
+    // Add raw text before this match (if any)
+    if (matchStart > lastIndex) {
+      const rawText = withoutFreeCall.substring(lastIndex, matchStart)
+      parts.push(['raw', rawText])
+    }
+
+    // Process and add the deobfuscated part
     try {
       const decoded = decodeMagicIdentifier(ident)
       // If it was a magic identifier, clean up the module ID
@@ -153,17 +177,38 @@ export function deobfuscateText(text: string): string {
           // Clean the entire module path (which includes [app-rsc], etc.)
           const modulePathWithMetadata = importedModuleMatch[1]
           const cleaned = deobfuscateModuleId(modulePathWithMetadata)
-          return `{imported module ${cleaned}}`
+          parts.push(['deobfuscated', `{imported module ${cleaned}}`])
+        } else {
+          const cleaned = deobfuscateModuleId(decoded)
+          parts.push(['deobfuscated', `{${cleaned}}`])
         }
-
-        const cleaned = deobfuscateModuleId(decoded)
-        return `{${cleaned}}`
+      } else {
+        // Not actually a magic identifier, treat as raw
+        parts.push(['raw', ident])
       }
-      return ident
     } catch (e) {
-      return `{${ident} (decoding failed: ${e})}`
+      parts.push(['deobfuscated', `{${ident} (decoding failed: ${e})}`])
     }
-  })
 
-  return result
+    lastIndex = matchEnd
+  }
+
+  // Add any remaining raw text after the last match
+  if (lastIndex < withoutFreeCall.length) {
+    const rawText = withoutFreeCall.substring(lastIndex)
+    parts.push(['raw', rawText])
+  }
+
+  return parts
+}
+
+/**
+ * Deobfuscates text by:
+ * 1. Decoding magic identifiers
+ * 2. Cleaning up module IDs
+ * 3. Removing free call wrappers
+ */
+export function deobfuscateText(text: string): string {
+  const parts = deobfuscateTextParts(text)
+  return parts.map((part) => part[1]).join('')
 }

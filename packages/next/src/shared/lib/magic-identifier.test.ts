@@ -4,6 +4,7 @@ import {
   deobfuscateModuleId,
   removeFreeCallWrapper,
   deobfuscateText,
+  deobfuscateTextParts,
 } from './magic-identifier'
 
 describe('decodeMagicIdentifier', () => {
@@ -123,5 +124,55 @@ describe('deobfuscateText', () => {
   test('leaves regular text unchanged', () => {
     const input = 'This is a regular error message'
     expect(deobfuscateText(input)).toBe(input)
+  })
+})
+
+describe('deobfuscateTextParts', () => {
+  test('returns discriminated parts with raw and deobfuscated text', () => {
+    const input = 'Error in __TURBOPACK__module__evaluation__ at line 10'
+    const output = deobfuscateTextParts(input)
+    expect(output).toEqual([
+      ['raw', 'Error in '],
+      ['deobfuscated', '{module evaluation}'],
+      ['raw', ' at line 10'],
+    ])
+  })
+
+  test('handles multiple magic identifiers with interleaved raw text', () => {
+    const input =
+      '__TURBOPACK__module__evaluation__ called __TURBOPACK__foo$2f$bar__'
+    const output = deobfuscateTextParts(input)
+    expect(output).toEqual([
+      ['deobfuscated', '{module evaluation}'],
+      ['raw', ' called '],
+      ['deobfuscated', '{foo/bar}'],
+    ])
+  })
+
+  test('returns single raw part for text without magic identifiers', () => {
+    const input = 'This is a regular error message'
+    const output = deobfuscateTextParts(input)
+    expect(output).toEqual([['raw', 'This is a regular error message']])
+  })
+
+  test('handles imported module with free call wrapper', () => {
+    const input =
+      '(0 , __TURBOPACK__imported__module__$5b$project$5d2f$examples$2f$with$2d$turbopack$2f$app$2f$foo$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__.foo) is not a function'
+    const output = deobfuscateTextParts(input)
+    expect(output).toEqual([
+      [
+        'deobfuscated',
+        '{imported module ./examples/with-turbopack/app/foo.ts}',
+      ],
+      ['raw', '.foo is not a function'],
+    ])
+  })
+
+  test('produces same result as deobfuscateText when joined', () => {
+    const input =
+      'Error in __TURBOPACK__module__evaluation__ at __TURBOPACK__foo$2f$bar__'
+    const parts = deobfuscateTextParts(input)
+    const joined = parts.map((part) => part[1]).join('')
+    expect(joined).toBe(deobfuscateText(input))
   })
 })

@@ -1,5 +1,5 @@
 import React from 'react'
-import { deobfuscateText } from '../../../../shared/lib/magic-identifier'
+import { deobfuscateTextParts } from '../../../../shared/lib/magic-identifier'
 
 const linkRegex = /https?:\/\/[^\s/$.?#].[^\s)'"]*/i
 
@@ -10,30 +10,50 @@ export const HotlinkedText: React.FC<{
   const { text, matcher } = props
 
   // Deobfuscate the entire text first
-  const deobfuscated = deobfuscateText(text)
-
-  // Split on whitespace and links
-  const parts = deobfuscated.split(/(\s+|https?:\/\/[^\s/$.?#].[^\s)'"]*)/)
+  const deobfuscatedParts = deobfuscateTextParts(text)
 
   return (
     <>
-      {parts.map((part, index) => {
-        if (linkRegex.test(part)) {
-          const link = linkRegex.exec(part)!
-          const href = link[0]
-          // If link matcher is present but the link doesn't match, don't turn it into a link
-          if (typeof matcher === 'function' && !matcher(href)) {
-            return part
-          }
+      {deobfuscatedParts.map(([type, part], outerIndex) => {
+        if (type === 'raw') {
           return (
-            <React.Fragment key={`link-${index}`}>
-              <a href={href} target="_blank" rel="noreferrer noopener">
-                {part}
-              </a>
-            </React.Fragment>
+            part
+              // Split on whitespace and links
+              .split(/(\s+|https?:\/\/[^\s/$.?#].[^\s)'"]*)/)
+              .map((rawPart, index) => {
+                if (linkRegex.test(rawPart)) {
+                  const link = linkRegex.exec(rawPart)!
+                  const href = link[0]
+                  // If link matcher is present but the link doesn't match, don't turn it into a link
+                  if (typeof matcher === 'function' && !matcher(href)) {
+                    return (
+                      <React.Fragment key={`link-${outerIndex}-${index}`}>
+                        {rawPart}
+                      </React.Fragment>
+                    )
+                  }
+                  return (
+                    <React.Fragment key={`link-${outerIndex}-${index}`}>
+                      <a href={href} target="_blank" rel="noreferrer noopener">
+                        {rawPart}
+                      </a>
+                    </React.Fragment>
+                  )
+                } else {
+                  return (
+                    <React.Fragment key={`text-${outerIndex}-${index}`}>
+                      {rawPart}
+                    </React.Fragment>
+                  )
+                }
+              })
           )
+        } else if (type === 'deobfuscated') {
+          // italicize the deobfuscated part
+          return <i key={`ident-${outerIndex}`}>{part}</i>
+        } else {
+          throw new Error(`Unknown text part type: ${type}`)
         }
-        return <React.Fragment key={`text-${index}`}>{part}</React.Fragment>
       })}
     </>
   )
