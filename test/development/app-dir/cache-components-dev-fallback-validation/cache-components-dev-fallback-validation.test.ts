@@ -56,10 +56,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -80,10 +85,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -107,10 +117,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -131,10 +146,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -158,10 +178,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -182,10 +207,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -213,10 +243,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -237,10 +272,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -264,10 +304,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -288,10 +333,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -315,10 +365,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -339,10 +394,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -366,10 +426,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -390,10 +455,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -417,10 +487,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -441,10 +516,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -468,10 +548,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
@@ -492,10 +577,15 @@ describe('Cache Components Fallback Validation', () => {
 
        This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-       To fix this, you can:
+       To fix this, you can either:
 
        Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user. Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering.
+
+       or
+
+       Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+       Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
        Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
