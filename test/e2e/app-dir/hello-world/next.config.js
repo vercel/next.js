@@ -1,6 +1,11 @@
 /**
  * @type {import('next').NextConfig}
  */
-const nextConfig = {}
+const nextConfig = {
+  cacheComponents: true,
+  experimental: {
+    // reactDebugChannel: true,
+  },
+}
 
 module.exports = nextConfig

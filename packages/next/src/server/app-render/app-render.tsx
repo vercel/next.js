@@ -178,7 +178,7 @@ import {
   workUnitAsyncStorage,
   type PrerenderStore,
 } from './work-unit-async-storage.external'
-import { consoleAsyncStorage } from './console-async-storage.external'
+// import { consoleAsyncStorage } from './console-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -2454,7 +2454,7 @@ async function renderToStream(
       // We only have a Prerender environment for projects opted into cacheComponents
       cacheComponents
     ) {
-      const [resolveValidation, validationOutlet] = createValidationOutlet()
+      // const [resolveValidation, validationOutlet] = createValidationOutlet()
       let debugChannel: DebugChannelPair | undefined
       const getPayload = async (
         // eslint-disable-next-line @typescript-eslint/no-shadow
@@ -2472,7 +2472,7 @@ async function renderToStream(
         // even if we end up discarding a render and restarting,
         // because we're not going to wait for the stream to complete,
         // so leaving the validation unresolved is fine.
-        payload._validation = validationOutlet
+        // payload._validation = validationOutlet
 
         if (isBypassingCachesInDev(renderOpts, requestStore)) {
           // Mark the RSC payload to indicate that caches were bypassed in dev.
@@ -2545,17 +2545,17 @@ async function renderToStream(
       // TODO(restart-on-cache-miss):
       // This can probably be optimized to do less work,
       // because we've already made sure that we have warm caches.
-      consoleAsyncStorage.run(
-        { dim: true },
-        spawnDynamicValidationInDev,
-        resolveValidation,
-        tree,
-        ctx,
-        res.statusCode === 404,
-        clientReferenceManifest,
-        requestStore,
-        devValidatingFallbackParams
-      )
+      // consoleAsyncStorage.run(
+      //   { dim: true },
+      //   spawnDynamicValidationInDev,
+      //   resolveValidation,
+      //   tree,
+      //   ctx,
+      //   res.statusCode === 404,
+      //   clientReferenceManifest,
+      //   requestStore,
+      //   devValidatingFallbackParams
+      // )
     } else {
       // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
       const RSCPayload: RSCPayload & RSCPayloadDevProperties =
@@ -3044,7 +3044,7 @@ async function renderWithRestartOnCacheMissInDev(
           // then we'll only use this render for filling caches.
           // We won't advance the stage, and thus leave dynamic APIs hanging,
           // because they won't be cached anyway, so it'd be wasted work.
-          if (maybeStream === null || cacheSignal.hasPendingReads()) {
+          if (true || maybeStream === null || cacheSignal.hasPendingReads()) {
             return null
           }
 
@@ -3108,6 +3108,9 @@ async function renderWithRestartOnCacheMissInDev(
   // We're not using it, so we need to create a new one.
   debugChannel = setReactDebugChannel && createDebugChannel()
 
+  const staticChunks: Array<Uint8Array> = []
+  const runtimeChunks: Array<Uint8Array> = []
+
   const finalRscPayload = await getPayload(requestStore)
   const finalServerStream = await workUnitAsyncStorage.run(requestStore, () =>
     pipelineInSequentialTasks(
@@ -3124,18 +3127,65 @@ async function renderWithRestartOnCacheMissInDev(
           }
         )
       },
-      (stream) => {
-        // Runtime stage
-        finalStageController.advanceStage(RenderStage.Runtime)
-        return stream
+      async (stream) => {
+        const [continuationStream, staticStream] = stream.tee()
+        const reader = staticStream.getReader()
+        Promise.resolve().then(() => {
+          process.nextTick(() => {
+            // Runtime stage
+            reader.releaseLock()
+            finalStageController.advanceStage(RenderStage.Runtime)
+          })
+        })
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) {
+              break
+            }
+            staticChunks.push(value)
+          }
+        } catch (e) {
+          // When we release the lock we may reject the read
+        }
+        return continuationStream
       },
-      (stream) => {
-        // Dynamic stage
-        finalStageController.advanceStage(RenderStage.Dynamic)
-        return stream
+      async (stream) => {
+        // We make a very important but sublte assumption here
+        // The task above returns a promise but it will still return in a microtask
+        // This is true because we schedule a releaseLock in a nextTick from
+        // the microtask queue which will cause the first non-microtasky read
+        // to reject in a microtask allowing the whole job to wrap up
+        const [continuationStream, runtimeStream] = (await stream).tee()
+        const reader = runtimeStream.getReader()
+        Promise.resolve().then(() => {
+          process.nextTick(() => {
+            // Dynamic stage
+            reader.releaseLock()
+            finalStageController.advanceStage(RenderStage.Dynamic)
+          })
+        })
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) {
+              break
+            }
+            runtimeChunks.push(value)
+          }
+        } catch (e) {
+          // When we release the lock we may reject the read
+        }
+        return continuationStream
       }
     )
   )
+
+  let dec = new TextDecoder()
+  console.log({ staticChunks: staticChunks.map((c) => dec.decode(c)) })
+  console.log({ runtimeChunks: runtimeChunks.map((c) => dec.decode(c)) })
 
   if (process.env.NODE_ENV === 'development' && setCacheStatus) {
     setCacheStatus('filled', htmlRequestId, requestId)
