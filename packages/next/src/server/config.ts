@@ -836,6 +836,28 @@ function assignDefaultsAndValidate(
   ) {
     result.skipProxyUrlNormalize = userConfig.skipMiddlewareUrlNormalize
   }
+  // Inverse case: when new name is set but not the old name, copy the value to the old name
+  // to avoid breaking change on resolved config object written to `.next/`
+  if (
+    userConfig.experimental?.proxyPrefetch !== undefined &&
+    userConfig.experimental?.middlewarePrefetch === undefined
+  ) {
+    result.experimental.middlewarePrefetch =
+      userConfig.experimental.proxyPrefetch
+  }
+  if (
+    userConfig.experimental?.externalProxyRewritesResolve !== undefined &&
+    userConfig.experimental?.externalMiddlewareRewritesResolve === undefined
+  ) {
+    result.experimental.externalMiddlewareRewritesResolve =
+      userConfig.experimental.externalProxyRewritesResolve
+  }
+  if (
+    userConfig.skipProxyUrlNormalize !== undefined &&
+    userConfig.skipMiddlewareUrlNormalize === undefined
+  ) {
+    result.skipMiddlewareUrlNormalize = userConfig.skipProxyUrlNormalize
+  }
 
   // Normalize & validate experimental.proxyClientMaxBodySize
   if (typeof result.experimental?.proxyClientMaxBodySize !== 'undefined') {
