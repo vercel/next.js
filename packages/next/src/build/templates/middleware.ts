@@ -36,7 +36,7 @@ if (typeof handler !== 'function') {
       `- The export is not a function (e.g., an object or constant).\n` +
       `- There's a syntax error preventing the export from being recognized.\n\n` +
       `To fix it:\n` +
-      `- Ensure this file has either a default or "${fileName}" function export.\n` +
+      `- Ensure this file has either a default or "${fileName}" function export.\n\n` +
       `Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
   )
 }
