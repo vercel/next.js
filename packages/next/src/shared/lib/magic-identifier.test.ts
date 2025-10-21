@@ -74,6 +74,14 @@ describe('deobfuscateModuleId', () => {
       )
     ).toBe('./examples/with-turbopack/app/foo.ts')
   })
+
+  test('handles parenthesis in path', () => {
+    expect(
+      deobfuscateModuleId(
+        '[project]/examples/(group)/with-turbopack/app/foo.ts [app-rsc] (ecmascript)'
+      )
+    ).toBe('./examples/(group)/with-turbopack/app/foo.ts')
+  })
 })
 
 describe('removeFreeCallWrapper', () => {

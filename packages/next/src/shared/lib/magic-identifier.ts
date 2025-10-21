@@ -105,11 +105,11 @@ export function deobfuscateModuleId(moduleId: string): string {
       // Replace [project] with .
       .replace(/\[project\]/g, '.')
       // Remove content in square brackets (e.g. [app-rsc])
-      .replace(/\s*\[([^\]]*)\]/g, '')
+      .replace(/\s\[([^\]]*)\]/g, '')
       // Remove content in parentheses (e.g. (ecmascript))
-      .replace(/\s*\(([^)]*)\)/g, '')
+      .replace(/\s\(([^)]*)\)/g, '')
       // Remove content in angle brackets (e.g. <locals>)
-      .replace(/\s*<([^>]*)>/g, '')
+      .replace(/\s<([^>]*)>/g, '')
       // Clean up any extra whitespace
       .trim()
   )
