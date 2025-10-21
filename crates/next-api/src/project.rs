@@ -1438,28 +1438,6 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
-        let edge_module_context = self.edge_middleware_context();
-
-        let middleware = self.find_middleware();
-        let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
-            return Ok(edge_module_context);
-        };
-        let source = Vc::upcast(FileSource::new(fs_path.clone()));
-
-        let runtime = parse_segment_config_from_source(source, ParseSegmentMode::Base)
-            .await?
-            .runtime
-            .unwrap_or(NextRuntime::Edge);
-
-        if matches!(runtime, NextRuntime::NodeJs) {
-            Ok(self.node_middleware_context())
-        } else {
-            Ok(edge_module_context)
-        }
-    }
-
-    #[turbo_tasks::function]
     async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
             self.project_path().owned().await?,
@@ -1483,7 +1461,25 @@ impl Project {
             .as_ref()
             .map(|_| AppProject::client_transition_name());
 
-        let middleware_asset_context = self.middleware_context();
+        let is_proxy = fs_path.file_stem() == Some("proxy");
+        let config = parse_segment_config_from_source(
+            source,
+            if is_proxy {
+                ParseSegmentMode::Proxy
+            } else {
+                ParseSegmentMode::Base
+            },
+        );
+        let runtime = config.await?.runtime.unwrap_or(if is_proxy {
+            NextRuntime::NodeJs
+        } else {
+            NextRuntime::Edge
+        });
+
+        let middleware_asset_context = match runtime {
+            NextRuntime::NodeJs => self.node_middleware_context(),
+            NextRuntime::Edge => self.edge_middleware_context(),
+        };
 
         Ok(Vc::upcast(MiddlewareEndpoint::new(
             self,
@@ -1491,6 +1487,8 @@ impl Project {
             source,
             app_dir.clone(),
             ecmascript_client_reference_transition_name,
+            config,
+            runtime,
         )))
     }
 
