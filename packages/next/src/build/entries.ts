@@ -641,7 +641,7 @@ export function getEdgeServerEntry(opts: {
     return {
       import: `next-middleware-loader?${stringify(loaderParams)}!`,
       layer: WEBPACK_LAYERS.middleware,
-      filename: 'middleware.js',
+      filename: opts.isDev ? 'middleware.js' : undefined,
     }
   }
 
