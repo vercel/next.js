@@ -1578,30 +1578,13 @@ export default class NextNodeServer extends BaseServer<
           // of mapping proxy to middleware as the entry, just fallback
           // to proxy.
           // TODO: Remove this once we handle as the single entrypoint.
-          try {
-            return require(
-              join(
-                /* turbopackIgnore: true */ this.distDir,
-                'server',
-                'middleware.js'
-              )
+          return require(
+            join(
+              /* turbopackIgnore: true */ this.distDir,
+              'server',
+              'middleware.js'
             )
-          } catch (middlewareErr) {
-            if (
-              isError(middlewareErr) &&
-              (middlewareErr.code === 'ENOENT' ||
-                middlewareErr.code === 'MODULE_NOT_FOUND')
-            ) {
-              return require(
-                join(
-                  /* turbopackIgnore: true */ this.distDir,
-                  'server',
-                  'proxy.js'
-                )
-              )
-            }
-            throw middlewareErr
-          }
+          )
         }
       } catch (err) {
         if (
