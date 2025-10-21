@@ -112,11 +112,11 @@ If you have a different project structure, for example if you don't use workspac
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
-import path from 'path'
+import { fileURLToPath } from 'url'
 
 const nextConfig: NextConfig = {
   turbopack: {
-    root: path.join(process.cwd(), '..'),
+    root: fileURLToPath(new URL('../', import.meta.url)),
   },
 }
 
@@ -124,14 +124,14 @@ export default nextConfig
 ```
 
 ```js filename="next.config.mjs" switcher
-import path from 'path'
+import { fileURLToPath } from 'url'
 
 /**
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
   turbopack: {
-    root: path.join(process.cwd(), '..'),
+    root: fileURLToPath(new URL('../', import.meta.url)),
   },
 }
 
