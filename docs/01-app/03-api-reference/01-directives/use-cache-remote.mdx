@@ -25,7 +25,7 @@ The `'use cache: remote'` directive enables caching of **shared data** in dynami
 
 To use `'use cache: remote'`, enable the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag in your `next.config.ts` file:
 
-```tsx filename="next.config.ts" switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -35,7 +35,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```jsx filename="next.config.js" switcher
+```js filename="next.config.js" switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   cacheComponents: true,
