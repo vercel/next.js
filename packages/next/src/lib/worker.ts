@@ -85,10 +85,12 @@ export class Worker {
       if (nodeDebugType) {
         const address = getParsedDebugAddress()
         address.port =
-          address.port +
-          // current process runs on `address.port`
-          1 +
-          debuggerPortOffset
+          address.port === 0
+            ? 0
+            : address.port +
+              // current process runs on `address.port`
+              1 +
+              debuggerPortOffset
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
       }
     }
