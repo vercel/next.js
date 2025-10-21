@@ -3,10 +3,8 @@
  */
 const nextConfig = {
   cacheComponents: true,
-  experimental: {
-    cacheHandlers: {
-      default: require.resolve('./handler.js'),
-    },
+  cacheHandlers: {
+    default: require.resolve('./handler.js'),
   },
 }
 

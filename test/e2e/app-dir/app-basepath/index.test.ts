@@ -140,7 +140,8 @@ describe('app dir - basepath', () => {
       // This verifies the redirect & server response happens in a single roundtrip,
       // if the redirect resource was static. In development, these responses are always
       // dynamically generated, so we only expect a single request for build/deploy.
-      if (!isNextDev) {
+      // TODO(client-segment-cache): re-enable when this optimization is added back
+      if (!isNextDev && !process.env.__NEXT_CACHE_COMPONENTS) {
         expect(requests).toHaveLength(1)
         expect(responses).toHaveLength(1)
       }

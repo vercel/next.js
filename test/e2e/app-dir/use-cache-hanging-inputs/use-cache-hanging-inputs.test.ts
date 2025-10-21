@@ -47,7 +47,7 @@ describe('use-cache-hanging-inputs', () => {
 
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise/page.tsx (10:13) @ {module evaluation}
+           "app/uncached-promise/page.tsx (10:13) @ module evaluation
 
               8 | }
               9 |
@@ -59,7 +59,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at __TURBOPACK__module__evaluation__`)
+    at module evaluation`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
            "app/uncached-promise/page.tsx (10:13) @ eval
@@ -101,7 +101,7 @@ describe('use-cache-hanging-inputs', () => {
 
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise-nested/page.tsx (16:1) @ {module evaluation}
+           "app/uncached-promise-nested/page.tsx (16:1) @ module evaluation
 
              14 | }
              15 |
@@ -113,7 +113,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at __TURBOPACK__module__evaluation__`)
+    at module evaluation`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
            "app/uncached-promise-nested/page.tsx (16:1) @ eval
@@ -156,7 +156,7 @@ describe('use-cache-hanging-inputs', () => {
 
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
-           "app/bound-args/page.tsx (13:15) @ {module evaluation}
+           "app/bound-args/page.tsx (13:15) @ module evaluation
 
              11 |   const uncachedDataPromise = fetchUncachedData()
              12 |
@@ -168,7 +168,7 @@ describe('use-cache-hanging-inputs', () => {
           `)
 
           expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at __TURBOPACK__module__evaluation__`)
+    at module evaluation`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
             "app/bound-args/page.tsx (13:15) @ eval

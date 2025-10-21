@@ -26,6 +26,7 @@ import {
   RESTART_EXIT_CODE,
   getFormattedDebugAddress,
   getNodeDebugType,
+  isDebugAddressEphemeral,
 } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
@@ -347,8 +348,12 @@ export async function startServer(
 
       if (nodeDebugType) {
         const formattedDebugAddress = getFormattedDebugAddress()
+        const isEphemeral = isDebugAddressEphemeral()
         Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
+          `the --${nodeDebugType} option was detected` +
+            (isEphemeral
+              ? ''
+              : `, the Next.js router server should be inspected at ${formattedDebugAddress}.`)
         )
       }
 
@@ -418,6 +423,24 @@ export async function startServer(
               nextServer?.close().catch(console.error),
               cleanupListeners?.runAll().catch(console.error),
             ])
+
+            // Flush telemetry if this is a dev server
+            if (isDev) {
+              try {
+                const { traceGlobals } =
+                  require('../../trace/shared') as typeof import('../../trace/shared')
+                const telemetry = traceGlobals.get('telemetry') as
+                  | InstanceType<
+                      typeof import('../../telemetry/storage').Telemetry
+                    >
+                  | undefined
+                if (telemetry) {
+                  await telemetry.flush()
+                }
+              } catch (_) {
+                // Ignore telemetry errors during cleanup
+              }
+            }
 
             debug('start-server process cleanup finished')
             process.exit(0)

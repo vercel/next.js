@@ -149,7 +149,7 @@ describe('use-cache-dev', () => {
       )
 
       await retry(async () => {
-        expect(next.cliOutput.slice(cliOutputLength)).toInclude('✓ Compiled')
+        expect(next.cliOutput.slice(cliOutputLength)).toInclude('GET / 200')
       }, 10_000)
 
       cliOutputLength = next.cliOutput.length
@@ -160,7 +160,7 @@ describe('use-cache-dev', () => {
       )
 
       await retry(async () => {
-        expect(next.cliOutput.slice(cliOutputLength)).toInclude('✓ Compiled')
+        expect(next.cliOutput.slice(cliOutputLength)).toInclude('GET / 200')
       }, 10_000)
     })
 

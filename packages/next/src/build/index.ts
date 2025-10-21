@@ -1243,11 +1243,11 @@ export default async function build(
           const absoluteMiddlewarePath = path.join(rootDir, middlewareFilePath)
 
           throw new Error(
-            `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, absoluteMiddlewarePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, absoluteProxyPath)}" are detected. Please use "./${path.relative(cwd, absoluteProxyPath)}" only.`
+            `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, absoluteMiddlewarePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, absoluteProxyPath)}" are detected. Please use "./${path.relative(cwd, absoluteProxyPath)}" only. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
           )
         }
         Log.warnOnce(
-          `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
+          `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
         )
       }
 
@@ -1599,7 +1599,11 @@ export default async function build(
                   undefined
                 )
               )
-            } else if (!isReservedPage(route)) {
+            } else if (
+              !isReservedPage(route) ||
+              // don't consider /api reserved here
+              route.match(/^\/(api(\/|$))/)
+            ) {
               staticRoutes.push(pageToRoute(route))
             }
           }
@@ -2012,6 +2016,7 @@ export default async function build(
               cacheLifeProfiles: config.cacheLife,
               buildId,
               sriEnabled,
+              cacheMaxMemorySize: config.cacheMaxMemorySize,
             })
         )
 
@@ -2223,11 +2228,11 @@ export default async function build(
                             cacheComponents: isAppCacheComponentsEnabled,
                             authInterrupts: isAuthInterruptsEnabled,
                             cacheHandler: config.cacheHandler,
-                            cacheHandlers: config.experimental.cacheHandlers,
+                            cacheHandlers: config.cacheHandlers,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
                               : config.experimental.isrFlushToDisk,
-                            maxMemoryCacheSize: config.cacheMaxMemorySize,
+                            cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
@@ -2518,7 +2523,7 @@ export default async function build(
           const normalizedCacheHandlers: Record<string, string> = {}
 
           for (const [key, value] of Object.entries(
-            config.experimental.cacheHandlers || {}
+            config.cacheHandlers || {}
           )) {
             if (key && value) {
               normalizedCacheHandlers[key] = path.relative(distDir, value)
@@ -2538,9 +2543,9 @@ export default async function build(
               cacheHandler: cacheHandler
                 ? path.relative(distDir, cacheHandler)
                 : config.cacheHandler,
+              cacheHandlers: normalizedCacheHandlers,
               experimental: {
                 ...config.experimental,
-                cacheHandlers: normalizedCacheHandlers,
                 trustHostHeader: ciEnvironment.hasNextSupport,
                 isExperimentalCompile: isCompileMode,
               },
@@ -3186,7 +3191,7 @@ export default async function build(
               ...(isRoutePPREnabled
                 ? [
                     {
-                      type: 'header',
+                      type: 'header' as const,
                       key: 'user-agent',
                       value: htmlBotsRegexString,
                     },
@@ -4182,8 +4187,10 @@ export default async function build(
               dir,
               distDir,
               config,
+              buildId,
               configOutDir: path.join(dir, configOutDir),
               staticPages,
+              serverPropsPages,
               nextVersion: process.env.__NEXT_VERSION as string,
               tracingRoot: outputFileTracingRoot,
               hasNodeMiddleware,
@@ -4196,6 +4203,7 @@ export default async function build(
               middlewareManifest,
               functionsConfigManifest,
               hasStatic404: useStaticPages404,
+              hasStatic500: useDefaultStatic500,
               requiredServerFiles: requiredServerFilesManifest.files,
             })
           })

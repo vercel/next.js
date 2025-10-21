@@ -45,14 +45,14 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name={undefined} loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/text-mism..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                         <InnerLayoutRouter url="/text-mism..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                            <SegmentViewNode type="page" pagePath="(default)/...">
                              <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+                             <ClientPageRoot Component={function Mismatch} serverProvidedParams={{...}}>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
                                    <main className="child">
@@ -107,14 +107,14 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name={undefined} loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-ele..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                         <InnerLayoutRouter url="/extra-ele..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                            <SegmentViewNode type="page" pagePath="(default)/...">
                              <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+                             <ClientPageRoot Component={function Mismatch} serverProvidedParams={{...}}>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
      +                             <main className="only">
@@ -145,17 +145,17 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name="(extra-att..." loading={null}>
                    <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                           <InnerLayoutRouter url="/extra-att..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                              <SegmentViewNode type="layout" pagePath="(extra-att...">
                                <SegmentTrieNode>
                                <script>
                                <script>
-                               <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                               <ClientSegmentRoot Component={function Root} slots={{...}} ...>
                                  <Root params={Promise}>
                                    <html
        -                             className="server-html"
@@ -181,15 +181,15 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name="(extra-att..." loading={null}>
                    <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/extra-att..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                           <InnerLayoutRouter url="/extra-att..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                              <SegmentViewNode type="layout" pagePath="(extra-att...">
                                <SegmentTrieNode>
-                               <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                               <ClientSegmentRoot Component={function Root} slots={{...}} ...>
                                  <Root params={Promise}>
                                    <html
        -                             className="server-html"
@@ -221,14 +221,14 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name={undefined} loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                            <SegmentViewNode type="page" pagePath="(default)/...">
                              <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+                             <ClientPageRoot Component={function Mismatch} serverProvidedParams={{...}}>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
                                    <header>
@@ -262,14 +262,14 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name={undefined} loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-ele..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                         <InnerLayoutRouter url="/extra-ele..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                            <SegmentViewNode type="page" pagePath="(default)/...">
                              <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+                             <ClientPageRoot Component={function Mismatch} serverProvidedParams={{...}}>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
      -                             <main className="only">
@@ -300,14 +300,14 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name={undefined} loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                            <SegmentViewNode type="page" pagePath="(default)/...">
                              <SegmentTrieNode>
-                             <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+                             <ClientPageRoot Component={function Mismatch} serverProvidedParams={{...}}>
                                <Mismatch params={Promise} searchParams={Promise}>
                                  <div className="parent">
      -                             only
@@ -342,14 +342,14 @@ describe('Error overlay for hydration errors in App router', () => {
          <ScrollAndFocusHandler segmentPath={[...]}>
            <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
              <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-               <LoadingBoundary loading={null}>
+               <LoadingBoundary name={undefined} loading={null}>
                  <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                    <RedirectBoundary>
                      <RedirectErrorBoundary router={{...}}>
-                       <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                       <InnerLayoutRouter url="/extra-tex..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                          <SegmentViewNode type="page" pagePath="(default)/...">
                            <SegmentTrieNode>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                           <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
                              <Page params={Promise} searchParams={Promise}>
                                <table>
                                  <tbody>
@@ -376,14 +376,14 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name={undefined} loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                         <InnerLayoutRouter url="/extra-tex..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                            <SegmentViewNode type="page" pagePath="(default)/...">
                              <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                             <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
                                <Page params={Promise} searchParams={Promise}>
      +                           <table>
      -                           test
@@ -415,14 +415,14 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name={undefined} loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/extra-whi..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                         <InnerLayoutRouter url="/extra-whi..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                            <SegmentViewNode type="page" pagePath="(default)/...">
                              <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                             <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
                                <Page params={Promise} searchParams={Promise}>
      >                           <table>
      >                             {" "}
@@ -453,14 +453,14 @@ describe('Error overlay for hydration errors in App router', () => {
        "componentStack": "...
          <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
            <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-             <LoadingBoundary loading={null}>
+             <LoadingBoundary name={undefined} loading={null}>
                <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                  <RedirectBoundary>
                    <RedirectErrorBoundary router={{...}}>
-                     <InnerLayoutRouter url="/extra-nod..." tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                     <InnerLayoutRouter url="/extra-nod..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                        <SegmentViewNode type="page" pagePath="(default)/...">
                          <SegmentTrieNode>
-                         <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+                         <ClientPageRoot Component={function Mismatch} serverProvidedParams={{...}}>
                            <Mismatch params={Promise} searchParams={Promise}>
                              <div className="parent">
                                <Suspense fallback={<p>}>
@@ -510,14 +510,14 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name={undefined} loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/p-under-p" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                         <InnerLayoutRouter url="/p-under-p" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                            <SegmentViewNode type="page" pagePath="(default)/...">
                              <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                             <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
                                <Page params={Promise} searchParams={Promise}>
      >                           <p>
      >                             <p>
@@ -566,14 +566,14 @@ describe('Error overlay for hydration errors in App router', () => {
          <ScrollAndFocusHandler segmentPath={[...]}>
            <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
              <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-               <LoadingBoundary loading={null}>
+               <LoadingBoundary name={undefined} loading={null}>
                  <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                    <RedirectBoundary>
                      <RedirectErrorBoundary router={{...}}>
-                       <InnerLayoutRouter url="/div-under-p" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                       <InnerLayoutRouter url="/div-under-p" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                          <SegmentViewNode type="page" pagePath="(default)/...">
                            <SegmentTrieNode>
-                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                           <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
                              <Page params={Promise} searchParams={Promise}>
                                <div>
                                  <div>
@@ -625,14 +625,14 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name={undefined} loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/tr-under-div" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                         <InnerLayoutRouter url="/tr-under-div" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                            <SegmentViewNode type="page" pagePath="(default)/...">
                              <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                             <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
                                <Page params={Promise} searchParams={Promise}>
      >                           <div>
      >                             <tr>
@@ -682,14 +682,14 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary loading={null}>
+                 <LoadingBoundary name={undefined} loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/bad-nesting" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                         <InnerLayoutRouter url="/bad-nesting" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                            <SegmentViewNode type="page" pagePath="(default)/...">
                              <SegmentTrieNode>
-                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                             <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
                                <Page params={Promise} searchParams={Promise}>
      >                           <p>
                                    <span>
@@ -902,12 +902,12 @@ describe('Error overlay for hydration errors in App router', () => {
                <ScrollAndFocusHandler segmentPath={[...]}>
                  <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                     <LoadingBoundary loading={null}>
+                     <LoadingBoundary name="(script-un..." loading={null}>
                        <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
                          <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
                            <RedirectBoundary>
                              <RedirectErrorBoundary router={{...}}>
-                               <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                               <InnerLayoutRouter url="/script-un..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                                  <SegmentViewNode type="layout" pagePath="(script-un...">
                                    <SegmentTrieNode>
                                    <script>
@@ -966,12 +966,12 @@ describe('Error overlay for hydration errors in App router', () => {
                <ScrollAndFocusHandler segmentPath={[...]}>
                  <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                     <LoadingBoundary loading={null}>
+                     <LoadingBoundary name="(script-un..." loading={null}>
                        <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
                          <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
                            <RedirectBoundary>
                              <RedirectErrorBoundary router={{...}}>
-                               <InnerLayoutRouter url="/script-un..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                               <InnerLayoutRouter url="/script-un..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
                                  <SegmentViewNode type="layout" pagePath="(script-un...">
                                    <SegmentTrieNode>
                                    <Root>

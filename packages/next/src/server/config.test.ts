@@ -134,4 +134,77 @@ describe('loadConfig', () => {
       )
     })
   })
+
+  describe('middleware to proxy config key rename backward/forward compatibility', () => {
+    it('should copy `skipMiddlewareUrlNormalize value` to `skipProxyUrlNormalize`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          skipMiddlewareUrlNormalize: true,
+        },
+      })
+
+      expect(result.skipProxyUrlNormalize).toBe(true)
+    })
+
+    it('should copy `experimental.middlewarePrefetch` to `experimental.proxyPrefetch`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            middlewarePrefetch: 'strict',
+          },
+        },
+      })
+
+      expect(result.experimental.proxyPrefetch).toBe('strict')
+    })
+
+    it('should copy `experimental.externalMiddlewareRewritesResolve` to `experimental.externalProxyRewritesResolve`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            externalMiddlewareRewritesResolve: true,
+          },
+        },
+      })
+
+      expect(result.experimental.externalProxyRewritesResolve).toBe(true)
+    })
+
+    it('should copy `skipProxyUrlNormalize` to `skipMiddlewareUrlNormalize`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          skipProxyUrlNormalize: true,
+        },
+      })
+
+      expect(result.skipMiddlewareUrlNormalize).toBe(true)
+      expect(result.skipProxyUrlNormalize).toBe(true)
+    })
+
+    it('should copy `experimental.proxyPrefetch` to `experimental.middlewarePrefetch`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            proxyPrefetch: 'strict',
+          },
+        },
+      })
+
+      expect(result.experimental.middlewarePrefetch).toBe('strict')
+      expect(result.experimental.proxyPrefetch).toBe('strict')
+    })
+
+    it('should copy `experimental.externalProxyRewritesResolve` to `experimental.externalMiddlewareRewritesResolve`', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            externalProxyRewritesResolve: true,
+          },
+        },
+      })
+
+      expect(result.experimental.externalMiddlewareRewritesResolve).toBe(true)
+      expect(result.experimental.externalProxyRewritesResolve).toBe(true)
+    })
+  })
 })

@@ -8,7 +8,7 @@ import {
 
 describe('cache-components-segment-configs', () => {
   const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
-    files: __dirname,
+    files: __dirname + '/fixtures/default',
     skipStart: true,
     skipDeployment: true,
   })

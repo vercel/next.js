@@ -423,6 +423,11 @@ export function serverActionReducer(
             redirectType || RedirectType.push
           )
         )
+
+        // TODO: Investigate why this is needed with Activity.
+        if (process.env.__NEXT_CACHE_COMPONENTS) {
+          return state
+        }
       } else {
         resolve(actionResult)
       }
