@@ -1,17 +1,31 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('react-performance-track', () => {
+describe.each([
+  {
+    description: 'caching enabled',
+    enableCache: true,
+  },
+  {
+    description: 'caching disabled',
+    enableCache: false,
+  },
+])('react-performance-track - $description', ({ enableCache }) => {
   // false is the default when visiting pages as an ordinary user.
   // true is the default when having Chrome DevTools open.
   // Hardcoded for now since most of the actual behavior is not intended.
-  const disableCache = false
-  const extraHTTPHeaders = disableCache
-    ? { 'Cache-Control': 'no-cache' }
-    : undefined
+  const extraHTTPHeaders = enableCache
+    ? undefined
+    : { 'Cache-Control': 'no-cache' }
 
   const { next } = nextTestSetup({
     files: __dirname,
   })
+
+  // We only get the "Prefetchable" label when caches are enabled.
+  // If caches are disabled, the environement will be "Server",
+  // which react doesn't display because it's the default.
+  // So we can't check the label, but we'll still test that the API resulted in an IO entry.
+  const PREFETCHABLE_LABEL = enableCache ? ' [Prefetchable]' : ''
 
   it('should show setTimeout', async () => {
     const browser = await next.browser('/set-timeout', { extraHTTPHeaders })
@@ -61,7 +75,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bparams [Prefetchable]',
+          name: `\u200bparams${PREFETCHABLE_LABEL}`,
           properties: [],
         },
       ])
@@ -80,7 +94,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bsearchParams [Prefetchable]',
+          name: `\u200bsearchParams${PREFETCHABLE_LABEL}`,
           properties: [],
         },
       ])
@@ -97,7 +111,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bcookies [Prefetchable]',
+          name: `\u200bcookies${PREFETCHABLE_LABEL}`,
           properties: [],
         },
         // TODO: The error message makes this seem like it shouldn't pop up here.
@@ -123,7 +137,7 @@ describe('react-performance-track', () => {
     })
 
     const track = await browser.eval('window.reactServerRequests.getSnapshot()')
-    // TODO: Should include "draftMode [Prefetchable]".
+    // draftMode should not show up as IO.
     expect(track).toEqual([
       {
         name: '\u200b',
@@ -142,7 +156,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bheaders [Prefetchable]',
+          name: `\u200bheaders${PREFETCHABLE_LABEL}`,
           properties: [],
         },
         // TODO: The error message makes this seem like it shouldn't pop up here.
