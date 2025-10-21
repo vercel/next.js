@@ -4152,6 +4152,17 @@ export default async function build(
         buildTracesSpinner = undefined
       }
 
+      if (proxyFilePath) {
+        await fs.rename(
+          path.join(distDir, SERVER_DIRECTORY, 'proxy.js'),
+          path.join(distDir, SERVER_DIRECTORY, 'middleware.js')
+        )
+        await fs.rename(
+          path.join(distDir, SERVER_DIRECTORY, 'proxy.js.nft.json'),
+          path.join(distDir, SERVER_DIRECTORY, 'middleware.js.nft.json')
+        )
+      }
+
       if (isCompileMode) {
         Log.info(
           `Build ran with "compile" mode, to finalize the build run either "generate" or "generate-env" mode as well`
