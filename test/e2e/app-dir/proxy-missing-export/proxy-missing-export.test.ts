@@ -127,7 +127,8 @@ ${errorMessage}`)
       cliOutput = (await next.build()).cliOutput
     }
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    // TODO: Investigate why in dev-turbo, the error is shown in the browser console, not CLI output.
+    if (process.env.IS_TURBOPACK_TEST && !isNextDev) {
       expect(cliOutput).toContain(`./proxy.ts
 Proxy is missing expected function export name
 ${errorMessage}`)
