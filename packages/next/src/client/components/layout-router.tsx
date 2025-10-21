@@ -140,12 +140,6 @@ function shouldSkipElement(element: HTMLElement) {
   // and will result in a situation we bail on scroll because of something like a fixed nav,
   // even though the actual page content is offscreen
   if (['sticky', 'fixed'].includes(getComputedStyle(element).position)) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:',
-        element
-      )
-    }
     return true
   }
 
