@@ -164,7 +164,7 @@ async function loaderTransform(
     serverReferenceHashSalt,
     bundleLayer,
     esm,
-    cacheHandlers: nextConfig.experimental?.cacheHandlers,
+    cacheHandlers: nextConfig.cacheHandlers,
     useCacheEnabled: nextConfig.experimental?.useCache,
     trackDynamicImports,
   })

@@ -744,6 +744,13 @@ function assignDefaultsAndValidate(
     configFileName,
     silent
   )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'cacheHandlers',
+    'cacheHandlers',
+    configFileName,
+    silent
+  )
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
@@ -1146,16 +1153,16 @@ function assignDefaultsAndValidate(
     }
   }
 
-  if (result.experimental?.cacheHandlers) {
+  if (result.cacheHandlers) {
     const allowedHandlerNameRegex = /[a-z-]/
 
-    if (typeof result.experimental.cacheHandlers !== 'object') {
+    if (typeof result.cacheHandlers !== 'object') {
       throw new Error(
-        `Invalid "experimental.cacheHandlers" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(result.experimental.cacheHandlers)}`
+        `Invalid "cacheHandlers" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(result.cacheHandlers)}`
       )
     }
 
-    const handlerKeys = Object.keys(result.experimental.cacheHandlers)
+    const handlerKeys = Object.keys(result.cacheHandlers)
     const invalidHandlerItems: Array<{ key: string; reason: string }> = []
 
     for (const key of handlerKeys) {
@@ -1172,7 +1179,7 @@ function assignDefaultsAndValidate(
         })
       } else {
         const handlerPath = (
-          result.experimental.cacheHandlers as {
+          result.cacheHandlers as {
             [handlerName: string]: string | undefined
           }
         )[key]
@@ -1186,7 +1193,7 @@ function assignDefaultsAndValidate(
       }
       if (invalidHandlerItems.length) {
         throw new Error(
-          `Invalid handler fields configured for "experimental.cacheHandler":\n${invalidHandlerItems.map((item) => `${key}: ${item.reason}`).join('\n')}`
+          `Invalid handler fields configured for "cacheHandlers":\n${invalidHandlerItems.map((item) => `${key}: ${item.reason}`).join('\n')}`
         )
       }
     }

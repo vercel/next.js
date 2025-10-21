@@ -66,7 +66,7 @@ export async function loadStaticPaths({
   cacheMaxMemorySize: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
-  cacheHandlers?: NextConfigComplete['experimental']['cacheHandlers']
+  cacheHandlers?: NextConfigComplete['cacheHandlers']
   cacheLifeProfiles?: {
     [profile: string]: import('../../server/use-cache/cache-life').CacheLife
   }

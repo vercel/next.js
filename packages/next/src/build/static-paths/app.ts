@@ -747,7 +747,7 @@ export async function buildAppStaticPaths({
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   cacheHandler?: string
-  cacheHandlers?: NextConfigComplete['experimental']['cacheHandlers']
+  cacheHandlers?: NextConfigComplete['cacheHandlers']
   cacheLifeProfiles?: {
     [profile: string]: import('../../server/use-cache/cache-life').CacheLife
   }

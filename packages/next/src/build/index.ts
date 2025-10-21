@@ -2224,7 +2224,7 @@ export default async function build(
                             cacheComponents: isAppCacheComponentsEnabled,
                             authInterrupts: isAuthInterruptsEnabled,
                             cacheHandler: config.cacheHandler,
-                            cacheHandlers: config.experimental.cacheHandlers,
+                            cacheHandlers: config.cacheHandlers,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
                               : config.experimental.isrFlushToDisk,
@@ -2519,7 +2519,7 @@ export default async function build(
           const normalizedCacheHandlers: Record<string, string> = {}
 
           for (const [key, value] of Object.entries(
-            config.experimental.cacheHandlers || {}
+            config.cacheHandlers || {}
           )) {
             if (key && value) {
               normalizedCacheHandlers[key] = path.relative(distDir, value)
@@ -2539,9 +2539,9 @@ export default async function build(
               cacheHandler: cacheHandler
                 ? path.relative(distDir, cacheHandler)
                 : config.cacheHandler,
+              cacheHandlers: normalizedCacheHandlers,
               experimental: {
                 ...config.experimental,
-                cacheHandlers: normalizedCacheHandlers,
                 trustHostHeader: ciEnvironment.hasNextSupport,
                 isExperimentalCompile: isCompileMode,
               },

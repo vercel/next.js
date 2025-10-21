@@ -3191,7 +3191,7 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             span,
             formatdoc! {
                 r#"
-                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the `experimental.cacheHandlers` object in your Next.js config.
+                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the `cacheHandlers` object in your Next.js config.
                 "#
             },
         ),

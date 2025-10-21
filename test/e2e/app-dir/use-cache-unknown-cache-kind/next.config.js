@@ -3,8 +3,8 @@
  */
 const nextConfig = {
   cacheComponents: true,
+  cacheHandlers: {}, // overwrite the default config
   experimental: {
-    cacheHandlers: {}, // overwrite the default config
     prerenderEarlyExit: false,
   },
 }

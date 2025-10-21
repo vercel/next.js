@@ -898,5 +898,7 @@
   "897": "Expected HTML document to start with doctype prefix",
   "898": "When using Cache Components, all `generateStaticParams` functions must return at least one result. This is to ensure that we can perform build-time validation that there is no other dynamic accesses that would cause a runtime error.\n\nLearn more: https://nextjs.org/docs/messages/empty-generate-static-params",
   "899": "Both \"%s\" and \"%s\" files are detected. Please use \"%s\" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy",
-  "900": "Both %s file \"./%s\" and %s file \"./%s\" are detected. Please use \"./%s\" only. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy"
+  "900": "Both %s file \"./%s\" and %s file \"./%s\" are detected. Please use \"./%s\" only. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy",
+  "901": "Invalid \"cacheHandlers\" provided, expected an object e.g. { default: '/my-handler.js' }, received %s",
+  "902": "Invalid handler fields configured for \"cacheHandlers\":\\n%s"
 }

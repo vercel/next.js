@@ -459,10 +459,7 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async loadCustomCacheHandlers() {
-    const {
-      cacheMaxMemorySize,
-      experimental: { cacheHandlers },
-    } = this.nextConfig
+    const { cacheMaxMemorySize, cacheHandlers } = this.nextConfig
     if (!cacheHandlers) return
 
     // If we've already initialized the cache handlers interface, don't do it
