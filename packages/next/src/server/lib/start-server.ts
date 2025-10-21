@@ -353,7 +353,7 @@ export async function startServer(
           `the --${nodeDebugType} option was detected` +
             (isEphemeral
               ? ''
-              : `. the Next.js router server should be inspected at ${formattedDebugAddress}.`)
+              : `, the Next.js router server should be inspected at ${formattedDebugAddress}.`)
         )
       }
 
