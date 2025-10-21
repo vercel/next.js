@@ -100,16 +100,22 @@ impl ValueToString for UrlAssetReference {
 pub async fn resolve_url_reference(
     url: Vc<UrlAssetReference>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
+    inline_css: bool,
 ) -> Result<Vc<Option<RcStr>>> {
     let context_path = chunking_context.chunk_root_path().await?;
 
     if let ReferencedAsset::Some(asset) = &*url.get_referenced_asset(chunking_context).await? {
         let path = asset.path().await?;
-        let relative_path = context_path
-            .get_relative_path_to(&path)
-            .unwrap_or_else(|| format!("/{}", path.path).into());
 
-        return Ok(Vc::cell(Some(relative_path)));
+        let url_path = if inline_css {
+            format!("/{}", path.path).into()
+        } else {
+            context_path
+                .get_relative_path_to(&path)
+                .unwrap_or_else(|| format!("/{}", path.path).into())
+        };
+
+        return Ok(Vc::cell(Some(url_path)));
     }
 
     Ok(Vc::cell(None))

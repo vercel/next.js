@@ -1078,6 +1078,7 @@ impl Project {
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             debug_ids: self.next_config().turbopack_debug_ids(),
+            inline_css: self.next_config().inline_css(),
         }))
     }
 

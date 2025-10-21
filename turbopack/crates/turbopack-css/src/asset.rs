@@ -112,12 +112,14 @@ impl ProcessCss for CssModuleAsset {
                 Some(gsm) => gsm.generate_source_map(),
                 None => Vc::cell(None),
             };
+        let inline_css = *chunking_context.should_inline_css().await?;
         Ok(finalize_css(
             process_result,
             chunking_context,
             minify_type,
             origin_source_map,
             this.environment.as_deref().copied(),
+            inline_css,
         ))
     }
 }

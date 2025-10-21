@@ -173,6 +173,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn inline_css(mut self, inline_css: bool) -> Self {
+        self.chunking_context.inline_css = inline_css;
+        self
+    }
+
     pub fn asset_root_path_override(mut self, tag: RcStr, path: FileSystemPath) -> Self {
         self.chunking_context.asset_root_paths.insert(tag, path);
         self
@@ -278,6 +283,8 @@ pub struct BrowserChunkingContext {
     export_usage: Option<ResolvedVc<ExportUsageInfo>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
+    /// Whether CSS should be prepared for inlining
+    inline_css: bool,
 }
 
 impl BrowserChunkingContext {
@@ -322,6 +329,7 @@ impl BrowserChunkingContext {
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 export_usage: None,
                 chunking_configs: Default::default(),
+                inline_css: false,
             },
         }
     }
@@ -627,6 +635,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn should_inline_css(&self) -> Vc<bool> {
+        Vc::cell(self.inline_css)
     }
 
     #[turbo_tasks::function]
