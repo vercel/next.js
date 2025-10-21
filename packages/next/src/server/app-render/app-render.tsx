@@ -3174,12 +3174,12 @@ function createAsyncApiPromisesInDev(
     // These are not used directly, but we chain other `params`/`searchParams` promises off of them.
     sharedParamsParent: stagedRendering.delayUntilStage(
       RenderStage.Runtime,
-      'params',
+      undefined,
       '<internal params>'
     ),
     sharedSearchParamsParent: stagedRendering.delayUntilStage(
       RenderStage.Runtime,
-      'searchParams',
+      undefined,
       '<internal searchParams>'
     ),
     connection: stagedRendering.delayUntilStage(
