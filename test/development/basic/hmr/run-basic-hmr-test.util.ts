@@ -50,37 +50,33 @@ export function runBasicHmrTest(nextConfig: {
   })
 
   it('should have correct compile timing after fixing error', async () => {
-    const pageName = 'pages/auto-export-is-ready.js'
-    const originalContent = await next.readFile(pageName)
-
-    try {
-      const browser = await next.browser(basePath + '/auto-export-is-ready')
-      const outputLength = next.cliOutput.length
-      await next.patchFile(
-        pageName,
-        `import hello from 'non-existent'\n` + originalContent
-      )
-      await assertHasRedbox(browser)
-      await waitFor(3000)
-      await next.patchFile(pageName, originalContent)
-      await retry(async () => {
-        expect(next.cliOutput.substring(outputLength)).toMatch(/Compiled.*?/i)
-      })
-      const compileTimeStr = next.cliOutput.substring(outputLength)
-
-      const matches = [
-        ...compileTimeStr.match(/Compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
-      ]
-      const [, compileTime, timeUnit] = matches
-
-      let compileTimeMs = parseFloat(compileTime)
-      if (timeUnit === 's') {
-        compileTimeMs = compileTimeMs * 1000
+    const browser = await next.browser(basePath + '/auto-export-is-ready')
+    let outputLength
+    await next.patchFile(
+      'pages/auto-export-is-ready.js',
+      (content) => `import hello from 'non-existent'\n` + content,
+      async () => {
+        await assertHasRedbox(browser)
+        await waitFor(3000)
+        outputLength = next.cliOutput.length
       }
-      expect(compileTimeMs).toBeLessThan(3000)
-    } finally {
-      await next.patchFile(pageName, originalContent)
+    )
+
+    await retry(async () => {
+      expect(next.cliOutput.substring(outputLength)).toMatch(/Compiled.*?/i)
+    })
+    const compileTimeStr = next.cliOutput.substring(outputLength)
+
+    const matches = [
+      ...compileTimeStr.match(/Compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
+    ]
+    const [, compileTime, timeUnit] = matches
+
+    let compileTimeMs = parseFloat(compileTime)
+    if (timeUnit === 's') {
+      compileTimeMs = compileTimeMs * 1000
     }
+    expect(compileTimeMs).toBeLessThan(3000)
   })
 
   it('should reload the page when the server restarts', async () => {
