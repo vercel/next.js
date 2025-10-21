@@ -1574,13 +1574,34 @@ export default class NextNodeServer extends BaseServer<
           functionsConfig?.functions?.['/_middleware']
         ) {
           // if used with top level await, this will be a promise
-          return require(
-            join(
-              /* turbopackIgnore: true */ this.distDir,
-              'server',
-              'middleware.js'
+          // Try loading middleware.js first, then proxy.js. Instead
+          // of mapping proxy to middleware as the entry, just fallback
+          // to proxy.
+          // TODO: Remove this once we handle as the single entrypoint.
+          try {
+            return require(
+              join(
+                /* turbopackIgnore: true */ this.distDir,
+                'server',
+                'middleware.js'
+              )
             )
-          )
+          } catch (middlewareErr) {
+            if (
+              isError(middlewareErr) &&
+              (middlewareErr.code === 'ENOENT' ||
+                middlewareErr.code === 'MODULE_NOT_FOUND')
+            ) {
+              return require(
+                join(
+                  /* turbopackIgnore: true */ this.distDir,
+                  'server',
+                  'proxy.js'
+                )
+              )
+            }
+            throw middlewareErr
+          }
         }
       } catch (err) {
         if (
@@ -1736,7 +1757,10 @@ export default class NextNodeServer extends BaseServer<
 
       try {
         result = await adapterFn({
-          handler: middlewareModule.middleware || middlewareModule,
+          handler:
+            middlewareModule.proxy ||
+            middlewareModule.middleware ||
+            middlewareModule,
           request: {
             ...requestData,
             body: hasRequestBody

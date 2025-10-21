@@ -40,6 +40,7 @@ import {
 } from '../segment-config/middleware/middleware-config'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
   /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
@@ -752,27 +753,35 @@ export async function getPagesPageStaticInfo({
 
   let resolvedRuntime = config.runtime ?? config.config?.runtime
 
-  if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
-    warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
-  }
+  // Turbopack will handle error during compilation with better code frame.
+  if (!process.env.TURBOPACK && isProxyFile(page) && resolvedRuntime) {
+    const relativePath = relative(process.cwd(), pageFilePath)
+    const resolvedPath = relativePath.startsWith('.')
+      ? relativePath
+      : `./${relativePath}`
+    const message = `Route segment config is not allowed in Proxy file at "${resolvedPath}". Proxy always runs on Node.js runtime. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
 
-  if (
-    (page === `/${PROXY_FILENAME}` || page === `/src/${PROXY_FILENAME}`) &&
-    isEdgeRuntime(resolvedRuntime)
-  ) {
-    resolvedRuntime = SERVER_RUNTIME.nodejs
-    const message = `Proxy does not support Edge runtime.`
     if (isDev) {
-      Log.error(message)
+      Log.errorOnce(message)
+      resolvedRuntime = SERVER_RUNTIME.nodejs
     } else {
       throw new Error(message)
     }
   }
 
-  if (resolvedRuntime === SERVER_RUNTIME.edge && page && !isAnAPIRoute) {
+  if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
+    warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
+  }
+
+  if (
+    !isProxyFile(page) &&
+    resolvedRuntime === SERVER_RUNTIME.edge &&
+    page &&
+    !isAnAPIRoute
+  ) {
     const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
     if (isDev) {
-      Log.error(message)
+      Log.errorOnce(message)
     } else {
       throw new Error(message)
     }

@@ -43,9 +43,9 @@ import type { __ApiPreviewProps } from '../server/api-utils'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
+  isProxyFile,
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
-  isProxyFilename,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
@@ -765,12 +765,12 @@ export function runDependingOnPageType<T>(params: {
     return
   }
 
-  if (isProxyFilename(params.page)) {
+  if (isProxyFile(params.page)) {
     params.onServer()
     return
   }
 
-  if (isMiddlewareFile(params.page)) {
+  if (isMiddlewareFile(params.page) && !isProxyFile(params.page)) {
     if (params.pageRuntime === 'nodejs') {
       params.onServer()
       return

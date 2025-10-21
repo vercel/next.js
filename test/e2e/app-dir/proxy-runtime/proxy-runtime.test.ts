@@ -35,7 +35,9 @@ Next.js can't recognize the exported \`config\` field in route. Proxy does not s
 
 The exported configuration object in a source file needs to have a very specific format from which some properties can be statically parsed at compiled-time.`)
     } else {
-      expect(cliOutput).toContain(`Proxy does not support Edge runtime.`)
+      expect(cliOutput).toContain(
+        `Route segment config is not allowed in Proxy file at "./proxy.ts". Proxy always runs on Node.js runtime. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+      )
     }
 
     await next.stop()

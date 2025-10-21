@@ -139,6 +139,7 @@ import {
   isAppBuiltinPage,
   collectRoutesUsingEdgeRuntime,
   collectMeta,
+  isProxyFile,
 } from './utils'
 import type { PageInfo, PageInfos } from './utils'
 import type { FallbackRouteParam, PrerenderedRoute } from './static-paths/types'
@@ -1214,13 +1215,7 @@ export default async function build(
 
       for (const rootPath of rootPaths) {
         const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
-        const isAtConventionLevel =
-          fileDir === '/' ||
-          fileDir === '/src' ||
-          // rootPaths are currently relative paths from the root directory.
-          // Add safety check here for unexpected future changes.
-          fileDir === dir ||
-          fileDir === path.join(dir, 'src')
+        const isAtConventionLevel = fileDir === '/' || fileDir === '/src'
 
         if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
           middlewareFilePath = rootPath
@@ -2615,12 +2610,15 @@ export default async function build(
           return serverFilesManifest
         })
 
-      const middlewareFile = rootPaths.find(
-        (p) => p.includes(MIDDLEWARE_FILENAME) || p.includes(PROXY_FILENAME)
-      )
+      const middlewareFile = proxyFilePath || middlewareFilePath
       let hasNodeMiddleware = false
 
       if (middlewareFile) {
+        // Is format of `(/src)/(proxy|middleware).<ext>`, so split by
+        // "." and get the first part, regard rest of the extensions
+        // to match the `page` value format.
+        const page = middlewareFile.split('.')[0]
+
         const staticInfo = await getStaticInfoIncludingLayouts({
           isInsideAppDir: false,
           pageFilePath: path.join(dir, middlewareFile),
@@ -2628,17 +2626,17 @@ export default async function build(
           appDir,
           pageExtensions: config.pageExtensions,
           isDev: false,
-          page: 'middleware',
+          page,
         })
 
         if (staticInfo.hadUnsupportedValue) {
           errorFromUnsupportedSegmentConfig()
         }
 
-        if (staticInfo.runtime === 'nodejs') {
+        if (staticInfo.runtime === 'nodejs' || isProxyFile(page)) {
           hasNodeMiddleware = true
           functionsConfigManifest.functions['/_middleware'] = {
-            runtime: staticInfo.runtime,
+            runtime: 'nodejs',
             matchers: staticInfo.middleware?.matchers ?? [
               {
                 regexp: '^.*$',
