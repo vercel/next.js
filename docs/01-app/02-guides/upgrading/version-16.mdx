@@ -864,12 +864,12 @@ A consequence of this change is that, when running `next dev` checking if `proce
 This is specially important for plugins that trigger side-effects on `next dev`. If that's the case, it might be enough to check if `NODE_ENV` is set to `development`.
 
 ```js filename="next.config.js"
-import { startDocsDevServer } from 'docs-lib/dev-server'
+import { startServer } from 'docs-lib/dev-server'
 
 const isDev = process.env.NODE_ENV === 'development'
 
 if (isDev) {
-  startDocsServer()
+  startServer()
 }
 
 const nextConfig = {
