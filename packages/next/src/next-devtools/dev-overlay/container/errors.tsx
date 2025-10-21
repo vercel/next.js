@@ -1,4 +1,4 @@
-import { useMemo, useRef, Suspense, useCallback } from 'react'
+import React, { useMemo, useRef, Suspense, useCallback } from 'react'
 import type { DebugInfo } from '../../shared/types'
 import { Overlay, OverlayBackdrop } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
@@ -56,111 +56,418 @@ function GenericErrorDescription({ error }: { error: Error }) {
   )
 }
 
-function BlockingPageLoadErrorDescription() {
-  return (
-    <div className="nextjs__blocking_page_load_error_description">
-      <h3 className="nextjs__blocking_page_load_error_description_title">
-        Uncached data was accessed outside of {'<Suspense>'}
-      </h3>
-      <p>
-        This delays the entire page from rendering, resulting in a slow user
-        experience. Next.js uses this error to ensure your app loads instantly
-        on every navigation.
-      </p>
-      <h4>To fix this, you can either:</h4>
-      <p className="nextjs__blocking_page_load_error_fix_option">
-        <strong>Wrap the component in a {'<Suspense>'} boundary.</strong> This
-        allows Next.js to stream its contents to the user as soon as it's ready,
-        without blocking the rest of the app.
-      </p>
-      <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
-        or
-      </h4>
-      <p className="nextjs__blocking_page_load_error_fix_option">
-        <strong>
-          Move the asynchronous await into a Cache Component (
-          <code>"use cache"</code>)
-        </strong>
-        . This allows Next.js to statically prerender the component as part of
-        the HTML document, so it's instantly visible to the user.
-      </p>
-      <p>
-        Note that request-specific information &mdash; such as params, cookies,
-        and headers &mdash; is not available during static prerendering, so must
-        be wrapped in {'<Suspense>'}.
-      </p>
-      <p>
-        Learn more:{' '}
-        <a href="https://nextjs.org/docs/messages/blocking-route">
-          https://nextjs.org/docs/messages/blocking-route
-        </a>
-      </p>
-    </div>
-  )
+function BlockingPageLoadErrorDescription({
+  variant,
+  refinement,
+}: {
+  variant: 'navigation' | 'runtime'
+  refinement: '' | 'generateViewport' | 'generateMetadata'
+}) {
+  if (refinement === 'generateViewport') {
+    if (variant === 'navigation') {
+      return (
+        <div className="nextjs__blocking_page_load_error_description">
+          <h3 className="nextjs__blocking_page_load_error_description_title">
+            Navigation blocking data was accessed inside{' '}
+            <code>generateViewport()</code>
+          </h3>
+          <p>
+            Viewport metadata needs to be available on page load so accessing
+            Navigation blocking data while producing it prevents Next.js from
+            producing an initial UI that can render immediately on navigation.
+          </p>
+          <h4>To fix this:</h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              Move the asynchronous await into a Cache Component (
+              <code>"use cache"</code>)
+            </strong>
+            . This allows Next.js to statically prerender{' '}
+            <code>generateViewport()</code> as part of the HTML document, so
+            it's instantly visible to the user.
+          </p>
+          <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
+            or
+          </h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              Put a <code>{'<Suspense>'}</code> around around your document{' '}
+              <code>{'<body>'}</code>.
+            </strong>
+            This indicate to Next.js that you are opting into allowing blocking
+            navigations for any page.
+          </p>
+          <p>
+            Note that <code>connection()</code> is Navigation blocking and
+            cannot be cached with <code>"use cache"</code>.
+          </p>
+          <p>
+            Note that <code>"use cache"</code> functions with a short{' '}
+            <code>cacheLife()</code>
+            are Navigation blocking and need a longer lifetime to avoid this.
+          </p>
+          <p>
+            Learn more:{' '}
+            <a href="https://nextjs.org/docs/messages/next-prerender-dynamic-viewport">
+              https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+            </a>
+          </p>
+        </div>
+      )
+    } else {
+      return (
+        <div className="nextjs__blocking_page_load_error_description">
+          <h3 className="nextjs__blocking_page_load_error_description_title">
+            Runtime data was accessed inside <code>generateViewport()</code>
+          </h3>
+          <p>
+            Viewport metadata needs to be available on page load so accessing
+            Runtime data while producing it prevents Next.js from producing an
+            initial UI that can render immediately on navigation.
+          </p>
+          <h4>To fix this:</h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>Remove the Runtime data requirement</strong> from{' '}
+            <code>generateViewport</code>
+          </p>
+          <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
+            or
+          </h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              Put a <code>{'<Suspense>'}</code> around around your document{' '}
+              <code>{'<body>'}</code>.
+            </strong>
+            This indicate to Next.js that you are opting into allowing blocking
+            navigations for any page.
+          </p>
+          <p>
+            Learn more:{' '}
+            <a href="https://nextjs.org/docs/messages/next-prerender-dynamic-viewport">
+              https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+            </a>
+          </p>
+        </div>
+      )
+    }
+  } else if (refinement === 'generateMetadata') {
+    if (variant === 'navigation') {
+      return (
+        <div className="nextjs__blocking_page_load_error_description">
+          <h3 className="nextjs__blocking_page_load_error_description_title">
+            Navigation blocking data was accessed inside{' '}
+            <code>generateMetadata()</code> in an otherwise prerenderable page
+          </h3>
+          <p>
+            When Document metadata is the only part of a page that cannot be
+            prerendered Next.js expects you to either make it prerenderable or
+            make some other part of the page non-prerenderable to avoid
+            unintentional partially dynamic pages.
+          </p>
+          <h4>To fix this:</h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              Move the asynchronous await into a Cache Component (
+              <code>"use cache"</code>)
+            </strong>
+            . This allows Next.js to statically prerender{' '}
+            <code>generateMetadata()</code> as part of the HTML document, so
+            it's instantly visible to the user.
+          </p>
+          <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
+            or
+          </h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              add <code>connection()</code> inside a <code>{'<Suspense>'}</code>
+            </strong>{' '}
+            somewhere in a Page or Layout. This tells Next.js that the page is
+            intended to have some non-prerenderable parts.
+          </p>
+          <p>
+            Learn more:{' '}
+            <a href="https://nextjs.org/docs/messages/next-prerender-dynamic-metadata">
+              https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+            </a>
+          </p>
+        </div>
+      )
+    } else {
+      return (
+        <div className="nextjs__blocking_page_load_error_description">
+          <h3 className="nextjs__blocking_page_load_error_description_title">
+            Runtime data was accessed inside <code>generateMetadata()</code> or
+            file-based metadata
+          </h3>
+          <p>
+            When Document metadata is the only part of a page that cannot be
+            prerendered Next.js expects you to either make it prerenderable or
+            make some other part of the page non-prerenderable to avoid
+            unintentional partially dynamic pages.
+          </p>
+          <h4>To fix this:</h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              Remove the Runtime data access from{' '}
+              <code>generateMetadata()</code>
+            </strong>
+            . This allows Next.js to statically prerender{' '}
+            <code>generateMetadata()</code> as part of the HTML document, so
+            it's instantly visible to the user.
+          </p>
+          <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
+            or
+          </h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              add <code>connection()</code> inside a <code>{'<Suspense>'}</code>
+            </strong>{' '}
+            somewhere in a Page or Layout. This tells Next.js that the page is
+            intended to have some non-prerenderable parts.
+          </p>
+          <p>
+            Note that if you are using file-based metadata, such as icons,
+            inside a route with dynamic params then the only recourse is to make
+            some other part of the page non-prerenderable.
+          </p>
+          <p>
+            Learn more:{' '}
+            <a href="https://nextjs.org/docs/messages/next-prerender-dynamic-metadata">
+              https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+            </a>
+          </p>
+        </div>
+      )
+    }
+  }
+
+  if (variant === 'runtime') {
+    return (
+      <div className="nextjs__blocking_page_load_error_description">
+        <h3 className="nextjs__blocking_page_load_error_description_title">
+          Runtime data was accessed outside of {'<Suspense>'}
+        </h3>
+        <p>
+          This delays the entire page from rendering, resulting in a slow user
+          experience. Next.js uses this error to ensure your app loads instantly
+          on every navigation.
+        </p>
+        <h4>To fix this:</h4>
+        <p className="nextjs__blocking_page_load_error_fix_option">
+          <strong>Provide a fallback UI using {'<Suspense>'}</strong> around
+          this component.
+        </p>
+        <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
+          or
+        </h4>
+        <p className="nextjs__blocking_page_load_error_fix_option">
+          <strong>
+            Move the Runtime data access into a deeper component wrapped in{' '}
+            {'<Suspense>'}.
+          </strong>
+        </p>
+        <p>
+          In either case this allows Next.js to stream its contents to the user
+          when they request the page, while still providing an initial UI that
+          is prerendered and prefetchable for instant navigations.
+        </p>
+        <p>
+          Learn more:{' '}
+          <a href="https://nextjs.org/docs/messages/blocking-route">
+            https://nextjs.org/docs/messages/blocking-route
+          </a>
+        </p>
+      </div>
+    )
+  } else {
+    return (
+      <div className="nextjs__blocking_page_load_error_description">
+        <h3 className="nextjs__blocking_page_load_error_description_title">
+          Navigation blocking data was accessed outside of {'<Suspense>'}
+        </h3>
+        <p>
+          This delays the entire page from rendering, resulting in a slow user
+          experience. Next.js uses this error to ensure your app loads instantly
+          on every navigation.
+        </p>
+        <h4>To fix this, you can either:</h4>
+        <p className="nextjs__blocking_page_load_error_fix_option">
+          <strong>Provide a fallback UI using {'<Suspense>'}</strong> around
+          this component. This allows Next.js to stream its contents to the user
+          as soon as it's ready, without blocking the rest of the app.
+        </p>
+        <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
+          or
+        </h4>
+        <p className="nextjs__blocking_page_load_error_fix_option">
+          <strong>
+            Move the asynchronous await into a Cache Component (
+            <code>"use cache"</code>)
+          </strong>
+          . This allows Next.js to statically prerender the component as part of
+          the HTML document, so it's instantly visible to the user.
+        </p>
+        <p>
+          Note that <code>connection()</code> is Navigation blocking and cannot
+          be cached with <code>"use cache"</code> and must be wrapped in{' '}
+          {'<Suspense>'}.
+        </p>
+        <p>
+          Note that <code>"use cache"</code> functions with a short{' '}
+          <code>cacheLife()</code>
+          are Navigation blocking and either need a longer lifetime or must be
+          wrapped in {'<Suspense>'}.
+        </p>
+        <p>
+          Learn more:{' '}
+          <a href="https://nextjs.org/docs/messages/blocking-route">
+            https://nextjs.org/docs/messages/blocking-route
+          </a>
+        </p>
+      </div>
+    )
+  }
 }
 
 export function getErrorTypeLabel(
   error: Error,
-  type: ReadyRuntimeError['type']
+  type: ReadyRuntimeError['type'],
+  errorDetails: ErrorDetails
 ): ErrorOverlayLayoutProps['errorType'] {
+  if (errorDetails.type === 'blocking-route') {
+    return `Blocking Route`
+  }
   if (type === 'recoverable') {
     return `Recoverable ${error.name}`
   }
   if (type === 'console') {
-    const isBlockingPageLoadError = error.message.includes(
-      'https://nextjs.org/docs/messages/blocking-route'
-    )
-    if (isBlockingPageLoadError) {
-      return 'Blocking Route'
-    }
     return `Console ${error.name}`
   }
   return `Runtime ${error.name}`
 }
 
-const noErrorDetails = {
-  hydrationWarning: null,
-  notes: null,
-  reactOutputComponentDiff: null,
+type ErrorDetails =
+  | NoErrorDetails
+  | HydrationErrorDetails
+  | BlockingRouteErrorDetails
+
+type NoErrorDetails = {
+  type: 'empty'
 }
+
+type HydrationErrorDetails = {
+  type: 'hydration'
+  warning: string | null
+  notes: string | null
+  reactOutputComponentDiff: string | null
+}
+
+type BlockingRouteErrorDetails = {
+  type: 'blocking-route'
+  variant: 'navigation' | 'runtime'
+  refinement: '' | 'generateViewport' | 'generateMetadata'
+}
+
+const noErrorDetails: ErrorDetails = {
+  type: 'empty',
+}
+
 export function useErrorDetails(
   error: Error | undefined,
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
-): {
-  hydrationWarning: string | null
-  notes: string | null
-  reactOutputComponentDiff: string | null
-} {
+): ErrorDetails {
   return useMemo(() => {
     if (error === undefined) {
       return noErrorDetails
     }
 
-    const pagesRouterErrorDetails = getSquashedHydrationErrorDetails(error)
-    if (pagesRouterErrorDetails !== null) {
-      return {
-        hydrationWarning: pagesRouterErrorDetails.warning ?? null,
-        notes: null,
-        reactOutputComponentDiff:
-          pagesRouterErrorDetails.reactOutputComponentDiff ?? null,
-      }
+    const hydrationErrorDetails = getHydrationErrorDetails(
+      error,
+      getSquashedHydrationErrorDetails
+    )
+    if (hydrationErrorDetails) {
+      return hydrationErrorDetails
     }
 
-    if (!isHydrationError(error)) {
-      return noErrorDetails
+    const blockingRouteErrorDetails = getBlockingRouteErrorDetails(error)
+    if (blockingRouteErrorDetails) {
+      return blockingRouteErrorDetails
     }
 
-    const { message, notes, diff } = getHydrationErrorStackInfo(error)
-    if (message === null) {
-      return noErrorDetails
+    return noErrorDetails
+  }, [error, getSquashedHydrationErrorDetails])
+}
+
+function getHydrationErrorDetails(
+  error: Error,
+  getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
+): null | HydrationErrorDetails {
+  const pagesRouterErrorDetails = getSquashedHydrationErrorDetails(error)
+  if (pagesRouterErrorDetails !== null) {
+    return {
+      type: 'hydration',
+      warning: pagesRouterErrorDetails.warning ?? null,
+      notes: null,
+      reactOutputComponentDiff:
+        pagesRouterErrorDetails.reactOutputComponentDiff ?? null,
     }
+  }
+
+  if (!isHydrationError(error)) {
+    return null
+  }
+
+  const { message, notes, diff } = getHydrationErrorStackInfo(error)
+  if (message === null) {
+    return null
+  }
+
+  return {
+    type: 'hydration',
+    warning: message,
+    notes,
+    reactOutputComponentDiff: diff,
+  }
+}
+
+function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
+  const isBlockingPageLoadError = error.message.includes('/blocking-route')
+
+  if (isBlockingPageLoadError) {
+    const isRuntimeData = error.message.includes('cookies()')
 
     return {
-      hydrationWarning: message,
-      notes,
-      reactOutputComponentDiff: diff,
+      type: 'blocking-route',
+      variant: isRuntimeData ? 'runtime' : 'navigation',
+      refinement: '',
     }
-  }, [error, getSquashedHydrationErrorDetails])
+  }
+
+  const isBlockingMetadataError = error.message.includes(
+    '/next-prerender-dynamic-metadata'
+  )
+  if (isBlockingMetadataError) {
+    const isRuntimeData = error.message.includes('cookies()')
+    return {
+      type: 'blocking-route',
+      variant: isRuntimeData ? 'runtime' : 'navigation',
+      refinement: 'generateMetadata',
+    }
+  }
+
+  const isBlockingViewportError = error.message.includes(
+    '/next-prerender-dynamic-viewport'
+  )
+  if (isBlockingViewportError) {
+    const isRuntimeData = error.message.includes('cookies()')
+    return {
+      type: 'blocking-route',
+      variant: isRuntimeData ? 'runtime' : 'navigation',
+      refinement: 'generateViewport',
+    }
+  }
+
+  return null
 }
 
 export function Errors({
@@ -176,13 +483,18 @@ export function Errors({
     isLoading,
     errorCode,
     errorType,
-    notes,
-    hydrationWarning,
     activeIdx,
     errorDetails,
     activeError,
     setActiveIndex,
   } = useActiveRuntimeError({ runtimeErrors, getSquashedHydrationErrorDetails })
+
+  console.log({
+    errorCode,
+    errorType,
+    errorDetails,
+    activeError,
+  })
 
   // Get parsed frames data
   const frames = useFrames(activeError)
@@ -279,19 +591,67 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
     getErrorSource(error) || ''
   )
 
+  let errorMessage: React.ReactNode
+  let maybeNotes: React.ReactNode = null
+  let maybeDiff: React.ReactNode = null
+  switch (errorDetails.type) {
+    case 'hydration':
+      errorMessage = errorDetails.warning ? (
+        <HydrationErrorDescription message={errorDetails.warning} />
+      ) : (
+        <GenericErrorDescription error={error} />
+      )
+      maybeNotes = (
+        <div className="error-overlay-notes-container">
+          {errorDetails.notes ? (
+            <>
+              <p
+                id="nextjs__container_errors__notes"
+                className="nextjs__container_errors__notes"
+              >
+                {errorDetails.notes}
+              </p>
+            </>
+          ) : null}
+          {errorDetails.warning ? (
+            <p
+              id="nextjs__container_errors__link"
+              className="nextjs__container_errors__link"
+            >
+              <HotlinkedText
+                text={`See more info here: ${NEXTJS_HYDRATION_ERROR_LINK}`}
+              />
+            </p>
+          ) : null}
+        </div>
+      )
+      if (errorDetails.reactOutputComponentDiff) {
+        maybeDiff = (
+          <PseudoHtmlDiff
+            reactOutputComponentDiff={
+              errorDetails.reactOutputComponentDiff || ''
+            }
+          />
+        )
+      }
+      break
+    case 'blocking-route':
+      errorMessage = (
+        <BlockingPageLoadErrorDescription
+          variant={errorDetails.variant}
+          refinement={errorDetails.refinement}
+        />
+      )
+      break
+    default:
+      errorMessage = <GenericErrorDescription error={error} />
+  }
+
   return (
     <ErrorOverlayLayout
       errorCode={errorCode}
       errorType={errorType}
-      errorMessage={
-        hydrationWarning ? (
-          <HydrationErrorDescription message={hydrationWarning} />
-        ) : errorType === 'Blocking Route' ? (
-          <BlockingPageLoadErrorDescription />
-        ) : (
-          <GenericErrorDescription error={error} />
-        )
-      }
+      errorMessage={errorMessage}
       onClose={isServerError ? undefined : onClose}
       debugInfo={debugInfo}
       error={error}
@@ -302,34 +662,8 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       generateErrorInfo={generateErrorInfo}
       {...props}
     >
-      <div className="error-overlay-notes-container">
-        {notes ? (
-          <>
-            <p
-              id="nextjs__container_errors__notes"
-              className="nextjs__container_errors__notes"
-            >
-              {notes}
-            </p>
-          </>
-        ) : null}
-        {hydrationWarning ? (
-          <p
-            id="nextjs__container_errors__link"
-            className="nextjs__container_errors__link"
-          >
-            <HotlinkedText
-              text={`See more info here: ${NEXTJS_HYDRATION_ERROR_LINK}`}
-            />
-          </p>
-        ) : null}
-      </div>
-
-      {errorDetails.reactOutputComponentDiff ? (
-        <PseudoHtmlDiff
-          reactOutputComponentDiff={errorDetails.reactOutputComponentDiff || ''}
-        />
-      ) : null}
+      {maybeNotes}
+      {maybeDiff}
       <Suspense fallback={<div data-nextjs-error-suspended />}>
         <RuntimeError
           key={activeError.id.toString()}
