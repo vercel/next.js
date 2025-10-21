@@ -86,11 +86,11 @@ npm run dev
 
 The experimental Next.js MCP server provides the following tools:
 
-- **get_errors**: Retrieve current build errors, runtime errors, and type errors from your dev server
-- **get_logs**: Access development server logs and console output
-- **get_page_metadata**: Get metadata about specific pages including routes, components, and rendering information
-- **get_project_metadata**: Retrieve project structure, configuration, and overall metadata
-- **get_server_action_by_id**: Look up Server Actions by their ID for debugging and inspection
+- **`get_errors`**: Retrieve current build errors, runtime errors, and type errors from your dev server
+- **`get_logs`**: Access development server logs and console output
+- **`get_page_metadata`**: Get metadata about specific pages including routes, components, and rendering information
+- **`get_project_metadata`**: Retrieve project structure, configuration, and overall metadata
+- **`get_server_action_by_id`**: Look up Server Actions by their ID for debugging and inspection
 
 ## Examples
 
@@ -98,7 +98,7 @@ The experimental Next.js MCP server provides the following tools:
 
 The agent can query your running Next.js application for real-time error information:
 
-```
+```bash
 User: "What errors are currently in my application?"
 ```
 
@@ -111,7 +111,7 @@ Agent action:
 <details>
 <summary>Agent response (click to expand)</summary>
 
-```
+```bash
 > fix errors on the page
 
 ⏺ I'll help you fix the errors on the page. Let me first check what errors exist by looking at the
@@ -147,7 +147,7 @@ This demonstrates the power of having both MCP servers enabled: the Next.js MCP 
 
 You can also ask for help with Next.js concepts and migrations:
 
-```
+```bash
 User: "Help me upgrade my Next.js app to version 16"
 ```
 
@@ -155,7 +155,7 @@ The agent will use next-devtools-mcp to analyze your current version, guide you 
 
 You can also ask conceptual questions:
 
-```
+```bash
 User: "When should I use 'use client' in App Router?"
 ```
 
