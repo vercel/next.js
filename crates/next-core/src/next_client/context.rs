@@ -427,7 +427,7 @@ pub struct ClientChunkingContextOptions {
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub debug_ids: Vc<bool>,
-    pub inline_css: Vc<bool>,
+    pub should_use_absolute_url_references: Vc<bool>,
 }
 
 #[turbo_tasks::function]
@@ -449,7 +449,7 @@ pub async fn get_client_chunking_context(
         no_mangling,
         scope_hoisting,
         debug_ids,
-        inline_css,
+        should_use_absolute_url_references,
     } = options;
 
     let next_mode = mode.await?;
@@ -484,7 +484,7 @@ pub async fn get_client_chunking_context(
     .export_usage(*export_usage.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
-    .inline_css(*inline_css.await?);
+    .should_use_absolute_url_references(*should_use_absolute_url_references.await?);
 
     if next_mode.is_development() {
         builder = builder

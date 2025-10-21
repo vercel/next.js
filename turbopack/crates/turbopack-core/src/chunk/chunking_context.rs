@@ -240,7 +240,7 @@ pub trait ChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn should_inline_css(self: Vc<Self>) -> Vc<bool> {
+    fn should_use_absolute_url_references(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
 
