@@ -125,7 +125,7 @@ export function removeFreeCallWrapper(text: string): string {
   // Use Unicode property escapes (\p{ID_Start}, \p{ID_Continue}) for full JS identifier support
   // Requires the 'u' (unicode) flag in the regex
   return text.replace(
-    /\(0\s*,\s*([\p{ID_Start}_$][\p{ID_Continue}$]*\.[\p{ID_Start}_$][\p{ID_Continue}$]*)\)/u,
+    /\(0\s*,\s*(__TURBOPACK__[a-zA-Z0-9_$]+__\.[\p{ID_Start}_$][\p{ID_Continue}$]*)\)/u,
     '$1'
   )
 }

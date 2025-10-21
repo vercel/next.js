@@ -78,11 +78,15 @@ describe('deobfuscateModuleId', () => {
 
 describe('removeFreeCallWrapper', () => {
   test('removes (0, ) wrapper', () => {
-    expect(removeFreeCallWrapper('(0, foo.bar)')).toBe('foo.bar')
+    expect(removeFreeCallWrapper('(0, __TURBOPACK__foo__.bar)')).toBe(
+      '__TURBOPACK__foo__.bar'
+    )
   })
 
   test('removes (0 , ) wrapper with spaces', () => {
-    expect(removeFreeCallWrapper('(0 , foo.bar)')).toBe('foo.bar')
+    expect(removeFreeCallWrapper('(0 , __TURBOPACK__foo__.bar)')).toBe(
+      '__TURBOPACK__foo__.bar'
+    )
   })
 
   test('leaves non-free-call expressions unchanged', () => {
@@ -96,20 +100,16 @@ describe('deobfuscateText', () => {
     const input =
       '(0 , __TURBOPACK__imported__module__$5b$project$5d2f$examples$2f$with$2d$turbopack$2f$app$2f$foo$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__.foo) is not a function'
     const output = deobfuscateText(input)
-    expect(output).toContain('imported module')
-    expect(output).toContain('./examples/with-turbopack/app/foo.ts')
-    expect(output).not.toContain('[project]')
-    expect(output).not.toContain('[app-rsc]')
-    expect(output).not.toContain('(ecmascript)')
-    expect(output).not.toContain('(0 ,')
+    expect(output).toBe(
+      '{imported module ./examples/with-turbopack/app/foo.ts}.foo is not a function'
+    )
   })
 
   test('handles multiple magic identifiers', () => {
     const input =
       '__TURBOPACK__module__evaluation__ called __TURBOPACK__foo$2f$bar__'
     const output = deobfuscateText(input)
-    expect(output).toContain('module evaluation')
-    expect(output).toContain('foo/bar')
+    expect(output).toBe('{module evaluation} called {foo/bar}')
   })
 
   test('leaves regular text unchanged', () => {
