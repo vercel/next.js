@@ -112,16 +112,12 @@ impl ProcessCss for CssModuleAsset {
                 Some(gsm) => gsm.generate_source_map(),
                 None => Vc::cell(None),
             };
-        let should_use_absolute_url_references = *chunking_context
-            .should_use_absolute_url_references()
-            .await?;
         Ok(finalize_css(
             process_result,
             chunking_context,
             minify_type,
             origin_source_map,
             this.environment.as_deref().copied(),
-            should_use_absolute_url_references,
         ))
     }
 }

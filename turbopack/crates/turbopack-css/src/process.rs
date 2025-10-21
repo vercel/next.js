@@ -269,7 +269,6 @@ pub async fn finalize_css(
     minify_type: MinifyType,
     origin_source_map: Vc<OptionStringifiedSourceMap>,
     environment: Option<ResolvedVc<Environment>>,
-    should_use_absolute_url_references: bool,
 ) -> Result<Vc<FinalCssResult>> {
     let result = result.await?;
     match &*result {
@@ -294,12 +293,7 @@ pub async fn finalize_css(
             let mut url_map = FxHashMap::default();
 
             for (src, reference) in (*url_references.await?).iter() {
-                let resolved = resolve_url_reference(
-                    **reference,
-                    chunking_context,
-                    should_use_absolute_url_references,
-                )
-                .await?;
+                let resolved = resolve_url_reference(**reference, chunking_context).await?;
                 if let Some(v) = resolved.as_ref().cloned() {
                     url_map.insert(RcStr::from(src.as_str()), v);
                 }
