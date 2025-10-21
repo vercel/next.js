@@ -306,16 +306,13 @@ function validateMiddlewareProxyExports({
   ast,
   page,
   pageFilePath,
+  isDev,
 }: {
   ast: any
   page: string
   pageFilePath: string
+  isDev: boolean
 }): void {
-  // Only validate in build. In development, it will error at runtime.
-  if (process.env.NODE_ENV !== 'production') {
-    return
-  }
-
   // Check if this is middleware/proxy
   const isMiddleware =
     page === `/${MIDDLEWARE_FILENAME}` || page === `/src/${MIDDLEWARE_FILENAME}`
@@ -397,23 +394,31 @@ function validateMiddlewareProxyExports({
     (isMiddleware && hasMiddlewareExport) ||
     (isProxy && hasProxyExport)
 
-  const relativeFilePath = `./${relative(process.cwd(), pageFilePath)}`
+  const relativePath = relative(process.cwd(), pageFilePath)
+  const resolvedPath = relativePath.startsWith('.')
+    ? relativePath
+    : `./${relativePath}`
 
   if (!hasValidExport) {
-    throw new Error(
-      `The file "${relativeFilePath}" must export a function, either as a default export or as a named "${fileName}" export.\n` +
-        `This function is what Next.js runs for every request handled by this ${fileName === 'proxy' ? 'proxy (previously called middleware)' : 'middleware'}.\n\n` +
-        `Why this happens:\n` +
-        (isProxy
-          ? "- You are migrating from `middleware` to `proxy`, but haven't updated the exported function.\n"
-          : '') +
-        `- The file exists but doesn't export a function.\n` +
-        `- The export is not a function (e.g., an object or constant).\n` +
-        `- There's a syntax error preventing the export from being recognized.\n\n` +
-        `To fix it:\n` +
-        `- Ensure this file has either a default or "${fileName}" function export.\n\n` +
-        `Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
-    )
+    const message =
+      `The file "${resolvedPath}" must export a function, either as a default export or as a named "${fileName}" export.\n` +
+      `This function is what Next.js runs for every request handled by this ${fileName === 'proxy' ? 'proxy (previously called middleware)' : 'middleware'}.\n\n` +
+      `Why this happens:\n` +
+      (isProxy
+        ? "- You are migrating from `middleware` to `proxy`, but haven't updated the exported function.\n"
+        : '') +
+      `- The file exists but doesn't export a function.\n` +
+      `- The export is not a function (e.g., an object or constant).\n` +
+      `- There's a syntax error preventing the export from being recognized.\n\n` +
+      `To fix it:\n` +
+      `- Ensure this file has either a default or "${fileName}" function export.\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+
+    if (isDev) {
+      Log.errorOnce(message)
+    } else {
+      throw new Error(message)
+    }
   }
 }
 
@@ -618,7 +623,12 @@ export async function getAppPageStaticInfo({
   }
 
   const ast = await parseModule(pageFilePath, content)
-  validateMiddlewareProxyExports({ ast, page, pageFilePath })
+  validateMiddlewareProxyExports({
+    ast,
+    page,
+    pageFilePath,
+    isDev: isDev ?? process.env.NODE_ENV === 'development',
+  })
 
   const {
     generateStaticParams,
@@ -714,7 +724,12 @@ export async function getPagesPageStaticInfo({
   }
 
   const ast = await parseModule(pageFilePath, content)
-  validateMiddlewareProxyExports({ ast, page, pageFilePath })
+  validateMiddlewareProxyExports({
+    ast,
+    page,
+    pageFilePath,
+    isDev: isDev ?? process.env.NODE_ENV === 'development',
+  })
 
   const { getServerSideProps, getStaticProps, exports } = checkExports(
     ast,
