@@ -2,8 +2,8 @@ use std::mem::replace;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, NonLocalValue, Vc, trace::TraceRawVcs};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, NonLocalValue, ValueToString, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -45,18 +45,18 @@ pub async fn split_output_asset_into_parts(
     let Some(generate_source_map) =
         Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(asset).await?
     else {
-        return unaccounted(content);
+        return self_mapped(asset, content).await;
     };
     let Some(source_map) = &*generate_source_map.generate_source_map().await? else {
-        return unaccounted(content);
+        return self_mapped(asset, content).await;
     };
     let Some(source_map) = SourceMap::new_from_rope(source_map)? else {
-        return unaccounted(content);
+        return unaccounted(asset, content).await;
     };
 
     let lines = file_content.lines().await?;
     let FileLinesContent::Lines(lines) = &*lines else {
-        return unaccounted(content);
+        return unaccounted(asset, content).await;
     };
 
     fn end_of_mapping_column(
@@ -286,17 +286,27 @@ pub async fn split_output_asset_into_parts(
             add_unaccounted_chunk_part(source, len, &mut chunk_parts);
         }
         State::StartOfFile => {
-            return unaccounted(content);
+            return unaccounted(asset, content).await;
         }
     }
 
     Ok(Vc::cell(chunk_parts.into_values().collect()))
 }
 
-fn unaccounted(content: &Rope) -> Result<Vc<ChunkParts>> {
+async fn self_mapped(asset: Vc<Box<dyn OutputAsset>>, content: &Rope) -> Result<Vc<ChunkParts>> {
     let len = content.len().try_into().unwrap_or(u32::MAX);
     Ok(Vc::cell(vec![ChunkPart {
-        source: rcstr!("<unaccounted>"),
+        source: asset.path().to_string().owned().await?,
+        real_size: len,
+        unaccounted_size: 0,
+        ranges: vec![],
+    }]))
+}
+
+async fn unaccounted(asset: Vc<Box<dyn OutputAsset>>, content: &Rope) -> Result<Vc<ChunkParts>> {
+    let len = content.len().try_into().unwrap_or(u32::MAX);
+    Ok(Vc::cell(vec![ChunkPart {
+        source: asset.path().to_string().owned().await?,
         real_size: 0,
         unaccounted_size: len,
         ranges: vec![],

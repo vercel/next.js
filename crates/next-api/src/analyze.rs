@@ -12,6 +12,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_analyze::split_chunk::split_output_asset_into_parts;
 use turbopack_core::{
+    SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     output::{OutputAsset, OutputAssets},
 };
@@ -125,6 +126,7 @@ struct AnalyzeOutputFileBuilder {
 struct AnalyzeSourceBuilder {
     source: AnalyzeSource,
     child_source_indices: Vec<u32>,
+    chunk_part_indices: Vec<u32>,
 }
 
 struct AnalyzeDataBuilder {
@@ -175,6 +177,7 @@ impl AnalyzeDataBuilder {
                 source_size: 0,
             },
             child_source_indices: vec![],
+            chunk_part_indices: vec![],
         });
         (&mut self.sources[index as usize], index)
     }
@@ -200,6 +203,12 @@ impl AnalyzeDataBuilder {
             .push(chunk_part_index);
     }
 
+    fn add_chunk_part_to_source(&mut self, source_index: u32, chunk_part_index: u32) {
+        self.sources[source_index as usize]
+            .chunk_part_indices
+            .push(chunk_part_index);
+    }
+
     fn build(mut self) -> Rope {
         let source_roots = self
             .sources
@@ -220,6 +229,18 @@ impl AnalyzeDataBuilder {
                 .map(|s| take(&mut s.child_source_indices)),
         );
 
+        let source_chunk_parts = EdgesData::from_iterator(
+            self.sources
+                .iter_mut()
+                .map(|s| take(&mut s.chunk_part_indices)),
+        );
+
+        let output_file_chunk_parts = EdgesData::from_iterator(
+            self.output_files
+                .iter_mut()
+                .map(|of| take(&mut of.chunk_part_indices)),
+        );
+
         let mut binary_section = EdgesDataSectionBuilder::new();
 
         let header = AnalyzeDataHeader {
@@ -237,8 +258,8 @@ impl AnalyzeDataBuilder {
             module_dependencies: binary_section.add_edges(&EdgesData::default()),
             async_module_dependencies: binary_section.add_edges(&EdgesData::default()),
             source_modules: binary_section.add_edges(&EdgesData::default()),
-            output_file_chunk_parts: binary_section.add_edges(&EdgesData::default()),
-            source_chunk_parts: binary_section.add_edges(&EdgesData::default()),
+            output_file_chunk_parts: binary_section.add_edges(&output_file_chunk_parts),
+            source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
             source_children: binary_section.add_edges(&source_children),
             source_roots,
         };
@@ -258,6 +279,8 @@ impl AnalyzeDataBuilder {
 pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc<FileContent>> {
     let mut builder = AnalyzeDataBuilder::new();
 
+    let prefix = format!("{SOURCE_URL_PROTOCOL}///");
+
     // Process the output assets and extract chunk parts.
     // Also creates sources for the chunk parts.
     for &asset in output_assets.await? {
@@ -266,27 +289,36 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
         });
         let chunk_parts = split_output_asset_into_parts(*asset).await?;
         for chunk_part in chunk_parts {
-            let source_index = builder.ensure_source(&chunk_part.source).1;
+            let source_index = builder
+                .ensure_source(&chunk_part.source.trim_start_matches(&prefix))
+                .1;
             builder.add_chunk_part(AnalyzeChunkPart {
                 source_index,
                 output_file_index,
                 size: chunk_part.real_size + chunk_part.unaccounted_size,
             });
             builder.add_chunk_part_to_output_file(output_file_index, source_index);
+            builder.add_chunk_part_to_source(source_index, source_index);
         }
     }
 
     // Build a directory structure for the sources.
     let mut i: u32 = 0;
-    let len = builder.sources.len().try_into().unwrap();
-    while i < len {
+    while i < builder.sources.len().try_into().unwrap() {
         let source = &builder.sources[i as usize];
-        let path = source.source.path.clone();
-        if let Some(pos) = path.rfind('/') {
-            let parent_path = &path[..pos + 1];
-            let (parent_source, parent_index) = builder.ensure_source(parent_path);
+        let path = source.source.path.as_str();
+        if !path.is_empty() {
+            let (parent_path, path) = if let Some(pos) = path.trim_end_matches('/').rfind('/') {
+                (&path[..pos + 1], &path[pos + 1..])
+            } else {
+                ("", path)
+            };
+            let parent_path = parent_path.to_string();
+            let path = path.into();
+            let (parent_source, parent_index) = builder.ensure_source(&parent_path);
             parent_source.child_source_indices.push(i);
             builder.sources[i as usize].source.parent_source_index = Some(parent_index);
+            builder.sources[i as usize].source.path = path;
         }
         i += 1;
     }
