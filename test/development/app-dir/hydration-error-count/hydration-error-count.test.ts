@@ -17,7 +17,7 @@ describe('hydration-error-count', () => {
              <ScrollAndFocusHandler segmentPath={[...]}>
                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
+                   <LoadingBoundary name={undefined} loading={null}>
                      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
@@ -66,7 +66,7 @@ describe('hydration-error-count', () => {
              <ScrollAndFocusHandler segmentPath={[...]}>
                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
+                   <LoadingBoundary name={undefined} loading={null}>
                      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
@@ -120,7 +120,7 @@ describe('hydration-error-count', () => {
              <ScrollAndFocusHandler segmentPath={[...]}>
                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
+                   <LoadingBoundary name={undefined} loading={null}>
                      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
@@ -155,7 +155,7 @@ describe('hydration-error-count', () => {
              <ScrollAndFocusHandler segmentPath={[...]}>
                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
+                   <LoadingBoundary name={undefined} loading={null}>
                      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
@@ -197,7 +197,7 @@ describe('hydration-error-count', () => {
              <ScrollAndFocusHandler segmentPath={[...]}>
                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
+                   <LoadingBoundary name={undefined} loading={null}>
                      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
@@ -229,7 +229,7 @@ describe('hydration-error-count', () => {
              <ScrollAndFocusHandler segmentPath={[...]}>
                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
+                   <LoadingBoundary name={undefined} loading={null}>
                      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
@@ -267,7 +267,7 @@ describe('hydration-error-count', () => {
              <ScrollAndFocusHandler segmentPath={[...]}>
                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
+                   <LoadingBoundary name={undefined} loading={null}>
                      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
@@ -299,7 +299,7 @@ describe('hydration-error-count', () => {
              <ScrollAndFocusHandler segmentPath={[...]}>
                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
+                   <LoadingBoundary name={undefined} loading={null}>
                      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
@@ -343,7 +343,7 @@ describe('hydration-error-count', () => {
              <ScrollAndFocusHandler segmentPath={[...]}>
                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary loading={null}>
+                   <LoadingBoundary name={undefined} loading={null}>
                      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>

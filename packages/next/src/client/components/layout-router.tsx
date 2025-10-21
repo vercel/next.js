@@ -8,6 +8,7 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   FlightSegmentPath,
+  Segment,
 } from '../../shared/lib/app-router-types'
 import type { ErrorComponent } from './error-boundary'
 import {
@@ -23,6 +24,7 @@ import React, {
   Suspense,
   useDeferredValue,
   type JSX,
+  type ActivityProps,
 } from 'react'
 import ReactDOM from 'react-dom'
 import {
@@ -338,6 +340,7 @@ function ScrollAndFocusHandler({
 function InnerLayoutRouter({
   tree,
   segmentPath,
+  debugNameContext,
   cacheNode,
   params,
   url,
@@ -345,6 +348,7 @@ function InnerLayoutRouter({
 }: {
   tree: FlightRouterState
   segmentPath: FlightSegmentPath
+  debugNameContext: ActivityProps['name']
   cacheNode: CacheNode
   params: Params
   url: string
@@ -469,6 +473,7 @@ function InnerLayoutRouter({
         parentCacheNode: cacheNode,
         parentSegmentPath: segmentPath,
         parentParams: params,
+        debugNameContext: debugNameContext,
 
         // TODO-APP: overriding of url for parallel routes
         url: url,
@@ -487,9 +492,11 @@ function InnerLayoutRouter({
  * If no loading property is provided it renders the children without a suspense boundary.
  */
 function LoadingBoundary({
+  name,
   loading,
   children,
 }: {
+  name: ActivityProps['name']
   loading: LoadingModuleData | Promise<LoadingModuleData>
   children: React.ReactNode
 }): JSX.Element {
@@ -519,7 +526,7 @@ function LoadingBoundary({
     const loadingScripts = loadingModuleData[2]
     return (
       <Suspense
-        name="loading.tsx"
+        name={name}
         fallback={
           <>
             {loadingStyles}
@@ -577,6 +584,7 @@ export default function OuterLayoutRouter({
     parentParams,
     url,
     isActive,
+    debugNameContext: parentDebugNameContext,
   } = context
 
   // Get the CacheNode for this segment by reading it from the parent segment's
@@ -696,6 +704,12 @@ export default function OuterLayoutRouter({
       }
     }
 
+    const debugName = getBoundaryDebugNameFromSegment(segment)
+    // `debugNameContext` represents the nearest non-"virtual" parent segment.
+    // `getBoundaryDebugNameFromSegment` returns null for virtual segments.
+    // So if `debugName` is null, the context is passed through unchanged.
+    const debugNameContext = debugName ?? parentDebugNameContext
+
     // TODO: The loading module data for a segment is stored on the parent, then
     // applied to each of that parent segment's parallel route slots. In the
     // simple case where there's only one parallel route (the `children` slot),
@@ -715,7 +729,7 @@ export default function OuterLayoutRouter({
               errorStyles={errorStyles}
               errorScripts={errorScripts}
             >
-              <LoadingBoundary loading={loadingModuleData}>
+              <LoadingBoundary name={debugName} loading={loadingModuleData}>
                 <HTTPAccessFallbackBoundary
                   notFound={notFound}
                   forbidden={forbidden}
@@ -728,6 +742,7 @@ export default function OuterLayoutRouter({
                       params={params}
                       cacheNode={cacheNode}
                       segmentPath={segmentPath}
+                      debugNameContext={debugNameContext}
                       isActive={isActive && stateKey === activeStateKey}
                     />
                     {segmentBoundaryTriggerNode}
@@ -758,10 +773,17 @@ export default function OuterLayoutRouter({
     }
 
     if (process.env.__NEXT_CACHE_COMPONENTS) {
-      const boundaryName = getBoundaryNameForSuspenseDevTools(tree)
       child = (
         <Activity
-          name={boundaryName}
+          // In practical terms, clicking this name in the Suspense DevTools
+          // should select the child slots of that layout.
+          //
+          // So the name we apply to the Activity boundary is actually based on
+          // the nearest parent segments.
+          //
+          // We skip over "virtual" parents, i.e. ones inserted by Next.js that
+          // don't correspond to application-defined code.
+          name={debugNameContext}
           key={stateKey}
           mode={stateKey === activeStateKey ? 'visible' : 'hidden'}
         >
@@ -778,49 +800,33 @@ export default function OuterLayoutRouter({
   return children
 }
 
-function getBoundaryNameForSuspenseDevTools(
-  subtree: FlightRouterState
-): string | undefined {
-  const segment = subtree[0]
-
-  if (typeof segment === 'string') {
-    const children = subtree[1]
-    const isPage = Object.keys(children).length === 0
-    if (isPage) {
-      // Page segment
-      return '/'
-    }
-
-    // Layout segment
-
-    // Skip over "virtual" layouts that don't correspond to app-
-    // defined components.
-    if (
-      segment === '' ||
-      // For some reason, the loader tree sometimes includes extra __PAGE__
-      // "layouts" when part of a parallel route. But it's not a leaf node.
-      // Otherwise, we wouldn't need this special case because pages are
-      // always leaf nodes.
-      // TODO: Investigate why the loader produces these fake page segments.
-      segment.startsWith(PAGE_SEGMENT_KEY) ||
-      // This is inserted by the loader. We should consider encoding these
-      // in a more special way instead of checking the name, to distinguish them
-      // from app-defined groups.
-      segment[0] === '(virtual)'
-    ) {
-      return undefined
-    }
-
-    if (segment === '/_not-found') {
-      // Special case. For some reason, the name itself already has a
-      // leading slash.
-      return '/_not-found/'
-    }
-
-    return `/${segment}/`
+function getBoundaryDebugNameFromSegment(segment: Segment): string | undefined {
+  if (segment === '/') {
+    // Reached the root
+    return '/'
   }
-
-  // Parameterized segments are always layouts
+  if (typeof segment === 'string') {
+    if (isVirtualLayout(segment)) {
+      return undefined
+    } else {
+      return segment + '/'
+    }
+  }
   const paramCacheKey = segment[1]
-  return `/${paramCacheKey}/`
+  return paramCacheKey + '/'
+}
+
+function isVirtualLayout(segment: string): boolean {
+  return (
+    // This is inserted by the loader. We should consider encoding these
+    // in a more special way instead of checking the name, to distinguish them
+    // from app-defined groups.
+    segment === '(slot)' ||
+    // For some reason, the loader tree sometimes includes extra __PAGE__
+    // "layouts" when part of a parallel route. But it's not a leaf node.
+    // Otherwise, we wouldn't need this special case because pages are
+    // always leaf nodes.
+    // TODO: Investigate why the loader produces these fake page segments.
+    segment.startsWith(PAGE_SEGMENT_KEY)
+  )
 }

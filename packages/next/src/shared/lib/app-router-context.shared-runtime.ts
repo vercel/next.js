@@ -63,6 +63,7 @@ export const LayoutRouterContext = React.createContext<{
   parentCacheNode: CacheNode
   parentSegmentPath: FlightSegmentPath | null
   parentParams: Params
+  debugNameContext: string | undefined
   url: string
   isActive: boolean
 } | null>(null)
