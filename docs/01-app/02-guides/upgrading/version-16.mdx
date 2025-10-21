@@ -86,9 +86,9 @@ If you need to continue using Webpack, you can opt out with the `--webpack` flag
 }
 ```
 
-We recommend using Turbopack for development and production. Submit a comment to this [thread](https://github.com/vercel/next.js/discussions/77721), if you are still unable to switch to Turbopack.
+We recommend using Turbopack for development and production. Submit a comment to this [thread](https://github.com/vercel/next.js/discussions/77721), if you are unable to switch to Turbopack.
 
-### Turbopack Configuration Location
+### Turbopack configuration location
 
 The `experimental.turbopack` configuration is out of experimental.
 
@@ -107,7 +107,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-It is now moved to be top-level option `turbopack`:
+You can use it as a top-level `turbopack` option:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -129,7 +129,7 @@ Make sure to review the `Turbopack` configuration [options](/docs/app/api-refere
 
 ### Resolve alias fallback
 
-In some projects client-side code, may import files containing Node.js native modules. This causes `Module not found: Can't resolve 'fs'` type of errors.
+In some projects, client-side code may import files containing Node.js native modules. This will cause `Module not found: Can't resolve 'fs'` type of errors.
 
 When this happens, you should refactor your code so that your client-side bundles do not reference these Node.js native modules.
 
@@ -151,7 +151,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Once again, it is preferable to refactor your modules so that client code doesn't ever import from modules using Node.js native modules.
+It is preferable to refactor your modules so that client code doesn't ever import from modules using Node.js native modules.
 
 ### Sass node_modules imports
 
