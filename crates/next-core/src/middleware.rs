@@ -91,11 +91,7 @@ pub async fn get_middleware_module(
     let source = load_next_js_template(
         "middleware.js",
         project_root,
-        &[
-            ("VAR_USERLAND", INNER),
-            ("VAR_DEFINITION_PAGE", page_path),
-            ("VAR_MODULE_RELATIVE_PATH", userland_path.path.as_str()),
-        ],
+        &[("VAR_USERLAND", INNER), ("VAR_DEFINITION_PAGE", page_path)],
         &[],
         &[],
     )

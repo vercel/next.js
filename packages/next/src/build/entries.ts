@@ -45,6 +45,7 @@ import {
   isMiddlewareFilename,
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
+  isProxyFilename,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
@@ -761,6 +762,11 @@ export function runDependingOnPageType<T>(params: {
   ) {
     params.onServer()
     params.onEdgeServer()
+    return
+  }
+
+  if (isProxyFilename(params.page)) {
+    params.onServer()
     return
   }
 
