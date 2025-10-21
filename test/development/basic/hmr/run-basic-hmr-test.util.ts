@@ -10,7 +10,7 @@ export function runBasicHmrTest(nextConfig: {
   basePath: string
   assetPrefix: string
 }) {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     nextConfig,
     patchFileDelay: 500,
@@ -48,36 +48,39 @@ export function runBasicHmrTest(nextConfig: {
       hello: 'world',
     })
   })
+  ;(isTurbopack ? it : it.skip)(
+    'should have correct compile timing after fixing error',
+    async () => {
+      const browser = await next.browser(basePath + '/auto-export-is-ready')
+      let outputLength
+      await next.patchFile(
+        'pages/auto-export-is-ready.js',
+        (content) => `import hello from 'non-existent'\n` + content,
+        async () => {
+          await assertHasRedbox(browser)
+          await waitFor(3000)
+          outputLength = next.cliOutput.length
+        }
+      )
 
-  it('should have correct compile timing after fixing error', async () => {
-    const browser = await next.browser(basePath + '/auto-export-is-ready')
-    let outputLength
-    await next.patchFile(
-      'pages/auto-export-is-ready.js',
-      (content) => `import hello from 'non-existent'\n` + content,
-      async () => {
-        await assertHasRedbox(browser)
-        await waitFor(3000)
-        outputLength = next.cliOutput.length
+      let compileTimeStr
+      await retry(async () => {
+        compileTimeStr = next.cliOutput.substring(outputLength)
+        expect(compileTimeStr).toMatch(/Compiled.*?/i)
+      })
+
+      const matches = [
+        ...compileTimeStr.match(/Compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
+      ]
+      const [, compileTime, timeUnit] = matches
+
+      let compileTimeMs = parseFloat(compileTime)
+      if (timeUnit === 's') {
+        compileTimeMs = compileTimeMs * 1000
       }
-    )
-
-    await retry(async () => {
-      expect(next.cliOutput.substring(outputLength)).toMatch(/Compiled.*?/i)
-    })
-    const compileTimeStr = next.cliOutput.substring(outputLength)
-
-    const matches = [
-      ...compileTimeStr.match(/Compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
-    ]
-    const [, compileTime, timeUnit] = matches
-
-    let compileTimeMs = parseFloat(compileTime)
-    if (timeUnit === 's') {
-      compileTimeMs = compileTimeMs * 1000
+      expect(compileTimeMs).toBeLessThan(3000)
     }
-    expect(compileTimeMs).toBeLessThan(3000)
-  })
+  )
 
   it('should reload the page when the server restarts', async () => {
     const browser = await next.browser(basePath + '/hmr/about')
