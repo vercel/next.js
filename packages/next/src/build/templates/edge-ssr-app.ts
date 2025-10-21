@@ -27,10 +27,8 @@ import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
 
 declare const incrementalCacheHandler: any
-// OPTIONAL_IMPORT:incrementalCacheHandler
-
-// injected by the loader afterwards.
 declare const nextConfig: NextConfigComplete
+// OPTIONAL_IMPORT:incrementalCacheHandler
 // INJECT:nextConfig
 
 // Initialize the cache handlers interface.
