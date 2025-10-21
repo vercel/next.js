@@ -163,6 +163,10 @@ const readable = new ReadableStream({
     nextServerDataRegisterWriter(controller)
   },
 })
+if (process.env.NODE_ENV !== 'production') {
+  // @ts-expect-error
+  readable.name = 'hydration'
+}
 
 let debugChannel:
   | { readable?: ReadableStream; writable?: WritableStream }
@@ -190,8 +194,6 @@ if (clientResumeFetch) {
       callServer,
       findSourceMapURL,
       debugChannel,
-      // @ts-expect-error This is not yet part of the React types
-      startTime: 0,
     })
   ).then(async (fallbackInitialRSCPayload) =>
     createInitialRSCPayloadFromFallbackPrerender(
