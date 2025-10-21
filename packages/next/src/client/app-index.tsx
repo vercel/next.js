@@ -175,7 +175,13 @@ if (
 
 const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
   readable,
-  { callServer, findSourceMapURL, debugChannel }
+  {
+    callServer,
+    findSourceMapURL,
+    debugChannel,
+    // @ts-expect-error This is not yet part of the React types
+    startTime: 0,
+  }
 )
 
 function ServerRoot({
