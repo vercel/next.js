@@ -151,6 +151,32 @@ impl Token {
             Self::Synthetic(t) => t.generated_column,
         }
     }
+
+    pub fn with_offset(&self, line_offset: u32, column_offset: u32) -> Self {
+        match self {
+            Self::Original(t) => Self::Original(OriginalToken {
+                generated_line: t.generated_line + line_offset,
+                generated_column: if t.generated_line == 0 {
+                    t.generated_column + column_offset
+                } else {
+                    t.generated_column
+                },
+                original_file: t.original_file.clone(),
+                original_line: t.original_line,
+                original_column: t.original_column,
+                name: t.name.clone(),
+            }),
+            Self::Synthetic(t) => Self::Synthetic(SyntheticToken {
+                generated_line: t.generated_line + line_offset,
+                generated_column: if t.generated_line == 0 {
+                    t.generated_column + column_offset
+                } else {
+                    t.generated_column
+                },
+                guessed_original_file: t.guessed_original_file.clone(),
+            }),
+        }
+    }
 }
 
 impl From<swc_sourcemap::Token<'_>> for Token {
@@ -556,32 +582,55 @@ impl SourceMap {
     pub fn tokens(&self) -> impl Iterator<Item = Token> + '_ {
         let map = &self.map;
 
-        fn regular_map_to_tokens(map: &RegularMap) -> impl Iterator<Item = Token> + '_ {
-            map.tokens().map(|t| Token::from(t))
+        fn regular_map_to_tokens(
+            map: &RegularMap,
+            offset_line: u32,
+            offset_column: u32,
+        ) -> impl Iterator<Item = Token> + '_ {
+            map.tokens()
+                .map(move |t| Token::from(t).with_offset(offset_line, offset_column))
         }
 
-        fn index_map_to_tokens(map: &SourceMapIndex) -> impl Iterator<Item = Token> + '_ {
-            map.sections().flat_map(|section| {
+        fn index_map_to_tokens(
+            map: &SourceMapIndex,
+            offset_line: u32,
+            offset_column: u32,
+        ) -> impl Iterator<Item = Token> + '_ {
+            map.sections().flat_map(move |section| {
+                let (line, col) = section.get_offset();
+                let offset_line = offset_line + line;
+                let offset_column = if line == 0 { offset_column + col } else { col };
                 if let Some(source_map) = section.get_sourcemap() {
-                    Either::Left(Box::new(decoded_map_to_tokens(&source_map))
-                        as Box<dyn Iterator<Item = Token>>)
+                    Either::Left(Box::new(decoded_map_to_tokens(
+                        &source_map,
+                        offset_line,
+                        offset_column,
+                    )) as Box<dyn Iterator<Item = Token>>)
                 } else {
                     Either::Right(std::iter::empty())
                 }
             })
         }
 
-        fn decoded_map_to_tokens(map: &DecodedMap) -> impl Iterator<Item = Token> + '_ {
+        fn decoded_map_to_tokens(
+            map: &DecodedMap,
+            offset_line: u32,
+            offset_column: u32,
+        ) -> impl Iterator<Item = Token> + '_ {
             match map {
-                DecodedMap::Regular(map) => Either::Left(regular_map_to_tokens(map)),
-                DecodedMap::Index(map) => Either::Right(index_map_to_tokens(map)),
+                DecodedMap::Regular(map) => {
+                    Either::Left(regular_map_to_tokens(map, offset_line, offset_column))
+                }
+                DecodedMap::Index(map) => {
+                    Either::Right(index_map_to_tokens(map, offset_line, offset_column))
+                }
                 DecodedMap::Hermes(_) => {
                     todo!("hermes source maps are not implemented");
                 }
             }
         }
 
-        decoded_map_to_tokens(&map.0)
+        decoded_map_to_tokens(&map.0, 0, 0)
     }
 }
 

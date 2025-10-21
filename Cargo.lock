@@ -9462,9 +9462,13 @@ dependencies = [
  "anyhow",
  "rustc-hash 2.1.1",
  "serde",
+ "serde_json",
+ "tokio",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
+ "turbo-tasks-testing",
  "turbopack-core",
 ]
 

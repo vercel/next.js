@@ -27,6 +27,7 @@ pub struct ChunkPart {
 }
 
 #[turbo_tasks::value(transparent)]
+#[derive(Debug)]
 pub struct ChunkParts(Vec<ChunkPart>);
 
 #[turbo_tasks::function]
@@ -64,7 +65,8 @@ pub async fn split_output_asset_into_parts(
         end_column: u32,
         lines: &[FileLine],
     ) -> u32 {
-        let line_end = lines[end_line as usize - 1].len() as u32;
+        let start_line = start_line.min(lines.len() as u32 - 1);
+        let line_end = lines[start_line as usize].len() as u32;
         if start_line == end_line {
             end_column.min(line_end)
         } else {
@@ -78,11 +80,13 @@ pub async fn split_output_asset_into_parts(
         end_column: u32,
         lines: &[FileLine],
     ) -> u32 {
+        let start_line = start_line.min(lines.len() as u32 - 1);
+        let end_line = end_line.min(lines.len() as u32 - 1);
         if start_line == end_line {
             return (end_column - start_column) as u32;
         }
-        let mut len = lines[start_line as usize - 1].len() as u32 - start_column + 1;
-        for line in &lines[start_line as usize..end_line as usize - 1] {
+        let mut len = lines[start_line as usize].len() as u32 - start_column + 1;
+        for line in &lines[start_line as usize + 1..end_line as usize] {
             len += line.len() as u32 + 1;
         }
         len += end_column;
@@ -222,7 +226,7 @@ pub async fn split_output_asset_into_parts(
                 add_unaccounted_chunk_part(original_file.clone(), len - half, chunk_parts);
             }
             State::StartOfFile => {
-                let len = len_between(1, 0, generated_line, generated_column, lines);
+                let len = len_between(0, 0, generated_line, generated_column, lines);
                 add_unaccounted_chunk_part(original_file.clone(), len, chunk_parts);
             }
         }
@@ -251,8 +255,8 @@ pub async fn split_output_asset_into_parts(
             );
         }
     }
-    let last_line = lines.len() as u32;
-    let last_column = lines[last_line as usize - 1].len() as u32;
+    let last_line = lines.len() as u32 - 1;
+    let last_column = lines[last_line as usize].len() as u32;
     end_current_token(
         lines,
         &mut chunk_parts,

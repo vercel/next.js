@@ -1024,7 +1024,9 @@ async fn output_assets_operation(
         .map(|(key, endpoint_group)| async move {
             let output_assets = endpoint_group.output_assets();
             let analyze_data = AnalyzeDataOutputAsset::new(
-                analyze_output_root.join(&key.to_string())?,
+                analyze_output_root
+                    .join(&key.to_string())?
+                    .join("analyze.data")?,
                 output_assets,
             )
             .to_resolved()
