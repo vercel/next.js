@@ -52,6 +52,15 @@ impl OutputAssets {
         assets.extend(other.await?.iter().copied());
         Ok(Vc::cell(assets.into_iter().collect()))
     }
+
+    #[turbo_tasks::function]
+    pub async fn concat(other: Vec<Vc<Self>>) -> Result<Vc<Self>> {
+        let mut assets: FxIndexSet<_> = FxIndexSet::default();
+        for other in other {
+            assets.extend(other.await?.iter().copied());
+        }
+        Ok(Vc::cell(assets.into_iter().collect()))
+    }
 }
 
 impl OutputAssets {

@@ -1,9 +1,11 @@
+use std::fmt::Display;
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph},
@@ -66,6 +68,83 @@ pub trait Endpoint {
         GraphEntries::empty()
     }
 }
+
+#[derive(
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    Clone,
+    Debug,
+    NonLocalValue,
+)]
+pub enum EndpointGroupKey {
+    Instrumentation,
+    InstrumentationEdge,
+    Middleware,
+    PagesError,
+    PagesApp,
+    PagesDocument,
+    Route(RcStr),
+}
+
+impl Display for EndpointGroupKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EndpointGroupKey::Instrumentation => write!(f, "instrumentation"),
+            EndpointGroupKey::InstrumentationEdge => write!(f, "instrumentation-edge"),
+            EndpointGroupKey::Middleware => write!(f, "middleware"),
+            EndpointGroupKey::PagesError => write!(f, "_error"),
+            EndpointGroupKey::PagesApp => write!(f, "_app"),
+            EndpointGroupKey::PagesDocument => write!(f, "_document"),
+            EndpointGroupKey::Route(route) => write!(f, "/{}", route),
+        }
+    }
+}
+
+#[derive(
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    Clone,
+    Debug,
+    NonLocalValue,
+)]
+pub struct EndpointGroup {
+    pub primary: Vec<ResolvedVc<Box<dyn Endpoint>>>,
+    pub additional: Vec<ResolvedVc<Box<dyn Endpoint>>>,
+}
+
+impl EndpointGroup {
+    pub fn from(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Self {
+        Self {
+            primary: vec![endpoint],
+            additional: vec![],
+        }
+    }
+
+    pub fn output_assets(&self) -> Vc<OutputAssets> {
+        output_of_endpoints(self.primary.iter().map(|endpoint| **endpoint).collect())
+    }
+}
+
+#[turbo_tasks::function]
+async fn output_of_endpoints(endpoints: Vec<Vc<Box<dyn Endpoint>>>) -> Result<Vc<OutputAssets>> {
+    let assets = endpoints
+        .iter()
+        .map(async |endpoint| Ok(*endpoint.output().await?.output_assets))
+        .try_join()
+        .await?;
+    Ok(OutputAssets::concat(assets))
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct EndpointGroups(Vec<(EndpointGroupKey, EndpointGroup)>);
 
 #[turbo_tasks::value(transparent)]
 pub struct Endpoints(Vec<ResolvedVc<Box<dyn Endpoint>>>);

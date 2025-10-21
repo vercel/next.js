@@ -2,6 +2,7 @@ use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
 use bytes_str::BytesStr;
+use either::Either;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
@@ -93,9 +94,6 @@ impl OptionSourceMap {
         ResolvedVc::cell(None)
     }
 }
-#[turbo_tasks::value(transparent)]
-#[derive(Clone, Debug)]
-pub struct Tokens(Vec<Token>);
 
 /// A token represents a mapping in a source map.
 ///
@@ -551,6 +549,39 @@ impl SourceMap {
         };
 
         (token, content)
+    }
+}
+
+impl SourceMap {
+    pub fn tokens(&self) -> impl Iterator<Item = Token> + '_ {
+        let map = &self.map;
+
+        fn regular_map_to_tokens(map: &RegularMap) -> impl Iterator<Item = Token> + '_ {
+            map.tokens().map(|t| Token::from(t))
+        }
+
+        fn index_map_to_tokens(map: &SourceMapIndex) -> impl Iterator<Item = Token> + '_ {
+            map.sections().flat_map(|section| {
+                if let Some(source_map) = section.get_sourcemap() {
+                    Either::Left(Box::new(decoded_map_to_tokens(&source_map))
+                        as Box<dyn Iterator<Item = Token>>)
+                } else {
+                    Either::Right(std::iter::empty())
+                }
+            })
+        }
+
+        fn decoded_map_to_tokens(map: &DecodedMap) -> impl Iterator<Item = Token> + '_ {
+            match map {
+                DecodedMap::Regular(map) => Either::Left(regular_map_to_tokens(map)),
+                DecodedMap::Index(map) => Either::Right(index_map_to_tokens(map)),
+                DecodedMap::Hermes(_) => {
+                    todo!("hermes source maps are not implemented");
+                }
+            }
+        }
+
+        decoded_map_to_tokens(&map.0)
     }
 }
 
