@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
-describe('proxy-missing-export', () => {
+describe('proxy-runtime', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -12,7 +12,7 @@ describe('proxy-missing-export', () => {
     return
   }
 
-  it('should error when proxy file has invalid export named middleware', async () => {
+  it('should error when proxy file has runtime config export', async () => {
     let cliOutput: string
 
     if (isNextDev) {
