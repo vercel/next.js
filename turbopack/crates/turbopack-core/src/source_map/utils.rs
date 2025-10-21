@@ -6,9 +6,10 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_path_buf,
 };
 use url::Url;
 
@@ -71,6 +72,7 @@ struct SourceMapJson {
     ignore_list: Option<Box<RawValue>>,
 
     // A somewhat widespread non-standard extension
+    #[serde(skip_serializing_if = "Option::is_none")]
     debug_id: Option<Box<RawValue>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -224,12 +226,17 @@ fn unencoded_str_to_raw_value(unencoded: &str) -> Box<RawValue> {
     .expect("serde_json::to_string should produce valid JSON")
 }
 
-/// Turns `turbopack:///[project]` references in sourcemap sources into absolute `file://` uris. This
-/// is useful for debugging environments.
-pub async fn fileify_source_map(
+/// Helper function to transform turbopack:/// file references in a sourcemap.
+/// Handles parsing the sourcemap, resolving the filesystem, applying transformations, and
+/// serializing back.
+async fn transform_relative_files<F>(
     map: Option<&Rope>,
-    context_path: FileSystemPath,
-) -> Result<Option<Rope>> {
+    context_path: &FileSystemPath,
+    mut transform: F,
+) -> Result<Option<Rope>>
+where
+    F: FnMut(&DiskFileSystem, &str) -> Result<String>,
+{
     let Some(map) = map else {
         return Ok(None);
     };
@@ -243,29 +250,60 @@ pub async fn fileify_source_map(
     let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_fs)
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
+
     let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL, context_fs.name());
 
-    let transform_source = async |src: &mut Option<String>| {
-        if let Some(src) = src
-            && let Some(src_rest) = src.strip_prefix(&prefix)
-        {
-            *src = uri_from_file(context_path.clone(), Some(src_rest)).await?;
+    let mut apply_transform = |src: &mut String| -> Result<()> {
+        if let Some(src_rest) = src.strip_prefix(&prefix) {
+            *src = transform(context_fs, src_rest)?;
         }
-        anyhow::Ok(())
+        Ok(())
     };
 
-    for src in map.sources.iter_mut().flatten() {
-        transform_source(src).await?;
+    for src in map.sources.iter_mut().flatten().flatten() {
+        apply_transform(src)?;
     }
     for section in map.sections.iter_mut().flatten() {
-        for src in section.map.sources.iter_mut().flatten() {
-            transform_source(src).await?;
+        for src in section.map.sources.iter_mut().flatten().flatten() {
+            apply_transform(src)?;
         }
     }
 
-    let map = Rope::from(serde_json::to_vec(&map)?);
+    Ok(Some(Rope::from(serde_json::to_vec(&map)?)))
+}
 
-    Ok(Some(map))
+/// Turns `turbopack:///[project]` references in sourcemap sources into absolute `file://` uris. This
+/// is useful for debugging environments.
+pub async fn absolute_fileify_source_map(
+    map: Option<&Rope>,
+    context_path: FileSystemPath,
+) -> Result<Option<Rope>> {
+    transform_relative_files(map, &context_path, |context_fs, src_rest| {
+        let path = context_path.join(src_rest)?;
+
+        Ok(uri_from_path_buf(context_fs.to_sys_path(&path)))
+    })
+    .await
+}
+
+/// Turns `turbopack:///[project]` references in sourcemap sources into relative './' prefixed uris.
+/// This is useful in server environments and especially build environments.
+pub async fn relative_fileify_source_map(
+    map: Option<&Rope>,
+    context_path: FileSystemPath,
+    relative_path_to_output_root: RcStr,
+) -> Result<Option<Rope>> {
+    transform_relative_files(map, &context_path, |_context_fs, src_rest| {
+        // Uri encode a source root relative path.
+        // NOTE: we just include the relative path prefix here instead of using `sourceRoot`
+        // since the spec on sourceRoot is broken.
+        Ok(format!("{relative_path_to_output_root}/{src_rest}")
+            .split('/')
+            .map(|s| urlencoding::encode(s))
+            .collect::<Vec<_>>()
+            .join("/"))
+    })
+    .await
 }
 
 #[cfg(test)]
