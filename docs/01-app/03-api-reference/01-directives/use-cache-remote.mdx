@@ -48,6 +48,8 @@ Then add `'use cache: remote'` to your function that needs to cache data in a dy
 
 ### Basic example
 
+Cache product pricing that needs to be fetched at request time but can be shared across all users. Use [`cacheLife`](/docs/app/api-reference/functions/cacheLife#custom-cache-profiles) to set the cache lifetime of the price.
+
 ```tsx filename="app/product/[id]/page.tsx" switcher
 import { Suspense } from 'react'
 import { connection } from 'next/server'
@@ -86,9 +88,7 @@ async function ProductPrice({ productId }: { productId: string }) {
 async function getProductPrice(productId: string) {
   'use cache: remote'
   cacheTag(`product-price-${productId}`)
-
-  // Client uses cached value for 1 hour
-  cacheLife({ stale: 3600 })
+  cacheLife({ stale: 3600 }) // 1 hour
 
   // This database query is cached and shared across all users
   return db.products.getPrice(productId)
@@ -129,9 +129,7 @@ async function ProductPrice({ productId }) {
 async function getProductPrice(productId) {
   'use cache: remote'
   cacheTag(`product-price-${productId}`)
-
-  // Client uses cached value for 1 hour
-  cacheLife({ stale: 3600 })
+  cacheLife({ stale: 3600 }) // 1 hour
 
   // This database query is cached and shared across all users
   return db.products.getPrice(productId)
@@ -187,18 +185,19 @@ When Next.js encounters certain APIs like [`connection()`](/docs/app/api-referen
 
 1. **Regular `use cache` stops working** - it won't cache anything
 2. **`'use cache: remote'` continues to work** - it caches in the remote cache handler
-3. **Results are stored server-side** in cache handlers like Redis or Vercel Data Cache
+3. **Results are stored server-side** in a key-value store configured for your deployment
 4. **Cached data is shared across requests** - reducing database load and origin requests
 
 > **Good to know:** Without `'use cache: remote'`, functions in dynamic contexts would execute on every request, potentially creating performance bottlenecks. Remote caching eliminates this issue by storing results in server-side cache handlers.
 
 ### Storage behavior
 
-Remote caches are **persisted to server-side cache handlers**, such as:
+Remote caches are **persisted using server-side cache handlers**, which may include:
 
-- **Redis** (when configured)
-- **Vercel Data Cache** (on Vercel deployments)
-- **Other cache handlers** (based on your configuration)
+- **Distributed key-value stores** (in-memory or persistent storage solutions)
+- **File system or in-memory storage** (often used in development or for custom deployments)
+- **Environment-specific caches** (provided by your hosting infrastructure)
+- **Custom or configured cache handlers** (depending on your application's setup)
 
 This means:
 
@@ -230,9 +229,7 @@ async function UserDashboard() {
 
 async function getAnalytics() {
   'use cache: remote'
-
-  // Client uses cached value for 5 minutes
-  cacheLife({ stale: 300 })
+  cacheLife({ stale: 300 }) // 5 minutes
 
   // This expensive operation is cached and shared across all requests
   return fetchAnalyticsData()
@@ -314,6 +311,8 @@ async function innerPrivate() {
 
 ## Examples
 
+The following examples demonstrate common patterns for using `'use cache: remote'`. For details about `cacheLife` parameters (`stale`, `revalidate`, `expire`), see the [`cacheLife` API reference](/docs/app/api-reference/functions/cacheLife).
+
 ### Per-request database queries
 
 Cache expensive database queries that are accessed in dynamic contexts, reducing load on your database:
@@ -334,9 +333,7 @@ export default async function DashboardPage() {
 async function getGlobalStats() {
   'use cache: remote'
   cacheTag('global-stats')
-
-  // Client uses cached value for 1 minute
-  cacheLife({ stale: 60 })
+  cacheLife({ stale: 60 }) // 1 minute
 
   // This expensive database query is cached and shared across all users,
   // reducing load on your database
@@ -381,9 +378,7 @@ async function FeedItems() {
 async function getFeedItems() {
   'use cache: remote'
   cacheTag('feed-items')
-
-  // Client uses cached value for 2 minutes
-  cacheLife({ stale: 120 })
+  cacheLife({ stale: 120 }) // 2 minutes
 
   // This API call is cached, reducing requests to your external service
   const response = await fetch('https://api.example.com/feed')
@@ -410,9 +405,7 @@ export default async function ReportsPage() {
 
 async function generateReport() {
   'use cache: remote'
-
-  // Client uses cached value for 1 hour
-  cacheLife({ stale: 3600 })
+  cacheLife({ stale: 3600 }) // 1 hour
 
   // This expensive computation is cached and shared across all authorized users,
   // avoiding repeated calculations
@@ -448,9 +441,7 @@ async function getProduct(id: string) {
 async function getProductPrice(id: string) {
   'use cache: remote'
   cacheTag(`product-price-${id}`)
-
-  // Client uses cached value for 5 minutes
-  cacheLife({ stale: 300 })
+  cacheLife({ stale: 300 }) // 5 minutes
 
   // This is cached at runtime and shared across all users
   return db.products.getPrice({ where: { id } })
@@ -459,7 +450,7 @@ async function getProductPrice(id: string) {
 // User-specific recommendations - private cache per user
 async function getRecommendations(productId: string) {
   'use cache: private'
-  cacheLife({ stale: 60 })
+  cacheLife({ stale: 60 }) // 1 minute
 
   const sessionId = (await cookies()).get('session-id')?.value
 
