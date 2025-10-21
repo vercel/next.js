@@ -45,17 +45,14 @@ export function NextLogo({
   const isCacheFilling = state.cacheIndicator === 'filling'
   const isCacheBypassing = state.cacheIndicator === 'bypass'
 
-  // Determine if we should show any status
+  // Determine if we should show any status (excluding cache bypass, which renders like error badge)
   const shouldShowStatus =
-    state.buildingIndicator ||
-    state.renderingIndicator ||
-    isCacheFilling ||
-    (isCacheBypassing && state.renderingIndicator)
+    state.buildingIndicator || state.renderingIndicator || isCacheFilling
 
   // Delay showing for 400ms to catch fast operations,
   // and keep visible for minimum time (longer for warnings)
   const { rendered: showStatusIndicator } = useDelayedRender(shouldShowStatus, {
-    enterDelay: isCacheBypassing && state.renderingIndicator ? 0 : 400, // Bypass warning shows immediately, others delayed
+    enterDelay: 400,
     exitDelay: 500,
   })
 
@@ -72,7 +69,10 @@ export function NextLogo({
   const displayStatus = showStatusIndicator ? currentStatus : Status.None
 
   const isExpanded =
-    isErrorExpanded || showStatusIndicator || state.disableDevIndicator
+    isErrorExpanded ||
+    isCacheBypassing ||
+    showStatusIndicator ||
+    state.disableDevIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
 
   return (
@@ -175,12 +175,12 @@ export function NextLogo({
               }
             }
 
-            &[data-status='cache-bypassing'] {
-              background: rgba(251, 211, 141, 0.95); /* Warm amber background */
-              --color-inner-border: rgba(245, 158, 11, 0.8);
+            &[data-cache-bypassing='true']:not([data-error='true']) {
+              background: rgba(217, 119, 6, 0.95);
+              --color-inner-border: rgba(245, 158, 11, 0.9);
 
-              [data-indicator-status] {
-                color: rgba(92, 45, 10, 1); /* Dark brown text */
+              [data-issues-open] {
+                color: white;
               }
             }
 
@@ -378,7 +378,8 @@ export function NextLogo({
         data-next-badge
         data-error={hasError}
         data-error-expanded={isExpanded}
-        data-status={hasError ? Status.None : currentStatus}
+        data-status={hasError || isCacheBypassing ? Status.None : currentStatus}
+        data-cache-bypassing={isCacheBypassing}
         data-animate={newErrorDetected}
         style={{ width }}
       >
@@ -397,7 +398,10 @@ export function NextLogo({
               aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
               data-nextjs-dev-tools-button
               style={{
-                display: showStatusIndicator && !hasError ? 'none' : 'flex',
+                display:
+                  showStatusIndicator && !hasError && !isCacheBypassing
+                    ? 'none'
+                    : 'flex',
               }}
               {...buttonProps}
             >
@@ -472,11 +476,22 @@ export function NextLogo({
                   )}
                 </div>
               )}
-              {/* Status indicator shown when no errors */}
+              {/* Cache bypass badge shown when cache is being bypassed */}
+              {isCacheBypassing && !hasError && !state.disableDevIndicator && (
+                <CacheBypassBadge
+                  onTriggerClick={onTriggerClick}
+                  triggerRef={triggerRef}
+                />
+              )}
+              {/* Status indicator shown when no errors and no cache bypass */}
               {showStatusIndicator &&
                 !hasError &&
+                !isCacheBypassing &&
                 !state.disableDevIndicator && (
-                  <StatusIndicator status={displayStatus} />
+                  <StatusIndicator
+                    status={displayStatus}
+                    onClick={onTriggerClick}
+                  />
                 )}
             </>
           )}
@@ -503,6 +518,43 @@ function AnimateCount({
       <div data-issues-count data-issues-count-enter>
         {count}
       </div>
+    </div>
+  )
+}
+
+function CacheBypassBadge({
+  onTriggerClick,
+  triggerRef,
+}: {
+  onTriggerClick: () => void
+  triggerRef: React.RefObject<HTMLButtonElement | null>
+}) {
+  const [dismissed, setDismissed] = useState(false)
+
+  if (dismissed) {
+    return null
+  }
+
+  return (
+    <div data-issues data-cache-bypass-badge>
+      <button
+        data-issues-open
+        aria-label="Open Next.js Dev Tools"
+        onClick={onTriggerClick}
+      >
+        Cache disabled
+      </button>
+      <button
+        data-issues-collapse
+        aria-label="Collapse cache bypass badge"
+        onClick={() => {
+          setDismissed(true)
+          // Move focus to the trigger to prevent having it stuck on this element
+          triggerRef.current?.focus()
+        }}
+      >
+        <Cross data-cross />
+      </button>
     </div>
   )
 }

@@ -2477,6 +2477,10 @@ async function renderToStream(
         if (isBypassingCachesInDev(renderOpts, requestStore)) {
           // Mark the RSC payload to indicate that caches were bypassed in dev.
           // This lets the client know not to cache anything based on this render.
+          if (renderOpts.setCacheStatus) {
+            // we know this is available  when cacheComponents is enabled, but typeguard to be safe
+            renderOpts.setCacheStatus('bypass', htmlRequestId, requestId)
+          }
           payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
             route: workStore.route,
           })
