@@ -338,11 +338,13 @@ function InnerLayoutRouter({
   segmentPath,
   cacheNode,
   url,
+  isActive,
 }: {
   tree: FlightRouterState
   segmentPath: FlightSegmentPath
   cacheNode: CacheNode
   url: string
+  isActive: boolean
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   const parentNavPromises = useContext(NavigationPromisesContext)
@@ -382,44 +384,48 @@ function InnerLayoutRouter({
     // navigation that will be able to fulfill it. We need to fetch more from
     // the server and patch the cache.
 
-    // Check if there's already a pending request.
-    let lazyData = cacheNode.lazyData
-    if (lazyData === null) {
-      /**
-       * Router state with refetch marker added
-       */
-      // TODO-APP: remove ''
-      const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
-      const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
-      const navigatedAt = Date.now()
-      cacheNode.lazyData = lazyData = fetchServerResponse(
-        new URL(url, location.origin),
-        {
-          flightRouterState: refetchTree,
-          nextUrl: includeNextUrl
-            ? // We always send the last next-url, not the current when
-              // performing a dynamic request. This is because we update
-              // the next-url after a navigation, but we want the same
-              // interception route to be matched that used the last
-              // next-url.
-              context.previousNextUrl || context.nextUrl
-            : null,
-        }
-      ).then((serverResponse) => {
-        startTransition(() => {
-          dispatchAppRouterAction({
-            type: ACTION_SERVER_PATCH,
-            previousTree: fullTree,
-            serverResponse,
-            navigatedAt,
+    // Only fetch data for the active segment. Inactive segments (rendered
+    // offscreen for bfcache) should not trigger fetches.
+    if (isActive) {
+      // Check if there's already a pending request.
+      let lazyData = cacheNode.lazyData
+      if (lazyData === null) {
+        /**
+         * Router state with refetch marker added
+         */
+        // TODO-APP: remove ''
+        const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
+        const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
+        const navigatedAt = Date.now()
+        cacheNode.lazyData = lazyData = fetchServerResponse(
+          new URL(url, location.origin),
+          {
+            flightRouterState: refetchTree,
+            nextUrl: includeNextUrl
+              ? // We always send the last next-url, not the current when
+                // performing a dynamic request. This is because we update
+                // the next-url after a navigation, but we want the same
+                // interception route to be matched that used the last
+                // next-url.
+                context.previousNextUrl || context.nextUrl
+              : null,
+          }
+        ).then((serverResponse) => {
+          startTransition(() => {
+            dispatchAppRouterAction({
+              type: ACTION_SERVER_PATCH,
+              previousTree: fullTree,
+              serverResponse,
+              navigatedAt,
+            })
           })
+
+          return serverResponse
         })
 
-        return serverResponse
-      })
-
-      // Suspend while waiting for lazyData to resolve
-      use(lazyData)
+        // Suspend while waiting for lazyData to resolve
+        use(lazyData)
+      }
     }
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
     // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
@@ -461,6 +467,7 @@ function InnerLayoutRouter({
 
         // TODO-APP: overriding of url for parallel routes
         url: url,
+        isActive: isActive,
       }}
     >
       {content}
@@ -558,7 +565,8 @@ export default function OuterLayoutRouter({
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { parentTree, parentCacheNode, parentSegmentPath, url } = context
+  const { parentTree, parentCacheNode, parentSegmentPath, url, isActive } =
+    context
 
   // Get the CacheNode for this segment by reading it from the parent segment's
   // child map.
@@ -691,6 +699,7 @@ export default function OuterLayoutRouter({
                       tree={tree}
                       cacheNode={cacheNode}
                       segmentPath={segmentPath}
+                      isActive={isActive && stateKey === activeStateKey}
                     />
                     {segmentBoundaryTriggerNode}
                   </RedirectBoundary>
