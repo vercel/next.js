@@ -36,6 +36,7 @@ export class StagedRenderingController {
   }
 
   advanceStage(stage: NonStaticRenderStage) {
+    console.log('controller :: advancing stage', this.currentStage, '->', stage)
     // If we're already at the target stage or beyond, do nothing.
     // (this can happen e.g. if sync IO advanced us to the dynamic stage)
     if (this.currentStage >= stage) {
@@ -110,7 +111,11 @@ function makeDevtoolsIOPromiseFromIOTrigger<T>(
   // In particular, it should shadow any inner IO that resolved/rejected the promise
   // (in case of staged rendering, this will be the `setTimeout` that triggers the relevant stage)
   const promise = new Promise<T>((resolve, reject) => {
-    ioTrigger.then(resolve.bind(null, resolvedValue), reject)
+    // ioTrigger.then(resolve.bind(null, resolvedValue), reject)
+    ioTrigger.then(() => {
+      console.log('resolving -', displayName)
+      resolve(resolvedValue)
+    }, reject)
   })
   if (displayName !== undefined) {
     // @ts-expect-error

@@ -296,14 +296,19 @@ export function abortOnSynchronousPlatformIOAccess(
 }
 
 export function trackSynchronousPlatformIOAccessInDev(
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  expression: string,
+  type: string
 ): void {
   // We don't actually have a controller to abort but we do the semantic equivalent by
   // advancing the request store out of the prerender stage
   if (requestStore.stagedRendering) {
     // TODO: error for sync IO in the runtime stage
     // (which is not currently covered by the validation render in `spawnDynamicValidationInDev`)
-    requestStore.stagedRendering.advanceStage(RenderStage.Dynamic)
+    console.trace(
+      `sync IO error (type: ${type}): ${expression}, NOT advancing to dynamic stage (fixme)`
+    )
+    // requestStore.stagedRendering.advanceStage(RenderStage.Dynamic)
   }
 }
 
@@ -721,6 +726,11 @@ const hasViewportRegex = new RegExp(
 )
 const hasOutletRegex = new RegExp(`\\n\\s+at ${OUTLET_BOUNDARY_NAME}[\\n\\s]`)
 
+export enum DynamicErrorKind {
+  SyncDynamic,
+  MissingSuspense,
+}
+
 export function trackAllowedDynamicAccess(
   workStore: WorkStore,
   componentStack: string,
@@ -729,13 +739,13 @@ export function trackAllowedDynamicAccess(
 ) {
   if (hasOutletRegex.test(componentStack)) {
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
-    return
+    return null
   } else if (hasMetadataRegex.test(componentStack)) {
     dynamicValidation.hasDynamicMetadata = true
-    return
+    return null
   } else if (hasViewportRegex.test(componentStack)) {
     dynamicValidation.hasDynamicViewport = true
-    return
+    return null
   } else if (
     hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
       componentStack
@@ -746,23 +756,23 @@ export function trackAllowedDynamicAccess(
     // is an explicit signal from the user that they acknowledge the empty shell and want dynamic rendering.
     dynamicValidation.hasAllowedDynamic = true
     dynamicValidation.hasSuspenseAboveBody = true
-    return
+    return null
   } else if (hasSuspenseRegex.test(componentStack)) {
     // this error had a Suspense boundary above it so we don't need to report it as a source
     // of disallowed
     dynamicValidation.hasAllowedDynamic = true
-    return
+    return null
   } else if (clientDynamic.syncDynamicErrorWithStack) {
     // This task was the task that called the sync error.
     dynamicValidation.dynamicErrors.push(
       clientDynamic.syncDynamicErrorWithStack
     )
-    return
+    return DynamicErrorKind.SyncDynamic
   } else {
     const message = `Route "${workStore.route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
     const error = createErrorWithComponentOrOwnerStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
-    return
+    return DynamicErrorKind.MissingSuspense
   }
 }
 
