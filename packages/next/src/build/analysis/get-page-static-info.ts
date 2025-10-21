@@ -415,6 +415,8 @@ function validateMiddlewareProxyExports({
       `Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
 
     if (isDev) {
+      // errorOnce as proxy/middleware runs per request including multiple
+      // internal _next/ routes and spams logs.
       Log.errorOnce(message)
     } else {
       throw new Error(message)
@@ -776,6 +778,8 @@ export async function getPagesPageStaticInfo({
     const message = `Route segment config is not allowed in Proxy file at "${resolvedPath}". Proxy always runs on Node.js runtime. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
 
     if (isDev) {
+      // errorOnce as proxy/middleware runs per request including multiple
+      // internal _next/ routes and spams logs.
       Log.errorOnce(message)
       resolvedRuntime = SERVER_RUNTIME.nodejs
     } else {
@@ -795,7 +799,7 @@ export async function getPagesPageStaticInfo({
   ) {
     const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
     if (isDev) {
-      Log.errorOnce(message)
+      Log.error(message)
     } else {
       throw new Error(message)
     }
