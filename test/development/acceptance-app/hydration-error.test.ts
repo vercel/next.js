@@ -45,7 +45,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name={undefined} loading={null}>
+                 <LoadingBoundary name="text-misma..." loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
@@ -107,7 +107,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name={undefined} loading={null}>
+                 <LoadingBoundary name="extra-elem..." loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
@@ -145,7 +145,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name="(extra-att..." loading={null}>
+                 <LoadingBoundary name="/" loading={null}>
                    <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
                        <RedirectBoundary>
@@ -181,7 +181,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name="(extra-att..." loading={null}>
+                 <LoadingBoundary name="/" loading={null}>
                    <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/extra-att..." notFound={<SegmentViewNode>} ...>
                        <RedirectBoundary>
@@ -221,7 +221,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name={undefined} loading={null}>
+                 <LoadingBoundary name="extra-text..." loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
@@ -262,7 +262,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name={undefined} loading={null}>
+                 <LoadingBoundary name="extra-elem..." loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
@@ -300,7 +300,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name={undefined} loading={null}>
+                 <LoadingBoundary name="extra-text..." loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
@@ -342,7 +342,7 @@ describe('Error overlay for hydration errors in App router', () => {
          <ScrollAndFocusHandler segmentPath={[...]}>
            <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
              <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-               <LoadingBoundary name={undefined} loading={null}>
+               <LoadingBoundary name="extra-text..." loading={null}>
                  <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                    <RedirectBoundary>
                      <RedirectErrorBoundary router={{...}}>
@@ -376,7 +376,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name={undefined} loading={null}>
+                 <LoadingBoundary name="extra-text..." loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
@@ -415,7 +415,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name={undefined} loading={null}>
+                 <LoadingBoundary name="extra-whit..." loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
@@ -453,7 +453,7 @@ describe('Error overlay for hydration errors in App router', () => {
        "componentStack": "...
          <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
            <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-             <LoadingBoundary name={undefined} loading={null}>
+             <LoadingBoundary name="extra-node..." loading={null}>
                <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                  <RedirectBoundary>
                    <RedirectErrorBoundary router={{...}}>
@@ -510,7 +510,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name={undefined} loading={null}>
+                 <LoadingBoundary name="p-under-p/" loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
@@ -566,7 +566,7 @@ describe('Error overlay for hydration errors in App router', () => {
          <ScrollAndFocusHandler segmentPath={[...]}>
            <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
              <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-               <LoadingBoundary name={undefined} loading={null}>
+               <LoadingBoundary name="div-under-p/" loading={null}>
                  <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                    <RedirectBoundary>
                      <RedirectErrorBoundary router={{...}}>
@@ -625,7 +625,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name={undefined} loading={null}>
+                 <LoadingBoundary name="tr-under-div/" loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
@@ -682,7 +682,7 @@ describe('Error overlay for hydration errors in App router', () => {
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                 <LoadingBoundary name={undefined} loading={null}>
+                 <LoadingBoundary name="bad-nesting/" loading={null}>
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
@@ -902,7 +902,7 @@ describe('Error overlay for hydration errors in App router', () => {
                <ScrollAndFocusHandler segmentPath={[...]}>
                  <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                     <LoadingBoundary name="(script-un..." loading={null}>
+                     <LoadingBoundary name="/" loading={null}>
                        <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
                          <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
                            <RedirectBoundary>
@@ -966,7 +966,7 @@ describe('Error overlay for hydration errors in App router', () => {
                <ScrollAndFocusHandler segmentPath={[...]}>
                  <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                     <LoadingBoundary name="(script-un..." loading={null}>
+                     <LoadingBoundary name="/" loading={null}>
                        <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
                          <HTTPAccessFallbackErrorBoundary pathname="/script-un..." notFound={<SegmentViewNode>} ...>
                            <RedirectBoundary>
