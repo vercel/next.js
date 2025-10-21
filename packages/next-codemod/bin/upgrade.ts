@@ -188,11 +188,6 @@ export async function runUpgrade(
         `react@${targetNextPackageJson.peerDependencies['react']}`
       )
 
-  console.log({
-    compare1: compareVersions(targetNextVersion, '15.0.0-canary') >= 0,
-    compare2: compareVersions(targetNextVersion, '16.0.0-canary') < 0,
-  })
-
   if (
     compareVersions(targetNextVersion, '15.0.0-canary') >= 0 &&
     compareVersions(targetNextVersion, '16.0.0-canary') < 0
