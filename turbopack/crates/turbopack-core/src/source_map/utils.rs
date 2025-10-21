@@ -229,6 +229,7 @@ fn unencoded_str_to_raw_value(unencoded: &str) -> Box<RawValue> {
 /// Helper function to transform turbopack:/// file references in a sourcemap.
 /// Handles parsing the sourcemap, resolving the filesystem, applying transformations, and
 /// serializing back.
+/// The transform function is given the source string as found in the sourcemap (i.e. a URI).
 async fn transform_relative_files<F>(
     map: Option<&Rope>,
     context_path: &FileSystemPath,
@@ -293,15 +294,16 @@ pub async fn relative_fileify_source_map(
     context_path: FileSystemPath,
     relative_path_to_output_root: RcStr,
 ) -> Result<Option<Rope>> {
+    let relative_path_to_output_root = relative_path_to_output_root
+        .split('/')
+        .map(|s| urlencoding::encode(s))
+        .collect::<Vec<_>>()
+        .join("/");
     transform_relative_files(map, &context_path, |_context_fs, src_rest| {
-        // Uri encode a source root relative path.
         // NOTE: we just include the relative path prefix here instead of using `sourceRoot`
         // since the spec on sourceRoot is broken.
-        Ok(format!("{relative_path_to_output_root}/{src_rest}")
-            .split('/')
-            .map(|s| urlencoding::encode(s))
-            .collect::<Vec<_>>()
-            .join("/"))
+        // src_rest is already uri encoded as it was part of a sourcemap
+        Ok(format!("{relative_path_to_output_root}/{src_rest}"))
     })
     .await
 }

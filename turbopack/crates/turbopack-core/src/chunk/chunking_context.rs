@@ -137,7 +137,7 @@ pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingCon
 #[derive(Debug, Clone, Copy, Hash, TaskInput, Default)]
 pub enum SourceMapSourceType {
     AbsoluteFileUri,
-    RelativeFileUri,
+    RelativeUri,
     #[default]
     TurbopackUriScheme,
 }
@@ -554,7 +554,6 @@ async fn relative_path_from_chunk_root_to_project_root(
     let output_root_to_chunk_root_path = chunking_context.output_root_to_root_path().await?;
 
     // Note we cannot use `normalize_path` here since it rejects paths that start with `../`
-    // So this path might
     Ok(Vc::cell(
         format!(
             "{}/{}",

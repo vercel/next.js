@@ -108,7 +108,7 @@ impl CssChunk {
                     )
                     .await?
                 }
-                SourceMapSourceType::RelativeFileUri => {
+                SourceMapSourceType::RelativeUri => {
                     relative_fileify_source_map(
                         content.source_map.as_ref(),
                         chunking_context.root_path().owned().await?,

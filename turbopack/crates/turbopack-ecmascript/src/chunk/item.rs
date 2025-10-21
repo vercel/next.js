@@ -80,7 +80,7 @@ impl EcmascriptChunkItemContent {
                 SourceMapSourceType::AbsoluteFileUri => {
                     RewriteSourcePath::AbsoluteFilePath(chunking_context.root_path().owned().await?)
                 }
-                SourceMapSourceType::RelativeFileUri => RewriteSourcePath::RelativeFilePath(
+                SourceMapSourceType::RelativeUri => RewriteSourcePath::RelativeFilePath(
                     chunking_context.root_path().owned().await?,
                     chunking_context
                         .relative_path_from_chunk_root_to_project_root()

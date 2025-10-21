@@ -4,5 +4,5 @@
   "minifyType": "NoMinify",
   "environment": "NodeJs",
   "enableDebugIds": true,
-  "sourceMapSourceType": "RelativeFileUri"
+  "sourceMapSourceType": "RelativeUri"
 }
