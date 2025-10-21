@@ -109,11 +109,13 @@ This is no longer necessary. You can update your `package.json` scripts:
 }
 ```
 
-If you run `next build` without the `--turbopack` flag (the new default), and your Next config contains a `webpack` configuration, the **build will fail** to prevent misconfiguration issues. In this case, you must either:
+If your project has a [custom `webpack`](/docs/app/api-reference/config/next-config-js/webpack) configuration and you run `next build` (which now uses Turbopack by default), the build will **fail** to prevent misconfiguration issues.
 
-- explicitly build with `--turbopack`
-- migrate your Webpack configuration to Turbopack
-- or [opt out of Turbopack](#opting-out-of-turbopack) using `--webpack`
+You have a few different ways to address this:
+
+- **Use Turbopack anyway:** Run with `next build --turbopack` to build using Turbopack and ignore your `webpack` config.
+- **Switch to Turbopack fully:** Migrate your `webpack` config to Turbopack-compatible options.
+- **Keep using Webpack:** Use the `--webpack` flag to opt out of Turbopack and build with Webpack.
 
 > **Good to know**: If you see failing builds because a `webpack` configuration was found, but you don't define one yourself, it is likely that a plugin is adding a `webpack` option
 
@@ -273,9 +275,17 @@ Starting with **Next.js 16**, synchronous access is fully removed. These APIs ca
 
 Use the [codemod](/docs/app/guides/upgrading/codemods#migrate-to-async-dynamic-apis) to migrate to async Dynamic APIs.
 
-You don't have to manually write types for layouts, pages, or route handlers. Simply run `npx next typegen`, and the route aware [type helpers](/docs/app/api-reference/config/typescript#route-aware-type-helpers), [`PageProps`](/docs/app/api-reference/file-conventions/page#page-props-helper), [`LayoutProps`](/docs/app/api-reference/file-conventions/layout#layout-props-helper), [`RouteContext`](/docs/app/api-reference/file-conventions/route#route-context-helper) will become globally available in your app.
+### Migrating types for async Dynamic APIs
 
-Then you can simply do:
+To help migrate to async `params` and `searchParams`, you can run [`npx next typegen`](/docs/app/api-reference/cli/next#next-typegen-options) to automatically generate these globally available types helpers:
+
+- [`PageProps`](/docs/app/api-reference/file-conventions/page#page-props-helper)
+- [`LayoutProps`](/docs/app/api-reference/file-conventions/layout#layout-props-helper)
+- [`RouteContext`](/docs/app/api-reference/file-conventions/route#route-context-helper)
+
+> **Good to know**: `typegen` was introduced in Next.js 15.5
+
+This simplifies type-safe migration to the new async API pattern, and enables you to update your components with full type safety, for example:
 
 ```tsx filename="/app/blog/[slug]/page.tsx"
 export default async function Page(props: PageProps<'/blog/[slug]'>) {
@@ -502,29 +512,33 @@ If the increased request count causes issues, please let us know by creating an 
 
 ## Partial Pre-Rendering (PPR)
 
-**Next.js 16** removes the experimental **Partial Pre-Rendering (PPR)** flag and configuration options. PPR is being integrated into [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents).
+**Next.js 16** removes the experimental **Partial Pre-Rendering (PPR)** flag and configuration options, including the route level segment `experimental_ppr`.
 
-Starting with **Next.js 16**, you can opt into PPR using the `cacheComponents` configuration.
-
-Modify your Next config file from `ppr: true`:
+Starting with **Next.js 16**, you can opt into PPR using the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) configuration.
 
 ```js filename="next.config.js"
-module.exports = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  cacheComponents: true,
+}
+
+module.exports = nextConfig
+```
+
+PPR in **Next.js 16** works differently than in **Next.js 15** canaries. If you are using PPR today, stay in the current Next.js 15 canary you are using. We will follow up with a guide to migrate to Cache Components.
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // If you are using PPR today
+  // stay in the current Next.js 15 canary
   experimental: {
     ppr: true,
   },
 }
+
+module.exports = nextConfig
 ```
-
-To use [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents):
-
-```js filename="next.config.js"
-module.exports = {
-  cacheComponents: true,
-}
-```
-
-> **Good to know**: Using PPR in Next.js 16 works differently than in Next.js 15 canaries. If you are using PPR today, stay in the current version 15 canary you are using.
 
 ## `middleware` to `proxy`
 
