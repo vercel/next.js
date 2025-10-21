@@ -303,7 +303,11 @@ pub async fn relative_fileify_source_map(
         // NOTE: we just include the relative path prefix here instead of using `sourceRoot`
         // since the spec on sourceRoot is broken.
         // src_rest is already uri encoded as it was part of a sourcemap
-        Ok(format!("{relative_path_to_output_root}/{src_rest}"))
+        if relative_path_to_output_root.is_empty() {
+            Ok(src_rest.to_string())
+        } else {
+            Ok(format!("{relative_path_to_output_root}/{src_rest}"))
+        }
     })
     .await
 }
