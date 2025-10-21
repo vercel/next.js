@@ -4152,7 +4152,7 @@ export default async function build(
         buildTracesSpinner = undefined
       }
 
-      if (proxyFilePath) {
+      if (proxyFilePath && bundler !== Bundler.Turbopack) {
         await fs.rename(
           path.join(distDir, SERVER_DIRECTORY, 'proxy.js'),
           path.join(distDir, SERVER_DIRECTORY, 'middleware.js')
