@@ -8,6 +8,51 @@ description: Upgrade your Next.js Application from Version 15 to 16.
 
 ## Upgrading from 15 to 16
 
+### Using AI Agents with Next.js DevTools MCP
+
+If you're using an AI coding assistant that supports the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), you can use the **Next.js DevTools MCP** to automate the upgrade process and migration tasks.
+
+#### Setup
+
+Add the following configuration to your MCP client, example:
+
+```json
+{
+  "mcpServers": {
+    "next-devtools": {
+      "command": "npx",
+      "args": ["-y", "next-devtools-mcp@latest"]
+    }
+  }
+}
+```
+
+For more information, visit the [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) package on npm to configure with your MCP client.
+
+> **Note:** Using `next-devtools-mcp@latest` ensures that your MCP client will always use the latest version of the Next.js DevTools MCP server.
+
+#### Example Prompts
+
+Once configured, you can use natural language prompts to upgrade your Next.js app:
+
+**To upgrade to Next.js 16:**
+
+Connect to your coding agent and then prompt:
+
+```
+Next Devtools, help me upgrade my Next.js app to version 16
+```
+
+**To migrate to Cache Components (after upgrading to v16):**
+
+Connect to your coding agent and then prompt:
+
+```
+Next Devtools, migrate my Next.js app to cache components
+```
+
+### Using the Codemod
+
 To update to Next.js version 16, you can use the `upgrade` [codemod](/docs/app/guides/upgrading/codemods#160):
 
 ```bash filename="Terminal"
