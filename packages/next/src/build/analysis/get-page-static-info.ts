@@ -601,7 +601,7 @@ function warnAboutUnsupportedValue(
 type GetPageStaticInfoParams = {
   pageFilePath: string
   nextConfig: Partial<NextConfig>
-  isDev?: boolean
+  isDev: boolean
   page: string
   pageType: PAGE_TYPES
 }
@@ -629,7 +629,7 @@ export async function getAppPageStaticInfo({
     ast,
     page,
     pageFilePath,
-    isDev: isDev ?? process.env.NODE_ENV === 'development',
+    isDev,
   })
 
   const {
@@ -730,7 +730,7 @@ export async function getPagesPageStaticInfo({
     ast,
     page,
     pageFilePath,
-    isDev: isDev ?? process.env.NODE_ENV === 'development',
+    isDev,
   })
 
   const { getServerSideProps, getStaticProps, exports } = checkExports(
