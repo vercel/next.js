@@ -419,6 +419,24 @@ export async function startServer(
               cleanupListeners?.runAll().catch(console.error),
             ])
 
+            // Flush telemetry if this is a dev server
+            if (isDev) {
+              try {
+                const { traceGlobals } =
+                  require('../../trace/shared') as typeof import('../../trace/shared')
+                const telemetry = traceGlobals.get('telemetry') as
+                  | InstanceType<
+                      typeof import('../../telemetry/storage').Telemetry
+                    >
+                  | undefined
+                if (telemetry) {
+                  await telemetry.flush()
+                }
+              } catch (_) {
+                // Ignore telemetry errors during cleanup
+              }
+            }
+
             debug('start-server process cleanup finished')
             process.exit(0)
           })()

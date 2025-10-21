@@ -274,11 +274,11 @@ describe('Client Navigation rendering', () => {
            "description": "aa is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
-           "source": "pages/error-in-the-global-scope.js (1:1) @ {module evaluation}
+           "source": "pages/error-in-the-global-scope.js (1:1) @ module evaluation
          > 1 | aa = 10 //eslint-disable-line
              | ^",
            "stack": [
-             "{module evaluation} pages/error-in-the-global-scope.js (1:1)",
+             "module evaluation pages/error-in-the-global-scope.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }

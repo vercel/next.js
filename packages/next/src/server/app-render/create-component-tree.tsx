@@ -103,7 +103,7 @@ async function createComponentTreeInternal(
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
   const {
-    renderOpts: { nextConfigOutput, experimental },
+    renderOpts: { nextConfigOutput, experimental, cacheComponents },
     workStore,
     componentMod: {
       createElement,
@@ -742,22 +742,33 @@ async function createComponentTreeInternal(
     // Assign searchParams to props if this is a page
     let pageElement: React.ReactNode
     if (isClientComponent) {
-      if (isStaticGeneration) {
+      if (cacheComponents) {
+        // Params are omitted when Cache Components is enabled
+        pageElement = createElement(ClientPageRoot, {
+          Component: PageComponent,
+          serverProvidedParams: null,
+        })
+      } else if (isStaticGeneration) {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
         const promiseOfSearchParams =
           createPrerenderSearchParamsForClientPage(workStore)
         pageElement = createElement(ClientPageRoot, {
           Component: PageComponent,
-          searchParams: query,
-          params: currentParams,
-          promises: [promiseOfSearchParams, promiseOfParams],
+          serverProvidedParams: {
+            searchParams: query,
+            params: currentParams,
+            promises: [promiseOfSearchParams, promiseOfParams],
+          },
         })
       } else {
         pageElement = createElement(ClientPageRoot, {
           Component: PageComponent,
-          searchParams: query,
-          params: currentParams,
+          serverProvidedParams: {
+            searchParams: query,
+            params: currentParams,
+            promises: null,
+          },
         })
       }
     } else {
@@ -834,22 +845,33 @@ async function createComponentTreeInternal(
 
     if (isClientComponent) {
       let clientSegment: React.ReactNode
-
-      if (isStaticGeneration) {
+      if (cacheComponents) {
+        // Params are omitted when Cache Components is enabled
+        clientSegment = createElement(ClientSegmentRoot, {
+          Component: SegmentComponent,
+          slots: parallelRouteProps,
+          serverProvidedParams: null,
+        })
+      } else if (isStaticGeneration) {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
 
         clientSegment = createElement(ClientSegmentRoot, {
           Component: SegmentComponent,
           slots: parallelRouteProps,
-          params: currentParams,
-          promise: promiseOfParams,
+          serverProvidedParams: {
+            params: currentParams,
+            promises: [promiseOfParams],
+          },
         })
       } else {
         clientSegment = createElement(ClientSegmentRoot, {
           Component: SegmentComponent,
           slots: parallelRouteProps,
-          params: currentParams,
+          serverProvidedParams: {
+            params: currentParams,
+            promises: null,
+          },
         })
       }
 

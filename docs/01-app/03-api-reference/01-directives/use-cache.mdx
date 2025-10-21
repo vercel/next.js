@@ -6,6 +6,7 @@ related:
   title: Related
   description: View related API references.
   links:
+    - app/api-reference/directives/use-cache-private
     - app/api-reference/config/next-config-js/cacheComponents
     - app/api-reference/config/next-config-js/cacheLife
     - app/api-reference/functions/cacheTag
@@ -14,6 +15,8 @@ related:
 ---
 
 The `use cache` directive allows you to mark a route, React component, or a function as cacheable. It can be used at the top of a file to indicate that all exports in the file should be cached, or inline at the top of function or component to cache the return value.
+
+> **Good to know:** For caching user-specific content that requires access to cookies or headers, see [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private).
 
 ## Usage
 
@@ -103,6 +106,8 @@ The return value of the cacheable function must be serializable. This ensures th
 When used at the top of a [layout](/docs/app/api-reference/file-conventions/layout) or [page](/docs/app/api-reference/file-conventions/page), the route segment will be prerendered, allowing it to later be [revalidated](#during-revalidation).
 
 This means `use cache` cannot be used with [request-time APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering) like `cookies` or `headers`.
+
+> **Note:** If you need to cache content that depends on cookies, headers, or search params, use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead.
 
 ## `use cache` at runtime
 

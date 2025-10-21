@@ -238,13 +238,13 @@ describe('Cache Components Errors', () => {
                    at ScrollAndFocusHandler (bundler:///<next-src>)
                    at RenderFromTemplateContext (bundler:///<next-src>)
                    at OuterLayoutRouter (bundler:///<next-src>)
-                 335 |  */
-                 336 | function InnerLayoutRouter({
-               > 337 |   tree,
+                 337 |  */
+                 338 | function InnerLayoutRouter({
+               > 339 |   tree,
                      |   ^
-                 338 |   segmentPath,
-                 339 |   cacheNode,
-                 340 |   url,
+                 340 |   segmentPath,
+                 341 |   cacheNode,
+                 342 |   params,
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-metadata-error-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -745,13 +745,13 @@ describe('Cache Components Errors', () => {
                    at ScrollAndFocusHandler (bundler:///<next-src>)
                    at RenderFromTemplateContext (bundler:///<next-src>)
                    at OuterLayoutRouter (bundler:///<next-src>)
-                 335 |  */
-                 336 | function InnerLayoutRouter({
-               > 337 |   tree,
+                 337 |  */
+                 338 | function InnerLayoutRouter({
+               > 339 |   tree,
                      |   ^
-                 338 |   segmentPath,
-                 339 |   cacheNode,
-                 340 |   url,
+                 340 |   segmentPath,
+                 341 |   cacheNode,
+                 342 |   params,
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -2141,13 +2141,13 @@ describe('Cache Components Errors', () => {
                      at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (<anonymous>)
                      at OuterLayoutRouter (bundler:///<next-src>)
-                   335 |  */
-                   336 | function InnerLayoutRouter({
-                 > 337 |   tree,
+                   337 |  */
+                   338 | function InnerLayoutRouter({
+                 > 339 |   tree,
                        |   ^
-                   338 |   segmentPath,
-                   339 |   cacheNode,
-                   340 |   url,
+                   340 |   segmentPath,
+                   341 |   cacheNode,
+                   342 |   params,
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -2699,11 +2699,11 @@ describe('Cache Components Errors', () => {
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": null,
                  "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ {module evaluation}
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ module evaluation
                > 21 | const getCachedData = unstable_cache(async () => {
                     |                                      ^",
                  "stack": [
-                   "{module evaluation} app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "module evaluation app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
                    "<FIXME-next-dist-dir>",
                  ],
                }
@@ -2758,7 +2758,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at module evaluation (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at a (<next-dist-dir>)
                    19 | }
                    20 |
@@ -2776,7 +2776,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at module evaluation (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -2870,11 +2870,11 @@ describe('Cache Components Errors', () => {
                  "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
                  "environmentLabel": null,
                  "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ {module evaluation}
+                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ module evaluation
                > 15 | async function Private() {
                     | ^",
                  "stack": [
-                   "{module evaluation} app/use-cache-private-in-use-cache/page.tsx (15:1)",
+                   "module evaluation app/use-cache-private-in-use-cache/page.tsx (15:1)",
                    "<FIXME-next-dist-dir>",
                  ],
                }
@@ -2930,7 +2930,7 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at module evaluation (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at a (<next-dist-dir>)
                    13 | }
                    14 |
@@ -2940,7 +2940,7 @@ describe('Cache Components Errors', () => {
                    17 |
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at module evaluation (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at b (<next-dist-dir>)
                    13 | }
                    14 |
@@ -2958,7 +2958,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at module evaluation (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2967,7 +2967,7 @@ describe('Cache Components Errors', () => {
                    17 |
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at module evaluation (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -3157,13 +3157,13 @@ describe('Cache Components Errors', () => {
                      at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (bundler:///<next-src>)
                      at OuterLayoutRouter (bundler:///<next-src>)
-                   335 |  */
-                   336 | function InnerLayoutRouter({
-                 > 337 |   tree,
+                   337 |  */
+                   338 | function InnerLayoutRouter({
+                 > 339 |   tree,
                        |   ^
-                   338 |   segmentPath,
-                   339 |   cacheNode,
-                   340 |   url,
+                   340 |   segmentPath,
+                   341 |   cacheNode,
+                   342 |   params,
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
 

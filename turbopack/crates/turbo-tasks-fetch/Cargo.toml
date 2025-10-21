@@ -20,9 +20,12 @@ workspace = true
 [target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
 reqwest = { workspace = true, features = ["native-tls"] }
 
-# If you modify this cfg, make sure you update `FetchClient::try_build_uncached_reqwest_client`.
+# If you modify this cfg, make sure you update `FetchClient::try_build_uncached_reqwest_client`,
+# `has_rustls_cause`, and `errors_on_tls_connection`
 [target.'cfg(not(any(all(target_os = "windows", target_arch = "aarch64"), target_arch="wasm32")))'.dependencies]
 reqwest = { workspace = true, features = ["rustls-tls-webpki-roots", "rustls-tls-native-roots"] }
+# we just need the `rustls::Error` type (no default features)
+rustls = { version = "0.23.0", default-features = false }
 
 [dependencies]
 anyhow = { workspace = true }

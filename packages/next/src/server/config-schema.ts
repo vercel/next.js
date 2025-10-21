@@ -249,7 +249,6 @@ export const experimentalSchema = {
   rootParams: z.boolean().optional(),
   isolatedDevBuild: z.boolean().optional(),
   mcpServer: z.boolean().optional(),
-  routerBFCache: z.boolean().optional(),
   removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
   validateRSCRequestHeaders: z.boolean().optional(),
   scrollRestoration: z.boolean().optional(),

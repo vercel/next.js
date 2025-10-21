@@ -38,7 +38,7 @@ declare const user500RouteModuleOptions: any
 // INJECT:user500RouteModuleOptions
 
 // Initialize the cache handlers interface.
-initializeCacheHandlers()
+initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
 // expose this for the route-module
 ;(globalThis as any).nextConfig = nextConfig

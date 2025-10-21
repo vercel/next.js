@@ -592,11 +592,6 @@ export interface ExperimentalConfig {
   taint?: boolean
 
   /**
-   * Enables the Back/Forward Cache for the router.
-   */
-  routerBFCache?: boolean
-
-  /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
    * the global process so that we can override the behavior, which in some
    * runtimes is to exit the process.
@@ -1517,7 +1512,6 @@ export const defaultConfig = Object.freeze({
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     viewTransition: false,
-    routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: !!(
       process.env.__NEXT_TEST_MODE || !isStableBuild()

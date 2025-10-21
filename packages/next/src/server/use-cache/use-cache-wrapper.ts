@@ -734,6 +734,12 @@ async function generateCacheEntryImpl(
     errors
   )
 
+  if (process.env.NODE_ENV === 'development') {
+    // Name the stream for React DevTools.
+    // @ts-expect-error
+    returnStream.name = 'use cache'
+  }
+
   return {
     type: 'cached',
     // Return the stream as we're creating it. This means that if it ends up

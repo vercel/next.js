@@ -27,14 +27,12 @@ import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
 
 declare const incrementalCacheHandler: any
+declare const nextConfig: NextConfigComplete
 // OPTIONAL_IMPORT:incrementalCacheHandler
+// INJECT:nextConfig
 
 // Initialize the cache handlers interface.
-initializeCacheHandlers()
-
-// injected by the loader afterwards.
-declare const nextConfig: NextConfigComplete
-// INJECT:nextConfig
+initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 

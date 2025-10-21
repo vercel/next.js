@@ -434,9 +434,12 @@ function Router({
       parentTree: tree,
       parentCacheNode: cache,
       parentSegmentPath: null,
+      parentParams: {},
       // Root node always has `url`
       // Provided in AppTreeContext to ensure it can be overwritten in layout-router
       url: canonicalUrl,
+      // Root segment is always active
+      isActive: true,
     }
   }, [tree, cache, canonicalUrl])
 
