@@ -1,0 +1,389 @@
+---
+title: 'use cache: private'
+description: 'Learn how to use the `"use cache: private"` directive to enable runtime prefetching of personalized content in your Next.js application.'
+version: canary
+related:
+  title: Related
+  description: View related API references.
+  links:
+    - app/api-reference/directives/use-cache
+    - app/api-reference/config/next-config-js/cacheComponents
+    - app/api-reference/functions/cacheLife
+    - app/api-reference/functions/cacheTag
+    - app/guides/prefetching
+---
+
+The `'use cache: private'` directive enables runtime prefetching of personalized content that depends on cookies, headers, or search params.
+
+> **Good to know:** `'use cache: private'` is a variant of [`use cache`](/docs/app/api-reference/directives/use-cache) designed specifically for user-specific content that needs to be prefetchable but should never be stored in server-side cache handlers.
+
+## Usage
+
+To use `'use cache: private'`, enable the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag in your `next.config.ts` file:
+
+```tsx filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+```jsx filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+Then add `'use cache: private'` to your function along with a `cacheLife` configuration and export `unstable_prefetch` from your page.
+
+### Basic example
+
+```tsx filename="app/product/[id]/page.tsx" switcher
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { cacheLife, cacheTag } from 'next/cache'
+
+// REQUIRED: Enable runtime prefetching
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [
+    { params: { id: '1' }, cookies: [{ name: 'session-id', value: '1' }] },
+  ],
+}
+
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+
+  return (
+    <div>
+      <ProductDetails id={id} />
+      <Suspense fallback={<div>Loading recommendations...</div>}>
+        <Recommendations productId={id} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function Recommendations({ productId }: { productId: string }) {
+  const recommendations = await getRecommendations(productId)
+
+  return (
+    <div>
+      {recommendations.map((rec) => (
+        <ProductCard key={rec.id} product={rec} />
+      ))}
+    </div>
+  )
+}
+
+async function getRecommendations(productId: string) {
+  'use cache: private'
+  cacheTag(`recommendations-${productId}`)
+  cacheLife({ stale: 60 }) // Minimum 30 seconds required for runtime prefetch
+
+  // Access cookies within private cache functions
+  const sessionId = (await cookies()).get('session-id')?.value || 'guest'
+
+  return getPersonalizedRecommendations(productId, sessionId)
+}
+```
+
+```jsx filename="app/product/[id]/page.js" switcher
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { cacheLife, cacheTag } from 'next/cache'
+
+// REQUIRED: Enable runtime prefetching
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [
+    { params: { id: '1' }, cookies: [{ name: 'session-id', value: '1' }] },
+  ],
+}
+
+export default async function ProductPage({ params }) {
+  const { id } = await params
+
+  return (
+    <div>
+      <ProductDetails id={id} />
+      <Suspense fallback={<div>Loading recommendations...</div>}>
+        <Recommendations productId={id} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function Recommendations({ productId }) {
+  const recommendations = await getRecommendations(productId)
+
+  return (
+    <div>
+      {recommendations.map((rec) => (
+        <ProductCard key={rec.id} product={rec} />
+      ))}
+    </div>
+  )
+}
+
+async function getRecommendations(productId) {
+  'use cache: private'
+  cacheTag(`recommendations-${productId}`)
+  cacheLife({ stale: 60 }) // Minimum 30 seconds required for runtime prefetch
+
+  // Access cookies within private cache functions
+  const sessionId = (await cookies()).get('session-id')?.value || 'guest'
+
+  return getPersonalizedRecommendations(productId, sessionId)
+}
+```
+
+> **Note:** Private caches require a `cacheLife` stale time of at least 30 seconds to enable runtime prefetching. Values below 30 seconds are treated as dynamic.
+
+## Difference from `use cache`
+
+While regular `use cache` is designed for static, shared content that can be cached on the server, `'use cache: private'` is specifically for dynamic, user-specific content that needs to be:
+
+1. **Personalized** - varies based on cookies, headers, or search params
+2. **Prefetchable** - can be loaded before the user navigates to the page
+3. **Client-only** - never persisted to server-side cache handlers
+
+| Feature                            | `use cache`            | `'use cache: private'`              |
+| ---------------------------------- | ---------------------- | ----------------------------------- |
+| **Access to `await cookies()`**    | No                     | Yes                                 |
+| **Access to `await headers()`**    | No                     | Yes                                 |
+| **Access to `await searchParams`** | No                     | Yes                                 |
+| **Stored in cache handler**        | Yes (server-side)      | No (client-side only)               |
+| **Runtime prefetchable**           | N/A (already static)   | Yes (when configured)               |
+| **Cache scope**                    | Global (shared)        | Per-user (isolated)                 |
+| **Use case**                       | Static, shared content | Personalized, user-specific content |
+
+## How it works
+
+### Runtime prefetching
+
+When a user hovers over or views a link to a page with `unstable_prefetch = { mode: 'runtime' }`:
+
+1. **Static content** is prefetched immediately (layouts, page shell)
+2. **Private cache functions** are executed with the user's current cookies/headers
+3. **Results are stored** in the client-side Resume Data Cache
+4. **Navigation is instant** - both static and personalized content are already loaded
+
+> **Good to know:** Without `'use cache: private'`, personalized content cannot be prefetched and must wait until after navigation completes. Runtime prefetching eliminates this delay by executing cache functions with the user's current request context.
+
+### Storage behavior
+
+Private caches are **never persisted** to server-side cache handlers (like Redis, Vercel Data Cache, etc.). They exist only to:
+
+1. Enable runtime prefetching of personalized content
+2. Store prefetched data in the client-side cache during the session
+3. Coordinate cache invalidation with tags and stale times
+
+This ensures user-specific data is never accidentally shared between users while still enabling fast, prefetched navigation.
+
+### Stale time requirements
+
+> **Note:** Functions with a `cacheLife` stale time less than 30 seconds will not be runtime prefetched, even when using `'use cache: private'`. This prevents prefetching of rapidly changing data that would likely be stale by navigation time.
+
+```tsx
+// Will be runtime prefetched (stale ≥ 30s)
+cacheLife({ stale: 60 })
+
+// Will be runtime prefetched (stale ≥ 30s)
+cacheLife({ stale: 30 })
+
+// Will NOT be runtime prefetched (stale < 30s)
+cacheLife({ stale: 10 })
+```
+
+## Request APIs allowed in private caches
+
+The following request-specific APIs can be used inside `'use cache: private'` functions:
+
+| API            | Allowed in `use cache` | Allowed in `'use cache: private'` |
+| -------------- | ---------------------- | --------------------------------- |
+| `cookies()`    | No                     | Yes                               |
+| `headers()`    | No                     | Yes                               |
+| `searchParams` | No                     | Yes                               |
+| `connection()` | No                     | No                                |
+
+> **Note:** The [`connection()`](https://nextjs.org/docs/app/api-reference/functions/connection) API is prohibited in both `use cache` and `'use cache: private'` as it provides connection-specific information that cannot be safely cached.
+
+## Nesting rules
+
+Private caches have specific nesting rules to prevent user-specific data from leaking into shared caches:
+
+- Private caches **can** be nested inside other private caches
+- Private caches **cannot** be nested inside public caches (`'use cache'`, `'use cache: remote'`)
+- Public caches **can** be nested inside private caches
+
+```tsx
+// VALID: Private inside private
+async function outerPrivate() {
+  'use cache: private'
+  const result = await innerPrivate()
+  return result
+}
+
+async function innerPrivate() {
+  'use cache: private'
+  return getData()
+}
+
+// INVALID: Private inside public
+async function outerPublic() {
+  'use cache'
+  const result = await innerPrivate() // Error!
+  return result
+}
+
+async function innerPrivate() {
+  'use cache: private'
+  return getData()
+}
+```
+
+## Examples
+
+### Personalized product recommendations
+
+This example shows how to cache personalized product recommendations based on a user's session cookie. The recommendations are prefetched at runtime when the user hovers over product links.
+
+```tsx filename="app/product/[id]/page.tsx"
+import { cookies } from 'next/headers'
+import { cacheLife, cacheTag } from 'next/cache'
+
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [
+    { params: { id: '1' }, cookies: [{ name: 'user-id', value: 'user-123' }] },
+  ],
+}
+
+async function getRecommendations(productId: string) {
+  'use cache: private'
+  cacheTag(`recommendations-${productId}`)
+  cacheLife({ stale: 60 })
+
+  const userId = (await cookies()).get('user-id')?.value
+
+  // Fetch personalized recommendations based on user's browsing history
+  const recommendations = await db.recommendations.findMany({
+    where: { userId, productId },
+  })
+
+  return recommendations
+}
+```
+
+### User-specific pricing
+
+Cache pricing information that varies by user tier, allowing instant navigation to the pricing page with personalized rates already loaded.
+
+```tsx filename="app/pricing/page.tsx"
+import { cookies } from 'next/headers'
+import { cacheLife } from 'next/cache'
+
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ cookies: [{ name: 'user-tier', value: 'premium' }] }],
+}
+
+async function getPricing() {
+  'use cache: private'
+  cacheLife({ stale: 300 }) // 5 minutes
+
+  const tier = (await cookies()).get('user-tier')?.value || 'free'
+
+  // Return tier-specific pricing
+  return db.pricing.findMany({ where: { tier } })
+}
+```
+
+### Localized content based on headers
+
+Serve localized content based on the user's `Accept-Language` header, prefetching the correct language variant before navigation.
+
+```tsx filename="app/page.tsx"
+import { headers } from 'next/headers'
+import { cacheLife, cacheTag } from 'next/cache'
+
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ headers: [{ name: 'accept-language', value: 'en-US' }] }],
+}
+
+async function getLocalizedContent() {
+  'use cache: private'
+  cacheTag('content')
+  cacheLife({ stale: 3600 }) // 1 hour
+
+  const headersList = await headers()
+  const locale = headersList.get('accept-language')?.split(',')[0] || 'en-US'
+
+  return db.content.findMany({ where: { locale } })
+}
+```
+
+### Search results with user preferences
+
+Prefetch search results that include user-specific preferences, ensuring personalized search results load instantly.
+
+```tsx filename="app/search/page.tsx"
+import { cookies } from 'next/headers'
+import { cacheLife } from 'next/cache'
+
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [
+    {
+      searchParams: { q: 'laptop' },
+      cookies: [{ name: 'preferences', value: 'compact-view' }],
+    },
+  ],
+}
+
+async function getSearchResults(query: string) {
+  'use cache: private'
+  cacheLife({ stale: 120 }) // 2 minutes
+
+  const preferences = (await cookies()).get('preferences')?.value
+
+  // Apply user preferences to search results
+  return searchWithPreferences(query, preferences)
+}
+```
+
+> **Good to know**:
+>
+> - Private caches are ephemeral and only exist in the client-side cache for the session duration
+> - Private cache results are never written to server-side cache handlers
+> - The `unstable_prefetch` export is required for runtime prefetching to work
+> - A minimum stale time of 30 seconds is required for private caches to be prefetched
+> - You can use `cacheTag()` and `revalidateTag()` to invalidate private caches
+> - Each user gets their own private cache entries based on their cookies/headers
+
+## Platform Support
+
+| Deployment Option                                                   | Supported |
+| ------------------------------------------------------------------- | --------- |
+| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes       |
+| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes       |
+| [Static export](/docs/app/getting-started/deploying#static-export)  | No        |
+| [Adapters](/docs/app/getting-started/deploying#adapters)            | Yes       |
+
+## Version History
+
+| Version   | Changes                                                       |
+| --------- | ------------------------------------------------------------- |
+| `v16.0.0` | `'use cache: private'` introduced as an experimental feature. |

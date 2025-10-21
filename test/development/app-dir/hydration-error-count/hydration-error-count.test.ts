@@ -72,7 +72,7 @@ describe('hydration-error-count', () => {
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/html-diff" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                         <InnerLayoutRouter url="/html-diff" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]} ...>
                            <SegmentViewNode type="page" pagePath="html-diff/...">
                              <SegmentTrieNode>
                              <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>

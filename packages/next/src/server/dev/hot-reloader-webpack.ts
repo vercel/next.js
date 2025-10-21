@@ -109,8 +109,10 @@ import {
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
+import type { Lockfile } from '../../build/lockfile'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -246,6 +248,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private appDir?: string
   private telemetry: Telemetry
   private resetFetch: () => void
+  private lockfile: Lockfile | undefined
   private versionInfo: VersionInfo = {
     staleness: 'unknown',
     installed: '0.0.0',
@@ -276,6 +279,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir,
       telemetry,
       resetFetch,
+      lockfile,
+      onDevServerCleanup,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -288,6 +293,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir?: string
       telemetry: Telemetry
       resetFetch: () => void
+      lockfile: Lockfile | undefined
+      onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -306,6 +313,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.serverPrevDocumentHash = null
     this.telemetry = telemetry
     this.resetFetch = resetFetch
+    this.lockfile = lockfile
 
     this.config = config
     this.previewProps = previewProps
@@ -322,6 +330,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const mcpServerEnabled = !!config.experimental.mcpServer
     const fileLogger = getFileLogger()
     fileLogger.initialize(this.distDir, mcpServerEnabled)
+
+    onDevServerCleanup?.(async () => {
+      await lockfile?.unlock()
+    })
   }
 
   public async run(
@@ -1810,6 +1822,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   public close() {
+    // Report MCP telemetry if MCP server is enabled
+    recordMcpTelemetry(this.telemetry)
+
     this.webpackHotMiddleware?.close()
   }
 }

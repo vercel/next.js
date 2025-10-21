@@ -2734,7 +2734,7 @@
       debugValuePromise.status = "fulfilled";
       debugValuePromise.value = streamDebugValue;
       streamState._debugInfo = {
-        name: "RSC stream",
+        name: "rsc stream",
         start: weakResponse._debugStartTime,
         end: weakResponse._debugStartTime,
         byteSize: 0,
@@ -4933,10 +4933,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-f6a48828-20251019",
+      version: "19.3.0-experimental-2bcbf254-20251020",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-f6a48828-20251019",
+      reconcilerVersion: "19.3.0-experimental-2bcbf254-20251020",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

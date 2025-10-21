@@ -84,6 +84,7 @@ The following options are available for the `next build` command:
 | `--experimental-app-only`          | Builds only App Router routes.                                                                                                                                                     |
 | `--experimental-build-mode [mode]` | Uses an experimental build mode. (choices: "compile", "generate", default: "default")                                                                                              |
 | `--debug-prerender`                | Debug prerender errors in development.                                                                                                                                             |
+| `--debug-build-paths=<patterns>`   | Build only specific routes for debugging.                                                                                                                                          |
 
 ### `next start` options
 
@@ -204,6 +205,22 @@ This enables several experimental options to make debugging easier:
 This helps surface more readable stack traces and code frames in the build output.
 
 > **Warning**: `--debug-prerender` is for debugging in development only. Do not deploy builds generated with `--debug-prerender` to production, as it may impact performance.
+
+### Building specific routes
+
+You can build only specific routes in the App and Pages Routers using the `--debug-build-paths` option. This is useful for faster debugging when working with large applications. The `--debug-build-paths` option accepts comma-separated file paths and supports glob patterns:
+
+```bash filename="Terminal"
+# Build a specific route
+next build --debug-build-paths="app/page.tsx"
+
+# Build more than one route
+next build --debug-build-paths="app/page.tsx,pages/index.tsx"
+
+# Use glob patterns
+next build --debug-build-paths="app/**/page.tsx"
+next build --debug-build-paths="pages/*.tsx"
+```
 
 ### Changing the default port
 

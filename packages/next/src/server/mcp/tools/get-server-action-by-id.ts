@@ -2,6 +2,7 @@ import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/ser
 import { z } from 'next/dist/compiled/zod'
 import { promises as fs } from 'fs'
 import { join } from 'path'
+import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
 
@@ -29,6 +30,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
       },
     },
     async (request) => {
+      // Track telemetry
+      mcpTelemetryTracker.recordToolCall('mcp/get_server_action_by_id')
+
       try {
         const { actionId } = request
 

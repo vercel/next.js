@@ -94,7 +94,7 @@ describe('Cache Components Dev Errors', () => {
     })
 
     expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
-      `\nError: Route "/no-accessed-data": ` +
+      `Error: Route "/no-accessed-data": ` +
         `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
         `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
         '\n    at Page (app/no-accessed-data/page.js:1:31)' +

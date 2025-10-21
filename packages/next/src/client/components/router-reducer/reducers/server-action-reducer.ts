@@ -375,11 +375,11 @@ export function serverActionReducer(
 
         // The server sent back RSC data for the server action, so we need to apply it to the cache.
         if (cacheNodeSeedData !== null) {
-          const rsc = cacheNodeSeedData[1]
+          const rsc = cacheNodeSeedData[0]
           const cache: CacheNode = createEmptyCacheNode()
           cache.rsc = rsc
           cache.prefetchRsc = null
-          cache.loading = cacheNodeSeedData[3]
+          cache.loading = cacheNodeSeedData[2]
           fillLazyItemsTillLeafWithHead(
             navigatedAt,
             cache,

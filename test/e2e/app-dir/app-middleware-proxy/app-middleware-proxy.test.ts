@@ -10,9 +10,11 @@ describe('app-dir with proxy', () => {
   })
 
   if (isNextDev) {
-    it('should log Compiled proxy in', async () => {
+    it('should log compilation time', async () => {
       await next.browser('/')
-      expect(next.cliOutput).toContain('Compiled proxy in')
+      expect(next.cliOutput).toMatch(
+        /GET \/ 200 in .* \(compile:.*, proxy.ts:.*, render:.*\)/
+      )
     })
   }
 

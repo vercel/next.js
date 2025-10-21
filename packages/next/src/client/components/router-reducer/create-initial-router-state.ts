@@ -41,8 +41,8 @@ export function createInitialRouterState({
   } = normalizedFlightData
   // For the SSR render, seed data should always be available (we only send back a `null` response
   // in the case of a `loading` segment, pre-PPR.)
-  const rsc = initialSeedData?.[1]
-  const loading = initialSeedData?.[3] ?? null
+  const rsc = initialSeedData?.[0]
+  const loading = initialSeedData?.[2] ?? null
 
   const cache: CacheNode = {
     lazyData: null,

@@ -457,7 +457,7 @@ describe('Error overlay for hydration errors in App router', () => {
                <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                  <RedirectBoundary>
                    <RedirectErrorBoundary router={{...}}>
-                     <InnerLayoutRouter url="/extra-nod..." tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                     <InnerLayoutRouter url="/extra-nod..." tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]} ...>
                        <SegmentViewNode type="page" pagePath="(default)/...">
                          <SegmentTrieNode>
                          <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
@@ -514,7 +514,7 @@ describe('Error overlay for hydration errors in App router', () => {
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/p-under-p" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                         <InnerLayoutRouter url="/p-under-p" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]} ...>
                            <SegmentViewNode type="page" pagePath="(default)/...">
                              <SegmentTrieNode>
                              <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
@@ -570,7 +570,7 @@ describe('Error overlay for hydration errors in App router', () => {
                  <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                    <RedirectBoundary>
                      <RedirectErrorBoundary router={{...}}>
-                       <InnerLayoutRouter url="/div-under-p" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                       <InnerLayoutRouter url="/div-under-p" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]} ...>
                          <SegmentViewNode type="page" pagePath="(default)/...">
                            <SegmentTrieNode>
                            <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>

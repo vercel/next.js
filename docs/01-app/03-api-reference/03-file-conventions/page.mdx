@@ -122,7 +122,7 @@ export default function Page({ searchParams }) {
 
 You can type pages with `PageProps` to get strongly typed `params` and `searchParams` from the route literal. `PageProps` is a globally available helper.
 
-```tsx filename="app/blog/[slug]/page.tsx" switcher
+```tsx filename="app/blog/[slug]/page.tsx"
 export default async function Page(props: PageProps<'/blog/[slug]'>) {
   const { slug } = await props.params
   const query = await props.searchParams
