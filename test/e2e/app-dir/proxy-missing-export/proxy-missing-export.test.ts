@@ -14,7 +14,6 @@ Why this happens:
 To fix it:
 - Check your "./proxy.ts" file.
 - Ensure it has either a default or "proxy" function export.
-- Restart the dev server if the error persists.
 
 Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
 

@@ -37,8 +37,7 @@ if (typeof handler !== 'function') {
       `- There's a syntax error preventing the export from being recognized.\n\n` +
       `To fix it:\n` +
       `- Check your "${resolvedRelativeFilePath}" file.\n` +
-      `- Ensure it has either a default or "${fileName}" function export.\n` +
-      `- Restart the dev server if the error persists.\n\n` +
+      `- Ensure it has either a default or "${fileName}" function export.\n\n` +
       `Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
   )
 }
