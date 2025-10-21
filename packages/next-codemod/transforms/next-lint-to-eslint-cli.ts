@@ -966,7 +966,8 @@ function updatePackageJsonScripts(packageJsonContent: string): {
     if (
       packageJson.dependencies?.['eslint'] &&
       semver.lt(
-        semver.minVersion(packageJson.dependencies['eslint']).version,
+        semver.minVersion(packageJson.dependencies['eslint'])?.version ??
+          '0.0.0',
         '9.0.0'
       )
     ) {
@@ -976,7 +977,8 @@ function updatePackageJsonScripts(packageJsonContent: string): {
     if (
       packageJson.devDependencies?.['eslint'] &&
       semver.lt(
-        semver.minVersion(packageJson.devDependencies['eslint']).version,
+        semver.minVersion(packageJson.devDependencies['eslint'])?.version ??
+          '0.0.0',
         '9.0.0'
       )
     ) {
