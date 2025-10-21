@@ -29,8 +29,7 @@ describe('fetch failures have good stack traces in edge runtime', () => {
       } else if (isNextDev) {
         // eslint-disable-next-line jest/no-standalone-expect
         expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
-          '' +
-            '\n ⨯ Error [TypeError]: fetch failed' +
+          '⨯ Error [TypeError]: fetch failed' +
             '\n    at anotherFetcher (src/fetcher.js:6:16)' +
             '\n    at fetcher (src/fetcher.js:2:16)' +
             '\n    at UnknownDomainEndpoint (pages/api/unknown-domain.js:6:16)' +
