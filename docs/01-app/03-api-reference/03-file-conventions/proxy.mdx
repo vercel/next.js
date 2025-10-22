@@ -192,7 +192,7 @@ Proxy will be invoked for **every route in your project**. Given this, it's cruc
 
 Proxy defaults to using the Node.js runtime. The [`runtime`](/docs/app/api-reference/file-conventions/route-segment-config#runtime) config option is not available in Proxy files.
 
-```js highlight={2} filename="proxy.js" switcher
+```js filename="proxy.js" switcher
 // Setting the runtime config in Proxy will throw an error.
 
 export const config = {
@@ -202,7 +202,7 @@ export const config = {
 export const runtime = 'edge'
 ```
 
-```ts highlight={2} filename="proxy.ts" switcher
+```ts filename="proxy.ts" switcher
 // Setting the runtime config in Proxy will throw an error.
 
 export const config = {
