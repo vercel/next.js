@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs'
 import path from 'node:path'
 import { execSync } from 'node:child_process'
+import semver from 'semver'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { createParserFromPath } from '../lib/parser'
 import { white, bold, red, yellow, green, magenta } from 'picocolors'
@@ -958,6 +959,30 @@ function updatePackageJsonScripts(packageJsonContent: string): {
         packageJson.dependencies?.next || packageJson.devDependencies?.next
       packageJson.devDependencies['eslint-config-next'] =
         nextVersion || 'latest'
+      needsUpdate = true
+    }
+
+    // Bump eslint to v9 for full Flat config support
+    if (
+      packageJson.dependencies?.['eslint'] &&
+      semver.lt(
+        semver.minVersion(packageJson.dependencies['eslint'])?.version ??
+          '0.0.0',
+        '9.0.0'
+      )
+    ) {
+      packageJson.dependencies['eslint'] = '^9'
+      needsUpdate = true
+    }
+    if (
+      packageJson.devDependencies?.['eslint'] &&
+      semver.lt(
+        semver.minVersion(packageJson.devDependencies['eslint'])?.version ??
+          '0.0.0',
+        '9.0.0'
+      )
+    ) {
+      packageJson.devDependencies['eslint'] = '^9'
       needsUpdate = true
     }
 

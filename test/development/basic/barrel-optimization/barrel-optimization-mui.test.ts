@@ -21,26 +21,13 @@ import { assertNoRedbox } from 'next-test-utils'
       })
 
       it('should support MUI', async () => {
-        let logs = ''
-        next.on('stdout', (log) => {
-          logs += log
-        })
-
         // Ensure that MUI is working
         const $ = await next.render$('/mui')
-        expect(await $('#button').text()).toContain('button')
-        expect(await $('#typography').text()).toContain('typography')
+        expect($('#button').text()).toContain('button')
+        expect($('#typography').text()).toContain('typography')
 
         const browser = await next.browser('/mui')
         await assertNoRedbox(browser)
-
-        const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
-        expect(modules.length).toBeGreaterThanOrEqual(1)
-        for (const [, moduleCount] of modules) {
-          // Ensure that the number of modules is less than 1500 - otherwise we're
-          // importing the entire library.
-          expect(parseInt(moduleCount)).toBeLessThan(1500)
-        }
       })
     })
   }

@@ -15,17 +15,14 @@ export function getCurrentStatus(
   cacheIndicator: CacheIndicatorState
 ): Status {
   const isCacheFilling = cacheIndicator === 'filling'
-  const isCacheBypassing = cacheIndicator === 'bypass'
 
-  // Priority order: cache bypassing > prerendering > compiling > rendering
-  if (isCacheBypassing && renderingIndicator) {
-    return Status.CacheBypassing
+  // Priority order: compiling > prerendering > rendering
+  // Note: cache bypassing is now handled as a badge, not a status indicator
+  if (buildingIndicator) {
+    return Status.Compiling
   }
   if (isCacheFilling) {
     return Status.Prerendering
-  }
-  if (buildingIndicator) {
-    return Status.Compiling
   }
   if (renderingIndicator) {
     return Status.Rendering
@@ -35,9 +32,10 @@ export function getCurrentStatus(
 
 interface StatusIndicatorProps {
   status: Status
+  onClick?: () => void
 }
 
-export function StatusIndicator({ status }: StatusIndicatorProps) {
+export function StatusIndicator({ status, onClick }: StatusIndicatorProps) {
   const statusText: Record<Status, string> = {
     [Status.None]: '',
     [Status.CacheBypassing]: 'Cache disabled',
@@ -78,6 +76,15 @@ export function StatusIndicator({ status }: StatusIndicatorProps) {
             font-size: var(--size-13);
             font-weight: 500;
             white-space: nowrap;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            outline: none;
+          }
+
+          [data-indicator-status]:focus-visible {
+            outline: 2px solid var(--color-blue-800, #3b82f6);
+            outline-offset: 3px;
           }
 
           [data-status-dot] {
@@ -149,7 +156,11 @@ export function StatusIndicator({ status }: StatusIndicatorProps) {
           }
         `}
       </style>
-      <div data-indicator-status>
+      <button
+        data-indicator-status
+        onClick={onClick}
+        aria-label="Open Next.js Dev Tools"
+      >
         {statusDotColor[status] && (
           <div
             data-status-dot
@@ -161,29 +172,34 @@ export function StatusIndicator({ status }: StatusIndicatorProps) {
         <AnimateStatusText
           key={status} // Key here triggers re-mount and animation
           statusKey={status}
+          showEllipsis={status !== Status.CacheBypassing}
         >
           {statusText[status]}
         </AnimateStatusText>
-      </div>
+      </button>
     </>
   )
 }
 
 function AnimateStatusText({
   children: text,
+  showEllipsis = true,
 }: {
   children: string
   statusKey?: string // Keep for type compatibility but unused
+  showEllipsis?: boolean
 }) {
   return (
     <div data-status-text-animation>
       <div data-status-text-enter>
         {text}
-        <span data-status-ellipsis>
-          <span>.</span>
-          <span>.</span>
-          <span>.</span>
-        </span>
+        {showEllipsis && (
+          <span data-status-ellipsis>
+            <span>.</span>
+            <span>.</span>
+            <span>.</span>
+          </span>
+        )}
       </div>
     </div>
   )

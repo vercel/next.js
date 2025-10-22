@@ -26,6 +26,7 @@ import {
   RESTART_EXIT_CODE,
   getFormattedDebugAddress,
   getNodeDebugType,
+  isDebugAddressEphemeral,
 } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
@@ -347,8 +348,12 @@ export async function startServer(
 
       if (nodeDebugType) {
         const formattedDebugAddress = getFormattedDebugAddress()
+        const isEphemeral = isDebugAddressEphemeral()
         Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
+          `the --${nodeDebugType} option was detected` +
+            (isEphemeral
+              ? ''
+              : `, the Next.js router server should be inspected at ${formattedDebugAddress}.`)
         )
       }
 

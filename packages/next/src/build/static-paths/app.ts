@@ -730,7 +730,7 @@ export async function buildAppStaticPaths({
   cacheLifeProfiles,
   requestHeaders,
   cacheHandlers,
-  maxMemoryCacheSize,
+  cacheMaxMemorySize,
   fetchCacheKeyPrefix,
   nextConfigOutput,
   ComponentMod,
@@ -747,11 +747,11 @@ export async function buildAppStaticPaths({
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   cacheHandler?: string
-  cacheHandlers?: NextConfigComplete['experimental']['cacheHandlers']
+  cacheHandlers?: NextConfigComplete['cacheHandlers']
   cacheLifeProfiles?: {
     [profile: string]: import('../../server/use-cache/cache-life').CacheLife
   }
-  maxMemoryCacheSize?: number
+  cacheMaxMemorySize: number
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule
@@ -778,7 +778,7 @@ export async function buildAppStaticPaths({
     requestHeaders,
     fetchCacheKeyPrefix,
     flushToDisk: isrFlushToDisk,
-    cacheMaxMemorySize: maxMemoryCacheSize,
+    cacheMaxMemorySize,
   })
 
   const childrenRouteParamSegments: Array<{

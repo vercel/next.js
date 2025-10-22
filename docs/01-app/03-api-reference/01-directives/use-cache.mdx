@@ -105,7 +105,7 @@ The return value of the cacheable function must be serializable. This ensures th
 
 When used at the top of a [layout](/docs/app/api-reference/file-conventions/layout) or [page](/docs/app/api-reference/file-conventions/page), the route segment will be prerendered, allowing it to later be [revalidated](#during-revalidation).
 
-This means `use cache` cannot be used with [request-time APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering) like `cookies` or `headers`.
+This means `use cache` cannot be used with [runtime data](/docs/app/getting-started/cache-components#1-suspense-for-runtime-data) like `cookies` or `headers`.
 
 > **Note:** If you need to cache content that depends on cookies, headers, or search params, use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead.
 
@@ -148,7 +148,7 @@ export default function Layout({ children }) {
 }
 ```
 
-Any components imported and nested in `page` file will inherit the cache behavior of `page`.
+Any components imported and nested in `page` file are part of the cache output associated with the `page`.
 
 ```tsx filename="app/page.tsx" switcher
 'use cache'
@@ -187,7 +187,7 @@ export default function Page() {
 > **Good to know**:
 >
 > - If `use cache` is added only to the `layout` or the `page`, only that route segment and any components imported into it will be cached.
-> - If any of the nested children in the route use [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering), then the route will opt out of prerendering.
+> - If any of the nested children in the route use [Dynamic APIs](/docs/app/guides/caching#dynamic-rendering), then the route will opt out of pre-rendering.
 
 ### Caching a component's output with `use cache`
 
@@ -243,23 +243,34 @@ export async function getData() {
 
 ### Interleaving
 
-If you need to pass non-serializable arguments to a cacheable function, you can pass them as `children`. This means the `children` reference can change without affecting the cache entry.
+In React, composition with `children` or slots is a well-known pattern for building flexible components. When using `use cache`, you can continue to compose your UI in this way. Anything included as `children`, or other compositional slots, in the returned JSX will be passed through the cached component without affecting its cache entry.
+
+As long as you don't directly reference any of the JSX slots inside the body of the cacheable function itself, their presence in the returned output won't affect the cache entry.
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
   const uncachedData = await getData()
   return (
-    <CacheComponent>
+    // Pass compositional slots as props, e.g. header and children
+    <CacheComponent header={<h1>Home</h1>}>
+      {/* DynamicComponent is provided as the children slot */}
       <DynamicComponent data={uncachedData} />
     </CacheComponent>
   )
 }
 
-async function CacheComponent({ children }: { children: ReactNode }) {
+async function CacheComponent({
+  header, // header: a compositional slot, injected as a prop
+  children, // children: another slot for nested composition
+}: {
+  header: ReactNode
+  children: ReactNode
+}) {
   'use cache'
   const cachedData = await fetch('/api/cached-data')
   return (
     <div>
+      {header}
       <PrerenderedComponent data={cachedData} />
       {children}
     </div>
@@ -271,17 +282,23 @@ async function CacheComponent({ children }: { children: ReactNode }) {
 export default async function Page() {
   const uncachedData = await getData()
   return (
-    <CacheComponent>
+    // Pass compositional slots as props, e.g. header and children
+    <CacheComponent header={<h1>Home</h1>}>
+      {/* DynamicComponent is provided as the children slot */}
       <DynamicComponent data={uncachedData} />
     </CacheComponent>
   )
 }
 
-async function CacheComponent({ children }) {
+async function CacheComponent({
+  header, // header: a compositional slot, injected as a prop
+  children, // children: another slot for nested composition
+}) {
   'use cache'
   const cachedData = await fetch('/api/cached-data')
   return (
     <div>
+      {header}
       <PrerenderedComponent data={cachedData} />
       {children}
     </div>

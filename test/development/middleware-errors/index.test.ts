@@ -266,7 +266,7 @@ describe('middleware - development errors', () => {
       await next.patchFile('middleware.js', `export default function () {}`)
 
       retry(() => {
-        expect(next.cliOutput.slice(lengthOfLogs)).toContain('✓ Compiled')
+        expect(next.cliOutput.slice(lengthOfLogs)).toContain('GET / 200')
       }, 10000) // middleware rebuild takes a while in CI
 
       await assertNoRedbox(browser)

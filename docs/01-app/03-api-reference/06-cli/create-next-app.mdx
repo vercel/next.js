@@ -25,6 +25,7 @@ The following options are available:
 | `--ts` or `--typescript`                | Initialize as a TypeScript project (default)                          |
 | `--js` or `--javascript`                | Initialize as a JavaScript project                                    |
 | `--tailwind`                            | Initialize with Tailwind CSS config (default)                         |
+| `--react-compiler`                      | Initialize with React Compiler enabled                                |
 | `--eslint`                              | Initialize with ESLint config                                         |
 | `--biome`                               | Initialize with Biome config                                          |
 | `--no-linter`                           | Skip linter configuration                                             |
@@ -56,18 +57,31 @@ To create a new app using the default template, run the following command in you
 npx create-next-app@latest
 ```
 
-You will then be asked the following prompts:
+On installation, you'll see the following prompts:
 
 ```txt filename="Terminal"
-What is your project named?  my-app
-Would you like to use TypeScript?  No / Yes
-Which linter would you like to use?  ESLint / Biome / None
-Would you like to use Tailwind CSS?  No / Yes
-Would you like your code inside a `src/` directory?  No / Yes
-Would you like to use App Router? (recommended)  No / Yes
-Would you like to use Turbopack? (recommended)  No / Yes
-Would you like to customize the import alias (`@/*` by default)?  No / Yes
+What is your project named? my-app
+Would you like to use the recommended Next.js defaults?
+    Yes, use recommended defaults - TypeScript, ESLint, Tailwind CSS, App Router, Turbopack
+    No, reuse previous settings
+    No, customize settings - Choose your own preferences
 ```
+
+If you choose to `customize settings`, you'll see the following prompts:
+
+```txt filename="Terminal"
+Would you like to use TypeScript? No / Yes
+Which linter would you like to use? ESLint / Biome / None
+Would you like to use React Compiler? No / Yes
+Would you like to use Tailwind CSS? No / Yes
+Would you like your code inside a `src/` directory? No / Yes
+Would you like to use App Router? (recommended) No / Yes
+Would you like to use Turbopack? (recommended) No / Yes
+Would you like to customize the import alias (`@/*` by default)? No / Yes
+What import alias would you like configured? @/*
+```
+
+After the prompts, `create-next-app` will create a folder with your project name and install the required dependencies.
 
 ### Linter Options
 

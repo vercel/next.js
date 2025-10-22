@@ -89,6 +89,7 @@ import {
   processIssues,
   renderStyledStringToErrorAnsi,
   type EntryIssuesMap,
+  type IssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
 import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
@@ -1432,28 +1433,36 @@ export async function createHotReloaderTurbopack(
         case 'end': {
           sendEnqueuedMessages()
 
+          function addToErrorsMap(
+            errorsMap: Map<string, CompilationError>,
+            issueMap: IssuesMap
+          ) {
+            for (const [key, issue] of issueMap) {
+              if (issue.severity === 'warning') continue
+              if (errorsMap.has(key)) continue
+
+              const message = formatIssue(issue)
+
+              errorsMap.set(key, {
+                message,
+                details: issue.detail
+                  ? renderStyledStringToErrorAnsi(issue.detail)
+                  : undefined,
+              })
+            }
+          }
+
           function addErrors(
             errorsMap: Map<string, CompilationError>,
             issues: EntryIssuesMap
           ) {
             for (const issueMap of issues.values()) {
-              for (const [key, issue] of issueMap) {
-                if (issue.severity === 'warning') continue
-                if (errorsMap.has(key)) continue
-
-                const message = formatIssue(issue)
-
-                errorsMap.set(key, {
-                  message,
-                  details: issue.detail
-                    ? renderStyledStringToErrorAnsi(issue.detail)
-                    : undefined,
-                })
-              }
+              addToErrorsMap(errorsMap, issueMap)
             }
           }
 
           const errors = new Map<string, CompilationError>()
+          addToErrorsMap(errors, currentTopLevelIssues)
           addErrors(errors, currentEntryIssues)
 
           for (const client of [

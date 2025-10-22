@@ -320,7 +320,7 @@ describe('app-dir - server source maps', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        '\n ⨯ Error: ssr-throw' +
+        '⨯ Error: ssr-throw' +
           '\n    at throwError (app/ssr-throw/Thrower.js:4:9)' +
           '\n    at Thrower (app/ssr-throw/Thrower.js:8:3)' +
           '\n  2 |' +
@@ -441,8 +441,7 @@ describe('app-dir - server source maps', () => {
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       if (isTurbopack) {
         expect(cliOutput).toContain(
-          '' +
-            '\nError: module-evaluation' +
+          'Error: module-evaluation' +
             // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
             '\n    at module evaluation (app/module-evaluation/module.js:1:22)' +
             // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
@@ -451,8 +450,7 @@ describe('app-dir - server source maps', () => {
         )
       } else {
         expect(cliOutput).toContain(
-          '' +
-            '\nError: module-evaluation' +
+          'Error: module-evaluation' +
             // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
             // TODO(veil): Location should be sourcemapped
             '\n    at eval (app/module-evaluation/module.js:1:22)' +
