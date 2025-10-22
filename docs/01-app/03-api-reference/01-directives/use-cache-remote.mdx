@@ -14,12 +14,12 @@ related:
     - app/api-reference/functions/connection
 ---
 
-The `'use cache: remote'` directive enables caching of **shared data** in dynamic contexts where regular [`use cache`](/docs/app/api-reference/directives/use-cache) would not work, for example after calling [`await connection()`](/docs/app/api-reference/functions/connection), [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers).
+The `'use cache: remote'` directive enables caching of **shared data** in dynamic contexts where regular [`use cache`](/docs/app/api-reference/directives/use-cache) would not work, for example after calling [`await connection()`](/docs/app/api-reference/functions/connection), [`await cookies()`](/docs/app/api-reference/functions/cookies) or [`await headers()`](/docs/app/api-reference/functions/headers).
 
 > **Good to know:**
 >
 > - Results are stored in server-side cache handlers and shared across all users.
-> - For **user-specific data** that depends on [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead to avoid accidentally sharing personalized data between users.
+> - For **user-specific data** that depends on [`await cookies()`](/docs/app/api-reference/functions/cookies) or [`await headers()`](/docs/app/api-reference/functions/headers), use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead.
 
 ## Usage
 
@@ -92,7 +92,7 @@ async function ProductPrice({ productId }: { productId: string }) {
 async function getProductPrice(productId: string) {
   'use cache: remote'
   cacheTag(`product-price-${productId}`)
-  cacheLife({ stale: 3600 }) // 1 hour
+  cacheLife({ expire: 3600 }) // 1 hour
 
   // This database query is cached and shared across all users
   return db.products.getPrice(productId)
@@ -137,7 +137,7 @@ async function ProductPrice({ productId }) {
 async function getProductPrice(productId) {
   'use cache: remote'
   cacheTag(`product-price-${productId}`)
-  cacheLife({ stale: 3600 }) // 1 hour
+  cacheLife({ expire: 3600 }) // 1 hour
 
   // This database query is cached and shared across all users
   return db.products.getPrice(productId)
@@ -155,7 +155,7 @@ Next.js provides three caching directives, each designed for different use cases
 | **Works in dynamic context**     | No (requires static context)        | Yes (designed for dynamic contexts)                       | Yes                                 |
 | **Access to `await cookies()`**  | No                                  | No                                                        | Yes                                 |
 | **Access to `await headers()`**  | No                                  | No                                                        | Yes                                 |
-| **After `await connection()`**   | No (won't cache)                    | Yes (will cache)                                          | No                                  |
+| **After `await connection()`**   | No (won't cache)                    | No                                                        | No                                  |
 | **Stored in cache handler**      | Yes (server-side)                   | Yes (server-side)                                         | No (client-side only)               |
 | **Cache scope**                  | Global (shared)                     | Global (shared)                                           | Per-user (isolated)                 |
 | **Supports runtime prefetching** | N/A (pre-rendered at build)         | No                                                        | Yes (when configured)               |
@@ -176,7 +176,7 @@ Choose the right caching directive based on your use case:
 **Use `'use cache: remote'` when:**
 
 - You need caching within dynamic context
-- Content is shared across users but must be rendered per-request
+- Content is shared across users but must be rendered per-request (after `await connection()`)
 - You want to cache expensive operations in a server-side cache handler
 
 **Use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) when:**
@@ -239,7 +239,7 @@ async function UserDashboard() {
 
 async function getAnalytics() {
   'use cache: remote'
-  cacheLife({ stale: 300 }) // 5 minutes
+  cacheLife({ expire: 300 }) // 5 minutes
 
   // This expensive operation is cached and shared across all requests
   return fetchAnalyticsData()
@@ -343,7 +343,7 @@ export default async function DashboardPage() {
 async function getGlobalStats() {
   'use cache: remote'
   cacheTag('global-stats')
-  cacheLife({ stale: 60 }) // 1 minute
+  cacheLife({ expire: 60 }) // 1 minute
 
   // This expensive database query is cached and shared across all users,
   // reducing load on your database
@@ -388,7 +388,7 @@ async function FeedItems() {
 async function getFeedItems() {
   'use cache: remote'
   cacheTag('feed-items')
-  cacheLife({ stale: 120 }) // 2 minutes
+  cacheLife({ expire: 120 }) // 2 minutes
 
   // This API call is cached, reducing requests to your external service
   const response = await fetch('https://api.example.com/feed')
@@ -415,7 +415,7 @@ export default async function ReportsPage() {
 
 async function generateReport() {
   'use cache: remote'
-  cacheLife({ stale: 3600 }) // 1 hour
+  cacheLife({ expire: 3600 }) // 1 hour
 
   // This expensive computation is cached and shared across all authorized users,
   // avoiding repeated calculations
@@ -452,7 +452,7 @@ async function getProduct(id: string) {
 async function getProductPrice(id: string) {
   'use cache: remote'
   cacheTag(`product-price-${id}`)
-  cacheLife({ stale: 300 }) // 5 minutes
+  cacheLife({ expire: 300 }) // 5 minutes
 
   // This is cached at runtime and shared across all users
   return db.products.getPrice({ where: { id } })
@@ -461,7 +461,7 @@ async function getProductPrice(id: string) {
 // User-specific recommendations - private cache per user
 async function getRecommendations(productId: string) {
   'use cache: private'
-  cacheLife({ stale: 60 }) // 1 minute
+  cacheLife({ expire: 60 }) // 1 minute
 
   const sessionId = (await cookies()).get('session-id')?.value
 
