@@ -150,16 +150,16 @@ async function getProductPrice(productId) {
 
 Next.js provides three caching directives, each designed for different use cases:
 
-| Feature                         | `use cache`                         | `'use cache: remote'`                                     | `'use cache: private'`              |
-| ------------------------------- | ----------------------------------- | --------------------------------------------------------- | ----------------------------------- |
-| **Works in dynamic context**    | No (requires static context)        | Yes (designed for dynamic contexts)                       | Yes                                 |
-| **Access to `await cookies()`** | No                                  | Yes (but not recommended - use `private` instead)         | Yes                                 |
-| **Access to `await headers()`** | No                                  | Yes (but not recommended - use `private` instead)         | Yes                                 |
-| **After `await connection()`**  | No (won't cache)                    | Yes (will cache)                                          | No                                  |
-| **Stored in cache handler**     | Yes (server-side)                   | Yes (server-side)                                         | No (client-side only)               |
-| **Cache scope**                 | Global (shared)                     | Global (shared)                                           | Per-user (isolated)                 |
-| **Supports runtime prefetching**       | N/A (pre-rendered at build)         | No                                                        | Yes (when configured)               |
-| **Use case**                    | Static, shared content (build-time) | Dynamic, shared content in runtime contexts (per-request) | Personalized, user-specific content |
+| Feature                          | `use cache`                         | `'use cache: remote'`                                     | `'use cache: private'`              |
+| -------------------------------- | ----------------------------------- | --------------------------------------------------------- | ----------------------------------- |
+| **Works in dynamic context**     | No (requires static context)        | Yes (designed for dynamic contexts)                       | Yes                                 |
+| **Access to `await cookies()`**  | No                                  | No                                                        | Yes                                 |
+| **Access to `await headers()`**  | No                                  | No                                                        | Yes                                 |
+| **After `await connection()`**   | No (won't cache)                    | Yes (will cache)                                          | No                                  |
+| **Stored in cache handler**      | Yes (server-side)                   | Yes (server-side)                                         | No (client-side only)               |
+| **Cache scope**                  | Global (shared)                     | Global (shared)                                           | Per-user (isolated)                 |
+| **Supports runtime prefetching** | N/A (pre-rendered at build)         | No                                                        | Yes (when configured)               |
+| **Use case**                     | Static, shared content (build-time) | Dynamic, shared content in runtime contexts (per-request) | Personalized, user-specific content |
 
 ### When to use each directive
 
