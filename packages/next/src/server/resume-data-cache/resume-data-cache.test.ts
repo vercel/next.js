@@ -6,8 +6,7 @@ import { createPrerenderResumeDataCache } from './resume-data-cache'
 import { streamFromString } from '../stream-utils/node-web-streams-helper'
 import { inflateSync } from 'node:zlib'
 
-const isCacheComponentsEnabled =
-  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 function createMockedCache() {
   const cache = createPrerenderResumeDataCache()

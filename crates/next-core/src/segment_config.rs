@@ -37,7 +37,7 @@ use turbopack_ecmascript::{
 use crate::{
     app_structure::AppPageLoaderTree,
     next_config::RouteHas,
-    next_manifests::MiddlewareMatcher,
+    next_manifests::ProxyMatcher,
     util::{MiddlewareMatcherKind, NextRuntime},
 };
 
@@ -289,6 +289,8 @@ pub enum ParseSegmentMode {
     Base,
     // Disallows "use client + generateStatic" and ignores/warns about `export const config`
     App,
+    // Disallows config = { runtime: "edge" }
+    Proxy,
 }
 
 /// Parse the raw source code of a file to get the segment config local to that file.
@@ -667,21 +669,35 @@ async fn parse_config_value(
                             .await;
                         };
 
-                        config.runtime =
-                            match serde_json::from_value(Value::String(val.to_string())) {
-                                Ok(runtime) => Some(runtime),
-                                Err(err) => {
-                                    return invalid_config(
-                                        source,
-                                        "config",
-                                        span,
-                                        format!("`runtime` has an invalid value: {err}.").into(),
-                                        Some(value),
-                                        IssueSeverity::Error,
-                                    )
-                                    .await;
-                                }
-                            };
+                        let runtime = match serde_json::from_value(Value::String(val.to_string())) {
+                            Ok(runtime) => Some(runtime),
+                            Err(err) => {
+                                return invalid_config(
+                                    source,
+                                    "config",
+                                    span,
+                                    format!("`runtime` has an invalid value: {err}.").into(),
+                                    Some(value),
+                                    IssueSeverity::Error,
+                                )
+                                .await;
+                            }
+                        };
+
+                        if mode == ParseSegmentMode::Proxy && runtime == Some(NextRuntime::Edge) {
+                            invalid_config(
+                                source,
+                                "config",
+                                span,
+                                rcstr!("Proxy does not support Edge runtime."),
+                                Some(value),
+                                IssueSeverity::Error,
+                            )
+                            .await?;
+                            continue;
+                        }
+
+                        config.runtime = runtime
                     }
                     "matcher" => {
                         config.middleware_matcher =
@@ -1121,7 +1137,7 @@ async fn parse_route_matcher_from_js_value(
                 if let Some(matcher) = item.as_str() {
                     matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
                 } else if let JsValue::Object { parts, .. } = item {
-                    let mut matcher = MiddlewareMatcher::default();
+                    let mut matcher = ProxyMatcher::default();
                     let mut had_source = false;
                     for matcher_part in parts {
                         if let ObjectPart::KeyValue(key, value) = matcher_part {

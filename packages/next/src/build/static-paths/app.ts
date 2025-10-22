@@ -11,10 +11,6 @@ import path from 'node:path'
 import { AfterRunner } from '../../server/after/run-with-after'
 import { createWorkStore } from '../../server/async-storage/work-store'
 import { FallbackMode } from '../../lib/fallback'
-import {
-  getRouteRegex,
-  type RouteRegex,
-} from '../../shared/lib/router/utils/route-regex'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import {
   normalizePathname,
@@ -27,6 +23,8 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
+import { throwEmptyGenerateStaticParamsError } from '../../shared/lib/errors/empty-generate-static-params-error'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -301,17 +299,17 @@ export function calculateFallbackMode(
  * @param page - The page to validate.
  * @param regex - The route regex.
  * @param isRoutePPREnabled - Whether the route has partial prerendering enabled.
- * @param childrenRouteParams - The keys of the parameters.
+ * @param childrenRouteParamSegments - The keys of the parameters.
  * @param rootParamKeys - The keys of the root params.
  * @param routeParams - The list of parameters to validate.
  * @returns The list of validated parameters.
  */
 function validateParams(
   page: string,
-  regex: RouteRegex,
   isRoutePPREnabled: boolean,
-  childrenRouteParams: ReadonlyArray<{
+  childrenRouteParamSegments: ReadonlyArray<{
     readonly paramName: string
+    readonly paramType: DynamicParamTypes
   }>,
   rootParamKeys: readonly string[],
   routeParams: readonly Params[]
@@ -342,8 +340,8 @@ function validateParams(
   for (const params of routeParams) {
     const item: Params = {}
 
-    for (const { paramName: key } of childrenRouteParams) {
-      const { repeat, optional } = regex.groups[key]
+    for (const { paramName: key, paramType } of childrenRouteParamSegments) {
+      const { repeat, optional } = getParamProperties(paramType)
 
       let paramValue = params[key]
 
@@ -638,7 +636,8 @@ export async function generateRouteStaticParams(
   segments: ReadonlyArray<
     Readonly<Pick<AppSegment, 'config' | 'generateStaticParams'>>
   >,
-  store: Pick<WorkStore, 'fetchCache'>
+  store: Pick<WorkStore, 'fetchCache'>,
+  isRoutePPREnabled: boolean
 ): Promise<Params[]> {
   // Early return if no segments to process
   if (segments.length === 0) return []
@@ -689,6 +688,8 @@ export async function generateRouteStaticParams(
           for (const item of result) {
             nextParams.push({ ...parentParams, ...item })
           }
+        } else if (isRoutePPREnabled) {
+          throwEmptyGenerateStaticParamsError()
         } else {
           // No results, just pass through parent params
           nextParams.push(parentParams)
@@ -697,6 +698,10 @@ export async function generateRouteStaticParams(
     } else {
       // No parent params, call generateStaticParams with empty object
       const result = await current.generateStaticParams({ params: {} })
+      if (result.length === 0 && isRoutePPREnabled) {
+        throwEmptyGenerateStaticParamsError()
+      }
+
       nextParams.push(...result)
     }
 
@@ -725,7 +730,7 @@ export async function buildAppStaticPaths({
   cacheLifeProfiles,
   requestHeaders,
   cacheHandlers,
-  maxMemoryCacheSize,
+  cacheMaxMemorySize,
   fetchCacheKeyPrefix,
   nextConfigOutput,
   ComponentMod,
@@ -742,11 +747,11 @@ export async function buildAppStaticPaths({
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   cacheHandler?: string
-  cacheHandlers?: NextConfigComplete['experimental']['cacheHandlers']
+  cacheHandlers?: NextConfigComplete['cacheHandlers']
   cacheLifeProfiles?: {
     [profile: string]: import('../../server/use-cache/cache-life').CacheLife
   }
-  maxMemoryCacheSize?: number
+  cacheMaxMemorySize: number
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule
@@ -773,10 +778,8 @@ export async function buildAppStaticPaths({
     requestHeaders,
     fetchCacheKeyPrefix,
     flushToDisk: isrFlushToDisk,
-    cacheMaxMemorySize: maxMemoryCacheSize,
+    cacheMaxMemorySize,
   })
-
-  const regex = getRouteRegex(page)
 
   const childrenRouteParamSegments: Array<{
     readonly name: string
@@ -845,8 +848,8 @@ export async function buildAppStaticPaths({
       incrementalCache,
       cacheLifeProfiles,
       supportsDynamicResponse: true,
+      cacheComponents,
       experimental: {
-        cacheComponents,
         authInterrupts,
       },
       waitUntil: afterRunner.context.waitUntil,
@@ -857,8 +860,12 @@ export async function buildAppStaticPaths({
     previouslyRevalidatedTags: [],
   })
 
-  const routeParams = await ComponentMod.workAsyncStorage.run(store, () =>
-    generateRouteStaticParams(segments, store)
+  const routeParams = await ComponentMod.workAsyncStorage.run(
+    store,
+    generateRouteStaticParams,
+    segments,
+    store,
+    isRoutePPREnabled
   )
 
   await afterRunner.executeAfter()
@@ -927,17 +934,6 @@ export async function buildAppStaticPaths({
 
   const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>()
 
-  // Precompile the regex patterns for the route params.
-  const paramPatterns = new Map<string, string>()
-  for (const { paramName } of childrenRouteParamSegments) {
-    const { repeat, optional } = regex.groups[paramName]
-    let pattern = `[${repeat ? '...' : ''}${paramName}]`
-    if (optional) {
-      pattern = `[${pattern}]`
-    }
-    paramPatterns.set(paramName, pattern)
-  }
-
   // Convert rootParamKeys to Set for O(1) lookup.
   const rootParamSet = new Set(rootParamKeys)
 
@@ -984,7 +980,6 @@ export async function buildAppStaticPaths({
       childrenRouteParamSegments,
       validateParams(
         page,
-        regex,
         isRoutePPREnabled,
         childrenRouteParamSegments,
         rootParamKeys,
@@ -1030,14 +1025,21 @@ export async function buildAppStaticPaths({
           }
         }
 
-        // Use pre-compiled pattern for replacement
-        const pattern = paramPatterns.get(key)!
+        const segment = childrenRouteParamSegments.find(
+          ({ paramName }) => paramName === key
+        )
+        if (!segment) {
+          throw new InvariantError(
+            `Param ${key} not found in childrenRouteParamSegments ${childrenRouteParamSegments.map(({ paramName }) => paramName).join(', ')}`
+          )
+        }
+
         pathname = pathname.replace(
-          pattern,
+          segment.name,
           encodeParam(paramValue, (value) => escapePathDelimiters(value, true))
         )
         encodedPathname = encodedPathname.replace(
-          pattern,
+          segment.name,
           encodeParam(paramValue, encodeURIComponent)
         )
       }

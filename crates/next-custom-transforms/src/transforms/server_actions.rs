@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{hash_map, BTreeMap},
+    collections::{BTreeMap, hash_map},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
     path::{Path, PathBuf},
@@ -16,23 +16,23 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::{
+        BytePos, DUMMY_SP, FileName, Mark, SourceMap, Span, SyntaxContext,
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
-        source_map::{SourceMapGenConfig, PURE_SP},
+        source_map::{PURE_SP, SourceMapGenConfig},
         util::take::Take,
-        BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        codegen::{self, text_writer::JsWriter, Emitter},
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        codegen::{self, Emitter, text_writer::JsWriter},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
 };
-use turbo_rcstr::{rcstr, RcStr};
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::FxIndexMap;
 
@@ -120,7 +120,7 @@ enum ServerActionsErrorKind {
         span: Span,
         cache_kind: RcStr,
     },
-    UseCacheWithoutExperimentalFlag {
+    UseCacheWithoutCacheComponents {
         span: Span,
         directive: String,
     },
@@ -1534,56 +1534,71 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         }
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
-                        if named.src.is_some() {
-                            disallowed_export_span = named.span;
-                        } else {
-                            for spec in &mut named.specifiers {
-                                if let ExportSpecifier::Named(ExportNamedSpecifier {
-                                    orig: ModuleExportName::Ident(ident),
-                                    exported,
-                                    ..
-                                }) = spec
-                                {
-                                    if let Some(export_name) = exported {
-                                        if let ModuleExportName::Ident(Ident { sym, .. }) =
-                                            export_name
-                                        {
-                                            // export { foo as bar }
-                                            self.exported_idents.push((
-                                                ident.clone(),
-                                                sym.clone(),
-                                                self.generate_server_reference_id(
-                                                    sym.as_ref(),
-                                                    in_cache_file,
-                                                    None,
-                                                ),
-                                            ));
-                                        } else if let ModuleExportName::Str(str) = export_name {
-                                            // export { foo as "bar" }
-                                            self.exported_idents.push((
-                                                ident.clone(),
-                                                str.value.clone(),
-                                                self.generate_server_reference_id(
-                                                    str.value.as_ref(),
-                                                    in_cache_file,
-                                                    None,
-                                                ),
-                                            ));
+                        if !named.type_only {
+                            if named.src.is_some() {
+                                if named.specifiers.iter().any(|s| match s {
+                                    ExportSpecifier::Namespace(_) | ExportSpecifier::Default(_) => {
+                                        true
+                                    }
+                                    ExportSpecifier::Named(s) => !s.is_type_only,
+                                }) {
+                                    disallowed_export_span = named.span;
+                                }
+                            } else {
+                                for spec in &mut named.specifiers {
+                                    if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                        orig: ModuleExportName::Ident(ident),
+                                        exported,
+                                        is_type_only,
+                                        ..
+                                    }) = spec
+                                    {
+                                        if !*is_type_only {
+                                            if let Some(export_name) = exported {
+                                                if let ModuleExportName::Ident(Ident {
+                                                    sym, ..
+                                                }) = export_name
+                                                {
+                                                    // export { foo as bar }
+                                                    self.exported_idents.push((
+                                                        ident.clone(),
+                                                        sym.clone(),
+                                                        self.generate_server_reference_id(
+                                                            sym.as_ref(),
+                                                            in_cache_file,
+                                                            None,
+                                                        ),
+                                                    ));
+                                                } else if let ModuleExportName::Str(str) =
+                                                    export_name
+                                                {
+                                                    // export { foo as "bar" }
+                                                    self.exported_idents.push((
+                                                        ident.clone(),
+                                                        str.value.clone(),
+                                                        self.generate_server_reference_id(
+                                                            str.value.as_ref(),
+                                                            in_cache_file,
+                                                            None,
+                                                        ),
+                                                    ));
+                                                }
+                                            } else {
+                                                // export { foo }
+                                                self.exported_idents.push((
+                                                    ident.clone(),
+                                                    ident.sym.clone(),
+                                                    self.generate_server_reference_id(
+                                                        ident.sym.as_ref(),
+                                                        in_cache_file,
+                                                        None,
+                                                    ),
+                                                ));
+                                            }
                                         }
                                     } else {
-                                        // export { foo }
-                                        self.exported_idents.push((
-                                            ident.clone(),
-                                            ident.sym.clone(),
-                                            self.generate_server_reference_id(
-                                                ident.sym.as_ref(),
-                                                in_cache_file,
-                                                None,
-                                            ),
-                                        ));
+                                        disallowed_export_span = named.span;
                                     }
-                                } else {
-                                    disallowed_export_span = named.span;
                                 }
                             }
                         }
@@ -1591,7 +1606,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
                         decl,
                         span,
-                        ..
                     })) => match decl {
                         DefaultDecl::Fn(f) => {
                             let (is_action_fn, is_cache_fn) = has_body_directive(&f.function.body);
@@ -1760,8 +1774,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                         }
                     }
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportAll(ExportAll { span, .. })) => {
-                        disallowed_export_span = *span;
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportAll(ExportAll {
+                        span,
+                        type_only,
+                        ..
+                    })) => {
+                        if !*type_only {
+                            disallowed_export_span = *span;
+                        }
                     }
                     _ => {}
                 }
@@ -2753,7 +2773,7 @@ impl DirectiveVisitor<'_> {
                         });
                     } else if self.is_allowed_position {
                         if !self.config.use_cache_enabled {
-                            emit_error(ServerActionsErrorKind::UseCacheWithoutExperimentalFlag {
+                            emit_error(ServerActionsErrorKind::UseCacheWithoutCacheComponents {
                                 span: *span,
                                 directive: value.to_string(),
                             });
@@ -3191,15 +3211,15 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             span,
             formatdoc! {
                 r#"
-                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the `experimental.cacheHandlers` object in your Next.js config.
+                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the `cacheHandlers` object in your Next.js config.
                 "#
             },
         ),
-        ServerActionsErrorKind::UseCacheWithoutExperimentalFlag { span, directive } => (
+        ServerActionsErrorKind::UseCacheWithoutCacheComponents { span, directive } => (
             span,
             formatdoc! {
                 r#"
-                    To use "{directive}", please enable the feature flag `experimental.cacheComponents` in your Next.js config.
+                    To use "{directive}", please enable the feature flag `cacheComponents` in your Next.js config.
 
                     Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
                 "#

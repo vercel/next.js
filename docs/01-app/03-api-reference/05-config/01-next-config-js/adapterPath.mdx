@@ -128,12 +128,17 @@ Called after the build process completes with detailed information about routes 
 **Parameters:**
 
 - `routes`: Object containing route manifests for headers, redirects, rewrites, and dynamic routes
+  - `routes.headers`: Array of header route objects with `source`, `sourceRegex`, `headers`, `has`, `missing`, and optional `priority` fields
+  - `routes.redirects`: Array of redirect route objects with `source`, `sourceRegex`, `destination`, `statusCode`, `has`, `missing`, and optional `priority` fields
+  - `routes.rewrites`: Object with `beforeFiles`, `afterFiles`, and `fallback` arrays, each containing rewrite route objects with `source`, `sourceRegex`, `destination`, `has`, and `missing` fields
+  - `routes.dynamicRoutes`: Array of dynamic route objects with `source`, `sourceRegex`, `destination`, `has`, and `missing` fields
 - `outputs`: Detailed information about all build outputs organized by type
 - `projectDir`: Absolute path to the Next.js project directory
 - `repoRoot`: Absolute path to the detected repository root
 - `distDir`: Absolute path to the build output directory
 - `config`: The final Next.js configuration (with `modifyConfig` applied)
 - `nextVersion`: Version of Next.js being used
+- `buildId`: Unique identifier for the current build
 
 ## Output Types
 
@@ -149,11 +154,14 @@ React pages from the `pages/` directory:
   id: string           // Route identifier
   filePath: string     // Path to the built file
   pathname: string     // URL pathname
+  sourcePage: string   // Original source file path in pages/ directory
   runtime: 'nodejs' | 'edge'
-  assets: Record<string, string>  // Traced dependencies
+  assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
+  wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
   config: {
     maxDuration?: number
     preferredRegion?: string | string[]
+    env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
 ```
@@ -168,11 +176,14 @@ API routes from `pages/api/`:
   id: string
   filePath: string
   pathname: string
+  sourcePage: string   // Original relative source file path
   runtime: 'nodejs' | 'edge'
   assets: Record<string, string>
+  wasmAssets?: Record<string, string>
   config: {
     maxDuration?: number
     preferredRegion?: string | string[]
+    env?: Record<string, string>
   }
 }
 ```
@@ -186,12 +197,15 @@ React pages from the `app/` directory with `page.{js,ts,jsx,tsx}`:
   type: 'APP_PAGE'
   id: string
   filePath: string
-  pathname: string
+  pathname: string     // Includes .rsc suffix for RSC routes
+  sourcePage: string   // Original relative source file path
   runtime: 'nodejs' | 'edge'
   assets: Record<string, string>
+  wasmAssets?: Record<string, string>
   config: {
     maxDuration?: number
     preferredRegion?: string | string[]
+    env?: Record<string, string>
   }
 }
 ```
@@ -203,7 +217,18 @@ API and metadata routes from `app/` with `route.{js,ts,jsx,tsx}`:
 ```typescript
 {
   type: 'APP_ROUTE'
-  // ... same structure as APP_PAGE
+  id: string
+  filePath: string
+  pathname: string
+  sourcePage: string
+  runtime: 'nodejs' | 'edge'
+  assets: Record<string, string>
+  wasmAssets?: Record<string, string>
+  config: {
+    maxDuration?: number
+    preferredRegion?: string | string[]
+    env?: Record<string, string>
+  }
 }
 ```
 
@@ -217,7 +242,11 @@ ISR-enabled routes and static prerenders:
   id: string
   pathname: string
   parentOutputId: string  // ID of the source page/route
-  groupId: number        // Revalidation group identifier
+  groupId: number        // Revalidation group identifier (prerenders with same groupId revalidate together)
+  pprChain?: {
+    headers: Record<string, string>  // PPR chain headers (e.g., 'x-nextjs-resume': '1')
+  }
+  parentFallbackMode?: 'blocking' | false | null  // Fallback mode from getStaticPaths
   fallback?: {
     filePath: string
     initialStatus?: number
@@ -258,16 +287,71 @@ Middleware function (if present):
   type: 'MIDDLEWARE'
   id: string
   filePath: string
-  pathname: string
+  pathname: string      // Always '/_middleware'
+  sourcePage: string    // Always 'middleware'
   runtime: 'nodejs' | 'edge'
   assets: Record<string, string>
+  wasmAssets?: Record<string, string>
   config: {
     maxDuration?: number
     preferredRegion?: string | string[]
-    matchers?: MiddlewareMatcher[]
+    env?: Record<string, string>
+    matchers?: Array<{
+      source: string
+      sourceRegex: string
+      has: RouteHas[] | undefined
+      missing: RouteHas[] | undefined
+    }>
   }
 }
 ```
+
+## Routes Information
+
+The `routes` object in `onBuildComplete` provides complete routing information with processed patterns ready for deployment:
+
+### Headers
+
+Each header route includes:
+
+- `source`: Original route pattern (e.g., `/about`)
+- `sourceRegex`: Compiled regex for matching requests
+- `headers`: Key-value pairs of headers to apply
+- `has`: Optional conditions that must be met
+- `missing`: Optional conditions that must not be met
+- `priority`: Optional flag for internal routes
+
+### Redirects
+
+Each redirect route includes:
+
+- `source`: Original route pattern
+- `sourceRegex`: Compiled regex for matching
+- `destination`: Target URL (can include captured groups)
+- `statusCode`: HTTP status code (301, 302, 307, 308)
+- `has`: Optional positive conditions
+- `missing`: Optional negative conditions
+- `priority`: Optional flag for internal routes
+
+### Rewrites
+
+Rewrites are categorized into three phases:
+
+- `beforeFiles`: Checked before filesystem (including pages and public files)
+- `afterFiles`: Checked after pages/public files but before dynamic routes
+- `fallback`: Checked after all other routes
+
+Each rewrite includes `source`, `sourceRegex`, `destination`, `has`, and `missing`.
+
+### Dynamic Routes
+
+Generated from dynamic route segments (e.g., `[slug]`, `[...path]`). Each includes:
+
+- `source`: Route pattern
+- `sourceRegex`: Compiled regex with named capture groups
+- `destination`: Internal destination with parameter substitution
+- `has`: Optional positive conditions
+- `missing`: Optional negative conditions
 
 ## Use Cases
 
@@ -278,3 +362,4 @@ Common use cases for adapters include:
 - **Monitoring Integration**: Collect build metrics and route information
 - **Custom Bundling**: Package outputs in platform-specific formats
 - **Build Validation**: Ensure outputs meet specific requirements
+- **Route Generation**: Use processed route information to generate platform-specific routing configs

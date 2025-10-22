@@ -37,7 +37,9 @@ describe('app dir', () => {
         )
 
         await retry(async () => {
-          expect(next.cliOutput.slice(cliOutputLength)).toInclude('✓ Compiled')
+          expect(next.cliOutput.slice(cliOutputLength)).toInclude(
+            'GET /page-with-loading 200'
+          )
         })
 
         // It should not have an error

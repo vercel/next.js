@@ -23,9 +23,8 @@ use next_core::{
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        AppPathsManifest, BuildManifest, EdgeFunctionDefinition, MiddlewareMatcher,
-        MiddlewaresManifestV2, PagesManifest, Regions,
-        client_reference_manifest::ClientReferenceManifest,
+        AppPathsManifest, BuildManifest, EdgeFunctionDefinition, MiddlewaresManifestV2,
+        PagesManifest, ProxyMatcher, Regions, client_reference_manifest::ClientReferenceManifest,
     },
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
@@ -1561,7 +1560,7 @@ impl AppEndpoint {
                 if emit_manifests != EmitManifests::None {
                     // create middleware manifest
                     let named_regex = get_named_middleware_regex(&app_entry.pathname);
-                    let matchers = MiddlewareMatcher {
+                    let matchers = ProxyMatcher {
                         regexp: Some(named_regex.into()),
                         original_source: app_entry.pathname.clone(),
                         ..Default::default()

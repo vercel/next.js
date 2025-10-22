@@ -57,7 +57,7 @@ export default async function Page() {
 
 > **Good to know:**
 >
-> - `fetch` responses are not cached by default. However, Next.js will [prerender](/docs/app/getting-started/partial-prerendering#static-rendering) the route and the output will be cached for improved performance. If you'd like to opt into [dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering), use the `{ cache: 'no-store' }` option. See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch).
+> - `fetch` responses are not cached by default. However, Next.js will [pre-render](/docs/app/guides/caching#static-rendering) the route and the output will be cached for improved performance. If you'd like to opt into [dynamic rendering](/docs/app/guides/caching#dynamic-rendering), use the `{ cache: 'no-store' }` option. See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch).
 > - During development, you can log `fetch` calls for better visibility and debugging. See the [`logging` API reference](/docs/app/api-reference/config/next-config-js/logging).
 
 #### With an ORM or database
@@ -273,7 +273,7 @@ export const getPost = cache(async (id) => {
 
 > **Warning:** The content below assumes the [`cacheComponents` config option](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled in your application. The flag was introduced in Next.js 15 canary.
 
-When using `async/await` in Server Components, Next.js will opt into [dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering). This means the data will be fetched and rendered on the server for every user request. If there are any slow data requests, the whole route will be blocked from rendering.
+When you fetch data in Server Components, the data is fetched and rendered on the server for each request. If you have any slow data requests, the whole route will be blocked from rendering until all the data is fetched.
 
 To improve the initial load time and user experience, you can use streaming to break up the page's HTML into smaller chunks and progressively send those chunks from the server to the client.
 

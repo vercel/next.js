@@ -6,6 +6,7 @@ import { LRUCache } from './lru-cache'
 import { createRequestResponseMocks } from './mock-request'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
 import type { ReactDebugChannelForBrowser } from '../dev/debug-channel'
+import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -93,6 +94,14 @@ export class DevBundlerService {
     }
 
     return serializableManifest
+  }
+
+  public setCacheStatus(
+    status: ServerCacheStatus,
+    htmlRequestId: string,
+    requestId: string
+  ): void {
+    this.bundler.hotReloader.setCacheStatus(status, htmlRequestId, requestId)
   }
 
   public setIsrStatus(key: string, value: boolean | undefined) {

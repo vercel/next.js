@@ -249,7 +249,6 @@ export const experimentalSchema = {
   rootParams: z.boolean().optional(),
   isolatedDevBuild: z.boolean().optional(),
   mcpServer: z.boolean().optional(),
-  routerBFCache: z.boolean().optional(),
   removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
   validateRSCRequestHeaders: z.boolean().optional(),
   scrollRestoration: z.boolean().optional(),
@@ -354,7 +353,18 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
     bundlePagesRouterDependencies: z.boolean().optional(),
+    cacheComponents: z.boolean().optional(),
     cacheHandler: z.string().min(1).optional(),
+    cacheHandlers: z.record(z.string(), z.string().optional()).optional(),
+    cacheLife: z
+      .record(
+        z.object({
+          stale: z.number().optional(),
+          revalidate: z.number().optional(),
+          expire: z.number().optional(),
+        })
+      )
+      .optional(),
     cacheMaxMemorySize: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
     compiler: z

@@ -89,6 +89,7 @@ import {
   processIssues,
   renderStyledStringToErrorAnsi,
   type EntryIssuesMap,
+  type IssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
 import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
@@ -119,7 +120,10 @@ import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
+import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
+import type { Lockfile } from '../../build/lockfile'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -181,7 +185,8 @@ export async function createHotReloaderTurbopack(
   opts: SetupOpts & { isSrcDir: boolean },
   serverFields: ServerFields,
   distDir: string,
-  resetFetch: () => void
+  resetFetch: () => void,
+  lockfile: Lockfile | undefined
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
@@ -287,6 +292,7 @@ export async function createHotReloaderTurbopack(
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     await project.onExit()
+    await lockfile?.unlock()
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
 
@@ -435,6 +441,7 @@ export async function createHotReloaderTurbopack(
 
   const clientsWithoutRequestId = new Set<ws>()
   const clientsByRequestId = new Map<string, ws>()
+  const cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
   const clientStates = new WeakMap<ws, ClientState>()
 
   function sendToClient(client: ws, message: HmrMessageSentToBrowser) {
@@ -880,9 +887,20 @@ export async function createHotReloaderTurbopack(
         // inferring it from the presence of a request ID.
         if (requestId) {
           clientsByRequestId.set(requestId, client)
-          onUpgrade(client, {
-            isLegacyClient: !nextConfig.experimental.cacheComponents,
-          })
+          const enableCacheComponents = nextConfig.cacheComponents
+          if (enableCacheComponents) {
+            onUpgrade(client, { isLegacyClient: false })
+            const cacheStatus = cacheStatusesByRequestId.get(requestId)
+            if (cacheStatus !== undefined) {
+              sendToClient(client, {
+                type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
+                state: cacheStatus,
+              })
+              cacheStatusesByRequestId.delete(requestId)
+            }
+          } else {
+            onUpgrade(client, { isLegacyClient: true })
+          }
         } else {
           clientsWithoutRequestId.add(client)
           onUpgrade(client, { isLegacyClient: true })
@@ -1102,7 +1120,7 @@ export async function createHotReloaderTurbopack(
       // clients as App Router / Pages Router clients explicitly, instead of
       // inferring it from the presence of a request ID.
 
-      if (!nextConfig.experimental.cacheComponents) {
+      if (!nextConfig.cacheComponents) {
         for (const client of clientsByRequestId.values()) {
           client.send(payload)
         }
@@ -1110,6 +1128,25 @@ export async function createHotReloaderTurbopack(
 
       for (const client of clientsWithoutRequestId) {
         client.send(payload)
+      }
+    },
+
+    setCacheStatus(
+      status: ServerCacheStatus,
+      htmlRequestId: string,
+      requestId: string
+    ): void {
+      // Legacy clients don't have Cache Components.
+      const client = clientsByRequestId.get(htmlRequestId)
+      if (client !== undefined) {
+        sendToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
+          state: status,
+        })
+      } else {
+        // If the client is not connected, store the status so that we can send it
+        // when the client connects.
+        cacheStatusesByRequestId.set(requestId, status)
       }
     },
 
@@ -1358,6 +1395,9 @@ export async function createHotReloaderTurbopack(
         })
     },
     close() {
+      // Report MCP telemetry if MCP server is enabled
+      recordMcpTelemetry(opts.telemetry)
+
       for (const wsClient of [
         ...clientsWithoutRequestId,
         ...clientsByRequestId.values(),
@@ -1393,28 +1433,36 @@ export async function createHotReloaderTurbopack(
         case 'end': {
           sendEnqueuedMessages()
 
+          function addToErrorsMap(
+            errorsMap: Map<string, CompilationError>,
+            issueMap: IssuesMap
+          ) {
+            for (const [key, issue] of issueMap) {
+              if (issue.severity === 'warning') continue
+              if (errorsMap.has(key)) continue
+
+              const message = formatIssue(issue)
+
+              errorsMap.set(key, {
+                message,
+                details: issue.detail
+                  ? renderStyledStringToErrorAnsi(issue.detail)
+                  : undefined,
+              })
+            }
+          }
+
           function addErrors(
             errorsMap: Map<string, CompilationError>,
             issues: EntryIssuesMap
           ) {
             for (const issueMap of issues.values()) {
-              for (const [key, issue] of issueMap) {
-                if (issue.severity === 'warning') continue
-                if (errorsMap.has(key)) continue
-
-                const message = formatIssue(issue)
-
-                errorsMap.set(key, {
-                  message,
-                  details: issue.detail
-                    ? renderStyledStringToErrorAnsi(issue.detail)
-                    : undefined,
-                })
-              }
+              addToErrorsMap(errorsMap, issueMap)
             }
           }
 
           const errors = new Map<string, CompilationError>()
+          addToErrorsMap(errors, currentTopLevelIssues)
           addErrors(errors, currentEntryIssues)
 
           for (const client of [

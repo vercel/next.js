@@ -367,7 +367,7 @@ describe('app-dir - logging', () => {
 
         await retry(() => {
           const output = stripAnsi(next.cliOutput.slice(logLength))
-          expect(output).toContain('/dynamic/[slug]/icon')
+          expect(output).toContain('/dynamic/big/icon')
           expect(output).not.toContain('/(group)')
           expect(output).not.toContain('[__metadata_id__]')
           expect(output).not.toContain('/route')
