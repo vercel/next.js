@@ -61,7 +61,7 @@ In Partial Prerendering, Suspense is used to mark **dynamic boundaries** in your
 
 At build time, Next.js prerenders the static content and the `fallback` UI. The dynamic content is **postponed** until the user requests the route.
 
-Wrapping a component in Suspense doesn't make the component itself dynamic (your API usage does), but rather Suspense is used as a boundary that encapsulates dynamic content and enable [streaming](#streaming)
+Wrapping a component in Suspense doesn't make the component itself dynamic (your API usage does), but rather Suspense is used as a boundary that encapsulates dynamic content and enables [streaming](#streaming).
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
