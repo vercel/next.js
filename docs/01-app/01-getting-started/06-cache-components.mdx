@@ -48,7 +48,7 @@ When a user visits a route:
 
 > **🎥 Watch:** Why PPR and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
 
-## How it Works
+## How it works
 
 Cache Components gives you three key tools to control rendering:
 
@@ -61,6 +61,7 @@ Some data is only available at runtime when an actual user makes a request. APIs
 - [`cookies`](/docs/app/api-reference/functions/cookies)
 - [`headers`](/docs/app/api-reference/functions/headers)
 - [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
+- [`params` prop](/docs/app/api-reference/file-conventions/page#params-optional) - This is runtime data unless you provide at least one example value through [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). When provided, those specific param values are treated as static for prerendered paths, while other values remain runtime
 
 ### 2. Suspense for dynamic data
 
@@ -71,21 +72,20 @@ Dynamic data like [`fetch`](/docs/app/api-reference/functions/fetch) calls or da
 - [`fetch`](/docs/app/api-reference/functions/fetch) requests
 - Database queries
 - [`connection`](/docs/app/api-reference/functions/connection)
-- [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
 
 ### 3. Cached data with `use cache`
 
 Add `use cache` to any Server Component to make it cached and include it in the pre-rendered shell. You cannot use runtime APIs from inside a cached component. You can also mark utility functions as `use cache` and call them from Server Components.
 
 ```tsx
-'use cache'
 export async function getProducts() {
+  'use cache'
   const data = await db.query('SELECT * FROM products')
   return data
 }
 ```
 
-## Using Suspense Boundaries
+## Using Suspense boundaries
 
 React [Suspense](https://react.dev/reference/react/Suspense) boundaries let you define what fallback UI to use when it wraps dynamic or runtime data.
 
@@ -137,17 +137,27 @@ async function DynamicContent() {
 
 At build time, Next.js pre-renders the static content and the `fallback` UI, while the dynamic content is postponed until a user requests the route.
 
-Wrapping a component in `Suspense` doesn't make it dynamic; your API usage does. `Suspense` acts as a boundary that encapsulates dynamic content and enables streaming.
+> **Good to know**: Wrapping a component in `Suspense` doesn't make it dynamic; your API usage does. `Suspense` acts as a boundary that encapsulates dynamic content and enables streaming.
 
 ### Missing Suspense boundaries
 
-Cache Components enforces that dynamic code must be wrapped in a `Suspense` boundary. If you forget, you'll see this error:
+Cache Components enforces that dynamic code must be wrapped in a `Suspense` boundary. If you forget, you'll see the [Uncached data was accessed outside of `<Suspense>`](https://nextjs.org/docs/messages/blocking-route) error:
 
-> Uncached data was accessed outside of `<Suspense>`
+> **Uncached data was accessed outside of `<Suspense>`**
 >
 > This delays the entire page from rendering, resulting in a slow user
 > experience. Next.js uses this error to ensure your app loads instantly
 > on every navigation.
+>
+> To fix this, you can either:
+>
+> **Wrap the component in a `<Suspense>`** boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+>
+> or
+>
+> **Move the asynchronous await into a Cache Component("use cache")**. This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+>
+> Note that request-specific information, such as params, cookies, and headers, is not available during static prerendering, so it must be wrapped in `<Suspense>`.
 
 This error helps prevent a situation where, instead of getting a static shell instantly, users would hit a blocking runtime render with nothing to show. To fix it, add a `Suspense` boundary or use `use cache` to cache the work instead.
 
@@ -181,7 +191,7 @@ To reduce network overhead, the full response, including static HTML and streame
 
 While `Suspense` boundaries manage dynamic content, the [`use cache`](/docs/app/api-reference/directives/use-cache) directive is available for caching data or computations that don't change often.
 
-### Basic Usage
+### Basic usage
 
 Add `use cache` to cache a page, component, or async function, and define a lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife):
 
@@ -251,7 +261,7 @@ export async function CachedWrapper({ children }) {
 
 You must not pass dynamic or runtime data into `use cache` functions unless you avoid introspecting them. Passing values from `cookies()`, `headers()`, or other runtime APIs as arguments will cause errors, as the cache key cannot be determined at pre-render time.
 
-### Tagging and Revalidating
+### Tagging and revalidating
 
 Tag cached data with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and revalidate it after mutations using [`updateTag`](/docs/app/api-reference/functions/updateTag) in Server Actions for immediate updates, or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) delay in updates are acceptable.
 
@@ -321,7 +331,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-### Effect on Route Segment Config
+### Effect on route segment config
 
 When Cache Components is enabled, several route segment config options are no longer needed or supported. Here's what changes and how to migrate:
 
@@ -412,7 +422,7 @@ export default async function Page() {
 }
 ```
 
-## Before vs. After Cache Components
+## Before vs. after Cache Components
 
 Understanding how Cache Components changes your mental model:
 
