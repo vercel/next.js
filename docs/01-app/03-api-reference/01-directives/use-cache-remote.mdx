@@ -161,6 +161,8 @@ Next.js provides three caching directives, each designed for different use cases
 | **Supports runtime prefetching** | N/A (pre-rendered at build)         | No                                                        | Yes (when configured)               |
 | **Use case**                     | Static, shared content (build-time) | Dynamic, shared content in runtime contexts (per-request) | Personalized, user-specific content |
 
+> **Note:** While you can't call `await cookies()` or `await headers()` inside `'use cache: remote'`, you can read the values before calling a function that is wrapped by `'use cache: remote'` and the arguments will be included in the cache key. Note that this is not recommended as it will dramatically increase the cache size and reduce the cache hit rate.
+
 ### When to use each directive
 
 Choose the right caching directive based on your use case:
