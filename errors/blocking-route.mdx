@@ -16,7 +16,7 @@ The proper fix for this specific error depends on what data you are accessing an
 
 When you access data using `fetch`, a database client, or any other module which does asynchronous IO, Next.js interprets your intent as expecting the data to load on every user request.
 
-If you are expecting this data to be used while fully or partially prerendering a page you must cache is using `"use cache"`.
+If you are expecting this data to be used while fully or partially prerendering a page you must cache it using `"use cache"`.
 
 Before:
 
@@ -93,7 +93,7 @@ export default async function Page() {
 
 ### Headers
 
-If you are accessing request headers using `headers()`, `cookies()`, or `draftMode()`. Consider whether you can move the use of these APIs deeper into your existing component tree.
+If you are accessing request headers using `headers()`, `cookies()`, or `draftMode()`, consider whether you can move the use of these APIs deeper into your existing component tree.
 
 Before:
 
@@ -159,7 +159,7 @@ Alternatively you can add a Suspense boundary above the component that is access
 
 ### Params and SearchParams
 
-Layout `params`, and Page `params` and `searchParams` props are promises. If you await them in the Layout or Page component you might be accessing these props higher than is actually required. Try passing these props to deeper components as a promise and awaiting them closer to where the actual param or searchParam is required
+Layout `params`, and Page `params` and `searchParams` props are promises. If you await them in the Layout or Page component you might be accessing these props higher than is actually required. Try passing these props to deeper components as a promise and awaiting them closer to where the actual param or searchParam is required.
 
 Before:
 
