@@ -182,6 +182,11 @@ function getMiddlewareData<T extends FetchDataOutput>(
 
   const matchedPath = response.headers.get(MATCHED_PATH_HEADER)
 
+  if (matchedPath && process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE) {
+    // when externalMiddlewareRewritesResolve=true, leverage x-matched-path to detect rewrites instead of x-nextjs-rewrite or x-nextjs-matched-path
+    rewriteTarget = matchedPath
+  }
+
   if (
     matchedPath &&
     !rewriteTarget &&
@@ -1922,8 +1927,9 @@ export default class Router implements BaseRouter {
 
     try {
       let props: Record<string, any> | undefined
-      const { page: Component, styleSheets } =
-        await this.fetchComponent('/_error')
+      const { page: Component, styleSheets } = await this.fetchComponent(
+        '/_error'
+      )
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,
