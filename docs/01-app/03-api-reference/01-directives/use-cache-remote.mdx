@@ -248,14 +248,14 @@ async function getAnalytics() {
 
 ## Request APIs and remote caches
 
-While `'use cache: remote'` technically allows access to request-specific APIs like [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers), it's generally not recommended to use them together:
+While `'use cache: remote'` technically allows access to request-specific data be calling API's like [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) before calling a function that is wrapped by `'use cache: remote'`, it's generally not recommended to use them together:
 
 | API                                                                                   | Allowed in `use cache` | Allowed in `'use cache: remote'` | Recommended                                                                                |
 | ------------------------------------------------------------------------------------- | ---------------------- | -------------------------------- | ------------------------------------------------------------------------------------------ |
-| [`cookies()`](/docs/app/api-reference/functions/cookies)                              | No                     | Yes (not recommended)            | Use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead |
-| [`headers()`](/docs/app/api-reference/functions/headers)                              | No                     | Yes (not recommended)            | Use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead |
-| [`connection()`](/docs/app/api-reference/functions/connection)                        | No                     | Yes                              | Yes - this is the primary use case                                                         |
-| [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) | No                     | Yes (not recommended)            | Use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead |
+| [`cookies()`](/docs/app/api-reference/functions/cookies)                              | No                     | No                               | Use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead |
+| [`headers()`](/docs/app/api-reference/functions/headers)                              | No                     | No                               | Use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead |
+| [`connection()`](/docs/app/api-reference/functions/connection)                        | No                     | No                               | No - these cannot ever be cached                                                           |
+| [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) | No                     | No                               | Use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead |
 
 > **Important:** If you need to cache based on cookies, headers, or search params, use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead. Remote caches are shared across all users, so caching user-specific data in them can lead to incorrect results being served to different users.
 
