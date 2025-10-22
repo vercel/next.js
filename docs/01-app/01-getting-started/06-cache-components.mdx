@@ -267,7 +267,7 @@ Tag cached data with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) an
 
 #### With `updateTag`
 
-Use `updateTag` when you need to expire and immediately refreshing cached data within the same request:
+Use `updateTag` when you need to expire and immediately refresh cached data within the same request:
 
 ```tsx filename="app/actions.ts" highlight={1,4,5,13}
 import { cacheTag, updateTag } from 'next/cache'
@@ -278,7 +278,7 @@ export async function getCart() {
   // fetch data
 }
 
-export async function updateCard(itemId: string) {
+export async function updateCart(itemId: string) {
   'use server'
   // write data using the itemId
   // update the user cart
