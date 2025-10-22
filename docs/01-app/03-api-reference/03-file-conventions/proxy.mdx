@@ -192,14 +192,6 @@ Proxy will be invoked for **every route in your project**. Given this, it's cruc
 
 Proxy defaults to using the Node.js runtime. The [`runtime`](/docs/app/api-reference/file-conventions/route-segment-config#runtime) config option is not available in Proxy files. Setting the `runtime` config option in Proxy will throw an error.
 
-```diff filename="proxy.ts"
--export const config = {
--   runtime: 'edge',
-- }
--
-- export const runtime = 'edge'
-```
-
 ## Advanced Proxy flags
 
 In `v13.1` of Next.js two additional flags were introduced for proxy, `skipMiddlewareUrlNormalize` and `skipTrailingSlashRedirect` to handle advanced use cases.
