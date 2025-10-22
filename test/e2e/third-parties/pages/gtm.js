@@ -13,7 +13,6 @@ const Page = () => {
       <button id="gtm-send" onClick={onClick}>
         Click
       </button>
-      <GoogleTagManager gtmId="GTM-XYZ" />
     </div>
   )
 }

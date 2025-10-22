@@ -1,8 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
+import type { NextInstance } from 'e2e-utils'
 
 describe('@next/third-parties basic usage', () => {
-  const { next } = nextTestSetup({
+  const { next }: { next: NextInstance } = nextTestSetup({
     files: __dirname,
     dependencies: {
       '@next/third-parties': 'canary',
@@ -44,13 +45,34 @@ describe('@next/third-parties basic usage', () => {
 
     expect(gtmScript.length).toBe(1)
 
-    const dataLayer = await browser.eval('window.dataLayer')
+    const dataLayer: unknown[] = await browser.eval('window.dataLayer')
     expect(dataLayer.length).toBe(1)
 
     await browser.elementByCss('#gtm-send').click()
 
-    const dataLayer2 = await browser.eval('window.dataLayer')
+    const dataLayer2: unknown[] = await browser.eval('window.dataLayer')
     expect(dataLayer2.length).toBe(2)
+  })
+
+  it('renders GTM with consent management support', async () => {
+    const browser = await next.browser('/gtm-consent')
+    await waitFor(1000)
+
+    // Test consent-managed GTM script has correct type and data attributes
+    const consentScript = await browser.elementsByCss(
+      'script[src*="GTM-USERCENTRICS"][type="text/plain"]'
+    )
+    expect(consentScript.length).toBe(1)
+
+    // Verify data attributes are applied to both init and external scripts
+    const scriptsWithDataAttr = await browser.elementsByCss(
+      'script[data-usercentrics="Google Tag Manager"]'
+    )
+    expect(scriptsWithDataAttr.length).toBe(2) // init + external script
+
+    // Verify consent-managed scripts don't execute (dataLayer should be empty)
+    const dataLayer: unknown[] = await browser.eval('window.dataLayer || []')
+    expect(dataLayer.length).toBe(0) // No execution due to type="text/plain"
   })
 
   it('renders GA', async () => {
@@ -67,12 +89,12 @@ describe('@next/third-parties basic usage', () => {
     )
 
     expect(gaScript.length).toBe(1)
-    const dataLayer = await browser.eval('window.dataLayer')
+    const dataLayer: unknown[] = await browser.eval('window.dataLayer')
     expect(dataLayer.length).toBe(4)
 
     await browser.elementByCss('#ga-send').click()
 
-    const dataLayer2 = await browser.eval('window.dataLayer')
+    const dataLayer2: unknown[] = await browser.eval('window.dataLayer')
     expect(dataLayer2.length).toBe(5)
   })
 })

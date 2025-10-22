@@ -16,6 +16,8 @@ export function GoogleTagManager(props: GTMParams) {
     preview,
     dataLayer,
     nonce,
+    type = 'application/javascript',
+    ...scriptProps
   } = props
 
   currDataLayerName = dataLayerName
@@ -39,8 +41,12 @@ export function GoogleTagManager(props: GTMParams) {
 
   return (
     <>
+      {/* GTM DataLayer initialization */}
       <Script
         id="_next-gtm-init"
+        nonce={nonce}
+        type={type}
+        {...scriptProps}
         dangerouslySetInnerHTML={{
           __html: `
       (function(w,l){
@@ -49,13 +55,16 @@ export function GoogleTagManager(props: GTMParams) {
         ${dataLayer ? `w[l].push(${JSON.stringify(dataLayer)})` : ''}
       })(window,'${dataLayerName}');`,
         }}
-        nonce={nonce}
       />
+
+      {/* GTM Script */}
       <Script
         id="_next-gtm"
+        nonce={nonce}
         data-ntpc="GTM"
         src={`${gtmScriptUrl}?id=${gtmId}${gtmLayer}${gtmAuth}${gtmPreview}`}
-        nonce={nonce}
+        type={type}
+        {...scriptProps}
       />
     </>
   )

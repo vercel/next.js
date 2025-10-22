@@ -20,6 +20,11 @@ export type GTMParams = {
   auth?: string
   preview?: string
   nonce?: string
+  // Consent management props
+  type?: 'application/javascript' | 'text/plain'
+} & {
+  // Data attributes for CMP platforms
+  [K in `data-${string}`]: string
 }
 
 export type GAParams = {
