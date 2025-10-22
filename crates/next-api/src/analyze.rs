@@ -1,4 +1,4 @@
-use std::{io::Write, mem::take};
+use std::io::Write;
 
 use anyhow::Result;
 use byteorder::{BE, WriteBytesExt};
@@ -28,15 +28,18 @@ pub struct EdgesData {
 }
 
 impl EdgesData {
-    fn from_iterator(iter: impl Iterator<Item = Vec<u32>>) -> Self {
-        let mut offsets = vec![];
-        let mut data = vec![];
+    fn from_iterator<'a>(iterable: impl IntoIterator<Item = &'a Vec<u32>> + Clone) -> Self {
         let mut current_offset = 0;
-        for edges in iter {
-            current_offset += edges.len() as u32;
-            offsets.push(current_offset);
-            data.extend(edges);
-        }
+        let sum: usize = iterable.clone().into_iter().map(|v| v.len()).sum();
+        let mut data = Vec::with_capacity(sum as usize);
+        let offsets = iterable
+            .into_iter()
+            .map(|edges| {
+                current_offset += edges.len() as u32;
+                data.extend(edges);
+                current_offset
+            })
+            .collect();
         Self { offsets, data }
     }
 
@@ -209,7 +212,7 @@ impl AnalyzeDataBuilder {
             .push(chunk_part_index);
     }
 
-    fn build(mut self) -> Rope {
+    fn build(self) -> Rope {
         let source_roots = self
             .sources
             .iter()
@@ -223,23 +226,14 @@ impl AnalyzeDataBuilder {
             })
             .collect();
 
-        let source_children = EdgesData::from_iterator(
-            self.sources
-                .iter_mut()
-                .map(|s| take(&mut s.child_source_indices)),
-        );
+        let source_children =
+            EdgesData::from_iterator(self.sources.iter().map(|s| &s.child_source_indices));
 
-        let source_chunk_parts = EdgesData::from_iterator(
-            self.sources
-                .iter_mut()
-                .map(|s| take(&mut s.chunk_part_indices)),
-        );
+        let source_chunk_parts =
+            EdgesData::from_iterator(self.sources.iter().map(|s| &s.chunk_part_indices));
 
-        let output_file_chunk_parts = EdgesData::from_iterator(
-            self.output_files
-                .iter_mut()
-                .map(|of| take(&mut of.chunk_part_indices)),
-        );
+        let output_file_chunk_parts =
+            EdgesData::from_iterator(self.output_files.iter().map(|of| &of.chunk_part_indices));
 
         let mut binary_section = EdgesDataSectionBuilder::new();
 
@@ -292,13 +286,13 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
             let source_index = builder
                 .ensure_source(&chunk_part.source.trim_start_matches(&prefix))
                 .1;
-            builder.add_chunk_part(AnalyzeChunkPart {
+            let chunk_part_index = builder.add_chunk_part(AnalyzeChunkPart {
                 source_index,
                 output_file_index,
                 size: chunk_part.real_size + chunk_part.unaccounted_size,
             });
-            builder.add_chunk_part_to_output_file(output_file_index, source_index);
-            builder.add_chunk_part_to_source(source_index, source_index);
+            builder.add_chunk_part_to_output_file(output_file_index, chunk_part_index);
+            builder.add_chunk_part_to_source(source_index, chunk_part_index);
         }
     }
 
