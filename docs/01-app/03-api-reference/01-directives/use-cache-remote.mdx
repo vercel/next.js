@@ -146,7 +146,7 @@ async function getProductPrice(productId) {
 
 > **Note:** Regular [`use cache`](/docs/app/api-reference/directives/use-cache) will not cache anything when used in a dynamic context (after [`await connection()`](/docs/app/api-reference/functions/connection), [`await cookies()`](/docs/app/api-reference/functions/cookies), [`await headers()`](/docs/app/api-reference/functions/headers), etc.). Use `'use cache: remote'` to enable runtime caching in these scenarios.
 
-## Difference from `use cache` and `use cache: private`
+## How `use cache: remote` differs from `use cache` and `use cache: private`
 
 Next.js provides three caching directives, each designed for different use cases:
 
@@ -158,10 +158,10 @@ Next.js provides three caching directives, each designed for different use cases
 | **After `await connection()`**  | No (won't cache)                    | Yes (will cache)                                          | No                                  |
 | **Stored in cache handler**     | Yes (server-side)                   | Yes (server-side)                                         | No (client-side only)               |
 | **Cache scope**                 | Global (shared)                     | Global (shared)                                           | Per-user (isolated)                 |
-| **Runtime pre-fetchable**       | N/A (pre-rendered at build)         | No                                                        | Yes (when configured)               |
+| **Supports runtime prefetching**       | N/A (pre-rendered at build)         | No                                                        | Yes (when configured)               |
 | **Use case**                    | Static, shared content (build-time) | Dynamic, shared content in runtime contexts (per-request) | Personalized, user-specific content |
 
-### When to use each
+### When to use each directive
 
 Choose the right caching directive based on your use case:
 
@@ -192,7 +192,7 @@ The `'use cache: remote'` directive enables runtime caching of shared data in dy
 When Next.js encounters certain APIs like [`connection()`](/docs/app/api-reference/functions/connection), [`cookies()`](/docs/app/api-reference/functions/cookies), or [`headers()`](/docs/app/api-reference/functions/headers), the context becomes "dynamic". In a dynamic context:
 
 1. **Regular `use cache` stops working** - it won't cache anything
-2. **`'use cache: remote'` continues to work** - it caches in the remote cache handler
+2. **`'use cache: remote'` continues to work** - it is cached by a remote cache handler.
 3. **Results are stored server-side** in a key-value store configured for your deployment
 4. **Cached data is shared across requests** - reducing database load and origin requests
 
@@ -261,7 +261,7 @@ While `'use cache: remote'` technically allows access to request-specific APIs l
 
 Remote caches have specific nesting rules:
 
-- Remote caches **can** be nested inside other remote caches
+- Remote caches **can** be nested inside other remote caches (`'use cache: remote'`)
 - Remote caches **can** be nested inside regular caches (`'use cache'`)
 - Remote caches **cannot** be nested inside private caches (`'use cache: private'`)
 - Private caches **cannot** be nested inside remote caches
