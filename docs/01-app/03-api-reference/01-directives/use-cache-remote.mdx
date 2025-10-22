@@ -248,7 +248,7 @@ async function getAnalytics() {
 
 ## Request APIs and remote caches
 
-While `'use cache: remote'` technically allows access to request-specific data be calling API's like [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) before calling a function that is wrapped by `'use cache: remote'`, it's generally not recommended to use them together:
+While `'use cache: remote'` technically allows access to request-specific data by calling API's like [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) before calling a function that is wrapped by `'use cache: remote'`, it's generally not recommended to use them together:
 
 | API                                                                                   | Allowed in `use cache` | Allowed in `'use cache: remote'` | Recommended                                                                                |
 | ------------------------------------------------------------------------------------- | ---------------------- | -------------------------------- | ------------------------------------------------------------------------------------------ |
