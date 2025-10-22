@@ -435,7 +435,8 @@ Combine static, remote, and private caching for optimal performance:
 
 ```tsx filename="app/product/[id]/page.tsx"
 import { Suspense } from 'react'
-import { cookies, connection } from 'next/server'
+import { connection } from 'next/server'
+import { cookies } from 'next/headers'
 import { cacheLife, cacheTag } from 'next/cache'
 
 // Static product data - prerendered at build time
