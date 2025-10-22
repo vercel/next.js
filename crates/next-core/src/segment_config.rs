@@ -289,6 +289,8 @@ pub enum ParseSegmentMode {
     Base,
     // Disallows "use client + generateStatic" and ignores/warns about `export const config`
     App,
+    // Disallows config = { runtime: "edge" }
+    Proxy,
 }
 
 /// Parse the raw source code of a file to get the segment config local to that file.
@@ -667,21 +669,35 @@ async fn parse_config_value(
                             .await;
                         };
 
-                        config.runtime =
-                            match serde_json::from_value(Value::String(val.to_string())) {
-                                Ok(runtime) => Some(runtime),
-                                Err(err) => {
-                                    return invalid_config(
-                                        source,
-                                        "config",
-                                        span,
-                                        format!("`runtime` has an invalid value: {err}.").into(),
-                                        Some(value),
-                                        IssueSeverity::Error,
-                                    )
-                                    .await;
-                                }
-                            };
+                        let runtime = match serde_json::from_value(Value::String(val.to_string())) {
+                            Ok(runtime) => Some(runtime),
+                            Err(err) => {
+                                return invalid_config(
+                                    source,
+                                    "config",
+                                    span,
+                                    format!("`runtime` has an invalid value: {err}.").into(),
+                                    Some(value),
+                                    IssueSeverity::Error,
+                                )
+                                .await;
+                            }
+                        };
+
+                        if mode == ParseSegmentMode::Proxy && runtime == Some(NextRuntime::Edge) {
+                            invalid_config(
+                                source,
+                                "config",
+                                span,
+                                rcstr!("Proxy does not support Edge runtime."),
+                                Some(value),
+                                IssueSeverity::Error,
+                            )
+                            .await?;
+                            continue;
+                        }
+
+                        config.runtime = runtime
                     }
                     "matcher" => {
                         config.middleware_matcher =

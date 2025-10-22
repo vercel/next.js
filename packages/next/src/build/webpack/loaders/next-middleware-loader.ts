@@ -70,8 +70,5 @@ export default async function middlewareLoader(this: any) {
   return await loadEntrypoint('middleware', {
     VAR_USERLAND: pagePath,
     VAR_DEFINITION_PAGE: page,
-    // Turbopack sets `VAR_USERLAND` to `INNER_MIDDLEWARE_MODULE`, so use
-    // `VAR_MODULE_RELATIVE_PATH` for error messages.
-    VAR_MODULE_RELATIVE_PATH: pagePath,
   })
 }

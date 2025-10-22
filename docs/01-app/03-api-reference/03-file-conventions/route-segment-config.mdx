@@ -11,32 +11,17 @@ description: Learn about how to configure options for Next.js route segments.
 
 The Route Segment options allows you to configure the behavior of a [Page](/docs/app/api-reference/file-conventions/layout), [Layout](/docs/app/api-reference/file-conventions/layout), or [Route Handler](/docs/app/api-reference/file-conventions/route) by directly exporting the following variables:
 
-| Option                                  | Type                                                                                                                      | Default                    |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| [`experimental_ppr`](#experimental_ppr) | `boolean`                                                                                                                 |
-| [`dynamic`](#dynamic)                   | `'auto' \| 'force-dynamic' \| 'error' \| 'force-static'`                                                                  | `'auto'`                   |
-| [`dynamicParams`](#dynamicparams)       | `boolean`                                                                                                                 | `true`                     |
-| [`revalidate`](#revalidate)             | `false \| 0 \| number`                                                                                                    | `false`                    |
-| [`fetchCache`](#fetchcache)             | `'auto' \| 'default-cache' \| 'only-cache' \| 'force-cache' \| 'force-no-store' \| 'default-no-store' \| 'only-no-store'` | `'auto'`                   |
-| [`runtime`](#runtime)                   | `'nodejs' \| 'edge'`                                                                                                      | `'nodejs'`                 |
-| [`preferredRegion`](#preferredregion)   | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`                   |
-| [`maxDuration`](#maxduration)           | `number`                                                                                                                  | Set by deployment platform |
+| Option                                | Type                                                                                                                      | Default                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| [`dynamic`](#dynamic)                 | `'auto' \| 'force-dynamic' \| 'error' \| 'force-static'`                                                                  | `'auto'`                   |
+| [`dynamicParams`](#dynamicparams)     | `boolean`                                                                                                                 | `true`                     |
+| [`revalidate`](#revalidate)           | `false \| 0 \| number`                                                                                                    | `false`                    |
+| [`fetchCache`](#fetchcache)           | `'auto' \| 'default-cache' \| 'only-cache' \| 'force-cache' \| 'force-no-store' \| 'default-no-store' \| 'only-no-store'` | `'auto'`                   |
+| [`runtime`](#runtime)                 | `'nodejs' \| 'edge'`                                                                                                      | `'nodejs'`                 |
+| [`preferredRegion`](#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`                   |
+| [`maxDuration`](#maxduration)         | `number`                                                                                                                  | Set by deployment platform |
 
 ## Options
-
-### `experimental_ppr`
-
-Enable [Partial Prerendering (PPR)](/docs/app/getting-started/partial-prerendering) for a layout or page.
-
-```tsx filename="layout.tsx | page.tsx " switcher
-export const experimental_ppr = true
-// true | false
-```
-
-```jsx filename="layout.js | page.js " switcher
-export const experimental_ppr = true
-// true | false
-```
 
 ### `dynamic`
 
@@ -225,4 +210,5 @@ See the [API reference](/docs/app/api-reference/functions/generate-static-params
 
 | Version      |                                                                                                                                                                                                                |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v16.0.0`    | `export const experimental_ppr = true` removed. A [codemod](/docs/app/guides/upgrading/codemods#remove-experimental_ppr-route-segment-config-from-app-router-pages-and-layouts) is available.                  |
 | `v15.0.0-RC` | `export const runtime = "experimental-edge"` deprecated. A [codemod](/docs/app/guides/upgrading/codemods#transform-app-router-route-segment-config-runtime-value-from-experimental-edge-to-edge) is available. |

@@ -45,6 +45,7 @@ import {
   continueDynamicHTMLResume,
   streamToBuffer,
   streamToString,
+  continueStaticFallbackPrerender,
 } from '../stream-utils/node-web-streams-helper'
 import { stripInternalQueries } from '../internal-utils'
 import {
@@ -1174,7 +1175,7 @@ function prepareInitialCanonicalUrl(url: RequestStore['url']) {
   return (url.pathname + url.search).split('/')
 }
 
-function querystringEncode(query: NextParsedUrlQuery): string {
+function getRenderedSearch(query: NextParsedUrlQuery): string {
   // Inlined implementation of querystring.encode, which is not available in
   // the Edge runtime.
   const pairs = []
@@ -1193,7 +1194,18 @@ function querystringEncode(query: NextParsedUrlQuery): string {
       )
     }
   }
-  return pairs.join('&')
+
+  // The result should match the format of a web URL's `search` property, since
+  // this is the format that's stored in the App Router state.
+  // TODO: We're a bit inconsistent about this. The x-nextjs-rewritten-query
+  // header omits the leading question mark. Should refactor to always do
+  // that instead.
+  if (pairs.length === 0) {
+    // If the search string is empty, return an empty string.
+    return ''
+  }
+  // Prepend '?' to the search params string.
+  return '?' + pairs.join('&')
 }
 
 // This is the data necessary to render <AppRouter /> when no SSR errors are encountered
@@ -1311,7 +1323,7 @@ async function getRSCPayload(
     }),
     b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
-    q: querystringEncode(query),
+    q: getRenderedSearch(query),
     i: !!couldBeIntercepted,
     f: [
       [
@@ -1436,7 +1448,7 @@ async function getErrorRSCPayload(
   return {
     b: ctx.sharedContext.buildId,
     c: prepareInitialCanonicalUrl(url),
-    q: querystringEncode(query),
+    q: getRenderedSearch(query),
     m: undefined,
     i: false,
     f: [
@@ -2465,6 +2477,10 @@ async function renderToStream(
         if (isBypassingCachesInDev(renderOpts, requestStore)) {
           // Mark the RSC payload to indicate that caches were bypassed in dev.
           // This lets the client know not to cache anything based on this render.
+          if (renderOpts.setCacheStatus) {
+            // we know this is available  when cacheComponents is enabled, but typeguard to be safe
+            renderOpts.setCacheStatus('bypass', htmlRequestId, requestId)
+          }
           payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
             route: workStore.route,
           })
@@ -3162,12 +3178,12 @@ function createAsyncApiPromisesInDev(
     // These are not used directly, but we chain other `params`/`searchParams` promises off of them.
     sharedParamsParent: stagedRendering.delayUntilStage(
       RenderStage.Runtime,
-      'params',
+      undefined,
       '<internal params>'
     ),
     sharedSearchParamsParent: stagedRendering.delayUntilStage(
       RenderStage.Runtime,
-      'searchParams',
+      undefined,
       '<internal searchParams>'
     ),
     connection: stagedRendering.delayUntilStage(
@@ -4579,14 +4595,7 @@ async function prerenderToStream(
         renderOpts
       )
 
-      // If there are fallback route params, the RSC data is inherently dynamic
-      // today because it's encoded into the flight router state. Until we can
-      // move the fallback route params out of the flight router state, we need
-      // to always perform a dynamic resume after the static prerender.
-      const hasFallbackRouteParams =
-        fallbackRouteParams && fallbackRouteParams.size > 0
-
-      if (serverIsDynamic || hasFallbackRouteParams) {
+      if (serverIsDynamic) {
         // Dynamic case
         // We will always need to perform a "resume" render of some kind when this route is accessed
         // because the RSC data itself is dynamic. We determine if there are any HTML holes or not
@@ -4674,10 +4683,52 @@ async function prerenderToStream(
           htmlStream = chainStreams(prelude, resumeStream)
         }
 
-        return {
-          digestErrorsMap: reactServerErrorsByDigest,
-          ssrErrors: allCapturedErrors,
-          stream: await continueStaticPrerender(htmlStream, {
+        let finalStream
+        const hasFallbackRouteParams =
+          fallbackRouteParams && fallbackRouteParams.size > 0
+        if (hasFallbackRouteParams) {
+          // This is a "static fallback" prerender: although the page didn't
+          // access any runtime params in a Server Component, it may have
+          // accessed a runtime param in a client segment.
+          //
+          // TODO: If there were no client segments, we can use the fully static
+          // path instead.
+          //
+          // Rather than use a dynamic server resume to fill in the params,
+          // we can rely on the client to parse the params from the URL and use
+          // that to hydrate the page.
+          //
+          // Send an empty InitialRSCPayload to the server component renderer
+          // The data will be fetched by the client instead.
+          // TODO: In the future, rather than defer the entire hydration payload
+          // to be fetched by the client, we should only defer the client
+          // segments, since those are the only ones whose data is not complete.
+          const emptyReactServerResult =
+            await createReactServerPrerenderResultFromRender(
+              ComponentMod.renderToReadableStream(
+                [],
+                clientReferenceManifest.clientModules,
+                {
+                  filterStackFrame,
+                  onError: serverComponentsErrorHandler,
+                }
+              )
+            )
+          finalStream = await continueStaticFallbackPrerender(htmlStream, {
+            inlinedDataStream: createInlinedDataReadableStream(
+              emptyReactServerResult.consumeAsStream(),
+              nonce,
+              formState
+            ),
+            getServerInsertedHTML,
+            getServerInsertedMetadata,
+            isBuildTimePrerendering:
+              ctx.workStore.isBuildTimePrerendering === true,
+            buildId: ctx.workStore.buildId,
+          })
+        } else {
+          // Normal static prerender case, no fallback param handling needed
+          finalStream = await continueStaticPrerender(htmlStream, {
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
               nonce,
@@ -4688,7 +4739,13 @@ async function prerenderToStream(
             isBuildTimePrerendering:
               ctx.workStore.isBuildTimePrerendering === true,
             buildId: ctx.workStore.buildId,
-          }),
+          })
+        }
+
+        return {
+          digestErrorsMap: reactServerErrorsByDigest,
+          ssrErrors: allCapturedErrors,
+          stream: finalStream,
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
             clientDynamicTracking

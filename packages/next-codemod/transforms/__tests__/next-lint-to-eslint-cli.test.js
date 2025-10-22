@@ -94,7 +94,7 @@ describe('next-lint-to-eslint-cli', () => {
             "@types/node": "^20",
             "@types/react": "^19",
             "@types/react-dom": "^19",
-            "eslint": "^9",
+            "eslint": "^8",
             "eslint-config-next": "^16"
           }
         }
@@ -232,7 +232,7 @@ describe('next-lint-to-eslint-cli', () => {
             "@types/node": "^20",
             "@types/react": "^19",
             "@types/react-dom": "^19",
-            "eslint": "^9",
+            "eslint": "^8",
             "eslint-config-next": "^16"
           }
         }
@@ -474,7 +474,7 @@ describe('next-lint-to-eslint-cli', () => {
             "@types/node": "^20",
             "@types/react": "^19",
             "@types/react-dom": "^19",
-            "eslint": "^9",
+            "eslint": "^8",
             "eslint-config-next": "^16"
           }
         }

@@ -94,6 +94,8 @@ describe('adapter-config', () => {
 
       if (output.filePath.endsWith('.html')) {
         expect(output.pathname.endsWith('.html')).toBe(false)
+      } else if (output.pathname.endsWith('.rsc')) {
+        expect(output.filePath.endsWith('rsc-fallback.json')).toBe(true)
       } else {
         expect(output.pathname).toStartWith('/docs/_next/static')
       }
