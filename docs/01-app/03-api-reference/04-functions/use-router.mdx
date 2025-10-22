@@ -112,7 +112,7 @@ export default function Layout({ children }) {
 }
 ```
 
-> **Good to know**: `<NavigationEvents>` is wrapped in a [`Suspense` boundary](/docs/app/api-reference/file-conventions/loading#examples) because[`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) causes client-side rendering up to the closest `Suspense` boundary during [static rendering](/docs/app/getting-started/partial-prerendering#static-rendering). [Learn more](/docs/app/api-reference/functions/use-search-params#behavior).
+> **Good to know**: `<NavigationEvents>` is wrapped in a [`Suspense` boundary](/docs/app/api-reference/file-conventions/loading#examples) because[`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) causes client-side rendering up to the closest `Suspense` boundary during [static rendering](/docs/app/guides/caching#static-rendering). [Learn more](/docs/app/api-reference/functions/use-search-params#behavior).
 
 ### Disabling scroll to top
 
