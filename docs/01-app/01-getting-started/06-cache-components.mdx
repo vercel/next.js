@@ -141,13 +141,23 @@ At build time, Next.js pre-renders the static content and the `fallback` UI, whi
 
 ### Missing Suspense boundaries
 
-Cache Components enforces that dynamic code must be wrapped in a `Suspense` boundary. If you forget, you'll see this error:
+Cache Components enforces that dynamic code must be wrapped in a `Suspense` boundary. If you forget, you'll see the [Uncached data was accessed outside of `<Suspense>`](https://nextjs.org/docs/messages/blocking-route) error:
 
-> Uncached data was accessed outside of `<Suspense>`
+> **Uncached data was accessed outside of `<Suspense>`**
 >
 > This delays the entire page from rendering, resulting in a slow user
 > experience. Next.js uses this error to ensure your app loads instantly
 > on every navigation.
+>
+> To fix this, you can either:
+>
+> **Wrap the component in a `<Suspense>`** boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+>
+> or
+>
+> **Move the asynchronous await into a Cache Component("use cache")**. This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+>
+> Note that request-specific information, such as params, cookies, and headers, is not available during static prerendering, so it must be wrapped in `<Suspense>`.
 
 This error helps prevent a situation where, instead of getting a static shell instantly, users would hit a blocking runtime render with nothing to show. To fix it, add a `Suspense` boundary or use `use cache` to cache the work instead.
 
