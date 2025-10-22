@@ -25,12 +25,12 @@ The revalidation behavior depends on whether you provide the second argument:
 
 ## Parameters
 
-```tsx
-revalidateTag(tag: string, profile?: string): void;
+```ts
+revalidateTag(tag: string, profile?: string | { expire?: number }): void;
 ```
 
 - `tag`: A string representing the cache tag associated with the data you want to revalidate. Must not exceed 256 characters. This value is case-sensitive.
-- `profile`: A string that specifies the revalidation behavior. The recommended value is `"max"` which provides stale-while-revalidate semantics. For advanced usage, this can be configured to any cache life profile that your application defines.
+- `profile`: A string that specifies the revalidation behavior. The recommended value is `"max"` which provides stale-while-revalidate semantics, or any of the other default or custom profiles defined in [`cacheLife`](/docs/app/api-reference/config/next-config-js/cacheLife). Alternatively, you can pass an object with an `expire` property for custom expiration behavior.
 
 Tags must first be assigned to cached data. You can do this in two ways:
 
@@ -63,6 +63,8 @@ async function getData() {
 > **Good to know**: These functions serve different purposes and may need to be used together for comprehensive data consistency. For detailed examples and considerations, see [relationship with revalidateTag and updateTag](/docs/app/api-reference/functions/revalidatePath#relationship-with-revalidatetag-and-updatetag) for more information.
 
 ## Examples
+
+The following examples demonstrate how to use `revalidateTag` in different contexts. In both cases, we're using `profile="max"` to mark data as stale and use stale-while-revalidate semantics, which is the recommended approach for most use cases.
 
 ### Server Action
 
@@ -128,3 +130,5 @@ export async function GET(request) {
   })
 }
 ```
+
+> **Good to know**: For webhooks or third-party services that need immediate expiration, you can pass `{ expire: 0 }` as the second argument: `revalidateTag(tag, { expire: 0 })`. This pattern is necessary when external systems call your Route Handlers and require data to expire immediately. For all other cases, it's recommended to use [`updateTag`](/docs/app/api-reference/functions/updateTag) in Server Actions for immediate updates instead.
