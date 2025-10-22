@@ -72,6 +72,10 @@ export default async function ProductPage({
   )
 }
 
+function ProductDetails({ id }: { id: string }) {
+  return <div>Product: {id}</div>
+}
+
 async function ProductPrice({ productId }: { productId: string }) {
   // Calling connection() makes this component dynamic, preventing
   // it from being included in the static shell. This ensures the price
@@ -111,6 +115,10 @@ export default async function ProductPage({ params }) {
       </Suspense>
     </div>
   )
+}
+
+function ProductDetails({ id }) {
+  return <div>Product: {id}</div>
 }
 
 async function ProductPrice({ productId }) {
@@ -483,6 +491,15 @@ export default async function ProductPage({ params }) {
   )
 }
 
+function ProductDetails({ product }) {
+  return (
+    <div>
+      <h1>{product.name}</h1>
+      <p>{product.description}</p>
+    </div>
+  )
+}
+
 async function ProductPriceComponent({ productId }) {
   // Make this component dynamic
   await connection()
@@ -494,6 +511,24 @@ async function ProductPriceComponent({ productId }) {
 async function ProductRecommendations({ productId }) {
   const recommendations = await getRecommendations(productId)
   return <RecommendationsList items={recommendations} />
+}
+
+function PriceSkeleton() {
+  return <div>Loading price...</div>
+}
+
+function RecommendationsSkeleton() {
+  return <div>Loading recommendations...</div>
+}
+
+function RecommendationsList({ items }) {
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item.id}>{item.name}</li>
+      ))}
+    </ul>
+  )
 }
 ```
 
