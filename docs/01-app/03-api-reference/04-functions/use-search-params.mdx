@@ -79,7 +79,7 @@ const searchParams = useSearchParams()
 
 ### Static Rendering
 
-If a route is [statically rendered](/docs/app/getting-started/partial-prerendering#static-rendering), calling `useSearchParams` will cause the Client Component tree up to the closest [`Suspense` boundary](/docs/app/api-reference/file-conventions/loading#examples) to be client-side rendered.
+If a route is [statically rendered](/docs/app/guides/caching#static-rendering), calling `useSearchParams` will cause the Client Component tree up to the closest [`Suspense` boundary](/docs/app/api-reference/file-conventions/loading#examples) to be client-side rendered.
 
 This allows a part of the route to be statically rendered while the dynamic part that uses `useSearchParams` is client-side rendered.
 
@@ -176,14 +176,14 @@ export default function Page() {
 > **Good to know**:
 >
 > - In development, routes are rendered on-demand, so `useSearchParams` doesn't suspend and things may appear to work without `Suspense`.
-> - During production builds, a [static page](/docs/app/getting-started/partial-prerendering#static-rendering) that calls `useSearchParams` from a Client Component must be wrapped in a `Suspense` boundary, otherwise the build fails with the [Missing Suspense boundary with useSearchParams](/docs/messages/missing-suspense-with-csr-bailout) error.
-> - If you intend the route to be dynamically rendered, prefer using the [`connection`](/docs/app/api-reference/functions/connection) function first in a Server Component to wait for an incoming request, this excludes everything below from prerendering. See what makes a route dynamic in the [Dynamic Rendering guide](/docs/app/getting-started/partial-prerendering#dynamic-rendering).
+> - During production builds, a [static page](/docs/app/guides/caching#static-rendering) that calls `useSearchParams` from a Client Component must be wrapped in a `Suspense` boundary, otherwise the build fails with the [Missing Suspense boundary with useSearchParams](/docs/messages/missing-suspense-with-csr-bailout) error.
+> - If you intend the route to be dynamically rendered, prefer using the [`connection`](/docs/app/api-reference/functions/connection) function first in a Server Component to wait for an incoming request, this excludes everything below from prerendering. See what makes a route dynamic in the [Dynamic Rendering guide](/docs/app/guides/caching#dynamic-rendering).
 > - If you're already in a Server Component Page, consider using the [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional) and passing the values to Client Components.
 > - You can also pass the Page [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional) directly to a Client Component and unwrap it with React's `use()`. Although this will suspend, so the Client Component should be wrapped with a `Suspense` boundary.
 
 ### Dynamic Rendering
 
-If a route is [dynamically rendered](/docs/app/getting-started/partial-prerendering#dynamic-rendering), `useSearchParams` will be available on the server during the initial server render of the Client Component.
+If a route is [dynamically rendered](/docs/app/guides/caching#dynamic-rendering), `useSearchParams` will be available on the server during the initial server render of the Client Component.
 
 For example:
 

@@ -105,7 +105,7 @@ The return value of the cacheable function must be serializable. This ensures th
 
 When used at the top of a [layout](/docs/app/api-reference/file-conventions/layout) or [page](/docs/app/api-reference/file-conventions/page), the route segment will be prerendered, allowing it to later be [revalidated](#during-revalidation).
 
-This means `use cache` cannot be used with [request-time APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering) like `cookies` or `headers`.
+This means `use cache` cannot be used with [runtime data](/docs/app/getting-started/cache-components#1-suspense-for-runtime-data) like `cookies` or `headers`.
 
 > **Note:** If you need to cache content that depends on cookies, headers, or search params, use [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead.
 
@@ -187,7 +187,7 @@ export default function Page() {
 > **Good to know**:
 >
 > - If `use cache` is added only to the `layout` or the `page`, only that route segment and any components imported into it will be cached.
-> - If any of the nested children in the route use [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering), then the route will opt out of prerendering.
+> - If any of the nested children in the route use [Dynamic APIs](/docs/app/guides/caching#dynamic-rendering), then the route will opt out of pre-rendering.
 
 ### Caching a component's output with `use cache`
 

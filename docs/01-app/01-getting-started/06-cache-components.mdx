@@ -175,9 +175,7 @@ With partial pre-rendering, the initial UI can be sent immediately to the browse
   height="525"
 />
 
-To reduce network overhead, the full response, including static HTML and streamed dynamic parts, is sent in
-a **single HTTP request**. This avoids extra round-trips and improves both initial load and overall
-performance.
+To reduce network overhead, the full response, including static HTML and streamed dynamic parts, is sent in a **single HTTP request**. This avoids extra round-trips and improves both initial load and overall performance.
 
 ## Using `use cache`
 
@@ -302,7 +300,7 @@ For more detailed explanation and usage examples, see the [`use cache` API refer
 
 ## Enabling Cache Components
 
-You can enable Cache Components (which includes PPR) by adding the [`cacheComponents`](/docs/app/api-reference/next-config-js/cacheComponents) option to your Next config file:
+You can enable Cache Components (which includes PPR) by adding the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) option to your Next config file:
 
 ```ts filename="next.config.ts" highlight={4} switcher
 import type { NextConfig } from 'next'
