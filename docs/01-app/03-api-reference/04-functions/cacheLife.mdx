@@ -56,19 +56,7 @@ Choose a profile based on how frequently your content changes:
 
 Import `cacheLife` and pass a profile name:
 
-```tsx filename="app/blog/page.tsx" highlight={1,5} switcher
-'use cache'
-import { cacheLife } from 'next/cache'
-
-export default async function BlogPage() {
-  cacheLife('days') // Blog content updated daily
-
-  const posts = await getBlogPosts()
-  return <div>{/* render posts */}</div>
-}
-```
-
-```jsx filename="app/blog/page.js" highlight={1,5} switcher
+```tsx filename="app/blog/page.tsx" highlight={1,5}
 'use cache'
 import { cacheLife } from 'next/cache'
 
@@ -91,18 +79,8 @@ The profile name tells Next.js how to cache the entire function's output. If you
 Cache profiles control caching behavior through three timing properties:
 
 - **`stale`**: How long the client can use cached data without checking the server
-- **`revalidate`**: How often the server regenerates cached content in the background
-- **`expire`**: Maximum time before cached content must be regenerated
-
-| **Profile** | `stale`    | `revalidate` | `expire` | **Description**                                                          |
-| ----------- | ---------- | ------------ | -------- | ------------------------------------------------------------------------ |
-| `default`   | 5 minutes  | 15 minutes   | 1 year   | Default profile, suitable for content that doesn't need frequent updates |
-| `seconds`   | 30 seconds | 1 second     | 1 minute | For rapidly changing content requiring near real-time updates            |
-| `minutes`   | 5 minutes  | 1 minute     | 1 hour   | For content that updates frequently within an hour                       |
-| `hours`     | 5 minutes  | 1 hour       | 1 day    | For content that updates daily but can be slightly stale                 |
-| `days`      | 5 minutes  | 1 day        | 1 week   | For content that updates weekly but can be a day old                     |
-| `weeks`     | 5 minutes  | 1 week       | 30 days  | For content that updates monthly but can be a week old                   |
-| `max`       | 5 minutes  | 30 days      | 1 year   | For very stable content that rarely needs updating                       |
+- **`revalidate`**: After this time, the next request will trigger a background refresh
+- **`expire`**: After this time with no requests, the next one waits for fresh content
 
 #### `stale`
 
@@ -110,7 +88,6 @@ How long the client can use cached data without checking the server.
 
 - During this time, the client serves cached content immediately without a network request
 - After this period expires, the client checks with the server for updates
-- Setting to `0` means the client always checks with the server
 
 ```tsx
 cacheLife({ stale: 300 }) // 5 minutes
@@ -136,31 +113,24 @@ Maximum time before cached content must be regenerated.
 
 - After this period with no traffic, the next request regenerates content synchronously
 - Must be longer than `revalidate` when both are specified
-- When undefined or set to a very large value, content doesn't expire
 
 ```tsx
 cacheLife({ expire: 3600 }) // 1 hour
 ```
 
-> **Relationship to Cache-Control**: These properties roughly map to: `Cache-Control: max-age=[stale], s-maxage=[revalidate], stale-while-revalidate=[expire-revalidate]`
-
 ### Preset cache profiles
 
-Now that you understand the three properties, here are the preset profiles Next.js provides:
+If you don't specify a profile, Next.js uses the `default` profile. We recommend explicitly setting a profile to make caching behavior clear.
 
 | **Profile** | **Use Case**                           | `stale`    | `revalidate` | `expire` |
 | ----------- | -------------------------------------- | ---------- | ------------ | -------- |
-| `default`   | Standard content                       | 5 minutes  | 15 minutes   | Never    |
+| `default`   | Standard content                       | 5 minutes  | 15 minutes   | 1 year   |
 | `seconds`   | Real-time data                         | 30 seconds | 1 second     | 1 minute |
 | `minutes`   | Frequently updated content             | 5 minutes  | 1 minute     | 1 hour   |
 | `hours`     | Content updated multiple times per day | 5 minutes  | 1 hour       | 1 day    |
 | `days`      | Content updated daily                  | 5 minutes  | 1 day        | 1 week   |
 | `weeks`     | Content updated weekly                 | 5 minutes  | 1 week       | 30 days  |
-| `max`       | Stable content that rarely changes     | 5 minutes  | 30 days      | Never    |
-
-If you don't specify a profile, Next.js uses the `default` profile. We recommend explicitly setting a profile to make caching behavior clear.
-
-> **Good to know**: Profile names are semantic labels. They don't enforce specific timeframes, but help you organize and understand your cache strategy.
+| `max`       | Stable content that rarely changes     | 5 minutes  | 30 days      | 1 year   |
 
 ### Custom cache profiles
 
@@ -216,7 +186,7 @@ While the default cache profiles provide a useful way to think about how fresh o
 
 You can override the default named cache profiles by creating a new configuration with the same name as the defaults.
 
-The example below shows how to override the default “days” cache profile:
+The example below shows how to override the default `"days"` cache profile:
 
 ```ts filename="next.config.ts"
 const nextConfig = {
@@ -295,10 +265,10 @@ When you call revalidation functions from a Server Action ([`revalidateTag`](/do
 The simplest way to configure caching is using preset profiles. Choose one that matches your content's update pattern:
 
 ```tsx filename="app/blog/[slug]/page.tsx"
-'use cache'
 import { cacheLife } from 'next/cache'
 
 export default async function BlogPost() {
+  'use cache'
   cacheLife('days') // Blog posts updated daily
 
   const post = await fetchBlogPost()
@@ -307,10 +277,10 @@ export default async function BlogPost() {
 ```
 
 ```tsx filename="app/products/[id]/page.tsx"
-'use cache'
 import { cacheLife } from 'next/cache'
 
 export default async function ProductPage() {
+  'use cache'
   cacheLife('hours') // Product data updated multiple times per day
 
   const product = await fetchProduct()
@@ -326,19 +296,17 @@ Define custom profiles when preset options don't match your requirements:
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    cacheComponents: true,
-    cacheLife: {
-      editorial: {
-        stale: 600, // 10 minutes
-        revalidate: 3600, // 1 hour
-        expire: 86400, // 1 day
-      },
-      marketing: {
-        stale: 300, // 5 minutes
-        revalidate: 1800, // 30 minutes
-        expire: 43200, // 12 hours
-      },
+  cacheComponents: true,
+  cacheLife: {
+    editorial: {
+      stale: 600, // 10 minutes
+      revalidate: 3600, // 1 hour
+      expire: 86400, // 1 day
+    },
+    marketing: {
+      stale: 300, // 5 minutes
+      revalidate: 1800, // 30 minutes
+      expire: 43200, // 12 hours
     },
   },
 }
@@ -349,10 +317,10 @@ export default nextConfig
 Then use these profiles throughout your application:
 
 ```tsx filename="app/editorial/page.tsx"
-'use cache'
 import { cacheLife } from 'next/cache'
 
 export default async function EditorialPage() {
+  'use cache'
   cacheLife('editorial')
   // ...
 }
@@ -384,10 +352,10 @@ export async function GET() {
 Apply caching to utility functions for granular control:
 
 ```tsx filename="lib/api.ts"
-'use cache'
 import { cacheLife } from 'next/cache'
 
 export async function getSettings() {
+  'use cache'
   cacheLife('max') // Settings rarely change
 
   return await fetchSettings()
@@ -395,10 +363,10 @@ export async function getSettings() {
 ```
 
 ```tsx filename="lib/stats.ts"
-'use cache'
 import { cacheLife } from 'next/cache'
 
 export async function getRealtimeStats() {
+  'use cache'
   cacheLife('seconds') // Stats update constantly
 
   return await fetchStats()
@@ -410,11 +378,11 @@ export async function getRealtimeStats() {
 When components with different cache profiles are nested, Next.js respects the shortest duration among them:
 
 ```tsx filename="app/dashboard/page.tsx"
-'use cache'
 import { cacheLife } from 'next/cache'
 import { RealtimeWidget } from './realtime-widget'
 
 export default async function Dashboard() {
+  'use cache'
   cacheLife('hours') // Dashboard cached for hours
 
   return (
@@ -427,10 +395,10 @@ export default async function Dashboard() {
 ```
 
 ```tsx filename="app/dashboard/realtime-widget.tsx"
-'use cache'
 import { cacheLife } from 'next/cache'
 
 export async function RealtimeWidget() {
+  'use cache'
   cacheLife('seconds') // Widget needs fresh data
 
   const data = await fetchRealtimeData()
