@@ -35,65 +35,29 @@ Fetch caching is **not** supported in `proxy`. Any fetches done inside of your `
 
 ## Rendering Strategies
 
-To understand how caching works in Next.js, it's essential to understand the rendering strategies available. The rendering strategy determines when and how your route's HTML is generated, which directly impacts what can be cached and for how long.
+To understand how caching works in Next.js, it's helpful to understand the rendering strategies available. The rendering strategy determines when your route's HTML is generated, which directly impacts what can be cached.
 
 ### Static Rendering
 
-With Static Rendering, routes are rendered at **build time** or in the background after [data revalidation](/docs/app/guides/incremental-static-regeneration). The result is cached and can be pushed to a Content Delivery Network (CDN). This optimization allows you to share the result of the rendering work between users and server requests.
-
-Static rendering is useful when a route has data that is not personalized to the user and can be known at build time, such as:
-
-- Static blog posts
-- Product pages
-- Marketing pages
-- Documentation
-- Landing pages
-
-#### Benefits of Static Rendering
-
-- **Performance**: Pre-rendered pages can be cached and served directly from a CDN, resulting in extremely fast page loads
-- **Reduced Server Load**: Since pages are cached, your servers handle fewer rendering requests
-- **SEO**: Fully rendered HTML is immediately available for search engine crawlers
-- **Cost-effective**: Reduces compute costs by minimizing server-side rendering
+With Static Rendering, routes are rendered at **build time** or in the background after [data revalidation](/docs/app/guides/incremental-static-regeneration). The result is cached and can be reused across requests. Static routes are fully cached in the [Full Route Cache](#full-route-cache).
 
 ### Dynamic Rendering
 
-With Dynamic Rendering, routes are rendered for each user at **request time**. This allows you to display personalized content or content that can only be known at request time, such as:
+With Dynamic Rendering, routes are rendered at **request time**. This happens when your route uses request-specific information like cookies, headers, or search params.
 
-- Personalized dashboards
-- User profiles
-- Real-time data feeds
-- Content depending on cookies or URL search params
-- Authentication-dependent pages
+A route becomes dynamic when it uses any of these APIs:
 
-#### Benefits of Dynamic Rendering
+- [`cookies`](/docs/app/api-reference/functions/cookies)
+- [`headers`](/docs/app/api-reference/functions/headers)
+- [`connection`](/docs/app/api-reference/functions/connection)
+- [`draftMode`](/docs/app/api-reference/functions/draft-mode)
+- [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
+- [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
+- [`fetch`](/docs/app/api-reference/functions/fetch) with `{ cache: 'no-store' }`
 
-- **Real-time Data**: Always displays the most up-to-date information
-- **Personalization**: Can customize content for each user based on their session, preferences, or authentication state
-- **Request-time Information**: Access to information that's only available at request time, like search params or HTTP headers
+Dynamic routes are not cached in the Full Route Cache, but can still use the [Data Cache](#data-cache) for data requests.
 
-#### Dynamic APIs
-
-A route segment automatically switches to dynamic rendering when any of the following functions or APIs are used:
-
-- [`cookies`](/docs/app/api-reference/functions/cookies) - Read or set cookies
-- [`headers`](/docs/app/api-reference/functions/headers) - Read HTTP headers
-- [`connection`](/docs/app/api-reference/functions/connection) - Access connection information
-- [`draftMode`](/docs/app/api-reference/functions/draft-mode) - Check draft mode status
-- [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional) - Access URL search parameters in Pages
-- [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore) - Opt out of static rendering
-- [`fetch`](/docs/app/api-reference/functions/fetch) with `{ cache: 'no-store' }` - Fetch data without caching
-
-> **Good to know**: Using these APIs opts the **entire route** into dynamic rendering at request time. However, you can use [Cache Components](/docs/app/getting-started/cache-components) to mix static and dynamic rendering within the same route, allowing you to cache specific parts while keeping others dynamic.
-
-### Choosing a Rendering Strategy
-
-The rendering strategy you choose affects how the different [caching mechanisms](#overview) work:
-
-- **Static routes** are fully cached in the [Full Route Cache](#full-route-cache), and data fetched during rendering can be cached in the [Data Cache](#data-cache)
-- **Dynamic routes** are rendered at request time and are not cached in the Full Route Cache, though they can still benefit from [Request Memoization](#request-memoization) and optionally use the Data Cache
-
-In many cases, you don't need to explicitly choose between static and dynamic rendering, as Next.js will automatically select the best strategy based on the features and APIs you use.
+> **Good to know**: You can use [Cache Components](/docs/app/getting-started/cache-components) to mix static and dynamic rendering within the same route.
 
 ## Request Memoization
 
