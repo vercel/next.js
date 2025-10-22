@@ -188,22 +188,6 @@ Proxy will be invoked for **every route in your project**. Given this, it's cruc
 7. Dynamic Routes (`/blog/[slug]`)
 8. `fallback` (`rewrites`) from `next.config.js`
 
-## Runtime
-
-Proxy defaults to using the Edge runtime. As of v15.5, we have support for using the Node.js runtime. To enable, in your proxy file, set the runtime to `nodejs` in the `config` object:
-
-```js highlight={2} filename="proxy.js" switcher
-export const config = {
-  runtime: 'nodejs',
-}
-```
-
-```ts highlight={2} filename="proxy.ts" switcher
-export const config = {
-  runtime: 'nodejs',
-}
-```
-
 ## Advanced Proxy flags
 
 In `v13.1` of Next.js two additional flags were introduced for proxy, `skipMiddlewareUrlNormalize` and `skipTrailingSlashRedirect` to handle advanced use cases.
