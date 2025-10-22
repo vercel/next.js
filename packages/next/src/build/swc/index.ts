@@ -859,26 +859,20 @@ function bindingToApi(
           ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
           : nextConfigSerializable.cacheHandler)
     }
-    if (nextConfigSerializable.experimental?.cacheHandlers) {
-      nextConfigSerializable.experimental = {
-        ...nextConfigSerializable.experimental,
-        cacheHandlers: Object.fromEntries(
-          Object.entries(
-            nextConfigSerializable.experimental.cacheHandlers as Record<
-              string,
-              string
-            >
-          )
-            .filter(([_, value]) => value != null)
-            .map(([key, value]) => [
-              key,
-              './' +
-                (path.isAbsolute(value)
-                  ? path.relative(projectPath, value)
-                  : value),
-            ])
-        ),
-      }
+    if (nextConfigSerializable.cacheHandlers) {
+      nextConfigSerializable.cacheHandlers = Object.fromEntries(
+        Object.entries(
+          nextConfigSerializable.cacheHandlers as Record<string, string>
+        )
+          .filter(([_, value]) => value != null)
+          .map(([key, value]) => [
+            key,
+            './' +
+              (path.isAbsolute(value)
+                ? path.relative(projectPath, value)
+                : value),
+          ])
+      )
     }
 
     if (nextConfigSerializable.turbopack != null) {

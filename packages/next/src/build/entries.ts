@@ -20,8 +20,6 @@ import {
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
   INSTRUMENTATION_HOOK_FILENAME,
-  PROXY_FILENAME,
-  MIDDLEWARE_FILENAME,
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -43,6 +41,7 @@ import type { __ApiPreviewProps } from '../server/api-utils'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
+  isProxyFile,
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
 } from './utils'
@@ -573,7 +572,7 @@ export interface CreateEntrypointsParams {
   buildId: string
   config: NextConfigComplete
   envFiles: LoadedEnvFiles
-  isDev?: boolean
+  isDev: boolean
   pages: MappedPages
   pagesDir?: string
   previewMode: __ApiPreviewProps
@@ -616,9 +615,7 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
-      cacheHandlers: JSON.stringify(
-        opts.config.experimental.cacheHandlers || {}
-      ),
+      cacheHandlers: JSON.stringify(opts.config.cacheHandlers || {}),
     }
 
     return {
@@ -644,6 +641,7 @@ export function getEdgeServerEntry(opts: {
     return {
       import: `next-middleware-loader?${stringify(loaderParams)}!`,
       layer: WEBPACK_LAYERS.middleware,
+      filename: opts.isDev ? 'middleware.js' : undefined,
     }
   }
 
@@ -685,7 +683,7 @@ export function getEdgeServerEntry(opts: {
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
     serverActions: opts.config.experimental.serverActions,
-    cacheHandlers: JSON.stringify(opts.config.experimental.cacheHandlers || {}),
+    cacheHandlers: JSON.stringify(opts.config.cacheHandlers || {}),
   }
 
   return {
@@ -763,6 +761,11 @@ export function runDependingOnPageType<T>(params: {
   ) {
     params.onServer()
     params.onEdgeServer()
+    return
+  }
+
+  if (isProxyFile(params.page)) {
+    params.onServer()
     return
   }
 
@@ -949,13 +952,7 @@ export async function createEntrypoints(
                 isDev: false,
               })
           } else if (isMiddlewareFile(page)) {
-            server[
-              serverBundlePath
-                // proxy.js still uses middleware.js for bundle path for now.
-                // TODO: Revisit when we remove middleware.js.
-                .replace(PROXY_FILENAME, MIDDLEWARE_FILENAME)
-                .replace('src/', '')
-            ] = getEdgeServerEntry({
+            server[serverBundlePath.replace('src/', '')] = getEdgeServerEntry({
               ...params,
               rootDir,
               absolutePagePath: absolutePagePath,
@@ -1030,12 +1027,7 @@ export async function createEntrypoints(
                   : undefined,
               }).import
             }
-            const edgeServerBundlePath = isMiddlewareFile(page)
-              ? serverBundlePath
-                  .replace(PROXY_FILENAME, MIDDLEWARE_FILENAME)
-                  .replace('src/', '')
-              : serverBundlePath
-            edgeServer[edgeServerBundlePath] = getEdgeServerEntry({
+            edgeServer[serverBundlePath] = getEdgeServerEntry({
               ...params,
               rootDir,
               absolutePagePath: absolutePagePath,

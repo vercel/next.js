@@ -459,10 +459,7 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async loadCustomCacheHandlers() {
-    const {
-      cacheMaxMemorySize,
-      experimental: { cacheHandlers },
-    } = this.nextConfig
+    const { cacheMaxMemorySize, cacheHandlers } = this.nextConfig
     if (!cacheHandlers) return
 
     // If we've already initialized the cache handlers interface, don't do it
@@ -1577,6 +1574,10 @@ export default class NextNodeServer extends BaseServer<
           functionsConfig?.functions?.['/_middleware']
         ) {
           // if used with top level await, this will be a promise
+          // Try loading middleware.js first, then proxy.js. Instead
+          // of mapping proxy to middleware as the entry, just fallback
+          // to proxy.
+          // TODO: Remove this once we handle as the single entrypoint.
           return require(
             join(
               /* turbopackIgnore: true */ this.distDir,
@@ -1739,7 +1740,10 @@ export default class NextNodeServer extends BaseServer<
 
       try {
         result = await adapterFn({
-          handler: middlewareModule.middleware || middlewareModule,
+          handler:
+            middlewareModule.proxy ||
+            middlewareModule.middleware ||
+            middlewareModule,
           request: {
             ...requestData,
             body: hasRequestBody

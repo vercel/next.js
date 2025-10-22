@@ -1421,6 +1421,10 @@ export function isMiddlewareFile(file: string) {
   )
 }
 
+export function isProxyFile(file: string) {
+  return file === `/${PROXY_FILENAME}` || file === `/src/${PROXY_FILENAME}`
+}
+
 export function isInstrumentationHookFile(file: string) {
   return (
     file === `/${INSTRUMENTATION_HOOK_FILENAME}` ||

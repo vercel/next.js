@@ -291,7 +291,6 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/next/dist/server/app-render/work-async-storage.external.js",
          "/node_modules/next/dist/server/app-render/work-unit-async-storage-instance.js",
          "/node_modules/next/dist/server/app-render/work-unit-async-storage.external.js",
-         "/node_modules/next/dist/server/lib/cache-handlers/default.external.js",
          "/node_modules/next/dist/server/lib/incremental-cache/memory-cache.external.js",
          "/node_modules/next/dist/server/lib/incremental-cache/shared-cache-controls.external.js",
          "/node_modules/next/dist/server/lib/incremental-cache/tags-manifest.external.js",

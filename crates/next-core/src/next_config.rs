@@ -86,7 +86,7 @@ pub struct NextConfig {
     cache_max_memory_size: Option<f64>,
     /// custom path to a cache handler to use
     cache_handler: Option<RcStr>,
-
+    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
     env: FxIndexMap<String, JsonValue>,
     experimental: ExperimentalConfig,
     images: ImageConfig,
@@ -823,7 +823,6 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
-    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
     cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
@@ -1601,11 +1600,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn experimental_cache_handlers(
-        &self,
-        project_path: FileSystemPath,
-    ) -> Result<Vc<FileSystemPathVec>> {
-        if let Some(handlers) = &self.experimental.cache_handlers {
+    pub fn cache_handlers(&self, project_path: FileSystemPath) -> Result<Vc<FileSystemPathVec>> {
+        if let Some(handlers) = &self.cache_handlers {
             Ok(Vc::cell(
                 handlers
                     .values()
@@ -1763,7 +1759,7 @@ impl NextConfig {
     pub fn cache_kinds(&self) -> Vc<CacheKinds> {
         let mut cache_kinds = CacheKinds::default();
 
-        if let Some(handlers) = self.experimental.cache_handlers.as_ref() {
+        if let Some(handlers) = self.cache_handlers.as_ref() {
             cache_kinds.extend(handlers.keys().cloned());
         }
 
