@@ -231,13 +231,12 @@ async fn track_glob_internal(
 pub mod tests {
 
     use std::{
-        collections::HashMap,
         fs::{File, create_dir},
         io::prelude::*,
     };
 
     use turbo_rcstr::{RcStr, rcstr};
-    use turbo_tasks::{Completion, ReadRef, Vc, apply_effects};
+    use turbo_tasks::{Completion, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use crate::{
