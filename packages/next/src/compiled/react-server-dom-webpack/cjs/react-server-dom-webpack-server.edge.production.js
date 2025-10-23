@@ -50,12 +50,12 @@ var LocalPromise = Promise,
   writtenBytes = 0;
 function writeChunkAndReturn(destination, chunk) {
   if (0 !== chunk.byteLength)
-    if (2048 < chunk.byteLength)
+    if (4096 < chunk.byteLength)
       0 < writtenBytes &&
         (destination.enqueue(
           new Uint8Array(currentView.buffer, 0, writtenBytes)
         ),
-        (currentView = new Uint8Array(2048)),
+        (currentView = new Uint8Array(4096)),
         (writtenBytes = 0)),
         destination.enqueue(chunk);
     else {
@@ -66,7 +66,7 @@ function writeChunkAndReturn(destination, chunk) {
           : (currentView.set(chunk.subarray(0, allowableBytes), writtenBytes),
             destination.enqueue(currentView),
             (chunk = chunk.subarray(allowableBytes))),
-        (currentView = new Uint8Array(2048)),
+        (currentView = new Uint8Array(4096)),
         (writtenBytes = 0));
       currentView.set(chunk, writtenBytes);
       writtenBytes += chunk.byteLength;
@@ -1842,12 +1842,11 @@ function emitModelChunk(request, id, json) {
 }
 function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
   debug ? request.pendingDebugChunks++ : request.pendingChunks++;
-  debug = new Uint8Array(
+  typedArray = new Uint8Array(
     typedArray.buffer,
     typedArray.byteOffset,
     typedArray.byteLength
   );
-  typedArray = 2048 < typedArray.byteLength ? debug.slice() : debug;
   debug = typedArray.byteLength;
   id = id.toString(16) + ":" + tag + debug.toString(16) + ",";
   id = stringToChunk(id);
@@ -2011,7 +2010,7 @@ function finishHaltedTask(task, request) {
 function flushCompletedChunks(request) {
   var destination = request.destination;
   if (null !== destination) {
-    currentView = new Uint8Array(2048);
+    currentView = new Uint8Array(4096);
     writtenBytes = 0;
     try {
       for (

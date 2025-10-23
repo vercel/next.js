@@ -6,7 +6,7 @@ describe('app-dir parallel-routes-static', () => {
   })
 
   it('should static generate parallel routes', async () => {
-    const rscExtension = process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS
+    const rscExtension = process.env.__NEXT_CACHE_COMPONENTS
       ? '.prefetch.rsc'
       : '.rsc'
     expect(await next.hasFile('.next/server/app/nested/foo.html')).toBe(true)

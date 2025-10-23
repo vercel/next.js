@@ -46,7 +46,7 @@ _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
     // despite the page being static, the first two requests both cause a render
     // and only the second one gets cached and re-used.
     // we work around it by doing a dummy request to get that first "uncached" request out of the way.
-    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
       await getTimestampPageData(path)
     }
 

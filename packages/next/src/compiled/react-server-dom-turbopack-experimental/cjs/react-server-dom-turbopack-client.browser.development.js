@@ -1144,6 +1144,8 @@
     function getIODescription(value) {
       try {
         switch (typeof value) {
+          case "function":
+            return value.name || "";
           case "object":
             if (null === value) return "";
             if (value instanceof Error) return String(value.message);
@@ -2671,6 +2673,7 @@
       findSourceMapURL,
       replayConsole,
       environmentName,
+      debugStartTime,
       debugChannel
     ) {
       var chunks = new Map();
@@ -2702,7 +2705,8 @@
         (this._debugRootTask = console.createTask(
           '"use ' + environmentName.toLowerCase() + '"'
         ));
-      this._debugStartTime = performance.now();
+      this._debugStartTime =
+        null == debugStartTime ? performance.now() : debugStartTime;
       this._debugIOStarted = !1;
       setTimeout(markIOStarted.bind(this), 0);
       this._debugFindSourceMapURL = findSourceMapURL;
@@ -2730,7 +2734,7 @@
       debugValuePromise.status = "fulfilled";
       debugValuePromise.value = streamDebugValue;
       streamState._debugInfo = {
-        name: "RSC stream",
+        name: "rsc stream",
         start: weakResponse._debugStartTime,
         end: weakResponse._debugStartTime,
         byteSize: 0,
@@ -4580,6 +4584,7 @@
         options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
         options ? !1 !== options.replayConsoleLogs : !0,
         options && options.environmentName ? options.environmentName : void 0,
+        options && null != options.startTime ? options.startTime : void 0,
         debugChannel
       )._weakResponse;
     }
@@ -4928,10 +4933,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-93f85932-20251016",
+      version: "19.3.0-experimental-2bcbf254-20251020",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-93f85932-20251016",
+      reconcilerVersion: "19.3.0-experimental-2bcbf254-20251020",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

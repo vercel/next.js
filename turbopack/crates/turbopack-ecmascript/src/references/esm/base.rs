@@ -268,6 +268,8 @@ impl ReferencedAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
         let id = asset.chunk_item_id(chunking_context).await?;
+        // There are a number of places in `next` that match on this prefix.
+        // See `packages/next/src/shared/lib/magic-identifier.ts`
         Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
 }

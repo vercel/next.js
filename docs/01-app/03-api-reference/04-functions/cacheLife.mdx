@@ -1,7 +1,6 @@
 ---
 title: cacheLife
 description: Learn how to use the cacheLife function to set the cache expiration time for a cached function or component.
-version: canary
 related:
   title: Related
   description: View related API references.
@@ -22,9 +21,7 @@ To use `cacheLife`, enable the [`cacheComponents` flag](/docs/app/api-reference/
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -32,9 +29,7 @@ export default nextConfig
 
 ```js filename="next.config.js" switcher
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 export default nextConfig
@@ -70,15 +65,15 @@ Next.js provides a set of named cache profiles modeled on various timescales. If
 
 However, we recommend always adding a cache profile when using the `use cache` directive to explicitly define caching behavior.
 
-| **Profile** | `stale`   | `revalidate` | `expire` | **Description**                                                          |
-| ----------- | --------- | ------------ | -------- | ------------------------------------------------------------------------ |
-| `default`   | 5 minutes | 15 minutes   | 1 year   | Default profile, suitable for content that doesn't need frequent updates |
-| `seconds`   | 0         | 1 second     | 1 second | For rapidly changing content requiring near real-time updates            |
-| `minutes`   | 5 minutes | 1 minute     | 1 hour   | For content that updates frequently within an hour                       |
-| `hours`     | 5 minutes | 1 hour       | 1 day    | For content that updates daily but can be slightly stale                 |
-| `days`      | 5 minutes | 1 day        | 1 week   | For content that updates weekly but can be a day old                     |
-| `weeks`     | 5 minutes | 1 week       | 30 days  | For content that updates monthly but can be a week old                   |
-| `max`       | 5 minutes | 30 days      | 1 year   | For very stable content that rarely needs updating                       |
+| **Profile** | `stale`    | `revalidate` | `expire` | **Description**                                                          |
+| ----------- | ---------- | ------------ | -------- | ------------------------------------------------------------------------ |
+| `default`   | 5 minutes  | 15 minutes   | 1 year   | Default profile, suitable for content that doesn't need frequent updates |
+| `seconds`   | 30 seconds | 1 second     | 1 minute | For rapidly changing content requiring near real-time updates            |
+| `minutes`   | 5 minutes  | 1 minute     | 1 hour   | For content that updates frequently within an hour                       |
+| `hours`     | 5 minutes  | 1 hour       | 1 day    | For content that updates daily but can be slightly stale                 |
+| `days`      | 5 minutes  | 1 day        | 1 week   | For content that updates weekly but can be a day old                     |
+| `weeks`     | 5 minutes  | 1 week       | 30 days  | For content that updates monthly but can be a week old                   |
+| `max`       | 5 minutes  | 30 days      | 1 year   | For very stable content that rarely needs updating                       |
 
 The string values used to reference cache profiles don't carry inherent meaning; instead they serve as semantic labels. This allows you to better understand and manage your cached content within your codebase.
 
@@ -116,14 +111,12 @@ You can create a reusable cache profile by defining them in your `next.config.ts
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    cacheComponents: true,
-    cacheLife: {
-      biweekly: {
-        stale: 60 * 60 * 24 * 14, // 14 days
-        revalidate: 60 * 60 * 24, // 1 day
-        expire: 60 * 60 * 24 * 14, // 14 days
-      },
+  cacheComponents: true,
+  cacheLife: {
+    biweekly: {
+      stale: 60 * 60 * 24 * 14, // 14 days
+      revalidate: 60 * 60 * 24, // 1 day
+      expire: 60 * 60 * 24 * 14, // 14 days
     },
   },
 }
@@ -133,14 +126,12 @@ module.exports = nextConfig
 
 ```js filename="next.config.js" switcher
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-    cacheLife: {
-      biweekly: {
-        stale: 60 * 60 * 24 * 14, // 14 days
-        revalidate: 60 * 60 * 24, // 1 day
-        expire: 60 * 60 * 24 * 14, // 14 days
-      },
+  cacheComponents: true,
+  cacheLife: {
+    biweekly: {
+      stale: 60 * 60 * 24 * 14, // 14 days
+      revalidate: 60 * 60 * 24, // 1 day
+      expire: 60 * 60 * 24 * 14, // 14 days
     },
   },
 }
@@ -170,14 +161,12 @@ The example below shows how to override the default “days” cache profile:
 
 ```ts filename="next.config.ts"
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-    cacheLife: {
-      days: {
-        stale: 3600, // 1 hour
-        revalidate: 900, // 15 minutes
-        expire: 86400, // 1 day
-      },
+  cacheComponents: true,
+  cacheLife: {
+    days: {
+      stale: 3600, // 1 hour
+      revalidate: 900, // 15 minutes
+      expire: 86400, // 1 day
     },
   },
 }

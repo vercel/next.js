@@ -154,6 +154,9 @@ export async function collectSegmentData(
   const treeBuffer = await streamToBuffer(treeStream)
   resultMap.set('/_tree' as SegmentRequestKey, treeBuffer)
 
+  // Also output the entire full page data response
+  resultMap.set('/_full' as SegmentRequestKey, fullPageDataBuffer)
+
   // Now that we've finished rendering the route tree, all the segment tasks
   // should have been spawned. Await them in parallel and write the segment
   // prefetches to the result map.
@@ -254,7 +257,7 @@ function collectSegmentDataImpl(
   let slotMetadata: { [parallelRouteKey: string]: TreePrefetch } | null = null
 
   const children = route[1]
-  const seedDataChildren = seedData !== null ? seedData[2] : null
+  const seedDataChildren = seedData !== null ? seedData[1] : null
   for (const parallelRouteKey in children) {
     const childRoute = children[parallelRouteKey]
     const childSegment = childRoute[0]
@@ -281,7 +284,7 @@ function collectSegmentDataImpl(
     slotMetadata[parallelRouteKey] = childTree
   }
 
-  const hasRuntimePrefetch = seedData !== null ? seedData[5] : false
+  const hasRuntimePrefetch = seedData !== null ? seedData[4] : false
 
   if (seedData !== null) {
     // Spawn a task to write the segment data to a new Flight stream.
@@ -337,8 +340,8 @@ async function renderSegmentPrefetch(
   // Render the segment data to a stream.
   // In the future, this is where we can include additional metadata, like the
   // stale time and cache tags.
-  const rsc = seedData[1]
-  const loading = seedData[3]
+  const rsc = seedData[0]
+  const loading = seedData[2]
   const segmentPrefetch: SegmentPrefetch = {
     buildId,
     rsc,

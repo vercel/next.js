@@ -173,6 +173,15 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn should_use_absolute_url_references(
+        mut self,
+        should_use_absolute_url_references: bool,
+    ) -> Self {
+        self.chunking_context.should_use_absolute_url_references =
+            should_use_absolute_url_references;
+        self
+    }
+
     pub fn asset_root_path_override(mut self, tag: RcStr, path: FileSystemPath) -> Self {
         self.chunking_context.asset_root_paths.insert(tag, path);
         self
@@ -278,6 +287,8 @@ pub struct BrowserChunkingContext {
     export_usage: Option<ResolvedVc<ExportUsageInfo>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
+    /// Whether to use absolute URLs for static assets (e.g. in CSS: `url("/absolute/path")`)
+    should_use_absolute_url_references: bool,
 }
 
 impl BrowserChunkingContext {
@@ -322,6 +333,7 @@ impl BrowserChunkingContext {
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 export_usage: None,
                 chunking_configs: Default::default(),
+                should_use_absolute_url_references: false,
             },
         }
     }
@@ -627,6 +639,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn should_use_absolute_url_references(&self) -> Vc<bool> {
+        Vc::cell(self.should_use_absolute_url_references)
     }
 
     #[turbo_tasks::function]

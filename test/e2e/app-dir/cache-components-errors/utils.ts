@@ -75,7 +75,7 @@ export function getPrerenderOutput(
       }
 
       line = line
-        .replace(/at \S+ \(.next[^)]+\)/, replaceNextDistStackFrame)
+        .replace(/at .+? \(.next[^)]+\)/, replaceNextDistStackFrame)
         .replace(
           // Single-letter lower-case names are likely minified.
           /at [a-z] \((?!(<next-dist-dir>|<anonymous>))/,

@@ -3,7 +3,7 @@ import { type Span, flushAllTraces, trace } from '../../trace'
 import { teardownTraceSubscriber } from '../swc'
 import * as Log from './log'
 
-const MAX_LOG_SKIP_DURATION = 500 // 500ms
+const MAX_LOG_SKIP_DURATION_MS = 3000
 
 export type OutputState =
   | {
@@ -109,7 +109,7 @@ store.subscribe((state) => {
           trigger: trigger,
         })
         if (!loadingLogTimer) {
-          // Only log compiling if compiled is not finished in 3 seconds
+          // Only log compiling if compiled is not finished quickly
           loadingLogTimer = setTimeout(() => {
             if (
               triggerUrl &&
@@ -120,7 +120,7 @@ store.subscribe((state) => {
             } else {
               Log.wait(`Compiling ${trigger} ...`)
             }
-          }, MAX_LOG_SKIP_DURATION)
+          }, MAX_LOG_SKIP_DURATION_MS)
         }
       }
     }
@@ -182,9 +182,6 @@ store.subscribe((state) => {
       traceSpan.stop()
       traceSpan = null
     }
-    Log.event(
-      `Compiled${trigger ? ' ' + trigger : ''}${timeMessage}${modulesMessage}`
-    )
     trigger = ''
   }
 

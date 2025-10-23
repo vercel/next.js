@@ -642,4 +642,28 @@ describe('next/font', () => {
       })
     })
   })
+
+  describe('custom declarations', () => {
+    test('local font with custom declarations', async () => {
+      const browser = await webdriver(next.url, '/with-local-fonts')
+
+      // Get all stylesheets
+      const stylesheets = await browser.eval(`
+        Array.from(document.styleSheets)
+          .map(sheet => {
+            try {
+              return Array.from(sheet.cssRules || sheet.rules || [])
+                .map(rule => rule.cssText)
+                .join('\\n')
+            } catch (e) {
+              return ''
+            }
+          })
+          .join('\\n')
+      `)
+
+      // Check that the custom declaration is included in the CSS
+      expect(stylesheets).toContain('ascent-override: 90%')
+    })
+  })
 })

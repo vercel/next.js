@@ -101,7 +101,7 @@ Some crawlers may label these responses as “soft 404s”. In the streaming cas
 
 If you need a 404 status, for compliance or analytics, ensure the resource exists before the response body is streamed, so that the server can set the HTTP status code.
 
-You can run this check in [`middleware`](/docs/app/api-reference/file-conventions/middleware) to rewrite missing slugs to a not-found route, or [produce a 404 response](/docs/app/api-reference/file-conventions/middleware#producing-a-response). Keep middleware checks fast, and avoid fetching full content there.
+You can run this check in [`proxy`](/docs/app/api-reference/file-conventions/proxy) to rewrite missing slugs to a not-found route, or [produce a 404 response](/docs/app/api-reference/file-conventions/proxy#producing-a-response). Keep proxy checks fast, and avoid fetching full content there.
 
 <details>
 <summary>When is the response body streamed?</summary>

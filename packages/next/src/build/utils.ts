@@ -200,21 +200,41 @@ export function printBuildErrors(
   // Issues that are warnings but should not affect the running of the build
   const topLevelWarnings = []
 
+  // Track seen formatted error messages to avoid duplicates
+  const seenFatalIssues = new Set<string>()
+  const seenErrors = new Set<string>()
+  const seenWarnings = new Set<string>()
+
   for (const issue of entrypoints.issues) {
     // We only want to completely shut down the server
     if (issue.severity === 'fatal' || issue.severity === 'bug') {
-      topLevelFatalIssues.push(formatIssue(issue))
+      const formatted = formatIssue(issue)
+      if (!seenFatalIssues.has(formatted)) {
+        seenFatalIssues.add(formatted)
+        topLevelFatalIssues.push(formatted)
+      }
     } else if (isRelevantWarning(issue)) {
-      topLevelWarnings.push(formatIssue(issue))
+      const formatted = formatIssue(issue)
+      if (!seenWarnings.has(formatted)) {
+        seenWarnings.add(formatted)
+        topLevelWarnings.push(formatted)
+      }
     } else if (issue.severity === 'error') {
+      const formatted = formatIssue(issue)
       if (isDev) {
         // We want to treat errors as recoverable in development
         // so that we can show the errors in the site and allow users
         // to respond to the errors when necessary. In production builds
         // though we want to error out and stop the build process.
-        topLevelErrors.push(formatIssue(issue))
+        if (!seenErrors.has(formatted)) {
+          seenErrors.add(formatted)
+          topLevelErrors.push(formatted)
+        }
       } else {
-        topLevelFatalIssues.push(formatIssue(issue))
+        if (!seenFatalIssues.has(formatted)) {
+          seenFatalIssues.add(formatted)
+          topLevelFatalIssues.push(formatted)
+        }
       }
     }
   }
@@ -410,7 +430,7 @@ export async function printTreeView(
 
       if (pageInfo?.ssgPageRoutes?.length) {
         const totalRoutes = pageInfo.ssgPageRoutes.length
-        const contSymbol = i === arr.length - 1 ? ' ' : '├'
+        const contSymbol = i === arr.length - 1 ? ' ' : '│'
 
         // HERE
 
@@ -462,7 +482,7 @@ export async function printTreeView(
               pageInfos.get(route)?.initialCacheControl
 
             messages.push([
-              `${contSymbol}   ${innerSymbol} ${route}${
+              `${contSymbol} ${innerSymbol} ${route}${
                 duration > MIN_DURATION
                   ? ` (${getPrettyDuration(duration)})`
                   : ''
@@ -664,7 +684,7 @@ export async function isPageStatic({
   authInterrupts,
   originalAppPath,
   isrFlushToDisk,
-  maxMemoryCacheSize,
+  cacheMaxMemorySize,
   nextConfigOutput,
   cacheHandler,
   cacheHandlers,
@@ -688,7 +708,7 @@ export async function isPageStatic({
   pageRuntime?: ServerRuntime
   originalAppPath?: string
   isrFlushToDisk?: boolean
-  maxMemoryCacheSize?: number
+  cacheMaxMemorySize: number
   cacheHandler?: string
   cacheHandlers?: Record<string, string | undefined>
   cacheLifeProfiles?: {
@@ -720,7 +740,7 @@ export async function isPageStatic({
     distDir,
     dir,
     flushToDisk: isrFlushToDisk,
-    cacheMaxMemorySize: maxMemoryCacheSize,
+    cacheMaxMemorySize,
   })
 
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
@@ -846,7 +866,7 @@ export async function isPageStatic({
               distDir,
               requestHeaders: {},
               isrFlushToDisk,
-              maxMemoryCacheSize,
+              cacheMaxMemorySize,
               cacheHandler,
               cacheLifeProfiles,
               ComponentMod,
@@ -1399,6 +1419,10 @@ export function isMiddlewareFile(file: string) {
     file === `/${PROXY_FILENAME}` ||
     file === `/src/${PROXY_FILENAME}`
   )
+}
+
+export function isProxyFile(file: string) {
+  return file === `/${PROXY_FILENAME}` || file === `/src/${PROXY_FILENAME}`
 }
 
 export function isInstrumentationHookFile(file: string) {

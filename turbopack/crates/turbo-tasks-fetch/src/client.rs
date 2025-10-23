@@ -11,7 +11,7 @@ use turbo_tasks::{
 use crate::{FetchError, FetchResult, HttpResponse, HttpResponseBody};
 
 const MAX_CLIENTS: usize = 16;
-static CLIENT_CACHE: LazyLock<Cache<ReadRef<FetchClient>, reqwest::Client>> =
+static CLIENT_CACHE: LazyLock<Cache<ReadRef<FetchClientConfig>, reqwest::Client>> =
     LazyLock::new(|| Cache::new(MAX_CLIENTS));
 
 #[derive(Hash, PartialEq, Eq, Serialize, Deserialize, NonLocalValue, Debug, TraceRawVcs)]
@@ -29,7 +29,7 @@ pub enum ProxyConfig {
 /// factory cannot be a closure because closures do not implement `Eq` or `Hash`.
 #[turbo_tasks::value(shared)]
 #[derive(Hash)]
-pub struct FetchClient {
+pub struct FetchClientConfig {
     /// Whether to load embedded webpki root certs with rustls. Default is true.
     ///
     /// Ignored for:
@@ -45,7 +45,7 @@ pub struct FetchClient {
     pub tls_built_in_native_certs: bool,
 }
 
-impl Default for FetchClient {
+impl Default for FetchClientConfig {
     fn default() -> Self {
         Self {
             tls_built_in_webpki_certs: true,
@@ -54,7 +54,7 @@ impl Default for FetchClient {
     }
 }
 
-impl FetchClient {
+impl FetchClientConfig {
     /// Returns a cached instance of `reqwest::Client` it exists, otherwise constructs a new one.
     ///
     /// The cache is bound in size to prevent accidental blowups or leaks. However, in practice,
@@ -68,7 +68,7 @@ impl FetchClient {
     /// cached for some amount of time, but ultimately transient (e.g. using
     /// [`turbo_tasks::mark_session_dependent`]).
     pub fn try_get_cached_reqwest_client(
-        self: ReadRef<FetchClient>,
+        self: ReadRef<FetchClientConfig>,
     ) -> reqwest::Result<reqwest::Client> {
         CLIENT_CACHE.get_or_insert_with(&self, {
             let this = ReadRef::clone(&self);
@@ -85,6 +85,7 @@ impl FetchClient {
             target_arch = "wasm32"
         )))]
         let client_builder = client_builder
+            .use_rustls_tls()
             .tls_built_in_root_certs(false)
             .tls_built_in_webpki_certs(self.tls_built_in_webpki_certs)
             .tls_built_in_native_certs(self.tls_built_in_native_certs);
@@ -94,15 +95,16 @@ impl FetchClient {
 }
 
 #[turbo_tasks::value_impl]
-impl FetchClient {
+impl FetchClientConfig {
     #[turbo_tasks::function(network)]
     pub async fn fetch(
-        self: Vc<FetchClient>,
+        self: Vc<FetchClientConfig>,
         url: RcStr,
         user_agent: Option<RcStr>,
     ) -> Result<Vc<FetchResult>> {
         let url_ref = &*url;
         let this = self.await?;
+        let tls_built_in_native_certs = this.tls_built_in_native_certs;
         let response_result: reqwest::Result<HttpResponse> = async move {
             let reqwest_client = this.try_get_cached_reqwest_client()?;
 
@@ -137,9 +139,12 @@ impl FetchClient {
             Err(err) => {
                 // the client failed to construct or the HTTP request failed
                 mark_session_dependent();
-                Ok(Vc::cell(Err(
-                    FetchError::from_reqwest_error(&err, &url).resolved_cell()
-                )))
+                Ok(Vc::cell(Err(FetchError::from_reqwest_error(
+                    &err,
+                    &url,
+                    tls_built_in_native_certs,
+                )
+                .resolved_cell())))
             }
         }
     }

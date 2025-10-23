@@ -38,27 +38,27 @@ describe('cache-components-route-handler-errors', () => {
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"  x Route segment config "dynamic" is not compatible with \`nextConfig.experimental.cacheComponents\`. Please remove it."`
+          `"  x Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
         )
       }
       expect(redbox.source).toContain(
-        '"dynamic" is not compatible with `nextConfig.experimental.cacheComponents`. Please remove it.'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
     } else {
       // In build mode, check for all three errors in the output
       expect(next.cliOutput).toContain('./app/route-with-dynamic/route.ts')
       expect(next.cliOutput).toContain(
-        '"dynamic" is not compatible with `nextConfig.experimental.cacheComponents`. Please remove it.'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
 
       expect(next.cliOutput).toContain('./app/route-with-revalidate/route.ts')
       expect(next.cliOutput).toContain(
-        '"revalidate" is not compatible with `nextConfig.experimental.cacheComponents`. Please remove it.'
+        '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
 
       expect(next.cliOutput).toContain('./app/route-with-fetchcache/route.ts')
       expect(next.cliOutput).toContain(
-        '"fetchCache" is not compatible with `nextConfig.experimental.cacheComponents`. Please remove it.'
+        '"fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
     }
   })

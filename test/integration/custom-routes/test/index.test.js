@@ -2444,6 +2444,12 @@ const runTests = (isDev = false) => {
          },
          "staticRoutes": [
            {
+             "namedRegex": "^/api/hello(?:/)?$",
+             "page": "/api/hello",
+             "regex": "^/api/hello(?:/)?$",
+             "routeKeys": {},
+           },
+           {
              "namedRegex": "^/auto\\-export/another(?:/)?$",
              "page": "/auto-export/another",
              "regex": "^/auto\\-export/another(?:/)?$",

@@ -82,19 +82,17 @@ fn get_output_specifier(
     ident_folder_in_project_fs: &FileSystemPath,
     output_root: &FileSystemPath,
     project_root: &FileSystemPath,
-) -> Result<Option<RcStr>> {
+) -> Result<RcStr> {
     // include assets in the outputs such as referenced chunks
     if path_ref.is_inside_ref(output_root) {
-        return Ok(Some(ident_folder.get_relative_path_to(path_ref).unwrap()));
+        return Ok(ident_folder.get_relative_path_to(path_ref).unwrap());
     }
 
     // include assets in the project root such as images and traced references (externals)
     if path_ref.is_inside_ref(project_root) {
-        return Ok(Some(
-            ident_folder_in_project_fs
-                .get_relative_path_to(path_ref)
-                .unwrap(),
-        ));
+        return Ok(ident_folder_in_project_fs
+            .get_relative_path_to(path_ref)
+            .unwrap());
     }
 
     // This should effectively be unreachable
@@ -234,15 +232,20 @@ impl Asset for NftJsonAsset {
             };
 
             // Collect base assets first
-            for referenced_chunk in
-                all_assets_from_entries_filtered(Vc::cell(entries), Some(client_root), exclude_glob)
-                    .await?
-            {
-                if chunk.eq(referenced_chunk) {
+            let all_assets = all_assets_from_entries_filtered(
+                Vc::cell(entries),
+                Some(client_root),
+                exclude_glob,
+            )
+            .await?;
+
+            for referenced_chunk in all_assets.iter().copied() {
+                if chunk.eq(&referenced_chunk) {
                     continue;
                 }
 
                 let referenced_chunk_path = referenced_chunk.path().await?;
+
                 if referenced_chunk_path.has_extension(".map") {
                     continue;
                 }
@@ -279,16 +282,13 @@ impl Asset for NftJsonAsset {
                     }
                 }
 
-                let Some(specifier) = get_output_specifier(
+                let specifier = get_output_specifier(
                     &referenced_chunk_path,
                     &ident_folder,
                     &ident_folder_in_project_fs,
                     &output_root_ref,
                     &project_root_ref,
-                )?
-                else {
-                    continue;
-                };
+                )?;
 
                 result.insert(specifier);
             }
@@ -357,7 +357,7 @@ impl Asset for NftJsonAsset {
 /// The glob walker in turbopack is somewhat naive so we handle relative path directives first so
 /// traversal doesn't need to consider them and can just traverse 'down' the tree.
 /// The main alternative is to merge glob evaluation with directory traversal which is what the npm
-/// `glob` package does, but this would be a substantial rewrite.`
+/// `glob` package does, but this would be a substantial rewrite.
 pub(crate) fn relativize_glob(
     glob: &str,
     relative_to: FileSystemPath,
@@ -478,12 +478,12 @@ async fn get_referenced_server_assets(
     client_root: Option<FileSystemPath>,
     exclude_glob: Option<ReadRef<Glob>>,
 ) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>> {
-    asset
-        .references()
-        .await?
-        .iter()
+    let refs = asset.references().await?;
+
+    refs.iter()
         .map(async |asset| {
             let asset_path = asset.path().await?;
+
             if let Some(client_root) = &client_root
                 && asset_path.is_inside_ref(client_root)
             {

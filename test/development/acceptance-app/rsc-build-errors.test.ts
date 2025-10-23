@@ -311,7 +311,7 @@ describe('Error overlay - RSC build errors', () => {
 
   describe('next/root-params', () => {
     const isCacheComponentsEnabled =
-      process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+      process.env.__NEXT_CACHE_COMPONENTS === 'true'
     it("importing 'next/root-params' when experimental.rootParams is not enabled", async () => {
       await using sandbox = await createSandbox(
         next,

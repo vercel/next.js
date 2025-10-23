@@ -107,11 +107,11 @@ export class EdgeRouteModuleWrapper {
         waitUntil,
         onClose: closeController.onClose.bind(closeController),
         onAfterTaskError: undefined,
+        cacheComponents: !!process.env.__NEXT_CACHE_COMPONENTS,
         experimental: {
-          cacheComponents: !!process.env.__NEXT_CACHE_COMPONENTS,
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
-        cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+        cacheLifeProfiles: this.nextConfig.cacheLife,
       },
       sharedContext: {
         buildId: '', // TODO: Populate this properly.
