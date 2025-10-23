@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::Hash, pin::Pin};
+use std::{any::Any, fmt::Debug, hash::Hash, pin::Pin};
 
 use anyhow::Result;
 use futures::Future;
@@ -105,19 +105,22 @@ fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> Resolv
 
 #[cfg(debug_assertions)]
 #[inline(never)]
-pub fn debug_downcast_args_error_msg(expected: &str, actual: &dyn MagicAny) -> String {
-    format!(
-        "Invalid argument type, expected {expected} got {}",
-        (*actual).magic_type_name()
-    )
+pub fn debug_downcast_args_error_msg(expected: &str, actual: &str) -> String {
+    format!("Invalid argument type, expected {expected} got {actual}")
 }
 
 pub fn downcast_args_owned<T: MagicAny>(args: Box<dyn MagicAny>) -> Box<T> {
-    #[allow(unused_variables)]
-    args.downcast::<T>()
-        .map_err(|args| {
+    #[cfg(debug_assertions)]
+    let args_type_name = args.magic_type_name();
+
+    (args as Box<dyn Any>)
+        .downcast::<T>()
+        .map_err(|_args| {
             #[cfg(debug_assertions)]
-            return debug_downcast_args_error_msg(std::any::type_name::<T>(), &*args);
+            return anyhow::anyhow!(debug_downcast_args_error_msg(
+                std::any::type_name::<T>(),
+                args_type_name,
+            ));
             #[cfg(not(debug_assertions))]
             return anyhow::anyhow!("Invalid argument type");
         })
@@ -125,12 +128,13 @@ pub fn downcast_args_owned<T: MagicAny>(args: Box<dyn MagicAny>) -> Box<T> {
 }
 
 pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
-    args.downcast_ref::<T>()
+    (args as &dyn Any)
+        .downcast_ref::<T>()
         .ok_or_else(|| {
             #[cfg(debug_assertions)]
             return anyhow::anyhow!(debug_downcast_args_error_msg(
                 std::any::type_name::<T>(),
-                args
+                args.magic_type_name(),
             ));
             #[cfg(not(debug_assertions))]
             return anyhow::anyhow!("Invalid argument type");
