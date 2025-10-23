@@ -2,7 +2,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-use std::{iter::once, thread::available_parallelism};
+use std::iter::once;
 
 use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
@@ -25,12 +25,14 @@ use turbopack_core::{
 };
 
 use self::pool::NodeJsPool;
+use crate::node_loader_cpu::get_loader_cpu;
 
 pub mod debug;
 pub mod embed_js;
 pub mod evaluate;
 pub mod execution_context;
 mod heap_queue;
+mod node_loader_cpu;
 mod pool;
 pub mod route_matcher;
 pub mod source_map;
@@ -248,7 +250,7 @@ pub async fn get_renderer_pool_operation(
         assets_for_source_mapping.to_resolved().await?,
         output_root,
         project_dir,
-        available_parallelism().map_or(1, |v| v.get()),
+        get_loader_cpu(),
         debug,
     )
     .cell())

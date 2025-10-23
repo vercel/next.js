@@ -1,6 +1,4 @@
-use std::{
-    borrow::Cow, iter, ops::ControlFlow, sync::Arc, thread::available_parallelism, time::Duration,
-};
+use std::{borrow::Cow, iter, ops::ControlFlow, sync::Arc, time::Duration};
 
 use anyhow::{Result, anyhow, bail};
 use async_stream::try_stream as generator;
@@ -45,6 +43,7 @@ use crate::{
     AssetsForSourceMapping,
     embed_js::embed_file_path,
     emit, emit_package_json, internal_assets_for_source_mapping,
+    node_loader_cpu::get_loader_cpu,
     pool::{FormattingMode, NodeJsOperation, NodeJsPool},
     source_map::StructuredError,
 };
@@ -300,7 +299,7 @@ pub async fn get_evaluate_pool(
         assets_for_source_mapping,
         output_root.clone(),
         chunking_context.root_path().owned().await?,
-        available_parallelism().map_or(1, |v| v.get()),
+        get_loader_cpu(),
         debug,
     );
     additional_invalidation.await?;
