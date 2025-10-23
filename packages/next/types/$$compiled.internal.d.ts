@@ -740,6 +740,10 @@ declare module 'next/dist/compiled/ws' {
   import m from 'ws'
   export = m
 }
+declare module 'next/dist/compiled/@vercel/routing-utils' {
+  import m from '@vercel/routing-utils/dist/superstatic'
+  export = m
+}
 
 declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp' {
   export * from '@modelcontextprotocol/sdk/server/mcp'
@@ -854,6 +858,10 @@ declare module 'next/dist/compiled/watchpack' {
 
 declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
+}
+
+declare module 'next/dist/compiled/is-local-address' {
+  export default function isLocalAddress(ip: string): boolean
 }
 
 declare module 'next/dist/compiled/@opentelemetry/api' {

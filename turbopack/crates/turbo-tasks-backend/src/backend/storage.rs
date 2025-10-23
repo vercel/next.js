@@ -2,7 +2,6 @@ use std::{
     hash::Hash,
     ops::{Deref, DerefMut},
     sync::{Arc, atomic::AtomicBool},
-    thread::available_parallelism,
 };
 
 use bitfield::bitfield;
@@ -616,17 +615,13 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub fn new(small_preallocation: bool) -> Self {
+    pub fn new(shard_amount: usize, small_preallocation: bool) -> Self {
         let map_capacity: usize = if small_preallocation {
             1024
         } else {
             1024 * 1024
         };
         let modified_capacity: usize = if small_preallocation { 0 } else { 1024 };
-        let shard_factor: usize = if small_preallocation { 4 } else { 64 };
-
-        let shard_amount =
-            (available_parallelism().map_or(4, |v| v.get()) * shard_factor).next_power_of_two();
 
         Self {
             snapshot_mode: AtomicBool::new(false),

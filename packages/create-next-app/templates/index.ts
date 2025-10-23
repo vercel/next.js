@@ -14,7 +14,7 @@ import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.1.0";
+const nextjsReactPeerVersion = "19.2.0";
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -103,17 +103,10 @@ export const installTemplate = async ({
     );
     let configContent = await fs.readFile(nextConfigFile, "utf8");
 
-    if (mode === "ts") {
-      configContent = configContent.replace(
-        "const nextConfig: NextConfig = {\n  /* config options here */\n};",
-        `const nextConfig: NextConfig = {\n  reactCompiler: true,\n};`,
-      );
-    } else {
-      configContent = configContent.replace(
-        "const nextConfig = {};",
-        `const nextConfig = {\n  reactCompiler: true,\n};`,
-      );
-    }
+    configContent = configContent.replace(
+      "/* config options here */\n",
+      "/* config options here */\n  reactCompiler: true,\n",
+    );
 
     await fs.writeFile(nextConfigFile, configContent);
   }
@@ -206,7 +199,7 @@ export const installTemplate = async ({
 
   /** Copy the version from package.json or override for tests. */
   const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version;
-  const bundlerFlags = `${bundler === Bundler.Turbopack ? " --turbopack" : ""}${bundler === Bundler.Webpack ? " --webpack" : ""}`;
+  const bundlerFlags = bundler === Bundler.Webpack ? " --webpack" : "";
 
   /** Create a package.json for the new project and write it to disk. */
   const packageJson: any = {
@@ -247,8 +240,7 @@ export const installTemplate = async ({
   }
 
   if (reactCompiler) {
-    // TODO: Use "^19" when React Compiler is stable
-    packageJson.devDependencies["babel-plugin-react-compiler"] = "19.1.0-rc.3";
+    packageJson.devDependencies["babel-plugin-react-compiler"] = "1.0.0";
   }
 
   /**
@@ -279,8 +271,6 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       eslint: "^9",
       "eslint-config-next": version,
-      // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
-      "@eslint/eslintrc": "^3",
     };
   }
 

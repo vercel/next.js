@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
@@ -321,7 +320,7 @@ describe('app-dir - server source maps', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        '\n ⨯ Error: ssr-throw' +
+        '⨯ Error: ssr-throw' +
           '\n    at throwError (app/ssr-throw/Thrower.js:4:9)' +
           '\n    at Thrower (app/ssr-throw/Thrower.js:8:3)' +
           '\n  2 |' +
@@ -442,18 +441,16 @@ describe('app-dir - server source maps', () => {
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       if (isTurbopack) {
         expect(cliOutput).toContain(
-          '' +
-            '\nError: module-evaluation' +
+          'Error: module-evaluation' +
             // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
-            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/module.js:1:22)' +
+            '\n    at module evaluation (app/module-evaluation/module.js:1:22)' +
             // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
-            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/page.js:1:1)' +
-            '\n    at __TURBOPACK__module__evaluation__ (.next'
+            '\n    at module evaluation (app/module-evaluation/page.js:1:1)' +
+            '\n    at module evaluation (.next'
         )
       } else {
         expect(cliOutput).toContain(
-          '' +
-            '\nError: module-evaluation' +
+          'Error: module-evaluation' +
             // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
             // TODO(veil): Location should be sourcemapped
             '\n    at eval (app/module-evaluation/module.js:1:22)' +
@@ -474,15 +471,13 @@ describe('app-dir - server source maps', () => {
            "description": "module-evaluation",
            "environmentLabel": "Prerender",
            "label": "Console Error",
-           "source": "app/module-evaluation/module.js (1:22) @ {module evaluation}
+           "source": "app/module-evaluation/module.js (1:22) @ module evaluation
          > 1 | export const error = new Error('module-evaluation')
              |                      ^",
            "stack": [
-             "{module evaluation} app/module-evaluation/module.js (1:22)",
-             "{module evaluation} app/module-evaluation/page.js (1:1)",
-             "{module evaluation} app/module-evaluation/page.js (6:1)",
-             "Array.map <anonymous>",
-             "Function.all <anonymous>",
+             "module evaluation app/module-evaluation/module.js (1:22)",
+             "module evaluation app/module-evaluation/page.js (1:1)",
+             "module evaluation app/module-evaluation/page.js (6:1)",
              "Page <anonymous>",
            ],
          }
@@ -523,8 +518,6 @@ describe('app-dir - server source maps', () => {
              "<FIXME-file-protocol>",
              "eval about:/Prerender/webpack-internal:///(rsc)/app/module-evaluation/page.js (5:65)",
              "<FIXME-file-protocol>",
-             "Function.all <anonymous>",
-             "Function.all <anonymous>",
              "Page <anonymous>",
            ],
          }
@@ -536,7 +529,7 @@ describe('app-dir - server source maps', () => {
           '' +
             '\nError: module-evaluation' +
             // TODO(veil): Turbopack internals. Feel free to update. Tracked in https://linear.app/vercel/issue/NEXT-4362
-            '\n    at __TURBOPACK__module__evaluation__ (bundler:///app/module-evaluation/module.js:1:22)'
+            '\n    at module evaluation (bundler:///app/module-evaluation/module.js:1:22)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +

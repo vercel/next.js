@@ -51,13 +51,13 @@
     function writeChunkAndReturn(destination, chunk) {
       if ("string" === typeof chunk) {
         if (0 !== chunk.length)
-          if (2048 < 3 * chunk.length)
+          if (4096 < 3 * chunk.length)
             0 < writtenBytes &&
               (writeToDestination(
                 destination,
                 currentView.subarray(0, writtenBytes)
               ),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = 0)),
               writeToDestination(destination, chunk);
           else {
@@ -71,25 +71,25 @@
                 destination,
                 currentView.subarray(0, writtenBytes)
               ),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = textEncoder.encodeInto(
                 chunk.slice(read),
                 currentView
               ).written));
-            2048 === writtenBytes &&
+            4096 === writtenBytes &&
               (writeToDestination(destination, currentView),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = 0));
           }
       } else
         0 !== chunk.byteLength &&
-          (2048 < chunk.byteLength
+          (4096 < chunk.byteLength
             ? (0 < writtenBytes &&
                 (writeToDestination(
                   destination,
                   currentView.subarray(0, writtenBytes)
                 ),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0)),
               writeToDestination(destination, chunk))
             : ((target = currentView.length - writtenBytes),
@@ -100,13 +100,13 @@
                     (writtenBytes += target),
                     writeToDestination(destination, currentView),
                     (chunk = chunk.subarray(target))),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0)),
               currentView.set(chunk, writtenBytes),
               (writtenBytes += chunk.byteLength),
-              2048 === writtenBytes &&
+              4096 === writtenBytes &&
                 (writeToDestination(destination, currentView),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0))));
       return destinationHasCapacity;
     }
@@ -388,7 +388,7 @@
                 });
                 break;
               case "stylesheet":
-                preload(srcSet, "stylesheet", {
+                preload(srcSet, "style", {
                   crossOrigin: props.crossOrigin,
                   integrity: props.integrity,
                   nonce: props.nonce,
@@ -906,7 +906,8 @@
           columnNumber = callsite[3];
         if (
           !callsite[6] &&
-          request(url, functionName, lineNumber, columnNumber)
+          request(url, functionName, lineNumber, columnNumber) &&
+          "" !== url
         )
           return !0;
       }
@@ -943,7 +944,7 @@
         stack = stack[firstFrame];
         firstFrame = stack[0];
         var url = devirtualizeURL(stack[1]);
-        return request(url, firstFrame, stack[2], stack[3]);
+        return request(url, firstFrame, stack[2], stack[3]) && "" !== url;
       }
       return !1;
     }
@@ -1282,7 +1283,23 @@
             ((cancelled = !0),
             request.status === ABORTING
               ? emitDebugHaltChunk(request, id)
-              : emitOutlinedDebugModelChunk(request, id, counter, value),
+              : (isArrayImpl(value) && 200 < value.length) ||
+                  ((value instanceof ArrayBuffer ||
+                    value instanceof Int8Array ||
+                    value instanceof Uint8Array ||
+                    value instanceof Uint8ClampedArray ||
+                    value instanceof Int16Array ||
+                    value instanceof Uint16Array ||
+                    value instanceof Int32Array ||
+                    value instanceof Uint32Array ||
+                    value instanceof Float32Array ||
+                    value instanceof Float64Array ||
+                    value instanceof BigInt64Array ||
+                    value instanceof BigUint64Array ||
+                    value instanceof DataView) &&
+                    1e3 < value.byteLength)
+                ? emitDebugHaltChunk(request, id)
+                : emitOutlinedDebugModelChunk(request, id, counter, value),
             enqueueFlush(request));
         },
         function (reason) {
@@ -2043,10 +2060,10 @@
     function visitAsyncNode(request, task, node, visited, cutOff) {
       if (visited.has(node)) return null;
       visited.add(node);
+      if (0 <= node.end && node.end <= request.timeOrigin) return null;
       var previousIONode = null;
       if (
         null !== node.previous &&
-        node.end > request.timeOrigin &&
         ((previousIONode = visitAsyncNode(
           request,
           task,
@@ -2063,8 +2080,8 @@
         case 3:
           return previousIONode;
         case 1:
-          if (node.end <= request.timeOrigin) return previousIONode;
-          var awaited = node.awaited;
+          var awaited = node.awaited,
+            promise = node.promise.deref();
           if (null !== awaited) {
             cutOff = visitAsyncNode(request, task, awaited, visited, cutOff);
             if (void 0 === cutOff) break;
@@ -2072,20 +2089,25 @@
               ? (previousIONode =
                   1 === cutOff.tag
                     ? cutOff
-                    : null !== node.stack &&
-                        hasUnfilteredFrame(request, node.stack)
+                    : (null !== node.stack &&
+                          hasUnfilteredFrame(request, node.stack)) ||
+                        (void 0 !== promise &&
+                          "string" === typeof promise.displayName &&
+                          (null === cutOff.stack ||
+                            !hasUnfilteredFrame(request, cutOff.stack)))
                       ? node
                       : cutOff)
               : request.status === ABORTING &&
                 node.start < request.abortTime &&
                 node.end > request.abortTime &&
-                null !== node.stack &&
-                hasUnfilteredFrame(request, node.stack) &&
+                ((null !== node.stack &&
+                  hasUnfilteredFrame(request, node.stack)) ||
+                  (void 0 !== promise &&
+                    "string" === typeof promise.displayName)) &&
                 (previousIONode = node);
           }
-          node = node.promise.deref();
-          void 0 !== node &&
-            ((node = node._debugInfo),
+          void 0 !== promise &&
+            ((node = promise._debugInfo),
             null == node ||
               visited.has(node) ||
               (visited.add(node), forwardDebugInfo(request, task, node)));
@@ -2095,38 +2117,31 @@
         case 2:
           awaited = node.awaited;
           if (null !== awaited) {
-            var _ioNode = visitAsyncNode(
-              request,
-              task,
-              awaited,
-              visited,
-              cutOff
-            );
-            if (void 0 === _ioNode) break;
-            if (null !== _ioNode) {
+            promise = visitAsyncNode(request, task, awaited, visited, cutOff);
+            if (void 0 === promise) break;
+            if (null !== promise) {
               var startTime = node.start,
                 endTime = node.end;
-              if (endTime <= request.timeOrigin) return null;
               startTime < cutOff
-                ? ((previousIONode = _ioNode),
+                ? ((previousIONode = promise),
                   null !== node.stack &&
                     isAwaitInUserspace(request, node.stack) &&
                     void 0 !==
                       (null === awaited.promise
                         ? void 0
                         : awaited.promise.deref()) &&
-                    serializeIONode(request, _ioNode, awaited.promise))
+                    serializeIONode(request, promise, awaited.promise))
                 : null !== node.stack && isAwaitInUserspace(request, node.stack)
                   ? (request.status === ABORTING &&
                       startTime > request.abortTime) ||
-                    (serializeIONode(request, _ioNode, awaited.promise),
+                    (serializeIONode(request, promise, awaited.promise),
                     null != node.owner &&
                       outlineComponentInfo(request, node.owner),
                     (cutOff = (0, request.environmentName)()),
                     advanceTaskTime(request, task, startTime),
                     request.pendingChunks++,
                     emitDebugChunk(request, task.id, {
-                      awaited: _ioNode,
+                      awaited: promise,
                       env: cutOff,
                       owner: node.owner,
                       stack:
@@ -2136,7 +2151,7 @@
                     }),
                     markOperationEndTime(request, task, endTime),
                     request.status === ABORTING && (previousIONode = void 0))
-                  : (previousIONode = _ioNode);
+                  : (previousIONode = promise);
             }
           }
           node = node.promise.deref();
@@ -2295,6 +2310,9 @@
             ? "$-Infinity"
             : "$NaN";
     }
+    function serializeRowHeader(tag, id) {
+      return id.toString(16) + ":" + tag;
+    }
     function encodeReferenceChunk(request, id, reference) {
       request = stringify(reference);
       return id.toString(16) + ":" + request + "\n";
@@ -2447,6 +2465,8 @@
       return serializeByValueID(bufferId);
     }
     function serializeDebugTypedArray(request, tag, typedArray) {
+      if (1e3 < typedArray.byteLength && !doNotLimit.has(typedArray))
+        return serializeDeferredObject(request, typedArray);
       request.pendingDebugChunks++;
       var bufferId = request.nextChunkId++;
       emitTypedArrayChunk(request, bufferId, tag, typedArray, !0);
@@ -3019,8 +3039,7 @@
         stack = [];
       }
       id =
-        id.toString(16) +
-        ":P" +
+        serializeRowHeader("P", id) +
         stringify({ reason: reason, stack: stack, env: env }) +
         "\n";
       request.completedErrorChunks.push(id);
@@ -3079,14 +3098,14 @@
         env: env,
         owner: error
       };
-      id = id.toString(16) + ":E" + stringify(digest) + "\n";
+      id = serializeRowHeader("E", id) + stringify(digest) + "\n";
       debug
         ? request.completedDebugChunks.push(id)
         : request.completedErrorChunks.push(id);
     }
     function emitImportChunk(request, id, clientReferenceMetadata, debug) {
       clientReferenceMetadata = stringify(clientReferenceMetadata);
-      id = id.toString(16) + ":I" + clientReferenceMetadata + "\n";
+      id = serializeRowHeader("I", id) + clientReferenceMetadata + "\n";
       debug
         ? request.completedDebugChunks.push(id)
         : request.completedImportChunks.push(id);
@@ -3102,13 +3121,20 @@
     function emitDebugChunk(request, id, debugInfo) {
       var json = serializeDebugModel(request, 500, debugInfo);
       null !== request.debugDestination
-        ? ((debugInfo = request.nextChunkId++),
-          (json = debugInfo.toString(16) + ":" + json + "\n"),
-          request.pendingDebugChunks++,
-          request.completedDebugChunks.push(json),
-          (id = id.toString(16) + ':D"$' + debugInfo.toString(16) + '"\n'),
-          request.completedRegularChunks.push(id))
-        : ((id = id.toString(16) + ":D" + json + "\n"),
+        ? '"' === json[0] && "$" === json[1]
+          ? ((id = serializeRowHeader("D", id) + json + "\n"),
+            request.completedRegularChunks.push(id))
+          : ((debugInfo = request.nextChunkId++),
+            (json = debugInfo.toString(16) + ":" + json + "\n"),
+            request.pendingDebugChunks++,
+            request.completedDebugChunks.push(json),
+            (id =
+              serializeRowHeader("D", id) +
+              '"$' +
+              debugInfo.toString(16) +
+              '"\n'),
+            request.completedRegularChunks.push(id))
+        : ((id = serializeRowHeader("D", id) + json + "\n"),
           request.completedRegularChunks.push(id));
     }
     function outlineComponentInfo(request, componentInfo) {
@@ -3172,55 +3198,62 @@
       if (void 0 !== existingRef) return existingRef;
       existingRef = null;
       var name = "";
+      if (null !== ioNode.promise) {
+        var promise = ioNode.promise.deref();
+        void 0 !== promise &&
+          "string" === typeof promise.displayName &&
+          (name = promise.displayName);
+      }
       if (null !== ioNode.stack) {
         a: {
           existingRef = ioNode.stack;
-          for (name = 0; name < existingRef.length; name++) {
-            var callsite = existingRef[name];
+          for (promise = 0; promise < existingRef.length; promise++) {
+            var callsite = existingRef[promise];
             if (!isPromiseCreationInternal(callsite[1], callsite[0])) {
-              name = 0 < name ? existingRef.slice(name) : existingRef;
+              promise = 0 < promise ? existingRef.slice(promise) : existingRef;
               break a;
             }
           }
-          name = [];
+          promise = [];
         }
-        existingRef = filterStackTrace(request, name);
-        a: {
-          callsite = "";
-          for (
-            var filterStackFrame = request.filterStackFrame, i = 0;
-            i < name.length;
-            i++
-          ) {
-            var callsite$jscomp$0 = name[i],
-              functionName = callsite$jscomp$0[0],
-              url = devirtualizeURL(callsite$jscomp$0[1]);
-            if (
-              filterStackFrame(
-                url,
-                functionName,
-                callsite$jscomp$0[2],
-                callsite$jscomp$0[3]
-              )
-            ) {
-              if ("" === callsite) {
-                name = functionName;
+        existingRef = filterStackTrace(request, promise);
+        if ("" === name) {
+          a: {
+            name = promise;
+            promise = "";
+            callsite = request.filterStackFrame;
+            for (var i = 0; i < name.length; i++) {
+              var callsite$jscomp$0 = name[i],
+                functionName = callsite$jscomp$0[0],
+                url = devirtualizeURL(callsite$jscomp$0[1]);
+              if (
+                callsite(
+                  url,
+                  functionName,
+                  callsite$jscomp$0[2],
+                  callsite$jscomp$0[3]
+                ) &&
+                "" !== url
+              ) {
+                if ("" === promise) {
+                  name = functionName;
+                  break a;
+                }
+                name = promise;
                 break a;
-              }
-              name = callsite;
-              break a;
-            } else callsite = functionName;
+              } else promise = functionName;
+            }
+            name = "";
           }
-          name = "";
+          name.startsWith("Window.")
+            ? (name = name.slice(7))
+            : name.startsWith("<anonymous>.") && (name = name.slice(7));
         }
-        name.startsWith("Window.")
-          ? (name = name.slice(7))
-          : name.startsWith("<anonymous>.") && (name = name.slice(7));
       }
-      callsite = ioNode.owner;
-      null != callsite && outlineComponentInfo(request, callsite);
-      filterStackFrame = void 0;
-      null !== promiseRef && (filterStackFrame = promiseRef.deref());
+      promise = ioNode.owner;
+      null != promise && outlineComponentInfo(request, promise);
+      callsite = void 0;
+      null !== promiseRef && (callsite = promiseRef.deref());
       promiseRef = (0, request.environmentName)();
       i = 3 === ioNode.tag ? request.abortTime : ioNode.end;
       request.pendingDebugChunks++;
@@ -3231,9 +3264,9 @@
         name,
         ioNode.start,
         i,
-        filterStackFrame,
-        promiseRef,
         callsite,
+        promiseRef,
+        promise,
         existingRef
       );
       promiseRef = serializeByValueID(callsite$jscomp$0);
@@ -3455,7 +3488,11 @@
         }
         if ("function" === typeof value.then)
           return serializeDebugThenable(request, counter, value);
-        if (isArrayImpl(value)) return value;
+        if (isArrayImpl(value))
+          return 200 < value.length && !doNotLimit.has(value)
+            ? serializeDeferredObject(request, value)
+            : value;
+        if (value instanceof Date) return "$D" + value.toJSON();
         if (value instanceof Map) {
           value = Array.from(value);
           counter.objectLimit++;
@@ -3558,11 +3595,6 @@
         return value;
       }
       if ("string" === typeof value) {
-        if (
-          "Z" === value[value.length - 1] &&
-          parent[parentPropertyName] instanceof Date
-        )
-          return "$D" + value;
         if (1024 <= value.length) {
           if (0 >= counter.objectLimit)
             return serializeDeferredObject(request, value);
@@ -3624,19 +3656,17 @@
       }
       return "bigint" === typeof value
         ? "$n" + value.toString(10)
-        : value instanceof Date
-          ? "$D" + value.toJSON()
-          : "unknown type " + typeof value;
+        : "unknown type " + typeof value;
     }
     function serializeDebugModel(request, objectLimit, model) {
-      function replacer(parentPropertyName, value) {
+      function replacer(parentPropertyName) {
         try {
           return renderDebugModel(
             request,
             counter,
             this,
             parentPropertyName,
-            value
+            this[parentPropertyName]
           );
         } catch (x) {
           return (
@@ -3660,14 +3690,14 @@
       }
     }
     function emitOutlinedDebugModelChunk(request, id, counter, model) {
-      function replacer(parentPropertyName, value) {
+      function replacer(parentPropertyName) {
         try {
           return renderDebugModel(
             request,
             counter,
             this,
             parentPropertyName,
-            value
+            this[parentPropertyName]
           );
         } catch (x) {
           return (
@@ -3732,6 +3762,8 @@
                       parseStackTrace(ioInfo$jscomp$0.debugStack, 1)
                     )
                   : ioInfo$jscomp$0.stack;
+              var env = ioInfo$jscomp$0.env;
+              null == env && (env = (0, request.environmentName)());
               emitIOInfoChunk(
                 request,
                 id$jscomp$0,
@@ -3739,7 +3771,7 @@
                 ioInfo$jscomp$0.start,
                 ioInfo$jscomp$0.end,
                 ioInfo$jscomp$0.value,
-                ioInfo$jscomp$0.env,
+                env,
                 owner,
                 debugStack
               );
@@ -3758,7 +3790,10 @@
                   )
                 : info.stack;
             ioInfo = { awaited: ioInfo };
-            null != info.env && (ioInfo.env = info.env);
+            ioInfo.env =
+              null != info.env
+                ? info.env
+                : (0, request$jscomp$0.environmentName)();
             null != info.owner && (ioInfo.owner = info.owner);
             null != debugStack && (ioInfo.stack = debugStack);
             request$jscomp$0.pendingChunks++;
@@ -3832,9 +3867,13 @@
           (json = timestamp.toString(16) + ":" + json + "\n"),
           request.pendingDebugChunks++,
           request.completedDebugChunks.push(json),
-          (id = id.toString(16) + ':D"$' + timestamp.toString(16) + '"\n'),
+          (id =
+            serializeRowHeader("D", id) +
+            '"$' +
+            timestamp.toString(16) +
+            '"\n'),
           request.completedRegularChunks.push(id))
-        : ((id = id.toString(16) + ":D" + json + "\n"),
+        : ((id = serializeRowHeader("D", id) + json + "\n"),
           request.completedRegularChunks.push(id));
     }
     function advanceTaskTime(request, task, timestamp) {
@@ -4046,7 +4085,7 @@
     function flushCompletedChunks(request) {
       if (null !== request.debugDestination) {
         var debugDestination = request.debugDestination;
-        currentView = new Uint8Array(2048);
+        currentView = new Uint8Array(4096);
         writtenBytes = 0;
         destinationHasCapacity = !0;
         try {
@@ -4065,7 +4104,7 @@
       }
       debugDestination = request.destination;
       if (null !== debugDestination) {
-        currentView = new Uint8Array(2048);
+        currentView = new Uint8Array(4096);
         writtenBytes = 0;
         destinationHasCapacity = !0;
         try {
@@ -5685,43 +5724,42 @@
                     previous: null
                   });
             else if (
-              "Microtask" !== type &&
-              "TickObject" !== type &&
-              "Immediate" !== type
-            )
-              if (void 0 === trigger)
-                (trigger = resolveOwner()),
-                  (trigger = {
-                    tag: 0,
-                    owner: trigger,
-                    stack:
-                      null === trigger
-                        ? parseStackTracePrivate(Error(), 3)
-                        : null,
-                    start: performance.now(),
-                    end: -1.1,
-                    promise: null,
-                    awaited: null,
-                    previous: null
-                  });
-              else {
-                if (2 === trigger.tag || 4 === trigger.tag)
-                  (resource = resolveOwner()),
-                    (trigger = {
-                      tag: 0,
-                      owner: resource,
-                      stack:
-                        null === resource
-                          ? parseStackTracePrivate(Error(), 3)
-                          : null,
-                      start: performance.now(),
-                      end: -1.1,
-                      promise: null,
-                      awaited: null,
-                      previous: trigger
-                    });
-              }
-            else if (void 0 === trigger) return;
+              "bound-anonymous-fn" === type ||
+              "Microtask" === type ||
+              "TickObject" === type ||
+              "Immediate" === type
+            ) {
+              if (void 0 === trigger) return;
+            } else if (void 0 === trigger)
+              (trigger = resolveOwner()),
+                (trigger = {
+                  tag: 0,
+                  owner: trigger,
+                  stack:
+                    null === trigger
+                      ? parseStackTracePrivate(Error(), 3)
+                      : null,
+                  start: performance.now(),
+                  end: -1.1,
+                  promise: null,
+                  awaited: null,
+                  previous: null
+                });
+            else if (2 === trigger.tag || 4 === trigger.tag)
+              (resource = resolveOwner()),
+                (trigger = {
+                  tag: 0,
+                  owner: resource,
+                  stack:
+                    null === resource
+                      ? parseStackTracePrivate(Error(), 3)
+                      : null,
+                  start: performance.now(),
+                  end: -1.1,
+                  promise: null,
+                  awaited: null,
+                  previous: trigger
+                });
             pendingOperations.set(asyncId, trigger);
           },
           before: function (asyncId) {
@@ -5979,12 +6017,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_252 = [];
+        var JSCompiler_object_inline_chunks_253 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_252.push(chunk);
+          JSCompiler_object_inline_chunks_253.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_252, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_253, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);

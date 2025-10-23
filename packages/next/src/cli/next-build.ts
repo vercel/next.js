@@ -11,12 +11,15 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 import { parseBundlerArgs } from '../lib/bundler'
+import {
+  resolveBuildPaths,
+  parseBuildPathsInput,
+} from '../lib/resolve-build-paths'
 
 export type NextBuildOptions = {
   debug?: boolean
   debugPrerender?: boolean
   profile?: boolean
-  lint: boolean
   mangling: boolean
   turbo?: boolean
   turbopack?: boolean
@@ -26,9 +29,11 @@ export type NextBuildOptions = {
   experimentalTurbo?: boolean
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env'
   experimentalUploadTrace?: string
+  experimentalNextConfigStripTypes?: boolean
+  debugBuildPaths?: string
 }
 
-const nextBuild = (options: NextBuildOptions, directory?: string) => {
+const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   process.on('SIGTERM', () => process.exit(143))
   process.on('SIGINT', () => process.exit(130))
 
@@ -37,20 +42,16 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     debugPrerender,
     experimentalDebugMemoryUsage,
     profile,
-    lint,
     mangling,
     experimentalAppOnly,
     experimentalBuildMode,
     experimentalUploadTrace,
+    debugBuildPaths,
   } = options
 
   let traceUploadUrl: string | undefined
   if (experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
     traceUploadUrl = experimentalUploadTrace
-  }
-
-  if (!lint) {
-    warn('Linting is disabled.')
   }
 
   if (!mangling) {
@@ -86,17 +87,39 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
 
   const bundler = parseBundlerArgs(options)
 
+  // Resolve selective build paths
+  let resolvedAppPaths: string[] | undefined
+  let resolvedPagePaths: string[] | undefined
+
+  if (debugBuildPaths) {
+    try {
+      const patterns = parseBuildPathsInput(debugBuildPaths)
+
+      if (patterns.length > 0) {
+        const resolved = await resolveBuildPaths(patterns, dir)
+        // Pass empty arrays to indicate "build nothing" vs undefined for "build everything"
+        resolvedAppPaths = resolved.appPaths
+        resolvedPagePaths = resolved.pagePaths
+      }
+    } catch (err) {
+      printAndExit(
+        `Failed to resolve build paths: ${isError(err) ? err.message : String(err)}`
+      )
+    }
+  }
+
   return build(
     dir,
     profile,
     debug || Boolean(process.env.NEXT_DEBUG_BUILD),
     debugPrerender,
-    lint,
     !mangling,
     experimentalAppOnly,
     bundler,
     experimentalBuildMode,
-    traceUploadUrl
+    traceUploadUrl,
+    resolvedAppPaths,
+    resolvedPagePaths
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {

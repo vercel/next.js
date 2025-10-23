@@ -1,6 +1,6 @@
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { isPersistentCachingEnabledForBuild } from '../../shared/lib/turbopack/utils'
+import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, loadBindings } from '../swc'
 import {
@@ -47,7 +47,7 @@ export async function turbopackBuild(): Promise<{
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
-  const persistentCaching = isPersistentCachingEnabledForBuild(config)
+  const persistentCaching = isFileSystemCacheEnabledForBuild(config)
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
   const project = await bindings.turbo.createProject(
     {
@@ -210,7 +210,9 @@ export async function turbopackBuild(): Promise<{
 let shutdownPromise: Promise<void> | undefined
 export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
-}): Promise<Awaited<ReturnType<typeof turbopackBuild>>> {
+}): Promise<
+  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>
+> {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
 
@@ -218,7 +220,10 @@ export async function workerMain(workerData: {
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
-    { debugPrerender: NextBuildContext.debugPrerender }
+    {
+      debugPrerender: NextBuildContext.debugPrerender,
+      reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+    }
   )
 
   // Matches handling in build/index.ts
@@ -234,9 +239,16 @@ export async function workerMain(workerData: {
   })
   setGlobal('telemetry', telemetry)
 
-  const result = await turbopackBuild()
-  shutdownPromise = result.shutdownPromise
-  return result
+  const {
+    shutdownPromise: resultShutdownPromise,
+    buildTraceContext,
+    duration,
+  } = await turbopackBuild()
+  shutdownPromise = resultShutdownPromise
+  return {
+    buildTraceContext,
+    duration,
+  }
 }
 
 export async function waitForShutdown(): Promise<void> {

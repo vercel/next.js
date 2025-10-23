@@ -1,3 +1,4 @@
+/* eslint-disable @next/internal/no-ambiguous-jsx -- Bundled in entry-base so it gets the right JSX runtime. */
 import type {
   CacheNodeSeedData,
   FlightRouterState,
@@ -39,10 +40,9 @@ export type RootTreePrefetch = {
 export type TreePrefetch = {
   name: string
   paramType: DynamicParamTypesShort | null
-  // TODO: When clientParamParsing is enabled, this field is always null.
+  // When cacheComponents is enabled, this field is always null.
   // Instead we parse the param on the client, allowing us to omit it from
-  // the prefetch response and increase its cacheability. Remove this field
-  // once clientParamParsing is enabled everywhere.
+  // the prefetch response and increase its cacheability.
   paramKey: string | null
 
   // Child segments.
@@ -89,7 +89,7 @@ function onSegmentPrerenderError(error: unknown) {
 }
 
 export async function collectSegmentData(
-  isClientParamParsingEnabled: boolean,
+  isCacheComponentsEnabled: boolean,
   fullPageDataBuffer: Buffer,
   staleTime: number,
   clientModules: ManifestNode,
@@ -134,7 +134,7 @@ export async function collectSegmentData(
     // inside of it, the side effects are transferred to the new stream.
     // @ts-expect-error
     <PrefetchTreeData
-      isClientParamParsingEnabled={isClientParamParsingEnabled}
+      isClientParamParsingEnabled={isCacheComponentsEnabled}
       fullPageDataBuffer={fullPageDataBuffer}
       serverConsumerManifest={serverConsumerManifest}
       clientModules={clientModules}
@@ -153,6 +153,9 @@ export async function collectSegmentData(
   // Write the route tree to a special `/_tree` segment.
   const treeBuffer = await streamToBuffer(treeStream)
   resultMap.set('/_tree' as SegmentRequestKey, treeBuffer)
+
+  // Also output the entire full page data response
+  resultMap.set('/_full' as SegmentRequestKey, fullPageDataBuffer)
 
   // Now that we've finished rendering the route tree, all the segment tasks
   // should have been spawned. Await them in parallel and write the segment
@@ -254,7 +257,7 @@ function collectSegmentDataImpl(
   let slotMetadata: { [parallelRouteKey: string]: TreePrefetch } | null = null
 
   const children = route[1]
-  const seedDataChildren = seedData !== null ? seedData[2] : null
+  const seedDataChildren = seedData !== null ? seedData[1] : null
   for (const parallelRouteKey in children) {
     const childRoute = children[parallelRouteKey]
     const childSegment = childRoute[0]
@@ -281,7 +284,7 @@ function collectSegmentDataImpl(
     slotMetadata[parallelRouteKey] = childTree
   }
 
-  const hasRuntimePrefetch = seedData !== null ? seedData[5] : false
+  const hasRuntimePrefetch = seedData !== null ? seedData[4] : false
 
   if (seedData !== null) {
     // Spawn a task to write the segment data to a new Flight stream.
@@ -319,10 +322,8 @@ function collectSegmentDataImpl(
   return {
     name,
     paramType,
-    // This value is ommitted from the prefetch response when clientParamParsing
-    // is enabled. The flag only exists while we're testing the feature, in
-    // case there's a bug and we need to revert.
-    // TODO: Remove once clientParamParsing is enabled everywhere.
+    // This value is ommitted from the prefetch response when cacheComponents
+    // is enabled.
     paramKey: isClientParamParsingEnabled ? null : paramKey,
     hasRuntimePrefetch,
     slots: slotMetadata,
@@ -339,8 +340,8 @@ async function renderSegmentPrefetch(
   // Render the segment data to a stream.
   // In the future, this is where we can include additional metadata, like the
   // stale time and cache tags.
-  const rsc = seedData[1]
-  const loading = seedData[3]
+  const rsc = seedData[0]
+  const loading = seedData[2]
   const segmentPrefetch: SegmentPrefetch = {
     buildId,
     rsc,

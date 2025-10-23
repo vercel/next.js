@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { arch, platform } from 'os'
@@ -29,6 +28,7 @@ import type {
   DefineEnv,
   Endpoint,
   HmrIdentifiers,
+  Lockfile,
   Project,
   ProjectOptions,
   RawEntrypoints,
@@ -184,13 +184,13 @@ export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 export async function loadBindings(
   useWasmBinary: boolean = false
 ): Promise<Binding> {
+  if (pendingBindings) {
+    return pendingBindings
+  }
+
   // Increase Rust stack size as some npm packages being compiled need more than the default.
   if (!process.env.RUST_MIN_STACK) {
     process.env.RUST_MIN_STACK = '8388608'
-  }
-
-  if (pendingBindings) {
-    return pendingBindings
   }
 
   if (process.env.NEXT_TEST_WASM) {
@@ -485,8 +485,7 @@ function bindingToApi(
 
   type NapiMiddleware = {
     endpoint: NapiEndpoint
-    runtime: 'nodejs' | 'edge'
-    matcher?: string[]
+    isProxy: boolean
   }
 
   type NapiInstrumentation = {
@@ -758,8 +757,8 @@ function bindingToApi(
       )
     }
 
-    invalidatePersistentCache(): Promise<void> {
-      return binding.projectInvalidatePersistentCache(this._nativeProject)
+    invalidateFileSystemCache(): Promise<void> {
+      return binding.projectInvalidateFileSystemCache(this._nativeProject)
     }
 
     shutdown(): Promise<void> {
@@ -860,26 +859,20 @@ function bindingToApi(
           ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
           : nextConfigSerializable.cacheHandler)
     }
-    if (nextConfigSerializable.experimental?.cacheHandlers) {
-      nextConfigSerializable.experimental = {
-        ...nextConfigSerializable.experimental,
-        cacheHandlers: Object.fromEntries(
-          Object.entries(
-            nextConfigSerializable.experimental.cacheHandlers as Record<
-              string,
-              string
-            >
-          )
-            .filter(([_, value]) => value != null)
-            .map(([key, value]) => [
-              key,
-              './' +
-                (path.isAbsolute(value)
-                  ? path.relative(projectPath, value)
-                  : value),
-            ])
-        ),
-      }
+    if (nextConfigSerializable.cacheHandlers) {
+      nextConfigSerializable.cacheHandlers = Object.fromEntries(
+        Object.entries(
+          nextConfigSerializable.cacheHandlers as Record<string, string>
+        )
+          .filter(([_, value]) => value != null)
+          .map(([key, value]) => [
+            key,
+            './' +
+              (path.isAbsolute(value)
+                ? path.relative(projectPath, value)
+                : value),
+          ])
+      )
     }
 
     if (nextConfigSerializable.turbopack != null) {
@@ -1053,8 +1046,7 @@ function bindingToApi(
     }
     const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
       endpoint: new EndpointImpl(middleware.endpoint),
-      runtime: middleware.runtime,
-      matcher: middleware.matcher,
+      isProxy: middleware.isProxy,
     })
     const middleware = entrypoints.middleware
       ? napiMiddlewareToMiddleware(entrypoints.middleware)
@@ -1283,6 +1275,24 @@ async function loadWasm(importPath = '') {
         imports
       )
     },
+    lockfileTryAcquire(_filePath: string) {
+      throw new Error(
+        '`lockfileTryAcquire` is not supported by the wasm bindings.'
+      )
+    },
+    lockfileTryAcquireSync(_filePath: string) {
+      throw new Error(
+        '`lockfileTryAcquireSync` is not supported by the wasm bindings.'
+      )
+    },
+    lockfileUnlock(_lockfile: Lockfile) {
+      throw new Error('`lockfileUnlock` is not supported by the wasm bindings.')
+    },
+    lockfileUnlockSync(_lockfile: Lockfile) {
+      throw new Error(
+        '`lockfileUnlockSync` is not supported by the wasm bindings.'
+      )
+    },
   }
   return wasmBindings
 }
@@ -1484,6 +1494,18 @@ function loadNative(importPath?: string) {
           injections,
           imports
         )
+      },
+      lockfileTryAcquire(filePath: string) {
+        return bindings.lockfileTryAcquire(filePath)
+      },
+      lockfileTryAcquireSync(filePath: string) {
+        return bindings.lockfileTryAcquireSync(filePath)
+      },
+      lockfileUnlock(lockfile: Lockfile) {
+        return bindings.lockfileUnlock(lockfile)
+      },
+      lockfileUnlockSync(lockfile: Lockfile) {
+        return bindings.lockfileUnlockSync(lockfile)
       },
     }
     return nativeBindings

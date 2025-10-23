@@ -1,13 +1,17 @@
 /**
- * MCP tool for retrieving browser error state.
+ * MCP tool for retrieving error state from Next.js dev server.
  *
- * This tool demonstrates server-to-browser communication in Next.js dev mode.
- * It leverages the existing HMR infrastructure rather than creating new channels.
+ * This tool provides comprehensive error reporting including:
+ * - Next.js global errors (e.g., next.config validation errors)
+ * - Browser runtime errors with source-mapped stack traces
+ * - Build errors from webpack/turbopack compilation
+ *
+ * For browser errors, it leverages the HMR infrastructure for server-to-browser communication.
  *
  * Flow:
  *   MCP client → server generates request ID → HMR message to browser →
  *   browser queries error overlay state → HMR response back → server performs source mapping →
- *   formatted output.
+ *   combined with global errors → formatted output.
  */
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import type { OverlayState } from '../../../next-devtools/dev-overlay/shared'
@@ -21,6 +25,8 @@ import {
   handleBrowserPageResponse,
   DEFAULT_BROWSER_REQUEST_TIMEOUT_MS,
 } from './utils/browser-communication'
+import { NextInstanceErrorState } from './next-instance-error-state'
+import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 export function registerGetErrorsTool(
   server: McpServer,
@@ -31,10 +37,13 @@ export function registerGetErrorsTool(
     'get_errors',
     {
       description:
-        'Get the current error state of the app when rendered in the browser, including any build or runtime errors with source-mapped stack traces',
+        'Get the current error state from the Next.js dev server, including Next.js global errors (e.g., next.config validation), browser runtime errors, and build errors with source-mapped stack traces',
       inputSchema: {},
     },
     async (_request) => {
+      // Track telemetry
+      mcpTelemetryTracker.recordToolCall('mcp/get_errors')
+
       try {
         const connectionCount = getActiveConnectionCount()
         if (connectionCount === 0) {
@@ -55,18 +64,21 @@ export function registerGetErrorsTool(
           DEFAULT_BROWSER_REQUEST_TIMEOUT_MS
         )
 
-        const errorsByUrl = new Map<string, OverlayState>()
+        // The error state for each route
+        // key is the route path, value is the error state
+        const routesErrorState = new Map<string, OverlayState>()
         for (const response of responses) {
           if (response.data) {
-            errorsByUrl.set(response.url, response.data)
+            routesErrorState.set(response.url, response.data)
           }
         }
 
-        const hasErrors = Array.from(errorsByUrl.values()).some(
+        const hasRouteErrors = Array.from(routesErrorState.values()).some(
           (state) => state.errors.length > 0 || !!state.buildError
         )
+        const hasInstanceErrors = NextInstanceErrorState.nextConfig.length > 0
 
-        if (!hasErrors) {
+        if (!hasRouteErrors && !hasInstanceErrors) {
           return {
             content: [
               {
@@ -80,7 +92,10 @@ export function registerGetErrorsTool(
           }
         }
 
-        const output = await formatErrors(errorsByUrl)
+        const output = await formatErrors(
+          routesErrorState,
+          NextInstanceErrorState
+        )
 
         return {
           content: [

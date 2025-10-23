@@ -1,5 +1,4 @@
-// TODO: Remove use of `any` type. Fix no-use-before-define violations.
-/* eslint-disable @typescript-eslint/no-use-before-define */
+// TODO: Remove use of `any` type.
 /**
  * MIT License
  *
@@ -265,10 +264,10 @@ export function handleStaticIndicator() {
       appComponent?.getInitialProps !== appComponent?.origGetInitialProps
 
     const isPageStatic =
-      window.location.pathname in isrManifest ||
+      isrManifest[window.location.pathname] ||
       (!isDynamicPage && !hasAppGetInitialProps)
 
-    dispatcher.onStaticIndicator(isPageStatic)
+    dispatcher.onStaticIndicator(isPageStatic ? 'static' : 'dynamic')
   }
 }
 
@@ -393,6 +392,7 @@ function processMessage(message: HmrMessageSentToBrowser) {
     case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
       dispatcher.onDevToolsConfig(message.data)
       break
+    case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR:
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK:
       // Only relevant for app router.
       break

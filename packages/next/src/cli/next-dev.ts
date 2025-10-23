@@ -56,6 +56,7 @@ export type NextDevOptions = {
   experimentalHttpsCert?: string
   experimentalHttpsCa?: string
   experimentalUploadTrace?: string
+  experimentalNextConfigStripTypes?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -281,7 +282,7 @@ const nextDev = async (
 
       if (nodeDebugType) {
         const address = getParsedDebugAddress()
-        address.port = address.port + 1
+        address.port = address.port === 0 ? 0 : address.port + 1
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
       }
 

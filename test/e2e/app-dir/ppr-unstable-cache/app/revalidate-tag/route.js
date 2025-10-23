@@ -1,6 +1,6 @@
-import { unstable_expireTag } from 'next/cache'
+import { revalidateTag } from 'next/cache'
 
 export const POST = async () => {
-  unstable_expireTag('unstable-cache-fetch')
+  revalidateTag('unstable-cache-fetch', 'expireNow')
   return new Response('OK', { status: 200 })
 }

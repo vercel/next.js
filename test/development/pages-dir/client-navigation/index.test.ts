@@ -354,11 +354,11 @@ describe('Client Navigation', () => {
              "description": "An Expected error occurred",
              "environmentLabel": null,
              "label": "Runtime Error",
-             "source": "pages/error-in-the-browser-global-scope.js (2:9) @ {module evaluation}
+             "source": "pages/error-in-the-browser-global-scope.js (2:9) @ module evaluation
            > 2 |   throw new Error('An Expected error occurred')
                |         ^",
              "stack": [
-               "{module evaluation} pages/error-in-the-browser-global-scope.js (2:9)",
+               "module evaluation pages/error-in-the-browser-global-scope.js (2:9)",
              ],
            }
           `)

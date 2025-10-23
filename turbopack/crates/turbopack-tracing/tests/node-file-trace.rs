@@ -590,6 +590,10 @@ async fn exec_node(directory: &str, path: &str) -> Result<CommandOutput> {
     let dir = f.parent().unwrap();
     println!("[CWD]: {}", dir.display());
 
+    // See https://github.com/nodejs/node/issues/51555
+    // The compile cache is causing flaky crashes when run on github actions.
+    cmd.env("DISABLE_V8_COMPILE_CACHE", "1");
+
     if path.contains("mdx") {
         cmd.arg("--experimental-loader=@mdx-js/node-loader")
             .arg("--no-warnings");

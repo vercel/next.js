@@ -1,11 +1,11 @@
 import React, { Suspense } from 'react'
 import { connection } from 'next/server'
 
-import { unstable_cacheTag } from 'next/cache'
+import { cacheTag } from 'next/cache'
 
 async function getRandomNumber() {
   'use cache'
-  unstable_cacheTag('test')
+  cacheTag('test')
   return Math.random()
 }
 

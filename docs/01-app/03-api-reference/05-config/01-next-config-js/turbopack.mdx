@@ -65,6 +65,33 @@ The following loaders have been tested to work with Turbopack's webpack loader i
 - [`sass-loader`](https://www.npmjs.com/package/sass-loader) [_(Configured automatically)_](/docs/app/api-reference/turbopack#css-and-styling)
 - [`graphql-tag/loader`](https://www.npmjs.com/package/graphql-tag)
 
+#### Missing Webpack loader features
+
+Turbopack uses the [`loader-runner`](https://github.com/webpack/loader-runner) library to execute webpack loaders, which provides most of the standard loader API. However, some features are not supported:
+
+**Module loading:**
+
+- [`importModule`](https://webpack.js.org/api/loaders/#thisimportmodule) - No support
+- [`loadModule`](https://webpack.js.org/api/loaders/#thisloadmodule) - No support
+
+**File system and output:**
+
+- [`fs`](https://webpack.js.org/api/loaders/#thisfs) - Partial support: only `fs.readFile` is currently implemented.
+- [`emitFile`](https://webpack.js.org/api/loaders/#thisemitfile) - No support
+
+**Context properties:**
+
+- [`version`](https://webpack.js.org/api/loaders/#thisversion) - No support
+- [`mode`](https://webpack.js.org/api/loaders/#thismode) - No support
+- [`target`](https://webpack.js.org/api/loaders/#thistarget) - No support
+
+**Utilities:**
+
+- [`utils`](https://webpack.js.org/api/loaders/#thisutils) - No support
+- [`resolve`](https://webpack.js.org/api/loaders/#thisresolve) - No support (use [`getResolve`](https://webpack.js.org/api/loaders/#thisgetresolve) instead)
+
+If you have a loader that is critically dependent upon one of these features please file an issue.
+
 ## Examples
 
 ### Root directory
@@ -186,8 +213,8 @@ In addition, a number of built-in conditions are supported:
 
 - `browser`: Matches code that will execute on the client. Server code can be matched using `{not: 'browser'}`.
 - `foreign`: Matches code in `node_modules`, as well as some Next.js internals. Usually you'll want to restrict loaders to `{not: 'foreign'}`. This can improve performance by reducing the number of files the loader is invoked on.
-- `development`: Matches when using `next dev --turbopack`.
-- `production`: Matches when using `next build --turbopack`.
+- `development`: Matches when using `next dev`.
+- `production`: Matches when using `next build`.
 - `node`: Matches code that will run on the default Node.js runtime.
 - `edge-light`: Matches code that will run on the [Edge runtime](/docs/app/api-reference/edge).
 

@@ -5,8 +5,6 @@ import type { NextBabelLoaderOptions } from './babel/loader/types'
 
 function getReactCompiler() {
   try {
-    // It's in peerDependencies, so it should be available
-    // eslint-disable-next-line import/no-extraneous-dependencies
     return require.resolve('babel-plugin-react-compiler')
   } catch {
     throw new Error(

@@ -1,4 +1,7 @@
-import { fetchServerResponse } from '../fetch-server-response'
+import {
+  fetchServerResponse,
+  type FetchServerResponseResult,
+} from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
@@ -42,16 +45,18 @@ function hmrRefreshReducerImpl(
   })
 
   return cache.lazyData.then(
-    ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
+    (result: FetchServerResponseResult) => {
       // Handle case when navigating to page in `pages` from `app`
-      if (typeof flightData === 'string') {
+      if (typeof result === 'string') {
         return handleExternalUrl(
           state,
           mutable,
-          flightData,
+          result,
           state.pushRef.pendingPush
         )
       }
+
+      const { flightData, canonicalUrl, renderedSearch } = result
 
       // Remove cache.lazyData as it has been resolved at this point.
       cache.lazyData = null
@@ -88,13 +93,6 @@ function hmrRefreshReducerImpl(
           )
         }
 
-        const canonicalUrlOverrideHref = canonicalUrlOverride
-          ? createHrefFromUrl(canonicalUrlOverride)
-          : undefined
-
-        if (canonicalUrlOverride) {
-          mutable.canonicalUrl = canonicalUrlOverrideHref
-        }
         const applied = applyFlightData(
           navigatedAt,
           currentCache,
@@ -108,7 +106,8 @@ function hmrRefreshReducerImpl(
         }
 
         mutable.patchedTree = newTree
-        mutable.canonicalUrl = href
+        mutable.renderedSearch = renderedSearch
+        mutable.canonicalUrl = createHrefFromUrl(canonicalUrl)
 
         currentTree = newTree
       }

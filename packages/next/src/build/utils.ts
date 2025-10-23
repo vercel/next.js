@@ -22,6 +22,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   WEBPACK_LAYERS,
+  PROXY_FILENAME,
 } from '../lib/constants'
 import type {
   AppPageModule,
@@ -96,7 +97,12 @@ export function difference<T>(
 }
 
 export function isMiddlewareFilename(file?: string | null) {
-  return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+  return (
+    file === MIDDLEWARE_FILENAME ||
+    file === `src/${MIDDLEWARE_FILENAME}` ||
+    file === PROXY_FILENAME ||
+    file === `src/${PROXY_FILENAME}`
+  )
 }
 
 export function isInstrumentationHookFilename(file?: string | null) {
@@ -194,21 +200,41 @@ export function printBuildErrors(
   // Issues that are warnings but should not affect the running of the build
   const topLevelWarnings = []
 
+  // Track seen formatted error messages to avoid duplicates
+  const seenFatalIssues = new Set<string>()
+  const seenErrors = new Set<string>()
+  const seenWarnings = new Set<string>()
+
   for (const issue of entrypoints.issues) {
     // We only want to completely shut down the server
     if (issue.severity === 'fatal' || issue.severity === 'bug') {
-      topLevelFatalIssues.push(formatIssue(issue))
+      const formatted = formatIssue(issue)
+      if (!seenFatalIssues.has(formatted)) {
+        seenFatalIssues.add(formatted)
+        topLevelFatalIssues.push(formatted)
+      }
     } else if (isRelevantWarning(issue)) {
-      topLevelWarnings.push(formatIssue(issue))
+      const formatted = formatIssue(issue)
+      if (!seenWarnings.has(formatted)) {
+        seenWarnings.add(formatted)
+        topLevelWarnings.push(formatted)
+      }
     } else if (issue.severity === 'error') {
+      const formatted = formatIssue(issue)
       if (isDev) {
         // We want to treat errors as recoverable in development
         // so that we can show the errors in the site and allow users
         // to respond to the errors when necessary. In production builds
         // though we want to error out and stop the build process.
-        topLevelErrors.push(formatIssue(issue))
+        if (!seenErrors.has(formatted)) {
+          seenErrors.add(formatted)
+          topLevelErrors.push(formatted)
+        }
       } else {
-        topLevelFatalIssues.push(formatIssue(issue))
+        if (!seenFatalIssues.has(formatted)) {
+          seenFatalIssues.add(formatted)
+          topLevelFatalIssues.push(formatted)
+        }
       }
     }
   }
@@ -249,12 +275,14 @@ export async function printTreeView(
     pageExtensions,
     middlewareManifest,
     useStaticPages404,
+    hasGSPAndRevalidateZero,
   }: {
     pagesDir?: string
     pageExtensions: PageExtensions
     buildManifest: BuildManifest
     middlewareManifest: MiddlewareManifest
     useStaticPages404: boolean
+    hasGSPAndRevalidateZero: Set<string>
   }
 ) {
   // Can be overridden for test purposes to omit the build duration output.
@@ -367,6 +395,23 @@ export async function printTreeView(
         symbol = 'ƒ'
       }
 
+      if (hasGSPAndRevalidateZero.has(item)) {
+        usedSymbols.add('ƒ')
+        messages.push([
+          `${border} ƒ ${item}${
+            totalDuration > MIN_DURATION
+              ? ` (${getPrettyDuration(totalDuration)})`
+              : ''
+          }`,
+          showRevalidate && pageInfo?.initialCacheControl
+            ? formatRevalidate(pageInfo.initialCacheControl)
+            : '',
+          showExpire && pageInfo?.initialCacheControl
+            ? formatExpire(pageInfo.initialCacheControl)
+            : '',
+        ])
+      }
+
       usedSymbols.add(symbol)
 
       messages.push([
@@ -385,7 +430,9 @@ export async function printTreeView(
 
       if (pageInfo?.ssgPageRoutes?.length) {
         const totalRoutes = pageInfo.ssgPageRoutes.length
-        const contSymbol = i === arr.length - 1 ? ' ' : '├'
+        const contSymbol = i === arr.length - 1 ? ' ' : '│'
+
+        // HERE
 
         let routes: { route: string; duration: number; avgDuration?: number }[]
         if (pageInfo.ssgPageDurations?.some((d) => d > MIN_DURATION)) {
@@ -435,7 +482,7 @@ export async function printTreeView(
               pageInfos.get(route)?.initialCacheControl
 
             messages.push([
-              `${contSymbol}   ${innerSymbol} ${route}${
+              `${contSymbol} ${innerSymbol} ${route}${
                 duration > MIN_DURATION
                   ? ` (${getPrettyDuration(duration)})`
                   : ''
@@ -489,7 +536,7 @@ export async function printTreeView(
   const middlewareInfo = middlewareManifest.middleware?.['/']
   if (middlewareInfo?.files.length > 0) {
     messages.push([])
-    messages.push(['ƒ Middleware'])
+    messages.push(['ƒ Proxy (Middleware)'])
   }
 
   print(
@@ -626,7 +673,6 @@ export async function isPageStatic({
   page,
   distDir,
   configFileName,
-  runtimeEnvConfig,
   httpAgentOptions,
   locales,
   defaultLocale,
@@ -638,7 +684,7 @@ export async function isPageStatic({
   authInterrupts,
   originalAppPath,
   isrFlushToDisk,
-  maxMemoryCacheSize,
+  cacheMaxMemorySize,
   nextConfigOutput,
   cacheHandler,
   cacheHandlers,
@@ -653,7 +699,6 @@ export async function isPageStatic({
   cacheComponents: boolean
   authInterrupts: boolean
   configFileName: string
-  runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: readonly string[]
   defaultLocale?: string
@@ -663,7 +708,7 @@ export async function isPageStatic({
   pageRuntime?: ServerRuntime
   originalAppPath?: string
   isrFlushToDisk?: boolean
-  maxMemoryCacheSize?: number
+  cacheMaxMemorySize: number
   cacheHandler?: string
   cacheHandlers?: Record<string, string | undefined>
   cacheLifeProfiles?: {
@@ -695,15 +740,12 @@ export async function isPageStatic({
     distDir,
     dir,
     flushToDisk: isrFlushToDisk,
-    cacheMaxMemorySize: maxMemoryCacheSize,
+    cacheMaxMemorySize,
   })
 
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async (): Promise<PageIsStaticResult> => {
-      ;(
-        require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
-      ).setConfig(runtimeEnvConfig)
       setHttpClientAndAgentOptions({
         httpAgentOptions,
       })
@@ -801,7 +843,7 @@ export async function isPageStatic({
         // in incremental mode.
         isRoutePPREnabled =
           routeModule.definition.kind === RouteKind.APP_PAGE &&
-          checkIsRoutePPREnabled(pprConfig, appConfig)
+          checkIsRoutePPREnabled(pprConfig)
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -824,7 +866,7 @@ export async function isPageStatic({
               distDir,
               requestHeaders: {},
               isrFlushToDisk,
-              maxMemoryCacheSize,
+              cacheMaxMemorySize,
               cacheHandler,
               cacheLifeProfiles,
               ComponentMod,
@@ -926,7 +968,6 @@ type ReducedAppConfig = Pick<
   | 'dynamic'
   | 'fetchCache'
   | 'preferredRegion'
-  | 'experimental_ppr'
   | 'runtime'
   | 'maxDuration'
 >
@@ -949,7 +990,6 @@ export function reduceAppConfig(
       fetchCache,
       preferredRegion,
       revalidate,
-      experimental_ppr,
       runtime,
       maxDuration,
     } = segment.config || {}
@@ -982,12 +1022,6 @@ export function reduceAppConfig(
       config.revalidate = revalidate
     }
 
-    // If partial prerendering has been set, only override it if the current
-    // value is provided as it's resolved from root layout to leaf page.
-    if (typeof experimental_ppr !== 'undefined') {
-      config.experimental_ppr = experimental_ppr
-    }
-
     if (typeof runtime !== 'undefined') {
       config.runtime = runtime
     }
@@ -1003,20 +1037,14 @@ export function reduceAppConfig(
 export async function hasCustomGetInitialProps({
   page,
   distDir,
-  runtimeEnvConfig,
   checkingApp,
   sriEnabled,
 }: {
   page: string
   distDir: string
-  runtimeEnvConfig: any
   checkingApp: boolean
   sriEnabled: boolean
 }): Promise<boolean> {
-  ;(
-    require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
-  ).setConfig(runtimeEnvConfig)
-
   const { ComponentMod } = await loadComponents({
     distDir,
     page: page,
@@ -1039,17 +1067,12 @@ export async function hasCustomGetInitialProps({
 export async function getDefinedNamedExports({
   page,
   distDir,
-  runtimeEnvConfig,
   sriEnabled,
 }: {
   page: string
   distDir: string
-  runtimeEnvConfig: any
   sriEnabled: boolean
 }): Promise<ReadonlyArray<string>> {
-  ;(
-    require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
-  ).setConfig(runtimeEnvConfig)
   const { ComponentMod } = await loadComponents({
     distDir,
     page: page,
@@ -1391,8 +1414,15 @@ export function isCustomErrorPage(page: string) {
 
 export function isMiddlewareFile(file: string) {
   return (
-    file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+    file === `/${MIDDLEWARE_FILENAME}` ||
+    file === `/src/${MIDDLEWARE_FILENAME}` ||
+    file === `/${PROXY_FILENAME}` ||
+    file === `/src/${PROXY_FILENAME}`
   )
+}
+
+export function isProxyFile(file: string) {
+  return file === `/${PROXY_FILENAME}` || file === `/src/${PROXY_FILENAME}`
 }
 
 export function isInstrumentationHookFile(file: string) {
@@ -1421,9 +1451,10 @@ export function getPossibleMiddlewareFilenames(
   folder: string,
   extensions: string[]
 ) {
-  return extensions.map((extension) =>
-    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`)
-  )
+  return extensions.flatMap((extension) => [
+    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
+    path.join(folder, `${PROXY_FILENAME}.${extension}`),
+  ])
 }
 
 export class NestedMiddlewareError extends Error {

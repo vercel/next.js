@@ -8,6 +8,10 @@ import type { Project, Update as TurbopackUpdate } from '../../build/swc/types'
 import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../next-devtools/shared/types'
 import type { DevIndicatorServerState } from './dev-indicator-server-state'
+import type {
+  CacheIndicatorState,
+  ServerCacheStatus,
+} from '../../next-devtools/dev-overlay/cache-indicator'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
 
@@ -28,6 +32,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   SERVER_ERROR = 'serverError',
   TURBOPACK_CONNECTED = 'turbopack-connected',
   ISR_MANIFEST = 'isrManifest',
+  CACHE_INDICATOR = 'cacheIndicator',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
@@ -135,7 +140,7 @@ export interface TurbopackConnectedMessage {
 
 export interface AppIsrManifestMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST
-  data: Record<string, true>
+  data: Record<string, boolean>
 }
 
 export interface DevToolsConfigMessage {
@@ -162,6 +167,11 @@ export interface RequestPageMetadataMessage {
   requestId: string
 }
 
+export interface CacheIndicatorMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR
+  state: CacheIndicatorState
+}
+
 export type HmrMessageSentToBrowser =
   | TurbopackMessage
   | TurbopackConnectedMessage
@@ -182,6 +192,7 @@ export type HmrMessageSentToBrowser =
   | ReactDebugChunkMessage
   | RequestCurrentErrorStateMessage
   | RequestPageMetadataMessage
+  | CacheIndicatorMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,
@@ -213,6 +224,16 @@ export interface NextJsHotReloaderInterface {
   clearHmrServerError(): void
   start(): Promise<void>
   send(action: HmrMessageSentToBrowser): void
+  /**
+   * Send the given action only to legacy clients, i.e. Pages Router clients,
+   * and App Router clients that don't have Cache Components enabled.
+   */
+  sendToLegacyClients(action: HmrMessageSentToBrowser): void
+  setCacheStatus(
+    status: ServerCacheStatus,
+    htmlRequestId: string,
+    requestId: string
+  ): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,
     htmlRequestId: string,
@@ -223,7 +244,10 @@ export interface NextJsHotReloaderInterface {
     req: IncomingMessage,
     _socket: Duplex,
     head: Buffer,
-    onUpgrade: (client: { send(data: string): void }) => void
+    onUpgrade: (
+      client: { send(data: string): void },
+      context: { isLegacyClient: boolean }
+    ) => void
   ): void
   invalidate({
     reloadAfterInvalidation,

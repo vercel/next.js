@@ -219,10 +219,8 @@
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component revalidatePath is not allowed",
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component revalidateTag is not allowed",
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_cache is allowed",
-      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_cacheLife is not allowed",
-      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_cacheTag is not allowed",
-      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_expirePath is not allowed",
-      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_expireTag is not allowed",
+      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component cacheLife is not allowed",
+      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component cacheTag is not allowed",
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_noStore is allowed",
       "Error overlay - RSC build errors next/root-params importing 'next/root-params' in a client component",
       "Error overlay - RSC build errors next/root-params importing 'next/root-params' in a client component in a way that bypasses import analysis",
@@ -465,10 +463,8 @@
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages revalidatePath is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages revalidateTag is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_cache is allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_cacheLife is not allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_cacheTag is not allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_expirePath is not allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_expireTag is not allowed",
+      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages cacheLife is not allowed",
+      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages cacheTag is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_noStore is allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/headers' in pages",
       "Error Overlay for server components compiler errors in pages importing 'next/root-params' in pages",
@@ -570,7 +566,14 @@
   },
   "test/development/app-dir/cache-components-dev-warmup/cache-components.dev-warmup.test.ts": {
     "passed": [
-      "cache-components-dev-warmup logs with Prerender or Server environment depending based on whether the timing of when the log runs relative to this environment boundary"
+      "cache-components-dev-warmup initial load cached data resolves in the correct phase cached data + cached fetch",
+      "cache-components-dev-warmup initial load cached data resolves in the correct phase cached data + private cache",
+      "cache-components-dev-warmup initial load cached data resolves in the correct phase cached data + short-lived cached data",
+      "cache-components-dev-warmup initial load request APIs resolve in the correct phase",
+      "cache-components-dev-warmup navigation cached data resolves in the correct phase cached data + cached fetch",
+      "cache-components-dev-warmup navigation cached data resolves in the correct phase cached data + private cache",
+      "cache-components-dev-warmup navigation cached data resolves in the correct phase cached data + short-lived cached data",
+      "cache-components-dev-warmup navigation request APIs resolve in the correct phase"
     ],
     "failed": [],
     "pending": [],
@@ -1028,14 +1031,13 @@
     "runtimeError": false
   },
   "test/development/app-dir/source-mapping/source-mapping.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "source-mapping should show an error when client functions are called from server components",
       "source-mapping should work with server actions imported from client components",
       "source-mapping should work with server actions passed to client components"
     ],
-    "failed": [
-      "source-mapping should show an error when client functions are called from server components"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -1350,6 +1352,7 @@
   "test/development/basic/hmr/error-recovery-yes-base-path-no-asset-prefix.test.ts": {
     "passed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
@@ -1364,7 +1367,6 @@
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should show the error on all pages"
     ],
     "failed": [
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
     ],
     "pending": [],
@@ -1807,7 +1809,11 @@
       "dev indicator - route type getServerSideProps should update when going from static -> dynamic",
       "dev indicator - route type getStaticPaths should be marked static on first load",
       "dev indicator - route type getStaticPaths should update when going from dynamic -> static",
-      "dev indicator - route type should have route type as static by default for static page"
+      "dev indicator - route type should have route type as static by default for static page",
+      "dev indicator - route type with App Router when loading a dynamic page with Cache Components disabled should be marked dynamic on first load",
+      "dev indicator - route type with App Router when loading a dynamic page with Cache Components disabled should update when going from dynamic -> static",
+      "dev indicator - route type with App Router when loading a static page with Cache Components disabled should be marked static on first load",
+      "dev indicator - route type with App Router when loading a static page with Cache Components disabled should update when going from static -> dynamic"
     ],
     "failed": [],
     "pending": [],
@@ -1929,10 +1935,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/lockfile/lockfile.test.ts": {
+    "passed": [
+      "lockfile only allows a single instance of `next dev` to run at a time"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/mcp-server/mcp-server-get-errors.test.ts": {
     "passed": [
       "mcp-server get_errors tool should capture build errors when directly visiting error page",
       "mcp-server get_errors tool should capture errors from multiple browser sessions",
+      "mcp-server get_errors tool should capture next.config errors and clear when fixed",
       "mcp-server get_errors tool should capture runtime errors with source-mapped stack frames",
       "mcp-server get_errors tool should handle no browser sessions gracefully",
       "mcp-server get_errors tool should return no errors for clean page"
@@ -1953,6 +1969,7 @@
   },
   "test/development/mcp-server/mcp-server-get-page-metadata.test.ts": {
     "passed": [
+      "mcp-server get_page_metadata tool app router should count multiple browser tabs with the same URL separately",
       "mcp-server get_page_metadata tool app router should handle multiple browser sessions",
       "mcp-server get_page_metadata tool app router should return metadata for basic page",
       "mcp-server get_page_metadata tool app router should return metadata for parallel routes",
@@ -1964,9 +1981,9 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/mcp-server/mcp-server-get-project-path.test.ts": {
+  "test/development/mcp-server/mcp-server-get-project-metadata.test.ts": {
     "passed": [
-      "mcp-server get_project_path tool should return correct project path via get_project_path tool"
+      "mcp-server get_project_metadata tool should return correct project metadata via get_project_metadata tool"
     ],
     "failed": [],
     "pending": [],
@@ -2061,16 +2078,6 @@
   },
   "test/development/next-font/font-loader-in-document-error.test.ts": {
     "passed": ["font-loader-in-document-error next/font inside _document"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/next-lint-eslint-formatter-compact/index.test.ts": {
-    "passed": [
-      "next-lint-eslint-formatter-compact should format flag \"compact\" creates a file respecting the chosen format",
-      "next-lint-eslint-formatter-compact should show error message when the file path is a directory"
-    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2612,8 +2619,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -2651,7 +2658,6 @@
       "app-dir action handling should replace current route when redirecting with type set to replace",
       "app-dir action handling should report errors with bad inputs correctly",
       "app-dir action handling should reset the form state when the action redirects to a page that contains the same form",
-      "app-dir action handling should reset the form state when the action redirects to itself",
       "app-dir action handling should support .bind",
       "app-dir action handling should support chained .bind",
       "app-dir action handling should support formData and redirect",
@@ -2674,8 +2680,9 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
-      "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
+      "app-dir action handling server actions render client components client component imported action should support importing client components from actions",
+      "app-dir action handling should reset the form state when the action redirects to itself"
     ],
     "flakey": [],
     "runtimeError": false
@@ -2741,8 +2748,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -2780,7 +2787,6 @@
       "app-dir action handling should replace current route when redirecting with type set to replace",
       "app-dir action handling should report errors with bad inputs correctly",
       "app-dir action handling should reset the form state when the action redirects to a page that contains the same form",
-      "app-dir action handling should reset the form state when the action redirects to itself",
       "app-dir action handling should support .bind",
       "app-dir action handling should support chained .bind",
       "app-dir action handling should support formData and redirect",
@@ -2803,8 +2809,9 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
-      "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
+      "app-dir action handling server actions render client components client component imported action should support importing client components from actions",
+      "app-dir action handling should reset the form state when the action redirects to itself"
     ],
     "flakey": [],
     "runtimeError": false
@@ -3130,6 +3137,52 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-middleware-proxy/app-middleware-proxy-in-src-dir.test.ts": {
+    "passed": [
+      "app dir - with proxy in src dir works without crashing when using RequestStore"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-middleware-proxy/app-middleware-proxy-without-pages-dir.test.ts": {
+    "passed": ["app dir - proxy without pages dir Updates headers"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-middleware-proxy/app-middleware-proxy.test.ts": {
+    "passed": [
+      "app-dir with proxy Mutate request headers for Edge Functions Adds new headers",
+      "app-dir with proxy Mutate request headers for Edge Functions Deletes headers",
+      "app-dir with proxy Mutate request headers for Edge Functions Supports draft mode",
+      "app-dir with proxy Mutate request headers for Edge Functions Updates headers",
+      "app-dir with proxy Mutate request headers for Serverless Functions Adds new headers",
+      "app-dir with proxy Mutate request headers for Serverless Functions Deletes headers",
+      "app-dir with proxy Mutate request headers for Serverless Functions Supports draft mode",
+      "app-dir with proxy Mutate request headers for Serverless Functions Updates headers",
+      "app-dir with proxy Mutate request headers for next/headers Adds new headers",
+      "app-dir with proxy Mutate request headers for next/headers Deletes headers",
+      "app-dir with proxy Mutate request headers for next/headers Supports draft mode",
+      "app-dir with proxy Mutate request headers for next/headers Updates headers",
+      "app-dir with proxy retains a link response header from the proxy",
+      "app-dir with proxy should be possible to modify cookies & read them in an RSC in a single request",
+      "app-dir with proxy should be possible to read cookies that are set during the proxy handling of a server action",
+      "app-dir with proxy should ignore x-middleware-set-cookie as a request header",
+      "app-dir with proxy should log Compiled proxy in",
+      "app-dir with proxy should not incorrectly treat a Location header as a rewrite",
+      "app-dir with proxy should omit internal headers for proxy cookies",
+      "app-dir with proxy should respect cookie options of merged proxy cookies"
+    ],
+    "failed": [
+      "app-dir with proxy should filter correctly after proxy rewrite"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-middleware/app-middleware-in-src-dir.test.ts": {
     "passed": [
       "app dir - middleware with middleware in src dir works without crashing when using RequestStore"
@@ -3166,7 +3219,8 @@
       "app-dir with middleware should ignore x-middleware-set-cookie as a request header",
       "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
-      "app-dir with middleware should respect cookie options of merged middleware cookies"
+      "app-dir with middleware should respect cookie options of merged middleware cookies",
+      "app-dir with middleware should warn when deprecated middleware file is used"
     ],
     "failed": [
       "app-dir with middleware should filter correctly after middleware rewrite"
@@ -3539,6 +3593,10 @@
       "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
+      "app-dir static/dynamic handling updateTag/revalidateTag revalidateTag work with max profile in server actions",
+      "app-dir static/dynamic handling updateTag/revalidateTag should show deprecation warning for revalidateTag without second argument",
+      "app-dir static/dynamic handling updateTag/revalidateTag should successfully update tag when called from server action",
+      "app-dir static/dynamic handling updateTag/revalidateTag should throw error when updateTag is called in route handler",
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
@@ -3634,6 +3692,10 @@
       "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
+      "app-dir static/dynamic handling updateTag/revalidateTag revalidateTag work with max profile in server actions",
+      "app-dir static/dynamic handling updateTag/revalidateTag should show deprecation warning for revalidateTag without second argument",
+      "app-dir static/dynamic handling updateTag/revalidateTag should successfully update tag when called from server action",
+      "app-dir static/dynamic handling updateTag/revalidateTag should throw error when updateTag is called in route handler",
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
@@ -3711,7 +3773,7 @@
       "app dir - basic searchParams prop server component should have the correct search params",
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -3770,7 +3832,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -3938,6 +4000,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/cache-components-console/cache-components.console.test.ts": {
+    "passed": [
+      "cache-components - Console Dimming - Validation dims console calls during prospective rendering",
+      "cache-components - Logging after Abort (default) With Dimming - Client dims console calls after a prerender has aborted",
+      "cache-components - Logging after Abort (default) With Dimming - Server dims console calls after a prerender has aborted",
+      "cache-components - Logging after Abort With Hiding - Client hides console calls after a prerender has aborted",
+      "cache-components - Logging after Abort With Hiding - Server hides console calls after a prerender has aborted"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/cache-components-create-component-tree/cache-components-create-component-tree.test.ts": {
     "passed": [
       "hello-world should not indicate there is an error when incidental math.random calls occur during component tree generation during dev"
@@ -4089,17 +4164,6 @@
     "passed": [
       "cache-components should be able to pass connection as a promise to another component and trigger an intermediate Suspense boundary",
       "cache-components should partially prerender pages that use connection"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/cache-components/cache-components.console.test.ts": {
-    "passed": [
-      "cache-components - Console Dimming - Logging after Abort in Client dims console calls after a prerender has aborted",
-      "cache-components - Console Dimming - Logging after Abort in Server dims console calls after a prerender has aborted",
-      "cache-components - Console Dimming - Validation dims console calls during prospective rendering"
     ],
     "failed": [],
     "pending": [],
@@ -6206,6 +6270,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/next-condition/next-condition.test.ts": {
+    "passed": [
+      "`next-js` Condition When Cache Components is disabled should not follow the next-js condition from a bundled commonjs package",
+      "`next-js` Condition When Cache Components is disabled should not follow the next-js condition from a bundled esm package",
+      "`next-js` Condition When Cache Components is disabled should not follow the next-js condition from an external commonjs package",
+      "`next-js` Condition When Cache Components is disabled should not follow the next-js condition from an external esm package"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/next-config-ts-native-mts/async-function/async-function-cjs.test.ts": {
     "passed": [],
     "failed": [],
@@ -6830,6 +6906,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/next-image-legacy-src-with-query-without-local-patterns/next-image-legacy-src-with-query-without-local-patterns.test.ts": {
+    "passed": [
+      "next-image-legacy-src-with-query-without-local-patterns should throw error for relative image with query without localPatterns for legacy Image"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-image-src-with-query-without-local-patterns/next-image-src-with-query-without-local-patterns.test.ts": {
+    "passed": [
+      "next-image-src-with-query-without-local-patterns should throw error for relative image with query without localPatterns"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/next-image/next-image-https.test.ts": {
     "passed": [],
     "failed": [],
@@ -6870,6 +6964,15 @@
   "test/e2e/app-dir/next-script/next-script.test.ts": {
     "passed": [
       "Script component with crossOrigin props should be set crossOrigin also in preload link tag"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/no-double-tailwind-execution/no-double-tailwind-execution.test.ts": {
+    "passed": [
+      "no-double-tailwind-execution should run tailwind only once initially and per change"
     ],
     "failed": [],
     "pending": [],
@@ -7059,6 +7162,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-route-navigations/parallel-route-navigations.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["parallel-route-navigations skipping in dev"],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-route-not-found-params/parallel-route-not-found-params.test.ts": {
     "passed": [
       "parallel-route-not-found should behave correctly without any errors",
@@ -7073,15 +7183,15 @@
     "passed": [
       "parallel-route-not-found should handle `notFound()` in a slot",
       "parallel-route-not-found should handle `notFound()` in generateMetadata on a page that also renders a parallel route",
-      "parallel-route-not-found should handle a layout that attempts to render a missing parallel route",
-      "parallel-route-not-found should handle multiple missing parallel routes",
       "parallel-route-not-found should not include any parallel route warnings for a deliberate notFound()",
       "parallel-route-not-found should not log any warnings for a regular not found page",
       "parallel-route-not-found should render the page & slots if all parallel routes are found"
     ],
     "failed": [],
     "pending": [
-      "parallel-route-not-found should handle `notFound()` in a slot with no `children` slot"
+      "parallel-route-not-found should handle `notFound()` in a slot with no `children` slot",
+      "parallel-route-not-found should handle a layout that attempts to render a missing parallel route",
+      "parallel-route-not-found should handle multiple missing parallel routes"
     ],
     "flakey": [],
     "runtimeError": false
@@ -7286,7 +7396,6 @@
       "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
       "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
       "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active",
-      "parallel-routes-revalidation server action revalidation should not trigger a refresh for the page that is being redirected to",
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
       "parallel-routes-revalidation should handle router.refresh() when called in a slot",
       "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
@@ -7298,7 +7407,9 @@
       "parallel-routes-revalidation should submit the action and revalidate the page data"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "parallel-routes-revalidation server action revalidation should not trigger a refresh for the page that is being redirected to"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -7357,7 +7468,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/ppr-full/ppr-full.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "ppr-full HTML Response for / should allow navigations to and from a pages/ page",
       "ppr-full HTML Response for / should allow soft navigations to and from the / page",
       "ppr-full HTML Response for / should have correct headers",
@@ -7451,8 +7564,6 @@
       "ppr-full Navigation Signals redirect() for /navigation/redirect/dynamic should have correct headers",
       "ppr-full Test Setup has all the test pathnames listed in the links component"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7463,26 +7574,21 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-incremental/ppr-incremental.test.ts": {
+  "test/e2e/app-dir/ppr-metadata-blocking/ppr-metadata-blocking-ppr-fallback.test.ts": {
     "passed": [],
     "failed": [],
-    "pending": ["ppr-incremental should skip next dev"],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/ppr-metadata-blocking/ppr-metadata-blocking-ppr-fallback.test.ts": {
-    "passed": [
+    "pending": [
       "ppr-metadata-blocking-ppr-fallback should include viewport metadata in partial shell when metadata is dynamic under suspense",
       "ppr-metadata-blocking-ppr-fallback should include viewport metadata in partial shell when page is partially dynamic",
       "ppr-metadata-blocking-ppr-fallback should not include metadata in partial shell when page is fully dynamic"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/ppr-metadata-streaming/ppr-metadata-streaming.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "ppr-metadata-streaming dynamic metadata should generate metadata in body when page content is static",
       "ppr-metadata-streaming dynamic metadata should generate metadata in body when page is fully dynamic",
       "ppr-metadata-streaming partial shell should insert metadata into body with dynamic metadata and wrapped under layout Suspense boundary",
@@ -7491,17 +7597,15 @@
       "ppr-metadata-streaming static metadata should generate metadata in head when page is fully static",
       "ppr-metadata-streaming static metadata should insert metadata in body when page is dynamic page content"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/ppr-middleware-rewrite-force-dynamic-ssg-dynamic-params/ppr-middleware-rewrite-force-dynamic-ssg-dynamic-params.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "ppr-middleware-rewrite-force-dynamic-generate-static-params should have correct dynamic params"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7523,35 +7627,19 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-navigations/incremental/incremental.test.ts": {
-    "passed": [
-      "ppr-navigations incremental can navigate between all the links and back without writing to disk"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/ppr-navigations/loading-tsx-no-partial-rendering/loading-tsx-no-partial-rendering.test.ts": {
-    "passed": ["loading-tsx-no-partial-rendering should skip dev & deploy"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/ppr-navigations/prefetch-navigation/prefetch-navigation.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "prefetch-navigation is skipped in dev because there are no prefetches"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/ppr-navigations/search-params/search-params.test.ts": {
-    "passed": ["search-params ppr is disabled in dev"],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": ["search-params ppr is disabled in dev"],
     "flakey": [],
     "runtimeError": false
   },
@@ -7577,7 +7665,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/ppr/ppr.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "ppr /no-suspense/node/gsp/[slug] should serve the static & dynamic parts",
       "ppr /suspense/node/gsp/[slug] should not have the dynamic part",
       "ppr /suspense/node/gsp/[slug] should serve the static part first",
@@ -7601,8 +7691,6 @@
       "ppr with suspense for /suspense/node should eventually render the dynamic part",
       "ppr without suspense for /no-suspense should immediately render the dynamic part"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7644,6 +7732,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/proxy-with-middleware/proxy-with-middleware.test.ts": {
+    "passed": [
+      "proxy-with-middleware should error when both middleware and proxy files are detected"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/random-in-sass/random-in-sass.test.ts": {
     "passed": ["random-in-sass should work using browser"],
     "failed": [],
@@ -7667,6 +7764,18 @@
     "passed": [
       "app-dir - reexport-client-component-metadata should render the layout metadata if not override",
       "app-dir - reexport-client-component-metadata should render the page metadata if override"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/refresh/refresh.test.ts": {
+    "passed": [
+      "app-dir refresh should refresh client cache when refresh() is called in a server action",
+      "app-dir refresh should throw an error when refresh() is called during page render",
+      "app-dir refresh should throw an error when refresh() is called in a route handler",
+      "app-dir refresh should throw an error when refresh() is called in unstable_cache"
     ],
     "failed": [],
     "pending": [],
@@ -7732,8 +7841,8 @@
   },
   "test/e2e/app-dir/revalidatetag-rsc/revalidatetag-rsc.test.ts": {
     "passed": [
-      "unstable_expireTag-rsc should error if unstable_expireTag is called during render",
-      "unstable_expireTag-rsc should revalidate fetch cache if unstable_expireTag invoked via server action"
+      "revalidateTag-rsc should error if revalidateTag is called during render",
+      "revalidateTag-rsc should revalidate fetch cache if revalidateTag invoked via server action"
     ],
     "failed": [],
     "pending": [],
@@ -8161,25 +8270,23 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global-with-app/invalid-global-with-app.test.ts": {
-    "passed": ["Invalid Global CSS with Custom App should fail to build"],
+    "passed": ["Invalid Global CSS with Custom App should show a build error"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global/invalid-global.test.ts": {
-    "passed": ["Invalid Global CSS should fail to build"],
+    "passed": ["Invalid Global CSS should show a build error"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-module-document/invalid-module-document.test.ts": {
-    "passed": [],
+    "passed": ["Invalid SCSS in _document should show a build error"],
     "failed": [],
-    "pending": [
-      "Invalid SCSS in _document production only should fail to build"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8268,10 +8375,8 @@
   },
   "test/e2e/app-dir/scss/npm-import-bad/npm-import-bad.test.ts": {
     "passed": [],
-    "failed": [],
-    "pending": [
-      "CSS Import from node_modules production only should fail the build"
-    ],
+    "failed": ["CSS Import from node_modules should show a build error"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8394,7 +8499,7 @@
   },
   "test/e2e/app-dir/scss/valid-and-invalid-global/valid-and-invalid-global.test.ts": {
     "passed": [
-      "Valid and Invalid Global CSS with Custom App should fail to build"
+      "Valid and Invalid Global CSS with Custom App should show a build error"
     ],
     "failed": [],
     "pending": [],
@@ -8473,20 +8578,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/segment-cache/client-only-opt-in/client-only-opt-in.test.ts": {
-    "passed": ["segment cache prefetch scheduling prefetching is disabled"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/segment-cache/conflicting-routes/conflicting-routes.test.ts": {
-    "passed": ["conflicting routes prefetching is disabled"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
     "passed": [
       "segment cache (deployment skew) should not run during dev or deploy test runs"
@@ -8507,13 +8598,6 @@
     "passed": [
       "segment cache (output: \"export\") build test should not run during dev test run"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts": {
-    "passed": ["segment cache (incremental opt in) ppr is disabled"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -8764,9 +8848,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts": {
-    "passed": ["static-shell-debugging should render the full page"],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": ["static-shell-debugging should render the full page"],
     "flakey": [],
     "runtimeError": false
   },
@@ -8987,11 +9071,9 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
-      "use-cache-custom-handler should not call expireTags for a normal invocation",
       "use-cache-custom-handler should not call getExpiration after an action",
-      "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
+      "use-cache-custom-handler should not call updateTags for a normal invocation",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
-      "use-cache-custom-handler should use a legacy custom cache handler if provided",
       "use-cache-custom-handler should use a modern custom cache handler if provided"
     ],
     "failed": [],
@@ -9125,7 +9207,7 @@
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache replays logs from \"use cache\" functions",
       "use-cache shares caches between the page/layout and generateMetadata",
-      "use-cache should be able to revalidate a page using unstable_expireTag",
+      "use-cache should be able to revalidate a page using revalidateTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
       "use-cache should cache results",
@@ -9148,7 +9230,7 @@
       "use-cache should revalidate caches after redirect",
       "use-cache should revalidate caches during on-demand revalidation",
       "use-cache should revalidate caches nested in unstable_cache",
-      "use-cache should update after unstable_expireTag correctly",
+      "use-cache should update after revalidateTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
       "use-cache usage in node_modules should cache results when using a directive without a handler",
@@ -9236,6 +9318,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/webpack-loader-resolve/webpack-loader-resolve.test.ts": {
+    "passed": [
+      "webpack-loader-resolve should support resolving absolute path via loader getResolve"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/webpack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
     "passed": ["webpack-loader-resource-query should pass query to loader"],
     "failed": [],
@@ -9254,7 +9345,7 @@
   },
   "test/e2e/app-dir/webpack-loader-ts-transform/webpack-loader-ts-transform.test.ts": {
     "passed": [
-      "webpack-loader-ts-transform should only run the test in turbopack"
+      "webpack-loader-ts-transform should accept Typescript returned from Webpack loaders"
     ],
     "failed": [],
     "pending": [],
@@ -9578,6 +9669,23 @@
   "test/e2e/chrome-devtools-workspace/chrome-devtools-workspace.test.ts": {
     "passed": [
       "chrome-devtools-workspace default should be able to connect to Chrome DevTools in dev"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/client-max-body-size/index.test.ts": {
+    "passed": [
+      "client-max-body-size custom limit with number format should accept request body over custom 2MB limit but only buffer up to limit",
+      "client-max-body-size custom limit with number format should accept request body under custom 2MB limit",
+      "client-max-body-size custom limit with string format should accept request body over custom 5MB limit but only buffer up to limit",
+      "client-max-body-size custom limit with string format should accept request body under custom 5MB limit",
+      "client-max-body-size default 10MB limit should accept request body at exactly 10MB",
+      "client-max-body-size default 10MB limit should accept request body over 10MB but only buffer up to limit",
+      "client-max-body-size default 10MB limit should accept request body under 10MB",
+      "client-max-body-size large custom limit should accept request body over custom 50MB limit but only buffer up to limit",
+      "client-max-body-size large custom limit should accept request body up to 50MB with custom limit"
     ],
     "failed": [],
     "pending": [],
@@ -10404,6 +10512,59 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/legacy-link-behavior-pages/index.test.js": {
+    "passed": [
+      "Link with legacyBehavior errors when calling onClick without the event",
+      "Link with legacyBehavior if the child is an <a> tag forwards the href attribute",
+      "Link with legacyBehavior if the child is an <a> tag navigates correctly",
+      "Link with legacyBehavior passHref forwards the href attribute",
+      "Link with legacyBehavior passHref navigates correctly",
+      "Link with legacyBehavior should show a deprecation warning",
+      "Link with legacyBehavior works if the child is a number",
+      "Link with legacyBehavior works if the child is a string"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/legacy-link-behavior/index.test.ts": {
+    "passed": [
+      "Link with legacyBehavior errors when calling onClick without the event",
+      "Link with legacyBehavior if the child is an <a> tag forwards the href attribute",
+      "Link with legacyBehavior if the child is an <a> tag navigates correctly",
+      "Link with legacyBehavior passHref forwards the href attribute",
+      "Link with legacyBehavior passHref navigates correctly",
+      "Link with legacyBehavior should show a deprecation warning",
+      "Link with legacyBehavior works if the child is a number",
+      "Link with legacyBehavior works if the child is a string"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/legacy-link-behavior/validations.console.test.ts": {
+    "passed": [
+      "Validations for <Link legacyBehavior> When rendering from a Client Component does not warn or throw if you pass a child component",
+      "Validations for <Link legacyBehavior> When rendering from a Client Component errors if there are multiple children",
+      "Validations for <Link legacyBehavior> When rendering from a Client Component errors if there are no children",
+      "Validations for <Link legacyBehavior> When rendering from a Client Component warns and throws an error if the child is lazy JSX",
+      "Validations for <Link legacyBehavior> When rendering from a Server Component Rendering <Link> directly does not warn or throw if you pass a client component",
+      "Validations for <Link legacyBehavior> When rendering from a Server Component Rendering <Link> directly does not warn or throw if you pass a server component into a client component",
+      "Validations for <Link legacyBehavior> When rendering from a Server Component Rendering <Link> directly warns and throws an error if the child is an asynchronous server component",
+      "Validations for <Link legacyBehavior> When rendering from a Server Component Rendering <Link> directly warns if the child is a lazy component",
+      "Validations for <Link legacyBehavior> When rendering from a Server Component Rendering <Link> directly warns if the child is a synchronous server component",
+      "Validations for <Link legacyBehavior> When rendering from a Server Component Rendering a Client Component that renders <Link> does not warn if the child is a synchronous server component",
+      "Validations for <Link legacyBehavior> When rendering from a Server Component Rendering a Client Component that renders <Link> does not warn or throw if you pass a client component",
+      "Validations for <Link legacyBehavior> When rendering from a Server Component Rendering a Client Component that renders <Link> does not warn or throw if you pass a server component into a client component",
+      "Validations for <Link legacyBehavior> When rendering from a Server Component Rendering a Client Component that renders <Link> throws an error if the child is an asynchronous server component"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/link-on-navigate-prop/index.test.ts": {
     "passed": [
       "<Link /> onNavigate prop App Router should only trigger both onClick for external links",
@@ -11223,6 +11384,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-image-legacy-src-with-query-without-local-patterns/next-image-legacy-src-with-query-without-local-patterns.test.ts": {
+    "passed": [
+      "next-image-legacy-src-with-query-without-local-patterns should throw error for relative image with query without localPatterns for legacy Image"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-image-src-with-query-without-local-patterns/next-image-src-with-query-without-local-patterns.test.ts": {
+    "passed": [
+      "next-image-src-with-query-without-local-patterns should throw error for relative image with query without localPatterns"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/next-image-svgo-webpack/svgo-webpack.test.ts": {
     "passed": [
       "svgo-webpack loader should render an SVG that is transformed by @svgr/webpack into a React component (app router)",
@@ -11279,16 +11458,6 @@
       "next test should pass args to test runner",
       "next test test runner validation should validate configured/specified test runner"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/no-eslint-warn-with-no-eslint-config/index.test.ts": {
-    "passed": [
-      "no-eslint-warn-with-no-eslint-config should not have eslint warnings when no eslint config",
-      "no-eslint-warn-with-no-eslint-config should render"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -11498,21 +11667,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/persistent-caching/persistent-caching.test.ts": {
-    "passed": [
-      "persistent-caching should allow to change files while stopped (loader change)",
-      "persistent-caching should allow to change files while stopped (next config change)"
+  "test/e2e/persistent-caching-migration/persistent-caching-migration.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "persistent-caching-migration turbopackPersistentCaching only for turbopack",
+      "persistent-caching-migration turbopackPersistentCachingForBuild only for turbopack",
+      "persistent-caching-migration turbopackPersistentCachingForDev only for turbopack"
     ],
-    "failed": [
-      "persistent-caching should allow to change files while stopped (Pages change)",
-      "persistent-caching should allow to change files while stopped (RCC change)",
-      "persistent-caching should allow to change files while stopped (RSC change)",
-      "persistent-caching should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
-      "persistent-caching should allow to change files while stopped (env var change)",
-      "persistent-caching should allow to change files while stopped (rename app page)",
-      "persistent-caching should persistent cache loaders"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -11744,7 +11906,7 @@
       "skip-trailing-slash-redirect should merge cookies from middleware and edge API routes correctly",
       "skip-trailing-slash-redirect should not apply trailing slash on load on client",
       "skip-trailing-slash-redirect should parse locale info for data request correctly",
-      "skip-trailing-slash-redirect should provide original _next/data URL with skipMiddlewareUrlNormalize"
+      "skip-trailing-slash-redirect should provide original _next/data URL with skipProxyUrlNormalize"
     ],
     "failed": [],
     "pending": [],
@@ -13063,7 +13225,6 @@
       "Config Experimental Warning should not show warning with default config from function",
       "Config Experimental Warning should not show warning with default value",
       "Config Experimental Warning should show the configured value for numerical features",
-      "Config Experimental Warning should show the configured value for string features",
       "Config Experimental Warning should show warning with a symbol indicating that a default `true` value is set to `false`",
       "Config Experimental Warning should show warning with config from function with experimental",
       "Config Experimental Warning should show warning with config from object with experimental",
@@ -13073,7 +13234,8 @@
     "pending": [
       "Config Experimental Warning production mode should not show next app info in next start",
       "Config Experimental Warning production mode should show next app info with all experimental features in next build",
-      "Config Experimental Warning production mode should show unrecognized experimental features in warning but not in start log experiments section"
+      "Config Experimental Warning production mode should show unrecognized experimental features in warning but not in start log experiments section",
+      "Config Experimental Warning should show the configured value for string features"
     ],
     "flakey": [],
     "runtimeError": false
@@ -13081,10 +13243,8 @@
   "test/integration/config-mjs/test/index.test.ts": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
-      "Configuration renders public config on the server only",
-      "Configuration renders server config on the server only",
       "Configuration should disable X-Powered-By header support",
-      "Configuration should have config available on the client"
+      "Configuration should have env variables available on the client"
     ],
     "failed": [],
     "pending": [],
@@ -13159,10 +13319,8 @@
   "test/integration/config/test/index.test.js": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
-      "Configuration renders public config on the server only",
-      "Configuration renders server config on the server only",
       "Configuration should disable X-Powered-By header support",
-      "Configuration should have config available on the client"
+      "Configuration should have env variables available on the client"
     ],
     "failed": [],
     "pending": [],
@@ -13297,7 +13455,9 @@
       "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
       "create-next-app prompts should prompt user for choice if --tailwind is absent",
       "create-next-app prompts should prompt user for choice if directory name is absent",
-      "create-next-app prompts should prompt user to confirm reset preferences"
+      "create-next-app prompts should prompt user to confirm reset preferences",
+      "create-next-app prompts should show reuse previous settings option when preferences exist",
+      "create-next-app prompts should use recommended defaults when user selects that option"
     ],
     "failed": [],
     "pending": [],
@@ -14098,16 +14258,6 @@
   },
   "test/integration/development-hmr-refresh/test/index.test.js": {
     "passed": ["page should not reload when the file is not changed"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/development-runtime-config/test/index.test.js": {
-    "passed": [
-      "should work with runtime-config in next.config.js empty runtime-config",
-      "should work with runtime-config in next.config.js with runtime-config"
-    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -14945,74 +15095,6 @@
     "pending": [
       "Errors on output to static production mode Throws error when export out dir is static"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/eslint/test/lint-cache.test.js": {
-    "passed": [
-      "cache with content strategy is different from the one with default strategy",
-      "eslint caching is disabled with the --no-cache flag",
-      "eslint caching is enabled by default",
-      "the --cache-location flag allows the user to define a separate cache location",
-      "the default eslint cache lives in the user defined build directory",
-      "the default eslint caching strategy is metadata"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/eslint/test/next-build.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Next Build production mode base directories are linted by default during builds",
-      "Next Build production mode custom directories",
-      "Next Build production mode empty directories do not fail the build",
-      "Next Build production mode eslint cache lives in the user defined build directory",
-      "Next Build production mode eslint caching is enabled",
-      "Next Build production mode eslint ignored directories do not fail the build",
-      "Next Build production mode ignore during builds",
-      "Next Build production mode invalid older eslint version",
-      "Next Build production mode missing Next.js plugin",
-      "Next Build production mode shows warnings and errors"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/eslint/test/next-lint.test.js": {
-    "passed": [
-      "Next Lint First Time Setup  creates .eslintrc.json file with a default app router configuration",
-      "Next Lint First Time Setup  creates .eslintrc.json file with a default configuration",
-      "Next Lint First Time Setup  installs eslint and eslint-config-next as devDependencies if missing with npm",
-      "Next Lint First Time Setup  installs eslint and eslint-config-next as devDependencies if missing with pnpm",
-      "Next Lint First Time Setup  installs eslint and eslint-config-next as devDependencies if missing with yarn",
-      "Next Lint First Time Setup  show a prompt to set up ESLint if no configuration detected",
-      "Next Lint First Time Setup  shows a successful message when completed",
-      "Next Lint base directories are linted by default",
-      "Next Lint custom directories",
-      "Next Lint don't create .eslintrc file if package.json has eslintConfig field",
-      "Next Lint file flag can selectively lint only a single file",
-      "Next Lint file flag can selectively lints multiple files",
-      "Next Lint format flag \"json\" creates a file respecting the chosen format",
-      "Next Lint format flag supports additional user-defined formats",
-      "Next Lint format flag supports async formatters",
-      "Next Lint lint files with cjs and mjs file extension",
-      "Next Lint max warnings flag does not error when warnings do not exceed threshold",
-      "Next Lint max warnings flag errors when warnings exceed threshold",
-      "Next Lint quiet flag suppresses warnings and only reports errors",
-      "Next Lint should add relative path for dist types in tsconfig.json when app dir exist",
-      "Next Lint should generate next-env.d.ts before lint command",
-      "Next Lint should not generate next-env.d.ts without typescript",
-      "Next Lint shows warnings and errors",
-      "Next Lint shows warnings and errors when extending plugin core-web-vitals config",
-      "Next Lint shows warnings and errors when extending plugin recommended config",
-      "Next Lint shows warnings and errors with next/core-web-vitals config",
-      "Next Lint success message when no warnings or errors",
-      "Next Lint verify options name and type with auto-generated help output"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -17386,6 +17468,8 @@
       "with contentDispositionType inline dev support with next.config.js should fail when w is not a number",
       "with contentDispositionType inline dev support with next.config.js should fail when w is not an integer",
       "with contentDispositionType inline dev support with next.config.js should fail when width is not in next.config.js",
+      "with contentDispositionType inline dev support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with contentDispositionType inline dev support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
       "with contentDispositionType inline dev support with next.config.js should handle concurrent requests",
       "with contentDispositionType inline dev support with next.config.js should handle non-ascii characters in image url",
       "with contentDispositionType inline dev support with next.config.js should maintain animated gif",
@@ -17421,6 +17505,7 @@
       "with contentDispositionType inline dev support with next.config.js should resize relative url with invalid accept header as png",
       "with contentDispositionType inline dev support with next.config.js should resize relative url with invalid accept header as tiff",
       "with contentDispositionType inline dev support with next.config.js should resize tiff",
+      "with contentDispositionType inline dev support with next.config.js should return 508 after redirecting too many times",
       "with contentDispositionType inline dev support with next.config.js should return home page",
       "with contentDispositionType inline dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with contentDispositionType inline dev support with next.config.js should set cache-control to immutable for static images",
@@ -17465,6 +17550,8 @@
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is not a number",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is not an integer",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when width is not in next.config.js",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
       "with contentDispositionType inline Production Mode Server support with next.config.js should handle concurrent requests",
       "with contentDispositionType inline Production Mode Server support with next.config.js should handle non-ascii characters in image url",
       "with contentDispositionType inline Production Mode Server support with next.config.js should maintain animated gif",
@@ -17500,6 +17587,7 @@
       "with contentDispositionType inline Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
       "with contentDispositionType inline Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
       "with contentDispositionType inline Production Mode Server support with next.config.js should resize tiff",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should return 508 after redirecting too many times",
       "with contentDispositionType inline Production Mode Server support with next.config.js should return home page",
       "with contentDispositionType inline Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with contentDispositionType inline Production Mode Server support with next.config.js should set cache-control to immutable for static images",
@@ -17547,6 +17635,8 @@
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is not a number",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is not an integer",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when width is not in next.config.js",
+      "with dangerouslyAllowSVG config dev support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with dangerouslyAllowSVG config dev support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
       "with dangerouslyAllowSVG config dev support with next.config.js should handle concurrent requests",
       "with dangerouslyAllowSVG config dev support with next.config.js should handle non-ascii characters in image url",
       "with dangerouslyAllowSVG config dev support with next.config.js should maintain animated gif",
@@ -17578,6 +17668,7 @@
       "with dangerouslyAllowSVG config dev support with next.config.js should resize relative url with invalid accept header as png",
       "with dangerouslyAllowSVG config dev support with next.config.js should resize relative url with invalid accept header as tiff",
       "with dangerouslyAllowSVG config dev support with next.config.js should resize tiff",
+      "with dangerouslyAllowSVG config dev support with next.config.js should return 508 after redirecting too many times",
       "with dangerouslyAllowSVG config dev support with next.config.js should return home page",
       "with dangerouslyAllowSVG config dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with dangerouslyAllowSVG config dev support with next.config.js should set cache-control to immutable for static images",
@@ -17623,6 +17714,8 @@
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is not a number",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is not an integer",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when width is not in next.config.js",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should handle concurrent requests",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should handle non-ascii characters in image url",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should maintain animated gif",
@@ -17654,6 +17747,7 @@
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should resize tiff",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should return 508 after redirecting too many times",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should return home page",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should set cache-control to immutable for static images",
@@ -17765,6 +17859,8 @@
       "with isrFlushToDisk false config dev support with next.config.js should fail when w is not a number",
       "with isrFlushToDisk false config dev support with next.config.js should fail when w is not an integer",
       "with isrFlushToDisk false config dev support with next.config.js should fail when width is not in next.config.js",
+      "with isrFlushToDisk false config dev support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with isrFlushToDisk false config dev support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
       "with isrFlushToDisk false config dev support with next.config.js should handle concurrent requests",
       "with isrFlushToDisk false config dev support with next.config.js should handle non-ascii characters in image url",
       "with isrFlushToDisk false config dev support with next.config.js should maintain animated gif",
@@ -17800,6 +17896,7 @@
       "with isrFlushToDisk false config dev support with next.config.js should resize relative url with invalid accept header as png",
       "with isrFlushToDisk false config dev support with next.config.js should resize relative url with invalid accept header as tiff",
       "with isrFlushToDisk false config dev support with next.config.js should resize tiff",
+      "with isrFlushToDisk false config dev support with next.config.js should return 508 after redirecting too many times",
       "with isrFlushToDisk false config dev support with next.config.js should return home page",
       "with isrFlushToDisk false config dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with isrFlushToDisk false config dev support with next.config.js should set cache-control to immutable for static images",
@@ -17907,6 +18004,8 @@
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when w is not a number",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when w is not an integer",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when width is not in next.config.js",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should handle concurrent requests",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should handle non-ascii characters in image url",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should maintain animated gif",
@@ -17942,6 +18041,7 @@
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should resize tiff",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should return 508 after redirecting too many times",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should return home page",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should set cache-control to immutable for static images",
@@ -17995,6 +18095,340 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/image-optimizer/test/maximum-redirects-0.test.ts": {
+    "passed": [
+      "with maximumRedirects 0 dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with maximumRedirects 0 dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with maximumRedirects 0 dev support with next.config.js recursive url is not allowed should fail with relative next image url",
+      "with maximumRedirects 0 dev support with next.config.js recursive url is not allowed should pass with absolute next image url",
+      "with maximumRedirects 0 dev support with next.config.js should automatically detect image type when content-type is octet-stream",
+      "with maximumRedirects 0 dev support with next.config.js should compress avif smaller than webp at q=100",
+      "with maximumRedirects 0 dev support with next.config.js should compress avif smaller than webp at q=50",
+      "with maximumRedirects 0 dev support with next.config.js should compress avif smaller than webp at q=75",
+      "with maximumRedirects 0 dev support with next.config.js should downlevel avif format to jpeg for old Safari",
+      "with maximumRedirects 0 dev support with next.config.js should downlevel webp format to jpeg for old Safari",
+      "with maximumRedirects 0 dev support with next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with maximumRedirects 0 dev support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with maximumRedirects 0 dev support with next.config.js should error if the image file does not exist",
+      "with maximumRedirects 0 dev support with next.config.js should error if the resource isn't a valid image",
+      "with maximumRedirects 0 dev support with next.config.js should fail when domain is not defined in next.config.js",
+      "with maximumRedirects 0 dev support with next.config.js should fail when internal url is not an image",
+      "with maximumRedirects 0 dev support with next.config.js should fail when q is greater than 100",
+      "with maximumRedirects 0 dev support with next.config.js should fail when q is less than 1",
+      "with maximumRedirects 0 dev support with next.config.js should fail when q is missing",
+      "with maximumRedirects 0 dev support with next.config.js should fail when q is not a number",
+      "with maximumRedirects 0 dev support with next.config.js should fail when q is not an integer",
+      "with maximumRedirects 0 dev support with next.config.js should fail when q is not in config",
+      "with maximumRedirects 0 dev support with next.config.js should fail when url fails to load an image",
+      "with maximumRedirects 0 dev support with next.config.js should fail when url has file protocol",
+      "with maximumRedirects 0 dev support with next.config.js should fail when url has ftp protocol",
+      "with maximumRedirects 0 dev support with next.config.js should fail when url is missing",
+      "with maximumRedirects 0 dev support with next.config.js should fail when url is protocol relative",
+      "with maximumRedirects 0 dev support with next.config.js should fail when url is too long",
+      "with maximumRedirects 0 dev support with next.config.js should fail when w is 0",
+      "with maximumRedirects 0 dev support with next.config.js should fail when w is less than 0",
+      "with maximumRedirects 0 dev support with next.config.js should fail when w is missing",
+      "with maximumRedirects 0 dev support with next.config.js should fail when w is not a number",
+      "with maximumRedirects 0 dev support with next.config.js should fail when w is not an integer",
+      "with maximumRedirects 0 dev support with next.config.js should fail when width is not in next.config.js",
+      "with maximumRedirects 0 dev support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with maximumRedirects 0 dev support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
+      "with maximumRedirects 0 dev support with next.config.js should handle concurrent requests",
+      "with maximumRedirects 0 dev support with next.config.js should handle non-ascii characters in image url",
+      "with maximumRedirects 0 dev support with next.config.js should maintain animated gif",
+      "with maximumRedirects 0 dev support with next.config.js should maintain animated png",
+      "with maximumRedirects 0 dev support with next.config.js should maintain animated png 2",
+      "with maximumRedirects 0 dev support with next.config.js should maintain animated webp",
+      "with maximumRedirects 0 dev support with next.config.js should maintain bmp",
+      "with maximumRedirects 0 dev support with next.config.js should maintain heic",
+      "with maximumRedirects 0 dev support with next.config.js should maintain icns",
+      "with maximumRedirects 0 dev support with next.config.js should maintain ico format",
+      "with maximumRedirects 0 dev support with next.config.js should maintain jp2",
+      "with maximumRedirects 0 dev support with next.config.js should maintain jpg format for old Safari",
+      "with maximumRedirects 0 dev support with next.config.js should maintain jxl",
+      "with maximumRedirects 0 dev support with next.config.js should maintain png format for old Safari",
+      "with maximumRedirects 0 dev support with next.config.js should normalize invalid status codes",
+      "with maximumRedirects 0 dev support with next.config.js should not allow pdf format",
+      "with maximumRedirects 0 dev support with next.config.js should not allow svg with application header",
+      "with maximumRedirects 0 dev support with next.config.js should not allow svg with comma header",
+      "with maximumRedirects 0 dev support with next.config.js should not allow svg with uppercase header",
+      "with maximumRedirects 0 dev support with next.config.js should not allow svg with wrong header",
+      "with maximumRedirects 0 dev support with next.config.js should not allow vector svg",
+      "with maximumRedirects 0 dev support with next.config.js should not forward cookie header",
+      "with maximumRedirects 0 dev support with next.config.js should not resize if requested width is larger than original source image",
+      "with maximumRedirects 0 dev support with next.config.js should resize absolute url from localhost",
+      "with maximumRedirects 0 dev support with next.config.js should resize avif",
+      "with maximumRedirects 0 dev support with next.config.js should resize avif and maintain format",
+      "with maximumRedirects 0 dev support with next.config.js should resize gif (not animated)",
+      "with maximumRedirects 0 dev support with next.config.js should resize relative url and new Chrome accept header as avif",
+      "with maximumRedirects 0 dev support with next.config.js should resize relative url and old Chrome accept header as webp",
+      "with maximumRedirects 0 dev support with next.config.js should resize relative url and png accept header",
+      "with maximumRedirects 0 dev support with next.config.js should resize relative url and webp Firefox accept header",
+      "with maximumRedirects 0 dev support with next.config.js should resize relative url with invalid accept header as gif",
+      "with maximumRedirects 0 dev support with next.config.js should resize relative url with invalid accept header as png",
+      "with maximumRedirects 0 dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with maximumRedirects 0 dev support with next.config.js should resize tiff",
+      "with maximumRedirects 0 dev support with next.config.js should return 508 after redirecting too many times",
+      "with maximumRedirects 0 dev support with next.config.js should return home page",
+      "with maximumRedirects 0 dev support with next.config.js should set 304 status without body when etag matches if-none-match",
+      "with maximumRedirects 0 dev support with next.config.js should set cache-control to immutable for static images",
+      "with maximumRedirects 0 dev support with next.config.js should timeout for upstream image exceeding 7 seconds",
+      "with maximumRedirects 0 dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
+      "with maximumRedirects 0 dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with maximumRedirects 0 dev support with next.config.js should use cached image file when parameters are the same for animated gif"
+    ],
+    "failed": [],
+    "pending": [
+      "with maximumRedirects 0 Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js recursive url is not allowed should pass with absolute next image url",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should compress avif smaller than webp at q=75",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should downlevel avif format to jpeg for old Safari",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should downlevel webp format to jpeg for old Safari",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should error if the image file does not exist",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should error if the resource isn't a valid image",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when domain is not defined in next.config.js",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when internal url is not an image",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when q is greater than 100",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when q is less than 1",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when q is missing",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when q is not a number",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when q is not an integer",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when q is not in config",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when url fails to load an image",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when url has file protocol",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when url has ftp protocol",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when url is missing",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when url is protocol relative",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when url is too long",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when w is 0",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when w is less than 0",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when w is missing",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when w is not a number",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when w is not an integer",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should fail when width is not in next.config.js",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should handle concurrent requests",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should handle non-ascii characters in image url",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain animated gif",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain animated png",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain animated png 2",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain animated webp",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain bmp",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain heic",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain icns",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain ico format",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain jp2",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain jpg format for old Safari",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain jxl",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should maintain png format for old Safari",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should normalize invalid status codes",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should not allow pdf format",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should not allow svg with application header",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should not allow svg with comma header",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should not allow svg with uppercase header",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should not allow svg with wrong header",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should not allow vector svg",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should not forward cookie header",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize absolute url from localhost",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize avif",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize avif and maintain format",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize gif (not animated)",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize relative url and old Chrome accept header as webp",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize relative url and png accept header",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize relative url and webp Firefox accept header",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize relative url with invalid accept header as gif",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should resize tiff",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should return 508 after redirecting too many times",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should return home page",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should set cache-control to immutable for static images",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should timeout for upstream image exceeding 7 seconds",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with maximumRedirects 0 Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/image-optimizer/test/maximum-redirects-1.test.ts": {
+    "passed": [
+      "with maximumRedirects 1 dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with maximumRedirects 1 dev support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with maximumRedirects 1 dev support with next.config.js recursive url is not allowed should fail with relative next image url",
+      "with maximumRedirects 1 dev support with next.config.js recursive url is not allowed should pass with absolute next image url",
+      "with maximumRedirects 1 dev support with next.config.js should automatically detect image type when content-type is octet-stream",
+      "with maximumRedirects 1 dev support with next.config.js should compress avif smaller than webp at q=100",
+      "with maximumRedirects 1 dev support with next.config.js should compress avif smaller than webp at q=50",
+      "with maximumRedirects 1 dev support with next.config.js should compress avif smaller than webp at q=75",
+      "with maximumRedirects 1 dev support with next.config.js should downlevel avif format to jpeg for old Safari",
+      "with maximumRedirects 1 dev support with next.config.js should downlevel webp format to jpeg for old Safari",
+      "with maximumRedirects 1 dev support with next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with maximumRedirects 1 dev support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with maximumRedirects 1 dev support with next.config.js should error if the image file does not exist",
+      "with maximumRedirects 1 dev support with next.config.js should error if the resource isn't a valid image",
+      "with maximumRedirects 1 dev support with next.config.js should fail when domain is not defined in next.config.js",
+      "with maximumRedirects 1 dev support with next.config.js should fail when internal url is not an image",
+      "with maximumRedirects 1 dev support with next.config.js should fail when q is greater than 100",
+      "with maximumRedirects 1 dev support with next.config.js should fail when q is less than 1",
+      "with maximumRedirects 1 dev support with next.config.js should fail when q is missing",
+      "with maximumRedirects 1 dev support with next.config.js should fail when q is not a number",
+      "with maximumRedirects 1 dev support with next.config.js should fail when q is not an integer",
+      "with maximumRedirects 1 dev support with next.config.js should fail when q is not in config",
+      "with maximumRedirects 1 dev support with next.config.js should fail when url fails to load an image",
+      "with maximumRedirects 1 dev support with next.config.js should fail when url has file protocol",
+      "with maximumRedirects 1 dev support with next.config.js should fail when url has ftp protocol",
+      "with maximumRedirects 1 dev support with next.config.js should fail when url is missing",
+      "with maximumRedirects 1 dev support with next.config.js should fail when url is protocol relative",
+      "with maximumRedirects 1 dev support with next.config.js should fail when url is too long",
+      "with maximumRedirects 1 dev support with next.config.js should fail when w is 0",
+      "with maximumRedirects 1 dev support with next.config.js should fail when w is less than 0",
+      "with maximumRedirects 1 dev support with next.config.js should fail when w is missing",
+      "with maximumRedirects 1 dev support with next.config.js should fail when w is not a number",
+      "with maximumRedirects 1 dev support with next.config.js should fail when w is not an integer",
+      "with maximumRedirects 1 dev support with next.config.js should fail when width is not in next.config.js",
+      "with maximumRedirects 1 dev support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with maximumRedirects 1 dev support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
+      "with maximumRedirects 1 dev support with next.config.js should handle concurrent requests",
+      "with maximumRedirects 1 dev support with next.config.js should handle non-ascii characters in image url",
+      "with maximumRedirects 1 dev support with next.config.js should maintain animated gif",
+      "with maximumRedirects 1 dev support with next.config.js should maintain animated png",
+      "with maximumRedirects 1 dev support with next.config.js should maintain animated png 2",
+      "with maximumRedirects 1 dev support with next.config.js should maintain animated webp",
+      "with maximumRedirects 1 dev support with next.config.js should maintain bmp",
+      "with maximumRedirects 1 dev support with next.config.js should maintain heic",
+      "with maximumRedirects 1 dev support with next.config.js should maintain icns",
+      "with maximumRedirects 1 dev support with next.config.js should maintain ico format",
+      "with maximumRedirects 1 dev support with next.config.js should maintain jp2",
+      "with maximumRedirects 1 dev support with next.config.js should maintain jpg format for old Safari",
+      "with maximumRedirects 1 dev support with next.config.js should maintain jxl",
+      "with maximumRedirects 1 dev support with next.config.js should maintain png format for old Safari",
+      "with maximumRedirects 1 dev support with next.config.js should normalize invalid status codes",
+      "with maximumRedirects 1 dev support with next.config.js should not allow pdf format",
+      "with maximumRedirects 1 dev support with next.config.js should not allow svg with application header",
+      "with maximumRedirects 1 dev support with next.config.js should not allow svg with comma header",
+      "with maximumRedirects 1 dev support with next.config.js should not allow svg with uppercase header",
+      "with maximumRedirects 1 dev support with next.config.js should not allow svg with wrong header",
+      "with maximumRedirects 1 dev support with next.config.js should not allow vector svg",
+      "with maximumRedirects 1 dev support with next.config.js should not forward cookie header",
+      "with maximumRedirects 1 dev support with next.config.js should not resize if requested width is larger than original source image",
+      "with maximumRedirects 1 dev support with next.config.js should resize absolute url from localhost",
+      "with maximumRedirects 1 dev support with next.config.js should resize avif",
+      "with maximumRedirects 1 dev support with next.config.js should resize avif and maintain format",
+      "with maximumRedirects 1 dev support with next.config.js should resize gif (not animated)",
+      "with maximumRedirects 1 dev support with next.config.js should resize relative url and new Chrome accept header as avif",
+      "with maximumRedirects 1 dev support with next.config.js should resize relative url and old Chrome accept header as webp",
+      "with maximumRedirects 1 dev support with next.config.js should resize relative url and png accept header",
+      "with maximumRedirects 1 dev support with next.config.js should resize relative url and webp Firefox accept header",
+      "with maximumRedirects 1 dev support with next.config.js should resize relative url with invalid accept header as gif",
+      "with maximumRedirects 1 dev support with next.config.js should resize relative url with invalid accept header as png",
+      "with maximumRedirects 1 dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with maximumRedirects 1 dev support with next.config.js should resize tiff",
+      "with maximumRedirects 1 dev support with next.config.js should return 508 after redirecting too many times",
+      "with maximumRedirects 1 dev support with next.config.js should return home page",
+      "with maximumRedirects 1 dev support with next.config.js should set 304 status without body when etag matches if-none-match",
+      "with maximumRedirects 1 dev support with next.config.js should set cache-control to immutable for static images",
+      "with maximumRedirects 1 dev support with next.config.js should timeout for upstream image exceeding 7 seconds",
+      "with maximumRedirects 1 dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
+      "with maximumRedirects 1 dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with maximumRedirects 1 dev support with next.config.js should use cached image file when parameters are the same for animated gif"
+    ],
+    "failed": [],
+    "pending": [
+      "with maximumRedirects 1 Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js recursive url is not allowed should fail with relative next image url",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js recursive url is not allowed should pass with absolute next image url",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should compress avif smaller than webp at q=75",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should downlevel avif format to jpeg for old Safari",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should downlevel webp format to jpeg for old Safari",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should error if the image file does not exist",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should error if the resource isn't a valid image",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when domain is not defined in next.config.js",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when internal url is not an image",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when q is greater than 100",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when q is less than 1",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when q is missing",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when q is not a number",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when q is not an integer",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when q is not in config",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when url fails to load an image",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when url has file protocol",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when url has ftp protocol",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when url is missing",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when url is protocol relative",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when url is too long",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when w is 0",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when w is less than 0",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when w is missing",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when w is not a number",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when w is not an integer",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should fail when width is not in next.config.js",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should handle concurrent requests",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should handle non-ascii characters in image url",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain animated gif",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain animated png",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain animated png 2",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain animated webp",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain bmp",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain heic",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain icns",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain ico format",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain jp2",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain jpg format for old Safari",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain jxl",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should maintain png format for old Safari",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should normalize invalid status codes",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should not allow pdf format",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should not allow svg with application header",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should not allow svg with comma header",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should not allow svg with uppercase header",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should not allow svg with wrong header",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should not allow vector svg",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should not forward cookie header",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize absolute url from localhost",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize avif",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize avif and maintain format",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize gif (not animated)",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize relative url and old Chrome accept header as webp",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize relative url and png accept header",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize relative url and webp Firefox accept header",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize relative url with invalid accept header as gif",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should resize tiff",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should return 508 after redirecting too many times",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should return home page",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should set cache-control to immutable for static images",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should timeout for upstream image exceeding 7 seconds",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with maximumRedirects 1 Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/image-optimizer/test/minimum-cache-ttl.test.ts": {
     "passed": [
       "with minimumCacheTTL of 5 sec dev support with next.config.js recursive url is not allowed should fail with encoded relative image url",
@@ -18031,6 +18465,8 @@
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is not a number",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is not an integer",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when width is not in next.config.js",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should handle concurrent requests",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should handle non-ascii characters in image url",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should maintain animated gif",
@@ -18066,6 +18502,7 @@
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize relative url with invalid accept header as png",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize relative url with invalid accept header as tiff",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize tiff",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should return 508 after redirecting too many times",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should return home page",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should set cache-control to immutable for static images",
@@ -18110,6 +18547,8 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is not a number",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is not an integer",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when width is not in next.config.js",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should handle concurrent requests",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should handle non-ascii characters in image url",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should maintain animated gif",
@@ -18145,6 +18584,7 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should resize tiff",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should return 508 after redirecting too many times",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should return home page",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should set cache-control to immutable for static images",
@@ -18255,6 +18695,8 @@
       "with latest sharp dev support with next.config.js should fail when w is not a number",
       "with latest sharp dev support with next.config.js should fail when w is not an integer",
       "with latest sharp dev support with next.config.js should fail when width is not in next.config.js",
+      "with latest sharp dev support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with latest sharp dev support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
       "with latest sharp dev support with next.config.js should handle concurrent requests",
       "with latest sharp dev support with next.config.js should handle non-ascii characters in image url",
       "with latest sharp dev support with next.config.js should maintain animated gif",
@@ -18290,6 +18732,7 @@
       "with latest sharp dev support with next.config.js should resize relative url with invalid accept header as png",
       "with latest sharp dev support with next.config.js should resize relative url with invalid accept header as tiff",
       "with latest sharp dev support with next.config.js should resize tiff",
+      "with latest sharp dev support with next.config.js should return 508 after redirecting too many times",
       "with latest sharp dev support with next.config.js should return home page",
       "with latest sharp dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with latest sharp dev support with next.config.js should set cache-control to immutable for static images",
@@ -18397,6 +18840,8 @@
       "with latest sharp Production Mode Server support with next.config.js should fail when w is not a number",
       "with latest sharp Production Mode Server support with next.config.js should fail when w is not an integer",
       "with latest sharp Production Mode Server support with next.config.js should fail when width is not in next.config.js",
+      "with latest sharp Production Mode Server support with next.config.js should follow redirect from http to https when maximumRedirects > 0",
+      "with latest sharp Production Mode Server support with next.config.js should follow redirect when dangerouslyAllowLocalIP enabled",
       "with latest sharp Production Mode Server support with next.config.js should handle concurrent requests",
       "with latest sharp Production Mode Server support with next.config.js should handle non-ascii characters in image url",
       "with latest sharp Production Mode Server support with next.config.js should maintain animated gif",
@@ -18432,6 +18877,7 @@
       "with latest sharp Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
       "with latest sharp Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
       "with latest sharp Production Mode Server support with next.config.js should resize tiff",
+      "with latest sharp Production Mode Server support with next.config.js should return 508 after redirecting too many times",
       "with latest sharp Production Mode Server support with next.config.js should return home page",
       "with latest sharp Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with latest sharp Production Mode Server support with next.config.js should set cache-control to immutable for static images",
@@ -19741,11 +20187,13 @@
   },
   "test/integration/next-image-new/image-from-node-modules/test/index.test.ts": {
     "passed": [
-      "Image Component from node_modules development mode should apply image config for node_modules"
+      "Image Component from node_modules development mode should apply image config for node_modules",
+      "Image Component from node_modules development mode should warn when using images.domains config"
     ],
     "failed": [],
     "pending": [
-      "Image Component from node_modules prod mode production mode should apply image config for node_modules"
+      "Image Component from node_modules prod mode production mode should apply image config for node_modules",
+      "Image Component from node_modules prod mode production mode should warn when using images.domains config"
     ],
     "flakey": [],
     "runtimeError": false
@@ -21026,16 +21474,14 @@
       "config telemetry production mode detects output config for session start",
       "config telemetry production mode detects rewrites, headers, and redirects for next build",
       "config telemetry production mode emits telemery for usage of image, script & dynamic",
-      "config telemetry production mode emits telemetry for `next lint`",
       "config telemetry production mode emits telemetry for configured React Compiler options",
       "config telemetry production mode emits telemetry for default React Compiler options",
       "config telemetry production mode emits telemetry for enabled React Compiler",
-      "config telemetry production mode emits telemetry for lint during build",
-      "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
-      "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
+      "config telemetry production mode emits telemetry for filesystem cache in build mode",
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
+      "config telemetry production mode emits telemetry for isolatedDevBuild disabled",
+      "config telemetry production mode emits telemetry for isolatedDevBuild enabled by default",
       "config telemetry production mode emits telemetry for middleware related options",
-      "config telemetry production mode emits telemetry for persistent cache in build mode",
-      "config telemetry production mode emits telemetry for persistent cache in dev mode",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
       "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",

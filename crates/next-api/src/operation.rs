@@ -37,8 +37,8 @@ async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
     let _ = entrypoints.resolve_strongly_consistent().await?;
-    let _ = entrypoints.take_collectibles::<Box<dyn Diagnostic>>();
-    let _ = entrypoints.take_issues();
+    entrypoints.drop_collectibles::<Box<dyn Diagnostic>>();
+    entrypoints.drop_issues();
     let _ = get_effects(entrypoints).await?;
     Ok(entrypoints.connect())
 }
@@ -55,8 +55,9 @@ impl EntrypointsOperation {
                 .iter()
                 .map(|(k, v)| (k.clone(), pick_route(entrypoints, k.clone(), v)))
                 .collect(),
-            middleware: e.middleware.as_ref().map(|_| MiddlewareOperation {
+            middleware: e.middleware.as_ref().map(|m| MiddlewareOperation {
                 endpoint: pick_endpoint(entrypoints, EndpointSelector::Middleware),
+                is_proxy: m.is_proxy,
             }),
             instrumentation: e
                 .instrumentation
@@ -212,6 +213,7 @@ pub struct InstrumentationOperation {
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct MiddlewareOperation {
     pub endpoint: OperationVc<OptionEndpoint>,
+    pub is_proxy: bool,
 }
 
 #[turbo_tasks::value(shared)]

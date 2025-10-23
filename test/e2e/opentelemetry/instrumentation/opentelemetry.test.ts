@@ -63,7 +63,7 @@ describe('opentelemetry', () => {
       },
     },
   ]) {
-    ;(process.env.__NEXT_EXPERIMENTAL_PPR ? describe.skip : describe)(
+    ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
       env.name,
       () => {
         describe('app router', () => {
@@ -1065,7 +1065,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
     await collector.shutdown()
     await new Promise((r) => setTimeout(r, 1000))
   })
-  ;(process.env.__NEXT_EXPERIMENTAL_PPR ? describe.skip : describe)(
+  ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
     'root context',
     () => {
       describe('app router with disabled fetch', () => {

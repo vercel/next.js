@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
@@ -751,7 +750,8 @@ describe('app-dir action handling', () => {
     expect(newRandom).not.toBe(initialRandom)
   })
 
-  it('should reset the form state when the action redirects to itself', async () => {
+  // TODO(client-segment-cache): re-enable when this optimization is added back
+  it.skip('should reset the form state when the action redirects to itself', async () => {
     const browser = await next.browser('/self-redirect')
     const requests = []
     browser.on('request', async (req) => {
@@ -1300,7 +1300,7 @@ describe('app-dir action handling', () => {
       }, 5000)
     })
 
-    it('should handle unstable_expirePath', async () => {
+    it('should handle revalidatePath', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1323,7 +1323,7 @@ describe('app-dir action handling', () => {
       })
     })
 
-    it('should handle unstable_expireTag', async () => {
+    it('should handle revalidateTag', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1347,7 +1347,7 @@ describe('app-dir action handling', () => {
     })
 
     // TODO: investigate flakey behavior with revalidate
-    it.skip('should handle unstable_expireTag + redirect', async () => {
+    it.skip('should handle revalidateTag + redirect', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()

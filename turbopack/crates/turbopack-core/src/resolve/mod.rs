@@ -1467,6 +1467,8 @@ pub async fn resolve_raw(
     let pat = path.await?;
     if let Some(pat) = pat
         .filter_could_match("/ROOT/")
+        // Checks if this pattern is more specific than everything, so we test using a random path
+        // that is unlikely to actually exist
         .and_then(|pat| pat.filter_could_not_match("/ROOT/fsd8nz8og54z"))
     {
         let path = Pattern::new(pat);
@@ -1477,34 +1479,17 @@ pub async fn resolve_raw(
             path,
         )
         .await?;
-        if matches.len() > 10000 {
-            let path_str = path.to_string().await?;
-            println!(
-                "WARN: resolving abs pattern {} in {} leads to {} results",
-                path_str,
-                lookup_dir.value_to_string().await?,
-                matches.len()
-            );
-        } else {
-            results.extend(
-                collect_matches(&matches, collect_affecting_sources)
-                    .await?
-                    .into_iter(),
-            );
-        }
+        results.extend(
+            collect_matches(&matches, collect_affecting_sources)
+                .await?
+                .into_iter(),
+        );
     }
 
     {
         let matches =
             read_matches(lookup_dir.clone(), rcstr!(""), force_in_lookup_dir, path).await?;
-        if matches.len() > 10000 {
-            println!(
-                "WARN: resolving pattern {} in {} leads to {} results",
-                pat.describe_as_string(),
-                lookup_dir.value_to_string().await?,
-                matches.len()
-            );
-        }
+
         results.extend(
             collect_matches(&matches, collect_affecting_sources)
                 .await?

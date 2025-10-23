@@ -127,10 +127,8 @@ pub async fn get_next_client_import_map(
     match &ty {
         ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
-            let react_flavor = if *next_config.enable_ppr().await?
-                || *next_config.enable_taint().await?
-                || *next_config.enable_view_transition().await?
-            {
+            // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
+            let react_flavor = if *next_config.enable_taint().await? {
                 "-experimental"
             } else {
                 ""
@@ -831,14 +829,8 @@ async fn apply_vendored_react_aliases_server(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let view_transition = *next_config.enable_view_transition().await?;
-    let react_channel = if ppr || taint || view_transition {
-        "-experimental"
-    } else {
-        ""
-    };
+    let react_channel = if taint { "-experimental" } else { "" };
     let react_condition = if ty.should_use_react_server_condition() {
         "server"
     } else {
@@ -989,6 +981,7 @@ async fn apply_vendored_react_aliases_server(
         // This is used in the server runtime to import React Server Components.
         alias.extend(fxindexmap! {
             rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
+            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),
         });
     }
 
@@ -1018,6 +1011,7 @@ async fn rsc_aliases(
         // This is used in the server runtime to import React Server Components.
         alias.extend(fxindexmap! {
             rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
+            rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),
         });
     }
 

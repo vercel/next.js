@@ -14,7 +14,7 @@ import './node-polyfill-crypto'
 import type { default as NextNodeServer } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import path from 'path'
+import path from 'node:path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import {
   PHASE_DEVELOPMENT_SERVER,
