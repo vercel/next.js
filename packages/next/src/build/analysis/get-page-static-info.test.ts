@@ -90,6 +90,32 @@ export default function Page() {
       )
     })
 
+    it('should throw error for "use server" even without other keywords (PARSE_PATTERN test)', async () => {
+      // This test verifies that PARSE_PATTERN includes "use\s" to trigger parsing
+      // Without this, files with only "use server" would skip AST parsing
+      const pageContent = `"use server"
+
+export default function Page() {
+  return <div>Hello</div>
+}`
+
+      const pageFilePath = join(testDir, 'page-minimal.tsx')
+      await writeFile(pageFilePath, pageContent)
+
+      // Should throw even though file has no getStaticProps, export const, etc.
+      await expect(
+        getPagesPageStaticInfo({
+          pageFilePath,
+          nextConfig: {} as any,
+          isDev: false,
+          page: '/minimal-page',
+          pageType: 'pages' as const,
+        })
+      ).rejects.toThrow(
+        'Page "/minimal-page" cannot use "use server" directive. Server Actions are only supported in the App Router'
+      )
+    })
+
     it('should allow "use client" directive in Pages Router', async () => {
       const pageContent = `"use client"
 
@@ -142,6 +168,31 @@ export async function getStaticProps() {
       const pageContent = `// "use server" in a comment
 export default function Page() {
   const str = "use client"
+  return <div>Hello</div>
+}`
+
+      const pageFilePath = join(testDir, 'page.tsx')
+      await writeFile(pageFilePath, pageContent)
+
+      const result = await getPagesPageStaticInfo({
+        pageFilePath,
+        nextConfig: {} as any,
+        isDev: false,
+        page: '/test-page',
+        pageType: 'pages' as const,
+      })
+
+      expect(result).toBeDefined()
+      expect(result.type).toBe('pages')
+    })
+
+    it('should not trigger on React hooks or variables containing "use"', async () => {
+      const pageContent = `import { useState, useEffect } from 'react'
+
+export default function Page() {
+  const [state, setState] = useState(0)
+  const useServer = () => {}
+  useEffect(() => {}, [])
   return <div>Hello</div>
 }`
 

@@ -43,7 +43,7 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy|use\s/
 
 export type ProxyMatcher = {
   regexp: string
