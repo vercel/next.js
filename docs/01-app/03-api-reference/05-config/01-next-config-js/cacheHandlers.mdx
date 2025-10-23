@@ -1,0 +1,351 @@
+---
+title: cacheHandlers
+description: Configure custom cache handlers for use cache directives in Next.js.
+related:
+  title: Related
+  description: View related API references.
+  links:
+    - app/api-reference/directives/use-cache
+    - app/api-reference/directives/use-cache-remote
+    - app/api-reference/directives/use-cache-private
+    - app/api-reference/config/next-config-js/cacheLife
+---
+
+The `cacheHandlers` configuration allows you to define custom cache storage implementations for [`'use cache'`](/docs/app/api-reference/directives/use-cache) and [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote). This enables you to store cached components and functions in external services or customize the caching behavior.
+
+> **Good to know**: The `cacheHandlers` (plural) configuration is specifically for `'use cache'` directives. This is different from `cacheHandler` (singular), which is used for ISR and App/Pages Router cache operations. Note that [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) is not configurable through `cacheHandlers`.
+
+## When to use custom cache handlers
+
+The default in-memory cache is isolated to each Next.js instance. When self-hosting with:
+
+- **Multiple containers or instances** - Each instance has its own cache, causing misses when requests hit different servers
+- **Horizontal scaling** - Load balancers distribute requests across servers without shared cache
+- **Container orchestration** (Kubernetes, Docker Swarm, ECS) - Pod/container restarts lose the in-memory cache
+
+Custom cache handlers allow you to use shared storage (Redis, Memcached, DynamoDB, etc.) so cache is available across all instances and survives restarts.
+
+Custom handlers are also useful for:
+
+- Persistent cache across deployments
+- Memory-constrained environments
+- Coordinated cache invalidation across distributed systems
+
+> **Good to know**: The default in-memory cache works well for development and single-instance deployments. Multi-instance production deployments typically require a shared cache handler.
+
+## Usage
+
+To configure custom cache handlers, add them to your `next.config.js` file:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheHandlers: {
+    default: './cache-handlers/default-handler.js',
+    remote: './cache-handlers/remote-handler.js',
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  cacheHandlers: {
+    default: './cache-handlers/default-handler.js',
+    remote: './cache-handlers/remote-handler.js',
+  },
+}
+```
+
+### Handler types
+
+- **`default`**: Used by the `'use cache'` directive
+- **`remote`**: Used by the `'use cache: remote'` directive
+
+If you don't configure `cacheHandlers`, Next.js uses an in-memory LRU cache for both `default` and `remote`. You can view the [default implementation](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/default.ts) as a reference.
+
+You can also define additional named handlers (e.g., `sessions`, `analytics`) and reference them with `'use cache: <name>'`.
+
+Note that `'use cache: private'` does not use cache handlers and cannot be customized.
+
+## API Reference
+
+A cache handler must implement the [`CacheHandler`](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/types.ts) interface with the following methods:
+
+### `get()`
+
+Retrieve a cache entry for the given cache key.
+
+```ts
+get(cacheKey: string, softTags: string[]): Promise<CacheEntry | undefined>
+```
+
+| Parameter  | Type       | Description                                                  |
+| ---------- | ---------- | ------------------------------------------------------------ |
+| `cacheKey` | `string`   | The unique key for the cache entry.                          |
+| `softTags` | `string[]` | Tags to check for staleness (used in some cache strategies). |
+
+Returns a `CacheEntry` object if found, or `undefined` if not found or expired.
+
+### `set()`
+
+Store a cache entry for the given cache key.
+
+```ts
+set(cacheKey: string, pendingEntry: Promise<CacheEntry>): Promise<void>
+```
+
+| Parameter      | Type                  | Description                                 |
+| -------------- | --------------------- | ------------------------------------------- |
+| `cacheKey`     | `string`              | The unique key to store the entry under.    |
+| `pendingEntry` | `Promise<CacheEntry>` | A promise that resolves to the cache entry. |
+
+The entry may still be pending when this is called (i.e., its value stream may still be written to). Your handler should await the promise before processing the entry.
+
+Returns `Promise<void>`.
+
+### `refreshTags()`
+
+Called periodically before starting a new request to sync with external tag services.
+
+```ts
+refreshTags(): Promise<void>
+```
+
+This is useful if you're coordinating cache invalidation across multiple instances or services. For in-memory caches, this can be a no-op.
+
+Returns `Promise<void>`.
+
+### `getExpiration()`
+
+Get the maximum revalidation timestamp for a set of tags.
+
+```ts
+getExpiration(tags: string[]): Promise<number>
+```
+
+| Parameter | Type       | Description                            |
+| --------- | ---------- | -------------------------------------- |
+| `tags`    | `string[]` | Array of tags to check expiration for. |
+
+Returns:
+
+- `0` if none of the tags were ever revalidated
+- A timestamp (in milliseconds) representing the most recent revalidation
+- `Infinity` to indicate soft tags should be checked in the `get` method instead
+
+### `updateTags()`
+
+Called when tags are revalidated or expired.
+
+```ts
+updateTags(tags: string[], durations?: { expire?: number }): Promise<void>
+```
+
+| Parameter   | Type                  | Description                              |
+| ----------- | --------------------- | ---------------------------------------- |
+| `tags`      | `string[]`            | Array of tags to update.                 |
+| `durations` | `{ expire?: number }` | Optional expiration duration in seconds. |
+
+Your handler should update its internal state to mark these tags as invalidated.
+
+Returns `Promise<void>`.
+
+## CacheEntry Type
+
+The [`CacheEntry`](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/types.ts) object has the following structure:
+
+```ts
+interface CacheEntry {
+  value: ReadableStream<Uint8Array>
+  tags: string[]
+  stale: number
+  timestamp: number
+  expire: number
+  revalidate: number
+}
+```
+
+| Property     | Type                         | Description                                                  |
+| ------------ | ---------------------------- | ------------------------------------------------------------ |
+| `value`      | `ReadableStream<Uint8Array>` | The cached data as a stream.                                 |
+| `tags`       | `string[]`                   | Cache tags (excluding soft tags).                            |
+| `stale`      | `number`                     | Duration in seconds for client-side staleness.               |
+| `timestamp`  | `number`                     | When the entry was created (timestamp in milliseconds).      |
+| `expire`     | `number`                     | How long the entry is allowed to be used (in seconds).       |
+| `revalidate` | `number`                     | How long until the entry should be revalidated (in seconds). |
+
+> **Good to know**:
+>
+> - The `value` is a [`ReadableStream`](https://developer.mozilla.org/docs/Web/API/ReadableStream). Use [`.tee()`](https://developer.mozilla.org/docs/Web/API/ReadableStream/tee) if you need to read and store the stream data.
+> - If the stream errors with partial data, your handler must decide whether to keep the partial cache or discard it.
+
+## Examples
+
+### Basic in-memory cache handler
+
+Here's a minimal implementation using a `Map` for storage. This example demonstrates the core concepts, but for a production-ready implementation with LRU eviction, error handling, and tag management, see the [default cache handler](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/default.ts).
+
+```js filename="cache-handlers/memory-handler.js"
+const cache = new Map()
+const pendingSets = new Map()
+
+module.exports = class MemoryCacheHandler {
+  async get(cacheKey, softTags) {
+    // Wait for any pending set operation to complete
+    const pendingPromise = pendingSets.get(cacheKey)
+    if (pendingPromise) {
+      await pendingPromise
+    }
+
+    const entry = cache.get(cacheKey)
+    if (!entry) {
+      return undefined
+    }
+
+    // Check if entry has expired
+    const now = Date.now()
+    if (now > entry.timestamp + entry.revalidate * 1000) {
+      return undefined
+    }
+
+    return entry
+  }
+
+  async set(cacheKey, pendingEntry) {
+    // Create a promise to track this set operation
+    let resolvePending
+    const pendingPromise = new Promise((resolve) => {
+      resolvePending = resolve
+    })
+    pendingSets.set(cacheKey, pendingPromise)
+
+    try {
+      // Wait for the entry to be ready
+      const entry = await pendingEntry
+
+      // Store the entry in the cache
+      cache.set(cacheKey, entry)
+    } finally {
+      resolvePending()
+      pendingSets.delete(cacheKey)
+    }
+  }
+
+  async refreshTags() {
+    // No-op for in-memory cache
+  }
+
+  async getExpiration(tags) {
+    // Return 0 to indicate no tags have been revalidated
+    return 0
+  }
+
+  async updateTags(tags, durations) {
+    // Implement tag-based invalidation
+    for (const [key, entry] of cache.entries()) {
+      if (entry.tags.some((tag) => tags.includes(tag))) {
+        cache.delete(key)
+      }
+    }
+  }
+}
+```
+
+### External storage pattern
+
+For durable storage like Redis or a database, you'll need to serialize the cache entries:
+
+```js filename="cache-handlers/external-handler.js"
+module.exports = class ExternalCacheHandler {
+  async get(cacheKey, softTags) {
+    // Retrieve from external storage
+    const stored = await externalStorage.get(cacheKey)
+    if (!stored) {
+      return undefined
+    }
+
+    // Deserialize the entry
+    // Note: You'll need to reconstruct the ReadableStream from stored data
+    const entry = {
+      value: new ReadableStream({
+        start(controller) {
+          controller.enqueue(stored.data)
+          controller.close()
+        },
+      }),
+      tags: stored.tags,
+      stale: stored.stale,
+      timestamp: stored.timestamp,
+      expire: stored.expire,
+      revalidate: stored.revalidate,
+    }
+
+    return entry
+  }
+
+  async set(cacheKey, pendingEntry) {
+    const entry = await pendingEntry
+
+    // Read the stream to get the data
+    const reader = entry.value.getReader()
+    const chunks = []
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        chunks.push(value)
+      }
+    } finally {
+      reader.releaseLock()
+    }
+
+    // Combine chunks and store to external storage
+    const data = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)))
+
+    await externalStorage.set(cacheKey, {
+      data,
+      tags: entry.tags,
+      stale: entry.stale,
+      timestamp: entry.timestamp,
+      expire: entry.expire,
+      revalidate: entry.revalidate,
+    })
+  }
+
+  async refreshTags() {
+    // Sync with external tag service if applicable
+    // await externalTagService.refresh()
+  }
+
+  async getExpiration(tags) {
+    // Query external service for tag expiration
+    // const expiration = await externalTagService.getExpiration(tags)
+    // return expiration
+    return 0
+  }
+
+  async updateTags(tags, durations) {
+    // Update external tag service
+    // await externalTagService.updateTags(tags, durations)
+  }
+}
+```
+
+## Platform Support
+
+| Deployment Option                                                   | Supported         |
+| ------------------------------------------------------------------- | ----------------- |
+| [Node.js server](/docs/app/getting-started/deploying#nodejs-server) | Yes               |
+| [Docker container](/docs/app/getting-started/deploying#docker)      | Yes               |
+| [Static export](/docs/app/getting-started/deploying#static-export)  | No                |
+| [Adapters](/docs/app/getting-started/deploying#adapters)            | Platform-specific |
+
+## Version History
+
+| Version   | Changes                     |
+| --------- | --------------------------- |
+| `v16.0.0` | `cacheHandlers` introduced. |
