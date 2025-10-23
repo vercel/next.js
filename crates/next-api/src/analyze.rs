@@ -72,6 +72,7 @@ pub struct AnalyzeSource {
 #[derive(Serialize)]
 pub struct AnalyzeModule {
     pub path: RcStr,
+    pub depth: u32,
 }
 
 #[derive(Serialize)]
@@ -290,7 +291,10 @@ impl ModulesDataBuilder {
         let path = RcStr::from(path);
         self.module_index_map.insert(path.clone(), index);
         self.modules.push(AnalyzeModuleBuilder {
-            module: AnalyzeModule { path },
+            module: AnalyzeModule {
+                path,
+                depth: u32::MAX,
+            },
             dependencies: FxIndexSet::default(),
             async_dependencies: FxIndexSet::default(),
             dependents: FxIndexSet::default(),
@@ -453,6 +457,44 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
         builder.modules[to_index as usize]
             .async_dependents
             .insert(from_index);
+    }
+
+    // Compute depth using BFS from modules without incoming edges
+    let mut queue = std::collections::VecDeque::new();
+
+    // Find modules without incoming edges and set their depth to 0
+    for (index, module) in builder.modules.iter_mut().enumerate() {
+        if module.dependents.is_empty() && module.async_dependents.is_empty() {
+            module.module.depth = 0;
+            queue.push_back(index as u32);
+        }
+    }
+
+    // Process queue and propagate depth
+    while let Some(current_index) = queue.pop_front() {
+        let current_depth = builder.modules[current_index as usize].module.depth;
+        let new_depth = current_depth + 1;
+
+        // Collect dependencies to avoid borrow conflicts
+        let dependencies: Vec<u32> = builder.modules[current_index as usize]
+            .dependencies
+            .iter()
+            .chain(
+                builder.modules[current_index as usize]
+                    .async_dependencies
+                    .iter(),
+            )
+            .copied()
+            .collect();
+
+        // Update dependencies
+        for &dep_index in &dependencies {
+            let dep_module = &mut builder.modules[dep_index as usize];
+            if new_depth < dep_module.module.depth {
+                dep_module.module.depth = new_depth;
+                queue.push_back(dep_index);
+            }
+        }
     }
 
     let rope = builder.build();
