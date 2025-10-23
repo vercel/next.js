@@ -42,6 +42,10 @@ import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { isProxyFile } from '../utils'
 
+// Pattern to detect if a file needs AST parsing for static analysis.
+// Includes 'use\s' to catch "use server" and "use client" directives.
+// The \s (whitespace) requirement prevents false matches on variable names
+// like useState, useEffect, or useServer.
 const PARSE_PATTERN =
   /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy|use\s/
 
@@ -738,8 +742,13 @@ export async function getPagesPageStaticInfo({
 
   const { type: rsc } = getRSCModuleInformation(content, true)
 
-  // Validate that use server directive is not used in Pages Router
-  // Server Actions are only supported in the App Router
+  // Validate that use server directive is not used in Pages Router.
+  // Server Actions are only supported in the App Router.
+  //
+  // Note: This validation only checks the page file itself, not nested components
+  // that are imported. For comprehensive server-only validation in nested components,
+  // use `import 'server-only'` which is validated during the build process regardless
+  // of whether the code is in a page file or a nested component.
   if (directives?.has('server')) {
     throw new Error(
       `Page "${page}" cannot use "use server" directive. Server Actions are only supported in the App Router. To use Server Actions, migrate to the App Router: https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration`
