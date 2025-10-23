@@ -733,13 +733,18 @@ export async function getPagesPageStaticInfo({
     isDev,
   })
 
-  const { getServerSideProps, getStaticProps, exports } = checkExports(
-    ast,
-    PagesSegmentConfigSchemaKeys,
-    page
-  )
+  const { getServerSideProps, getStaticProps, exports, directives } =
+    checkExports(ast, PagesSegmentConfigSchemaKeys, page)
 
   const { type: rsc } = getRSCModuleInformation(content, true)
+
+  // Validate that use server directive is not used in Pages Router
+  // Server Actions are only supported in the App Router
+  if (directives?.has('server')) {
+    throw new Error(
+      `Page "${page}" cannot use "use server" directive. Server Actions are only supported in the App Router. To use Server Actions, migrate to the App Router: https://nextjs.org/docs/app/building-your-application/upgrading/app-router-migration`
+    )
+  }
 
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
