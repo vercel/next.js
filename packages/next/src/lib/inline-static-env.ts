@@ -23,6 +23,15 @@ export async function inlineStaticEnv({
   const serverChunks = await glob('**/*.{js,json,js.map}', {
     cwd: serverDir,
   })
+  const standaloneServerDir = path.join(
+    distDir,
+    'standalone',
+    '.next',
+    'server'
+  )
+  const standaloneServerChunks = await glob('**/*.{js,json,js.map}', {
+    cwd: standaloneServerDir,
+  })
   const clientDir = path.join(distDir, 'static')
   const clientChunks = await glob('**/*.{js,json,js.map}', {
     cwd: clientDir,
@@ -48,6 +57,7 @@ export async function inlineStaticEnv({
   for (const [parentDir, files] of [
     [serverDir, serverChunks],
     [clientDir, clientChunks],
+    [standaloneServerDir, standaloneServerChunks],
   ] as const) {
     await Promise.all(
       files.map(async (file) => {
