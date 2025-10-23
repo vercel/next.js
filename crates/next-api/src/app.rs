@@ -82,7 +82,9 @@ use crate::{
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::{BaseAndFullModuleGraph, Project},
-    route::{AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, Route, Routes},
+    route::{
+        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
+    },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     webpack_stats::generate_webpack_stats,
 };
@@ -2101,6 +2103,22 @@ impl Endpoint for AppEndpoint {
         Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
             server_actions_loader,
         ])]))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
+        let this = self.await?;
+        let app_entry = self.app_endpoint_entry().await?;
+        let module_graphs = this
+            .app_project
+            .app_module_graphs(
+                self,
+                *app_entry.rsc_entry,
+                this.app_project.client_runtime_entries(),
+                matches!(this.ty, AppEndpointType::Page { .. }),
+            )
+            .await?;
+        Ok(Vc::cell(vec![module_graphs.full]))
     }
 }
 

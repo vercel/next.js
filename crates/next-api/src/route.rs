@@ -4,8 +4,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    Completion, FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph},
@@ -49,6 +49,9 @@ pub enum Route {
     Conflict,
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
+
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
     #[turbo_tasks::function]
@@ -67,6 +70,8 @@ pub trait Endpoint {
     fn additional_entries(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
         GraphEntries::empty()
     }
+    #[turbo_tasks::function]
+    fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs>;
 }
 
 #[derive(
@@ -131,6 +136,10 @@ impl EndpointGroup {
     pub fn output_assets(&self) -> Vc<OutputAssets> {
         output_of_endpoints(self.primary.iter().map(|endpoint| **endpoint).collect())
     }
+
+    pub fn module_graphs(&self) -> Vc<ModuleGraphs> {
+        module_graphs_of_endpoints(self.primary.iter().map(|endpoint| **endpoint).collect())
+    }
 }
 
 #[turbo_tasks::function]
@@ -141,6 +150,23 @@ async fn output_of_endpoints(endpoints: Vec<Vc<Box<dyn Endpoint>>>) -> Result<Vc
         .try_join()
         .await?;
     Ok(OutputAssets::concat(assets))
+}
+
+#[turbo_tasks::function]
+async fn module_graphs_of_endpoints(
+    endpoints: Vec<Vc<Box<dyn Endpoint>>>,
+) -> Result<Vc<ModuleGraphs>> {
+    let module_graphs = endpoints
+        .iter()
+        .map(async |endpoint| Ok(endpoint.module_graphs().await?.into_iter()))
+        .try_flat_join()
+        .await?
+        .into_iter()
+        .copied()
+        .collect::<FxIndexSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    Ok(Vc::cell(module_graphs))
 }
 
 #[turbo_tasks::value(transparent)]

@@ -5,7 +5,9 @@ use byteorder::{BE, WriteBytesExt};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
     rope::{Rope, RopeBuilder},
@@ -14,10 +16,12 @@ use turbopack_analyze::split_chunk::split_output_asset_into_parts;
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
+    chunk::ChunkingType,
+    module::Module,
     output::{OutputAsset, OutputAssets},
 };
 
-use crate::route::Endpoint;
+use crate::route::{Endpoint, ModuleGraphs};
 
 #[derive(
     Default, Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs,
@@ -56,12 +60,6 @@ impl EdgesData {
 }
 
 #[derive(Serialize)]
-pub struct AnalyzeModule {
-    pub source_index: u32,
-    pub layer_index: u32,
-}
-
-#[derive(Serialize)]
 pub struct AnalyzeSource {
     pub parent_source_index: Option<u32>,
     /// Path. When there is a parent, this is concatenated to the parent's path.
@@ -96,21 +94,17 @@ struct EdgesDataReference {
 
 #[derive(Serialize)]
 struct AnalyzeDataHeader {
-    pub modules: Vec<AnalyzeModule>,
     pub sources: Vec<AnalyzeSource>,
     pub chunk_parts: Vec<AnalyzeChunkPart>,
     pub output_files: Vec<AnalyzeOutputFile>,
-    pub layers: Vec<AnalyzeLayer>,
-    /// Edges from modules to modules
-    pub module_dependents: EdgesDataReference,
-    /// Edges from modules to modules
-    pub async_module_dependents: EdgesDataReference,
-    /// Edges from modules to modules
-    pub module_dependencies: EdgesDataReference,
-    /// Edges from modules to modules
-    pub async_module_dependencies: EdgesDataReference,
-    /// Edges from sources to modules
-    pub source_modules: EdgesDataReference,
+    /// Edges from sources to sources
+    pub source_dependents: EdgesDataReference,
+    /// Edges from sources to sources
+    pub async_source_dependents: EdgesDataReference,
+    /// Edges from sources to sources
+    pub source_dependencies: EdgesDataReference,
+    /// Edges from sources to sources
+    pub async_source_dependencies: EdgesDataReference,
     /// Edges from chunks to chunk parts
     pub output_file_chunk_parts: EdgesDataReference,
     /// Edges from sources to chunk parts
@@ -130,6 +124,10 @@ struct AnalyzeSourceBuilder {
     source: AnalyzeSource,
     child_source_indices: Vec<u32>,
     chunk_part_indices: Vec<u32>,
+    dependencies: FxIndexSet<u32>,
+    async_dependencies: FxIndexSet<u32>,
+    dependents: FxIndexSet<u32>,
+    async_dependents: FxIndexSet<u32>,
 }
 
 struct AnalyzeDataBuilder {
@@ -181,6 +179,10 @@ impl AnalyzeDataBuilder {
             },
             child_source_indices: vec![],
             chunk_part_indices: vec![],
+            dependencies: FxIndexSet::default(),
+            async_dependencies: FxIndexSet::default(),
+            dependents: FxIndexSet::default(),
+            async_dependents: FxIndexSet::default(),
         });
         (&mut self.sources[index as usize], index)
     }
@@ -235,10 +237,35 @@ impl AnalyzeDataBuilder {
         let output_file_chunk_parts =
             EdgesData::from_iterator(self.output_files.iter().map(|of| &of.chunk_part_indices));
 
+        let source_dependencies_vecs: Vec<Vec<u32>> = self
+            .sources
+            .iter()
+            .map(|s| s.dependencies.iter().copied().collect())
+            .collect();
+        let async_source_dependencies_vecs: Vec<Vec<u32>> = self
+            .sources
+            .iter()
+            .map(|s| s.async_dependencies.iter().copied().collect())
+            .collect();
+        let source_dependents_vecs: Vec<Vec<u32>> = self
+            .sources
+            .iter()
+            .map(|s| s.dependents.iter().copied().collect())
+            .collect();
+        let async_source_dependents_vecs: Vec<Vec<u32>> = self
+            .sources
+            .iter()
+            .map(|s| s.async_dependents.iter().copied().collect())
+            .collect();
+
+        let source_dependencies = EdgesData::from_iterator(&source_dependencies_vecs);
+        let async_source_dependencies = EdgesData::from_iterator(&async_source_dependencies_vecs);
+        let source_dependents = EdgesData::from_iterator(&source_dependents_vecs);
+        let async_source_dependents = EdgesData::from_iterator(&async_source_dependents_vecs);
+
         let mut binary_section = EdgesDataSectionBuilder::new();
 
         let header = AnalyzeDataHeader {
-            modules: vec![],
             sources: self.sources.into_iter().map(|s| s.source).collect(),
             chunk_parts: self.chunk_parts,
             output_files: self
@@ -246,12 +273,10 @@ impl AnalyzeDataBuilder {
                 .into_iter()
                 .map(|of| of.output_file)
                 .collect(),
-            layers: vec![],
-            module_dependents: binary_section.add_edges(&EdgesData::default()),
-            async_module_dependents: binary_section.add_edges(&EdgesData::default()),
-            module_dependencies: binary_section.add_edges(&EdgesData::default()),
-            async_module_dependencies: binary_section.add_edges(&EdgesData::default()),
-            source_modules: binary_section.add_edges(&EdgesData::default()),
+            source_dependents: binary_section.add_edges(&source_dependents),
+            async_source_dependents: binary_section.add_edges(&async_source_dependents),
+            source_dependencies: binary_section.add_edges(&source_dependencies),
+            async_source_dependencies: binary_section.add_edges(&async_source_dependencies),
             output_file_chunk_parts: binary_section.add_edges(&output_file_chunk_parts),
             source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
             source_children: binary_section.add_edges(&source_children),
@@ -270,7 +295,10 @@ impl AnalyzeDataBuilder {
 }
 
 #[turbo_tasks::function]
-pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc<FileContent>> {
+pub async fn analyze_output_assets(
+    output_assets: Vc<OutputAssets>,
+    module_graphs: Vc<ModuleGraphs>,
+) -> Result<Vc<FileContent>> {
     let mut builder = AnalyzeDataBuilder::new();
 
     let prefix = format!("{SOURCE_URL_PROTOCOL}///");
@@ -317,6 +345,58 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
         i += 1;
     }
 
+    let mut all_edges = FxIndexSet::default();
+    let mut all_async_edges = FxIndexSet::default();
+    for &module_graph in module_graphs.await? {
+        let module_graph = module_graph.read_graphs().await?;
+        module_graph.traverse_all_edges_unordered(|(parent_node, reference), node| {
+            match reference.chunking_type {
+                ChunkingType::Async => {
+                    all_async_edges.insert((parent_node.module, node.module));
+                }
+                _ => {
+                    all_edges.insert((parent_node.module, node.module));
+                }
+            }
+            Ok(())
+        })?;
+    }
+
+    async fn mapper(
+        (from, to): (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>),
+    ) -> Result<(RcStr, RcStr)> {
+        let from_path = from.ident().path().to_string().owned().await?;
+        let to_path = to.ident().path().to_string().owned().await?;
+        Ok((from_path, to_path))
+    }
+    let all_edges = all_edges.iter().copied().map(mapper).try_join().await?;
+    let all_async_edges = all_async_edges
+        .iter()
+        .copied()
+        .map(mapper)
+        .try_join()
+        .await?;
+    for (from_path, to_path) in all_edges {
+        let from_index = builder.ensure_source(&from_path).1;
+        let to_index = builder.ensure_source(&to_path).1;
+        builder.sources[from_index as usize]
+            .dependencies
+            .insert(to_index);
+        builder.sources[to_index as usize]
+            .dependents
+            .insert(from_index);
+    }
+    for (from_path, to_path) in all_async_edges {
+        let from_index = builder.ensure_source(&from_path).1;
+        let to_index = builder.ensure_source(&to_path).1;
+        builder.sources[from_index as usize]
+            .async_dependencies
+            .insert(to_index);
+        builder.sources[to_index as usize]
+            .async_dependents
+            .insert(from_index);
+    }
+
     let rope = builder.build();
     Ok(FileContent::Content(File::from(rope)).cell())
 }
@@ -325,6 +405,7 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
 pub async fn analyze_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<FileContent>> {
     Ok(analyze_output_assets(
         *endpoint.output().await?.output_assets,
+        endpoint.module_graphs(),
     ))
 }
 
@@ -332,15 +413,21 @@ pub async fn analyze_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<File
 pub struct AnalyzeDataOutputAsset {
     pub path: FileSystemPath,
     pub output_assets: ResolvedVc<OutputAssets>,
+    pub module_graphs: ResolvedVc<ModuleGraphs>,
 }
 
 #[turbo_tasks::value_impl]
 impl AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
-    pub async fn new(path: FileSystemPath, output_assets: Vc<OutputAssets>) -> Result<Vc<Self>> {
+    pub async fn new(
+        path: FileSystemPath,
+        output_assets: Vc<OutputAssets>,
+        module_graphs: Vc<ModuleGraphs>,
+    ) -> Result<Vc<Self>> {
         Ok(Self {
             path,
             output_assets: output_assets.to_resolved().await?,
+            module_graphs: module_graphs.to_resolved().await?,
         }
         .cell())
     }
@@ -350,7 +437,7 @@ impl AnalyzeDataOutputAsset {
 impl Asset for AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        let file_content = analyze_output_assets(*self.output_assets);
+        let file_content = analyze_output_assets(*self.output_assets, *self.module_graphs);
         AssetContent::file(file_content)
     }
 }
