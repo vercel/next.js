@@ -91,10 +91,11 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     case 'prerender-legacy':
     case 'request':
     case 'unstable-cache':
-    case undefined:
       throw new Error(
         '`cacheLife()` can only be called inside a "use cache" function.'
       )
+    case undefined:
+      return
     case 'cache':
     case 'private-cache':
       break
