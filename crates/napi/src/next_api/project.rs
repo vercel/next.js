@@ -1,4 +1,4 @@
-use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{borrow::Cow, io::Write, iter::once, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
 use flate2::write::GzEncoder;
@@ -9,7 +9,7 @@ use napi::{
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use next_api::{
-    analyze::AnalyzeDataOutputAsset,
+    analyze::{AnalyzeDataOutputAsset, ModulesDataOutputAsset},
     entrypoints::Entrypoints,
     next_server_nft::next_server_nft_assets,
     operation::{
@@ -1016,6 +1016,7 @@ async fn output_assets_operation(
         .owned()
         .await?
         .join("diagnostics/analyze")?;
+    let module_graphs = project.whole_app_module_graphs();
     let analyze_output_root = &analyze_output_root;
     let endpoint_assets_and_analyze_data = project
         .get_all_endpoint_groups(app_dir_only)
@@ -1023,13 +1024,11 @@ async fn output_assets_operation(
         .iter()
         .map(|(key, endpoint_group)| async move {
             let output_assets = endpoint_group.output_assets();
-            let module_graphs = endpoint_group.module_graphs();
             let analyze_data = AnalyzeDataOutputAsset::new(
                 analyze_output_root
                     .join(&key.to_string())?
                     .join("analyze.data")?,
                 output_assets,
-                module_graphs,
             )
             .to_resolved()
             .await?;
@@ -1047,10 +1046,20 @@ async fn output_assets_operation(
 
     let nft = next_server_nft_assets(container.project()).await?;
 
+    let modules_data = ResolvedVc::upcast(
+        ModulesDataOutputAsset::new(
+            analyze_output_root.join("modules.data")?,
+            Vc::cell(vec![module_graphs.await?.full]),
+        )
+        .to_resolved()
+        .await?,
+    );
+
     Ok(Vc::cell(
         output_assets
             .into_iter()
             .chain(nft.iter().copied())
+            .chain(once(modules_data))
             .chain(
                 endpoint_assets_and_analyze_data
                     .iter()
