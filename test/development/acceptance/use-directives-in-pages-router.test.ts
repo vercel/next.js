@@ -82,4 +82,3 @@ describe('Error for "use server" directive in Pages Router', () => {
     expect(text).toContain('Hello')
   })
 })
-
