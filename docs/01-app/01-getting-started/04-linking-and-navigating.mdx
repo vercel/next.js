@@ -331,6 +331,45 @@ React mitigates this with Selective Hydration and you can further improve this b
 - Using the [`@next/bundle-analyzer`](/docs/app/guides/package-bundling#analyzing-javascript-bundles) plugin to identify and reduce bundle size by removing large dependencies.
 - Moving logic from the client to the server where possible. See the [Server and Client Components](/docs/app/getting-started/server-and-client-components) docs for guidance.
 
+## Navigation with Cache Components
+
+When the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag is enabled, Next.js uses React's [`<Activity>`](https://react.dev/reference/react/Activity) component to preserve component state during client-side navigation.
+
+Instead of unmounting the previous route when you navigate away, Next.js hides it with `display: none`. This means:
+
+- Component state is preserved when navigating between routes
+- When you navigate back, the previous route reappears with its state intact
+- Effects are cleaned up when a route is hidden, and recreated when it becomes visible again
+
+This behavior improves the navigation experience by maintaining UI state (form inputs, or expanded sections) when users navigate back and forth between routes.
+
+> **Good to know**: Next.js uses heuristics to keep a few recently visited routes hidden with Activity to preserve their state, while older routes are removed from the DOM to prevent excessive growth.
+
+<details>
+<summary>**Portals under Activity require manual cleanup**</summary>
+
+As a consequence of routes being hidden rather than unmounted, portals created via [`createPortal`](https://react.dev/reference/react-dom/createPortal) need special handling. Since portals render outside their parent component's DOM tree, they bypass the CSS cascade and remain visible even when the parent route is hidden.
+
+React can't automatically hide portals because it doesn't control the portal container—your effect does. To fix this, add a cleanup function to your effect:
+
+```tsx highlight={6-10}
+useLayoutEffect(() => {
+  const el = document.getElementById('portal-root')
+  setContainer(el)
+
+  // Hide the portal container when this component is hidden by Activity
+  return () => {
+    if (el) el.style.display = 'none'
+  }
+}, [])
+```
+
+The cleanup function runs when the component's Effects are cleaned up by the Activity boundary.
+
+Whether portal elements should automatically become visible again when the Activity is shown depends on your specific UI needs.
+
+</details>
+
 ## Examples
 
 ### Native History API
