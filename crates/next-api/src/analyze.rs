@@ -6,7 +6,8 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
@@ -430,21 +431,32 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
 
     async fn mapper(
         (from, to): (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>),
-    ) -> Result<(RcStr, RcStr)> {
+    ) -> Result<Option<(RcStr, RcStr)>> {
+        if from == to {
+            return Ok(None);
+        }
         let from_path = from.ident().path().to_string().owned().await?;
         let to_path = to.ident().path().to_string().owned().await?;
-        Ok((from_path, to_path))
+        Ok(Some((from_path, to_path)))
     }
-    let all_edges = all_edges.iter().copied().map(mapper).try_join().await?;
+    let all_edges = all_edges
+        .iter()
+        .copied()
+        .map(mapper)
+        .try_flat_join()
+        .await?;
     let all_async_edges = all_async_edges
         .iter()
         .copied()
         .map(mapper)
-        .try_join()
+        .try_flat_join()
         .await?;
     for (from_path, to_path) in all_edges {
         let from_index = builder.ensure_module(&from_path).1;
         let to_index = builder.ensure_module(&to_path).1;
+        if from_index == to_index {
+            continue;
+        }
         builder.modules[from_index as usize]
             .dependencies
             .insert(to_index);
@@ -455,6 +467,9 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
     for (from_path, to_path) in all_async_edges {
         let from_index = builder.ensure_module(&from_path).1;
         let to_index = builder.ensure_module(&to_path).1;
+        if from_index == to_index {
+            continue;
+        }
         builder.modules[from_index as usize]
             .async_dependencies
             .insert(to_index);
@@ -477,22 +492,34 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
     // Process queue and propagate depth
     while let Some(current_index) = queue.pop_front() {
         let current_depth = builder.modules[current_index as usize].module.depth;
-        let new_depth = current_depth + 1;
 
         // Collect dependencies to avoid borrow conflicts
         let dependencies: Vec<u32> = builder.modules[current_index as usize]
             .dependencies
             .iter()
-            .chain(
-                builder.modules[current_index as usize]
-                    .async_dependencies
-                    .iter(),
-            )
             .copied()
             .collect();
 
         // Update dependencies
+        let new_depth = current_depth + 1;
         for &dep_index in &dependencies {
+            let dep_module = &mut builder.modules[dep_index as usize];
+            if new_depth < dep_module.module.depth {
+                dep_module.module.depth = new_depth;
+                queue.push_back(dep_index);
+            }
+        }
+
+        // Collect async dependencies to avoid borrow conflicts
+        let async_dependencies: Vec<u32> = builder.modules[current_index as usize]
+            .async_dependencies
+            .iter()
+            .copied()
+            .collect();
+
+        // Update async dependencies
+        let new_depth = current_depth + 1000;
+        for &dep_index in &async_dependencies {
             let dep_module = &mut builder.modules[dep_index as usize];
             if new_depth < dep_module.module.depth {
                 dep_module.module.depth = new_depth;
