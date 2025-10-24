@@ -264,7 +264,7 @@ export function getImgProps(
   {
     src,
     sizes,
-    unoptimized = false,
+    unoptimized,
     priority = false,
     preload = false,
     loading,
@@ -417,13 +417,17 @@ export function getImgProps(
     !priority &&
     !preload &&
     (loading === 'lazy' || typeof loading === 'undefined')
+
+  const unoptimizedProvided = typeof unoptimized !== 'undefined'
+  let shouldUnoptimize = Boolean(unoptimized)
+
   if (!src || src.startsWith('data:') || src.startsWith('blob:')) {
     // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
-    unoptimized = true
+    shouldUnoptimize = true
     isLazy = false
   }
-  if (config.unoptimized) {
-    unoptimized = true
+  if (config.unoptimized && !unoptimizedProvided) {
+    shouldUnoptimize = true
   }
   if (
     isDefaultLoader &&
@@ -432,13 +436,13 @@ export function getImgProps(
   ) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
-    unoptimized = true
+    shouldUnoptimize = true
   }
 
   const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
-    if (config.output === 'export' && isDefaultLoader && !unoptimized) {
+    if (config.output === 'export' && isDefaultLoader && !shouldUnoptimize) {
       throw new Error(
         `Image Optimization using the default loader is not compatible with \`{ output: 'export' }\`.
   Possible solutions:
@@ -451,7 +455,7 @@ export function getImgProps(
       // React doesn't show the stack trace and there's
       // no `src` to help identify which image, so we
       // instead console.error(ref) during mount.
-      unoptimized = true
+      shouldUnoptimize = true
     } else {
       if (fill) {
         if (width) {
@@ -580,7 +584,7 @@ export function getImgProps(
       )
     }
 
-    if (!unoptimized && !isDefaultLoader) {
+    if (!shouldUnoptimize && !isDefaultLoader) {
       const urlStr = loader({
         config,
         src,
@@ -721,7 +725,7 @@ export function getImgProps(
   const imgAttributes = generateImgAttrs({
     config,
     src,
-    unoptimized,
+    unoptimized: shouldUnoptimize,
     width: widthInt,
     quality: qualityInt,
     sizes,
@@ -755,6 +759,11 @@ export function getImgProps(
     srcSet: imgAttributes.srcSet,
     src: overrideSrc || imgAttributes.src,
   }
-  const meta = { unoptimized, preload: preload || priority, placeholder, fill }
+  const meta = {
+    unoptimized: shouldUnoptimize,
+    preload: preload || priority,
+    placeholder,
+    fill,
+  }
   return { props, meta }
 }
