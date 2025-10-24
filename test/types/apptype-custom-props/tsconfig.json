@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-jsx",
+    "skipLibCheck": false,
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["./app-type.test.ts"]
+}
+
