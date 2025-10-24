@@ -8,12 +8,12 @@ use serde::Deserialize;
 use swc_core::{
     atoms::Atom,
     common::{
+        FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         comments::{Comments, NoopComments},
         pass::Optional,
-        FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
     ecma::{
-        ast::{fn_pass, noop_pass, EsVersion, Pass},
+        ast::{EsVersion, Pass, fn_pass, noop_pass},
         parser::parse_file_as_module,
         visit::visit_mut_pass,
     },
@@ -23,7 +23,7 @@ use crate::{
     linter::linter,
     transforms::{
         cjs_finder::contains_cjs,
-        dynamic::{next_dynamic, NextDynamicMode},
+        dynamic::{NextDynamicMode, next_dynamic},
         fonts::next_font_loaders,
         lint_codemod_comments::lint_codemod_comments,
         react_server_components,
@@ -160,7 +160,7 @@ where
         let file = file.clone();
 
         fn_pass(move |program| {
-            if let Some(config) = opts.styled_jsx.to_option() {
+            if opts.styled_jsx.to_option().is_some() {
                 let target_browsers = opts
                     .css_env
                     .as_ref()
@@ -174,7 +174,6 @@ where
                     cm.clone(),
                     &file.name,
                     &styled_jsx::visitor::Config {
-                        use_lightningcss: config.use_lightningcss,
                         browsers: *target_browsers,
                     },
                     &styled_jsx::visitor::NativeConfig { process_css: None },
