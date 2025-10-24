@@ -77,7 +77,7 @@ Dynamic data like [`fetch`](/docs/app/api-reference/functions/fetch) calls or da
 
 ### 3. Cached data with `use cache`
 
-Add `use cache` to any Server Component to make it cached and include it in the pre-rendered shell. You cannot use runtime APIs from inside a cached component. You can also mark utility functions as `use cache` and call them from Server Components.
+Add `use cache` to any **async** Server Component to make it cached and include it in the pre-rendered shell. Utility functions can also be marked with `use cache` and be called from within Server Components. Runtime APIs cannot be used from inside a cached component.
 
 ```tsx
 export async function getProducts() {
