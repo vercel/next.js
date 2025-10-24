@@ -19,6 +19,7 @@ use turbopack_core::{
     chunk::ChunkingType,
     module::Module,
     output::{OutputAsset, OutputAssets},
+    reference::all_assets_from_entries,
 };
 
 use crate::route::{Endpoint, ModuleGraphs};
@@ -66,7 +67,6 @@ pub struct AnalyzeSource {
     /// Folders end with a slash. Might have multiple path segments when folders contain only a
     /// single child.
     pub path: RcStr,
-    pub source_size: u32,
 }
 
 #[derive(Serialize)]
@@ -190,7 +190,6 @@ impl AnalyzeDataBuilder {
             source: AnalyzeSource {
                 parent_source_index: None,
                 path,
-                source_size: 0,
             },
             child_source_indices: vec![],
             chunk_part_indices: vec![],
@@ -353,6 +352,8 @@ impl ModulesDataBuilder {
 
 #[turbo_tasks::function]
 pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc<FileContent>> {
+    let output_assets = all_assets_from_entries(output_assets);
+
     let mut builder = AnalyzeDataBuilder::new();
 
     let prefix = format!("{SOURCE_URL_PROTOCOL}///");
@@ -360,9 +361,12 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
     // Process the output assets and extract chunk parts.
     // Also creates sources for the chunk parts.
     for &asset in output_assets.await? {
-        let output_file_index = builder.add_output_file(AnalyzeOutputFile {
-            filename: asset.path().to_string().owned().await?,
-        });
+        let filename = asset.path().to_string().owned().await?;
+        if filename.ends_with(".map") || filename.ends_with(".nft.json") {
+            // Skip source maps.
+            continue;
+        }
+        let output_file_index = builder.add_output_file(AnalyzeOutputFile { filename });
         let chunk_parts = split_output_asset_into_parts(*asset).await?;
         for chunk_part in chunk_parts {
             let source_index = builder
