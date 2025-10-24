@@ -1,3 +1,3 @@
-import Script from './dist/client/script'
-export * from './dist/client/script'
+import Script from './src/client/script'
+export * from './src/client/script'
 export default Script

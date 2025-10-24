@@ -98,7 +98,9 @@ export default async function nextFontLoader(this: any) {
     try {
       // Import the font loader function from either next/font/local or next/font/google
       // The font loader function emits font files and returns @font-faces and fallback font metrics
-      const fontLoader: FontLoader = require(fontLoaderPath).default
+      const fontLoaderModule = require(fontLoaderPath) as any
+      const fontLoader: FontLoader =
+        fontLoaderModule.default || fontLoaderModule
       let { css, fallbackFonts, adjustFontFallback, weight, style, variable } =
         await nextFontLoaderSpan.traceChild('font-loader').traceAsyncFn(() =>
           fontLoader({

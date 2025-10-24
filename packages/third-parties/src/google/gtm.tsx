@@ -1,5 +1,4 @@
 'use client'
-// TODO: Evaluate import 'client only'
 import React, { useEffect } from 'react'
 import Script from 'next/script'
 
