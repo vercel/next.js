@@ -2,10 +2,10 @@
   "compilerOptions": {
     "strict": true,
     "jsx": "react-jsx",
-    "skipLibCheck": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "noEmit": true,
-    "types": []
+    "types": ["react", "node"]
   },
   "include": ["./app-type.test.ts"]
 }
-

@@ -1,5 +1,4 @@
-// Import directly from source to avoid requiring a full build.
-import type { AppType } from '../../../packages/next/src/shared/lib/utils'
+import type { AppType } from 'next/app'
 
 type Extra = { foo: number }
 
