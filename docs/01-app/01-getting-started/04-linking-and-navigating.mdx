@@ -335,7 +335,7 @@ React mitigates this with Selective Hydration and you can further improve this b
 
 When the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag is enabled, Next.js uses React's [`<Activity>`](https://react.dev/reference/react/Activity) component to preserve component state during client-side navigation.
 
-Instead of unmounting the previous route when you navigate away, Next.js hides it with `display: none`. This means:
+Rather than unmounting the previous route when you navigate away, Next.js sets the Activity mode to [`"hidden"`](https://react.dev/reference/react/Activity#activity). This means:
 
 - Component state is preserved when navigating between routes
 - When you navigate back, the previous route reappears with its state intact
@@ -348,9 +348,9 @@ This behavior improves the navigation experience by maintaining UI state (form i
 <details>
 <summary>**Portals under Activity require manual cleanup**</summary>
 
-As a consequence of routes being hidden rather than unmounted, portals created via [`createPortal`](https://react.dev/reference/react-dom/createPortal) need special handling. Since portals render outside their parent component's DOM tree, they bypass the CSS cascade and remain visible even when the parent route is hidden.
+As a consequence of routes being hidden rather than unmounted, portals created via [`createPortal`](https://react.dev/reference/react-dom/createPortal) need special handling. Since portals render outside their parent component's DOM tree, they remain visible even when the parent route is hidden.
 
-React can't automatically hide portals because it doesn't control the portal container—your effect does. To fix this, add a cleanup function to your effect:
+React can't automatically hide portals because it doesn't control the portal container, your effect does. To fix this, add a cleanup function to your effect:
 
 ```tsx highlight={6-10}
 useLayoutEffect(() => {
@@ -364,9 +364,11 @@ useLayoutEffect(() => {
 }, [])
 ```
 
-The cleanup function runs when the component's Effects are cleaned up by the Activity boundary.
+The cleanup function runs when the component's effects are cleaned up by the Activity boundary.
 
 Whether portal elements should automatically become visible again when the Activity is shown depends on your specific UI needs.
+
+For more about handling side effects and UI with hidden components, see [React’s guide to unwanted side-effects in hidden components](https://react.dev/reference/react/Activity#my-hidden-components-have-unwanted-side-effects).
 
 </details>
 
