@@ -31,6 +31,7 @@ import {
 import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../shared/lib/router/utils/interception-routes'
 import { throwEmptyGenerateStaticParamsError } from '../../shared/lib/errors/empty-generate-static-params-error'
+import type { AppRouteModule } from '../../server/route-modules/app-route/module.compiled'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -842,7 +843,7 @@ export async function buildAppStaticPaths({
   cacheMaxMemorySize: number
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined
-  ComponentMod: AppPageModule
+  ComponentMod: AppPageModule | AppRouteModule
   isRoutePPREnabled: boolean
   buildId: string
   rootParamKeys: readonly string[]
@@ -1123,13 +1124,19 @@ export async function buildAppStaticPaths({
         )
       }
 
-      // Resolve parallel route params from the loader tree
-      resolveParallelRouteParams(
-        ComponentMod.routeModule.userland.loaderTree,
-        params,
-        pathname,
-        fallbackRouteParams
-      )
+      // Resolve parallel route params from the loader tree if this is from an
+      // app page.
+      if (
+        'loaderTree' in ComponentMod.routeModule.userland &&
+        Array.isArray(ComponentMod.routeModule.userland.loaderTree)
+      ) {
+        resolveParallelRouteParams(
+          ComponentMod.routeModule.userland.loaderTree,
+          params,
+          pathname,
+          fallbackRouteParams
+        )
+      }
 
       const fallbackRootParams: string[] = []
       for (const { paramName, isParallelRouteParam } of fallbackRouteParams) {
