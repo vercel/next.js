@@ -13,13 +13,47 @@ const actionAsyncStorage =
       ).actionAsyncStorage
     : undefined
 
+// Access basePath from Next.js runtime config
+const getBasePath = (): string => {
+  if (typeof window === 'undefined') {
+    // Server-side: use process.env injected at build time
+    return process.env.__NEXT_ROUTER_BASEPATH || ''
+  } else {
+    // Client-side: use Next.js router's basePath
+    return (window as any).__NEXT_DATA__?.props?.pageProps?.__nextBasePath || ''
+  }
+}
+
+// Helper to combine basePath with URL
+const prependBasePath = (url: string, basePath: string): string => {
+  // Don't prepend if URL is absolute (has protocol) or already starts with basePath
+  if (
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith(basePath)
+  ) {
+    return url
+  }
+
+  // Ensure proper path joining (avoid double slashes)
+  const normalizedBasePath = basePath.endsWith('/')
+    ? basePath.slice(0, -1)
+    : basePath
+  const normalizedUrl = url.startsWith('/') ? url : `/${url}`
+
+  return `${normalizedBasePath}${normalizedUrl}`
+}
+
 export function getRedirectError(
   url: string,
   type: RedirectType,
   statusCode: RedirectStatusCode = RedirectStatusCode.TemporaryRedirect
 ): RedirectError {
+  const basePath = getBasePath()
+  const fullUrl = prependBasePath(url, basePath)
+
   const error = new Error(REDIRECT_ERROR_CODE) as RedirectError
-  error.digest = `${REDIRECT_ERROR_CODE};${type};${url};${statusCode};`
+  error.digest = `${REDIRECT_ERROR_CODE};${type};${fullUrl};${statusCode};`
   return error
 }
 
@@ -43,7 +77,6 @@ export function redirect(
   type ??= actionAsyncStorage?.getStore()?.isAction
     ? RedirectType.push
     : RedirectType.replace
-
   throw getRedirectError(url, type, RedirectStatusCode.TemporaryRedirect)
 }
 
@@ -76,7 +109,6 @@ export function permanentRedirect(
 export function getURLFromRedirectError(error: RedirectError): string
 export function getURLFromRedirectError(error: unknown): string | null {
   if (!isRedirectError(error)) return null
-
   // Slices off the beginning of the digest that contains the code and the
   // separating ';'.
   return error.digest.split(';').slice(2, -2).join(';')
@@ -86,7 +118,6 @@ export function getRedirectTypeFromError(error: RedirectError): RedirectType {
   if (!isRedirectError(error)) {
     throw new Error('Not a redirect error')
   }
-
   return error.digest.split(';', 2)[1] as RedirectType
 }
 
@@ -94,6 +125,5 @@ export function getRedirectStatusCodeFromError(error: RedirectError): number {
   if (!isRedirectError(error)) {
     throw new Error('Not a redirect error')
   }
-
   return Number(error.digest.split(';').at(-2))
 }
