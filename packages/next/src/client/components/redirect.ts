@@ -15,13 +15,8 @@ const actionAsyncStorage =
 
 // Access basePath from Next.js runtime config
 const getBasePath = (): string => {
-  if (typeof window === 'undefined') {
-    // Server-side: use process.env injected at build time
-    return process.env.__NEXT_ROUTER_BASEPATH || ''
-  } else {
-    // Client-side: use Next.js router's basePath
-    return (window as any).__NEXT_DATA__?.props?.pageProps?.__nextBasePath || ''
-  }
+  // Use process.env injected at build time (available in both server and client)
+  return process.env.__NEXT_ROUTER_BASEPATH || ''
 }
 
 // Helper to combine basePath with URL
