@@ -94,8 +94,7 @@ The `matcher` option accepts an array of objects with the following keys:
 export const config = {
   matcher: [
     {
-      source: '/api/*',
-      regexp: '^/api/(.*)',
+      source: '/api/:path*',
       locale: false,
       has: [
         { type: 'header', key: 'Authorization', value: 'Bearer Token' },
