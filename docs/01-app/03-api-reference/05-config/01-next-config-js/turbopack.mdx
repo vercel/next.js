@@ -110,32 +110,13 @@ Next.js automatically detects the root directory of your project. It does so by 
 
 If you have a different project structure, for example if you don't use workspaces, you can manually set the `root` option:
 
-```ts filename="next.config.ts" switcher
-import type { NextConfig } from 'next'
-import { fileURLToPath } from 'url'
-
-const nextConfig: NextConfig = {
-  turbopack: {
-    root: fileURLToPath(new URL('../', import.meta.url)),
-  },
-}
-
-export default nextConfig
-```
-
 ```js filename="next.config.mjs" switcher
-import { fileURLToPath } from 'url'
-
-/**
- * @type {import('next').NextConfig}
- */
-const nextConfig = {
+const path = require('path')
+module.exports = {
   turbopack: {
-    root: fileURLToPath(new URL('../', import.meta.url)),
+    root: path.join(__dirname, '..'),
   },
 }
-
-export default nextConfig
 ```
 
 ### Configuring webpack loaders
