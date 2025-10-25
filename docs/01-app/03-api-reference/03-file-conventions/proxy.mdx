@@ -80,7 +80,18 @@ export const config = {
 }
 ```
 
-Additionally, the `matcher` option supports complex path specifications through regular expressions, such as `matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)']`, enabling precise control over which paths to include or exclude.
+Additionally, the `matcher` option supports complex path specifications using regular expressions. For example, you can exclude certain paths with a regular expression matcher:
+
+```js filename="proxy.js"
+export const config = {
+  matcher: [
+    // Exclude API routes, static files, image optimizations, and .png files
+    '/((?!api|_next/static|_next/image|.*\\.png$).*)',
+  ],
+}
+```
+
+This enables precise control over which paths to include or exclude.
 
 The `matcher` option accepts an array of objects with the following keys:
 
