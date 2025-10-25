@@ -190,19 +190,7 @@ Proxy will be invoked for **every route in your project**. Given this, it's cruc
 
 ## Runtime
 
-Proxy defaults to using the Edge runtime. As of v15.5, we have support for using the Node.js runtime. To enable, in your proxy file, set the runtime to `nodejs` in the `config` object:
-
-```js highlight={2} filename="proxy.js" switcher
-export const config = {
-  runtime: 'nodejs',
-}
-```
-
-```ts highlight={2} filename="proxy.ts" switcher
-export const config = {
-  runtime: 'nodejs',
-}
-```
+Proxy defaults to using the Node.js runtime. The [`runtime`](/docs/app/api-reference/file-conventions/route-segment-config#runtime) config option is not available in Proxy files. Setting the `runtime` config option in Proxy will throw an error.
 
 ## Advanced Proxy flags
 

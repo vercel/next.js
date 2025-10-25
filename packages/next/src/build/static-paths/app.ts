@@ -12,6 +12,7 @@ import { AfterRunner } from '../../server/after/run-with-after'
 import { createWorkStore } from '../../server/async-storage/work-store'
 import { FallbackMode } from '../../lib/fallback'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
+import type { LoaderTree } from '../../server/lib/app-dir-module'
 import {
   normalizePathname,
   encodeParam,
@@ -23,8 +24,14 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
+import {
+  getParamProperties,
+  getSegmentParam,
+} from '../../shared/lib/router/utils/get-segment-param'
+import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
+import { INTERCEPTION_ROUTE_MARKERS } from '../../shared/lib/router/utils/interception-routes'
 import { throwEmptyGenerateStaticParamsError } from '../../shared/lib/errors/empty-generate-static-params-error'
+import type { AppRouteModule } from '../../server/route-modules/app-route/module.compiled'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -546,78 +553,160 @@ export function assignErrorIfEmpty(
 }
 
 /**
- * Resolves parallel route parameters from regular route parameters. This function
- * handles the complex logic of determining how to populate parallel route params
- * based on their type (catchall, optional-catchall, or regular) and the current
- * state of fallback parameters.
+ * Resolves parallel route parameters from the loader tree. This function uses
+ * tree-based traversal to correctly handle the hierarchical structure of parallel
+ * routes and accurately determine parameter values based on their depth in the tree.
  *
- * @param parallelRouteSegments - Array of parallel route segments with their types and param names
+ * Unlike interpolateParallelRouteParams (which has a complete URL at runtime),
+ * this build-time function determines which parallel route params are unknown.
+ * The pathname may contain placeholders like [slug], making it incomplete.
+ *
+ * @param loaderTree - The loader tree structure containing route hierarchy
  * @param params - The current route parameters object (will be mutated)
- * @param pathname - The current pathname being processed
+ * @param pathname - The current pathname being processed (may contain placeholders)
  * @param fallbackRouteParams - Array of fallback route parameters (will be mutated)
  */
 export function resolveParallelRouteParams(
-  parallelRouteSegments: ReadonlyArray<{
-    readonly paramName: string
-    readonly paramType: DynamicParamTypes
-  }>,
+  loaderTree: LoaderTree,
   params: Params,
   pathname: string,
   fallbackRouteParams: FallbackRouteParam[]
 ): void {
-  // Resolve parallel route params from the regular route params
-  for (const { paramType, paramName } of parallelRouteSegments) {
-    // Check if we can resolve this from existing params
-    if (params[paramName]) {
-      // Direct match - the param name exists in regular params
-      continue
+  // Stack-based traversal with depth and parallel route key tracking
+  const stack: Array<{
+    tree: LoaderTree
+    depth: number
+    parallelKey: string
+  }> = [{ tree: loaderTree, depth: 0, parallelKey: 'children' }]
+
+  // Parse pathname into segments for depth-based resolution
+  const pathSegments = pathname.split('/').filter(Boolean)
+
+  while (stack.length > 0) {
+    const { tree, depth, parallelKey } = stack.pop()!
+    const { segment, parallelRoutes } = parseLoaderTree(tree)
+
+    // Only process segments that are in parallel routes (not the main 'children' route)
+    if (parallelKey !== 'children') {
+      const segmentParam = getSegmentParam(segment)
+
+      if (segmentParam && !params.hasOwnProperty(segmentParam.param)) {
+        const { param: paramName, type: paramType } = segmentParam
+
+        switch (paramType) {
+          case 'catchall':
+          case 'optional-catchall':
+          case 'catchall-intercepted':
+            // If there are any non-parallel fallback route segments, we can't use the
+            // pathname to derive the value because it's not complete. We can make
+            // this assumption because routes are resolved left to right.
+            if (
+              fallbackRouteParams.some((param) => !param.isParallelRouteParam)
+            ) {
+              fallbackRouteParams.push(
+                createFallbackRouteParam(paramName, paramType, true)
+              )
+              break
+            }
+
+            // For catchall routes in parallel segments, derive from pathname
+            // using depth to determine which segments to use
+            const remainingSegments = pathSegments.slice(depth)
+
+            // Process segments to handle any embedded dynamic params
+            // Track if we encounter any unknown param placeholders
+            let hasUnknownParam = false
+            const processedSegments = remainingSegments
+              .flatMap((pathSegment) => {
+                const param = getSegmentParam(pathSegment)
+                if (param) {
+                  // If the segment is a param placeholder, check if we have its value
+                  if (!params.hasOwnProperty(param.param)) {
+                    // Unknown param placeholder in pathname - can't derive full value
+                    hasUnknownParam = true
+                    return undefined
+                  }
+                  // If the segment matches a param, return the param value
+                  // We don't encode values here as that's handled during retrieval.
+                  return params[param.param]
+                }
+                // Otherwise it's a static segment
+                return pathSegment
+              })
+              .filter((s) => s !== undefined)
+
+            // If we encountered any unknown param placeholders, we can't derive
+            // the full catch-all value from the pathname, so mark as fallback.
+            if (hasUnknownParam) {
+              fallbackRouteParams.push(
+                createFallbackRouteParam(paramName, paramType, true)
+              )
+              break
+            }
+
+            if (processedSegments.length > 0) {
+              params[paramName] = processedSegments
+            } else if (paramType === 'optional-catchall') {
+              params[paramName] = []
+            } else {
+              // We shouldn't be able to match a catchall segment without any path
+              // segments if it's not an optional catchall
+              throw new InvariantError(
+                `Unexpected empty path segments match for a pathname "${pathname}" with param "${paramName}" of type "${paramType}"`
+              )
+            }
+            break
+
+          case 'dynamic':
+          case 'dynamic-intercepted':
+            // For regular dynamic parameters, take the segment at this depth
+            if (depth < pathSegments.length) {
+              const pathSegment = pathSegments[depth]
+              const param = getSegmentParam(pathSegment)
+
+              // Check if the segment at this depth is a placeholder for an unknown param
+              if (param && !params.hasOwnProperty(param.param)) {
+                // The segment is a placeholder like [category] and we don't have the value
+                fallbackRouteParams.push(
+                  createFallbackRouteParam(paramName, paramType, true)
+                )
+                break
+              }
+
+              // If the segment matches a param, use the param value from params object
+              // Otherwise it's a static segment, just use it directly
+              // We don't encode values here as that's handled during retrieval
+              params[paramName] = param ? params[param.param] : pathSegment
+            } else {
+              // No segment at this depth, mark as fallback.
+              fallbackRouteParams.push(
+                createFallbackRouteParam(paramName, paramType, true)
+              )
+            }
+            break
+
+          default:
+            paramType satisfies never
+        }
+      }
     }
 
-    if (paramType === 'catchall' || paramType === 'optional-catchall') {
-      // If there are any fallback route segments then we can't use the
-      // pathname to derive the value because it's not complete. We can
-      // make this assumption because the routes are always resolved left
-      // to right and the catchall is always the last segment, so any
-      // route parameters that are unknown will always contribute to the
-      // pathname and therefore the catchall param too.
-      if (fallbackRouteParams.some((param) => !param.isParallelRouteParam)) {
-        fallbackRouteParams.push(
-          createFallbackRouteParam(paramName, paramType, true)
-        )
-        continue
-      }
+    // Calculate next depth - increment if this is not a route group and not empty
+    let nextDepth = depth
+    // Route groups are like (marketing) or (dashboard), NOT interception routes like (.)photo
+    // Interception routes start with markers like (.), (..), (...), (..)(..)) and should increment depth
+    const isInterceptionRoute = INTERCEPTION_ROUTE_MARKERS.some((marker) =>
+      segment.startsWith(marker)
+    )
+    const isRouteGroup =
+      !isInterceptionRoute && segment.startsWith('(') && segment.endsWith(')')
+    if (!isRouteGroup && segment !== '') {
+      nextDepth++
+    }
 
-      // For catchall routes in parallel segments, derive from pathname
-      // Similar to getDynamicParam's pagePath parsing logic
-      const pathSegments = pathname.split('/').filter(Boolean)
-
-      // For catchall parallel routes, we use the full path segments
-      // This mimics the behavior in getDynamicParam where the pagePath
-      // is split and used to populate catchall values
-      if (pathSegments.length > 0) {
-        // FIXME: (NAR-335) this should handle prefixed segments
-        params[paramName] = pathSegments
-      } else if (paramType === 'optional-catchall') {
-        params[paramName] = []
-      } else {
-        // We shouldn't be able to match a catchall segment without any path
-        // segments if it's not an optional catchall.
-        throw new InvariantError(
-          `Unexpected empty path segments match for a pathname "${pathname}" with param "${paramName}" of type "${paramType}"`
-        )
-      }
-    } else if (paramType === 'dynamic') {
-      // We can't resolve dynamic param values at build time because they're
-      // inferred from the request pathname.
-      fallbackRouteParams.push(
-        createFallbackRouteParam(paramName, paramType, true)
-      )
-    } else {
-      // This is some other type of route param that shouldn't get resolved
-      // statically.
-      throw new InvariantError(
-        `Unexpected match for a pathname "${pathname}" with a param "${paramName}" of type "${paramType}"`
-      )
+    // Add all parallel routes to the stack for processing.
+    for (const [key, route] of Object.entries(parallelRoutes)) {
+      stack.push({ tree: route, depth: nextDepth, parallelKey: key })
     }
   }
 }
@@ -754,7 +843,7 @@ export async function buildAppStaticPaths({
   cacheMaxMemorySize: number
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined
-  ComponentMod: AppPageModule
+  ComponentMod: AppPageModule | AppRouteModule
   isRoutePPREnabled: boolean
   buildId: string
   rootParamKeys: readonly string[]
@@ -782,11 +871,6 @@ export async function buildAppStaticPaths({
   })
 
   const childrenRouteParamSegments: Array<{
-    readonly name: string
-    readonly paramName: string
-    readonly paramType: DynamicParamTypes
-  }> = []
-  const parallelRouteSegments: Array<{
     readonly name: string
     readonly paramName: string
     readonly paramType: DynamicParamTypes
@@ -819,13 +903,9 @@ export async function buildAppStaticPaths({
         continue
       }
 
-      // Collect all the parallel route segments that have dynamic params for
-      // second-pass resolution.
-      parallelRouteSegments.push({
-        name: segment.name,
-        paramName: segment.paramName,
-        paramType: segment.paramType,
-      })
+      // Collect parallel fallback route params for the base route.
+      // The actual parallel route param resolution is now handled by
+      // resolveParallelRouteParams using the loader tree.
       parallelFallbackRouteParams.push(
         createFallbackRouteParam(segment.paramName, segment.paramType, true)
       )
@@ -1044,13 +1124,19 @@ export async function buildAppStaticPaths({
         )
       }
 
-      // Resolve parallel route params from the regular route params
-      resolveParallelRouteParams(
-        parallelRouteSegments,
-        params,
-        pathname,
-        fallbackRouteParams
-      )
+      // Resolve parallel route params from the loader tree if this is from an
+      // app page.
+      if (
+        'loaderTree' in ComponentMod.routeModule.userland &&
+        Array.isArray(ComponentMod.routeModule.userland.loaderTree)
+      ) {
+        resolveParallelRouteParams(
+          ComponentMod.routeModule.userland.loaderTree,
+          params,
+          pathname,
+          fallbackRouteParams
+        )
+      }
 
       const fallbackRootParams: string[] = []
       for (const { paramName, isParallelRouteParam } of fallbackRouteParams) {
