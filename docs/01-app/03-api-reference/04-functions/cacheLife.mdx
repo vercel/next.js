@@ -78,9 +78,9 @@ The profile name tells Next.js how to cache the entire function's output. If you
 
 Cache profiles control caching behavior through three timing properties:
 
-- **`stale`**: How long the client can use cached data without checking the server
-- **`revalidate`**: After this time, the next request will trigger a background refresh
-- **`expire`**: After this time with no requests, the next one waits for fresh content
+- **[`stale`](#stale)**: How long the client can use cached data without checking the server
+- **[`revalidate`](#revalidate)**: After this time, the next request will trigger a background refresh
+- **[`expire`](#expire)**: After this time with no requests, the next one waits for fresh content
 
 #### `stale`
 
@@ -101,7 +101,7 @@ How often the server regenerates cached content in the background.
   1. Serves the cached version immediately (if available)
   2. Regenerates content in the background
   3. Updates the cache with fresh content
-- Similar to Incremental Static Regeneration (ISR)
+- Similar to [Incremental Static Regeneration (ISR)](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration)
 
 ```tsx
 cacheLife({ revalidate: 900 }) // 15 minutes
@@ -112,7 +112,7 @@ cacheLife({ revalidate: 900 }) // 15 minutes
 Maximum time before cached content must be regenerated.
 
 - After this period with no traffic, the next request regenerates content synchronously
-- Must be longer than `revalidate` when both are specified
+- When you set both `revalidate` and `expire`, `expire` must be longer than `revalidate`. Next.js validates this and raises an error for invalid configurations.
 
 ```tsx
 cacheLife({ expire: 3600 }) // 1 hour
