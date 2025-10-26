@@ -33,7 +33,7 @@ You should follow a **Zero Trust** model when adopting Server Components in an e
 import { cookies } from 'next/headers'
 
 export default async function Page() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get('AUTH_TOKEN')?.value
 
   const res = await fetch('https://api.example.com/profile', {
@@ -73,7 +73,8 @@ import { cookies } from 'next/headers'
 // Component to Server Component which minimizes risk of passing it to a Client
 // Component.
 export const getCurrentUser = cache(async () => {
-  const token = cookies().get('AUTH_TOKEN')
+  const cookieStore = await cookies()
+  const token = cookieStore.get('AUTH_TOKEN')?.value
   const decodedToken = await decryptAndValidate(token)
   // Don't include secret tokens or private information as public fields.
   // Use classes to avoid accidentally passing the whole object to the client.
@@ -303,7 +304,8 @@ You should always validate input from client, as they can be easily modified. Fo
 ```tsx filename="app/page.tsx"
 // BAD: Trusting searchParams directly
 export default async function Page({ searchParams }) {
-  const isAdmin = searchParams.get('isAdmin')
+  const cookieStore = await cookies()
+  const isAdmin = cookieStore.get('isAdmin')?.value
   if (isAdmin === 'true') {
     // Vulnerable: relies on untrusted client data
     return <AdminPanel />
@@ -315,7 +317,8 @@ import { cookies } from 'next/headers'
 import { verifyAdmin } from './auth'
 
 export default async function Page() {
-  const token = cookies().get('AUTH_TOKEN')
+  const cookieStore = await cookies()
+  const token = cookieStore.get('AUTH_TOKEN')?.value
   const isAdmin = await verifyAdmin(token)
 
   if (isAdmin) {
