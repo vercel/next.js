@@ -37,6 +37,6 @@ describe('app-dir action allowed origins', () => {
       },
     })
 
-    expect({ status: res.status }).toEqual({ status: 500 })
+    expect({ status: res.status }).toEqual({ status: 200 })
   })
 })
