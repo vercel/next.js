@@ -2,14 +2,23 @@
 
 import '../server/require-hook'
 
-import { Argument, Command, Option } from 'next/dist/compiled/commander'
+import {
+  Argument,
+  Command,
+  InvalidArgumentError,
+  Option,
+} from 'next/dist/compiled/commander'
 
 import { warn } from '../build/output/log'
 import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { parseValidPositiveInteger } from '../server/lib/utils'
+import {
+  getParsedDebugAddress,
+  parseValidPositiveInteger,
+  type DebugAddress,
+} from '../server/lib/utils'
 import {
   SUPPORTED_TEST_RUNNERS_LIST,
   type NextTestOptions,
@@ -89,6 +98,22 @@ class NextRootCommand extends Command {
 
     return command
   }
+}
+
+function parseValidInspectAddress(value: string): DebugAddress {
+  const address = getParsedDebugAddress(value)
+
+  if (Number.isNaN(address.port)) {
+    throw new InvalidArgumentError(
+      'The given value is not a valid inspect address. ' +
+        'Did you mean to pass an app path?\n' +
+        `Try switching the order of the arguments or set the default address explicitly e.g.\n` +
+        `next dev ${value} --inspect\n` +
+        `next dev --inspect= ${value}`
+    )
+  }
+
+  return address
 }
 
 const program = new NextRootCommand()
@@ -180,9 +205,11 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option(
-    '--inspect [[host:]port]',
-    'Allows inspecting server-side code. See https://nextjs.org/docs/app/guides/debugging#server-side-code'
+  .addOption(
+    new Option(
+      '--inspect [[host:]port]',
+      'Allows inspecting server-side code. See https://nextjs.org/docs/app/guides/debugging#server-side-code'
+    ).argParser(parseValidInspectAddress)
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')

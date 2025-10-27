@@ -11,6 +11,7 @@ import {
   formatNodeOptions,
   formatDebugAddress,
   getParsedNodeOptions,
+  type DebugAddress,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -46,7 +47,8 @@ import {
 
 export type NextDevOptions = {
   disableSourceMaps: boolean
-  inspect?: string
+  // Commander is not putting `--inspect` through the arg parser
+  inspect?: DebugAddress | true
   turbo?: boolean
   turbopack?: boolean
   webpack?: boolean
@@ -291,7 +293,10 @@ const nextDev = async (
         address.port = address.port === 0 ? 0 : address.port + 1
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
       } else if (options.inspect) {
-        const address = getParsedDebugAddress(options.inspect)
+        const address: DebugAddress =
+          options.inspect === true
+            ? getParsedDebugAddress(true)
+            : options.inspect
         nodeOptions.inspect = formatDebugAddress(address)
       }
 
