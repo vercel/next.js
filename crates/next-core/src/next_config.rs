@@ -2209,7 +2209,7 @@ impl NextConfig {
             NextMode::Development => self
                 .experimental
                 .turbopack_use_whole_app_module_graph_in_dev
-                .unwrap_or(true),
+                .unwrap_or(false),
             NextMode::Build => true,
         }))
     }
