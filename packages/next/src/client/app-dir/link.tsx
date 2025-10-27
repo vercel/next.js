@@ -153,7 +153,7 @@ type InternalLinkProps = {
    * </Link>
    * ```
    */
-  prefetch?: boolean | 'auto' | null | 'unstable_forceStale'
+  prefetch?: boolean | 'auto' | null
 
   /**
    * (unstable) Switch to a full prefetch on hover. Effectively the same as
@@ -468,12 +468,11 @@ export default function LinkComponent(
         if (
           props[key] != null &&
           valType !== 'boolean' &&
-          props[key] !== 'auto' &&
-          props[key] !== 'unstable_forceStale'
+          props[key] !== 'auto'
         ) {
           throw createPropError({
             key,
-            expected: '`boolean | "auto" | "unstable_forceStale"`',
+            expected: '`boolean | "auto"`',
             actual: valType,
           })
         }
@@ -751,15 +750,7 @@ function getFetchStrategyFromPrefetchProp(
     process.env.__NEXT_CACHE_COMPONENTS &&
     process.env.__NEXT_CLIENT_SEGMENT_CACHE
   ) {
-    // In the new implementation:
-    // - `prefetch={true}` is a runtime prefetch
-    //   (includes cached IO + params + cookies, with dynamic holes for uncached IO).
-    // - `unstable_forceStale` is a "full" prefetch
-    //   (forces inclusion of all dynamic data, i.e. the old behavior of `prefetch={true}`)
     if (prefetchProp === true) {
-      return FetchStrategy.PPRRuntime
-    }
-    if (prefetchProp === 'unstable_forceStale') {
       return FetchStrategy.Full
     }
 

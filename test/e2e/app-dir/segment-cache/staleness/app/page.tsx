@@ -21,12 +21,12 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/runtime-stale-5-minutes" prefetch={true}>
+          <LinkAccordion href="/runtime-stale-5-minutes">
             Page whose runtime prefetch has a stale time of 5 minutes
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/runtime-stale-10-minutes" prefetch={true}>
+          <LinkAccordion href="/runtime-stale-10-minutes">
             Page whose runtime prefetch has a stale time of 10 minutes
           </LinkAccordion>
         </li>
