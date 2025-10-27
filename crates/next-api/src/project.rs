@@ -1527,7 +1527,12 @@ impl Project {
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         let module_graphs_op = whole_app_module_graph_operation(self);
-        let module_graphs_vc = if self.next_mode().await?.is_production() {
+        // In development watch mode, keep issues so individual routes can report them.
+        // In non-watch dev mode (e.g. next build --debug-prerender) or production, drop issues
+        // so every route doesn't redundantly re-report all shared graph issues.
+        let module_graphs_vc = if !self.next_mode().await?.is_production()
+            && *self.is_watch_enabled().await?
+        {
             module_graphs_op.connect()
         } else {
             let vc = module_graphs_op.resolve().strongly_consistent().await?;

@@ -62,10 +62,10 @@ impl Issue for ModuleIssue {
 pub async fn emit_unknown_module_type_error(source: Vc<Box<dyn Source>>) -> Result<()> {
     ModuleIssue {ident: source.ident().to_resolved().await?,
         title: StyledString::Text(rcstr!("Unknown module type")).resolved_cell(),
-        description: StyledString::Text(
+        description: StyledString::Text(rcstr!(
             r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
 
-Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
+Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders"),
         )
         .resolved_cell(),
         source: Some(IssueSource::from_source_only(source.to_resolved().await?)),}
