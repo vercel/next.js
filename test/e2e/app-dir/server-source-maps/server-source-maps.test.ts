@@ -587,7 +587,7 @@ describe('app-dir - server source maps', () => {
           // Feel free to adjust these locations. They're just here to showcase
           // sourcemapping is broken on invalid sources.
           '' +
-            `\nwebpack-internal:///(rsc)/./app/bad-sourcemap/page.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null` +
+            `webpack-internal:///(rsc)/./app/bad-sourcemap/page.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null` +
             '\nError: bad-sourcemap' +
             '\n    at logError (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:12:19)' +
             '\n    at Page (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:15:5)'
