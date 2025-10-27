@@ -196,6 +196,33 @@ let didScheduleMicrotask = false
 // priority at a time. We reserve special network bandwidth for this task only.
 let mostRecentlyHoveredLink: PrefetchTask | null = null
 
+// CDN cache propagation delay after revalidation (in milliseconds)
+const REVALIDATION_COOLDOWN_MS = 300
+
+// Timeout handle for the revalidation cooldown. When non-null, prefetch
+// requests are blocked to allow CDN cache propagation.
+let revalidationCooldownTimeoutHandle: ReturnType<typeof setTimeout> | null =
+  null
+
+/**
+ * Called by the cache when revalidation occurs. Starts a cooldown period
+ * during which prefetch requests are blocked to allow CDN cache propagation.
+ */
+export function startRevalidationCooldown(): void {
+  // Clear any existing timeout in case multiple revalidations happen
+  // in quick succession.
+  if (revalidationCooldownTimeoutHandle !== null) {
+    clearTimeout(revalidationCooldownTimeoutHandle)
+  }
+
+  // Schedule the cooldown to expire after the delay.
+  revalidationCooldownTimeoutHandle = setTimeout(() => {
+    revalidationCooldownTimeoutHandle = null
+    // Retry the prefetch queue now that the cooldown has expired.
+    ensureWorkIsScheduled()
+  }, REVALIDATION_COOLDOWN_MS)
+}
+
 export type IncludeDynamicData = null | 'full' | 'dynamic'
 
 /**
@@ -348,8 +375,19 @@ function ensureWorkIsScheduled() {
  * to avoid saturating the browser's internal network queue. This is a
  * cooperative limit — prefetch tasks should check this before issuing
  * new requests.
+ *
+ * Also checks if we're within the revalidation cooldown window, during which
+ * prefetch requests are delayed to allow CDN cache propagation.
  */
 function hasNetworkBandwidth(task: PrefetchTask): boolean {
+  // Check if we're within the revalidation cooldown window
+  if (revalidationCooldownTimeoutHandle !== null) {
+    // We're within the cooldown window. Return false to prevent prefetching.
+    // When the cooldown expires, the timeout will call ensureWorkIsScheduled()
+    // to retry the queue.
+    return false
+  }
+
   // TODO: Also check if there's an in-progress navigation. We should never
   // add prefetch requests to the network queue if an actual navigation is
   // taking place, to ensure there's sufficient bandwidth for render-blocking

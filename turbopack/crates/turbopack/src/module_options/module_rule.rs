@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -138,8 +139,14 @@ pub enum ModuleType {
         ty: CssModuleAssetType,
         environment: Option<ResolvedVc<Environment>>,
     },
-    StaticUrlJs,
-    StaticUrlCss,
+    StaticUrlJs {
+        /// The tag that is passed to ChunkingContext::asset_url
+        tag: Option<RcStr>,
+    },
+    StaticUrlCss {
+        /// The tag that is passed to ChunkingContext::asset_url
+        tag: Option<RcStr>,
+    },
     InlinedBytesJs,
     WebAssembly {
         source_ty: WebAssemblySourceType,

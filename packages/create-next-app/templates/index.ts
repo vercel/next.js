@@ -199,7 +199,7 @@ export const installTemplate = async ({
 
   /** Copy the version from package.json or override for tests. */
   const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version;
-  const bundlerFlags = `${bundler === Bundler.Turbopack ? " --turbopack" : ""}${bundler === Bundler.Webpack ? " --webpack" : ""}`;
+  const bundlerFlags = bundler === Bundler.Webpack ? " --webpack" : "";
 
   /** Create a package.json for the new project and write it to disk. */
   const packageJson: any = {
@@ -271,8 +271,6 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       eslint: "^9",
       "eslint-config-next": version,
-      // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
-      "@eslint/eslintrc": "^3",
     };
   }
 

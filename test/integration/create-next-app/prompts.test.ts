@@ -253,8 +253,8 @@ describe('create-next-app prompts', () => {
 
       const pkg = require(join(cwd, projectName, 'package.json'))
       expect(pkg.name).toBe(projectName)
-      // Verify turbopack is in dev script
-      expect(pkg.scripts.dev).toContain('--turbo')
+      // Verify webpack is not in dev script
+      expect(pkg.scripts.dev).not.toContain('--webpack')
     })
   })
 

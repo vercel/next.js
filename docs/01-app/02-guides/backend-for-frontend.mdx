@@ -4,10 +4,10 @@ nav_title: Backend for Frontend
 description: Learn how to use Next.js as a backend framework
 related:
   title: API Reference
-  description: Learn more about Route Handlers and Middleware
+  description: Learn more about Route Handlers and Proxy
   links:
     - app/api-reference/file-conventions/route
-    - app/api-reference/file-conventions/middleware
+    - app/api-reference/file-conventions/proxy
 ---
 
 Next.js supports the "Backend for Frontend" pattern. This lets you create public endpoints to handle HTTP requests and return any content type—not just HTML. You can also access data sources and perform side effects like updating remote data.
@@ -27,7 +27,7 @@ npx create-next-app@latest --api
 To implement this pattern, use:
 
 - [Route Handlers](/docs/app/api-reference/file-conventions/route)
-- [`middleware`](/docs/app/api-reference/file-conventions/middleware)
+- [`proxy`](/docs/app/api-reference/file-conventions/proxy)
 - In Pages Router, [API Routes](/docs/pages/building-your-application/routing/api-routes)
 
 ## Public Endpoints
@@ -330,7 +330,7 @@ export async function POST(request) {
 
 ## Proxying to a backend
 
-You can use a Route Handler as a proxy to another backend. Add validation logic before forwarding the request.
+You can use a Route Handler as a `proxy` to another backend. Add validation logic before forwarding the request.
 
 ```ts filename="/app/api/[...slug]/route.ts" switcher
 import { isValidRequest } from '@/lib/utils'
@@ -388,12 +388,12 @@ export async function POST(request, { params }) {
 
 Or use:
 
-- `middleware` [rewrites](#middleware)
+- `proxy` [rewrites](#proxy)
 - [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config.js`.
 
 ## NextRequest and NextResponse
 
-Next.js extends the [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) Web APIs with methods that simplify common operations. These extensions are available in both Route Handlers and Middleware.
+Next.js extends the [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) Web APIs with methods that simplify common operations. These extensions are available in both Route Handlers and Proxy.
 
 Both provide methods for reading and manipulating cookies.
 
@@ -557,20 +557,20 @@ export async function GET(request) {
 
 Learn more about redirects in [`redirect`](/docs/app/api-reference/functions/redirect) and [`permanentRedirect`](/docs/app/api-reference/functions/permanentRedirect)
 
-## Middleware
+## Proxy
 
-Only one middleware file is allowed per project. Use `config.matcher` to target specific paths. Learn more about [middleware](/docs/app/api-reference/file-conventions/middleware).
+Only one `proxy` file is allowed per project. Use `config.matcher` to target specific paths. Learn more about [`proxy`](/docs/app/api-reference/file-conventions/proxy).
 
-Use `middleware` to generate a response before the request reaches a route path.
+Use `proxy` to generate a response before the request reaches a route path.
 
-```ts filename="middleware.ts" switcher
+```ts filename="proxy.ts" switcher
 import { isAuthenticated } from '@lib/auth'
 
 export const config = {
   matcher: '/api/:function*',
 }
 
-export function middleware(request: Request) {
+export function proxy(request: Request) {
   if (!isAuthenticated(request)) {
     return Response.json(
       { success: false, message: 'authentication failed' },
@@ -580,14 +580,14 @@ export function middleware(request: Request) {
 }
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 import { isAuthenticated } from '@lib/auth'
 
 export const config = {
   matcher: '/api/:function*',
 }
 
-export function middleware(request) {
+export function proxy(request) {
   if (!isAuthenticated(request)) {
     return Response.json(
       { success: false, message: 'authentication failed' },
@@ -597,12 +597,12 @@ export function middleware(request) {
 }
 ```
 
-You can also proxy requests using `middleware`:
+You can also proxy requests using `proxy`:
 
-```ts filename="middleware.ts" switcher
+```ts filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
 
-export function middleware(request: Request) {
+export function proxy(request: Request) {
   if (request.nextUrl.pathname === '/proxy-this-path') {
     const rewriteUrl = new URL('https://nextjs.org')
     return NextResponse.rewrite(rewriteUrl)
@@ -610,10 +610,10 @@ export function middleware(request: Request) {
 }
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 import { NextResponse } from 'next/server'
 
-export function middleware(request) {
+export function proxy(request) {
   if (request.nextUrl.pathname === '/proxy-this-path') {
     const rewriteUrl = new URL('https://nextjs.org')
     return NextResponse.rewrite(rewriteUrl)
@@ -621,12 +621,12 @@ export function middleware(request) {
 }
 ```
 
-Another type of response `middleware` can produce are redirects:
+Another type of response `proxy` can produce are redirects:
 
-```ts filename="middleware.ts" switcher
+```ts filename="proxy.ts" switcher
 import { NextResponse } from 'next/server'
 
-export function middleware(request: Request) {
+export function proxy(request: Request) {
   if (request.nextUrl.pathname === '/v1/docs') {
     request.nextUrl.pathname = '/v2/docs'
     return NextResponse.redirect(request.nextUrl)
@@ -634,10 +634,10 @@ export function middleware(request: Request) {
 }
 ```
 
-```js filename="middleware.js" switcher
+```js filename="proxy.js" switcher
 import { NextResponse } from 'next/server'
 
-export function middleware(request) {
+export function proxy(request) {
   if (request.nextUrl.pathname === '/v1/docs') {
     request.nextUrl.pathname = '/v2/docs'
     return NextResponse.redirect(request.nextUrl)
@@ -651,10 +651,10 @@ export function middleware(request) {
 
 Be deliberate about where headers go, and avoid directly passing incoming request headers to the outgoing response.
 
-- **Upstream request headers**: In Middleware, `NextResponse.next({ request: { headers } })` modifies the headers your server receives and does not expose them to the client.
+- **Upstream request headers**: In Proxy, `NextResponse.next({ request: { headers } })` modifies the headers your server receives and does not expose them to the client.
 - **Response headers**: `new Response(..., { headers })`, `NextResponse.json(..., { headers })`, `NextResponse.next({ headers })`, or `response.headers.set(...)` send headers back to the client. If sensitive values were appended to these headers, they will be visible to clients.
 
-Learn more in [NextResponse headers in Middleware](/docs/app/api-reference/functions/next-response#next).
+Learn more in [NextResponse headers in Proxy](/docs/app/api-reference/functions/next-response#next).
 
 ### Rate limiting
 
@@ -700,7 +700,7 @@ Store user-generated static assets in dedicated services. When possible, upload 
 
 ### Access to protected resources
 
-Always verify credentials before granting access. Do not rely on middleware alone for authentication and authorization.
+Always verify credentials before granting access. Do not rely on proxy alone for authentication and authorization.
 
 Remove sensitive or unnecessary data from responses and backend logs.
 
@@ -732,19 +732,21 @@ export { handler as POST }
 
 This creates a shared handler for `GET` and `POST` requests. The library customizes behavior based on the `method` and `pathname` in the request.
 
-Libraries can also provide a `middleware` factory.
+Libraries can also provide a `proxy` factory.
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { createMiddleware } from 'third-party-library'
 
 export default createMiddleware()
 ```
 
+> **Good to know**: Third-party libraries may still refer to `proxy` as `middleware`.
+
 ## More examples
 
-See more examples on using [Router Handlers](/docs/app/api-reference/file-conventions/route#examples) and the [`middleware`](/docs/app/api-reference/file-conventions/middleware#examples) API references.
+See more examples on using [Router Handlers](/docs/app/api-reference/file-conventions/route#examples) and the [`proxy`](/docs/app/api-reference/file-conventions/proxy#examples) API references.
 
-These examples include, working with [Cookies](/docs/app/api-reference/file-conventions/route#cookies), [Headers](/docs/app/api-reference/file-conventions/route#headers), [Streaming](/docs/app/api-reference/file-conventions/route#streaming), Middleware [negative matching](/docs/app/api-reference/file-conventions/middleware#negative-matching), and other useful code snippets.
+These examples include, working with [Cookies](/docs/app/api-reference/file-conventions/route#cookies), [Headers](/docs/app/api-reference/file-conventions/route#headers), [Streaming](/docs/app/api-reference/file-conventions/route#streaming), Proxy [negative matching](/docs/app/api-reference/file-conventions/proxy#negative-matching), and other useful code snippets.
 
 ## Caveats
 

@@ -90,7 +90,7 @@ export default async function Layout({ children, params }) {
 
 You can type layouts with `LayoutProps` to get a strongly typed `params` and named slots inferred from your directory structure. `LayoutProps` is a globally available helper.
 
-```tsx filename="app/dashboard/layout.tsx" switcher
+```tsx filename="app/dashboard/layout.tsx"
 export default function Layout(props: LayoutProps<'/dashboard'>) {
   return (
     <section>

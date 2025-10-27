@@ -187,7 +187,8 @@ export async function writeConfigurationDefaults(
   isFirstTimeSetup: boolean,
   hasAppDir: boolean,
   distDir: string,
-  hasPagesDir: boolean
+  hasPagesDir: boolean,
+  isolatedDevBuild: boolean | undefined
 ): Promise<void> {
   if (isFirstTimeSetup) {
     writeFileSync(tsConfigPath, '{}' + os.EOL)
@@ -266,25 +267,46 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  const nextAppTypes = `${distDir}/types/**/*.ts`
+  const nextAppTypes: string[] = [`${distDir}/types/**/*.ts`]
+
+  // When isolatedDevBuild is enabled, Next.js uses different distDir paths:
+  // - Development: "{distDir}/dev"
+  // - Production: "{distDir}"
+  // To prevent tsconfig updates when switching between dev/build modes,
+  // we proactively include both type paths regardless of current environment.
+  if (isolatedDevBuild !== false) {
+    nextAppTypes.push(
+      process.env.NODE_ENV === 'development'
+        ? // In dev, distDir is "{distDir}/dev", which is already in the array above, but we also need "{distDir}/types".
+          // Here we remove "/dev" at the end of distDir for consistency.
+          `${distDir.replace(/\/dev$/, '')}/types/**/*.ts`
+        : // In build, distDir is "{distDir}", which is already in the array above, but we also need "{distDir}/dev/types".
+          // Here we add "/dev" at the end of distDir for consistency.
+          `${distDir}/dev/types/**/*.ts`
+    )
+    // Sort the array to ensure consistent order.
+    nextAppTypes.sort((a, b) => a.length - b.length)
+  }
 
   if (!('include' in userTsConfig)) {
     userTsConfig.include = hasAppDir
-      ? ['next-env.d.ts', nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
+      ? ['next-env.d.ts', ...nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
       : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       cyan('include') +
         ' was set to ' +
         bold(
           hasAppDir
-            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.mts', '**/*.ts', '**/*.tsx']`
+            ? `['next-env.d.ts', ${nextAppTypes.map((type) => `'${type}'`).join(', ')}, '**/*.mts', '**/*.ts', '**/*.tsx']`
             : `['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']`
         )
     )
   } else if (hasAppDir) {
     const missingFromResolved = []
-    if (!userTsConfig.include.includes(nextAppTypes)) {
-      missingFromResolved.push(nextAppTypes)
+    for (const type of nextAppTypes) {
+      if (!userTsConfig.include.includes(type)) {
+        missingFromResolved.push(type)
+      }
     }
 
     if (missingFromResolved.length > 0) {

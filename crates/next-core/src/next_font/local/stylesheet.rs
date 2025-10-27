@@ -1,5 +1,6 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
+use itertools::Itertools;
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 
@@ -64,12 +65,20 @@ pub(super) async fn build_font_face_definitions(
         definitions.push_str(&formatdoc!(
             r#"
                 @font-face {{
+                    {}
                     font-family: '{}';
                     src: url('@vercel/turbopack-next/internal/font/local/font?{}') format('{}');
                     font-display: {};
                     {}{}
                 }}
             "#,
+            options.declarations.as_ref().map_or_else(
+                || "".to_owned(),
+                |declarations| declarations
+                    .iter()
+                    .map(|declaration| format!("{}: {};", declaration.prop, declaration.value))
+                    .join("\n")
+            ),
             scoped_font_family,
             query_str,
             ext_to_format(&font.ext)?,

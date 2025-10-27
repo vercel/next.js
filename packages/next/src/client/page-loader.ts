@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import type { RouteLoader } from './route-loader'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
 import { addBasePath } from './add-base-path'
 import { interpolateAs } from '../shared/lib/router/utils/interpolate-as'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
@@ -17,7 +17,7 @@ import {
 
 declare global {
   interface Window {
-    __DEV_MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
+    __DEV_MIDDLEWARE_MATCHERS?: ProxyMatcher[]
     __DEV_PAGES_MANIFEST?: { pages: string[] }
     __SSG_MANIFEST_CB?: () => void
     __SSG_MANIFEST?: Set<string>
@@ -36,7 +36,7 @@ export default class PageLoader {
   private assetPrefix: string
   private promisedSsgManifest: Promise<Set<string>>
   private promisedDevPagesManifest?: Promise<string[]>
-  private promisedMiddlewareMatchers?: Promise<MiddlewareMatcher[]>
+  private promisedMiddlewareMatchers?: Promise<ProxyMatcher[]>
 
   public routeLoader: RouteLoader
 
@@ -93,7 +93,7 @@ export default class PageLoader {
     ) {
       const middlewareMatchers = process.env.__NEXT_MIDDLEWARE_MATCHERS
       window.__MIDDLEWARE_MATCHERS = middlewareMatchers
-        ? (middlewareMatchers as any as MiddlewareMatcher[])
+        ? (middlewareMatchers as any as ProxyMatcher[])
         : undefined
       return window.__MIDDLEWARE_MATCHERS
       // Turbopack production
@@ -109,7 +109,7 @@ export default class PageLoader {
             { credentials: 'same-origin' }
           )
             .then((res) => res.json())
-            .then((matchers: MiddlewareMatcher[]) => {
+            .then((matchers: ProxyMatcher[]) => {
               window.__MIDDLEWARE_MATCHERS = matchers
               return matchers
             })
@@ -133,7 +133,7 @@ export default class PageLoader {
             { credentials: 'same-origin' }
           )
             .then((res) => res.json())
-            .then((matchers: MiddlewareMatcher[]) => {
+            .then((matchers: ProxyMatcher[]) => {
               window.__DEV_MIDDLEWARE_MATCHERS = matchers
               return matchers
             })

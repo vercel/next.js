@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 // TODO(NAR-423): Migrate to Cache Components.
 describe.skip('static-shell-debugging', () => {
-  const ppr = Boolean(process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS)
+  const ppr = Boolean(process.env.__NEXT_CACHE_COMPONENTS)
   const context = {
     ppr,
     debugging: ppr,

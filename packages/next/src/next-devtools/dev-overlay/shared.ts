@@ -6,6 +6,7 @@ import type { DebugInfo } from '../shared/types'
 import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-server-state'
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
+import type { CacheIndicatorState } from './cache-indicator'
 
 export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'
@@ -49,6 +50,7 @@ export interface OverlayState {
   readonly notFound: boolean
   readonly buildingIndicator: boolean
   readonly renderingIndicator: boolean
+  readonly cacheIndicator: CacheIndicatorState
   readonly staticIndicator: 'pending' | 'static' | 'dynamic' | 'disabled'
   readonly showIndicator: boolean
   readonly disableDevIndicator: boolean
@@ -72,6 +74,7 @@ export interface OverlayState {
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
+export const ACTION_CACHE_INDICATOR = 'cache-indicator'
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
 export const ACTION_BUILD_OK = 'build-ok'
 export const ACTION_BUILD_ERROR = 'build-error'
@@ -109,6 +112,11 @@ export const STORE_KEY_SHARED_PANEL_LOCATION =
 
 export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE =
   'segment-explorer-update-route-state'
+
+interface CacheIndicatorAction {
+  type: typeof ACTION_CACHE_INDICATOR
+  cacheIndicator: CacheIndicatorState
+}
 
 interface StaticIndicatorAction {
   type: typeof ACTION_STATIC_INDICATOR
@@ -216,6 +224,7 @@ export type DispatcherEvent =
   | UnhandledErrorAction
   | UnhandledRejectionAction
   | VersionInfoAction
+  | CacheIndicatorAction
   | StaticIndicatorAction
   | DebugInfoAction
   | DevIndicatorAction
@@ -263,6 +272,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   errors: [],
   notFound: false,
   renderingIndicator: false,
+  cacheIndicator: 'disabled',
   staticIndicator: 'disabled',
   /* 
     This is set to `true` when we can reliably know
@@ -287,7 +297,8 @@ export const INITIAL_OVERLAY_STATE: Omit<
 }
 
 function getInitialState(
-  routerType: 'pages' | 'app'
+  routerType: 'pages' | 'app',
+  enableCacheIndicator: boolean
 ): OverlayState & { routerType: 'pages' | 'app' } {
   return {
     ...INITIAL_OVERLAY_STATE,
@@ -296,13 +307,15 @@ function getInitialState(
     // TODO: Should be the same default as App Router once we surface console.error in Pages Router.
     isErrorOverlayOpen: routerType === 'pages',
     routerType,
+    cacheIndicator: enableCacheIndicator ? 'ready' : 'disabled',
   }
 }
 
 export function useErrorOverlayReducer(
   routerType: 'pages' | 'app',
   getOwnerStack: (error: Error) => string | null | undefined,
-  isRecoverableError: (error: Error) => boolean
+  isRecoverableError: (error: Error) => boolean,
+  enableCacheIndicator: boolean
 ) {
   function pushErrorFilterDuplicates(
     events: readonly SupportedErrorEvent[],
@@ -324,6 +337,9 @@ export function useErrorOverlayReducer(
     const pendingEvents = events.filter((event) => {
       // Filter out duplicate errors
       return (
+        // SpiderMonkey and JavaScriptCore don't include the error message in the stack.
+        // We don't want to dedupe errors with different messages for which we don't have a good stack
+        '' + event.error !== '' + pendingEvent.error ||
         (event.error.stack !== pendingEvent.error.stack &&
           // TODO: Let ReactDevTools control deduping instead?
           getStackIgnoringStrictMode(event.error.stack) !==
@@ -345,6 +361,9 @@ export function useErrorOverlayReducer(
       switch (action.type) {
         case ACTION_DEBUG_INFO: {
           return { ...state, debugInfo: action.debugInfo }
+        }
+        case ACTION_CACHE_INDICATOR: {
+          return { ...state, cacheIndicator: action.cacheIndicator }
         }
         case ACTION_STATIC_INDICATOR: {
           return { ...state, staticIndicator: action.staticIndicator }
@@ -493,6 +512,6 @@ export function useErrorOverlayReducer(
         }
       }
     },
-    getInitialState(routerType)
+    getInitialState(routerType, enableCacheIndicator)
   )
 }

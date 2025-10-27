@@ -195,14 +195,11 @@ export const experimentalSchema = {
   clientSegmentCache: z
     .union([z.boolean(), z.literal('client-only')])
     .optional(),
-  rdcForNavigations: z.boolean().optional(),
-  clientParamParsing: z.boolean().optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
   dynamicOnHover: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),
-  dynamicIO: z.boolean().optional(),
   inlineCss: z.boolean().optional(),
   esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
   serverActions: z
@@ -215,6 +212,7 @@ export const experimentalSchema = {
   extensionAlias: z.record(z.string(), z.any()).optional(),
   externalDir: z.boolean().optional(),
   externalMiddlewareRewritesResolve: z.boolean().optional(),
+  externalProxyRewritesResolve: z.boolean().optional(),
   fallbackNodePolyfills: z.literal(false).optional(),
   fetchCacheKeyPrefix: z.string().optional(),
   forceSwcTransforms: z.boolean().optional(),
@@ -230,7 +228,9 @@ export const experimentalSchema = {
   linkNoTouchStart: z.boolean().optional(),
   manualClientBasePath: z.boolean().optional(),
   middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
+  proxyPrefetch: z.enum(['strict', 'flexible']).optional(),
   middlewareClientMaxBodySize: zSizeLimit.optional(),
+  proxyClientMaxBodySize: zSizeLimit.optional(),
   multiZoneDraftMode: z.boolean().optional(),
   cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
   nextScriptWorkers: z.boolean().optional(),
@@ -249,7 +249,6 @@ export const experimentalSchema = {
   rootParams: z.boolean().optional(),
   isolatedDevBuild: z.boolean().optional(),
   mcpServer: z.boolean().optional(),
-  routerBFCache: z.boolean().optional(),
   removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
   validateRSCRequestHeaders: z.boolean().optional(),
   scrollRestoration: z.boolean().optional(),
@@ -313,7 +312,6 @@ export const experimentalSchema = {
   optimizeServerReact: z.boolean().optional(),
   clientTraceMetadata: z.array(z.string()).optional(),
   serverMinification: z.boolean().optional(),
-  enablePrerenderSourceMaps: z.boolean().optional(),
   serverSourceMaps: z.boolean().optional(),
   useWasmBinary: z.boolean().optional(),
   useLightningcss: z.boolean().optional(),
@@ -355,7 +353,18 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
     bundlePagesRouterDependencies: z.boolean().optional(),
+    cacheComponents: z.boolean().optional(),
     cacheHandler: z.string().min(1).optional(),
+    cacheHandlers: z.record(z.string(), z.string().optional()).optional(),
+    cacheLife: z
+      .record(
+        z.object({
+          stale: z.number().optional(),
+          revalidate: z.number().optional(),
+          expire: z.number().optional(),
+        })
+      )
+      .optional(),
     cacheMaxMemorySize: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
     compiler: z
@@ -468,6 +477,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     distDir: z.string().min(1).optional(),
     env: z.record(z.string(), z.union([z.string(), z.undefined()])).optional(),
+    enablePrerenderSourceMaps: z.boolean().optional(),
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z.strictObject(experimentalSchema).optional(),
     exportPathMap: z
@@ -673,6 +683,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     serverExternalPackages: z.array(z.string()).optional(),
     skipMiddlewareUrlNormalize: z.boolean().optional(),
+    skipProxyUrlNormalize: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),
     staticPageGenerationTimeout: z.number().optional(),
     expireTime: z.number().optional(),

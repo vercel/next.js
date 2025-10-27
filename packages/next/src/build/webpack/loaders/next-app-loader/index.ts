@@ -24,7 +24,7 @@ import { promises as fs } from 'fs'
 import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
 import type { NextConfig } from '../../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../../server/normalizers/built/app/app-pathname-normalizer'
-import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 import { isAppBuiltinPage } from '../../../utils'
 import { loadEntrypoint } from '../../../load-entrypoint'
 import {
@@ -135,6 +135,7 @@ async function createTreeCodeFromPath(
     resolveDir,
     resolver,
     resolveParallelSegments,
+    hasChildRoutesForSegment,
     metadataResolver,
     pageExtensions,
     basePath,
@@ -148,6 +149,7 @@ async function createTreeCodeFromPath(
     resolveParallelSegments: (
       pathname: string
     ) => [key: string, segment: string | string[]][]
+    hasChildRoutesForSegment: (segmentPath: string) => boolean
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     pageExtensions: PageExtensions
     basePath: string
@@ -560,9 +562,23 @@ async function createTreeCodeFromPath(
             //   /@slot/[...catchAll] - isInsideCatchAll = false (require default) ✓
             // The catch-all provides fallback behavior, so default.js is not required.
             const isInsideCatchAll = segments.some(isCatchAllSegment)
-            if (!isInsideCatchAll) {
+
+            // Check if this is a leaf segment (no child routes).
+            // Leaf segments don't need default.js because there are no child routes
+            // that could cause the parallel slot to unmatch. For example:
+            //   /repo-overview/@slot/page with no child routes - isLeafSegment = true (skip validation) ✓
+            //   /repo-overview/@slot/page with /repo-overview/child/page - isLeafSegment = false (require default) ✓
+            // This also handles route groups correctly by filtering them out.
+            const isLeafSegment = !hasChildRoutesForSegment(segmentPath)
+
+            if (!isInsideCatchAll && !isLeafSegment) {
+              // Replace internal webpack alias with user-facing directory name
+              const userFacingPath = fullSegmentPath.replace(
+                APP_DIR_ALIAS,
+                'app'
+              )
               throw new MissingDefaultParallelRouteError(
-                fullSegmentPath,
+                userFacingPath,
                 adjacentParallelSegment
               )
             }
@@ -644,7 +660,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const collectedDeclarations: [string, string][] = []
   const page = name.replace(/^app/, '')
-  const middlewareConfig: MiddlewareConfig = JSON.parse(
+  const middlewareConfig: ProxyConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
   )
   buildInfo.route = {
@@ -724,6 +740,44 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
 
     return Object.entries(matched)
+  }
+
+  const hasChildRoutesForSegment = (segmentPath: string): boolean => {
+    const pathPrefix = segmentPath ? `${segmentPath}/` : ''
+
+    for (const appPath of normalizedAppPaths) {
+      if (appPath.startsWith(pathPrefix)) {
+        const rest = appPath.slice(pathPrefix.length).split('/')
+
+        // Filter out route groups to get the actual route segments
+        // Route groups (e.g., "(group)") don't contribute to the URL path
+        const routeSegments = rest.filter((segment) => !isGroupSegment(segment))
+
+        // If it's just 'page' at this level, skip (not a child route)
+        if (routeSegments.length === 1 && routeSegments[0] === 'page') {
+          continue
+        }
+
+        // If the first segment (after filtering route groups) is a parallel route, skip
+        if (routeSegments[0]?.startsWith('@')) {
+          continue
+        }
+
+        // If we have more than just 'page', then there are child routes
+        // Examples:
+        //   ['child', 'page'] -> true (has child route)
+        //   ['page'] -> false (already filtered above)
+        //   ['grandchild', 'deeper', 'page'] -> true (has nested child routes)
+        if (
+          routeSegments.length > 1 ||
+          (routeSegments.length === 1 && routeSegments[0] !== 'page')
+        ) {
+          return true
+        }
+      }
+    }
+
+    return false
   }
 
   const resolveDir: DirResolver = (pathToResolve) => {
@@ -832,6 +886,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     resolver,
     metadataResolver,
     resolveParallelSegments,
+    hasChildRoutesForSegment,
     loaderContext: this,
     pageExtensions,
     basePath,
@@ -889,6 +944,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         resolver,
         metadataResolver,
         resolveParallelSegments,
+        hasChildRoutesForSegment,
         loaderContext: this,
         pageExtensions,
         basePath,

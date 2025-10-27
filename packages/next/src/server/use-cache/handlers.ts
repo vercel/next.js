@@ -1,4 +1,4 @@
-import DefaultCacheHandler from '../lib/cache-handlers/default.external'
+import { createDefaultCacheHandler } from '../lib/cache-handlers/default'
 import type { CacheHandler } from '../lib/cache-handlers/types'
 
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
@@ -27,9 +27,11 @@ const reference: typeof globalThis & {
 
 /**
  * Initialize the cache handlers.
+ * @param cacheMaxMemorySize - The maximum memory size of the cache in bytes, if
+ *  not provided, the default memory size will be used.
  * @returns `true` if the cache handlers were initialized, `false` if they were already initialized.
  */
-export function initializeCacheHandlers(): boolean {
+export function initializeCacheHandlers(cacheMaxMemorySize: number): boolean {
   // If the cache handlers have already been initialized, don't do it again.
   if (reference[handlersMapSymbol]) {
     debug?.('cache handlers already initialized')
@@ -47,7 +49,7 @@ export function initializeCacheHandlers(): boolean {
       fallback = reference[handlersSymbol].DefaultCache
     } else {
       debug?.('setting "default" cache handler from default')
-      fallback = DefaultCacheHandler
+      fallback = createDefaultCacheHandler(cacheMaxMemorySize)
     }
 
     reference[handlersMapSymbol].set('default', fallback)
@@ -63,10 +65,12 @@ export function initializeCacheHandlers(): boolean {
       reference[handlersMapSymbol].set('remote', fallback)
     }
   } else {
+    const handler = createDefaultCacheHandler(cacheMaxMemorySize)
+
     debug?.('setting "default" cache handler from default')
-    reference[handlersMapSymbol].set('default', DefaultCacheHandler)
+    reference[handlersMapSymbol].set('default', handler)
     debug?.('setting "remote" cache handler from default')
-    reference[handlersMapSymbol].set('remote', DefaultCacheHandler)
+    reference[handlersMapSymbol].set('remote', handler)
   }
 
   // Create a set of the cache handlers.

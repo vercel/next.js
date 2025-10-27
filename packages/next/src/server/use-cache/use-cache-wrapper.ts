@@ -37,7 +37,10 @@ import {
   getRuntimeStagePromise,
 } from '../app-render/work-unit-async-storage.external'
 
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeDevtoolsIOAwarePromise,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 
 import type { ClientReferenceManifestForRsc } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -68,6 +71,7 @@ import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import { isReactLargeShellError } from '../app-render/react-large-shell-error'
 import type { CacheLife } from './cache-life'
+import { RenderStage } from '../app-render/staged-rendering'
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -466,9 +470,21 @@ async function collectResult(
         // then it shouldn't have any effects on the prerender. We'll decide
         // whether or not this cache should have its life & tags propagated when
         // we read the entry in the final prerender from the resume data cache.
+
         break
       }
-      case 'request':
+      case 'request': {
+        if (
+          process.env.NODE_ENV === 'development' &&
+          outerWorkUnitStore.cacheSignal
+        ) {
+          // If we're filling caches for a dev request, apply the same logic as prerenders do above,
+          // and don't propagate cache life/tags yet.
+          break
+        }
+        // fallthrough
+      }
+
       case 'private-cache':
       case 'cache':
       case 'unstable-cache':
@@ -717,6 +733,12 @@ async function generateCacheEntryImpl(
     startTime,
     errors
   )
+
+  if (process.env.NODE_ENV === 'development') {
+    // Name the stream for React DevTools.
+    // @ts-expect-error
+    returnStream.name = 'use cache'
+  }
 
   return {
     type: 'cached',
@@ -984,14 +1006,34 @@ export function cache(
         ? createHangingInputAbortSignal(workUnitStore)
         : undefined
 
-      // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
-      // are resolved with a delay, in the runtime stage. Private caches are one of these.
       if (cacheContext.kind === 'private') {
-        const runtimeStagePromise = getRuntimeStagePromise(
-          cacheContext.outerWorkUnitStore
-        )
-        if (runtimeStagePromise) {
-          await runtimeStagePromise
+        const { outerWorkUnitStore } = cacheContext
+        switch (outerWorkUnitStore.type) {
+          case 'prerender-runtime': {
+            // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
+            // are resolved with a delay, in the runtime stage. Private caches are one of these.
+            if (outerWorkUnitStore.runtimeStagePromise) {
+              await outerWorkUnitStore.runtimeStagePromise
+            }
+            break
+          }
+          case 'request': {
+            if (process.env.NODE_ENV === 'development') {
+              // Similar to runtime prerenders, private caches should not resolve in the static stage
+              // of a dev request, so we delay them.
+              await makeDevtoolsIOAwarePromise(
+                undefined,
+                outerWorkUnitStore,
+                RenderStage.Runtime
+              )
+            }
+            break
+          }
+          case 'private-cache':
+            break
+          default: {
+            outerWorkUnitStore satisfies never
+          }
         }
       }
 
@@ -1169,6 +1211,10 @@ export function cache(
         case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
+        // TODO(restart-on-cache-miss): We need to handle params/searchParams on page components.
+        // the promises will be tasky, so `encodeCacheKeyParts` will not resolve in the static stage.
+        // We have not started a cache read at this point, so we might just miss the cache completely.
+        // fallthrough
         case 'cache':
         case 'private-cache':
         case 'unstable-cache':
@@ -1235,9 +1281,24 @@ export function cache(
                   }
                   break
                 }
+                case 'request': {
+                  if (process.env.NODE_ENV === 'development') {
+                    // We delay the cache here so that it doesn't resolve in the static task --
+                    // in a regular static prerender, it'd be a hanging promise, and we need to reflect that,
+                    // so it has to resolve later.
+                    // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
+                    // We don't end the cache read here, so this will always appear as a cache miss in the static stage,
+                    // and thus will cause a restart even if all caches are filled.
+                    await makeDevtoolsIOAwarePromise(
+                      undefined,
+                      workUnitStore,
+                      RenderStage.Runtime
+                    )
+                  }
+                  break
+                }
                 case 'prerender-ppr':
                 case 'prerender-legacy':
-                case 'request':
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
@@ -1262,10 +1323,25 @@ export function cache(
                     workStore.route,
                     'dynamic "use cache"'
                   )
+                case 'request': {
+                  if (process.env.NODE_ENV === 'development') {
+                    // We delay the cache here so that it doesn't resolve in the runtime phase --
+                    // in a regular runtime prerender, it'd be a hanging promise, and we need to reflect that,
+                    // so it has to resolve later.
+                    // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
+                    // We don't end the cache read here, so this will always appear as a cache miss in the runtime stage,
+                    // and thus will cause a restart even if all caches are filled.
+                    await makeDevtoolsIOAwarePromise(
+                      undefined,
+                      workUnitStore,
+                      RenderStage.Dynamic
+                    )
+                  }
+                  break
+                }
                 case 'prerender':
                 case 'prerender-ppr':
                 case 'prerender-legacy':
-                case 'request':
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
@@ -1421,10 +1497,25 @@ export function cache(
                 workStore.route,
                 'dynamic "use cache"'
               )
+            case 'request': {
+              if (process.env.NODE_ENV === 'development') {
+                // We delay the cache here so that it doesn't resolve in the static task --
+                // in a regular static prerender, it'd be a hanging promise, and we need to reflect that,
+                // so it has to resolve later.
+                // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
+                // We don't end the cache read here, so this will always appear as a cache miss in the static stage,
+                // and thus will cause a restart even if all caches are filled.
+                await makeDevtoolsIOAwarePromise(
+                  undefined,
+                  workUnitStore,
+                  RenderStage.Runtime
+                )
+              }
+              break
+            }
             case 'prerender-runtime':
             case 'prerender-ppr':
             case 'prerender-legacy':
-            case 'request':
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':

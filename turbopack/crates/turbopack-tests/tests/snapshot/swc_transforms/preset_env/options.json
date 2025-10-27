@@ -1,3 +1,4 @@
 {
-  "browserslist": "chrome 41"
+  "browserslist": "chrome 41",
+  "runtimeType": "Production"
 }

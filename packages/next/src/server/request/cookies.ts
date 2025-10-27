@@ -12,6 +12,7 @@ import {
   throwForMissingRequestStore,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
+  type RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
   delayUntilRuntimeStage,
@@ -27,7 +28,7 @@ import {
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
+import { RenderStage } from '../app-render/staged-rendering'
 
 export function cookies(): Promise<ReadonlyRequestCookies> {
   const callingExpression = 'cookies'
@@ -123,6 +124,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             // but since you would never use next dev with production NODE_ENV we use this
             // as a proxy so we can statically exclude this code from production builds.
             return makeUntrackedCookiesWithDevWarnings(
+              workUnitStore,
               underlyingCookies,
               workStore?.route
             )
@@ -183,42 +185,36 @@ function makeUntrackedCookies(
 }
 
 function makeUntrackedCookiesWithDevWarnings(
+  requestStore: RequestStore,
   underlyingCookies: ReadonlyRequestCookies,
   route?: string
 ): Promise<ReadonlyRequestCookies> {
+  if (requestStore.asyncApiPromises) {
+    let promise: Promise<ReadonlyRequestCookies>
+    if (underlyingCookies === requestStore.mutableCookies) {
+      promise = requestStore.asyncApiPromises.mutableCookies
+    } else if (underlyingCookies === requestStore.cookies) {
+      promise = requestStore.asyncApiPromises.cookies
+    } else {
+      throw new InvariantError(
+        'Received an underlying cookies object that does not match either `cookies` or `mutableCookies`'
+      )
+    }
+    return instrumentCookiesPromiseWithDevWarnings(promise, route)
+  }
+
   const cachedCookies = CachedCookies.get(underlyingCookies)
   if (cachedCookies) {
     return cachedCookies
   }
 
-  const promise = makeDevtoolsIOAwarePromise(underlyingCookies)
+  const promise = makeDevtoolsIOAwarePromise(
+    underlyingCookies,
+    requestStore,
+    RenderStage.Runtime
+  )
 
-  const proxiedPromise = new Proxy(promise, {
-    get(target, prop, receiver) {
-      switch (prop) {
-        case Symbol.iterator: {
-          warnForSyncAccess(route, '`...cookies()` or similar iteration')
-          break
-        }
-        case 'size':
-        case 'get':
-        case 'getAll':
-        case 'has':
-        case 'set':
-        case 'delete':
-        case 'clear':
-        case 'toString': {
-          warnForSyncAccess(route, `\`cookies().${prop}\``)
-          break
-        }
-        default: {
-          // We only warn for well-defined properties of the cookies object.
-        }
-      }
-
-      return ReflectAdapter.get(target, prop, receiver)
-    },
-  })
+  const proxiedPromise = instrumentCookiesPromiseWithDevWarnings(promise, route)
 
   CachedCookies.set(underlyingCookies, proxiedPromise)
 
@@ -228,6 +224,71 @@ function makeUntrackedCookiesWithDevWarnings(
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
   createCookiesAccessError
 )
+
+function instrumentCookiesPromiseWithDevWarnings(
+  promise: Promise<ReadonlyRequestCookies>,
+  route: string | undefined
+) {
+  Object.defineProperties(promise, {
+    [Symbol.iterator]: replaceableWarningDescriptorForSymbolIterator(
+      promise,
+      route
+    ),
+    size: replaceableWarningDescriptor(promise, 'size', route),
+    get: replaceableWarningDescriptor(promise, 'get', route),
+    getAll: replaceableWarningDescriptor(promise, 'getAll', route),
+    has: replaceableWarningDescriptor(promise, 'has', route),
+    set: replaceableWarningDescriptor(promise, 'set', route),
+    delete: replaceableWarningDescriptor(promise, 'delete', route),
+    clear: replaceableWarningDescriptor(promise, 'clear', route),
+    toString: replaceableWarningDescriptor(promise, 'toString', route),
+  })
+  return promise
+}
+
+function replaceableWarningDescriptor(
+  target: unknown,
+  prop: string,
+  route: string | undefined
+) {
+  return {
+    enumerable: false,
+    get() {
+      warnForSyncAccess(route, `\`cookies().${prop}\``)
+      return undefined
+    },
+    set(value: unknown) {
+      Object.defineProperty(target, prop, {
+        value,
+        writable: true,
+        configurable: true,
+      })
+    },
+    configurable: true,
+  }
+}
+
+function replaceableWarningDescriptorForSymbolIterator(
+  target: unknown,
+  route: string | undefined
+) {
+  return {
+    enumerable: false,
+    get() {
+      warnForSyncAccess(route, '`...cookies()` or similar iteration')
+      return undefined
+    },
+    set(value: unknown) {
+      Object.defineProperty(target, Symbol.iterator, {
+        value,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      })
+    },
+    configurable: true,
+  }
+}
 
 function createCookiesAccessError(
   route: string | undefined,

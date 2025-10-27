@@ -6,7 +6,6 @@ mod invalidate;
 mod prepare_new_children;
 mod update_cell;
 mod update_collectible;
-mod update_output;
 
 use std::{
     fmt::{Debug, Formatter},
@@ -48,20 +47,21 @@ enum TransactionState<'a, 'tx, B: BackingStorage> {
 }
 
 pub trait ExecuteContext<'e>: Sized {
+    type TaskGuardImpl: TaskGuard + 'e;
     fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, Self>
     where
         'e: 'l;
     fn session_id(&self) -> SessionId;
-    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> impl TaskGuard + 'e;
+    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl;
     fn is_once_task(&self, task_id: TaskId) -> bool;
     fn task_pair(
         &mut self,
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (impl TaskGuard + 'e, impl TaskGuard + 'e);
+    ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl);
     fn schedule(&mut self, task_id: TaskId);
-    fn schedule_task(&self, task: impl TaskGuard + '_);
+    fn schedule_task(&self, task: Self::TaskGuardImpl);
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
@@ -163,6 +163,8 @@ impl<'e, 'tx, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, '
 where
     'tx: 'e,
 {
+    type TaskGuardImpl = TaskGuardImpl<'e, B>;
+
     fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'tx, 'l, B>
     where
         'e: 'l,
@@ -177,7 +179,7 @@ where
         self.backend.session_id()
     }
 
-    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> impl TaskGuard + 'e {
+    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl {
         let mut task = self.backend.storage.access_mut(task_id);
         if !task.state().is_restored(category) {
             if task_id.is_transient() {
@@ -225,7 +227,7 @@ where
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (impl TaskGuard + 'e, impl TaskGuard + 'e) {
+    ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl) {
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
         let is_restored1 = task1.state().is_restored(category);
         let is_restored2 = task2.state().is_restored(category);
@@ -278,7 +280,7 @@ where
         self.schedule_task(task);
     }
 
-    fn schedule_task(&self, mut task: impl TaskGuard + '_) {
+    fn schedule_task(&self, mut task: Self::TaskGuardImpl) {
         if let Some(tasks_to_prefetch) = task.prefetch() {
             self.turbo_tasks
                 .schedule_backend_background_job(TurboTasksBackendJob::Prefetch {
@@ -368,7 +370,7 @@ pub trait TaskGuard: Debug {
     fn is_immutable(&self) -> bool;
 }
 
-struct TaskGuardImpl<'a, B: BackingStorage> {
+pub struct TaskGuardImpl<'a, B: BackingStorage> {
     task_id: TaskId,
     task: StorageWriteGuard<'a>,
     backend: &'a TurboTasksBackendInner<B>,
@@ -600,7 +602,6 @@ macro_rules! impl_operation {
 pub enum AnyOperation {
     ConnectChild(connect_child::ConnectChildOperation),
     Invalidate(invalidate::InvalidateOperation),
-    UpdateOutput(update_output::UpdateOutputOperation),
     UpdateCell(update_cell::UpdateCellOperation),
     CleanupOldEdges(cleanup_old_edges::CleanupOldEdgesOperation),
     AggregationUpdate(aggregation_update::AggregationUpdateQueue),
@@ -612,7 +613,6 @@ impl AnyOperation {
         match self {
             AnyOperation::ConnectChild(op) => op.execute(ctx),
             AnyOperation::Invalidate(op) => op.execute(ctx),
-            AnyOperation::UpdateOutput(op) => op.execute(ctx),
             AnyOperation::UpdateCell(op) => op.execute(ctx),
             AnyOperation::CleanupOldEdges(op) => op.execute(ctx),
             AnyOperation::AggregationUpdate(op) => op.execute(ctx),
@@ -627,7 +627,6 @@ impl AnyOperation {
 
 impl_operation!(ConnectChild connect_child::ConnectChildOperation);
 impl_operation!(Invalidate invalidate::InvalidateOperation);
-impl_operation!(UpdateOutput update_output::UpdateOutputOperation);
 impl_operation!(UpdateCell update_cell::UpdateCellOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
@@ -641,6 +640,7 @@ pub use self::{
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,
+    invalidate::make_task_dirty_internal,
     prepare_new_children::prepare_new_children,
     update_collectible::UpdateCollectibleOperation,
 };
