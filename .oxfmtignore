@@ -10,9 +10,26 @@ compiled/
 # Handled separately as it has different rules
 packages/create-next-app/templates
 
-# oxfmt bugged files start
-packages/next/src/shared/lib/router/router.ts
-# oxfmt bugged files end
+# oxfmt bug files start
+# () wrapper removed
+packages/next/src/shared/lib/router/router.ts 
+# () wrapper removed
+turbopack/crates/turbopack-tracing/tests/node-file-trace/integration/webpack-target-node/webpack-api-runtime.js 
+# trailing comma
+turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/browserify-minify/input.js
+# trailing comma
+turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/browserify-uglify/input.js
+# trailing comma
+turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/browserify/input.js
+# () wrapper removed
+turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/webpack-wrapper-name/mangled.js
+ # () wrapper removed
+turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/webpack-wrapper-null/mangled.js
+# inline comment moved to new line
+turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/webpack-wrapper-strs-namespaces-large/input.js
+# () wrapper removed
+turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/webpack-wrapper/input.js
+# oxfmt bug files end
 
 
 lerna.json
