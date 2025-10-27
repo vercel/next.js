@@ -2,7 +2,9 @@ import { useUser, fetcher } from "../lib/hooks";
 import useSWR from "swr";
 
 function UserList() {
-  const { data: { users } = {} } = useSWR("/api/users", fetcher);
+  const {
+    data: { users } = {},
+  } = useSWR("/api/users", fetcher);
   return (
     <>
       <h2>All users</h2>

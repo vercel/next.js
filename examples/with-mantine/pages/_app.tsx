@@ -1,6 +1,6 @@
-import '../styles/globals.css'
-import type { AppProps } from 'next/app'
-import { MantineProvider } from '@mantine/core'
+import "../styles/globals.css";
+import type { AppProps } from "next/app";
+import { MantineProvider } from "@mantine/core";
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
@@ -8,7 +8,7 @@ function MyApp({ Component, pageProps }: AppProps) {
       withGlobalStyles
       withNormalizeCSS
       theme={{
-        colorScheme: 'light',
+        colorScheme: "light",
         breakpoints: {
           xs: 500,
           sm: 800,
@@ -20,7 +20,7 @@ function MyApp({ Component, pageProps }: AppProps) {
     >
       <Component {...pageProps} />
     </MantineProvider>
-  )
+  );
 }
 
-export default MyApp
+export default MyApp;
