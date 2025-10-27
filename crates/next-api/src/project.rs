@@ -1341,7 +1341,6 @@ impl Project {
                 EndpointGroup::from(instrumentation.edge),
             ));
         }
-
         for (key, route) in entrypoints.routes.iter() {
             match route {
                 Route::Page {
@@ -1407,7 +1406,6 @@ impl Project {
                 }
             }
         }
-
         if add_pages_entries {
             endpoint_groups.push((
                 EndpointGroupKey::PagesError,
