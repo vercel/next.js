@@ -1,9 +1,9 @@
 use swc_core::{
-    common::{source_map::PURE_SP, util::take::Take, Mark, SyntaxContext},
+    common::{Mark, SyntaxContext, source_map::PURE_SP, util::take::Take},
     ecma::{
         ast::*,
         utils::{prepend_stmt, private_ident, quote_ident, quote_str},
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
 };
@@ -100,7 +100,7 @@ fn make_named_import_esm(args: MakeNamedImportArgs) -> ModuleItem {
     );
     // the import source cannot be parametrized in `quote!()`, so patch it manually
     let decl = item.as_mut_module_decl().unwrap().as_mut_import().unwrap();
-    decl.src = Box::new(source.into());
+    *decl.src = source.into();
     item
 }
 
