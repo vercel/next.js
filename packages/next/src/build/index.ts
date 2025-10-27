@@ -3221,11 +3221,8 @@ export default async function build(
             for (const route of staticPrerenderedRoutes) {
               if (isDynamicRoute(page) && route.pathname === page) continue
 
-              const {
-                metadata = {},
-                hasEmptyStaticShell,
-                hasPostponed,
-              } = exportResult.byPath.get(route.pathname) ?? {}
+              const { metadata = {}, hasEmptyStaticShell, hasPostponed } =
+                exportResult.byPath.get(route.pathname) ?? {}
 
               const cacheControl = getCacheControl(
                 route.pathname,

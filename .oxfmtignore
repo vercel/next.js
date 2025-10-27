@@ -7,6 +7,14 @@ dist/
 target/
 compiled/
 
+# Handled separately as it has different rules
+packages/create-next-app/templates
+
+# oxfmt bugged files start
+packages/next/src/shared/lib/router/router.ts
+# oxfmt bugged files end
+
+
 lerna.json
 test-timings.json
 pnpm-lock.yaml

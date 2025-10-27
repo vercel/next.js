@@ -1,6 +1,7 @@
 # handled by oxfmt
 examples/
 test/
+packages/
 
 # Build artifacts
 .next/

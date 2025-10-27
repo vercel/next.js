@@ -936,9 +936,9 @@ export default async function getBaseWebpackConfig(
   const telemetryPlugin =
     !dev &&
     isClient &&
-    new (
+    new ((
       require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
-    ).TelemetryPlugin(
+    ).TelemetryPlugin)(
       new Map(
         [
           ['swcLoader', useSWCLoader],
@@ -2041,21 +2041,21 @@ export default async function getBaseWebpackConfig(
         }),
       isNodeServer &&
         !dev &&
-        new ((
-          require('./webpack/plugins/next-trace-entrypoints-plugin') as typeof import('./webpack/plugins/next-trace-entrypoints-plugin')
-        )
-          .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
-          {
-            rootDir: dir,
-            appDir: appDir,
-            pagesDir: pagesDir,
-            esmExternals: config.experimental.esmExternals,
-            outputFileTracingRoot: config.outputFileTracingRoot,
-            appDirEnabled: hasAppDir,
-            traceIgnores: [],
-            compilerType,
-          }
-        ),
+        new (
+          (
+            require('./webpack/plugins/next-trace-entrypoints-plugin') as typeof import('./webpack/plugins/next-trace-entrypoints-plugin')
+          )
+            .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin
+        )({
+          rootDir: dir,
+          appDir: appDir,
+          pagesDir: pagesDir,
+          esmExternals: config.experimental.esmExternals,
+          outputFileTracingRoot: config.outputFileTracingRoot,
+          appDirEnabled: hasAppDir,
+          traceIgnores: [],
+          compilerType,
+        }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
@@ -2184,13 +2184,13 @@ export default async function getBaseWebpackConfig(
       telemetryPlugin,
       !dev &&
         isNodeServer &&
-        new (
+        new ((
           require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
-        ).TelemetryPlugin(new Map()),
+        ).TelemetryPlugin)(new Map()),
       shouldEnableSlowModuleDetection &&
-        new (
+        new ((
           require('./webpack/plugins/slow-module-detection-plugin') as typeof import('./webpack/plugins/slow-module-detection-plugin')
-        ).default({
+        ).default)({
           compilerType,
           ...config.experimental.slowModuleDetection!,
         }),

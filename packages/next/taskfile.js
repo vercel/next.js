@@ -1506,15 +1506,17 @@ export async function copy_vendor_react(task_) {
     const schedulerDir = dirname(
       relative(__dirname, require.resolve(`scheduler-${channel}/package.json`))
     )
-    yield task
-      .source(join(schedulerDir, '*.{json,js}'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
-        }
-      })
-      .target(`src/compiled/scheduler${packageSuffix}`)
+    yield (
+      task
+        .source(join(schedulerDir, '*.{json,js}'))
+        // eslint-disable-next-line require-yield
+        .run({ every: true }, function* (file) {
+          if (file.base === 'package.json') {
+            file.data = overridePackageName(file.data.toString())
+          }
+        })
+        .target(`src/compiled/scheduler${packageSuffix}`)
+    )
     yield task
       .source(join(schedulerDir, 'cjs/**/*.{js,map}'))
       .target(`src/compiled/scheduler${packageSuffix}/cjs`)
@@ -1529,54 +1531,62 @@ export async function copy_vendor_react(task_) {
       relative(__dirname, require.resolve(`react-dom-${channel}/package.json`))
     )
 
-    yield task
-      .source(join(reactDir, '*.{json,js}'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
-        }
-      })
-      .target(`src/compiled/react${packageSuffix}`)
+    yield (
+      task
+        .source(join(reactDir, '*.{json,js}'))
+        // eslint-disable-next-line require-yield
+        .run({ every: true }, function* (file) {
+          if (file.base === 'package.json') {
+            file.data = overridePackageName(file.data.toString())
+          }
+        })
+        .target(`src/compiled/react${packageSuffix}`)
+    )
     yield task
       .source(join(reactDir, 'LICENSE'))
       .target(`src/compiled/react${packageSuffix}`)
-    yield task
-      .source(join(reactDir, 'cjs/**/*.{js,map}'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = aliasVendoredReactPackages(source)
-      })
-      .target(`src/compiled/react${packageSuffix}/cjs`)
+    yield (
+      task
+        .source(join(reactDir, 'cjs/**/*.{js,map}'))
+        // eslint-disable-next-line require-yield
+        .run({ every: true }, function* (file) {
+          const source = file.data.toString()
+          // We replace the module/chunk loading code with our own implementation in Next.js.
+          file.data = aliasVendoredReactPackages(source)
+        })
+        .target(`src/compiled/react${packageSuffix}/cjs`)
+    )
 
-    yield task
-      .source(join(reactDomDir, '*.{json,js}'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
-        }
-      })
-      .target(`src/compiled/react-dom${packageSuffix}`)
+    yield (
+      task
+        .source(join(reactDomDir, '*.{json,js}'))
+        // eslint-disable-next-line require-yield
+        .run({ every: true }, function* (file) {
+          if (file.base === 'package.json') {
+            file.data = overridePackageName(file.data.toString())
+          }
+        })
+        .target(`src/compiled/react-dom${packageSuffix}`)
+    )
     yield task
       .source(join(reactDomDir, 'LICENSE'))
       .target(`src/compiled/react-dom${packageSuffix}`)
-    yield task
-      .source(join(reactDomDir, 'cjs/**/*.{js,map}'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        let newSource = aliasVendoredReactPackages(source)
+    yield (
+      task
+        .source(join(reactDomDir, 'cjs/**/*.{js,map}'))
+        // eslint-disable-next-line require-yield
+        .run({ every: true }, function* (file) {
+          const source = file.data.toString()
+          // We replace the module/chunk loading code with our own implementation in Next.js.
+          let newSource = aliasVendoredReactPackages(source)
 
-        file.data = newSource
+          file.data = newSource
 
-        // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
-        // as it mighe be aliased to the server rendering stub.
-      })
-      .target(`src/compiled/react-dom${packageSuffix}/cjs`)
+          // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
+          // as it mighe be aliased to the server rendering stub.
+        })
+        .target(`src/compiled/react-dom${packageSuffix}/cjs`)
+    )
 
     function replaceIdentifiersInAst(
       /** @type {recast.types.namedTypes.File} */ ast,
@@ -1660,42 +1670,49 @@ export async function copy_vendor_react(task_) {
     yield task
       .source(join(reactServerDomWebpackDir, 'LICENSE'))
       .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
-    yield task
-      .source(
-        join(reactServerDomWebpackDir, '{package.json,*.js,cjs/**/*.{js,map}}')
-      )
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        // NOTE: We only replace module/chunk loading for server builds because the server
-        // bundles have unique constraints like a runtime bundle. For browser builds this
-        // package will be bundled alongside user code and we don't need to introduce the extra
-        // indirection
-        if (
-          (file.base.startsWith('react-server-dom-webpack-client') &&
-            !file.base.startsWith('react-server-dom-webpack-client.browser')) ||
-          (file.base.startsWith('react-server-dom-webpack-server') &&
-            !file.base.startsWith('react-server-dom-webpack-server.browser'))
-        ) {
-          const filepath = file.dir + '/' + file.base
-          const source = file.data.toString()
-          const ast = parseFile(source, { sourceFileName: filepath })
-          replaceIdentifiersInAst(
-            ast,
-            new Map([
-              [
-                '__webpack_require__',
-                parseExpression('globalThis.__next_require__'),
-              ],
-            ])
+    yield (
+      task
+        .source(
+          join(
+            reactServerDomWebpackDir,
+            '{package.json,*.js,cjs/**/*.{js,map}}'
           )
+        )
+        // eslint-disable-next-line require-yield
+        .run({ every: true }, function* (file) {
+          // We replace the module/chunk loading code with our own implementation in Next.js.
+          // NOTE: We only replace module/chunk loading for server builds because the server
+          // bundles have unique constraints like a runtime bundle. For browser builds this
+          // package will be bundled alongside user code and we don't need to introduce the extra
+          // indirection
+          if (
+            (file.base.startsWith('react-server-dom-webpack-client') &&
+              !file.base.startsWith(
+                'react-server-dom-webpack-client.browser'
+              )) ||
+            (file.base.startsWith('react-server-dom-webpack-server') &&
+              !file.base.startsWith('react-server-dom-webpack-server.browser'))
+          ) {
+            const filepath = file.dir + '/' + file.base
+            const source = file.data.toString()
+            const ast = parseFile(source, { sourceFileName: filepath })
+            replaceIdentifiersInAst(
+              ast,
+              new Map([
+                [
+                  '__webpack_require__',
+                  parseExpression('globalThis.__next_require__'),
+                ],
+              ])
+            )
 
-          file.data = recast.print(ast).code
-        } else if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data)
-        }
-      })
-      .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
+            file.data = recast.print(ast).code
+          } else if (file.base === 'package.json') {
+            file.data = overridePackageName(file.data)
+          }
+        })
+        .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
+    )
 
     // react-server-dom-turbopack
     // Currently, this `next` and `experimental` channels are always in sync so
@@ -1711,50 +1728,52 @@ export async function copy_vendor_react(task_) {
     yield task
       .source(join(reactServerDomTurbopackDir, 'LICENSE'))
       .target(`src/compiled/react-server-dom-turbopack${packageSuffix}`)
-    yield task
-      .source(
-        join(
-          reactServerDomTurbopackDir,
-          '{package.json,*.js,cjs/**/*.{js,map}}'
-        )
-      )
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        // We replace the module loading code with our own implementation in Next.js.
-        // NOTE: We only replace module loading for server builds because the server
-        // bundles have unique constraints like a runtime bundle. For browser builds this
-        // package will be bundled alongside user code and we don't need to introduce the extra
-        // indirection
-
-        if (
-          (file.base.startsWith('react-server-dom-turbopack-client') ||
-            file.base.startsWith('react-server-dom-turbopack-server')) &&
-          !file.base.includes('.browser.')
-        ) {
-          const source = file.data.toString()
-          const filepath = file.dir + '/' + file.base
-          const ast = parseFile(source, { sourceFileName: filepath })
-
-          replaceIdentifiersInAst(
-            ast,
-            new Map([
-              [
-                '__turbopack_load_by_url__',
-                parseExpression('globalThis.__next_chunk_load__'),
-              ],
-              [
-                '__turbopack_require__',
-                parseExpression('globalThis.__next_require__'),
-              ],
-            ])
+    yield (
+      task
+        .source(
+          join(
+            reactServerDomTurbopackDir,
+            '{package.json,*.js,cjs/**/*.{js,map}}'
           )
+        )
+        // eslint-disable-next-line require-yield
+        .run({ every: true }, function* (file) {
+          // We replace the module loading code with our own implementation in Next.js.
+          // NOTE: We only replace module loading for server builds because the server
+          // bundles have unique constraints like a runtime bundle. For browser builds this
+          // package will be bundled alongside user code and we don't need to introduce the extra
+          // indirection
 
-          file.data = recast.print(ast).code
-        } else if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data)
-        }
-      })
-      .target(`src/compiled/react-server-dom-turbopack${packageSuffix}`)
+          if (
+            (file.base.startsWith('react-server-dom-turbopack-client') ||
+              file.base.startsWith('react-server-dom-turbopack-server')) &&
+            !file.base.includes('.browser.')
+          ) {
+            const source = file.data.toString()
+            const filepath = file.dir + '/' + file.base
+            const ast = parseFile(source, { sourceFileName: filepath })
+
+            replaceIdentifiersInAst(
+              ast,
+              new Map([
+                [
+                  '__turbopack_load_by_url__',
+                  parseExpression('globalThis.__next_chunk_load__'),
+                ],
+                [
+                  '__turbopack_require__',
+                  parseExpression('globalThis.__next_require__'),
+                ],
+              ])
+            )
+
+            file.data = recast.print(ast).code
+          } else if (file.base === 'package.json') {
+            file.data = overridePackageName(file.data)
+          }
+        })
+        .target(`src/compiled/react-server-dom-turbopack${packageSuffix}`)
+    )
   }
 
   // As taskr transpiles async functions into generators, to reuse the same logic

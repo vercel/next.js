@@ -46,8 +46,9 @@ export function getFlightDataPartsFromPath(
   // Pick the last 4 items from the `FlightDataPath` to get the [tree, seedData, viewport, isHeadPartial].
   const flightDataPathLength = 4
   // tree, seedData, and head are *always* the last three items in the `FlightDataPath`.
-  const [tree, seedData, head, isHeadPartial] =
-    flightDataPath.slice(-flightDataPathLength)
+  const [tree, seedData, head, isHeadPartial] = flightDataPath.slice(
+    -flightDataPathLength
+  )
   // The `FlightSegmentPath` is everything except the last three items. For a root render, it won't be present.
   const segmentPath = flightDataPath.slice(0, -flightDataPathLength)
 

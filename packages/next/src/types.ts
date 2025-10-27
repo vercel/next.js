@@ -89,16 +89,8 @@ export type NextPage<Props = {}, InitialProps = Props> = NextComponentType<
 >
 
 export type FileSizeSuffix = `${
-  | 'k'
-  | 'K'
-  | 'm'
-  | 'M'
-  | 'g'
-  | 'G'
-  | 't'
-  | 'T'
-  | 'p'
-  | 'P'}${'b' | 'B'}`
+  'k' | 'K' | 'm' | 'M' | 'g' | 'G' | 't' | 'T' | 'p' | 'P'
+}${'b' | 'B'}`
 
 export type SizeLimit = number | `${number}${FileSizeSuffix}`
 
