@@ -17,10 +17,9 @@ packages/next/wasm/@next
 packages/next/errors.json
 
 .github/actions/next-stats-action/.work
+.changeset/*.md
 
 # examples
-examples/
-# examples using Flow
 examples/with-flow/components/Page.js
 examples/with-custom-babel-config/pages/index.js
 
@@ -58,8 +57,6 @@ test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/ignored.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js
 test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js
 test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx
-# Tested against auto-generated content that isn't formatted
-test/integration/typescript-app-type-declarations/next-env.strictRouteTypes.d.ts
 
 # turbopack crates, disable for some tests and precompiled dependencies.
 /turbopack/crates/*/js/src/compiled
