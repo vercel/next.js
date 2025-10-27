@@ -244,6 +244,7 @@ async function run(): Promise<void> {
       turbopack: true,
       disableGit: false,
       reactCompiler: false,
+      shadcn: true,
     }
 
     type DisplayConfigItem = {
@@ -262,6 +263,7 @@ async function run(): Promise<void> {
       { key: 'srcDir', values: { true: 'src/ dir' } },
       { key: 'app', values: { true: 'App Router', false: 'Pages Router' } },
       { key: 'turbopack', values: { true: 'Turbopack' } },
+      { key: 'shadcn', values: { true: 'ShadCN UI' } },
     ]
 
     // Helper to format settings for display based on displayConfig
@@ -271,6 +273,11 @@ async function run(): Promise<void> {
       const descriptions: string[] = []
 
       for (const config of displayConfig) {
+        // Skip ShadCN if Tailwind is not enabled
+        if (config.key === 'shadcn' && !settings.tailwind) {
+          continue
+        }
+
         const value = settings[config.key]
 
         if (config.values) {
@@ -509,6 +516,11 @@ async function run(): Promise<void> {
       }
     }
 
+    // Handle --no-tailwind CLI argument
+    if (args.includes('--no-tailwind')) {
+      opts.tailwind = false
+    }
+
     if (!opts.srcDir && !args.includes('--no-src-dir')) {
       if (skipPrompt) {
         opts.srcDir = getPrefOrDefault('srcDir')
@@ -544,6 +556,29 @@ async function run(): Promise<void> {
         })
         opts.app = Boolean(app)
         preferences.app = Boolean(app)
+      }
+    }
+
+    // ShadCN requires Tailwind CSS, so automatically disable it if Tailwind is not enabled
+    if (!opts.tailwind) {
+      opts.shadcn = false
+      preferences.shadcn = false
+    } else if (!opts.shadcn && !args.includes('--no-shadcn') && !opts.api) {
+      if (skipPrompt) {
+        opts.shadcn = getPrefOrDefault('shadcn')
+      } else {
+        const styledShadcn = blue('ShadCN UI')
+        const { shadcn } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'shadcn',
+          message: `Would you like to install ${styledShadcn}?`,
+          initial: getPrefOrDefault('shadcn'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        opts.shadcn = Boolean(shadcn)
+        preferences.shadcn = Boolean(shadcn)
       }
     }
 
@@ -645,6 +680,7 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      shadcn: opts.shadcn,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -679,6 +715,7 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      shadcn: opts.shadcn,
     })
   }
   conf.set('preferences', preferences)

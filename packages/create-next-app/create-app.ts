@@ -2,7 +2,7 @@
 import retry from 'async-retry'
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
-import { cyan, green, red } from 'picocolors'
+import { cyan, green, red, yellow } from 'picocolors'
 import type { RepoInfo } from './helpers/examples'
 import {
   downloadAndExtractExample,
@@ -18,6 +18,8 @@ import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
 import { runTypegen } from './helpers/typegen'
+import { runShadcnInit } from './helpers/shadcn'
+import prompts from 'prompts'
 
 import type { Bundler, TemplateMode, TemplateType } from './templates'
 import { getTemplateFile, installTemplate } from './templates'
@@ -42,6 +44,7 @@ export async function createApp({
   bundler,
   disableGit,
   reactCompiler,
+  shadcn,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -60,6 +63,7 @@ export async function createApp({
   bundler: Bundler
   disableGit?: boolean
   reactCompiler: boolean
+  shadcn?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -261,6 +265,71 @@ export async function createApp({
   } else if (tryGitInit(root)) {
     console.log('Initialized a git repository.')
     console.log()
+  }
+
+  if (shadcn) {
+    console.log('Installing ShadCN UI...')
+    console.log()
+    try {
+      let userCancelled = false
+
+      // Ask which package manager to use for ShadCN
+      const { shadcnPackageManager } = await prompts(
+        {
+          type: 'select',
+          name: 'shadcnPackageManager',
+          message: 'Which package manager would you like to use for ShadCN?',
+          choices: [
+            { title: 'npm (npx shadcn@latest init)', value: 'npm' },
+            { title: 'pnpm (pnpm dlx shadcn@latest init)', value: 'pnpm' },
+            { title: 'yarn (auto-detects v1 or v2+)', value: 'yarn' },
+            { title: 'bun (bunx --bun shadcn@latest init)', value: 'bun' },
+          ],
+          initial:
+            packageManager === 'npm'
+              ? 0
+              : packageManager === 'pnpm'
+                ? 1
+                : packageManager === 'yarn'
+                  ? 2
+                  : 3,
+        },
+        {
+          onCancel: () => {
+            userCancelled = true
+          },
+        }
+      )
+
+      // Check if user cancelled the prompt
+      if (userCancelled || shadcnPackageManager === undefined) {
+        console.log(
+          yellow(
+            'ShadCN installation skipped. You can add it later by running `npx shadcn@latest init` in your project directory.'
+          )
+        )
+        console.log()
+      } else {
+        // If the user chose a different package manager than the one used for Next.js,
+        // run an install with the chosen package manager first to set up the environment
+        // This creates the appropriate lockfile (yarn.lock, bun.lockb, etc.) so that
+        // ShadCN detects and uses the correct package manager
+        if (shadcnPackageManager !== packageManager) {
+          console.log(
+            `Setting up ${shadcnPackageManager} environment for ShadCN...`
+          )
+          console.log()
+          await install(shadcnPackageManager, isOnline)
+          console.log()
+        }
+
+        await runShadcnInit(shadcnPackageManager)
+        console.log('ShadCN UI installed successfully.')
+        console.log()
+      }
+    } catch (err) {
+      console.error('Error installing ShadCN UI:', err)
+    }
   }
 
   let cdpath: string
