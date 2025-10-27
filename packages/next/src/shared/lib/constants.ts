@@ -87,7 +87,6 @@ export const WEBPACK_STATS = 'webpack-stats.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
-export const APP_BUILD_MANIFEST = 'app-build-manifest.json'
 export const FUNCTIONS_CONFIG_MANIFEST = 'functions-config-manifest.json'
 export const SUBRESOURCE_INTEGRITY_MANIFEST = 'subresource-integrity-manifest'
 export const NEXT_FONT_MANIFEST = 'next-font-manifest'
@@ -143,8 +142,6 @@ export const CLIENT_STATIC_FILES_RUNTIME_MAIN_APP = `${CLIENT_STATIC_FILES_RUNTI
 export const APP_CLIENT_INTERNALS = 'app-pages-internals'
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
-// static/runtime/amp.js
-export const CLIENT_STATIC_FILES_RUNTIME_AMP = `amp`
 // static/runtime/webpack.js
 export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `webpack`
 // static/runtime/polyfills.js
@@ -204,6 +201,5 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
 export const SYSTEM_ENTRYPOINTS = new Set<string>([
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
 ])

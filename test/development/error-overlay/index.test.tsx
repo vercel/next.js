@@ -14,7 +14,7 @@ describe('DevErrorOverlay', () => {
 
     const errorCode = await browser.elementByCss('[data-nextjs-error-code]')
     const code = await errorCode.getAttribute('data-nextjs-error-code')
-    expect(code).toBe('E127')
+    expect(code).toBe('E40')
   })
 
   it('sends feedback when clicking helpful button', async () => {
@@ -40,7 +40,7 @@ describe('DevErrorOverlay', () => {
         .textContent()
     ).toEqual('Thanks for your feedback!')
     expect(feedbackRequests).toEqual([
-      '/__nextjs_error_feedback?errorCode=E794&wasHelpful=true',
+      '/__nextjs_error_feedback?errorCode=E40&wasHelpful=true',
     ])
   })
 
@@ -67,7 +67,7 @@ describe('DevErrorOverlay', () => {
         .textContent()
     ).toEqual('Thanks for your feedback!')
     expect(feedbackRequests).toEqual([
-      '/__nextjs_error_feedback?errorCode=E794&wasHelpful=false',
+      '/__nextjs_error_feedback?errorCode=E40&wasHelpful=false',
     ])
   })
 

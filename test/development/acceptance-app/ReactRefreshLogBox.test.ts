@@ -95,12 +95,12 @@ describe('ReactRefreshLogBox app', () => {
          "description": "no",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (3:7) @ {module evaluation}
+         "source": "index.js (3:7) @ module evaluation
        > 3 | throw new Error('no')
            |       ^",
          "stack": [
-           "{module evaluation} index.js (3:7)",
-           "{module evaluation} app/page.js (2:1)",
+           "module evaluation index.js (3:7)",
+           "module evaluation app/page.js (2:1)",
          ],
        }
       `)
@@ -406,9 +406,22 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     if (isTurbopack) {
-      // TODO(veil): Turbopack is flaky. Possibly related to https://linear.app/vercel/issue/NDX-920/turbopack-errors-after-hmr-have-no-stacktraces-in-affected-chunks
-      // Should use `await expect(browser).toDisplayRedbox()`
-      await session.assertHasRedbox()
+      // TODO(veil): Possibly https://linear.app/vercel/issue/NEXT-4411
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "Child.js (4:11) @ ClickCount.render
+       > 4 |     throw new Error()
+           |           ^",
+         "stack": [
+           "ClickCount.render Child.js (4:11)",
+           "Home index.js (6:7)",
+           "<FIXME-file-protocol>",
+         ],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -1032,7 +1045,6 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     if (isTurbopack) {
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "test",
@@ -1043,8 +1055,6 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "{default export} index.js (3:11)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "Page app/page.js (2:1)",
          ],
        }
@@ -1135,7 +1145,6 @@ describe('ReactRefreshLogBox app', () => {
     // Render error should "win" and show up in fullscreen
     // TODO(veil): Why Owner Stack location different?
     if (isTurbopack) {
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
          "description": "Component error",
@@ -1146,8 +1155,6 @@ describe('ReactRefreshLogBox app', () => {
            |                                            ^",
          "stack": [
            "Index index.js (2:44)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "Page index.js (16:8)",
          ],
        }
@@ -1540,8 +1547,6 @@ describe('ReactRefreshLogBox app', () => {
         await session.assertHasRedbox()
       })
 
-      // TODO(veil): Turbopack is flaky. Possibly related to https://linear.app/vercel/issue/NDX-920/turbopack-errors-after-hmr-have-no-stacktraces-in-affected-chunks
-
       if (isRspack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
@@ -1717,12 +1722,12 @@ export default function Home() {
          "description": "utils error",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "app/utils.ts (1:7) @ {module evaluation}
+         "source": "app/utils.ts (1:7) @ module evaluation
        > 1 | throw new Error('utils error')
            |       ^",
          "stack": [
-           "{module evaluation} app/utils.ts (1:7)",
-           "{module evaluation} app/page.js (2:1)",
+           "module evaluation app/utils.ts (1:7)",
+           "module evaluation app/page.js (2:1)",
          ],
        }
       `)

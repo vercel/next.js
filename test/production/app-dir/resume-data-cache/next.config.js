@@ -2,11 +2,8 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-    clientSegmentCache: true,
-    clientParamParsing: true,
-  },
+  cacheComponents: true,
+  experimental: { clientSegmentCache: true },
 }
 
 module.exports = nextConfig

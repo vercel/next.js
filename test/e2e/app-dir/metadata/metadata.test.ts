@@ -337,6 +337,14 @@ describe('app dir - metadata', () => {
         'https://outerspace.com/huozhi.png'
       )
     })
+
+    it('should handle metadataBase as url string', async () => {
+      const url$ = await next.render$('/metadata-base/url-string')
+
+      expect(url$('link[rel="canonical"]').attr('href')).toBe(
+        'https://example.com/case/metadata-base/url-string'
+      )
+    })
   })
 
   describe('opengraph', () => {

@@ -10,6 +10,7 @@ import {
   killApp,
   renderViaHTTP,
   launchApp,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -25,7 +26,7 @@ describe('distDir', () => {
         beforeAll(async () => {
           await fs.remove(join(appDir, '.next'))
           await fs.remove(join(appDir, 'dist'))
-          await nextBuild(appDir, [], { lint: true })
+          await nextBuild(appDir, [])
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
         })
@@ -42,7 +43,9 @@ describe('distDir', () => {
           ).toBeTruthy()
         })
         it('should not build the app within the default `.next` directory', async () => {
-          expect(await fs.exists(join(__dirname, '/../.next'))).toBeFalsy()
+          expect(
+            await fs.exists(join(__dirname, `/../${getDistDir()}`))
+          ).toBeFalsy()
         })
       }
     )
@@ -51,7 +54,7 @@ describe('distDir', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await fs.remove(join(appDir, 'dist'))
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
@@ -64,12 +67,15 @@ describe('distDir', () => {
       })
 
       it('should build the app within the given `dist` directory', async () => {
+        // In isolated dev build, the distDir for development is `distDir/dev`
         expect(
-          await fs.exists(join(__dirname, `/../dist/${BUILD_MANIFEST}`))
+          await fs.exists(join(__dirname, `/../dist/dev/${BUILD_MANIFEST}`))
         ).toBeTruthy()
       })
       it('should not build the app within the default `.next` directory', async () => {
-        expect(await fs.exists(join(__dirname, '/../.next'))).toBeFalsy()
+        expect(
+          await fs.exists(join(__dirname, `/../${getDistDir()}`))
+        ).toBeFalsy()
       })
     }
   )
@@ -81,7 +87,6 @@ describe('distDir', () => {
         await fs.writeFile(nextConfig, `module.exports = { distDir: '' }`)
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          lint: true,
         })
         await fs.writeFile(nextConfig, origNextConfig)
 
@@ -94,11 +99,10 @@ describe('distDir', () => {
         const origNextConfig = await fs.readFile(nextConfig, 'utf8')
         await fs.writeFile(
           nextConfig,
-          `module.exports = { distDir: undefined, eslint: { ignoreDuringBuilds: true } }`
+          `module.exports = { distDir: undefined }`
         )
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          lint: true,
         })
         await fs.writeFile(nextConfig, origNextConfig)
 

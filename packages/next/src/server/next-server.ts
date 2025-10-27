@@ -13,7 +13,11 @@ import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest, RoutesManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import type {
+  NextParsedUrlQuery,
+  NextUrlWithParsedQuery,
+  RequestMeta,
+} from './request-meta'
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
@@ -27,7 +31,7 @@ import type { WaitUntil } from './after/builtin-request-context'
 import fs from 'fs'
 import { join, relative } from 'path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { addRequestMeta, getRequestMeta } from './request-meta'
+import { addRequestMeta, getRequestMeta, setRequestMeta } from './request-meta'
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
@@ -119,6 +123,7 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
+import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
 
 export * from './base-server'
 
@@ -268,6 +273,8 @@ export default class NextNodeServer extends BaseServer<
   constructor(options: Options) {
     // Initialize super class
     super(options)
+
+    installGlobalBehaviors(this.nextConfig)
 
     const isDev = options.dev ?? false
     this.isDev = isDev
@@ -452,12 +459,12 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async loadCustomCacheHandlers() {
-    const { cacheHandlers } = this.nextConfig.experimental
+    const { cacheMaxMemorySize, cacheHandlers } = this.nextConfig
     if (!cacheHandlers) return
 
     // If we've already initialized the cache handlers interface, don't do it
     // again.
-    if (!initializeCacheHandlers()) return
+    if (!initializeCacheHandlers(cacheMaxMemorySize)) return
 
     for (const [kind, handler] of Object.entries(cacheHandlers)) {
       if (!handler) continue
@@ -704,7 +711,6 @@ export default class NextNodeServer extends BaseServer<
           null,
           renderOpts,
           this.getServerComponentsHmrCache(),
-          false,
           {
             buildId: this.buildId,
           }
@@ -776,7 +782,11 @@ export default class NextNodeServer extends BaseServer<
       const { isAbsolute, href } = paramsResult
 
       const imageUpstream = isAbsolute
-        ? await fetchExternalImage(href)
+        ? await fetchExternalImage(
+            href,
+            this.nextConfig.images.dangerouslyAllowLocalIP,
+            this.nextConfig.images.maximumRedirects
+          )
         : await fetchInternalImage(
             href,
             req.originalRequest,
@@ -889,12 +899,6 @@ export default class NextNodeServer extends BaseServer<
     url?: string
   }): Promise<FindComponentsResult | null> {
     const pagePaths: string[] = [page]
-    if (query.amp) {
-      // try serving a static AMP version first
-      pagePaths.unshift(
-        (isAppPath ? normalizeAppPath(page) : normalizePagePath(page)) + '.amp'
-      )
-    }
 
     if (locale) {
       pagePaths.unshift(
@@ -929,9 +933,7 @@ export default class NextNodeServer extends BaseServer<
           query: {
             ...(!this.renderOpts.isExperimentalCompile &&
             components.getStaticProps
-              ? ({
-                  amp: query.amp,
-                } as NextParsedUrlQuery)
+              ? {}
               : query),
             // For appDir params is excluded.
             ...((isAppPath ? {} : params) || {}),
@@ -1273,6 +1275,17 @@ export default class NextNodeServer extends BaseServer<
     return handler
   }
 
+  /**
+   * @internal - this method is internal to Next.js and should not be used directly by end-users
+   */
+  public getRequestHandlerWithMetadata(meta: RequestMeta): NodeRequestHandler {
+    const handler = this.makeRequestHandler()
+    return (req, res, parsedUrl) => {
+      setRequestMeta(req, meta)
+      return handler(req, res, parsedUrl)
+    }
+  }
+
   private makeRequestHandler(): NodeRequestHandler {
     // This is just optimization to fire prepare as soon as possible. It will be
     // properly awaited later. We add the catch here to ensure that it does not
@@ -1561,6 +1574,10 @@ export default class NextNodeServer extends BaseServer<
           functionsConfig?.functions?.['/_middleware']
         ) {
           // if used with top level await, this will be a promise
+          // Try loading middleware.js first, then proxy.js. Instead
+          // of mapping proxy to middleware as the entry, just fallback
+          // to proxy.
+          // TODO: Remove this once we handle as the single entrypoint.
           return require(
             join(
               /* turbopackIgnore: true */ this.distDir,
@@ -1639,7 +1656,7 @@ export default class NextNodeServer extends BaseServer<
 
     let url: string
 
-    if (this.nextConfig.skipMiddlewareUrlNormalize) {
+    if (this.nextConfig.skipProxyUrlNormalize) {
       url = getRequestMeta(params.request, 'initURL')!
     } else {
       // For middleware to "fetch" we must always provide an absolute URL
@@ -1723,7 +1740,10 @@ export default class NextNodeServer extends BaseServer<
 
       try {
         result = await adapterFn({
-          handler: middlewareModule.middleware || middlewareModule,
+          handler:
+            middlewareModule.proxy ||
+            middlewareModule.middleware ||
+            middlewareModule,
           request: {
             ...requestData,
             body: hasRequestBody
@@ -1943,7 +1963,13 @@ export default class NextNodeServer extends BaseServer<
     addRequestMeta(req, 'initProtocol', protocol)
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, 'clonableBody', getCloneableBody(req.originalRequest))
+      const bodySizeLimit = this.nextConfig.experimental
+        ?.proxyClientMaxBodySize as number | undefined
+      addRequestMeta(
+        req,
+        'clonableBody',
+        getCloneableBody(req.originalRequest, bodySizeLimit)
+      )
     }
   }
 

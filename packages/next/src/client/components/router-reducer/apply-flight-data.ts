@@ -1,15 +1,13 @@
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
-import type { PrefetchCacheEntry } from './router-reducer-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 
 export function applyFlightData(
   navigatedAt: number,
   existingCache: CacheNode,
   cache: CacheNode,
-  flightData: NormalizedFlightData,
-  prefetchEntry?: PrefetchCacheEntry
+  flightData: NormalizedFlightData
 ): boolean {
   // The one before last item is the router state tree patch
   const { tree: treePatch, seedData, head, isRootRender } = flightData
@@ -20,8 +18,8 @@ export function applyFlightData(
   }
 
   if (isRootRender) {
-    const rsc = seedData[1]
-    const loading = seedData[3]
+    const rsc = seedData[0]
+    const loading = seedData[2]
     cache.loading = loading
     cache.rsc = rsc
     // This is a PPR-only field. When PPR is enabled, we shouldn't hit
@@ -36,8 +34,7 @@ export function applyFlightData(
       existingCache,
       treePatch,
       seedData,
-      head,
-      prefetchEntry
+      head
     )
   } else {
     // Copy rsc for the root node of the cache.
@@ -49,13 +46,7 @@ export function applyFlightData(
     cache.parallelRoutes = new Map(existingCache.parallelRoutes)
     cache.loading = existingCache.loading
     // Create a copy of the existing cache with the rsc applied.
-    fillCacheWithNewSubTreeData(
-      navigatedAt,
-      cache,
-      existingCache,
-      flightData,
-      prefetchEntry
-    )
+    fillCacheWithNewSubTreeData(navigatedAt, cache, existingCache, flightData)
   }
 
   return true

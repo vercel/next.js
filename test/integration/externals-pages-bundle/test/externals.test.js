@@ -8,6 +8,7 @@ import {
   findPort,
   File,
   renderViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -17,11 +18,14 @@ describe('default', () => {
     const port = await findPort()
     const config = new File(join(appDir, 'next.config.js'))
     config.delete()
+    const originalIsNextDev = global.isNextDev
     try {
+      // launchApp is for dev mode, and isNextDev is used in getDistDir
+      global.isNextDev = true
       const app = await launchApp(appDir, port)
       await renderViaHTTP(port, '/')
       if (process.env.IS_TURBOPACK_TEST) {
-        const ssrPath = join(appDir, '.next/server/chunks/ssr')
+        const ssrPath = join(appDir, `${getDistDir()}/server/chunks/ssr`)
         const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
           p.match(/\.js$/)
         )
@@ -37,7 +41,7 @@ describe('default', () => {
         expect(allBundles).not.toContain('"external-package content"')
       } else {
         const output = await fs.readFile(
-          join(appDir, '.next/server/pages/index.js'),
+          join(appDir, `${getDistDir()}/server/pages/index.js`),
           'utf8'
         )
         expect(output).toContain('require("external-package")')
@@ -45,6 +49,7 @@ describe('default', () => {
       await killApp(app)
     } finally {
       config.restore()
+      global.isNextDev = originalIsNextDev
     }
   })
 })

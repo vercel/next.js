@@ -229,7 +229,6 @@ export class AppRouteRouteModule extends RouteModule<
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
     this.methods = autoImplementMethods(userland)
-    this.isAppRouter = true
 
     // Get the non-static methods for this route.
     this.hasNonStaticMethods = hasNonStaticMethods(userland)
@@ -311,8 +310,7 @@ export class AppRouteRouteModule extends RouteModule<
     context: AppRouteRouteHandlerContext
   ) {
     const isStaticGeneration = workStore.isStaticGeneration
-    const cacheComponentsEnabled =
-      !!context.renderOpts.experimental?.cacheComponents
+    const cacheComponentsEnabled = !!context.renderOpts.cacheComponents
 
     // Patch the global fetch.
     patchFetch({

@@ -17,16 +17,11 @@ use tracing::Span;
 use turbo_rcstr::RcStr;
 
 use crate::{
-    RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
-    TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
-    event::EventListener,
-    macro_helpers::NativeFunction,
-    magic_any::MagicAny,
-    manager::{ReadConsistency, TurboTasksBackendApi},
-    raw_vc::CellId,
-    registry,
-    task::shared_reference::TypedSharedReference,
-    task_statistics::TaskStatisticsApi,
+    RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
+    TraitRef, TraitTypeId, TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
+    event::EventListener, macro_helpers::NativeFunction, magic_any::MagicAny,
+    manager::TurboTasksBackendApi, raw_vc::CellId, registry,
+    task::shared_reference::TypedSharedReference, task_statistics::TaskStatisticsApi,
     triomphe_utils::unchecked_sidecast_triomphe_arc,
 };
 
@@ -538,18 +533,12 @@ pub trait Backend: Sync + Send {
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
-    fn task_execution_result(
-        &self,
-        task_id: TaskId,
-        result: Result<RawVc, TurboTasksExecutionError>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    );
-
     fn task_execution_completed(
         &self,
         task: TaskId,
         duration: Duration,
         memory_usage: usize,
+        result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
         has_invalidator: bool,
@@ -570,7 +559,7 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         reader: Option<TaskId>,
-        consistency: ReadConsistency,
+        options: ReadOutputOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 
@@ -587,7 +576,7 @@ pub trait Backend: Sync + Send {
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: CellId,
@@ -652,7 +641,7 @@ pub trait Backend: Sync + Send {
     fn connect_task(
         &self,
         task: TaskId,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 

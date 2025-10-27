@@ -190,7 +190,7 @@ impl CjsRequireAssetReferenceCodeGen {
                         Some(ExprOrSpread {
                             spread: Some(_),
                             expr: _,
-                        }) => "spread operator is not analyse-able in require() expressions.",
+                        }) => "spread operator is not analyze-able in require() expressions.",
                         _ => "require() expressions require at least 1 argument",
                     }
                 } else {
@@ -313,7 +313,7 @@ impl CjsRequireResolveAssetReferenceCodeGen {
                                     spread: Some(_),
                                     expr: _,
                                 }) => {
-                                    "spread operator is not analyse-able in require() expressions."
+                                    "spread operator is not analyze-able in require() expressions."
                                 }
                                 _ => "require() expressions require at least 1 argument",
                             };

@@ -280,6 +280,7 @@ pub async fn get_intermediate_asset(
             false,
         ),
         OutputAssets::empty(),
+        OutputAssets::empty(),
     ))
 }
 

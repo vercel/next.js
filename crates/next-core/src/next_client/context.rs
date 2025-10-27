@@ -28,7 +28,7 @@ use turbopack_core::{
     module_graph::export_usage::OptionExportUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::{TypeofWindow, chunk::EcmascriptChunkType};
+use turbopack_ecmascript::{AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -150,7 +150,12 @@ pub async fn get_client_resolve_options_context(
         get_next_client_resolved_map(project_path.clone(), project_path.clone(), *mode.await?)
             .to_resolved()
             .await?;
-    let custom_conditions = mode.await?.custom_resolve_conditions().collect();
+    let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();
+
+    if *next_config.enable_cache_components().await? {
+        custom_conditions.push(rcstr!("next-js"));
+    };
+
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().owned().await?),
         custom_conditions,
@@ -337,6 +342,14 @@ pub async fn get_client_module_options_context(
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
         keep_last_successful_parse: next_mode.is_development(),
+        analyze_mode: if next_mode.is_development() {
+            AnalyzeMode::CodeGeneration
+        } else {
+            // Technically, this doesn't need to tracing for the client context. But this will
+            // result in more cache hits for the analysis for modules which are loaded for both ssr
+            // and client
+            AnalyzeMode::CodeGenerationAndTracing
+        },
         ..Default::default()
     };
 
@@ -404,7 +417,7 @@ pub struct ClientChunkingContextOptions {
     pub root_path: FileSystemPath,
     pub client_root: FileSystemPath,
     pub client_root_to_root_path: RcStr,
-    pub asset_prefix: Vc<Option<RcStr>>,
+    pub asset_prefix: Vc<RcStr>,
     pub chunk_suffix_path: Vc<Option<RcStr>>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
@@ -413,6 +426,8 @@ pub struct ClientChunkingContextOptions {
     pub source_maps: Vc<bool>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub debug_ids: Vc<bool>,
+    pub should_use_absolute_url_references: Vc<bool>,
 }
 
 #[turbo_tasks::function]
@@ -433,11 +448,13 @@ pub async fn get_client_chunking_context(
         source_maps,
         no_mangling,
         scope_hoisting,
+        debug_ids,
+        should_use_absolute_url_references,
     } = options;
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
-    let chunk_suffix_path = chunk_suffix_path.owned().await?;
+    let chunk_suffix_path = chunk_suffix_path.to_resolved().await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         client_root.clone(),
@@ -448,7 +465,7 @@ pub async fn get_client_chunking_context(
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
-    .chunk_base_path(asset_prefix.clone())
+    .chunk_base_path(Some(asset_prefix.clone()))
     .chunk_suffix_path(chunk_suffix_path)
     .minify_type(if *minify.await? {
         MinifyType::Minify {
@@ -462,10 +479,12 @@ pub async fn get_client_chunking_context(
     } else {
         SourceMapsType::None
     })
-    .asset_base_path(asset_prefix)
+    .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .export_usage(*export_usage.await?)
-    .module_id_strategy(module_id_strategy.to_resolved().await?);
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .debug_ids(*debug_ids.await?)
+    .should_use_absolute_url_references(*should_use_absolute_url_references.await?);
 
     if next_mode.is_development() {
         builder = builder

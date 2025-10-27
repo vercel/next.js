@@ -28,6 +28,7 @@ import {
   canNewFetchStrategyProvideMoreContent,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
+import { createCacheKey } from './cache-key'
 import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
@@ -195,6 +196,33 @@ let didScheduleMicrotask = false
 // priority at a time. We reserve special network bandwidth for this task only.
 let mostRecentlyHoveredLink: PrefetchTask | null = null
 
+// CDN cache propagation delay after revalidation (in milliseconds)
+const REVALIDATION_COOLDOWN_MS = 300
+
+// Timeout handle for the revalidation cooldown. When non-null, prefetch
+// requests are blocked to allow CDN cache propagation.
+let revalidationCooldownTimeoutHandle: ReturnType<typeof setTimeout> | null =
+  null
+
+/**
+ * Called by the cache when revalidation occurs. Starts a cooldown period
+ * during which prefetch requests are blocked to allow CDN cache propagation.
+ */
+export function startRevalidationCooldown(): void {
+  // Clear any existing timeout in case multiple revalidations happen
+  // in quick succession.
+  if (revalidationCooldownTimeoutHandle !== null) {
+    clearTimeout(revalidationCooldownTimeoutHandle)
+  }
+
+  // Schedule the cooldown to expire after the delay.
+  revalidationCooldownTimeoutHandle = setTimeout(() => {
+    revalidationCooldownTimeoutHandle = null
+    // Retry the prefetch queue now that the cooldown has expired.
+    ensureWorkIsScheduled()
+  }, REVALIDATION_COOLDOWN_MS)
+}
+
 export type IncludeDynamicData = null | 'full' | 'dynamic'
 
 /**
@@ -347,8 +375,19 @@ function ensureWorkIsScheduled() {
  * to avoid saturating the browser's internal network queue. This is a
  * cooperative limit — prefetch tasks should check this before issuing
  * new requests.
+ *
+ * Also checks if we're within the revalidation cooldown window, during which
+ * prefetch requests are delayed to allow CDN cache propagation.
  */
 function hasNetworkBandwidth(task: PrefetchTask): boolean {
+  // Check if we're within the revalidation cooldown window
+  if (revalidationCooldownTimeoutHandle !== null) {
+    // We're within the cooldown window. Return false to prevent prefetching.
+    // When the cooldown expires, the timeout will call ensureWorkIsScheduled()
+    // to retry the queue.
+    return false
+  }
+
   // TODO: Also check if there's an in-progress navigation. We should never
   // add prefetch requests to the network queue if an actual navigation is
   // taking place, to ensure there's sufficient bandwidth for render-blocking
@@ -439,8 +478,7 @@ function processQueueInMicrotask() {
   while (task !== null && hasNetworkBandwidth(task)) {
     task.cacheVersion = getCurrentCacheVersion()
 
-    const route = readOrCreateRouteCacheEntry(now, task)
-    const exitStatus = pingRootRouteTree(now, task, route)
+    const exitStatus = pingRoute(now, task)
 
     // These fields are only valid for a single attempt. Reset them after each
     // iteration of the task queue.
@@ -501,6 +539,57 @@ function background(task: PrefetchTask): boolean {
   return false
 }
 
+function pingRoute(now: number, task: PrefetchTask): PrefetchTaskExitStatus {
+  const key = task.key
+  const route = readOrCreateRouteCacheEntry(now, task, key)
+  const exitStatus = pingRootRouteTree(now, task, route)
+
+  if (exitStatus !== PrefetchTaskExitStatus.InProgress && key.search !== '') {
+    // If the URL has a non-empty search string, also prefetch the pathname
+    // without the search string. We use the searchless route tree as a base for
+    // optimistic routing; see requestOptimisticRouteCacheEntry for details.
+    //
+    // Note that we don't need to prefetch any of the segment data. Just the
+    // route tree.
+    //
+    // TODO: This is a temporary solution; the plan is to replace this by adding
+    // a wildcard lookup method to the TupleMap implementation. This is
+    // non-trivial to implement because it needs to account for things like
+    // fallback route entries, hence this temporary workaround.
+    const url = new URL(key.href)
+    url.search = ''
+    const keyWithoutSearch = createCacheKey(url.href, key.nextUrl)
+    const routeWithoutSearch = readOrCreateRouteCacheEntry(
+      now,
+      task,
+      keyWithoutSearch
+    )
+    switch (routeWithoutSearch.status) {
+      case EntryStatus.Empty: {
+        if (background(task)) {
+          routeWithoutSearch.status = EntryStatus.Pending
+          spawnPrefetchSubtask(
+            fetchRouteOnCacheMiss(routeWithoutSearch, task, keyWithoutSearch)
+          )
+        }
+        break
+      }
+      case EntryStatus.Pending:
+      case EntryStatus.Fulfilled:
+      case EntryStatus.Rejected: {
+        // Either the route tree is already cached, or there's already a
+        // request in progress. Since we don't need to fetch any segment data
+        // for this route, there's nothing left to do.
+        break
+      }
+      default:
+        routeWithoutSearch satisfies never
+    }
+  }
+
+  return exitStatus
+}
+
 function pingRootRouteTree(
   now: number,
   task: PrefetchTask,
@@ -522,7 +611,7 @@ function pingRootRouteTree(
       // behavior if PPR is disabled for a route (via the incremental opt-in).
       //
       // Those cases will be handled here.
-      spawnPrefetchSubtask(fetchRouteOnCacheMiss(route, task))
+      spawnPrefetchSubtask(fetchRouteOnCacheMiss(route, task, task.key))
 
       // If the request takes longer than a minute, a subsequent request should
       // retry instead of waiting for this one. When the response is received,
