@@ -1,6 +1,5 @@
 const next = require('next')
 const express = require('express')
-const { parse } = require('url')
 
 const dev = process.env.NODE_ENV !== 'production'
 const dir = __dirname
@@ -11,15 +10,19 @@ const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
   const server = express()
-  server.all('/{*splat}', (req, res) => {
-    const parsedUrl = parse(req.url, true)
-    handleNextRequests(req, res, parsedUrl)
+
+  server.use(express.json({ limit: '5mb' }))
+
+  server.all('*', (req, res) => {
+    req.fromCustomServer = true
+    handleNextRequests(req, res)
   })
 
   server.listen(port, (err) => {
     if (err) {
       throw err
     }
+
     console.log(`> Ready on http://localhost:${port}`)
   })
 })
