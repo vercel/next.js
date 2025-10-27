@@ -3251,13 +3251,13 @@ describe('Cache Components Errors', () => {
                      at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (bundler:///<next-src>)
                      at OuterLayoutRouter (bundler:///<next-src>)
-                   339 |  */
-                   340 | function InnerLayoutRouter({
-                 > 341 |   tree,
+                   332 |  */
+                   333 | function InnerLayoutRouter({
+                 > 334 |   tree,
                        |   ^
-                   342 |   segmentPath,
-                   343 |   debugNameContext,
-                   344 |   cacheNode,
+                   335 |   segmentPath,
+                   336 |   debugNameContext,
+                   337 |   cacheNode,
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
 

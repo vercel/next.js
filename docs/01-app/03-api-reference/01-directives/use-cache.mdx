@@ -98,7 +98,9 @@ function CachedComponent({ children }) {
 
 ## Return values
 
-The return value of the cacheable function must be serializable. This ensures that the cached data can be stored and retrieved correctly.
+The return value of the cacheable function must be serializable props. This ensures that the cached data can be stored and retrieved correctly.
+
+> **Good to know:** The supported types for arguments and the supported types for returned values are **not the same**. For more details, refer to [Serializable Parameters and Return Values](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) for function arguments and [Serializable Types](https://react.dev/reference/rsc/use-client#serializable-types) for return values.
 
 ## `use cache` at build time
 
@@ -129,7 +131,7 @@ See the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTa
 
 ### Caching an entire route with `use cache`
 
-To prerender an entire route, add `use cache` to the top of **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
+To pre-render an entire route, add `use cache` to the top of **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
 
 ```tsx filename="app/layout.tsx" switcher
 'use cache'
