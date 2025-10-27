@@ -9,6 +9,7 @@ compiled/
 
 # Handled separately as it has different rules
 packages/create-next-app/templates
+examples/
 
 # oxfmt bug files start
 # () wrapper removed
@@ -45,8 +46,6 @@ packages/next/errors.json
 .changeset/*.md
 
 # flow code
-examples/with-flow/components/Page.js
-examples/with-custom-babel-config/pages/index.js
 test/e2e/babel/fixture/lib/mycomponent.js
 
 crates/**/tests/**/output*
