@@ -18,6 +18,10 @@ packages/next/errors.json
 
 .github/actions/next-stats-action/.work
 
+# examples
+examples/with-flow/components/Page.js
+examples/with-custom-babel-config/pages/index.js
+
 crates/**/tests/**/output*
 crates/core/tests/loader/issue-32553/input.js
 # prettier destroys the directives here
