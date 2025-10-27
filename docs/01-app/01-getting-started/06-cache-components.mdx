@@ -561,6 +561,34 @@ export async function Table({ sortPromise }) {
 }
 ```
 
+## Route Handlers with Cache Components
+
+`GET` Route Handlers follow the same model. If they don't use any dynamic or runtime data, they can be pre-rendered. You can cache data access with `use cache` to have a pre-rendered immediate response, or let them block waiting for uncached data.
+
+```tsx filename="app/api/products/route.ts"
+import { cacheLife } from 'next/cache'
+
+async function getProducts() {
+  'use cache'
+  cacheLife('hours')
+  // Database query runs once; subsequent requests use cached response
+  // Following the cacheLife set for this cached data
+  const products = await db.query('SELECT * FROM products')
+
+  return products
+}
+
+export async function GET() {
+  const products = await getProducts()
+
+  return Response.json(products)
+}
+```
+
+Route Handlers using [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or other runtime APIs automatically run at request time. You can also use [`await connection()`](/docs/app/api-reference/functions/connection) to explicitly opt out of pre-rendering when needed.
+
+> **Good to know**: At build time the `GET` handler is executed, this might trigger unwanted side effects. Use [`connection()`](/docs/app/api-reference/functions/connection) before the very first side effect, or at top of the `GET` function scope to defer execution to the runtime.
+
 ## Frequently Asked Questions
 
 ### Does this replace Partial Prerendering (PPR)?
