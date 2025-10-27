@@ -8,9 +8,12 @@ export function isPrivateIp(ip: string): boolean {
     return false
   }
   try {
-    const addr = ipaddr.parse(ip)
-    const kind = addr.range()
-    return kind !== 'unicast'
+    let addr = ipaddr.parse(ip)
+    if (addr.kind() === 'ipv6' && (addr as ipaddr.IPv6).isIPv4MappedAddress()) {
+      addr = (addr as ipaddr.IPv6).toIPv4Address()
+    }
+    const range = addr.range()
+    return range !== 'unicast'
   } catch (e) {
     return false
   }

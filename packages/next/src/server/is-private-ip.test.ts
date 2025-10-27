@@ -5,7 +5,7 @@ describe('isPrivateIp', () => {
     expect(isPrivateIp('127.0.0.0')).toBe(true)
     expect(isPrivateIp('127.0.0.1')).toBe(true)
     expect(isPrivateIp('127.0.0.01')).toBe(true)
-    expect(isPrivateIp('127.0.0.01')).toBe(true)
+    expect(isPrivateIp('127.0.0.001')).toBe(true)
     expect(isPrivateIp('0.0.0.0')).toBe(true)
     expect(isPrivateIp('10.0.0.0')).toBe(true)
     expect(isPrivateIp('10.244.0.0')).toBe(true)
@@ -35,6 +35,10 @@ describe('isPrivateIp', () => {
     expect(isPrivateIp('157.240.14.35')).toBe(false)
     expect(isPrivateIp('8.8.8.8')).toBe(false)
     expect(isPrivateIp('1.1.1.1')).toBe(false)
+    expect(isPrivateIp('::ffff:8.8.8.8')).toBe(false)
+    expect(isPrivateIp('::ffff:1.1.1.1')).toBe(false)
+    expect(isPrivateIp('2001:4860:4860::8888')).toBe(false)
+    expect(isPrivateIp('2606:4700:4700::1111')).toBe(false)
   })
 
   it('should return false for domains', () => {
