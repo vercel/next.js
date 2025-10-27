@@ -205,7 +205,7 @@
     "execa": "2.0.3",
     "expect": "29.7.0",
     "expect-type": "0.14.2",
-    "express": "5.1.0",
+    "express": "4.17.0",
     "faker": "5.5.3",
     "faunadb": "2.6.1",
     "find-up": "4.1.0",

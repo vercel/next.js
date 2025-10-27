@@ -1,21 +1,22 @@
 const next = require('next')
 const express = require('express')
 
-const dev = process.env.NODE_ENV !== 'production'
-const dir = __dirname
-const port = process.env.PORT || 3000
+const getPort = require('get-port')
 
-const app = next({ dev, dir })
-const handleNextRequests = app.getRequestHandler()
+async function main() {
+  const dev = process.env.NEXT_TEST_MODE === 'dev'
+  process.env.NODE_ENV = dev ? 'development' : 'production'
 
-app.prepare().then(() => {
+  const port = await getPort()
+  const app = next({ dev })
+  const handleNextRequest = app.getRequestHandler()
+
+  await app.prepare()
+
   const server = express()
 
-  server.use(express.json({ limit: '5mb' }))
-
-  server.all('*', (req, res) => {
-    req.fromCustomServer = true
-    handleNextRequests(req, res)
+  server.all('/:path', (req, res) => {
+    handleNextRequest(req, res)
   })
 
   server.listen(port, (err) => {
@@ -23,6 +24,12 @@ app.prepare().then(() => {
       throw err
     }
 
-    console.log(`> Ready on http://localhost:${port}`)
+    console.log(`- Local: http://localhost:${port}`)
+    console.log(`- Next mode: ${dev ? 'development' : process.env.NODE_ENV}`)
   })
+}
+
+main().catch((err) => {
+  console.error(err)
+  process.exit(1)
 })
