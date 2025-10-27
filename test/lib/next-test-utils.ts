@@ -1446,24 +1446,75 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
   return shouldSkip ? describe.skip : describe
 }
 
+const nextjsClientComponentNames = [
+  // Pages Router
+  'App',
+  'AppContainer',
+  'Container',
+  'Head',
+  'PagesDevOverlayBridge',
+  'PagesDevOverlayErrorBoundary',
+  'PathnameContextProviderAdapter',
+  // App Router
+  'ClientPageRoot',
+  'ClientSegmentRoot',
+  'HTTPAccessFallbackBoundary',
+  'HTTPAccessFallbackErrorBoundary',
+  'InnerLayoutRouter',
+  'InnerScrollAndFocusHandler',
+  'RedirectBoundary',
+  'RedirectErrorBoundary',
+  'RenderFromTemplateContext',
+  'Root',
+  'ScrollAndFocusHandler',
+  'SegmentViewNode',
+  'SegmentTrieNode',
+  // These are added due to user actions e.g. loading.js -> LoadingBoundary
+  // They may be relevant in some context in the future.
+  // Consider including them in different assertions.
+  'ErrorBoundary',
+  'LoadingBoundary',
+]
+const nextjsClientComponentStackFrame = new RegExp(
+  `^(\\s*)<(${nextjsClientComponentNames.join('|')})(>| )`
+)
+
 /**
  * @returns `null` if there are no frames
  */
 export async function getRedboxComponentStack(
-  browser: Playwright
+  browser: Playwright,
+  includeNextjsInternalComponents = false
 ): Promise<string | null> {
-  const componentStackFrameElements = await browser.elementsByCss(
+  const componentStackTraceElements = await browser.elementsByCss(
     '[data-nextjs-container-errors-pseudo-html] code'
   )
-  if (componentStackFrameElements.length === 0) {
+  if (componentStackTraceElements.length === 0) {
     return null
   }
 
-  const componentStackFrameTexts = await Promise.all(
-    componentStackFrameElements.map((f) => f.innerText())
-  )
+  const componentStackTrace = await componentStackTraceElements[0].innerText()
+  const componentStackFrames = componentStackTrace.split('\n')
 
-  return componentStackFrameTexts.join('\n').trim()
+  return componentStackFrames
+    .map((componentStackFrame) => {
+      if (!includeNextjsInternalComponents) {
+        const componentStackFrameMatch = componentStackFrame.match(
+          nextjsClientComponentStackFrame
+        )
+        // React component stack frames aren't subject to ignore-listing.
+        // They're not relevant for our tests though.
+        // If you need to assert on Next.js internal component frames,
+        // use `getRedboxComponentStack(browser, true)` instead.
+        if (componentStackFrameMatch) {
+          return componentStackFrameMatch[1] + '<Next.js Internal Component>'
+        }
+      }
+
+      return componentStackFrame
+    })
+    .join('\n')
+    .trim()
 }
 
 export async function hasRedboxCallStack(browser: Playwright) {
