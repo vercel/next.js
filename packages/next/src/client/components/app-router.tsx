@@ -21,6 +21,8 @@ import {
   SearchParamsContext,
   PathnameContext,
   PathParamsContext,
+  NavigationPromisesContext,
+  type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -411,14 +413,36 @@ function Router({
     return getSelectedParams(tree)
   }, [tree])
 
+  // Create instrumented promises for navigation hooks (dev-only)
+  // These are specially instrumented promises to show in the Suspense DevTools
+  // Promises are cached outside of render to survive suspense retries.
+  let instrumentedNavigationPromises: NavigationPromises | null = null
+  if (process.env.NODE_ENV !== 'production') {
+    const { createRootNavigationPromises } =
+      require('./navigation-devtools') as typeof import('./navigation-devtools')
+
+    instrumentedNavigationPromises = createRootNavigationPromises(
+      tree,
+      pathname,
+      searchParams,
+      pathParams
+    )
+  }
+
   const layoutRouterContext = useMemo(() => {
     return {
       parentTree: tree,
       parentCacheNode: cache,
       parentSegmentPath: null,
+      parentParams: {},
+      // This is the <Activity> "name" that shows up in the Suspense DevTools.
+      // It represents the root of the app.
+      debugNameContext: '/',
       // Root node always has `url`
       // Provided in AppTreeContext to ensure it can be overwritten in layout-router
       url: canonicalUrl,
+      // Root segment is always active
+      isActive: true,
     }
   }, [tree, cache, canonicalUrl])
 
@@ -510,26 +534,30 @@ function Router({
     <>
       <HistoryUpdater appRouterState={state} />
       <RuntimeStyles />
-      <PathParamsContext.Provider value={pathParams}>
-        <PathnameContext.Provider value={pathname}>
-          <SearchParamsContext.Provider value={searchParams}>
-            <GlobalLayoutRouterContext.Provider
-              value={globalLayoutRouterContext}
-            >
-              {/* TODO: We should be able to remove this context. useRouter
-                  should import from app-router-instance instead. It's only
-                  necessary because useRouter is shared between Pages and
-                  App Router. We should fork that module, then remove this
-                  context provider. */}
-              <AppRouterContext.Provider value={publicAppRouterInstance}>
-                <LayoutRouterContext.Provider value={layoutRouterContext}>
-                  {content}
-                </LayoutRouterContext.Provider>
-              </AppRouterContext.Provider>
-            </GlobalLayoutRouterContext.Provider>
-          </SearchParamsContext.Provider>
-        </PathnameContext.Provider>
-      </PathParamsContext.Provider>
+      <NavigationPromisesContext.Provider
+        value={instrumentedNavigationPromises}
+      >
+        <PathParamsContext.Provider value={pathParams}>
+          <PathnameContext.Provider value={pathname}>
+            <SearchParamsContext.Provider value={searchParams}>
+              <GlobalLayoutRouterContext.Provider
+                value={globalLayoutRouterContext}
+              >
+                {/* TODO: We should be able to remove this context. useRouter
+                    should import from app-router-instance instead. It's only
+                    necessary because useRouter is shared between Pages and
+                    App Router. We should fork that module, then remove this
+                    context provider. */}
+                <AppRouterContext.Provider value={publicAppRouterInstance}>
+                  <LayoutRouterContext.Provider value={layoutRouterContext}>
+                    {content}
+                  </LayoutRouterContext.Provider>
+                </AppRouterContext.Provider>
+              </GlobalLayoutRouterContext.Provider>
+            </SearchParamsContext.Provider>
+          </PathnameContext.Provider>
+        </PathParamsContext.Provider>
+      </NavigationPromisesContext.Provider>
     </>
   )
 }

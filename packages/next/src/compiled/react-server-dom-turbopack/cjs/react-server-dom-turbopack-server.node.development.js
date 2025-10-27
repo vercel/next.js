@@ -51,13 +51,13 @@
     function writeChunkAndReturn(destination, chunk) {
       if ("string" === typeof chunk) {
         if (0 !== chunk.length)
-          if (2048 < 3 * chunk.length)
+          if (4096 < 3 * chunk.length)
             0 < writtenBytes &&
               (writeToDestination(
                 destination,
                 currentView.subarray(0, writtenBytes)
               ),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = 0)),
               writeToDestination(destination, chunk);
           else {
@@ -71,25 +71,25 @@
                 destination,
                 currentView.subarray(0, writtenBytes)
               ),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = textEncoder.encodeInto(
                 chunk.slice(read),
                 currentView
               ).written));
-            2048 === writtenBytes &&
+            4096 === writtenBytes &&
               (writeToDestination(destination, currentView),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = 0));
           }
       } else
         0 !== chunk.byteLength &&
-          (2048 < chunk.byteLength
+          (4096 < chunk.byteLength
             ? (0 < writtenBytes &&
                 (writeToDestination(
                   destination,
                   currentView.subarray(0, writtenBytes)
                 ),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0)),
               writeToDestination(destination, chunk))
             : ((target = currentView.length - writtenBytes),
@@ -100,13 +100,13 @@
                     (writtenBytes += target),
                     writeToDestination(destination, currentView),
                     (chunk = chunk.subarray(target))),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0)),
               currentView.set(chunk, writtenBytes),
               (writtenBytes += chunk.byteLength),
-              2048 === writtenBytes &&
+              4096 === writtenBytes &&
                 (writeToDestination(destination, currentView),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0))));
       return destinationHasCapacity;
     }
@@ -3978,7 +3978,7 @@
     function flushCompletedChunks(request) {
       if (null !== request.debugDestination) {
         var debugDestination = request.debugDestination;
-        currentView = new Uint8Array(2048);
+        currentView = new Uint8Array(4096);
         writtenBytes = 0;
         destinationHasCapacity = !0;
         try {
@@ -3997,7 +3997,7 @@
       }
       debugDestination = request.destination;
       if (null !== debugDestination) {
-        currentView = new Uint8Array(2048);
+        currentView = new Uint8Array(4096);
         writtenBytes = 0;
         destinationHasCapacity = !0;
         try {
@@ -5634,43 +5634,42 @@
                     previous: null
                   });
             else if (
-              "Microtask" !== type &&
-              "TickObject" !== type &&
-              "Immediate" !== type
-            )
-              if (void 0 === trigger)
-                (trigger = resolveOwner()),
-                  (trigger = {
-                    tag: 0,
-                    owner: trigger,
-                    stack:
-                      null === trigger
-                        ? parseStackTracePrivate(Error(), 3)
-                        : null,
-                    start: performance.now(),
-                    end: -1.1,
-                    promise: null,
-                    awaited: null,
-                    previous: null
-                  });
-              else {
-                if (2 === trigger.tag || 4 === trigger.tag)
-                  (resource = resolveOwner()),
-                    (trigger = {
-                      tag: 0,
-                      owner: resource,
-                      stack:
-                        null === resource
-                          ? parseStackTracePrivate(Error(), 3)
-                          : null,
-                      start: performance.now(),
-                      end: -1.1,
-                      promise: null,
-                      awaited: null,
-                      previous: trigger
-                    });
-              }
-            else if (void 0 === trigger) return;
+              "bound-anonymous-fn" === type ||
+              "Microtask" === type ||
+              "TickObject" === type ||
+              "Immediate" === type
+            ) {
+              if (void 0 === trigger) return;
+            } else if (void 0 === trigger)
+              (trigger = resolveOwner()),
+                (trigger = {
+                  tag: 0,
+                  owner: trigger,
+                  stack:
+                    null === trigger
+                      ? parseStackTracePrivate(Error(), 3)
+                      : null,
+                  start: performance.now(),
+                  end: -1.1,
+                  promise: null,
+                  awaited: null,
+                  previous: null
+                });
+            else if (2 === trigger.tag || 4 === trigger.tag)
+              (resource = resolveOwner()),
+                (trigger = {
+                  tag: 0,
+                  owner: resource,
+                  stack:
+                    null === resource
+                      ? parseStackTracePrivate(Error(), 3)
+                      : null,
+                  start: performance.now(),
+                  end: -1.1,
+                  promise: null,
+                  awaited: null,
+                  previous: trigger
+                });
             pendingOperations.set(asyncId, trigger);
           },
           before: function (asyncId) {

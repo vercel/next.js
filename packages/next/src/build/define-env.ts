@@ -147,6 +147,8 @@ export function getDefineEnv({
       : process.env.NEXT_RSPACK
         ? 'Rspack'
         : 'Webpack',
+    // minimal mode is enforced when an adapter is configured
+    'process.env.MINIMAL_MODE': Boolean(config.experimental.adapterPath),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV':
       dev || config.experimental.allowDevelopmentBuild
@@ -204,9 +206,6 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
-    ),
-    'process.env.__NEXT_ROUTER_BF_CACHE': Boolean(
-      config.experimental.routerBFCache
     ),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,

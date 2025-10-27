@@ -500,7 +500,8 @@ export default class DevServer extends Server {
               requestStart,
               requestEnd,
               getRequestMeta(req, 'devRequestTimingMiddlewareStart'),
-              getRequestMeta(req, 'devRequestTimingMiddlewareEnd')
+              getRequestMeta(req, 'devRequestTimingMiddlewareEnd'),
+              getRequestMeta(req, 'devRequestTimingInternalsEnd')
             )
           })
         }
@@ -760,11 +761,11 @@ export default class DevServer extends Server {
           isAppPath,
           requestHeaders,
           cacheHandler: this.nextConfig.cacheHandler,
-          cacheHandlers: this.nextConfig.experimental.cacheHandlers,
+          cacheHandlers: this.nextConfig.cacheHandlers,
           cacheLifeProfiles: this.nextConfig.cacheLife,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
+          cacheMaxMemorySize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),

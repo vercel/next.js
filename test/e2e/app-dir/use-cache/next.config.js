@@ -2,13 +2,13 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  cacheHandlers: {
+    custom: require.resolve(
+      'next/dist/server/lib/cache-handlers/default.external'
+    ),
+  },
   experimental: {
     useCache: true,
-    cacheHandlers: {
-      custom: require.resolve(
-        'next/dist/server/lib/cache-handlers/default.external'
-      ),
-    },
   },
   cacheLife: {
     frequent: {

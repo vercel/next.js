@@ -1,4 +1,4 @@
-import { getSegmentValue } from './reducers/get-segment-value'
+import { getSegmentValue } from './segment'
 
 describe('getSegmentValue', () => {
   it('should support string segment', () => {

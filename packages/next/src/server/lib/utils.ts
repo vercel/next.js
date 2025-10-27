@@ -172,6 +172,13 @@ export const getParsedDebugAddress = (): DebugAddress => {
 }
 
 /**
+ * Checks if the debug address from `NODE_OPTIONS` specifies to use a random port (e.g., the port set to 0).
+ *
+ * @returns A boolean indicating whether or not the debug address is assigned to a random port.
+ */
+export const isDebugAddressEphemeral = () => getParsedDebugAddress()?.port === 0
+
+/**
  * Get the debug address from the `NODE_OPTIONS` environment variable and format
  * it into a string.
  *

@@ -169,7 +169,7 @@ describe('async imports in cacheComponents - external packages', () => {
   // This is currently expected to fail because we can only track `import()` in bundled code,
   // and packages marked as external aren't bundled.
   it('does not instrument import() in external packages', async () => {
-    const expectedError = `Error: Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it.`
+    const expectedError = 'https://nextjs.org/docs/messages/blocking-route'
     if (isNextStart) {
       // in prod, we fail during the build
       await expect(() => next.start()).rejects.toThrow()

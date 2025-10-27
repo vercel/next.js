@@ -139,6 +139,7 @@ import {
   isAppBuiltinPage,
   collectRoutesUsingEdgeRuntime,
   collectMeta,
+  isProxyFile,
 } from './utils'
 import type { PageInfo, PageInfos } from './utils'
 import type { FallbackRouteParam, PrerenderedRoute } from './static-paths/types'
@@ -910,7 +911,9 @@ export default async function build(
   appDirOnly = false,
   bundler = Bundler.Turbopack,
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
-  traceUploadUrl: string | undefined
+  traceUploadUrl: string | undefined,
+  debugBuildAppPaths?: string[],
+  debugBuildPagePaths?: string[]
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
@@ -1166,6 +1169,20 @@ export default async function build(
               .traceAsyncFn(() => collectPagesFiles(pagesDir, validFileMatcher))
           : []
 
+      // Apply debug build paths filter if specified
+      // If debugBuildPagePaths is defined (even if empty), only build specified pages
+      if (debugBuildPagePaths !== undefined) {
+        if (debugBuildPagePaths.length > 0) {
+          const debugPathsSet = new Set(debugBuildPagePaths)
+          pagesPaths = pagesPaths.filter((pagePath) =>
+            debugPathsSet.has(pagePath)
+          )
+        } else {
+          // Empty array means build no pages
+          pagesPaths = []
+        }
+      }
+
       const middlewareDetectionRegExp = new RegExp(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
@@ -1198,13 +1215,7 @@ export default async function build(
 
       for (const rootPath of rootPaths) {
         const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
-        const isAtConventionLevel =
-          fileDir === '/' ||
-          fileDir === '/src' ||
-          // rootPaths are currently relative paths from the root directory.
-          // Add safety check here for unexpected future changes.
-          fileDir === dir ||
-          fileDir === path.join(dir, 'src')
+        const isAtConventionLevel = fileDir === '/' || fileDir === '/src'
 
         if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
           middlewareFilePath = rootPath
@@ -1227,11 +1238,11 @@ export default async function build(
           const absoluteMiddlewarePath = path.join(rootDir, middlewareFilePath)
 
           throw new Error(
-            `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, absoluteMiddlewarePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, absoluteProxyPath)}" are detected. Please use "./${path.relative(cwd, absoluteProxyPath)}" only.`
+            `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, absoluteMiddlewarePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, absoluteProxyPath)}" are detected. Please use "./${path.relative(cwd, absoluteProxyPath)}" only. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
           )
         }
         Log.warnOnce(
-          `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
+          `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
         )
       }
 
@@ -1275,7 +1286,7 @@ export default async function build(
         let layoutPaths: string[]
 
         if (Boolean(process.env.NEXT_PRIVATE_APP_PATHS)) {
-          // used for testing?
+          // used for testing
           appPaths = providedAppPaths
           layoutPaths = []
         } else {
@@ -1286,6 +1297,20 @@ export default async function build(
 
           appPaths = result.appPaths
           layoutPaths = result.layoutPaths
+
+          // Apply debug build paths filter if specified
+          // If debugBuildAppPaths is defined (even if empty), only build specified app paths
+          if (debugBuildAppPaths !== undefined) {
+            if (debugBuildAppPaths.length > 0) {
+              const debugPathsSet = new Set(debugBuildAppPaths)
+              appPaths = appPaths.filter((appPath) =>
+                debugPathsSet.has(appPath)
+              )
+            } else {
+              // Empty array means build no app paths
+              appPaths = []
+            }
+          }
           // Note: defaultPaths are not used in the build process, only for slot detection in generating route types
         }
 
@@ -1569,7 +1594,11 @@ export default async function build(
                   undefined
                 )
               )
-            } else if (!isReservedPage(route)) {
+            } else if (
+              !isReservedPage(route) ||
+              // don't consider /api reserved here
+              route.match(/^\/(api(\/|$))/)
+            ) {
               staticRoutes.push(pageToRoute(route))
             }
           }
@@ -1982,6 +2011,7 @@ export default async function build(
               cacheLifeProfiles: config.cacheLife,
               buildId,
               sriEnabled,
+              cacheMaxMemorySize: config.cacheMaxMemorySize,
             })
         )
 
@@ -2193,11 +2223,11 @@ export default async function build(
                             cacheComponents: isAppCacheComponentsEnabled,
                             authInterrupts: isAuthInterruptsEnabled,
                             cacheHandler: config.cacheHandler,
-                            cacheHandlers: config.experimental.cacheHandlers,
+                            cacheHandlers: config.cacheHandlers,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
                               : config.experimental.isrFlushToDisk,
-                            maxMemoryCacheSize: config.cacheMaxMemorySize,
+                            cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.cacheLife,
@@ -2488,7 +2518,7 @@ export default async function build(
           const normalizedCacheHandlers: Record<string, string> = {}
 
           for (const [key, value] of Object.entries(
-            config.experimental.cacheHandlers || {}
+            config.cacheHandlers || {}
           )) {
             if (key && value) {
               normalizedCacheHandlers[key] = path.relative(distDir, value)
@@ -2508,9 +2538,9 @@ export default async function build(
               cacheHandler: cacheHandler
                 ? path.relative(distDir, cacheHandler)
                 : config.cacheHandler,
+              cacheHandlers: normalizedCacheHandlers,
               experimental: {
                 ...config.experimental,
-                cacheHandlers: normalizedCacheHandlers,
                 trustHostHeader: ciEnvironment.hasNextSupport,
                 isExperimentalCompile: isCompileMode,
               },
@@ -2580,12 +2610,15 @@ export default async function build(
           return serverFilesManifest
         })
 
-      const middlewareFile = rootPaths.find(
-        (p) => p.includes(MIDDLEWARE_FILENAME) || p.includes(PROXY_FILENAME)
-      )
+      const middlewareFile = proxyFilePath || middlewareFilePath
       let hasNodeMiddleware = false
 
       if (middlewareFile) {
+        // Is format of `(/src)/(proxy|middleware).<ext>`, so split by
+        // "." and get the first part, regard rest of the extensions
+        // to match the `page` value format.
+        const page = middlewareFile.split('.')[0]
+
         const staticInfo = await getStaticInfoIncludingLayouts({
           isInsideAppDir: false,
           pageFilePath: path.join(dir, middlewareFile),
@@ -2593,17 +2626,17 @@ export default async function build(
           appDir,
           pageExtensions: config.pageExtensions,
           isDev: false,
-          page: 'middleware',
+          page,
         })
 
         if (staticInfo.hadUnsupportedValue) {
           errorFromUnsupportedSegmentConfig()
         }
 
-        if (staticInfo.runtime === 'nodejs') {
+        if (staticInfo.runtime === 'nodejs' || isProxyFile(page)) {
           hasNodeMiddleware = true
           functionsConfigManifest.functions['/_middleware'] = {
-            runtime: staticInfo.runtime,
+            runtime: 'nodejs',
             matchers: staticInfo.middleware?.matchers ?? [
               {
                 regexp: '^.*$',
@@ -3156,7 +3189,7 @@ export default async function build(
               ...(isRoutePPREnabled
                 ? [
                     {
-                      type: 'header',
+                      type: 'header' as const,
                       key: 'user-agent',
                       value: htmlBotsRegexString,
                     },
@@ -4119,6 +4152,17 @@ export default async function build(
         buildTracesSpinner = undefined
       }
 
+      if (proxyFilePath && bundler !== Bundler.Turbopack) {
+        await fs.rename(
+          path.join(distDir, SERVER_DIRECTORY, 'proxy.js'),
+          path.join(distDir, SERVER_DIRECTORY, 'middleware.js')
+        )
+        await fs.rename(
+          path.join(distDir, SERVER_DIRECTORY, 'proxy.js.nft.json'),
+          path.join(distDir, SERVER_DIRECTORY, 'middleware.js.nft.json')
+        )
+      }
+
       if (isCompileMode) {
         Log.info(
           `Build ran with "compile" mode, to finalize the build run either "generate" or "generate-env" mode as well`
@@ -4152,8 +4196,10 @@ export default async function build(
               dir,
               distDir,
               config,
+              buildId,
               configOutDir: path.join(dir, configOutDir),
               staticPages,
+              serverPropsPages,
               nextVersion: process.env.__NEXT_VERSION as string,
               tracingRoot: outputFileTracingRoot,
               hasNodeMiddleware,
@@ -4166,6 +4212,7 @@ export default async function build(
               middlewareManifest,
               functionsConfigManifest,
               hasStatic404: useStaticPages404,
+              hasStatic500: useDefaultStatic500,
               requiredServerFiles: requiredServerFilesManifest.files,
             })
           })

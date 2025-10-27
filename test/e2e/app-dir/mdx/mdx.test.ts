@@ -8,6 +8,7 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
         '@next/mdx': 'canary',
         '@mdx-js/loader': '^2.2.1',
         '@mdx-js/react': '^2.2.1',
+        'recma-export-filepath': '1.2.0',
         'rehype-katex': '7.0.1',
         'rehype-slug': '6.0.0',
         'remark-gfm': '4.0.1',
@@ -65,6 +66,13 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
       })
 
       if (type === 'without-mdx-rs') {
+        it('should run recma plugins', async () => {
+          const $ = await next.render$('/recma-plugin')
+          const html = $('html').html()
+          expect(html.includes('recma-plugin/page.mdx')).toBe(true)
+          expect($('#recma-plugin').text()).toBe('Recma plugin')
+        })
+
         it('should run rehype plugins', async () => {
           const $ = await next.render$('/rehype-plugin')
           const html = $('html').html()
