@@ -9,7 +9,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-  // Skipped as it's not relevant to Turbopack.
+// Skipped as it's not relevant to Turbopack.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Handles a broken webpack plugin (precompile)',
   () => {

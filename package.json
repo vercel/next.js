@@ -74,7 +74,7 @@
     "lint": "run-p test-types lint-typescript prettier-check \"lint-eslint .\" lint-ast-grep lint-language",
     "lint-fix": "pnpm prettier-fix && pnpm lint-eslint --fix .",
     "lint-language": "alex .",
-    "prettier-check": "prettier --check . && oxfmt examples --check --config=examples/.prettierrc.json --ignore-path=.oxfmtignore",
+    "prettier-check": "prettier --check . && oxfmt test --check --config=.prettierrc.json --ignore-path=.oxfmtignore && oxfmt examples --check --config=examples/.prettierrc.json --ignore-path=.oxfmtignore",
     "prettier-fix": "prettier --write .",
     "check-examples": "./scripts/check-examples.sh",
     "get-test-timings": "node run-tests.js --timings --write-timings -g 1/1",
