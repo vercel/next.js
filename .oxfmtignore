@@ -7,6 +7,8 @@ dist/
 target/
 compiled/
 
+test/integration/typescript-app-type-declarations/next-env.d.ts
+
 # Handled separately as it has different rules
 packages/create-next-app/templates
 examples/
@@ -68,8 +70,6 @@ packages/next-codemod/**/*.js
 packages/next-codemod/**/*.d.ts
 
 packages/next-env/**/*.d.ts
-
-test/integration/typescript-app-type-declarations/next-env.d.ts
 
 test/**/out/**
 test/development/basic/hmr/components/parse-error.js
