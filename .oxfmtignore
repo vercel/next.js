@@ -7,7 +7,7 @@ dist/
 target/
 compiled/
 
-test/integration/typescript-app-type-declarations/
+test/integration/typescript-app-type-declarations/next-env.d.ts
 
 # Handled separately as it has different rules
 packages/create-next-app/templates
