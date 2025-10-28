@@ -119,7 +119,7 @@ jobs:
         group: ${{ fromJSON(needs.generate-matrices.outputs.integration) }}
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.10.0
       afterBuild: |
         # legacy integration tests with `node run-tests.js`
 

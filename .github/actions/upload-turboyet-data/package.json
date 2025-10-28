@@ -12,7 +12,7 @@
     "@vercel/ncc": "^0.36.0"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=20.10.0"
   },
   "packageManager": "pnpm@9.6.0"
 }

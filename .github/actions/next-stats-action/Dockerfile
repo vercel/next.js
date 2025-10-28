@@ -11,7 +11,7 @@ RUN apt install unzip wget curl nano htop screen build-essential pkg-config libs
 
 RUN ln $(which python3) /usr/bin/python
 
-RUN curl -sfLS https://install-node.vercel.app/v20.9.0 | bash -s -- -f
+RUN curl -sfLS https://install-node.vercel.app/v20.10.0 | bash -s -- -f
 RUN npm i -g corepack@0.31
 RUN corepack enable
 

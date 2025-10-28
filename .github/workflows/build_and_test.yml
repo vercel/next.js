@@ -275,7 +275,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.10.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
@@ -305,7 +305,7 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.10.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
@@ -334,7 +334,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.10.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
@@ -400,7 +400,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.10.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
@@ -436,7 +436,7 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.10.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
         export NEXT_TEST_MODE=start
@@ -471,7 +471,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.10.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
@@ -799,7 +799,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.10.0
       afterBuild: |
         export IS_WEBPACK_TEST=1
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
@@ -901,7 +901,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.10.0
       afterBuild: |
         export IS_WEBPACK_TEST=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
@@ -952,7 +952,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.10.0
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
