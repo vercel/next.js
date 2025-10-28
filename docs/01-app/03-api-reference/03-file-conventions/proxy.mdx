@@ -620,6 +620,19 @@ export const config = {
 }
 ```
 
+> **Good to know**:
+>
+> - Even when `_next/data` is excluded in a negative matcher pattern, proxy will still be invoked for `_next/data` routes. This is intentional behavior to prevent accidental security issues where you might protect a page but forget to protect the corresponding data route.
+>
+> ```js filename="proxy.js"
+> export const config = {
+>   matcher:
+>     "/((?!api|_next/data|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+> };
+>
+> // Proxy will still run for /_next/data/* routes despite being excluded
+> ```
+
 ### `waitUntil` and `NextFetchEvent`
 
 The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.mozilla.org/docs/Web/API/FetchEvent) object, and includes the [`waitUntil()`](https://developer.mozilla.org/docs/Web/API/ExtendableEvent/waitUntil) method.
