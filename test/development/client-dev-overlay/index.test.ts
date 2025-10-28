@@ -124,7 +124,7 @@ describe('client-dev-overlay', () => {
   it('should nudge to use Turbopack unless Turbopack is disabled', async () => {
     const browser = await next.browser('/')
 
-    // Don't use openDevToolsIndicatorPopover because this is asserting something in the old dev tools menu which isn't preset yet in the new UI.
+    // Don't use toggleDevToolsIndicatorPopover because this is asserting something in the old dev tools menu which isn't preset yet in the new UI.
     const devToolsIndicator = await waitForDevToolsIndicator(browser)
     try {
       await devToolsIndicator.click()

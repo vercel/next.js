@@ -934,7 +934,7 @@ export async function openRedbox(browser: Playwright): Promise<void> {
   await waitForRedbox(browser)
 }
 
-export async function openDevToolsIndicatorPopover(
+export async function toggleDevToolsIndicatorPopover(
   browser: Playwright
 ): Promise<void> {
   const devToolsIndicator = await waitForDevToolsIndicator(browser)
@@ -942,8 +942,8 @@ export async function openDevToolsIndicatorPopover(
   try {
     await devToolsIndicator.click()
   } catch (cause) {
-    const error = new Error('No DevTools Indicator to open.', { cause })
-    Error.captureStackTrace(error, openDevToolsIndicatorPopover)
+    const error = new Error('No DevTools Indicator to toggle.', { cause })
+    Error.captureStackTrace(error, toggleDevToolsIndicatorPopover)
     throw error
   }
 }
@@ -957,7 +957,7 @@ export async function getSegmentExplorerRoute(browser: Playwright) {
 
 export async function getSegmentExplorerContent(browser: Playwright) {
   // open the devtool button
-  await openDevToolsIndicatorPopover(browser)
+  await toggleDevToolsIndicatorPopover(browser)
 
   // open the segment explorer
   await browser.elementByCss('[data-segment-explorer]').click()
@@ -1026,7 +1026,7 @@ export async function waitForStaticIndicator(
   browser: Playwright,
   expectedRouteType: 'Static' | 'Dynamic' | undefined
 ): Promise<void> {
-  await openDevToolsIndicatorPopover(browser)
+  await toggleDevToolsIndicatorPopover(browser)
 
   await retry(async () => {
     const routeType = await browser.eval(() => {
