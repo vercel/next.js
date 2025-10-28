@@ -69,6 +69,8 @@ packages/next-codemod/**/*.d.ts
 
 packages/next-env/**/*.d.ts
 
+test/integration/typescript-app-type-declarations/next-env.d.ts
+
 test/**/out/**
 test/development/basic/hmr/components/parse-error.js
 
@@ -103,6 +105,7 @@ test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx
 /turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/tsx/lib.tsx
 
 /apps/docs/.source/*
+
 
 # Symlink files
 readme.md
