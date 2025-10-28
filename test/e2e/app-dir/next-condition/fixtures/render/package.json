@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "my-cjs-package": "file:./sym-linked-packages/my-cjs-package",
+    "my-esm-package": "file:./sym-linked-packages/my-esm-package",
+    "my-external-cjs-package": "file:./sym-linked-packages/my-external-cjs-package",
+    "my-external-esm-package": "file:./sym-linked-packages/my-external-esm-package"
+  }
+}

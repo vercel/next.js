@@ -1121,7 +1121,7 @@ While Proxy can be useful for initial checks, it should not be your only line of
 > **Tips**:
 >
 > - In Proxy, you can also read cookies using `req.cookies.get('session').value`.
-> - Proxy uses the [Edge Runtime](/docs/app/api-reference/edge), check if your Auth library and session management library are compatible.
+> - Proxy uses the Node.js runtime, check if your Auth library and session management library are compatible. You may need to use [Middleware](https://github.com/vercel/next.js/blob/v15.5.6/docs/01-app/03-api-reference/03-file-conventions/middleware.mdx) if your Auth library only supports [Edge Runtime](/docs/app/api-reference/edge)
 > - You can use the `matcher` property in the Proxy to specify which routes Proxy should run on. Although, for auth, it's recommended Proxy runs on all routes.
 
 <AppOnly>

@@ -80,12 +80,22 @@ export const config = {
 }
 ```
 
-Additionally, the `matcher` option supports complex path specifications through regular expressions, such as `matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)']`, enabling precise control over which paths to include or exclude.
+Additionally, the `matcher` option supports complex path specifications using regular expressions. For example, you can exclude certain paths with a regular expression matcher:
+
+```js filename="proxy.js"
+export const config = {
+  matcher: [
+    // Exclude API routes, static files, image optimizations, and .png files
+    '/((?!api|_next/static|_next/image|.*\\.png$).*)',
+  ],
+}
+```
+
+This enables precise control over which paths to include or exclude.
 
 The `matcher` option accepts an array of objects with the following keys:
 
 - `source`: The path or pattern used to match the request paths. It can be a string for direct path matching or a pattern for more complex matching.
-- `regexp` (optional): A regular expression string that fine-tunes the matching based on the source. It provides additional control over which paths are included or excluded.
 - `locale` (optional): A boolean that, when set to `false`, ignores locale-based routing in path matching.
 - `has` (optional): Specifies conditions based on the presence of specific request elements such as headers, query parameters, or cookies.
 - `missing` (optional): Focuses on conditions where certain request elements are absent, like missing headers or cookies.
@@ -94,8 +104,7 @@ The `matcher` option accepts an array of objects with the following keys:
 export const config = {
   matcher: [
     {
-      source: '/api/*',
-      regexp: '^/api/(.*)',
+      source: '/api/:path*',
       locale: false,
       has: [
         { type: 'header', key: 'Authorization', value: 'Bearer Token' },
@@ -190,19 +199,7 @@ Proxy will be invoked for **every route in your project**. Given this, it's cruc
 
 ## Runtime
 
-Proxy defaults to using the Edge runtime. As of v15.5, we have support for using the Node.js runtime. To enable, in your proxy file, set the runtime to `nodejs` in the `config` object:
-
-```js highlight={2} filename="proxy.js" switcher
-export const config = {
-  runtime: 'nodejs',
-}
-```
-
-```ts highlight={2} filename="proxy.ts" switcher
-export const config = {
-  runtime: 'nodejs',
-}
-```
+Proxy defaults to using the Node.js runtime. The [`runtime`](/docs/app/api-reference/file-conventions/route-segment-config#runtime) config option is not available in Proxy files. Setting the `runtime` config option in Proxy will throw an error.
 
 ## Advanced Proxy flags
 
