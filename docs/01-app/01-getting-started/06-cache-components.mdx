@@ -333,6 +333,20 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+### Navigation with Cache Components
+
+When the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag is enabled, Next.js uses React's [`<Activity>`](https://react.dev/reference/react/Activity) component to preserve component state during client-side navigation.
+
+Rather than unmounting the previous route when you navigate away, Next.js sets the Activity mode to [`"hidden"`](https://react.dev/reference/react/Activity#activity). This means:
+
+- Component state is preserved when navigating between routes
+- When you navigate back, the previous route reappears with its state intact
+- Effects are cleaned up when a route is hidden, and recreated when it becomes visible again
+
+This behavior improves the navigation experience by maintaining UI state (form inputs, or expanded sections) when users navigate back and forth between routes.
+
+> **Good to know**: Next.js uses heuristics to keep a few recently visited routes [`"hidden"`](https://react.dev/reference/react/Activity#activity), while older routes are removed from the DOM to prevent excessive growth.
+
 ### Effect on route segment config
 
 When Cache Components is enabled, several route segment config options are no longer needed or supported. Here's what changes and how to migrate:
