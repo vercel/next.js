@@ -25,7 +25,7 @@ describe('segment cache (metadata)', () => {
         )
         await checkbox.click()
       }, [
-        // Because the link is prefetched with prefetch="unstable_forceStale",
+        // Because the link is prefetched with prefetch={true},
         // we should be able to prefetch the title, even though it's dynamic.
         {
           includes: 'Dynamic Title',
@@ -90,7 +90,7 @@ describe('segment cache (metadata)', () => {
         )
         await checkbox.click()
       }, [
-        // Because the link is prefetched with prefetch="unstable_forceStale",
+        // Because the link is prefetched with prefetch={true},
         // we should be able to prefetch the title, even though it's dynamic.
         {
           includes: 'Runtime-prefetchable title',

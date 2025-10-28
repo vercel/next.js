@@ -551,9 +551,10 @@ export async function handleAction({
   // When running actions the default is no-store, you can still `cache: 'force-cache'`
   workStore.fetchCache = 'default-no-store'
 
+  const originHeader = req.headers['origin']
   const originDomain =
-    typeof req.headers['origin'] === 'string'
-      ? new URL(req.headers['origin']).host
+    typeof originHeader === 'string' && originHeader !== 'null'
+      ? new URL(originHeader).host
       : undefined
   const host = parseHostHeader(req.headers)
 

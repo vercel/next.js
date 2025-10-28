@@ -6,7 +6,6 @@ import contentDisposition from 'next/dist/compiled/content-disposition'
 import imageSizeOf from 'next/dist/compiled/image-size'
 import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
-import isLocalAddress from 'next/dist/compiled/is-local-address'
 import { join } from 'path'
 import nodeUrl, { type UrlWithParsedQuery } from 'url'
 
@@ -28,6 +27,7 @@ import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
+import { isPrivateIp } from './is-private-ip'
 import { parseUrl } from '../lib/url'
 import type { CacheControl } from './lib/cache-control'
 import { InvariantError } from '../shared/lib/invariant-error'
@@ -724,7 +724,7 @@ export async function fetchExternalImage(
       }).catch((_) => [{ address: hostname }])
       ips = records.map((record) => record.address)
     }
-    const privateIps = ips.filter((ip) => isLocalAddress(ip))
+    const privateIps = ips.filter((ip) => isPrivateIp(ip))
     if (privateIps.length > 0) {
       Log.error(
         'upstream image',

@@ -687,7 +687,6 @@ export default async function getBaseWebpackConfig(
     : distDir
 
   const conditionNames = [
-    ...(config.cacheComponents === true ? ['next-js'] : []),
     ...(isEdgeServer ? [edgeConditionName] : []),
     // inherits Webpack's default conditions
     '...',
@@ -1389,6 +1388,17 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        {
+          issuerLayer: {
+            not: [WEBPACK_LAYERS.middleware, WEBPACK_LAYERS.instrument],
+          },
+          resolve: {
+            conditionNames: [
+              config.cacheComponents ? 'next-js' : '',
+              '...',
+            ].filter(Boolean) as string[],
+          },
+        },
         // Alias server-only and client-only to proper exports based on bundling layers
         {
           issuerLayer: {

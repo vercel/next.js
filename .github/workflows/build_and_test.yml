@@ -195,7 +195,7 @@ jobs:
   devlow-bench:
     name: Run devlow benchmarks
     needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && github.event_name != 'pull_request' }}
 
     strategy:
       fail-fast: false
