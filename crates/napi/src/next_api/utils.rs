@@ -16,7 +16,8 @@ use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
     issue::{
-        IssueDescriptionExt, IssueSeverity, PlainIssue, PlainIssueSource, PlainSource, StyledString,
+        CollectibleIssuesExt, IssueSeverity, PlainIssue, PlainIssueSource, PlainSource,
+        StyledString,
     },
     source_pos::SourcePos,
 };
@@ -101,8 +102,7 @@ pub fn root_task_dispose(
 }
 
 pub async fn get_issues<T: Send>(source: OperationVc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
-    let issues = source.peek_issues_with_path().await?;
-    Ok(Arc::new(issues.get_plain_issues().await?))
+    Ok(Arc::new(source.peek_issues().get_plain_issues().await?))
 }
 
 /// Reads the [turbopack_core::diagnostics::Diagnostic] held

@@ -25,7 +25,6 @@ import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { join as pathJoin } from 'path'
-import { ampValidation } from '../../build/output'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import {
@@ -178,62 +177,6 @@ export default class DevServer extends Server {
         return JSON.stringify(value.staticPaths)?.length ?? 0
       }
     )
-    this.renderOpts.ampSkipValidation =
-      this.nextConfig.experimental?.amp?.skipValidation ?? false
-    this.renderOpts.ampValidator = async (html: string, pathname: string) => {
-      const { getAmpValidatorInstance, getBundledAmpValidatorFilepath } =
-        require('../../export/helpers/get-amp-html-validator') as typeof import('../../export/helpers/get-amp-html-validator')
-
-      const validatorPath =
-        this.nextConfig.experimental?.amp?.validator ||
-        getBundledAmpValidatorFilepath()
-
-      const validator = await getAmpValidatorInstance(validatorPath)
-
-      const result = validator.validateString(html)
-      ampValidation(
-        pathname,
-        result.errors
-          .filter((error) => {
-            if (error.severity === 'ERROR') {
-              // Unclear yet if these actually prevent the page from being indexed by the AMP cache.
-              // These are coming from React so all we can do is ignore them for now.
-
-              // <link rel="expect" blocking="render" />
-              // https://github.com/ampproject/amphtml/issues/40279
-              if (
-                error.code === 'DISALLOWED_ATTR' &&
-                error.params[0] === 'blocking' &&
-                error.params[1] === 'link'
-              ) {
-                return false
-              }
-              // <template> without type
-              // https://github.com/ampproject/amphtml/issues/40280
-              if (
-                error.code === 'MANDATORY_ATTR_MISSING' &&
-                error.params[0] === 'type' &&
-                error.params[1] === 'template'
-              ) {
-                return false
-              }
-              // <template> without type
-              // https://github.com/ampproject/amphtml/issues/40280
-              if (
-                error.code === 'MISSING_REQUIRED_EXTENSION' &&
-                error.params[0] === 'template' &&
-                error.params[1] === 'amp-mustache'
-              ) {
-                return false
-              }
-              return true
-            }
-            return false
-          })
-          .filter((e) => this._filterAmpDevelopmentScript(html, e)),
-        result.errors.filter((e) => e.severity !== 'ERROR')
-      )
-    }
 
     const { pagesDir, appDir } = findPagesDir(this.dir)
     this.pagesDir = pagesDir
@@ -523,8 +466,14 @@ export default class DevServer extends Server {
       const loggingConfig = this.nextConfig.logging
 
       if (loggingConfig !== false) {
-        const start = Date.now()
-        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
+        // The closure variable is not used here because the request handler may be invoked twice for one request when middleware is added in the application.
+        // By setting the start time we can ensure that the middleware timing is correctly included.
+        if (!getRequestMeta(req, 'devRequestTimingStart')) {
+          const requestStart = process.hrtime.bigint()
+          addRequestMeta(req, 'devRequestTimingStart', requestStart)
+        }
+        const isMiddlewareRequest =
+          getRequestMeta(req, 'middlewareInvoke') ?? false
 
         if (!isMiddlewareRequest) {
           response.originalResponse.once('close', () => {
@@ -537,12 +486,23 @@ export default class DevServer extends Server {
               return
             }
 
-            logRequests({
+            // The closure variable is not used here because the request handler may be invoked twice for one request when middleware is added in the application.
+            // By setting the start time we can ensure that the middleware timing is correctly included.
+            const requestStart = getRequestMeta(req, 'devRequestTimingStart')
+            if (!requestStart) {
+              return
+            }
+            const requestEnd = process.hrtime.bigint()
+            logRequests(
               request,
               response,
               loggingConfig,
-              requestDurationInMs: Date.now() - start,
-            })
+              requestStart,
+              requestEnd,
+              getRequestMeta(req, 'devRequestTimingMiddlewareStart'),
+              getRequestMeta(req, 'devRequestTimingMiddlewareEnd'),
+              getRequestMeta(req, 'devRequestTimingInternalsEnd')
+            )
           })
         }
       }
@@ -759,30 +719,6 @@ export default class DevServer extends Server {
     // })
   }
 
-  _filterAmpDevelopmentScript(
-    html: string,
-    event: { line: number; col: number; code: string }
-  ): boolean {
-    if (event.code !== 'DISALLOWED_SCRIPT_TAG') {
-      return true
-    }
-
-    const snippetChunks = html.split('\n')
-
-    let snippet
-    if (
-      !(snippet = html.split('\n')[event.line - 1]) ||
-      !(snippet = snippet.substring(event.col))
-    ) {
-      return true
-    }
-
-    snippet = snippet + snippetChunks.slice(event.line).join('\n')
-    snippet = snippet.substring(0, snippet.indexOf('</script>'))
-
-    return !snippet.includes('data-amp-development-mode-only')
-  }
-
   protected async getStaticPaths({
     pathname,
     urlPathname,
@@ -804,12 +740,7 @@ export default class DevServer extends Server {
     // from waiting on them for the page to load in dev mode
 
     const __getStaticPaths = async () => {
-      const {
-        configFileName,
-        publicRuntimeConfig,
-        serverRuntimeConfig,
-        httpAgentOptions,
-      } = this.nextConfig
+      const { configFileName, httpAgentOptions } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
       const staticPathsWorker = this.getStaticPathsWorker()
 
@@ -821,11 +752,7 @@ export default class DevServer extends Server {
           config: {
             pprConfig: this.nextConfig.experimental.ppr,
             configFileName,
-            publicRuntimeConfig,
-            serverRuntimeConfig,
-            cacheComponents: Boolean(
-              this.nextConfig.experimental.cacheComponents
-            ),
+            cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },
           httpAgentOptions,
           locales,
@@ -834,11 +761,11 @@ export default class DevServer extends Server {
           isAppPath,
           requestHeaders,
           cacheHandler: this.nextConfig.cacheHandler,
-          cacheHandlers: this.nextConfig.experimental.cacheHandlers,
-          cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+          cacheHandlers: this.nextConfig.cacheHandlers,
+          cacheLifeProfiles: this.nextConfig.cacheLife,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
+          cacheMaxMemorySize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
@@ -901,8 +828,7 @@ export default class DevServer extends Server {
 
         if (
           res.value?.fallbackMode !== undefined &&
-          // This matches the hasGenerateStaticParams logic
-          // we do during build
+          // This matches the hasGenerateStaticParams logic we do during build.
           (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
         ) {
           // we write the static paths to partial manifest for
@@ -916,6 +842,7 @@ export default class DevServer extends Server {
           for (const staticPath of value.staticPaths || []) {
             existingManifest.routes[staticPath] = {} as any
           }
+
           existingManifest.dynamicRoutes[pathname] = {
             dataRoute: null,
             dataRouteRegex: null,
@@ -925,6 +852,7 @@ export default class DevServer extends Server {
             fallbackHeaders: undefined,
             fallbackStatus: undefined,
             fallbackRootParams: undefined,
+            fallbackRouteParams: undefined,
             fallbackSourceRoute: pathname,
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,

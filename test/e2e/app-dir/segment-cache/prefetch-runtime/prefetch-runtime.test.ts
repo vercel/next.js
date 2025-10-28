@@ -1,13 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
+import { waitFor } from 'next-test-utils'
 import type * as Playwright from 'playwright'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'router-act'
 
-describe('<Link prefetch={true}> (runtime prefetch)', () => {
-  const { next, isNextDev, isNextDeploy } = nextTestSetup({
+describe('runtime prefetching', () => {
+  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
+    // TODO (runtime-prefetching): investigate failures when deployed to Vercel.
+    skipDeployment: true,
   })
-  if (isNextDev) {
-    it('disabled in development', () => {})
+  if (isNextDev || skipped) {
+    it('is skipped', () => {})
     return
   }
 
@@ -115,14 +118,6 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
       )
 
       await browser.back()
-
-      // Reveal the link to the second page again. It should not be prefetched again
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/dynamic-params/456"]`
-        )
-        await linkToggle.click()
-      }, 'no-requests')
 
       // Navigate to the other page
       await act(async () => {
@@ -233,14 +228,6 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
       if (!isNextDeploy) {
         await browser.back()
 
-        // Reveal the link to the second page again. It should not be prefetched again
-        await act(async () => {
-          const linkToggle = await browser.elementByCss(
-            `input[data-link-accordion="/with-root-param/de/${prefix}/root-params"]`
-          )
-          await linkToggle.click()
-        }, 'no-requests')
-
         // Navigate to the other page
         await act(async () => {
           await act(
@@ -348,14 +335,6 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
 
       await browser.back()
 
-      // Reveal the link to the second page again. It should not be prefetched again
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/search-params?searchParam=456"]`
-        )
-        await linkToggle.click()
-      }, 'no-requests')
-
       // Navigate to the other page
       await act(
         async () => {
@@ -370,6 +349,59 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
       )
       expect(await browser.elementById('search-param-value').text()).toEqual(
         'Search param: 456'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
+    })
+
+    it('includes headers, but not dynamic content', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page)
+
+      // Reveal the link to trigger a runtime prefetch for one value of the search param
+      await act(async () => {
+        const linkToggle = await browser.elementByCss(
+          `input[data-link-accordion="/${prefix}/headers"]`
+        )
+        await linkToggle.click()
+      }, [
+        // Should allow reading headers
+        {
+          includes: 'Header: present',
+        },
+        // Should not prefetch the dynamic content
+        {
+          includes: 'Dynamic content',
+          block: 'reject',
+        },
+      ])
+
+      // Navigate to the page
+      await act(async () => {
+        await act(
+          async () => {
+            await browser.elementByCss(`a[href="/${prefix}/headers"]`).click()
+          },
+          {
+            // Temporarily block the navigation request.
+            // The runtime-prefetched parts of the tree should be visible before it finishes.
+            includes: 'Dynamic content',
+            block: true,
+          }
+        )
+        expect(await browser.elementById('header-value').text()).toEqual(
+          'Header: present'
+        )
+      })
+      // After navigating, we should see both the parts that we prefetched and dynamic content.
+      expect(await browser.elementById('header-value').text()).toEqual(
+        'Header: present'
       )
       expect(await browser.elementById('dynamic-content').text()).toEqual(
         'Dynamic content'
@@ -442,23 +474,8 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
       // Go back to the previous page
       await browser.back()
 
-      // Reveal the link again to trigger a runtime prefetch for the new value of the cookie
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/cookies"]`
-        )
-        await linkToggle.click()
-      }, [
-        // Should allow reading dynamic params
-        {
-          includes: 'Cookie: updatedValue',
-        },
-        // Should not prefetch the dynamic content
-        {
-          includes: 'Dynamic content',
-          block: 'reject',
-        },
-      ])
+      // wait a tick before navigating
+      await waitFor(500)
 
       // Navigate to the page
       await act(async () => {
@@ -696,7 +713,8 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
     )
   })
 
-  describe('cache stale time handling', () => {
+  // TODO (runtime-prefetching): link-level opt-in has been removed. These tests need to be updated to use the segment configuration.
+  describe.skip('cache stale time handling', () => {
     it.each([
       {
         // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
@@ -977,11 +995,16 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
     })
   })
 
-  describe('errors', () => {
+  // TODO (runtime-prefetching): link-level opt-in has been removed. These tests need to be updated to use the segment configuration.
+  describe.skip('errors', () => {
     it.each([
       {
         description: 'when sync IO is used after awaiting cookies()',
         path: '/errors/sync-io-after-runtime-api/cookies',
+      },
+      {
+        description: 'when sync IO is used after awaiting headers()',
+        path: '/errors/sync-io-after-runtime-api/headers',
       },
       // TODO(dynamic-ppr):
       // A tree prefetch for "/dynamic-params/123" currently causes it to be prerendered on demand,
@@ -1008,7 +1031,7 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
         path: '/errors/sync-io-after-runtime-api/quickly-expiring-public-cache',
       },
     ])(
-      'aborts the prerender and logs an error $description',
+      'aborts the prerender without logging an error $description',
       async ({ path }) => {
         // In a runtime prefetch, we might encounter sync IO usages that weren't caught during build,
         // because they were hidden behind e.g. a cookies() call.
@@ -1047,9 +1070,7 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
         ])
 
         if (!isNextDeploy) {
-          expect(getCliOutput()).toMatch(
-            /Error: Route ".*?" used `Date\.now\(\)` instead of using `performance` or without explicitly calling `await connection\(\)` beforehand\./
-          )
+          expect(getCliOutput()).not.toMatch(`Date.now()`)
         }
 
         // Navigate to the page

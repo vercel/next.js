@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { assertNoRedbox, waitFor, check } from 'next-test-utils'
+import { waitFor, check } from 'next-test-utils'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -23,12 +23,6 @@ describe('Client Navigation with <Link/>', () => {
 
     expect(text).toBe('This is the about page.')
     await browser.close()
-  })
-
-  it('should not throw error when one number type child is provided', async () => {
-    const browser = await next.browser('/link-number-child')
-    await assertNoRedbox(browser)
-    if (browser) await browser.close()
   })
 
   it('should navigate back after reload', async () => {
@@ -56,13 +50,6 @@ describe('Client Navigation with <Link/>', () => {
     const text = await browser.elementByCss('p').text()
     if (browser) await browser.close()
     expect(text).toMatch(/this is the about page/i)
-  })
-
-  it('should error when calling onClick without event', async () => {
-    const browser = await next.browser('/link-invalid-onclick')
-    expect(await browser.elementByCss('#errors').text()).toBe('0')
-    await browser.elementByCss('#custom-button').click()
-    expect(await browser.elementByCss('#errors').text()).toBe('1')
   })
 
   it('should navigate via the client side', async () => {

@@ -1,11 +1,12 @@
-use std::sync::LazyLock;
-
 use anyhow::Result;
-use regex::Regex;
+use next_taskless::NEVER_EXTERNAL_RE;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    self, FileJsonContent, FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -67,7 +68,10 @@ impl ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 fn condition(root: FileSystemPath) -> Vc<AfterResolvePluginCondition> {
-    AfterResolvePluginCondition::new(root, Glob::new(rcstr!("**/node_modules/**")))
+    AfterResolvePluginCondition::new(
+        root,
+        Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
+    )
 }
 
 #[turbo_tasks::value_impl]
@@ -94,11 +98,6 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         else {
             return Ok(ResolveResultOption::none());
         };
-
-        // from https://github.com/vercel/next.js/blob/8d1c619ad650f5d147207f267441caf12acd91d1/packages/next/src/build/handle-externals.ts#L188
-        static NEVER_EXTERNAL_RE: LazyLock<Regex> = LazyLock::new(|| {
-            Regex::new("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|cache|document|link|form|head|image|legacy\\/image|constants|dynamic|script|navigation|headers|router|compat\\/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper$)").unwrap()
-        });
 
         let (Pattern::Constant(package), Pattern::Constant(package_subpath)) =
             (package, package_subpath)
@@ -183,7 +182,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // for .js extension in cjs context, we need to check the actual module type via
                     // package.json
                     let FindContextFileResult::Found(package_json, _) =
-                        &*find_context_file(fs_path.parent(), package_json()).await?
+                        &*find_context_file(fs_path.parent(), package_json(), false).await?
                     else {
                         // can't find package.json
                         return Ok(FileType::CommonJs);
@@ -284,10 +283,11 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         if result_from_original_location != result {
             let package_json_file =
-                find_context_file(result.ident().path().await?.parent(), package_json());
+                find_context_file(result.ident().path().await?.parent(), package_json(), false);
             let package_json_from_original_location = find_context_file(
                 result_from_original_location.ident().path().await?.parent(),
                 package_json(),
+                false,
             );
             let FindContextFileResult::Found(package_json_file, _) = &*package_json_file.await?
             else {
@@ -441,9 +441,14 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
     if packages.is_empty() {
         return Ok(Vc::cell(None));
     }
-    let path_glob = Glob::new(format!("**/node_modules/{{{}}}/**", packages.join(",")).into());
-    let request_glob =
-        Glob::new(format!("{{{},{}/**}}", packages.join(","), packages.join("/**,")).into());
+    let path_glob = Glob::new(
+        format!("**/node_modules/{{{}}}/**", packages.join(",")).into(),
+        GlobOptions::default(),
+    );
+    let request_glob = Glob::new(
+        format!("{{{},{}/**}}", packages.join(","), packages.join("/**,")).into(),
+        GlobOptions::default(),
+    );
     Ok(Vc::cell(Some(PackagesGlobs {
         path_glob: path_glob.to_resolved().await?,
         request_glob: request_glob.to_resolved().await?,

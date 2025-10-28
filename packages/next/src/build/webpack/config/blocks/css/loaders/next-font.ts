@@ -62,7 +62,6 @@ export function getNextFontLoader(
       isDev: ctx.isDevelopment,
       isServer: ctx.isServer,
       assetPrefix: ctx.assetPrefix,
-      deploymentId: ctx.deploymentId,
       fontLoaderPath,
       postcss,
     },

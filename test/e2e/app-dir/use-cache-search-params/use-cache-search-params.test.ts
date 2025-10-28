@@ -9,7 +9,7 @@ import {
 import stripAnsi from 'strip-ansi'
 
 const getExpectedErrorMessage = (route: string) =>
-  `Route ${route} used "searchParams" inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await "searchParams" outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+  `Route ${route} used \`searchParams\` inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \`searchParams\` outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
 
 describe('use-cache-search-params', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -127,6 +127,46 @@ describe('use-cache-search-params', () => {
 
         expect(cliOutput).not.toContain(getExpectedErrorMessage(route))
       })
+    })
+
+    it('should show an error when searchParams are used inside of a cached generateMetadata', async () => {
+      const browser = await next.browser(
+        '/search-params-used-generate-metadata?title=foo'
+      )
+
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Route /search-params-used-generate-metadata used \`searchParams\` inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \`searchParams\` outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "app/search-params-used-generate-metadata/page.tsx (9:17) @ generateMetadata
+       >  9 |   const title = (await searchParams).title
+            |                 ^",
+         "stack": [
+           "generateMetadata app/search-params-used-generate-metadata/page.tsx (9:17)",
+         ],
+       }
+      `)
+    })
+
+    it('should show an error when searchParams are used inside of a cached generateViewport', async () => {
+      const browser = await next.browser(
+        '/search-params-used-generate-viewport?color=red'
+      )
+
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Route /search-params-used-generate-viewport used \`searchParams\` inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \`searchParams\` outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "app/search-params-used-generate-viewport/page.tsx (9:17) @ generateViewport
+       >  9 |   const color = (await searchParams).color
+            |                 ^",
+         "stack": [
+           "generateViewport app/search-params-used-generate-viewport/page.tsx (9:17)",
+         ],
+       }
+      `)
     })
   } else {
     afterEach(async () => {

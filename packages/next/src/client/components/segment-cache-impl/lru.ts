@@ -1,135 +1,126 @@
-export type LRU<T extends LRUNode> = {
-  put(node: T): void
-  delete(node: T): void
-  updateSize(node: T, size: number): void
-}
+import type { MapEntry } from './cache-map'
+import { deleteFromCacheMap } from './cache-map'
 
-// Doubly-linked list
-type LRUNode<T = any> = {
-  // Although it's not encoded in the type, these are both null if the node is
-  // not in the LRU; both non-null if it is.
-  prev: T | null
-  next: T | null
-  size: number
-}
+// We use an LRU for memory management. We must update this whenever we add or
+// remove a new cache entry, or when an entry changes size.
 
-// Rather than create an internal LRU node, the passed-in type must conform
-// the LRUNode interface. This is just a memory optimization to avoid creating
-// another object; we only use this for Segment Cache entries so it doesn't need
-// to be general purpose.
-export function createLRU<T extends LRUNode>(
-  // From the LRU's perspective, the size unit is arbitrary, but for our
-  // purposes this is the byte size.
-  maxLruSize: number,
-  onEviction: (node: T) => void
-): LRU<T> {
-  let head: T | null = null
-  let didScheduleCleanup: boolean = false
-  let lruSize: number = 0
+// The MapEntry type is used as an LRU node, too. We choose this one instead of
+// the inner cache entry type (RouteCacheEntry, SegmentCacheEntry) because it's
+// monomorphic and can be optimized by the VM.
+type LRUNode = MapEntry<any, any>
 
-  function put(node: T) {
-    if (head === node) {
-      // Already at the head
-      return
+let head: LRUNode | null = null
+let didScheduleCleanup: boolean = false
+let lruSize: number = 0
+
+// TODO: I chose the max size somewhat arbitrarily. Consider setting this based
+// on navigator.deviceMemory, or some other heuristic. We should make this
+// customizable via the Next.js config, too.
+const maxLruSize = 50 * 1024 * 1024 // 50 MB
+
+export function lruPut(node: LRUNode) {
+  if (head === node) {
+    // Already at the head
+    return
+  }
+  const prev = node.prev
+  const next = node.next
+  if (next === null || prev === null) {
+    // This is an insertion
+    lruSize += node.size
+    // Whenever we add an entry, we need to check if we've exceeded the
+    // max size. We don't evict entries immediately; they're evicted later in
+    // an asynchronous task.
+    ensureCleanupIsScheduled()
+  } else {
+    // This is a move. Remove from its current position.
+    prev.next = next
+    next.prev = prev
+  }
+
+  // Move to the front of the list
+  if (head === null) {
+    // This is the first entry
+    node.prev = node
+    node.next = node
+  } else {
+    // Add to the front of the list
+    const tail = head.prev
+    node.prev = tail
+    // In practice, this is never null, but that isn't encoded in the type
+    if (tail !== null) {
+      tail.next = node
     }
-    const prev = node.prev
-    const next = node.next
-    if (next === null || prev === null) {
-      // This is an insertion
-      lruSize += node.size
-      // Whenever we add an entry, we need to check if we've exceeded the
-      // max size. We don't evict entries immediately; they're evicted later in
-      // an asynchronous task.
-      ensureCleanupIsScheduled()
+    node.next = head
+    head.prev = node
+  }
+  head = node
+}
+
+export function updateLruSize(node: LRUNode, newNodeSize: number) {
+  // This is a separate function from `put` so that we can resize the entry
+  // regardless of whether it's currently being tracked by the LRU.
+  const prevNodeSize = node.size
+  node.size = newNodeSize
+  if (node.next === null) {
+    // This entry is not currently being tracked by the LRU.
+    return
+  }
+  // Update the total LRU size
+  lruSize = lruSize - prevNodeSize + newNodeSize
+  ensureCleanupIsScheduled()
+}
+
+export function deleteFromLru(deleted: LRUNode) {
+  const next = deleted.next
+  const prev = deleted.prev
+  if (next !== null && prev !== null) {
+    lruSize -= deleted.size
+
+    deleted.next = null
+    deleted.prev = null
+
+    // Remove from the list
+    if (head === deleted) {
+      // Update the head
+      if (next === head) {
+        // This was the last entry
+        head = null
+      } else {
+        head = next
+      }
     } else {
-      // This is a move. Remove from its current position.
       prev.next = next
       next.prev = prev
     }
-
-    // Move to the front of the list
-    if (head === null) {
-      // This is the first entry
-      node.prev = node
-      node.next = node
-    } else {
-      // Add to the front of the list
-      const tail = head.prev
-      node.prev = tail
-      tail.next = node
-      node.next = head
-      head.prev = node
-    }
-    head = node
+  } else {
+    // Already deleted
   }
+}
 
-  function updateSize(node: T, newNodeSize: number) {
-    // This is a separate function from `put` so that we can resize the entry
-    // regardless of whether it's currently being tracked by the LRU.
-    const prevNodeSize = node.size
-    node.size = newNodeSize
-    if (node.next === null) {
-      // This entry is not currently being tracked by the LRU.
-      return
-    }
-    // Update the total LRU size
-    lruSize = lruSize - prevNodeSize + newNodeSize
-    ensureCleanupIsScheduled()
+function ensureCleanupIsScheduled() {
+  if (didScheduleCleanup || lruSize <= maxLruSize) {
+    return
   }
+  didScheduleCleanup = true
+  requestCleanupCallback(cleanup)
+}
 
-  function deleteNode(deleted: T) {
-    const next = deleted.next
-    const prev = deleted.prev
-    if (next !== null && prev !== null) {
-      lruSize -= deleted.size
+function cleanup() {
+  didScheduleCleanup = false
 
-      deleted.next = null
-      deleted.prev = null
-
-      // Remove from the list
-      if (head === deleted) {
-        // Update the head
-        if (next === head) {
-          // This was the last entry
-          head = null
-        } else {
-          head = next
-        }
-      } else {
-        prev.next = next
-        next.prev = prev
-      }
-    } else {
-      // Already deleted
+  // Evict entries until we're at 90% capacity. We can assume this won't
+  // infinite loop because even if `maxLruSize` were 0, eventually
+  // `deleteFromLru` sets `head` to `null` when we run out entries.
+  const ninetyPercentMax = maxLruSize * 0.9
+  while (lruSize > ninetyPercentMax && head !== null) {
+    const tail = head.prev
+    // In practice, this is never null, but that isn't encoded in the type
+    if (tail !== null) {
+      // Delete the entry from the map. In turn, this will remove it from
+      // the LRU.
+      deleteFromCacheMap(tail.value)
     }
-  }
-
-  function ensureCleanupIsScheduled() {
-    if (didScheduleCleanup || lruSize <= maxLruSize) {
-      return
-    }
-    didScheduleCleanup = true
-    requestCleanupCallback(cleanup)
-  }
-
-  function cleanup() {
-    didScheduleCleanup = false
-
-    // Evict entries until we're at 90% capacity. We can assume this won't
-    // infinite loop because even if `maxLruSize` were 0, eventually
-    // `deleteNode` sets `head` to `null` when we run out entries.
-    const ninetyPercentMax = maxLruSize * 0.9
-    while (lruSize > ninetyPercentMax && head !== null) {
-      const tail = head.prev
-      deleteNode(tail)
-      onEviction(tail)
-    }
-  }
-
-  return {
-    put,
-    delete: deleteNode,
-    updateSize,
   }
 }
 

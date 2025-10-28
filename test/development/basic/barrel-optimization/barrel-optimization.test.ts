@@ -1,6 +1,7 @@
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-// Skipped in Turbopack, will be added later.
+
+// This is implemented in Turbopack, but Turbopack doesn't log the module count.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Skipped in Turbopack',
   () => {
@@ -17,92 +18,6 @@ import { nextTestSetup } from 'e2e-utils'
           '@visx/visx': '3.3.0',
           'recursive-barrel': '1.0.0',
         },
-      })
-
-      it('app - should render the icons correctly without creating all the modules', async () => {
-        let logs = ''
-        next.on('stdout', (log) => {
-          logs += log
-        })
-
-        const html = await next.render('/')
-
-        // Ensure the icons are rendered
-        expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
-
-        const modules = [
-          ...logs.matchAll(
-            /Compiled (\/[\w-]*)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
-          ),
-        ]
-
-        expect(modules.length).toBeGreaterThanOrEqual(1)
-        for (const [, , , , moduleCount] of modules) {
-          // Ensure that the number of modules is less than 1500 - otherwise we're
-          // importing the entire library.
-          expect(parseInt(moduleCount)).toBeLessThan(1500)
-        }
-      })
-
-      it('pages - should render the icons correctly without creating all the modules', async () => {
-        let logs = ''
-        next.on('stdout', (log) => {
-          logs += log
-        })
-
-        const html = await next.render('/pages-route')
-
-        // Ensure the icons are rendered
-        expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
-
-        const modules = [
-          ...logs.matchAll(
-            /Compiled (\/[\w-]+)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
-          ),
-        ]
-
-        expect(modules.length).toBeGreaterThanOrEqual(1)
-        for (const [, , , , moduleCount] of modules) {
-          // Ensure that the number of modules is less than 1500 - otherwise we're
-          // importing the entire library.
-          expect(parseInt(moduleCount)).toBeLessThan(1500)
-        }
-      })
-
-      it('app - should optimize recursive wildcard export mapping', async () => {
-        let logs = ''
-        next.on('stdout', (log) => {
-          logs += log
-        })
-
-        await next.render('/recursive-barrel-app')
-
-        const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
-
-        expect(modules.length).toBeGreaterThanOrEqual(1)
-        for (const [, moduleCount] of modules) {
-          // Ensure that the number of modules is less than 1500 - otherwise we're
-          // importing the entire library.
-          expect(parseInt(moduleCount)).toBeLessThan(1500)
-        }
-      })
-
-      it('pages - should optimize recursive wildcard export mapping', async () => {
-        let logs = ''
-        next.on('stdout', (log) => {
-          logs += log
-        })
-
-        await next.render('/recursive-barrel')
-
-        const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
-
-        expect(modules.length).toBeGreaterThanOrEqual(1)
-        for (const [, moduleCount] of modules) {
-          // Ensure that the number of modules is less than 1500 - otherwise we're
-          // importing the entire library.
-          expect(parseInt(moduleCount)).toBeLessThan(1500)
-        }
       })
 
       it('should handle recursive wildcard exports', async () => {

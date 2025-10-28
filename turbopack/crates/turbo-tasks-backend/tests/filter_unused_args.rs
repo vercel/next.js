@@ -4,13 +4,13 @@
 
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn filtered_trait_method_args() -> Result<()> {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let uses_arg = UsesArg.cell();
         assert_eq!(
             uses_arg.method_with_arg(0).to_resolved().await?,

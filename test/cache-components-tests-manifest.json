@@ -2,25 +2,24 @@
   "version": 2,
   "suites": {
     "test/production/app-dir/fetch-cache/fetch-cache.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "fetch-cache should have correct fetchUrl field for fetches and unstable_cache",
         "fetch-cache should not retry for failed fetch-cache GET",
         "fetch-cache should retry 3 times when revalidate times out",
         "fetch-cache should update cache TTL even if cache data does not change"
       ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
+      "failed": []
     },
     "test/e2e/opentelemetry/opentelemetry.test.ts": {
-      "failed": [
+      "passed": [
         "opentelemetry root context app router should handle RSC with fetch",
         "opentelemetry incoming context propagation app router should handle RSC with fetch",
         "opentelemetry incoming context propagation app router should handle route handlers in app router"
-      ]
+      ],
+      "failed": []
     },
     "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
+      "passed": [],
       "failed": [
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-full route",
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-less route",
@@ -28,14 +27,18 @@
       ]
     },
     "test/production/app-dir/browser-chunks/browser-chunks.test.ts": {
-      "failed": [
-        "browser-chunks must not bundle any server modules into browser chunks"
-      ]
+      "passed": [
+        "browser-chunks must not bundle any server modules into browser chunks",
+        "browser-chunks must not bundle any dev overlay into browser chunks"
+      ],
+      "failed": []
     },
     "test/e2e/next-form/default/next-form-prefetch.test.ts": {
-      "failed": [
-        "app dir - form prefetching should not prefetch when prefetch is set to false`",
+      "passed": [
         "app dir - form prefetching should prefetch a loading state for the form's target"
+      ],
+      "failed": [
+        "app dir - form prefetching should not prefetch when prefetch is set to false`"
       ]
     }
   },
@@ -119,6 +122,11 @@
       "test/e2e/app-dir/app-inline-css/index.test.ts",
       "test/e2e/app-dir/app-invalid-revalidate/app-invalid-revalidate.test.ts",
       "test/e2e/app-dir/app-middleware/app-middleware.test.ts",
+      "test/e2e/app-dir/app-middleware/app-middleware-in-src-dir.test.ts",
+      "test/e2e/app-dir/app-middleware/app-middleware-without-pages-dir.test.ts",
+      "test/e2e/app-dir/app-middleware-proxy/app-middleware-proxy.test.ts",
+      "test/e2e/app-dir/app-middleware-proxy/app-middleware-proxy-in-src-dir.test.ts",
+      "test/e2e/app-dir/app-middleware-proxy/app-middleware-proxy-without-pages-dir.test.ts",
       "test/e2e/app-dir/app-prefetch*/**/*",
       "test/e2e/app-dir/app-rendering/rendering.test.ts",
       "test/e2e/app-dir/app-root-params/generate-static-params.test.ts",
@@ -137,6 +145,7 @@
       "test/e2e/app-dir/app/standalone-gsp.test.ts",
       "test/e2e/app-dir/app/standalone.test.ts",
       "test/e2e/app-dir/app/useReportWebVitals.test.ts",
+      "test/e2e/app-dir/bun-externals/bun-externals.test.ts",
       "test/e2e/app-dir/async-component-preload/async-component-preload.test.ts",
       "test/e2e/app-dir/autoscroll-with-css-modules/index.test.ts",
       "test/e2e/app-dir/back-forward-cache/back-forward-cache.test.ts",
@@ -219,7 +228,6 @@
       "test/e2e/app-dir/parallel-routes-and-interception-from-root/parallel-routes-and-interception-from-root.test.ts",
       "test/e2e/app-dir/parallel-routes-and-interception-nested-dynamic-routes/parallel-routes-and-interception-nested-dynamic-routes.test.ts",
       "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts",
-      "test/e2e/app-dir/parallel-routes-breadcrumbs/parallel-routes-breadcrumbs.test.ts",
       "test/e2e/app-dir/parallel-routes-catchall-specificity/parallel-routes-catchall-specificity.test.ts",
       "test/e2e/app-dir/parallel-routes-generate-static-params/parallel-routes-generate-static-params.test.ts",
       "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts",
@@ -266,6 +274,7 @@
       "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts",
       "test/e2e/app-dir/taint/process-taint.test.ts",
       "test/e2e/app-dir/temporary-references/temporary-references.test.ts",
+      "test/e2e/app-dir/typed-routes-validator/typed-routes-validator.test.ts",
       "test/e2e/app-dir/unauthorized/basic/unauthorized-basic.test.ts",
       "test/e2e/app-dir/unauthorized/default/unauthorized-default.test.ts",
       "test/e2e/app-dir/unstable-rethrow/unstable-rethrow.test.ts",
@@ -323,6 +332,7 @@
       "test/e2e/switchable-runtime/index.test.ts",
       "test/e2e/testmode/testmode.test.ts",
       "test/e2e/use-link-status/index.test.ts",
+      "test/e2e/url/url.test.ts",
       "test/integration/app-dir-export/**/*",
       "test/integration/app-dynamic-error/test/index.test.ts",
       "test/integration/app-types/app-types.test.js",
@@ -349,7 +359,10 @@
       "test/production/app-dir/subresource-integrity/subresource-integrity.test.ts",
       "test/production/app-dir/typed-routes-with-webpack-worker/typed-routes-with-webpack-worker.test.ts",
       "test/production/app-dir/unexpected-error/unexpected-error.test.ts",
-      "test/production/app-dir/worker-restart/worker-restart.test.ts"
+      "test/production/app-dir/worker-restart/worker-restart.test.ts",
+      "test/production/app-dir/resume-data-cache/resume-data-cache.test.ts",
+      "test/production/app-dir/unstable-cache-foreground-revalidate/unstable-cache-foreground-revalidate.test.ts",
+      "test/e2e/app-dir/parallel-routes-root-param-dynamic-child/parallel-routes-root-param-dynamic-child.test.ts"
     ]
   }
 }

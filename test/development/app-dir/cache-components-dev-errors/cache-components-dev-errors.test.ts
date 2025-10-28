@@ -22,7 +22,7 @@ describe('Cache Components Dev Errors', () => {
     // soft-navigating to the page (see test below).
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "description": "Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+       "description": "Route "/error" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
        "environmentLabel": "Server",
        "label": "Console Error",
        "source": "app/error/page.tsx (2:23) @ Page
@@ -52,7 +52,7 @@ describe('Cache Components Dev Errors', () => {
     // TODO: React should not include the anon stack in the Owner Stack.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "description": "Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+       "description": "Route "/error" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
        "environmentLabel": "Server",
        "label": "Console Error",
        "source": "app/error/page.tsx (2:23) @ Page
@@ -94,22 +94,28 @@ describe('Cache Components Dev Errors', () => {
     })
 
     expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
-      `\nError: Route "/no-accessed-data": ` +
-        `A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. ` +
-        `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
-        '\n    at Page (app/no-accessed-data/page.js:1:31)' +
-        '\n> 1 | export default async function Page() {' +
-        '\n    |                               ^' +
-        '\n  2 |   await new Promise((r) => setTimeout(r, 200))' +
-        '\n  3 |   return <p>Page</p>' +
-        '\n  4 | }'
+      'https://nextjs.org/docs/messages/blocking-route'
     )
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "description": "Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
+       "description": "Uncached data was accessed outside of <Suspense>
+
+     This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+
+     To fix this, you can either:
+
+     Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+     or
+
+     Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+     Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+
+     Learn more: https://nextjs.org/docs/messages/blocking-route",
        "environmentLabel": "Server",
-       "label": "Console Error",
+       "label": "Blocking Route",
        "source": "app/no-accessed-data/page.js (1:31) @ Page
      > 1 | export default async function Page() {
          |                               ^",
@@ -141,25 +147,25 @@ describe('Cache Components Dev Errors', () => {
     const { browser, session } = sandbox
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
-         {
-           "description": "Ecmascript file had an error",
-           "environmentLabel": null,
-           "label": "Build Error",
-           "source": "./app/page.tsx (1:14)
-         Ecmascript file had an error
-         > 1 | export const revalidate = 10
-             |              ^^^^^^^^^^",
-           "stack": [],
-         }
-        `)
+       {
+         "description": "Ecmascript file had an error",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/page.tsx (1:14)
+       Ecmascript file had an error
+       > 1 | export const revalidate = 10
+           |              ^^^^^^^^^^",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.cacheComponents\`. Please remove it.",
+         "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.tsx
-       Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.cacheComponents\`. Please remove it.
+       Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
           ,-[1:1]
         1 | export const revalidate = 10
           :              ^^^^^^^^^^

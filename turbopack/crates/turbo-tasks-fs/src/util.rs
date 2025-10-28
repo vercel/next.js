@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, anyhow};
-use turbo_tasks::Vc;
+use turbo_tasks::ResolvedVc;
 
 use crate::{DiskFileSystem, FileSystemPath};
 
@@ -23,41 +23,41 @@ pub fn extract_disk_access<T>(value: io::Result<T>, path: &Path) -> Result<Optio
 pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
     use turbo_unix_path::sys_to_unix;
 
-    let root_fs = root.fs();
-    let root_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(root_fs)
-        .await?
+    let root_fs = root.fs;
+    let root_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(root_fs)
         .context("Expected root to have a DiskFileSystem")?
         .await?;
 
+    let path = match path {
+        Some(path) => root.join(path)?,
+        None => root,
+    };
+
+    let sys_path = root_fs.to_sys_path(&path);
+    let sys_path = sys_path.to_string_lossy();
+
     Ok(format!(
         "file://{}",
-        &sys_to_unix(
-            &root_fs
-                .to_sys_path(match path {
-                    Some(path) => root.join(path)?,
-                    None => root,
-                })?
-                .to_string_lossy()
-        )
-        .split('/')
-        .map(|s| urlencoding::encode(s))
-        .collect::<Vec<_>>()
-        .join("/")
+        sys_to_unix(&sys_path)
+            .split('/')
+            .map(|s| urlencoding::encode(s))
+            .collect::<Vec<_>>()
+            .join("/")
     ))
 }
 
 #[cfg(target_os = "windows")]
 pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<String> {
-    let root_fs = root.fs();
-    let root_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(root_fs)
-        .await?
+    let root_fs = root.fs;
+    let root_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(root_fs)
         .context("Expected root to have a DiskFileSystem")?
         .await?;
 
-    let sys_path = root_fs.to_sys_path(match path {
+    let sys_path = match path {
         Some(path) => root.join(path.into())?,
         None => root,
-    })?;
+    };
+    let sys_path = root_fs.to_sys_path(&sys_path);
 
     let raw_path = sys_path.to_string_lossy().to_string();
     let normalized_path = raw_path.replace('\\', "/");

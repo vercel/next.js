@@ -2,13 +2,11 @@ use std::{
     hash::Hash,
     ops::{Deref, DerefMut},
     sync::{Arc, atomic::AtomicBool},
-    thread::available_parallelism,
 };
 
 use bitfield::bitfield;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use smallvec::SmallVec;
-use turbo_tasks::{FxDashMap, TaskId};
+use turbo_tasks::{FxDashMap, TaskId, parallel};
 
 use crate::{
     backend::dynamic_storage::DynamicStorage,
@@ -17,7 +15,10 @@ use crate::{
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
     },
     data_storage::{AutoMapStorage, OptionStorage},
-    utils::dash_map_multi::{RefMut, get_multiple_mut},
+    utils::{
+        dash_map_drop_contents::drop_contents,
+        dash_map_multi::{RefMut, get_multiple_mut},
+    },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -99,6 +100,8 @@ bitfield! {
     /// Item was modified after snapshot mode was entered. A snapshot was taken.
     pub meta_snapshot, set_meta_snapshot: 4;
     pub data_snapshot, set_data_snapshot: 5;
+    /// Prefetched dependencies
+    pub prefetched, set_prefetched: 6;
 }
 
 impl InnerStorageState {
@@ -612,17 +615,13 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub fn new(small_preallocation: bool) -> Self {
+    pub fn new(shard_amount: usize, small_preallocation: bool) -> Self {
         let map_capacity: usize = if small_preallocation {
             1024
         } else {
             1024 * 1024
         };
         let modified_capacity: usize = if small_preallocation { 0 } else { 1024 };
-        let shard_factor: usize = if small_preallocation { 4 } else { 64 };
-
-        let shard_amount =
-            (available_parallelism().map_or(4, |v| v.get()) * shard_factor).next_power_of_two();
 
         Self {
             snapshot_mode: AtomicBool::new(false),
@@ -664,48 +663,43 @@ impl Storage {
 
         // The number of shards is much larger than the number of threads, so the effect of the
         // locks held is negligible.
-        self.modified
-            .shards()
-            .par_iter()
-            .with_max_len(1)
-            .map(|shard| {
-                let mut direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)> = Vec::new();
-                let mut modified: SmallVec<[TaskId; 4]> = SmallVec::new();
-                {
-                    // Take the snapshots from the modified map
-                    let guard = shard.write();
-                    // Safety: guard must outlive the iterator.
-                    for bucket in unsafe { guard.iter() } {
-                        // Safety: the guard guarantees that the bucket is not removed and the ptr
-                        // is valid.
-                        let (key, shared_value) = unsafe { bucket.as_mut() };
-                        let modified_state = shared_value.get_mut();
-                        match modified_state {
-                            ModifiedState::Modified => {
-                                modified.push(*key);
-                            }
-                            ModifiedState::Snapshot(snapshot) => {
-                                if let Some(snapshot) = snapshot.take() {
-                                    direct_snapshots.push((*key, snapshot));
-                                }
+        parallel::map_collect::<_, _, Vec<_>>(self.modified.shards(), |shard| {
+            let mut direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)> = Vec::new();
+            let mut modified: SmallVec<[TaskId; 4]> = SmallVec::new();
+            {
+                // Take the snapshots from the modified map
+                let guard = shard.write();
+                // Safety: guard must outlive the iterator.
+                for bucket in unsafe { guard.iter() } {
+                    // Safety: the guard guarantees that the bucket is not removed and the ptr
+                    // is valid.
+                    let (key, shared_value) = unsafe { bucket.as_mut() };
+                    let modified_state = shared_value.get_mut();
+                    match modified_state {
+                        ModifiedState::Modified => {
+                            modified.push(*key);
+                        }
+                        ModifiedState::Snapshot(snapshot) => {
+                            if let Some(snapshot) = snapshot.take() {
+                                direct_snapshots.push((*key, snapshot));
                             }
                         }
                     }
-                    // Safety: guard must outlive the iterator.
-                    drop(guard);
                 }
+                // Safety: guard must outlive the iterator.
+                drop(guard);
+            }
 
-                SnapshotShard {
-                    direct_snapshots,
-                    modified,
-                    storage: self,
-                    guard: Some(guard.clone()),
-                    process,
-                    preprocess,
-                    process_snapshot,
-                }
-            })
-            .collect::<Vec<_>>()
+            SnapshotShard {
+                direct_snapshots,
+                modified,
+                storage: self,
+                guard: Some(guard.clone()),
+                process,
+                preprocess,
+                process_snapshot,
+            }
+        })
     }
 
     /// Start snapshot mode.
@@ -811,6 +805,11 @@ impl Storage {
                 inner: b,
             },
         )
+    }
+
+    pub fn drop_contents(&self) {
+        drop_contents(&self.map);
+        drop_contents(&self.modified);
     }
 }
 

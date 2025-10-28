@@ -27,14 +27,12 @@ import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
 
 declare const incrementalCacheHandler: any
+declare const nextConfig: NextConfigComplete
 // OPTIONAL_IMPORT:incrementalCacheHandler
+// INJECT:nextConfig
 
 // Initialize the cache handlers interface.
-initializeCacheHandlers()
-
-// injected by the loader afterwards.
-declare const nextConfig: NextConfigComplete
-// INJECT:nextConfig
+initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
@@ -138,43 +136,43 @@ async function requestHandler(
       dir: pageRouteModule.relativeProjectDir,
       botType,
       isDraftMode: false,
-      isRevalidate: false,
       isOnDemandRevalidate,
       isPossibleServerAction,
       assetPrefix: nextConfig.assetPrefix,
       nextConfigOutput: nextConfig.output,
       crossOrigin: nextConfig.crossOrigin,
       trailingSlash: nextConfig.trailingSlash,
+      images: nextConfig.images,
       previewProps: prerenderManifest.preview,
       deploymentId: nextConfig.deploymentId,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
-      devtoolSegmentExplorer: nextConfig.experimental.devtoolSegmentExplorer,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
-      cacheLifeProfiles: nextConfig.experimental.cacheLife,
+      cacheLifeProfiles: nextConfig.cacheLife,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
-
+      cacheComponents: Boolean(nextConfig.cacheComponents),
       experimental: {
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
-        cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
         clientSegmentCache: Boolean(nextConfig.experimental.clientSegmentCache),
-        clientParamParsing: Boolean(nextConfig.experimental.clientParamParsing),
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
+        clientParamParsingOrigins:
+          nextConfig.experimental.clientParamParsingOrigins,
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(
         baseReq,
         nextConfig,
-        prerenderManifest
+        prerenderManifest,
+        true
       ),
 
       waitUntil: event.waitUntil.bind(event),
@@ -316,7 +314,7 @@ async function requestHandler(
             })
             span.updateName(name)
           } else {
-            span.updateName(`${req.method} ${relativeUrl}`)
+            span.updateName(`${req.method} ${srcPage}`)
           }
         })
 
@@ -339,7 +337,7 @@ async function requestHandler(
     tracer.trace(
       BaseServerSpan.handleRequest,
       {
-        spanName: `${req.method} ${relativeUrl}`,
+        spanName: `${req.method} ${srcPage}`,
         kind: SpanKind.SERVER,
         attributes: {
           'http.method': req.method,

@@ -1,7 +1,7 @@
 import type {
   FlightRouterState,
   FlightSegmentPath,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { getNextFlightSegmentPath } from '../../flight-data-helpers'
 import { matchSegment } from '../match-segments'

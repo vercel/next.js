@@ -120,7 +120,7 @@ enum ServerActionsErrorKind {
         span: Span,
         cache_kind: RcStr,
     },
-    UseCacheWithoutExperimentalFlag {
+    UseCacheWithoutCacheComponents {
         span: Span,
         directive: String,
     },
@@ -1534,56 +1534,71 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         }
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
-                        if named.src.is_some() {
-                            disallowed_export_span = named.span;
-                        } else {
-                            for spec in &mut named.specifiers {
-                                if let ExportSpecifier::Named(ExportNamedSpecifier {
-                                    orig: ModuleExportName::Ident(ident),
-                                    exported,
-                                    ..
-                                }) = spec
-                                {
-                                    if let Some(export_name) = exported {
-                                        if let ModuleExportName::Ident(Ident { sym, .. }) =
-                                            export_name
-                                        {
-                                            // export { foo as bar }
-                                            self.exported_idents.push((
-                                                ident.clone(),
-                                                sym.clone(),
-                                                self.generate_server_reference_id(
-                                                    sym.as_ref(),
-                                                    in_cache_file,
-                                                    None,
-                                                ),
-                                            ));
-                                        } else if let ModuleExportName::Str(str) = export_name {
-                                            // export { foo as "bar" }
-                                            self.exported_idents.push((
-                                                ident.clone(),
-                                                str.value.clone(),
-                                                self.generate_server_reference_id(
-                                                    str.value.as_ref(),
-                                                    in_cache_file,
-                                                    None,
-                                                ),
-                                            ));
+                        if !named.type_only {
+                            if named.src.is_some() {
+                                if named.specifiers.iter().any(|s| match s {
+                                    ExportSpecifier::Namespace(_) | ExportSpecifier::Default(_) => {
+                                        true
+                                    }
+                                    ExportSpecifier::Named(s) => !s.is_type_only,
+                                }) {
+                                    disallowed_export_span = named.span;
+                                }
+                            } else {
+                                for spec in &mut named.specifiers {
+                                    if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                        orig: ModuleExportName::Ident(ident),
+                                        exported,
+                                        is_type_only,
+                                        ..
+                                    }) = spec
+                                    {
+                                        if !*is_type_only {
+                                            if let Some(export_name) = exported {
+                                                if let ModuleExportName::Ident(Ident {
+                                                    sym, ..
+                                                }) = export_name
+                                                {
+                                                    // export { foo as bar }
+                                                    self.exported_idents.push((
+                                                        ident.clone(),
+                                                        sym.clone(),
+                                                        self.generate_server_reference_id(
+                                                            sym.as_ref(),
+                                                            in_cache_file,
+                                                            None,
+                                                        ),
+                                                    ));
+                                                } else if let ModuleExportName::Str(str) =
+                                                    export_name
+                                                {
+                                                    // export { foo as "bar" }
+                                                    self.exported_idents.push((
+                                                        ident.clone(),
+                                                        str.value.clone(),
+                                                        self.generate_server_reference_id(
+                                                            str.value.as_ref(),
+                                                            in_cache_file,
+                                                            None,
+                                                        ),
+                                                    ));
+                                                }
+                                            } else {
+                                                // export { foo }
+                                                self.exported_idents.push((
+                                                    ident.clone(),
+                                                    ident.sym.clone(),
+                                                    self.generate_server_reference_id(
+                                                        ident.sym.as_ref(),
+                                                        in_cache_file,
+                                                        None,
+                                                    ),
+                                                ));
+                                            }
                                         }
                                     } else {
-                                        // export { foo }
-                                        self.exported_idents.push((
-                                            ident.clone(),
-                                            ident.sym.clone(),
-                                            self.generate_server_reference_id(
-                                                ident.sym.as_ref(),
-                                                in_cache_file,
-                                                None,
-                                            ),
-                                        ));
+                                        disallowed_export_span = named.span;
                                     }
-                                } else {
-                                    disallowed_export_span = named.span;
                                 }
                             }
                         }
@@ -1591,7 +1606,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
                         decl,
                         span,
-                        ..
                     })) => match decl {
                         DefaultDecl::Fn(f) => {
                             let (is_action_fn, is_cache_fn) = has_body_directive(&f.function.body);
@@ -1760,8 +1774,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                         }
                     }
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportAll(ExportAll { span, .. })) => {
-                        disallowed_export_span = *span;
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportAll(ExportAll {
+                        span,
+                        type_only,
+                        ..
+                    })) => {
+                        if !*type_only {
+                            disallowed_export_span = *span;
+                        }
                     }
                     _ => {}
                 }
@@ -2739,7 +2759,7 @@ impl DirectiveVisitor<'_> {
                     });
                 } else
                 // `use cache` or `use cache: foo`
-                if value == "use cache" || value.starts_with("use cache: ") {
+                if let Some(rest) = value.strip_prefix("use cache") {
                     // Increment telemetry counter tracking usage of "use cache" directives
 
                     if in_fn_body && !allow_inline {
@@ -2753,31 +2773,65 @@ impl DirectiveVisitor<'_> {
                         });
                     } else if self.is_allowed_position {
                         if !self.config.use_cache_enabled {
-                            emit_error(ServerActionsErrorKind::UseCacheWithoutExperimentalFlag {
+                            emit_error(ServerActionsErrorKind::UseCacheWithoutCacheComponents {
                                 span: *span,
                                 directive: value.to_string(),
                             });
                         }
 
-                        if value == "use cache" {
+                        if rest.is_empty() {
                             self.directive = Some(Directive::UseCache {
                                 cache_kind: rcstr!("default"),
                             });
+
                             self.increment_cache_usage_counter("default");
-                        } else {
-                            // Slice the value after "use cache: "
-                            let cache_kind = RcStr::from(value.split_at("use cache: ".len()).1);
 
-                            if !self.config.cache_kinds.contains(&cache_kind) {
-                                emit_error(ServerActionsErrorKind::UnknownCacheKind {
-                                    span: *span,
-                                    cache_kind: cache_kind.clone(),
-                                });
-                            }
-
-                            self.increment_cache_usage_counter(&cache_kind);
-                            self.directive = Some(Directive::UseCache { cache_kind });
+                            return true;
                         }
+
+                        if rest.starts_with(": ") {
+                            let cache_kind = RcStr::from(rest.split_at(": ".len()).1);
+
+                            if !cache_kind.is_empty() {
+                                if !self.config.cache_kinds.contains(&cache_kind) {
+                                    emit_error(ServerActionsErrorKind::UnknownCacheKind {
+                                        span: *span,
+                                        cache_kind: cache_kind.clone(),
+                                    });
+                                }
+
+                                self.increment_cache_usage_counter(&cache_kind);
+                                self.directive = Some(Directive::UseCache { cache_kind });
+
+                                return true;
+                            }
+                        }
+
+                        // Emit helpful errors for variants like "use cache:<cache-kind>",
+                        // "use cache : <cache-kind>", and "use cache <cache-kind>" etc.
+                        let expected_directive = if let Some(colon_pos) = rest.find(':') {
+                            let kind = rest[colon_pos + 1..].trim();
+
+                            if kind.is_empty() {
+                                "use cache: <cache-kind>".to_string()
+                            } else {
+                                format!("use cache: {kind}")
+                            }
+                        } else {
+                            let kind = rest.trim();
+
+                            if kind.is_empty() {
+                                "use cache".to_string()
+                            } else {
+                                format!("use cache: {kind}")
+                            }
+                        };
+
+                        emit_error(ServerActionsErrorKind::MisspelledDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            expected_directive,
+                        });
 
                         return true;
                     } else {
@@ -2988,6 +3042,7 @@ impl From<Name> for Box<Expr> {
             optional,
         } in value.1.into_iter()
         {
+            #[allow(clippy::replace_box)]
             if is_member {
                 expr = Box::new(Expr::Member(MemberExpr {
                     span: DUMMY_SP,
@@ -3157,15 +3212,15 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             span,
             formatdoc! {
                 r#"
-                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
+                    Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the `cacheHandlers` object in your Next.js config.
                 "#
             },
         ),
-        ServerActionsErrorKind::UseCacheWithoutExperimentalFlag { span, directive } => (
+        ServerActionsErrorKind::UseCacheWithoutCacheComponents { span, directive } => (
             span,
             formatdoc! {
                 r#"
-                    To use "{directive}", please enable the experimental feature flag "useCache" in your Next.js config.
+                    To use "{directive}", please enable the feature flag `cacheComponents` in your Next.js config.
 
                     Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
                 "#

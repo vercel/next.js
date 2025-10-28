@@ -571,6 +571,35 @@ describe('CLI Usage', () => {
       }
     })
 
+    test("NODE_OPTIONS='--inspect=:0'", async () => {
+      const port = await findPort()
+      let output = ''
+      let errOutput = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          onStderr(msg) {
+            errOutput += stripAnsi(msg)
+          },
+          env: { NODE_OPTIONS: '--inspect=:0' },
+        }
+      )
+      try {
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(() => errOutput, /Debugger listening on/)
+        expect(errOutput).not.toContain('address already in use')
+        expect(errOutput).toContain('Debugger listening on')
+        console.log(output)
+        expect(output).toContain('the --inspect option was detected')
+      } finally {
+        await killApp(app)
+      }
+    })
+
     test("NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'", async () => {
       const port = await findPort()
       let output = ''

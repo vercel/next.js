@@ -1,3 +1,4 @@
+import { hrtimeBigIntDurationToString } from '../../build/duration-to-string'
 import {
   blue,
   bold,
@@ -6,19 +7,13 @@ import {
   red,
   white,
   yellow,
+  dim,
 } from '../../lib/picocolors'
 import { stripNextRscUnionQuery } from '../../lib/url'
 import type { FetchMetric } from '../base-http'
 import type { NodeNextRequest, NodeNextResponse } from '../base-http/node'
 import type { LoggingConfig } from '../config-shared'
 import { getRequestMeta } from '../request-meta'
-
-export interface RequestLoggingOptions {
-  readonly request: NodeNextRequest
-  readonly response: NodeNextResponse
-  readonly loggingConfig: LoggingConfig | undefined
-  readonly requestDurationInMs: number
-}
 
 /**
  * Returns true if the incoming request should be ignored for logging.
@@ -44,15 +39,26 @@ export function ignoreLoggingIncomingRequests(
   return ignore.some((pattern) => pattern.test(request.url))
 }
 
-export function logRequests(options: RequestLoggingOptions): void {
-  const { request, response, loggingConfig, requestDurationInMs } = options
-
+export function logRequests(
+  request: NodeNextRequest,
+  response: NodeNextResponse,
+  loggingConfig: LoggingConfig,
+  requestStartTime: bigint,
+  requestEndTime: bigint,
+  devRequestTimingMiddlewareStart: bigint | undefined,
+  devRequestTimingMiddlewareEnd: bigint | undefined,
+  devRequestTimingInternalsEnd: bigint | undefined
+): void {
   if (!ignoreLoggingIncomingRequests(request, loggingConfig)) {
-    logIncomingRequests({
+    logIncomingRequests(
       request,
-      requestDurationInMs,
-      statusCode: response.statusCode,
-    })
+      requestStartTime,
+      requestEndTime,
+      response.statusCode,
+      devRequestTimingMiddlewareStart,
+      devRequestTimingMiddlewareEnd,
+      devRequestTimingInternalsEnd
+    )
   }
 
   if (request.fetchMetrics) {
@@ -62,14 +68,15 @@ export function logRequests(options: RequestLoggingOptions): void {
   }
 }
 
-interface IncomingRequestOptions {
-  readonly request: NodeNextRequest
-  readonly requestDurationInMs: number
-  readonly statusCode: number
-}
-
-function logIncomingRequests(options: IncomingRequestOptions): void {
-  const { request, requestDurationInMs, statusCode } = options
+function logIncomingRequests(
+  request: NodeNextRequest,
+  requestStartTime: bigint,
+  requestEndTime: bigint,
+  statusCode: number,
+  devRequestTimingMiddlewareStart: bigint | undefined,
+  devRequestTimingMiddlewareEnd: bigint | undefined,
+  devRequestTimingInternalsEnd: bigint | undefined
+): void {
   const isRSC = getRequestMeta(request, 'isRSCRequest')
   const url = isRSC ? stripNextRscUnionQuery(request.url) : request.url
 
@@ -86,8 +93,31 @@ function logIncomingRequests(options: IncomingRequestOptions): void {
 
   const coloredStatus = statusCodeColor(statusCode.toString())
 
+  const totalRequestTime = requestEndTime - requestStartTime
+
+  const times: Array<[label: string, time: bigint]> = []
+
+  let middlewareTime: bigint | undefined
+  if (devRequestTimingMiddlewareStart && devRequestTimingMiddlewareEnd) {
+    middlewareTime =
+      devRequestTimingMiddlewareEnd - devRequestTimingMiddlewareStart
+    times.push(['proxy.ts', middlewareTime])
+  }
+
+  if (devRequestTimingInternalsEnd) {
+    let frameworkTime = devRequestTimingInternalsEnd - requestStartTime
+
+    /* Middleware runs during the internals so we have to subtract it from the framework time */
+    if (middlewareTime) {
+      frameworkTime -= middlewareTime
+    }
+    // Insert as the first item to be rendered in the list
+    times.unshift(['compile', frameworkTime])
+    times.push(['render', requestEndTime - devRequestTimingInternalsEnd])
+  }
+
   return writeLine(
-    `${request.method} ${url} ${coloredStatus} in ${requestDurationInMs}ms`
+    `${request.method} ${url} ${coloredStatus} in ${hrtimeBigIntDurationToString(totalRequestTime)}${times.length > 0 ? dim(` (${times.map(([label, time]) => `${label}: ${hrtimeBigIntDurationToString(time)}`).join(', ')})`) : ''}`
   )
 }
 

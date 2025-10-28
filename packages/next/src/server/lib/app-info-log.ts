@@ -1,38 +1,53 @@
 import { loadEnvConfig } from '@next/env'
 import * as Log from '../../build/output/log'
-import { bold, purple } from '../../lib/picocolors'
+import { bold, purple, strikethrough } from '../../lib/picocolors'
 import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
 } from '../../shared/lib/constants'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
+import { experimentalSchema } from '../config-schema'
 
 export function logStartInfo({
   networkUrl,
   appUrl,
   envInfo,
   experimentalFeatures,
-  maxExperimentalFeatures = Infinity,
+  logBundler,
+  cacheComponents,
 }: {
   networkUrl: string | null
   appUrl: string | null
   envInfo?: string[]
   experimentalFeatures?: ConfiguredExperimentalFeature[]
-  maxExperimentalFeatures?: number
+  logBundler: boolean
+  cacheComponents?: boolean
 }) {
-  let bundlerSuffix
-  if (process.env.TURBOPACK) {
-    bundlerSuffix = ' (Turbopack)'
-  } else if (process.env.NEXT_RSPACK) {
-    bundlerSuffix = ' (Rspack)'
-  } else {
-    bundlerSuffix = ''
+  let versionSuffix = ''
+  const parts = []
+
+  if (logBundler) {
+    if (process.env.TURBOPACK) {
+      parts.push('Turbopack')
+    } else if (process.env.NEXT_RSPACK) {
+      parts.push('Rspack')
+    } else {
+      parts.push('webpack')
+    }
+  }
+
+  if (cacheComponents) {
+    parts.push('Cache Components')
+  }
+
+  if (parts.length > 0) {
+    versionSuffix = ` (${parts.join(', ')})`
   }
 
   Log.bootstrap(
     `${bold(
       purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`)
-    )}${bundlerSuffix}`
+    )}${versionSuffix}`
   )
   if (appUrl) {
     Log.bootstrap(`- Local:        ${appUrl}`)
@@ -44,27 +59,32 @@ export function logStartInfo({
 
   if (experimentalFeatures?.length) {
     Log.bootstrap(`- Experiments (use with caution):`)
-    // only show a maximum number of flags
-    for (const exp of experimentalFeatures.slice(0, maxExperimentalFeatures)) {
-      const symbol =
-        typeof exp.value === 'boolean'
-          ? exp.value === true
-            ? bold('✓')
-            : bold('⨯')
-          : '·'
+    for (const exp of experimentalFeatures) {
+      const isValid = Object.prototype.hasOwnProperty.call(
+        experimentalSchema,
+        exp.key
+      )
+      if (isValid) {
+        const symbol =
+          typeof exp.value === 'boolean'
+            ? exp.value === true
+              ? bold('✓')
+              : bold('⨯')
+            : '·'
 
-      const suffix =
-        typeof exp.value === 'number' || typeof exp.value === 'string'
-          ? `: ${JSON.stringify(exp.value)}`
-          : ''
+        const suffix =
+          typeof exp.value === 'number' || typeof exp.value === 'string'
+            ? `: ${JSON.stringify(exp.value)}`
+            : ''
 
-      const reason = exp.reason ? ` (${exp.reason})` : ''
+        const reason = exp.reason ? ` (${exp.reason})` : ''
 
-      Log.bootstrap(`  ${symbol} ${exp.key}${suffix}${reason}`)
-    }
-    /* indicate if there are more than the maximum shown no. flags */
-    if (experimentalFeatures.length > maxExperimentalFeatures) {
-      Log.bootstrap(`  · ...`)
+        Log.bootstrap(`  ${symbol} ${exp.key}${suffix}${reason}`)
+      } else {
+        Log.bootstrap(
+          `  ? ${strikethrough(exp.key)} (invalid experimental key)`
+        )
+      }
     }
   }
 
@@ -83,20 +103,25 @@ export async function getStartServerInfo({
 }): Promise<{
   envInfo?: string[]
   experimentalFeatures?: ConfiguredExperimentalFeature[]
+  cacheComponents?: boolean
 }> {
   let experimentalFeatures: ConfiguredExperimentalFeature[] = []
-  await loadConfig(
+  let cacheComponents = false
+  const config = await loadConfig(
     dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
     dir,
     {
       reportExperimentalFeatures(features) {
-        experimentalFeatures = features.sort(
-          ({ key: a }, { key: b }) => a.length - b.length
+        experimentalFeatures = features.sort(({ key: a }, { key: b }) =>
+          a.localeCompare(b)
         )
       },
       debugPrerender,
+      silent: false,
     }
   )
+
+  cacheComponents = !!config.cacheComponents
 
   // we need to reset env if we are going to create
   // the worker process with the esm loader so that the
@@ -110,5 +135,6 @@ export async function getStartServerInfo({
   return {
     envInfo,
     experimentalFeatures,
+    cacheComponents,
   }
 }

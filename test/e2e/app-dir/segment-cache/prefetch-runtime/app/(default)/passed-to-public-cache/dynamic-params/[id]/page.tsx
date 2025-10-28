@@ -3,6 +3,11 @@ import { cachedDelay, DebugRenderKind } from '../../../../shared'
 import { connection } from 'next/server'
 import { cookies } from 'next/headers'
 
+export const unstable_prefetch = {
+  mode: 'runtime',
+  samples: [{ params: { id: 'test' } }],
+}
+
 type Params = { id: string }
 
 export default async function Page({ params }: { params: Promise<Params> }) {

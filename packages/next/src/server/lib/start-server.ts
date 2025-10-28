@@ -26,6 +26,7 @@ import {
   RESTART_EXIT_CODE,
   getFormattedDebugAddress,
   getNodeDebugType,
+  isDebugAddressEphemeral,
 } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
@@ -347,8 +348,12 @@ export async function startServer(
 
       if (nodeDebugType) {
         const formattedDebugAddress = getFormattedDebugAddress()
+        const isEphemeral = isDebugAddressEphemeral()
         Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
+          `the --${nodeDebugType} option was detected` +
+            (isEphemeral
+              ? ''
+              : `, the Next.js router server should be inspected at ${formattedDebugAddress}.`)
         )
       }
 
@@ -367,22 +372,25 @@ export async function startServer(
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
       let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
-      if (isDev) {
-        const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
-        envInfo = startServerInfo.envInfo
-        experimentalFeatures = startServerInfo.experimentalFeatures
-      }
-      logStartInfo({
-        networkUrl,
-        appUrl,
-        envInfo,
-        experimentalFeatures,
-        maxExperimentalFeatures: 3,
-      })
-
-      Log.event(`Starting...`)
-
+      let cacheComponents: boolean | undefined
       try {
+        if (isDev) {
+          const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
+          envInfo = startServerInfo.envInfo
+          cacheComponents = startServerInfo.cacheComponents
+          experimentalFeatures = startServerInfo.experimentalFeatures
+        }
+        logStartInfo({
+          networkUrl,
+          appUrl,
+          envInfo,
+          experimentalFeatures,
+          cacheComponents,
+          logBundler: isDev,
+        })
+
+        Log.event(`Starting...`)
+
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
         const cleanup = () => {
@@ -415,6 +423,24 @@ export async function startServer(
               nextServer?.close().catch(console.error),
               cleanupListeners?.runAll().catch(console.error),
             ])
+
+            // Flush telemetry if this is a dev server
+            if (isDev) {
+              try {
+                const { traceGlobals } =
+                  require('../../trace/shared') as typeof import('../../trace/shared')
+                const telemetry = traceGlobals.get('telemetry') as
+                  | InstanceType<
+                      typeof import('../../telemetry/storage').Telemetry
+                    >
+                  | undefined
+                if (telemetry) {
+                  await telemetry.flush()
+                }
+              } catch (_) {
+                // Ignore telemetry errors during cleanup
+              }
+            }
 
             debug('start-server process cleanup finished')
             process.exit(0)
@@ -465,7 +491,7 @@ export async function startServer(
         if (process.env.TURBOPACK) {
           await validateTurboNextConfig({
             dir: serverOptions.dir,
-            isDev: true,
+            isDev: serverOptions.isDev,
           })
         }
       } catch (err) {

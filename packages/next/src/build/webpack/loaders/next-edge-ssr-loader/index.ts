@@ -1,7 +1,7 @@
 import type webpack from 'webpack'
 import type { SizeLimit } from '../../../../types'
 import type { PagesRouteModuleOptions } from '../../../../server/route-modules/pages/module'
-import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
@@ -90,7 +90,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       )
     }
 
-    const middlewareConfig: MiddlewareConfig = JSON.parse(
+    const middlewareConfig: ProxyConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
 
@@ -121,18 +121,24 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       this.context || this.rootContext,
       absolutePagePath
     )
-    const appPath = this.utils.contextify(
-      this.context || this.rootContext,
-      swapDistFolderWithEsmDistFolder(absoluteAppPath)
-    )
-    const errorPath = this.utils.contextify(
-      this.context || this.rootContext,
-      swapDistFolderWithEsmDistFolder(absoluteErrorPath)
-    )
-    const documentPath = this.utils.contextify(
-      this.context || this.rootContext,
-      swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
-    )
+    const appPath = absoluteAppPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteAppPath)
+        )
+      : ''
+    const errorPath = absoluteErrorPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteErrorPath)
+        )
+      : ''
+    const documentPath = absoluteDocumentPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
+        )
+      : ''
     const userland500Path = absolute500Path
       ? this.utils.contextify(
           this.context || this.rootContext,

@@ -8,10 +8,10 @@ value = (???*0* | module<./module.js, {}>["named"])
 - *0* ???*1*["value"]
   ⚠️  unknown object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 value2 = (???*0* | module<./module.js, {}>["named"])
 - *0* ???*1*["value2"]
   ⚠️  unknown object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet

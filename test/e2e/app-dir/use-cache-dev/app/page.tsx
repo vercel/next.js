@@ -1,4 +1,5 @@
 import { revalidatePath } from 'next/cache'
+import Link from 'next/link'
 
 async function getRandomValue() {
   'use cache'
@@ -36,6 +37,9 @@ export default async function Page() {
       >
         <button id="revalidate">Revalidate</button>
       </form>
+      <p>
+        <Link href="/some/path">Go to /some/path</Link>
+      </p>
     </>
   )
 }

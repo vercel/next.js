@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -13,10 +13,7 @@ use turbopack_core::{
     source::Source,
     virtual_source::VirtualSource,
 };
-use turbopack_ecmascript::{
-    runtime_functions::{TURBOPACK_LOAD, TURBOPACK_REQUIRE},
-    utils::StringifyJs,
-};
+use turbopack_ecmascript::runtime_functions::{TURBOPACK_LOAD, TURBOPACK_REQUIRE};
 
 use super::app_entry::AppEntry;
 use crate::{
@@ -27,7 +24,7 @@ use crate::{
     next_edge::entry::wrap_edge_entry,
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
-    util::{NextRuntime, app_middleware_function_name, file_content_rope, load_next_js_template},
+    util::{NextRuntime, app_function_name, file_content_rope, load_next_js_template},
 };
 
 /// Computes the entry for a Next.js app page.
@@ -51,7 +48,7 @@ pub async fn get_app_page_entry(
     let server_component_transition =
         ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?);
 
-    let base_path = next_config.await?.base_path.clone();
+    let base_path = next_config.base_path().owned().await?;
     let loader_tree = AppPageLoaderTreeModule::build(
         loader_tree,
         module_asset_context,
@@ -64,7 +61,6 @@ pub async fn get_app_page_entry(
         inner_assets,
         imports,
         loader_tree_code,
-        pages,
     } = loader_tree;
 
     let mut result = RopeBuilder::default();
@@ -72,12 +68,6 @@ pub async fn get_app_page_entry(
     for import in imports {
         writeln!(result, "{import}")?;
     }
-
-    let pages = pages
-        .iter()
-        .map(|page| page.value_to_string())
-        .try_join()
-        .await?;
 
     let original_name: RcStr = page.to_string().into();
     let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
@@ -100,7 +90,6 @@ pub async fn get_app_page_entry(
         ],
         &[
             ("tree", &*loader_tree_code),
-            ("pages", &StringifyJs(&pages).to_string()),
             ("__next_app_require__", &TURBOPACK_REQUIRE.bound()),
             ("__next_app_load_chunk__", &TURBOPACK_LOAD.bound()),
         ],
@@ -177,7 +166,7 @@ async fn wrap_edge_page(
 
     let wrapped = asset_context
         .process(
-            Vc::upcast(source),
+            source,
             ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
@@ -186,6 +175,6 @@ async fn wrap_edge_page(
         asset_context,
         project_root,
         wrapped,
-        app_middleware_function_name(&page).into(),
+        app_function_name(&page).into(),
     ))
 }

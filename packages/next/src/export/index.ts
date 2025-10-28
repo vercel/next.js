@@ -19,8 +19,6 @@ import { existsSync, promises as fs } from 'fs'
 import '../server/require-hook'
 
 import { dirname, join, resolve, sep, relative } from 'path'
-import { formatAmpMessages } from '../build/output/index'
-import type { AmpPageStatus } from '../build/output/index'
 import * as Log from '../build/output/log'
 import {
   RSC_SEGMENT_SUFFIX,
@@ -100,7 +98,7 @@ async function exportAppImpl(
 
   if (telemetry) {
     telemetry.record(
-      eventCliSession(distDir, nextConfig, {
+      eventCliSession(nextConfig, {
         webpackVersion: null,
         cliCommand: 'export',
         isSrcDir: null,
@@ -127,7 +125,7 @@ async function exportAppImpl(
     )
   }
 
-  const customRoutes = ['rewrites', 'redirects', 'headers'].filter(
+  const customRoutes = (['rewrites', 'redirects', 'headers'] as const).filter(
     (config) => typeof nextConfig[config] === 'function'
   )
 
@@ -365,10 +363,8 @@ async function exportAppImpl(
     distDir,
     dev: false,
     basePath: nextConfig.basePath,
+    cacheComponents: nextConfig.cacheComponents ?? false,
     trailingSlash: nextConfig.trailingSlash,
-    canonicalBase: nextConfig.amp?.canonicalBase || '',
-    ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
-    ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
     locales: i18n?.locales,
     locale: i18n?.defaultLocale,
     defaultLocale: i18n?.defaultLocale,
@@ -383,7 +379,7 @@ async function exportAppImpl(
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
-    cacheLifeProfiles: nextConfig.experimental.cacheLife,
+    cacheLifeProfiles: nextConfig.cacheLife,
     nextFontManifest: require(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
@@ -399,12 +395,12 @@ async function exportAppImpl(
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,
-      cacheComponents: nextConfig.experimental.cacheComponents ?? false,
       clientSegmentCache:
         nextConfig.experimental.clientSegmentCache === 'client-only'
           ? 'client-only'
           : Boolean(nextConfig.experimental.clientSegmentCache),
-      clientParamParsing: nextConfig.experimental.clientParamParsing ?? false,
+      clientParamParsingOrigins:
+        nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
@@ -417,13 +413,7 @@ async function exportAppImpl(
       (process.env.TURBOPACK
         ? nextConfig.experimental.turbopackMinify === false
         : nextConfig.experimental.serverMinification === false) &&
-      nextConfig.experimental.enablePrerenderSourceMaps === true,
-  }
-
-  const { publicRuntimeConfig } = nextConfig
-
-  if (Object.keys(publicRuntimeConfig).length > 0) {
-    renderOpts.runtimeConfig = publicRuntimeConfig
+      nextConfig.enablePrerenderSourceMaps === true,
   }
 
   // We need this for server rendering the Link component.
@@ -444,8 +434,15 @@ async function exportAppImpl(
       return exportMap
     })
 
+  // During static export, remove export 404/500 of pages router
+  // when only app router presents
+  if (!options.buildExport && options.appDirOnly) {
+    delete exportPathMap['/404']
+    delete exportPathMap['/500']
+  }
+
   // only add missing 404 page when `buildExport` is false
-  if (!options.buildExport) {
+  if (!options.buildExport && !options.appDirOnly) {
     // only add missing /404 if not specified in `exportPathMap`
     if (!exportPathMap['/404']) {
       exportPathMap['/404'] = { page: '/_error' }
@@ -455,7 +452,7 @@ async function exportAppImpl(
      * exports 404.html for backwards compat
      * E.g. GitHub Pages, GitLab Pages, Cloudflare Pages, Netlify
      */
-    if (!exportPathMap['/404.html']) {
+    if (!exportPathMap['/404.html'] && exportPathMap['/404']) {
       // alias /404.html to /404 to be compatible with custom 404 / _error page
       exportPathMap['/404.html'] = exportPathMap['/404']
     }
@@ -492,7 +489,9 @@ async function exportAppImpl(
   }
 
   if (allExportPaths.length === 0) {
-    return null
+    if (!prerenderManifest) {
+      return null
+    }
   }
 
   if (fallbackEnabledPages.size > 0) {
@@ -549,8 +548,6 @@ async function exportAppImpl(
   const pagesDataDir = options.buildExport
     ? outDir
     : join(outDir, '_next/data', buildId)
-
-  const ampValidations: AmpPageStatus = {}
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
@@ -628,7 +625,7 @@ async function exportAppImpl(
   let initialPhaseExportPaths: ExportPathEntry[] = []
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
-  if (renderOpts.experimental.cacheComponents) {
+  if (renderOpts.cacheComponents) {
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
         finalPhaseExportPaths.push(exportPath)
@@ -640,47 +637,54 @@ async function exportAppImpl(
     initialPhaseExportPaths = allExportPaths
   }
 
-  const progress = createProgress(
-    initialPhaseExportPaths.length + finalPhaseExportPaths.length,
-    options.statusMessage || 'Exporting'
-  )
+  const totalExportPaths =
+    initialPhaseExportPaths.length + finalPhaseExportPaths.length
+  let worker: StaticWorker | null = null
+  let results: ExportPagesResult = []
 
-  const worker = createStaticWorker(nextConfig, {
-    debuggerPortOffset: getNextBuildDebuggerPortOffset({ kind: 'export-page' }),
-    progress,
-  })
-
-  const results = await exportPagesInBatches(worker, initialPhaseExportPaths)
-
-  if (finalPhaseExportPaths.length > 0) {
-    const renderResumeDataCachesByPage: Record<string, string> = {}
-
-    for (const { page, result } of results) {
-      if (!result) {
-        continue
-      }
-
-      if ('renderResumeDataCache' in result && result.renderResumeDataCache) {
-        // The last RDC for each page is used. We only need one. It should have
-        // all the entries that the fallback shell also needs. We don't need to
-        // merge them per page.
-        renderResumeDataCachesByPage[page] = result.renderResumeDataCache
-        // Remove the RDC string from the result so that it can be garbage
-        // collected, when there are more results for the same page.
-        result.renderResumeDataCache = undefined
-      }
-    }
-
-    const finalPhaseResults = await exportPagesInBatches(
-      worker,
-      finalPhaseExportPaths,
-      renderResumeDataCachesByPage
+  if (totalExportPaths > 0) {
+    const progress = createProgress(
+      totalExportPaths,
+      options.statusMessage || 'Exporting'
     )
 
-    results.push(...finalPhaseResults)
-  }
+    worker = createStaticWorker(nextConfig, {
+      debuggerPortOffset: getNextBuildDebuggerPortOffset({
+        kind: 'export-page',
+      }),
+      progress,
+    })
 
-  let hadValidationError = false
+    results = await exportPagesInBatches(worker, initialPhaseExportPaths)
+
+    if (finalPhaseExportPaths.length > 0) {
+      const renderResumeDataCachesByPage: Record<string, string> = {}
+
+      for (const { page, result } of results) {
+        if (!result) {
+          continue
+        }
+
+        if ('renderResumeDataCache' in result && result.renderResumeDataCache) {
+          // The last RDC for each page is used. We only need one. It should have
+          // all the entries that the fallback shell also needs. We don't need to
+          // merge them per page.
+          renderResumeDataCachesByPage[page] = result.renderResumeDataCache
+          // Remove the RDC string from the result so that it can be garbage
+          // collected, when there are more results for the same page.
+          result.renderResumeDataCache = undefined
+        }
+      }
+
+      const finalPhaseResults = await exportPagesInBatches(
+        worker,
+        finalPhaseExportPaths,
+        renderResumeDataCachesByPage
+      )
+
+      results.push(...finalPhaseResults)
+    }
+  }
 
   const collector: ExportAppResult = {
     byPath: new Map(),
@@ -705,14 +709,6 @@ async function exportAppImpl(
           result.turborepoAccessTraceResult
         )
       )
-    }
-
-    // Capture any amp validations.
-    if (result.ampValidations) {
-      for (const validation of result.ampValidations) {
-        ampValidations[validation.page] = validation.result
-        hadValidationError ||= validation.result.errors.length > 0
-      }
     }
 
     if (options.buildExport) {
@@ -763,8 +759,41 @@ async function exportAppImpl(
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async (unnormalizedRoute) => {
-        // Skip handling /_not-found route, it will copy the 404.html file later
+        // Special handling: map app /_not-found to 404.html (and 404/index.html when trailingSlash)
         if (unnormalizedRoute === '/_not-found') {
+          const { srcRoute } = prerenderManifest!.routes[unnormalizedRoute]
+          const appPageName = mapAppRouteToPage.get(srcRoute || '')
+          const pageName = appPageName || srcRoute || unnormalizedRoute
+          const isAppPath = Boolean(appPageName)
+          const route = normalizePagePath(unnormalizedRoute)
+
+          const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
+          const distPagesDir = join(
+            pagePath,
+            pageName
+              .slice(1)
+              .split('/')
+              .map(() => '..')
+              .join('/')
+          )
+
+          const orig = join(distPagesDir, route)
+          const htmlSrc = `${orig}.html`
+
+          // write 404.html at root
+          const htmlDest404 = join(outDir, '404.html')
+          await fs.mkdir(dirname(htmlDest404), { recursive: true })
+          await fs.copyFile(htmlSrc, htmlDest404)
+
+          // When trailingSlash, also write 404/index.html
+          if (subFolders) {
+            const htmlDest404Index = join(outDir, '404', 'index.html')
+            await fs.mkdir(dirname(htmlDest404Index), { recursive: true })
+            await fs.copyFile(htmlSrc, htmlDest404Index)
+          }
+        }
+        // Skip 500.html in static export
+        if (unnormalizedRoute === '/_global-error') {
           return
         }
         const { srcRoute } = prerenderManifest!.routes[unnormalizedRoute]
@@ -812,10 +841,6 @@ async function exportAppImpl(
             subFolders && route !== '/index' ? `${sep}index` : ''
           }.html`
         )
-        const ampHtmlDest = join(
-          outDir,
-          `${route}.amp${subFolders ? `${sep}index` : ''}.html`
-        )
         const jsonDest = isAppPath
           ? join(
               outDir,
@@ -834,12 +859,8 @@ async function exportAppImpl(
         await fs.copyFile(htmlSrc, htmlDest)
         await fs.copyFile(jsonSrc, jsonDest)
 
-        if (existsSync(`${orig}.amp.html`)) {
-          await fs.mkdir(dirname(ampHtmlDest), { recursive: true })
-          await fs.copyFile(`${orig}.amp.html`, ampHtmlDest)
-        }
-
         const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
+
         if (isAppPath && existsSync(segmentsDir)) {
           // Output a data file for each of this page's segments
           //
@@ -871,15 +892,6 @@ async function exportAppImpl(
     )
   }
 
-  if (Object.keys(ampValidations).length) {
-    console.log(formatAmpMessages(ampValidations))
-  }
-  if (hadValidationError) {
-    throw new ExportError(
-      `AMP Validation caused the export to fail. https://nextjs.org/docs/messages/amp-export-validation`
-    )
-  }
-
   if (failedExportAttemptsByPage.size > 0) {
     const failedPages = Array.from(failedExportAttemptsByPage.keys())
     throw new ExportError(
@@ -903,7 +915,9 @@ async function exportAppImpl(
     await telemetry.flush()
   }
 
-  await worker.end()
+  if (worker) {
+    await worker.end()
+  }
 
   return collector
 }
