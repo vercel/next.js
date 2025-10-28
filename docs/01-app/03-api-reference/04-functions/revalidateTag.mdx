@@ -18,13 +18,12 @@ This function is ideal for content where a slight delay in updates is acceptable
 The revalidation behavior depends on whether you provide the second argument:
 
 - **With `profile="max"` (recommended)**: The tag entry is marked as stale, and the next time a resource with that tag is visited, it will use stale-while-revalidate semantics. This means the stale content is served while fresh content is fetched in the background.
-- **With a custom cache life profile**: For advanced usage, you can specify any cache life profile that your application has defined, allowing for custom revalidation behaviors tailored to your specific caching requirements.
+- **With a custom cache life profile**: For advanced usage, you can specify any [cache life](/docs/app/api-reference/functions/cacheLife) profile that your application has defined, allowing for custom revalidation behaviors tailored to your specific caching requirements.
 - **Without the second argument (deprecated)**: The tag entry is expired immediately, and the next request to that resource will be a blocking revalidate/cache miss. This behavior is now deprecated, and you should either use `profile="max"` or migrate to [`updateTag`](/docs/app/api-reference/functions/updateTag).
 
 > **Good to know**:
 >
 > - When using `profile="max"`, `revalidateTag` marks tagged data as stale, but fresh data is only fetched when pages using that tag are next visited. This means calling `revalidateTag` will not immediately trigger many revalidations at once. The invalidation only happens when any page using that tag is next visited.
-> - When using TypeScript, the second argument is required.
 
 ## Parameters
 
@@ -33,7 +32,7 @@ revalidateTag(tag: string, profile: string | { expire?: number }): void;
 ```
 
 - `tag`: A string representing the cache tag associated with the data you want to revalidate. Must not exceed 256 characters. This value is case-sensitive.
-- `profile`: A string that specifies the revalidation behavior. The recommended value is `"max"` which provides stale-while-revalidate semantics, or any of the other default or custom profiles defined in [`cacheLife`](/docs/app/api-reference/config/next-config-js/cacheLife). Alternatively, you can pass an object with an `expire` property for custom expiration behavior.
+- `profile`: A string that specifies the revalidation behavior. The recommended value is `"max"` which provides stale-while-revalidate semantics, or any of the other default or custom profiles defined in [`cacheLife`](/docs/app/api-reference/functions/cacheLife). Alternatively, you can pass an object with an `expire` property for custom expiration behavior.
 
 Tags must first be assigned to cached data. You can do this in two ways:
 
@@ -54,6 +53,8 @@ async function getData() {
   // ...
 }
 ```
+
+> **Good to know**: The single-argument form `revalidateTag(tag)` is deprecated. It currently works if TypeScript errors are suppressed, but this behavior may be removed in a future version. Update to the two-argument signature.
 
 ## Returns
 
