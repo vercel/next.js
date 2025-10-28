@@ -4,7 +4,7 @@ import {
   getRedboxDescription,
   getRedboxSource,
   openRedbox,
-  assertHasRedbox,
+  waitForRedbox,
   getRedboxTitle,
   getRedboxTotalErrorCount,
 } from 'next-test-utils'
@@ -192,7 +192,7 @@ describe('use-cache-hanging-inputs', () => {
       it('should show an error overlay with only one error', async () => {
         const browser = await next.browser('/error')
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         const count = await getRedboxTotalErrorCount(browser)
         const title = await getRedboxTitle(browser)

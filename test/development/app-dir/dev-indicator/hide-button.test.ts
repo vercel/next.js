@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasDevToolsIndicator,
+  waitForDevToolsIndicator,
   assertNoDevToolsIndicator,
   openDevToolsIndicatorPopover,
   waitFor,
@@ -30,7 +30,7 @@ describe('dev indicator - Hide DevTools Button', () => {
 
     const browser2 = await next.browser('/')
     await browser2.refresh()
-    await assertHasDevToolsIndicator(browser2)
+    await waitForDevToolsIndicator(browser2)
   })
 
   it('should still hide the dev indicator after reloading the page', async () => {
@@ -62,6 +62,6 @@ describe('dev indicator - Hide DevTools Button', () => {
     await waitFor(COOLDOWN)
 
     await browser.refresh()
-    await assertHasDevToolsIndicator(browser)
+    await waitForDevToolsIndicator(browser)
   })
 })

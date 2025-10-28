@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 import { waitForHydration } from 'development-sandbox'
 
 describe('basic app-dir tests', () => {
@@ -12,6 +12,6 @@ describe('basic app-dir tests', () => {
     await browser.refresh()
     await waitForHydration(browser)
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 })

@@ -1,5 +1,5 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { assertNoErrorToast } from 'next-test-utils'
+import { waitForNoErrorToast } from 'next-test-utils'
 import { getPrerenderOutput } from './utils'
 
 describe('Cache Components Errors', () => {
@@ -350,7 +350,7 @@ describe('Cache Components Errors', () => {
       if (isNextDev) {
         it('should not show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
-          await assertNoErrorToast(browser)
+          await waitForNoErrorToast(browser)
         })
       } else {
         it('should partially prerender when all dynamic components are inside a Suspense boundary', async () => {
@@ -513,7 +513,7 @@ describe('Cache Components Errors', () => {
       if (isNextDev) {
         it('should not show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
-          await assertNoErrorToast(browser)
+          await waitForNoErrorToast(browser)
         })
       } else {
         it('should not error the build when all routes are static', async () => {
@@ -820,7 +820,7 @@ describe('Cache Components Errors', () => {
       if (isNextDev) {
         it('should not show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
-          await assertNoErrorToast(browser)
+          await waitForNoErrorToast(browser)
         })
       } else {
         it('should partially prerender when all dynamic components are inside a Suspense boundary', async () => {
@@ -1870,7 +1870,7 @@ describe('Cache Components Errors', () => {
         if (isNextDev) {
           it('does not show a validation error in the dev overlay', async () => {
             const browser = await next.browser(pathname)
-            await assertNoErrorToast(browser)
+            await waitForNoErrorToast(browser)
           })
         } else {
           it('should not error the build sync IO is used inside a Suspense Boundary in a client Component and nothing else is dynamic', async () => {

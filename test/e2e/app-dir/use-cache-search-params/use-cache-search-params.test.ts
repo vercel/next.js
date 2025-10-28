@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   assertNoConsoleErrors,
-  assertNoRedbox,
+  waitForNoRedbox,
   getRedboxDescription,
   getRedboxSource,
 } from 'next-test-utils'
@@ -34,7 +34,7 @@ describe('use-cache-search-params', () => {
         const outputIndex = next.cliOutput.length
         const browser = await next.browser(`${route}?foo=1`)
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
@@ -70,7 +70,7 @@ describe('use-cache-search-params', () => {
         const outputIndex = next.cliOutput.length
         const browser = await next.browser(`${route}?foo=1`)
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
@@ -104,7 +104,7 @@ describe('use-cache-search-params', () => {
         await browser.refresh()
         await browser.refresh()
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         const errorDescription = await getRedboxDescription(browser)
 
@@ -121,7 +121,7 @@ describe('use-cache-search-params', () => {
         const outputIndex = next.cliOutput.length
         const browser = await next.browser(`${route}?foo=1`)
 
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 

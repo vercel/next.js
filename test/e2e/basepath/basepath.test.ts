@@ -4,7 +4,7 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   check,
   fetchViaHTTP,
   getClientBuildManifestLoaderChunkUrlPath,
@@ -535,7 +535,7 @@ describe('basePath', () => {
       expect(await browser.eval('window.location.search')).toBe('?query=true')
 
       if (isNextDev) {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       }
     } finally {
       await browser.close()
@@ -559,7 +559,7 @@ describe('basePath', () => {
       expect(await browser.eval('window.location.search')).toBe('?query=true')
 
       if (isNextDev) {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       }
     } finally {
       await browser.close()
