@@ -25,12 +25,13 @@ export type WorkStoreContext = {
     cacheLifeProfiles?: { [profile: string]: CacheLife }
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
+    cacheComponents: boolean
     fetchCache?: AppSegmentConfig['fetchCache']
     isPossibleServerAction?: boolean
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'cacheComponents' | 'authInterrupts'
+      'isRoutePPREnabled' | 'authInterrupts'
     >
 
     /**
@@ -54,7 +55,6 @@ export type WorkStoreContext = {
     | 'assetPrefix'
     | 'supportsDynamicResponse'
     | 'shouldWaitOnAllReady'
-    | 'isRevalidate'
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
@@ -90,7 +90,7 @@ export function createWorkStore({
    *
    *    2.) If dynamic HTML support is requested, we must honor that request
    *        or throw an error. It is the sole responsibility of the caller to
-   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *        ensure they aren't e.g. requesting dynamic HTML for a static page.
    *
    *    3.) If the request is in draft mode, we must generate dynamic HTML.
    *
@@ -125,7 +125,6 @@ export function createWorkStore({
       // so that it can access the fs cache without mocks
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
-    isRevalidate: renderOpts.isRevalidate,
     isBuildTimePrerendering: renderOpts.nextExport,
     hasReadableErrorStacks: renderOpts.hasReadableErrorStacks,
     fetchCache: renderOpts.fetchCache,
@@ -140,7 +139,7 @@ export function createWorkStore({
     nonce,
 
     afterContext: createAfterContext(renderOpts),
-    cacheComponentsEnabled: renderOpts.experimental.cacheComponents,
+    cacheComponentsEnabled: renderOpts.cacheComponents,
     dev: isDevelopment,
     previouslyRevalidatedTags,
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),

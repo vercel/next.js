@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 
 export async function generateStaticParams() {
-  return []
+  return [{ slug: ['about'] }]
 }
 
 async function validateSlug(slug: string[]) {

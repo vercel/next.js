@@ -8,6 +8,7 @@ declare module 'next/dist/compiled/postcss-modules-extract-imports'
 declare module 'next/dist/compiled/postcss-modules-scope'
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
+declare module 'next/dist/compiled/babel/plugin-syntax-typescript'
 declare module 'next/dist/compiled/loader-utils2'
 declare module 'next/dist/compiled/react-server-dom-webpack/client'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
@@ -263,7 +264,7 @@ declare module 'react-server-dom-webpack/server.node' {
 declare module 'react-server-dom-webpack/static' {
   export type TemporaryReferenceSet = WeakMap<any, string>
 
-  export function unstable_prerender(
+  export function prerender(
     children: any,
     webpackMap: {
       readonly [id: string]: {
@@ -503,11 +504,6 @@ declare module 'next/dist/compiled/acorn' {
   import m from 'acorn'
   export = m
 }
-declare module 'next/dist/compiled/amphtml-validator' {
-  import m from 'amphtml-validator'
-  export = m
-}
-declare module 'next/dist/compiled/@ampproject/toolbox-optimizer'
 
 declare module 'next/dist/compiled/superstruct' {
   import * as m from 'superstruct'
@@ -744,6 +740,18 @@ declare module 'next/dist/compiled/ws' {
   import m from 'ws'
   export = m
 }
+declare module 'next/dist/compiled/@vercel/routing-utils' {
+  import m from '@vercel/routing-utils/dist/superstatic'
+  export = m
+}
+
+declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp' {
+  export * from '@modelcontextprotocol/sdk/server/mcp'
+}
+
+declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp' {
+  export * from '@modelcontextprotocol/sdk/server/streamableHttp'
+}
 
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
@@ -850,6 +858,11 @@ declare module 'next/dist/compiled/watchpack' {
 
 declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
+}
+
+declare module 'next/dist/compiled/ipaddr.js' {
+  import * as m from 'ipaddr.js'
+  export = m
 }
 
 declare module 'next/dist/compiled/@opentelemetry/api' {

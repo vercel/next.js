@@ -443,6 +443,58 @@ impl SingleModuleGraph {
         Ok(())
     }
 
+    /// Traverses all reachable nodes once
+    pub fn traverse_nodes_from_entries<'a, S>(
+        &'a self,
+        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
+        state: &mut S,
+        visit_preorder: impl Fn(&'a SingleModuleGraphModuleNode, &mut S) -> Result<GraphTraversalAction>,
+        mut visit_postorder: impl FnMut(&'a SingleModuleGraphModuleNode, &mut S) -> Result<()>,
+    ) -> Result<()> {
+        let graph = &self.graph;
+        let entries = entries.into_iter().map(|e| self.get_module(e).unwrap());
+
+        enum Pass {
+            Visit,
+            ExpandAndVisit,
+        }
+
+        let mut stack: Vec<(Pass, NodeIndex)> =
+            entries.map(|e| (Pass::ExpandAndVisit, e)).collect();
+        let mut expanded = FxHashSet::default();
+        while let Some((pass, current)) = stack.pop() {
+            match pass {
+                Pass::Visit => {
+                    if let SingleModuleGraphNode::Module(current_node) =
+                        graph.node_weight(current).unwrap()
+                    {
+                        visit_postorder(current_node, state)?;
+                    }
+                }
+                Pass::ExpandAndVisit => {
+                    if expanded.insert(current)
+                        && let SingleModuleGraphNode::Module(current_node) =
+                            graph.node_weight(current).unwrap()
+                    {
+                        let action = visit_preorder(current_node, state)?;
+                        if action == GraphTraversalAction::Exclude {
+                            continue;
+                        }
+                        stack.push((Pass::Visit, current));
+                        if action == GraphTraversalAction::Continue {
+                            stack.extend(
+                                iter_neighbors_rev(graph, current)
+                                    .map(|(_, child)| (Pass::ExpandAndVisit, child)),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
     /// target.
     ///
@@ -1060,8 +1112,8 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn chunk_group_info(&self) -> Result<Vc<ChunkGroupInfo>> {
-        compute_chunk_group_info(self).await
+    pub async fn chunk_group_info(self: Vc<Self>) -> Result<Vc<ChunkGroupInfo>> {
+        compute_chunk_group_info(&self.read_graphs().await?).await
     }
 
     #[turbo_tasks::function]
@@ -1093,7 +1145,7 @@ impl ModuleGraph {
         async move {
             let result_op = compute_async_module_info(self.to_resolved().await?);
             let result_vc = result_op.resolve_strongly_consistent().await?;
-            let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
+            result_op.drop_collectibles::<Box<dyn Issue>>();
             anyhow::Ok(*result_vc)
         }
         .instrument(tracing::info_span!("compute async module info"))
@@ -1105,11 +1157,11 @@ impl ModuleGraph {
         self: Vc<Self>,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<AsyncModuleInfo>> {
-        let this = self.await?;
-        let graphs = this.get_graphs().await?;
+        let graph_ref = self.read_graphs().await?;
+        let graphs = &graph_ref.graphs;
         let async_modules_info = self.async_module_info().await?;
 
-        let entry = ModuleGraph::get_entry(&graphs, module).await?;
+        let entry = graph_ref.get_entry(module)?;
         let referenced_modules =
             iter_neighbors_rev(&graphs[entry.graph_idx()].graph, entry.node_idx)
                 .filter(|(edge_idx, _)| {
@@ -1189,36 +1241,51 @@ macro_rules! get_node_idx {
         }
     }};
 }
-pub(crate) use get_node_idx;
 
 impl ModuleGraph {
-    pub async fn get_graphs(&self) -> Result<Vec<ReadRef<SingleModuleGraph>>> {
-        self.graphs.iter().try_join().await
+    pub async fn read_graphs(self: Vc<ModuleGraph>) -> Result<ModuleGraphRef> {
+        Ok(ModuleGraphRef {
+            graphs: self.await?.graphs.iter().try_join().await?,
+        })
     }
+}
 
-    async fn get_entry(
-        graphs: &[ReadRef<SingleModuleGraph>],
-        entry: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<GraphNodeIndex> {
-        let Some(idx) = graphs.iter().enumerate().find_map(|(graph_idx, graph)| {
-            graph.modules.get(&entry).map(|node_idx| GraphNodeIndex {
-                graph_idx: u32::try_from(graph_idx).unwrap(),
-                node_idx: *node_idx,
+/// The ReadRef version of ModuleGraph. This is better for eventual consistency, as the graphs
+/// aren't awaited multiple times within the same task.
+pub struct ModuleGraphRef {
+    pub graphs: Vec<ReadRef<SingleModuleGraph>>,
+}
+
+impl ModuleGraphRef {
+    fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<GraphNodeIndex> {
+        let Some(idx) = self
+            .graphs
+            .iter()
+            .enumerate()
+            .find_map(|(graph_idx, graph)| {
+                graph.modules.get(&entry).map(|node_idx| GraphNodeIndex {
+                    graph_idx: u32::try_from(graph_idx).unwrap(),
+                    node_idx: *node_idx,
+                })
             })
-        }) else {
-            bail!(
-                "Couldn't find entry module {} in module graph (potential entries: {:?})",
-                entry.ident().to_string().await?,
-                graphs
-                    .iter()
-                    .flat_map(|g| g.entries.iter())
-                    .flat_map(|e| e.entries())
-                    .map(|e| e.ident().to_string())
-                    .try_join()
-                    .await?
-            );
+        else {
+            bail!("Couldn't find entry module in module graph");
         };
         Ok(idx)
+    }
+
+    /// Returns a map of all modules in the graphs to their identifiers.
+    /// This is primarily useful for debugging.
+    pub async fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
+        Ok(self
+            .graphs
+            .iter()
+            .flat_map(|g| g.iter_nodes())
+            .map(async |n| Ok((n.module, n.module.ident().to_string().await?)))
+            .try_join()
+            .await?
+            .into_iter()
+            .collect::<FxHashMap<_, _>>())
     }
 
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
@@ -1231,7 +1298,7 @@ impl ModuleGraph {
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub async fn traverse_edges_from_entries_bfs(
+    pub fn traverse_edges_from_entries_bfs(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
@@ -1239,14 +1306,13 @@ impl ModuleGraph {
             &'_ SingleModuleGraphModuleNode,
         ) -> Result<GraphTraversalAction>,
     ) -> Result<()> {
-        let graphs = self.get_graphs().await?;
+        let graphs = &self.graphs;
 
         let mut queue = VecDeque::from(
             entries
                 .into_iter()
-                .map(|e| ModuleGraph::get_entry(&graphs, e))
-                .try_join()
-                .await?,
+                .map(|e| self.get_entry(e))
+                .collect::<Result<Vec<_>>>()?,
         );
         let mut visited = HashSet::new();
         for entry_node in &queue {
@@ -1286,7 +1352,7 @@ impl ModuleGraph {
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub async fn traverse_edges_from_entry(
+    pub fn traverse_edges_from_entry(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
@@ -1294,12 +1360,12 @@ impl ModuleGraph {
             &'_ SingleModuleGraphModuleNode,
         ) -> GraphTraversalAction,
     ) -> Result<()> {
-        let graphs = self.get_graphs().await?;
+        let graphs = &self.graphs;
 
         let entries = entries.into_iter();
         let mut stack = Vec::with_capacity(entries.size_hint().0);
         for entry in entries {
-            stack.push(ModuleGraph::get_entry(&graphs, entry).await?);
+            stack.push(self.get_entry(entry)?);
         }
         let mut visited = HashSet::new();
         for entry_node in &stack {
@@ -1337,16 +1403,16 @@ impl ModuleGraph {
     /// * `visitor` - Called before visiting the children of a node.
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode
-    pub async fn traverse_all_edges_unordered(
+    pub fn traverse_all_edges_unordered(
         &self,
         mut visitor: impl FnMut(
             (&'_ SingleModuleGraphModuleNode, &'_ RefData),
             &'_ SingleModuleGraphModuleNode,
         ) -> Result<()>,
     ) -> Result<()> {
-        let graphs = self.get_graphs().await?;
+        let graphs = &self.graphs;
 
-        for graph in &graphs {
+        for graph in graphs {
             let graph = &graph.graph;
             for edge in graph.edge_references() {
                 let source = match graph.node_weight(edge.source()).unwrap() {
@@ -1383,7 +1449,7 @@ impl ModuleGraph {
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub async fn traverse_edges_from_entries_dfs<S>(
+    pub fn traverse_edges_from_entries_dfs<S>(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
@@ -1398,7 +1464,7 @@ impl ModuleGraph {
             &mut S,
         ) -> Result<()>,
     ) -> Result<()> {
-        let graphs = self.get_graphs().await?;
+        let graphs = &self.graphs;
 
         let entries = entries.into_iter().collect::<Vec<_>>();
 
@@ -1410,11 +1476,7 @@ impl ModuleGraph {
         let mut stack: Vec<(Pass, Option<(GraphNodeIndex, EdgeIndex)>, GraphNodeIndex)> =
             Vec::with_capacity(entries.len());
         for entry in entries.into_iter().rev() {
-            stack.push((
-                Pass::ExpandAndVisit,
-                None,
-                ModuleGraph::get_entry(&graphs, entry).await?,
-            ));
+            stack.push((Pass::ExpandAndVisit, None, self.get_entry(entry)?));
         }
         let mut expanded = HashSet::new();
         while let Some((pass, parent, current)) = stack.pop() {
@@ -1474,13 +1536,13 @@ impl ModuleGraph {
 
     /// Traverse all cycles in the graph (where the edge filter returns true for the whole cycle)
     /// and call the visitor with the nodes in the cycle.
-    pub async fn traverse_cycles(
+    pub fn traverse_cycles(
         &self,
         edge_filter: impl Fn(&RefData) -> bool,
         mut visit_cycle: impl FnMut(&[&SingleModuleGraphModuleNode]),
     ) -> Result<()> {
         for graph in &self.graphs {
-            graph.await?.traverse_cycles(&edge_filter, &mut visit_cycle);
+            graph.traverse_cycles(&edge_filter, &mut visit_cycle);
         }
         Ok(())
     }
@@ -1506,7 +1568,7 @@ impl ModuleGraph {
     ///
     /// Returns the number of node visits (i.e. higher than the node count if there are
     /// retraversals).
-    pub async fn traverse_edges_fixed_point_with_priority<S, P: Ord>(
+    pub fn traverse_edges_fixed_point_with_priority<S, P: Ord>(
         &self,
         entries: impl IntoIterator<Item = (ResolvedVc<Box<dyn Module>>, P)>,
         state: &mut S,
@@ -1517,7 +1579,7 @@ impl ModuleGraph {
         ) -> Result<GraphTraversalAction>,
         priority: impl Fn(&'_ SingleModuleGraphModuleNode, &mut S) -> Result<P>,
     ) -> Result<usize> {
-        let graphs = self.get_graphs().await?;
+        let graphs = &self.graphs;
 
         #[derive(PartialEq, Eq)]
         struct NodeWithPriority<T: Ord> {
@@ -1544,15 +1606,15 @@ impl ModuleGraph {
         let mut queue = BinaryHeap::from_iter(
             entries
                 .into_iter()
-                .map(async |(m, priority)| {
+                .map(|(m, priority)| {
                     Ok(NodeWithPriority {
-                        node: ModuleGraph::get_entry(&graphs, m).await?,
+                        node: self.get_entry(m)?,
                         priority,
                     })
                 })
-                .try_join()
-                .await?,
+                .collect::<Result<Vec<_>>>()?,
         );
+
         for entry_node in &queue {
             visit(None, get_node!(graphs, entry_node.node)?, state)?;
         }
@@ -1687,11 +1749,11 @@ enum SingleModuleGraphBuilderNode {
 
 impl SingleModuleGraphBuilderNode {
     async fn new_module(emit_spans: bool, module: ResolvedVc<Box<dyn Module>>) -> Result<Self> {
-        let ident = module.ident();
         Ok(Self::Module {
             module,
             ident: if emit_spans {
-                Some(ident.to_string().await?)
+                // INVALIDATION: we don't need to invalidate when the span name changes
+                Some(module.ident_string().untracked().await?)
             } else {
                 None
             },
@@ -1707,13 +1769,15 @@ impl SingleModuleGraphBuilderNode {
             ref_data,
             source,
             source_ident: if emit_spans {
-                Some(source.ident().to_string().await?)
+                // INVALIDATION: we don't need to invalidate when the span name changes
+                Some(source.ident_string().untracked().await?)
             } else {
                 None
             },
             target,
             target_ident: if emit_spans {
-                Some(target.ident().to_string().await?)
+                // INVALIDATION: we don't need to invalidate when the span name changes
+                Some(target.ident_string().untracked().await?)
             } else {
                 None
             },

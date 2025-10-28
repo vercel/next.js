@@ -13,6 +13,7 @@ import * as userland from 'VAR_USERLAND'
 import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
+import { addRequestMeta } from '../../server/request-meta'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -42,6 +43,9 @@ export async function handler(
     waitUntil?: (prom: Promise<void>) => void
   }
 ): Promise<void> {
+  if (routeModule.isDev) {
+    addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
+  }
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
@@ -133,7 +137,7 @@ export async function handler(
             })
             span.updateName(name)
           } else {
-            span.updateName(`${method}`)
+            span.updateName(`${method} ${srcPage}`)
           }
         })
 
@@ -146,7 +150,7 @@ export async function handler(
         tracer.trace(
           BaseServerSpan.handleRequest,
           {
-            spanName: `${method}`,
+            spanName: `${method} ${srcPage}`,
             kind: SpanKind.SERVER,
             attributes: {
               'http.method': method,

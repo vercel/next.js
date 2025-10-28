@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rustc_hash::FxHashSet;
 use serde::Serialize;
-use tracing::{Level, instrument};
+use tracing::instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap,
@@ -14,7 +14,7 @@ use turbopack_core::{
     output::OutputAsset,
 };
 
-#[instrument(level = Level::INFO, skip_all)]
+#[instrument(level = "info", name = "generate webpack stats", skip_all)]
 pub async fn generate_webpack_stats<I>(
     module_graph: Vc<ModuleGraph>,
     entry_name: RcStr,
@@ -56,18 +56,16 @@ where
     };
 
     let asset_reasons = {
-        let module_graph = module_graph.await?;
+        let module_graph = module_graph.read_graphs().await?;
         let mut edges = vec![];
-        module_graph
-            .traverse_all_edges_unordered(|(parent_node, r), current| {
-                edges.push((
-                    parent_node.module,
-                    RcStr::from(format!("{}: {}", r.chunking_type, r.export)),
-                    current.module,
-                ));
-                Ok(())
-            })
-            .await?;
+        module_graph.traverse_all_edges_unordered(|(parent_node, r), current| {
+            edges.push((
+                parent_node.module,
+                RcStr::from(format!("{}: {}", r.chunking_type, r.export)),
+                current.module,
+            ));
+            Ok(())
+        })?;
 
         let edges = edges
             .into_iter()

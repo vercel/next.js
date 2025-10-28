@@ -85,10 +85,12 @@ export class Worker {
       if (nodeDebugType) {
         const address = getParsedDebugAddress()
         address.port =
-          address.port +
-          // current process runs on `address.port`
-          1 +
-          debuggerPortOffset
+          address.port === 0
+            ? 0
+            : address.port +
+              // current process runs on `address.port`
+              1 +
+              debuggerPortOffset
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
       }
     }
@@ -103,16 +105,35 @@ export class Worker {
     }
 
     const createWorker = () => {
+      const workerEnv: NodeJS.ProcessEnv = {
+        ...process.env,
+        ...((farmOptions.forkOptions?.env || {}) as any),
+        IS_NEXT_WORKER: 'true',
+        NODE_OPTIONS: formatNodeOptions(nodeOptions),
+      }
+
+      if (workerEnv.FORCE_COLOR === undefined) {
+        // Mirror the enablement heuristic from picocolors (see https://github.com/vercel/next.js/blob/6a40da0345939fe4f7b1ae519b296a86dd103432/packages/next/src/lib/picocolors.ts#L21-L24).
+        // Picocolors snapshots `process.env`/`stdout.isTTY` at module load time, so when the worker
+        // process bootstraps with piped stdio its own check would disable colors. Re-evaluating the
+        // same conditions here lets us opt the worker into color output only when the parent would
+        // have seen colors, while still respecting explicit opt-outs like NO_COLOR.
+        const supportsColors =
+          !workerEnv.NO_COLOR &&
+          !workerEnv.CI &&
+          workerEnv.TERM !== 'dumb' &&
+          (process.stdout.isTTY || process.stderr?.isTTY)
+
+        if (supportsColors) {
+          workerEnv.FORCE_COLOR = '1'
+        }
+      }
+
       this._worker = new JestWorker(workerPath, {
         ...farmOptions,
         forkOptions: {
           ...farmOptions.forkOptions,
-          env: {
-            ...process.env,
-            ...((farmOptions.forkOptions?.env || {}) as any),
-            IS_NEXT_WORKER: 'true',
-            NODE_OPTIONS: formatNodeOptions(nodeOptions),
-          } as any,
+          env: workerEnv,
         },
         maxRetries: 0,
       }) as JestWorker

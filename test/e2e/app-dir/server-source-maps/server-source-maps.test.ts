@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
@@ -27,6 +26,7 @@ describe('app-dir - server source maps', () => {
     // Manually verify that the runtime logs match.
     skipDeployment: true,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) return
 
@@ -147,8 +147,7 @@ describe('app-dir - server source maps', () => {
               '\n    at runWithExternal (app/ssr-error-log-ignore-listed/page.js:17:32)' +
               '\n    at runWithInternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:16:18)' +
               // Realpath does not point into node_modules so we don't ignore it.
-              // TODO(veil): Should be internal-pkg/sourcemapped.ts
-              '\n    at runInternalSourceMapped (sourcemapped.ts:5:10)' +
+              '\n    at runInternalSourceMapped (internal-pkg/sourcemapped.ts:5:10)' +
               '\n    at runWithInternal (app/ssr-error-log-ignore-listed/page.js:15:28)' +
               // Realpath does not point into node_modules so we don't ignore it.
               '\n    at runInternal (internal-pkg/index.js:2:10)' +
@@ -190,12 +189,11 @@ describe('app-dir - server source maps', () => {
            "stack": [
              "logError app/ssr-error-log-ignore-listed/page.js (9:17)",
              "runWithInternalIgnored app/ssr-error-log-ignore-listed/page.js (19:13)",
-             "<FIXME-file-protocol>",
+             "runInternalIgnored internal-pkg/ignored.ts (6:10)",
              "runWithExternalSourceMapped app/ssr-error-log-ignore-listed/page.js (18:29)",
-             "<FIXME-file-protocol>",
              "runWithExternal app/ssr-error-log-ignore-listed/page.js (17:32)",
              "runWithInternalSourceMapped app/ssr-error-log-ignore-listed/page.js (16:18)",
-             "<FIXME-file-protocol>",
+             "runInternalSourceMapped internal-pkg/sourcemapped.ts (5:10)",
              "runWithInternal app/ssr-error-log-ignore-listed/page.js (15:28)",
              "runInternal internal-pkg/index.js (2:10)",
              "Page app/ssr-error-log-ignore-listed/page.js (14:14)",
@@ -265,8 +263,7 @@ describe('app-dir - server source maps', () => {
               '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:16:32)' +
               '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:15:18)' +
               // Realpath does not point into node_modules so we don't ignore it.
-              // TODO(veil): Should be internal-pkg/sourcemapped.ts
-              '\n    at runInternalSourceMapped (sourcemapped.ts:5:10)' +
+              '\n    at runInternalSourceMapped (internal-pkg/sourcemapped.ts:5:10)' +
               '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:14:28)' +
               // Realpath does not point into node_modules so we don't ignore it.
               '\n    at runInternal (internal-pkg/index.js:2:10)' +
@@ -323,7 +320,7 @@ describe('app-dir - server source maps', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        '\n ⨯ Error: ssr-throw' +
+        '⨯ Error: ssr-throw' +
           '\n    at throwError (app/ssr-throw/Thrower.js:4:9)' +
           '\n    at Thrower (app/ssr-throw/Thrower.js:8:3)' +
           '\n  2 |' +
@@ -397,9 +394,8 @@ describe('app-dir - server source maps', () => {
           // Node.js is fine with invalid URLs in index maps apparently.
           '' +
             '\nError: bad-sourcemap' +
-            '\n    at logError (custom://[badhost]/app/bad-sourcemap/page.js:6:17)' +
-            '\n    at Page (custom://[badhost]/app/bad-sourcemap/page.js:10:3)' +
-            // TODO: Remove blank line
+            '\n    at logError (app/bad-sourcemap/custom:/[badhost]/app/bad-sourcemap/page.js:6:17)' +
+            '\n    at Page (app/bad-sourcemap/custom:/[badhost]/app/bad-sourcemap/page.js:10:3)' +
             '\n'
         )
       } else {
@@ -445,18 +441,16 @@ describe('app-dir - server source maps', () => {
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       if (isTurbopack) {
         expect(cliOutput).toContain(
-          '' +
-            '\nError: module-evaluation' +
+          'Error: module-evaluation' +
             // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
-            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/module.js:1:22)' +
+            '\n    at module evaluation (app/module-evaluation/module.js:1:22)' +
             // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
-            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/page.js:1:1)' +
-            '\n    at __TURBOPACK__module__evaluation__ (.next'
+            '\n    at module evaluation (app/module-evaluation/page.js:1:1)' +
+            '\n    at module evaluation (.next'
         )
       } else {
         expect(cliOutput).toContain(
-          '' +
-            '\nError: module-evaluation' +
+          'Error: module-evaluation' +
             // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
             // TODO(veil): Location should be sourcemapped
             '\n    at eval (app/module-evaluation/module.js:1:22)' +
@@ -477,14 +471,34 @@ describe('app-dir - server source maps', () => {
            "description": "module-evaluation",
            "environmentLabel": "Prerender",
            "label": "Console Error",
-           "source": "app/module-evaluation/module.js (1:22) @ {module evaluation}
+           "source": "app/module-evaluation/module.js (1:22) @ module evaluation
          > 1 | export const error = new Error('module-evaluation')
              |                      ^",
            "stack": [
-             "{module evaluation} app/module-evaluation/module.js (1:22)",
-             "{module evaluation} app/module-evaluation/page.js (1:1)",
-             "{module evaluation} app/module-evaluation/page.js (6:1)",
-             "Array.map <anonymous>",
+             "module evaluation app/module-evaluation/module.js (1:22)",
+             "module evaluation app/module-evaluation/page.js (1:1)",
+             "module evaluation app/module-evaluation/page.js (6:1)",
+             "Page <anonymous>",
+           ],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "module-evaluation",
+           "environmentLabel": "Prerender",
+           "label": "Console Error",
+           "source": "app/module-evaluation/module.js (1:22) @ eval
+         > 1 | export const error = new Error('module-evaluation')
+             |                      ^",
+           "stack": [
+             "eval app/module-evaluation/module.js (1:22)",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+             "eval about:/Prerender/webpack-internal:///(rsc)/app/module-evaluation/page.js (5:60)",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+             "Function.all <anonymous>",
              "Function.all <anonymous>",
              "Page <anonymous>",
            ],
@@ -504,8 +518,6 @@ describe('app-dir - server source maps', () => {
              "<FIXME-file-protocol>",
              "eval about:/Prerender/webpack-internal:///(rsc)/app/module-evaluation/page.js (5:65)",
              "<FIXME-file-protocol>",
-             "Function.all <anonymous>",
-             "Function.all <anonymous>",
              "Page <anonymous>",
            ],
          }
@@ -517,7 +529,7 @@ describe('app-dir - server source maps', () => {
           '' +
             '\nError: module-evaluation' +
             // TODO(veil): Turbopack internals. Feel free to update. Tracked in https://linear.app/vercel/issue/NEXT-4362
-            '\n    at __TURBOPACK__module__evaluation__ (bundler:///app/module-evaluation/module.js:1:22)'
+            '\n    at module evaluation (bundler:///app/module-evaluation/module.js:1:22)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -573,6 +585,45 @@ describe('app-dir - server source maps', () => {
              "stack": [
                "Set.forEach <anonymous>",
                "Set.forEach <anonymous>",
+               "Page app/rsc-anonymous-stack-frame-sandwich/page.js (6:29)",
+               "Page <anonymous>",
+             ],
+           },
+         ]
+        `)
+      } else if (isRspack) {
+        // 2nd error from runHiddenSetOfSetsInternal hits https://linear.app/vercel/issue/NEXT-4412
+        await expect(browser).toDisplayCollapsedRedbox(`
+         [
+           {
+             "description": "rsc-anonymous-stack-frame-sandwich: external",
+             "environmentLabel": "Prerender",
+             "label": "Console Error",
+             "source": "app/rsc-anonymous-stack-frame-sandwich/page.js (5:29) @ Page
+         > 5 |   runHiddenSetOfSetsExternal('rsc-anonymous-stack-frame-sandwich: external')
+             |                             ^",
+             "stack": [
+               "Set.forEach <anonymous>",
+               "Set.forEach <anonymous>",
+               "Page app/rsc-anonymous-stack-frame-sandwich/page.js (5:29)",
+               "Page <anonymous>",
+             ],
+           },
+           {
+             "description": "rsc-anonymous-stack-frame-sandwich: internal",
+             "environmentLabel": "Prerender",
+             "label": "Console Error",
+             "source": "app/rsc-anonymous-stack-frame-sandwich/page.js (6:29) @ Page
+         > 6 |   runHiddenSetOfSetsInternal('rsc-anonymous-stack-frame-sandwich: internal')
+             |                             ^",
+             "stack": [
+               "eval webpack-internal:/(ssr)/internal-pkg/ignored.ts (18:54)",
+               "eval webpack-internal:/(ssr)/internal-pkg/ignored.ts (12:7)",
+               "Set.forEach <anonymous>",
+               "eval webpack-internal:/(ssr)/internal-pkg/ignored.ts (11:9)",
+               "Set.forEach <anonymous>",
+               "runSetOfSets webpack-internal:/(ssr)/internal-pkg/ignored.ts (10:13)",
+               "runHiddenSetOfSets webpack-internal:/(ssr)/internal-pkg/ignored.ts (18:3)",
                "Page app/rsc-anonymous-stack-frame-sandwich/page.js (6:29)",
                "Page <anonymous>",
              ],
@@ -642,7 +693,6 @@ describe('app-dir - server source maps', () => {
       const browser = await next.browser('/ssr-anonymous-stack-frame-sandwich')
 
       if (isTurbopack) {
-        // TODO(veil): https://linear.app/vercel/issue/NEXT-4410/
         await expect(browser).toDisplayCollapsedRedbox(`
          [
            {
@@ -653,13 +703,6 @@ describe('app-dir - server source maps', () => {
          > 6 |   runHiddenSetOfSetsExternal('ssr-anonymous-stack-frame-sandwich: external')
              |                             ^",
              "stack": [
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
-               "Set.forEach <anonymous>",
-               "<FIXME-file-protocol>",
-               "Set.forEach <anonymous>",
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
                "Page app/ssr-anonymous-stack-frame-sandwich/page.js (6:29)",
              ],
            },
@@ -667,17 +710,15 @@ describe('app-dir - server source maps', () => {
              "description": "ignore-listed frames",
              "environmentLabel": null,
              "label": "Console Error",
-             "source": "app/ssr-anonymous-stack-frame-sandwich/page.js (7:29) @ Page
-         >  7 |   runHiddenSetOfSetsInternal('ssr-anonymous-stack-frame-sandwich: internal')
-              |                             ^",
+             "source": "internal-pkg/sourcemapped.ts (9:13) @ runSetOfSets",
              "stack": [
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
+               "<unknown> internal-pkg/sourcemapped.ts (18:43)",
+               "<unknown> internal-pkg/sourcemapped.ts (11:7)",
                "Set.forEach <anonymous>",
-               "<FIXME-file-protocol>",
+               "<unknown> internal-pkg/sourcemapped.ts (10:9)",
                "Set.forEach <anonymous>",
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
+               "runSetOfSets internal-pkg/sourcemapped.ts (9:13)",
+               "runHiddenSetOfSets internal-pkg/sourcemapped.ts (17:3)",
                "Page app/ssr-anonymous-stack-frame-sandwich/page.js (7:29)",
              ],
            },

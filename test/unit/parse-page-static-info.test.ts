@@ -16,6 +16,7 @@ describe('parse page static info', () => {
         pageFilePath: join(fixtureDir, 'page-runtime/nodejs-ssr.js'),
         nextConfig: createNextConfig(),
         pageType: PAGE_TYPES.PAGES,
+        isDev: false,
       })
     expect(runtime).toBe('nodejs')
     expect(getServerSideProps).toBe(true)
@@ -29,6 +30,7 @@ describe('parse page static info', () => {
         pageFilePath: join(fixtureDir, 'page-runtime/nodejs.js'),
         nextConfig: createNextConfig(),
         pageType: PAGE_TYPES.PAGES,
+        isDev: false,
       })
     expect(runtime).toBe('nodejs')
     expect(getServerSideProps).toBe(false)
@@ -41,6 +43,7 @@ describe('parse page static info', () => {
       pageFilePath: join(fixtureDir, 'page-runtime/edge.js'),
       nextConfig: createNextConfig(),
       pageType: PAGE_TYPES.PAGES,
+      isDev: false,
     })
     expect(runtime).toBe('experimental-edge')
   })
@@ -51,6 +54,7 @@ describe('parse page static info', () => {
       pageFilePath: join(fixtureDir, 'page-runtime/static.js'),
       nextConfig: createNextConfig(),
       pageType: PAGE_TYPES.PAGES,
+      isDev: false,
     })
     expect(runtime).toBe(undefined)
   })
@@ -62,6 +66,7 @@ describe('parse page static info', () => {
         pageFilePath: join(fixtureDir, 'page-runtime/ssr-variable-gssp.js'),
         nextConfig: createNextConfig(),
         pageType: PAGE_TYPES.PAGES,
+        isDev: false,
       }
     )
     expect(getStaticProps).toBe(false)

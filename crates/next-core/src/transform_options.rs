@@ -33,7 +33,7 @@ async fn get_typescript_options(
 
         Ok(tsconfigs)
     } else {
-        let tsconfig = find_context_file(project_path, tsconfig());
+        let tsconfig = find_context_file(project_path, tsconfig(), false);
         Ok(match tsconfig.await.ok().as_deref() {
             Some(FindContextFileResult::Found(path, _)) => read_tsconfigs(
                 path.read(),

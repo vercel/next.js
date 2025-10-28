@@ -9,7 +9,7 @@ import { isFullStringUrl } from './url'
 
 export type RouteHas =
   | {
-      type: string
+      type: 'header' | 'cookie' | 'query'
       key: string
       value?: string
     }
@@ -31,6 +31,11 @@ export type Rewrite = {
    * @internal - used internally for routing
    */
   internal?: boolean
+
+  /**
+   * @internal - used internally for routing
+   */
+  regex?: string
 }
 
 export type Header = {

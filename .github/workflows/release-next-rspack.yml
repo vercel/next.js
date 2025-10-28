@@ -1,0 +1,133 @@
+name: Release next-rspack bindings
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Run in dry-run mode (no actual publishing)'
+        required: false
+        default: false
+        type: boolean
+      npm-name:
+        description: 'NPM package name to publish'
+        required: false
+        default: '@next/rspack-core'
+        type: string
+      npm-tag:
+        description: 'NPM tag for publishing'
+        required: false
+        default: 'latest'
+        type: choice
+        options:
+          - latest
+          - alpha
+          - beta
+          - canary
+
+env:
+  DEBUG: napi:*
+
+jobs:
+  build:
+    name: Build
+    uses: rspack-contrib/rspack-toolchain/.github/workflows/build.yml@f69dc04fcae6b38d97b87acef448ed7a285b01cc
+    with:
+      package-json-path: rspack/crates/binding/package.json
+      napi-build-command: pnpm build --release
+      working-directory: rspack
+
+  release:
+    runs-on: ubuntu-latest
+    environment: npm
+    name: Release
+    permissions:
+      contents: write
+      id-token: write
+    needs: [build]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Display release mode
+        run: |
+          echo "🚀 Release Configuration:"
+          echo "  - Dry-run mode: ${{ inputs.dry-run }}"
+          echo "  - NPM name: ${{ inputs.npm-name || '@next/rspack-core' }}"
+          echo "  - NPM tag: ${{ inputs.npm-tag || 'latest' }}"
+          if [ "${{ inputs.dry-run }}" == "true" ]; then
+            echo "  - ⚠️  This is a DRY RUN - no packages will be published"
+          else
+            echo "  - 📦 This will PUBLISH packages to npm"
+          fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup pnpm
+        run: corepack prepare
+
+      - name: Change npm name
+        run: pnpm run change-npm-name "${{ inputs.npm-name }}"
+        working-directory: ./rspack
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install
+        working-directory: ./rspack
+
+      - name: Get NAPI info
+        id: napi-info
+        uses: rspack-contrib/rspack-toolchain/get-napi-info@f69dc04fcae6b38d97b87acef448ed7a285b01cc
+        with:
+          package-json-path: rspack/crates/binding/package.json
+
+      - name: Download rspack binding
+        uses: rspack-contrib/rspack-toolchain/download-rspack-binding@f69dc04fcae6b38d97b87acef448ed7a285b01cc
+        with:
+          path: ${{ steps.napi-info.outputs.binding-directory }}/artifacts
+
+      - name: List artifacts
+        run: ls -R artifacts
+        working-directory: ${{ steps.napi-info.outputs.binding-directory }}
+
+      - name: Create npm dirs
+        run: pnpm napi create-npm-dirs
+        working-directory: ${{ steps.napi-info.outputs.binding-directory }}
+
+      - name: Move artifacts
+        run: pnpm napi artifacts
+        working-directory: ${{ steps.napi-info.outputs.binding-directory }}
+
+      - name: List npm dirs
+        run: ls -R npm
+        working-directory: ${{ steps.napi-info.outputs.binding-directory }}
+
+      - name: Create npm token
+        run: |
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
+
+      - name: Release npm binding packages
+        run: |
+          npm config set access public
+          npm config set provenance true
+          pnpm napi pre-publish --no-gh-release -t npm ${{ inputs.dry-run && '--dry-run' || '' }}
+        working-directory: ${{ steps.napi-info.outputs.binding-directory }}
+
+      - name: Release npm packages
+        run: |
+          pnpm publish -r --tag ${{ inputs.npm-tag }} --no-git-checks --provenance --access public ${{ inputs.dry-run && '--dry-run' || '' }}
+        working-directory: ./rspack

@@ -35,6 +35,7 @@ import {
   type EntryIssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
+import { MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../lib/constants'
 
 const onceErrorSet = new Set()
 /**
@@ -387,7 +388,6 @@ export async function handleRouteType({
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
-      manifestLoader.loadAppBuildManifest(page)
       manifestLoader.loadBuildManifest(page, 'app')
       manifestLoader.loadAppPathsManifest(page)
       manifestLoader.loadActionManifest(page)
@@ -542,7 +542,6 @@ export function hasEntrypointForKey(
         )
     default: {
       // validation that we covered all cases, this should never run.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _: never = type
       return false
     }
@@ -566,7 +565,7 @@ type HandleEntrypointsHooks = {
 type HandleEntrypointsDevOpts = {
   assetMapper: AssetMapper
   changeSubscriptions: ChangeSubscriptions
-  clients: Set<ws>
+  clients: Array<ws>
   clientStates: ClientStateMap
   serverFields: ServerFields
 
@@ -713,10 +712,13 @@ export async function handleEntrypoints({
     const key = getEntryKey('root', 'server', 'middleware')
 
     const endpoint = middleware.endpoint
+    const triggerName = middleware.isProxy
+      ? PROXY_FILENAME
+      : MIDDLEWARE_FILENAME
 
     async function processMiddleware() {
       const finishBuilding = dev.hooks.startBuilding(
-        'middleware',
+        triggerName,
         undefined,
         true
       )
@@ -745,7 +747,7 @@ export async function handleEntrypoints({
         endpoint,
         async () => {
           const finishBuilding = dev.hooks.startBuilding(
-            'middleware',
+            triggerName,
             undefined,
             true
           )

@@ -41,7 +41,6 @@
             ),
         ],
         span: 75..83,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -85,7 +84,6 @@
             ),
         ],
         span: 96..107,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -129,7 +127,6 @@
             ),
         ],
         span: 120..128,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -173,7 +170,6 @@
             ),
         ],
         span: 141..152,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -217,7 +213,6 @@
             ),
         ],
         span: 165..173,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -261,7 +256,6 @@
             ),
         ],
         span: 186..197,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -305,7 +299,6 @@
             ),
         ],
         span: 210..218,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -349,7 +342,6 @@
             ),
         ],
         span: 231..242,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -393,7 +385,6 @@
             ),
         ],
         span: 308..323,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -437,7 +428,6 @@
             ),
         ],
         span: 336..351,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -481,7 +471,6 @@
             ),
         ],
         span: 364..379,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -525,7 +514,6 @@
             ),
         ],
         span: 392..407,
-        in_try: false,
     },
     FreeVar {
         var: "global",
@@ -571,7 +559,6 @@
             ),
         ],
         span: 548..554,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -615,7 +602,6 @@
             ),
         ],
         span: 576..592,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -659,7 +645,6 @@
             ),
         ],
         span: 605..621,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -703,7 +688,6 @@
             ),
         ],
         span: 634..650,
-        in_try: false,
     },
     FreeVar {
         var: "global",
@@ -758,7 +742,6 @@
             ),
         ],
         span: 678..684,
-        in_try: false,
     },
     FreeVar {
         var: "global",
@@ -813,7 +796,6 @@
             ),
         ],
         span: 697..703,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -857,7 +839,6 @@
             ),
         ],
         span: 728..737,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -901,7 +882,6 @@
             ),
         ],
         span: 750..759,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -945,7 +925,6 @@
             ),
         ],
         span: 772..781,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -989,7 +968,6 @@
             ),
         ],
         span: 794..803,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -1033,6 +1011,5 @@
             ),
         ],
         span: 816..825,
-        in_try: false,
     },
 ]

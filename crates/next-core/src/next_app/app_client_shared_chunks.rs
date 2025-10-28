@@ -20,6 +20,7 @@ pub async fn get_app_client_shared_chunk_group(
     if app_client_runtime_entries.await?.is_empty() {
         return Ok(ChunkGroupResult {
             assets: OutputAssets::empty().to_resolved().await?,
+            referenced_assets: OutputAssets::empty().to_resolved().await?,
             availability_info: AvailabilityInfo::Root,
         }
         .cell());

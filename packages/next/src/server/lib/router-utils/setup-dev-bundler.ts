@@ -1,7 +1,7 @@
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../../../build/analysis/get-page-static-info'
 import type { RoutesManifest } from '../../../build'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
@@ -66,17 +66,20 @@ import {
   isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
-import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
-  isPersistentCachingEnabled,
+  isFileSystemCacheEnabledForDev,
   ModuleBuildError,
 } from '../../../shared/lib/turbopack/utils'
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
-import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
+import {
+  JSON_CONTENT_TYPE_HEADER,
+  MIDDLEWARE_FILENAME,
+  PROXY_FILENAME,
+} from '../../../lib/constants'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -84,6 +87,8 @@ import {
 } from './route-types-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import { Lockfile } from '../../../build/lockfile'
+import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -110,7 +115,7 @@ export interface DevRoutesManifest {
   redirects: RoutesManifest['redirects']
   headers: RoutesManifest['headers']
   i18n: RoutesManifest['i18n']
-  skipMiddlewareUrlNormalize: RoutesManifest['skipMiddlewareUrlNormalize']
+  skipProxyUrlNormalize: RoutesManifest['skipProxyUrlNormalize']
 }
 
 export type ServerFields = {
@@ -121,19 +126,18 @@ export type ServerFields = {
     | {
         page: string
         match: MiddlewareRouteMatch
-        matchers?: MiddlewareMatcher[]
+        matchers?: ProxyMatcher[]
       }
     | undefined
   hasAppNotFound?: boolean
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
   >[]
-  setIsrStatus?: (key: string, value: boolean) => void
+  setIsrStatus?: (key: string, value: boolean | undefined) => void
   resetFetch?: () => void
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
-  let usingTypeScript = false
   const verifyResult = await verifyTypeScriptSetup({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
@@ -143,12 +147,13 @@ async function verifyTypeScript(opts: SetupOpts) {
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
+    isolatedDevBuild: opts.nextConfig.experimental.isolatedDevBuild,
   })
 
   if (verifyResult.version) {
-    usingTypeScript = true
+    return true
   }
-  return usingTypeScript
+  return false
 }
 
 export async function propagateServerField(
@@ -172,6 +177,15 @@ async function startWatcher(
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
+  let lockfile
+  if (opts.nextConfig.experimental.lockDistDir) {
+    fs.mkdirSync(distDir, { recursive: true })
+    lockfile = await Lockfile.acquireWithRetriesOrExit(
+      path.join(distDir, 'lock'),
+      'next dev'
+    )
+  }
+
   const validFileMatcher = createValidFileMatcher(
     nextConfig.pageExtensions,
     appDir
@@ -193,7 +207,8 @@ async function startWatcher(
           opts,
           serverFields,
           distDir,
-          resetFetch
+          resetFetch,
+          lockfile
         )
       })()
     : await (async () => {
@@ -215,6 +230,8 @@ async function startWatcher(
           rewrites: opts.fsChecker.rewrites,
           previewProps: opts.fsChecker.prerenderManifest.preview,
           resetFetch,
+          lockfile,
+          onDevServerCleanup: opts.onDevServerCleanup,
         })
       })()
 
@@ -242,8 +259,6 @@ async function startWatcher(
     opts.nextConfig
   )
 
-  const usingTypeScript = await verifyTypeScript(opts)
-
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
     version: 3,
@@ -253,7 +268,7 @@ async function startWatcher(
     redirects: opts.fsChecker.redirects,
     headers: opts.fsChecker.headers,
     i18n: nextConfig.i18n || undefined,
-    skipMiddlewareUrlNormalize: nextConfig.skipMiddlewareUrlNormalize,
+    skipProxyUrlNormalize: nextConfig.skipProxyUrlNormalize,
   }
   await fs.promises.writeFile(
     routesManifestPath,
@@ -348,7 +363,7 @@ async function startWatcher(
       },
     })
     const fileWatchTimes = new Map()
-    let enabledTypeScript = usingTypeScript
+    let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
 
@@ -356,7 +371,9 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     wp.on('aggregated', async () => {
-      let middlewareMatchers: MiddlewareMatcher[] | undefined
+      let writeEnvDefinitions = false
+      let typescriptStatusFromLastAggregation = enabledTypeScript
+      let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
       const appPaths: Record<string, string[]> = {}
@@ -388,6 +405,9 @@ async function startWatcher(
         sortByPageExts(nextConfig.pageExtensions)
       )
 
+      let proxyFilePath: string | undefined
+      let middlewareFilePath: string | undefined
+
       for (const fileName of sortedKnownFiles) {
         if (
           !files.includes(fileName) &&
@@ -395,6 +415,32 @@ async function startWatcher(
         ) {
           continue
         }
+
+        const { name: fileBaseName, dir: fileDir } = path.parse(fileName)
+
+        const isAtConventionLevel =
+          fileDir === dir || fileDir === path.join(dir, 'src')
+
+        if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
+          middlewareFilePath = fileName
+        }
+        if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+          proxyFilePath = fileName
+        }
+
+        if (middlewareFilePath) {
+          if (proxyFilePath) {
+            const cwd = process.cwd()
+
+            throw new Error(
+              `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, middlewareFilePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, proxyFilePath)}" are detected. Please use "./${path.relative(cwd, proxyFilePath)}" only. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+            )
+          }
+          Log.warnOnce(
+            `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+          )
+        }
+
         const meta = knownFiles.get(fileName)
 
         const watchTime = fileWatchTimes.get(fileName)
@@ -468,6 +514,7 @@ async function startWatcher(
             continue
           }
           serverFields.actualMiddlewareFile = rootFile
+
           await propagateServerField(
             opts,
             'actualMiddlewareFile',
@@ -728,68 +775,13 @@ async function startWatcher(
         }
       }
 
-      if (!usingTypeScript && enabledTypeScript) {
-        // we tolerate the error here as this is best effort
-        // and the manual install command will be shown
-        await verifyTypeScript(opts)
-          .then(() => {
-            tsconfigChange = true
-          })
-          .catch(() => {})
-      }
-
       if (envChange || tsconfigChange) {
         if (envChange) {
-          const loadEnvConfig = (
-            require('@next/env') as typeof import('@next/env')
-          ).loadEnvConfig
-          const { loadedEnvFiles } = loadEnvConfig(
-            dir,
-            process.env.NODE_ENV === 'development',
-            Log,
-            true,
-            (envFilePath) => {
-              Log.info(`Reload env: ${envFilePath}`)
-            }
-          )
-
-          if (usingTypeScript && nextConfig.experimental?.typedEnv) {
-            // do not await, this is not essential for further process
-            createEnvDefinitions({
-              distDir,
-              loadedEnvFiles: [
-                ...loadedEnvFiles,
-                {
-                  path: nextConfig.configFileName,
-                  env: nextConfig.env,
-                  contents: '',
-                },
-              ],
-            })
-          }
+          writeEnvDefinitions = true
 
           await propagateServerField(opts, 'loadEnvConfig', [
-            { dev: true, forceReload: true, silent: true },
+            { dev: true, forceReload: true },
           ])
-        }
-        let tsconfigResult:
-          | UnwrapPromise<
-              ReturnType<typeof import('../../../build/load-jsconfig').default>
-            >
-          | undefined
-
-        // This is not relevant for Turbopack because tsconfig/jsconfig is handled internally.
-        if (!hotReloader.turbopackProject) {
-          if (tsconfigChange) {
-            try {
-              const loadJsConfig = (
-                require('../../../build/load-jsconfig') as typeof import('../../../build/load-jsconfig')
-              ).default
-              tsconfigResult = await loadJsConfig(dir, nextConfig)
-            } catch (_) {
-              /* do we want to log if there are syntax errors in tsconfig while editing? */
-            }
-          }
         }
 
         if (hotReloader.turbopackProject) {
@@ -820,92 +812,112 @@ async function startWatcher(
             rootPath,
             projectPath: normalizePath(path.relative(rootPath, dir)),
           })
-        }
-
-        hotReloader.activeWebpackConfigs?.forEach((config, idx) => {
-          const isClient = idx === 0
-          const isNodeServer = idx === 1
-          const isEdgeServer = idx === 2
-          const hasRewrites =
-            opts.fsChecker.rewrites.afterFiles.length > 0 ||
-            opts.fsChecker.rewrites.beforeFiles.length > 0 ||
-            opts.fsChecker.rewrites.fallback.length > 0
-
+        } else {
+          let tsconfigResult:
+            | UnwrapPromise<
+                ReturnType<
+                  typeof import('../../../build/load-jsconfig').default
+                >
+              >
+            | undefined
+          // This is not relevant for Turbopack because tsconfig/jsconfig is handled internally.
           if (tsconfigChange) {
-            config.resolve?.plugins?.forEach((plugin: any) => {
-              // look for the JsConfigPathsPlugin and update with
-              // the latest paths/baseUrl config
-              if (plugin instanceof JsConfigPathsPlugin && tsconfigResult) {
-                const { resolvedBaseUrl, jsConfig } = tsconfigResult
-                const currentResolvedBaseUrl = plugin.resolvedBaseUrl
-                const resolvedUrlIndex = config.resolve?.modules?.findIndex(
-                  (item) => item === currentResolvedBaseUrl?.baseUrl
-                )
+            try {
+              const loadJsConfig = (
+                require('../../../build/load-jsconfig') as typeof import('../../../build/load-jsconfig')
+              ).default
+              tsconfigResult = await loadJsConfig(dir, nextConfig)
+            } catch (_) {
+              /* do we want to log if there are syntax errors in tsconfig while editing? */
+            }
+          }
 
-                if (resolvedBaseUrl) {
-                  if (
-                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl?.baseUrl
-                  ) {
-                    // remove old baseUrl and add new one
-                    if (resolvedUrlIndex && resolvedUrlIndex > -1) {
-                      config.resolve?.modules?.splice(resolvedUrlIndex, 1)
-                    }
+          hotReloader.activeWebpackConfigs?.forEach((config, idx) => {
+            const isClient = idx === 0
+            const isNodeServer = idx === 1
+            const isEdgeServer = idx === 2
+            const hasRewrites =
+              opts.fsChecker.rewrites.afterFiles.length > 0 ||
+              opts.fsChecker.rewrites.beforeFiles.length > 0 ||
+              opts.fsChecker.rewrites.fallback.length > 0
 
-                    // If the resolvedBaseUrl is implicit we only remove the previous value.
-                    // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
-                    if (!resolvedBaseUrl.isImplicit) {
-                      config.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
+            if (tsconfigChange) {
+              config.resolve?.plugins?.forEach((plugin: any) => {
+                // look for the JsConfigPathsPlugin and update with
+                // the latest paths/baseUrl config
+                if (plugin instanceof JsConfigPathsPlugin && tsconfigResult) {
+                  const { resolvedBaseUrl, jsConfig } = tsconfigResult
+                  const currentResolvedBaseUrl = plugin.resolvedBaseUrl
+                  const resolvedUrlIndex = config.resolve?.modules?.findIndex(
+                    (item) => item === currentResolvedBaseUrl?.baseUrl
+                  )
+
+                  if (resolvedBaseUrl) {
+                    if (
+                      resolvedBaseUrl.baseUrl !==
+                      currentResolvedBaseUrl?.baseUrl
+                    ) {
+                      // remove old baseUrl and add new one
+                      if (resolvedUrlIndex && resolvedUrlIndex > -1) {
+                        config.resolve?.modules?.splice(resolvedUrlIndex, 1)
+                      }
+
+                      // If the resolvedBaseUrl is implicit we only remove the previous value.
+                      // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
+                      if (!resolvedBaseUrl.isImplicit) {
+                        config.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
+                      }
                     }
                   }
-                }
 
-                if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
-                  Object.keys(plugin.paths).forEach((key) => {
-                    delete plugin.paths[key]
+                  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
+                    Object.keys(plugin.paths).forEach((key) => {
+                      delete plugin.paths[key]
+                    })
+                    Object.assign(plugin.paths, jsConfig.compilerOptions.paths)
+                    plugin.resolvedBaseUrl = resolvedBaseUrl
+                  }
+                }
+              })
+            }
+
+            if (envChange) {
+              config.plugins?.forEach((plugin: any) => {
+                // we look for the DefinePlugin definitions so we can
+                // update them on the active compilers
+                if (
+                  plugin &&
+                  typeof plugin.definitions === 'object' &&
+                  plugin.definitions.__NEXT_DEFINE_ENV
+                ) {
+                  const newDefine = getDefineEnv({
+                    isTurbopack: false,
+                    clientRouterFilters,
+                    config: nextConfig,
+                    dev: true,
+                    distDir,
+                    fetchCacheKeyPrefix:
+                      opts.nextConfig.experimental.fetchCacheKeyPrefix,
+                    hasRewrites,
+                    isClient,
+                    isEdgeServer,
+                    isNodeServer,
+                    middlewareMatchers: undefined,
+                    projectPath: opts.dir,
+                    rewrites: opts.fsChecker.rewrites,
                   })
-                  Object.assign(plugin.paths, jsConfig.compilerOptions.paths)
-                  plugin.resolvedBaseUrl = resolvedBaseUrl
+
+                  Object.keys(plugin.definitions).forEach((key) => {
+                    if (!(key in newDefine)) {
+                      delete plugin.definitions[key]
+                    }
+                  })
+                  Object.assign(plugin.definitions, newDefine)
                 }
-              }
-            })
-          }
-
-          if (envChange) {
-            config.plugins?.forEach((plugin: any) => {
-              // we look for the DefinePlugin definitions so we can
-              // update them on the active compilers
-              if (
-                plugin &&
-                typeof plugin.definitions === 'object' &&
-                plugin.definitions.__NEXT_DEFINE_ENV
-              ) {
-                const newDefine = getDefineEnv({
-                  isTurbopack: false,
-                  clientRouterFilters,
-                  config: nextConfig,
-                  dev: true,
-                  distDir,
-                  fetchCacheKeyPrefix:
-                    opts.nextConfig.experimental.fetchCacheKeyPrefix,
-                  hasRewrites,
-                  isClient,
-                  isEdgeServer,
-                  isNodeServer,
-                  middlewareMatchers: undefined,
-                  projectPath: opts.dir,
-                  rewrites: opts.fsChecker.rewrites,
-                })
-
-                Object.keys(plugin.definitions).forEach((key) => {
-                  if (!(key in newDefine)) {
-                    delete plugin.definitions[key]
-                  }
-                })
-                Object.assign(plugin.definitions, newDefine)
-              }
-            })
-          }
-        })
+              })
+            }
+          })
+        }
         await hotReloader.invalidate({
           reloadAfterInvalidation: envChange,
         })
@@ -1045,41 +1057,93 @@ async function startWatcher(
         }
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
 
-        if (!prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])) {
-          const addedRoutes = sortedRoutes.filter(
-            (route) => !prevSortedRoutes.includes(route)
-          )
-          const removedRoutes = prevSortedRoutes.filter(
-            (route) => !sortedRoutes.includes(route)
-          )
+        // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
+        // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.
+        if (!opts.turbo) {
+          // Reload the matchers. The filesystem would have been written to,
+          // and the matchers need to re-scan it to update the router.
+          // Reloading the matchers should happen before `ADDED_PAGE` or `REMOVED_PAGE` is sent over the websocket
+          // otherwise it sends the event too early.
+          await propagateServerField(opts, 'reloadMatchers', undefined)
 
-          // emit the change so clients fetch the update
-          hotReloader.send({
-            type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
-            data: [
-              {
-                devPagesManifest: true,
-              },
-            ],
-          })
+          if (
+            !prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
+          ) {
+            const addedRoutes = sortedRoutes.filter(
+              (route) => !prevSortedRoutes.includes(route)
+            )
+            const removedRoutes = prevSortedRoutes.filter(
+              (route) => !sortedRoutes.includes(route)
+            )
 
-          addedRoutes.forEach((route) => {
+            // emit the change so clients fetch the update
             hotReloader.send({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
-              data: [route],
+              type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
+              data: [
+                {
+                  devPagesManifest: true,
+                },
+              ],
             })
-          })
 
-          removedRoutes.forEach((route) => {
-            hotReloader.send({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
-              data: [route],
+            addedRoutes.forEach((route) => {
+              hotReloader.send({
+                type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
+                data: [route],
+              })
             })
-          })
+
+            removedRoutes.forEach((route) => {
+              hotReloader.send({
+                type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
+                data: [route],
+              })
+            })
+          }
         }
         prevSortedRoutes = sortedRoutes
 
-        if (usingTypeScript) {
+        if (enabledTypeScript) {
+          // Using === false to make the check clearer.
+          if (typescriptStatusFromLastAggregation === false) {
+            // we tolerate the error here as this is best effort
+            // and the manual install command will be shown
+            await verifyTypeScript(opts)
+              .then(() => {
+                tsconfigChange = true
+              })
+              .catch(() => {})
+          }
+
+          if (writeEnvDefinitions && nextConfig.experimental?.typedEnv) {
+            // TODO: The call to propagateServerField 'loadEnvConfig' causes the env to be loaded twice on env file changes.
+            const loadEnvConfig = (
+              require('@next/env') as typeof import('@next/env')
+            ).loadEnvConfig
+            const { loadedEnvFiles } = loadEnvConfig(
+              dir,
+              process.env.NODE_ENV === 'development',
+              // Silent as it's the second time `loadEnvConfig` is called in this pass.
+              undefined,
+              true
+            )
+
+            const createEnvDefinitions = (
+              require('../experimental/create-env-definitions') as typeof import('../experimental/create-env-definitions')
+            ).createEnvDefinitions
+            await createEnvDefinitions({
+              distDir,
+              loadedEnvFiles: [
+                ...loadedEnvFiles,
+                {
+                  path: nextConfig.configFileName,
+                  env: nextConfig.env,
+                  contents: '',
+                },
+              ],
+            })
+          }
+
           const routeTypesManifest = await createRouteTypesManifest({
             dir,
             pageRoutes,
@@ -1114,10 +1178,6 @@ async function startWatcher(
         } else {
           Log.warn('Failed to reload dynamic routes:', e)
         }
-      } finally {
-        // Reload the matchers. The filesystem would have been written to,
-        // and the matchers need to re-scan it to update the router.
-        await propagateServerField(opts, 'reloadMatchers', undefined)
       }
     })
 
@@ -1165,6 +1225,9 @@ async function startWatcher(
     err: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
+    if (err instanceof Error) {
+      err.message = deobfuscateText(err.message)
+    }
     if (err instanceof ModuleBuildError) {
       // Errors that may come from issues from the user's code
       Log.error(err.message)
@@ -1227,8 +1290,8 @@ export async function setupDevBundler(opts: SetupOpts) {
   opts.telemetry.record({
     eventName: EVENT_BUILD_FEATURE_USAGE,
     payload: {
-      featureName: 'turbopackPersistentCaching',
-      invocationCount: isPersistentCachingEnabled(opts.nextConfig) ? 1 : 0,
+      featureName: 'turbopackFileSystemCache',
+      invocationCount: isFileSystemCacheEnabledForDev(opts.nextConfig) ? 1 : 0,
     },
   })
 

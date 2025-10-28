@@ -46,6 +46,7 @@ describe('create-next-app with package manager yarn', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         nextTgzFilename,
         {
@@ -75,6 +76,7 @@ describe('create-next-app with package manager yarn', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
         ],
         nextTgzFilename,
         {

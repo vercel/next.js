@@ -61,7 +61,7 @@ A promise that resolves to an object containing the [dynamic route parameters](/
 
 ```tsx filename="app/dashboard/[team]/layout.tsx" switcher
 export default async function Layout({
-  children
+  children,
   params,
 }: {
   children: React.ReactNode
@@ -90,7 +90,7 @@ export default async function Layout({ children, params }) {
 
 You can type layouts with `LayoutProps` to get a strongly typed `params` and named slots inferred from your directory structure. `LayoutProps` is a globally available helper.
 
-```tsx filename="app/dashboard/layout.tsx" switcher
+```tsx filename="app/dashboard/layout.tsx"
 export default function Layout(props: LayoutProps<'/dashboard'>) {
   return (
     <section>
@@ -105,6 +105,7 @@ export default function Layout(props: LayoutProps<'/dashboard'>) {
 > **Good to know**:
 >
 > - Types are generated during `next dev`, `next build` or `next typegen`.
+> - After type generation, the `LayoutProps` helper is globally available. It doesn't need to be imported.
 
 ### Root Layout
 

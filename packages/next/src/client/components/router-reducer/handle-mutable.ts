@@ -16,6 +16,7 @@ export function handleMutable(
   // shouldScroll is true by default, can override to false.
   const shouldScroll = mutable.shouldScroll ?? true
 
+  let previousNextUrl = state.previousNextUrl
   let nextUrl = state.nextUrl
 
   if (isNotUndefined(mutable.patchedTree)) {
@@ -23,6 +24,7 @@ export function handleMutable(
     const changedPath = computeChangedPath(state.tree, mutable.patchedTree)
     if (changedPath) {
       // If the tree changed, we need to update the nextUrl
+      previousNextUrl = nextUrl
       nextUrl = changedPath
     } else if (!nextUrl) {
       // if the tree ends up being the same (ie, no changed path), and we don't have a nextUrl, then we should use the canonicalUrl
@@ -33,11 +35,8 @@ export function handleMutable(
 
   return {
     // Set href.
-    canonicalUrl: isNotUndefined(mutable.canonicalUrl)
-      ? mutable.canonicalUrl === state.canonicalUrl
-        ? state.canonicalUrl
-        : mutable.canonicalUrl
-      : state.canonicalUrl,
+    canonicalUrl: mutable.canonicalUrl ?? state.canonicalUrl,
+    renderedSearch: mutable.renderedSearch ?? state.renderedSearch,
     pushRef: {
       pendingPush: isNotUndefined(mutable.pendingPush)
         ? mutable.pendingPush
@@ -76,13 +75,12 @@ export function handleMutable(
     },
     // Apply cache.
     cache: mutable.cache ? mutable.cache : state.cache,
-    prefetchCache: mutable.prefetchCache
-      ? mutable.prefetchCache
-      : state.prefetchCache,
     // Apply patched router state.
     tree: isNotUndefined(mutable.patchedTree)
       ? mutable.patchedTree
       : state.tree,
     nextUrl,
+    previousNextUrl: previousNextUrl,
+    debugInfo: mutable.collectedDebugInfo ?? null,
   }
 }

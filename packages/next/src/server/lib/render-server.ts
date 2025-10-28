@@ -4,6 +4,10 @@ import type { PropagateToWorkersField } from './router-utils/types'
 
 import next from '../next'
 import type { Span } from '../../trace'
+import type { ServerResponse } from 'http'
+import type { OnCacheEntryHandler } from '../request-meta'
+import { interopDefault } from '../../lib/interop-default'
+import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 
 export type ServerInitResult = {
   requestHandler: RequestHandler
@@ -103,8 +107,55 @@ async function initializeImpl(opts: {
     httpServer: opts.server,
     port: opts.port,
   }) as NextServer // should return a NextServer when `customServer: false`
-  requestHandler = server.getRequestHandler()
-  upgradeHandler = server.getUpgradeHandler()
+
+  // If we're in test mode and there's a debug cache entry handler available,
+  // then use it to wrap the request handler instead of using the default one.
+  if (
+    process.env.__NEXT_TEST_MODE &&
+    process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+  ) {
+    // This mirrors the sole implementation of this over in:
+    // test/production/standalone-mode/required-server-files/cache-entry-handler.js
+    const createOnCacheEntryHandlers = interopDefault(
+      await import(
+        formatDynamicImportPath(
+          opts.dir,
+          process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+        )
+      )
+    ) as (res: ServerResponse) => {
+      // TODO: remove onCacheEntry once onCacheEntryV2 is the default.
+      onCacheEntry: OnCacheEntryHandler
+      onCacheEntryV2: OnCacheEntryHandler
+    }
+
+    // This is not to be used in any environment other than testing, as it is
+    // not memoized and is subject to constant change.
+    requestHandler = async (req, res, parsedUrl) => {
+      // Re re-create the entry handler for each request. This is not
+      // performant, and is only used in testing environments.
+      const {
+        // TODO: remove onCacheEntry once onCacheEntryV2 is the default.
+        onCacheEntry,
+        onCacheEntryV2,
+      } = createOnCacheEntryHandlers(res)
+
+      // Get the request handler, using the entry handler as the metadata each
+      // request.
+      const handler = server.getRequestHandlerWithMetadata({
+        // TODO: remove onCacheEntry once onCacheEntryV2 is the default.
+        onCacheEntry,
+        onCacheEntryV2,
+      })
+
+      return handler(req, res, parsedUrl)
+    }
+
+    upgradeHandler = server.getUpgradeHandler()
+  } else {
+    requestHandler = server.getRequestHandler()
+    upgradeHandler = server.getUpgradeHandler()
+  }
 
   await server.prepare(opts.serverFields)
 

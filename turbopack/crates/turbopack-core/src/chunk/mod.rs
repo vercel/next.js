@@ -427,8 +427,8 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
 }
 
 pub struct ChunkGroupContent {
-    pub chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
-    pub batch_groups: FxIndexSet<ResolvedVc<ModuleBatchGroup>>,
+    pub chunkable_items: Vec<ChunkableModuleOrBatch>,
+    pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
     pub availability_info: AvailabilityInfo,
@@ -481,7 +481,6 @@ pub trait ChunkType: ValueToString {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
         batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
-        referenced_output_assets: Vc<OutputAssets>,
     ) -> Vc<Box<dyn Chunk>>;
 
     #[turbo_tasks::function]

@@ -1,7 +1,7 @@
 import type webpack from 'webpack'
 import type { SizeLimit } from '../../../../types'
 import type { PagesRouteModuleOptions } from '../../../../server/route-modules/pages/module'
-import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
@@ -90,7 +90,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       )
     }
 
-    const middlewareConfig: MiddlewareConfig = JSON.parse(
+    const middlewareConfig: ProxyConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
 

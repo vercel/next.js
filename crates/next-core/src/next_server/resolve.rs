@@ -1,7 +1,5 @@
-use std::sync::LazyLock;
-
 use anyhow::Result;
-use regex::Regex;
+use next_taskless::NEVER_EXTERNAL_RE;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
@@ -101,11 +99,6 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             return Ok(ResolveResultOption::none());
         };
 
-        // from https://github.com/vercel/next.js/blob/8d1c619ad650f5d147207f267441caf12acd91d1/packages/next/src/build/handle-externals.ts#L188
-        static NEVER_EXTERNAL_RE: LazyLock<Regex> = LazyLock::new(|| {
-            Regex::new("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|cache|document|link|form|head|image|legacy\\/image|constants|dynamic|script|navigation|headers|router|compat\\/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper$)").unwrap()
-        });
-
         let (Pattern::Constant(package), Pattern::Constant(package_subpath)) =
             (package, package_subpath)
         else {
@@ -189,7 +182,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // for .js extension in cjs context, we need to check the actual module type via
                     // package.json
                     let FindContextFileResult::Found(package_json, _) =
-                        &*find_context_file(fs_path.parent(), package_json()).await?
+                        &*find_context_file(fs_path.parent(), package_json(), false).await?
                     else {
                         // can't find package.json
                         return Ok(FileType::CommonJs);
@@ -290,10 +283,11 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         if result_from_original_location != result {
             let package_json_file =
-                find_context_file(result.ident().path().await?.parent(), package_json());
+                find_context_file(result.ident().path().await?.parent(), package_json(), false);
             let package_json_from_original_location = find_context_file(
                 result_from_original_location.ident().path().await?.parent(),
                 package_json(),
+                false,
             );
             let FindContextFileResult::Found(package_json_file, _) = &*package_json_file.await?
             else {
