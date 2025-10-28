@@ -3042,6 +3042,7 @@ impl From<Name> for Box<Expr> {
             optional,
         } in value.1.into_iter()
         {
+            #[allow(clippy::replace_box)]
             if is_member {
                 expr = Box::new(Expr::Member(MemberExpr {
                     span: DUMMY_SP,

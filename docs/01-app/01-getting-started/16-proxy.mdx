@@ -22,10 +22,7 @@ Some common scenarios where Proxy is effective include:
 - Rewriting to different pages based on A/B tests or experiments
 - Modifying headers for all pages or a subset of pages
 
-Proxy is _not_ a good fit for:
-
-- Slow data fetching
-- Session management
+Proxy is _not_ intended for slow data fetching. While Proxy can be helpful for [optimistic checks](/docs/app/guides/authentication#optimistic-checks-with-proxy-optional) such as permission-based redirects, it should not be used as a full session management or authorization solution.
 
 Using fetch with `options.cache`, `options.next.revalidate`, or `options.next.tags`, has no effect in Proxy.
 

@@ -33,6 +33,9 @@ export function getPrerenderOutput(
   const replaceNextDistStackFrame = () =>
     `at ${abc[a++ % abc.length]} (<next-dist-dir>)`
 
+  const isLikelyLibraryInternalStackFrame = (line: string) => {
+    return line.startsWith('    at InnerLayoutRouter (')
+  }
   const replaceAnonymousStackFrame = (_m, name) => {
     const deterministicName = hostElementsUsedInFixtures.includes(name)
       ? name
@@ -44,7 +47,32 @@ export function getPrerenderOutput(
   const replaceMinifiedName = () => `at ${abc[a++ % abc.length]} (`
   const replaceNumericModuleId = () => `at ${n++} (`
 
+  let isErrorWithStackTraceStartingInLibraryInternals = false
   for (let line of cliOutput.split('\n')) {
+    if (
+      !isErrorWithStackTraceStartingInLibraryInternals &&
+      isLikelyLibraryInternalStackFrame(line)
+    ) {
+      isErrorWithStackTraceStartingInLibraryInternals = true
+      lines.push('    at <FIXME-library-internal>')
+      continue
+    }
+    if (isErrorWithStackTraceStartingInLibraryInternals) {
+      if (
+        // stackframe
+        line.startsWith('    at ') ||
+        // codeframe
+        /^ {2}\d+ \|/.test(line) ||
+        // codeframe cursor for callsite
+        /^> \d+ \|/.test(line) ||
+        /^\s+\|/.test(line)
+      ) {
+        // still an error with a stack trace starting in library internals
+        continue
+      } else {
+        isErrorWithStackTraceStartingInLibraryInternals = false
+      }
+    }
     if (line.includes('Collecting page data')) {
       foundPrerenderingLine = true
       continue
