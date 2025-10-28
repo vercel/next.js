@@ -5,7 +5,7 @@ use anyhow::{Result, anyhow};
 use crate::{
     MagicAny, OutputContent, RawVc, TaskPersistence, TraitMethod, TurboTasksBackendApi,
     ValueTypeId,
-    backend::{Backend, TaskExecutionSpec, TypedCellContent},
+    backend::{Backend, TypedCellContent},
     event::Event,
     macro_helpers::NativeFunction,
     registry,
@@ -15,43 +15,6 @@ use crate::{
 pub enum LocalTask {
     Scheduled { done_event: Event },
     Done { output: OutputContent },
-}
-
-pub fn get_local_task_execution_spec<'a>(
-    turbo_tasks: &'_ dyn TurboTasksBackendApi<impl Backend + 'static>,
-    ty: &'a LocalTaskSpec,
-    // if this is a `LocalTaskType::Resolve*`, we'll spawn another task with this persistence, if
-    // this is a `LocalTaskType::Native`, this refers to the parent non-local task.
-    persistence: TaskPersistence,
-) -> TaskExecutionSpec<'a> {
-    match ty.task_type {
-        LocalTaskType::ResolveNative { native_fn } => {
-            let span = native_fn.resolve_span();
-            let entered = span.enter();
-            let future = Box::pin(LocalTaskType::run_resolve_native(
-                native_fn,
-                ty.this,
-                &*ty.arg,
-                persistence,
-                turbo_tasks.pin(),
-            ));
-            drop(entered);
-            TaskExecutionSpec { future, span }
-        }
-        LocalTaskType::ResolveTrait { trait_method } => {
-            let span = trait_method.resolve_span();
-            let entered = span.enter();
-            let future = Box::pin(LocalTaskType::run_resolve_trait(
-                trait_method,
-                ty.this.unwrap(),
-                &*ty.arg,
-                persistence,
-                turbo_tasks.pin(),
-            ));
-            drop(entered);
-            TaskExecutionSpec { future, span }
-        }
-    }
 }
 
 pub struct LocalTaskSpec {
@@ -90,7 +53,7 @@ impl fmt::Display for LocalTaskType {
 impl LocalTaskType {
     /// Implementation of the LocalTaskType::ResolveNative task.
     /// Resolves all the task inputs and then calls the given function.
-    async fn run_resolve_native<B: Backend + 'static>(
+    pub(crate) async fn run_resolve_native<B: Backend + 'static>(
         native_fn: &'static NativeFunction,
         mut this: Option<RawVc>,
         arg: &dyn MagicAny,
@@ -104,7 +67,7 @@ impl LocalTaskType {
         Ok(turbo_tasks.native_call(native_fn, this, arg, persistence))
     }
     /// Implementation of the LocalTaskType::ResolveTrait task.
-    async fn run_resolve_trait<B: Backend + 'static>(
+    pub(crate) async fn run_resolve_trait<B: Backend + 'static>(
         trait_method: &'static TraitMethod,
         this: RawVc,
         arg: &dyn MagicAny,

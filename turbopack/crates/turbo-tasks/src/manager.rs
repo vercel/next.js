@@ -795,23 +795,40 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
         let this = self.pin();
         let future = async move {
-            let TaskExecutionSpec { future, span } =
-                crate::task::local_task::get_local_task_execution_spec(&*this, &ty, persistence);
+            let span = match &ty.task_type {
+                LocalTaskType::ResolveNative { native_fn } => native_fn.resolve_span(),
+                LocalTaskType::ResolveTrait { trait_method } => trait_method.resolve_span(),
+            };
             async move {
-                let result = CaptureFuture::new(future).await;
-
-                let result = match result {
-                    Ok(Ok(raw_vc)) => Ok(raw_vc),
-                    Ok(Err(err)) => Err(err.into()),
-                    Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
+                let result = match ty.task_type {
+                    LocalTaskType::ResolveNative { native_fn } => {
+                        LocalTaskType::run_resolve_native(
+                            native_fn,
+                            ty.this,
+                            &*ty.arg,
+                            persistence,
+                            this,
+                        )
+                        .await
+                    }
+                    LocalTaskType::ResolveTrait { trait_method } => {
+                        LocalTaskType::run_resolve_trait(
+                            trait_method,
+                            ty.this.unwrap(),
+                            &*ty.arg,
+                            persistence,
+                            this,
+                        )
+                        .await
+                    }
                 };
 
-                let local_task = LocalTask::Done {
-                    output: match result {
-                        Ok(raw_vc) => OutputContent::Link(raw_vc),
-                        Err(err) => OutputContent::Error(err.with_task_context(task_type)),
-                    },
+                let output = match result {
+                    Ok(raw_vc) => OutputContent::Link(raw_vc),
+                    Err(err) => OutputContent::Error(triomphe::Arc::new(err)),
                 };
+
+                let local_task = LocalTask::Done { output };
 
                 let done_event = CURRENT_TASK_STATE.with(move |gts| {
                     let mut gts_write = gts.write().unwrap();

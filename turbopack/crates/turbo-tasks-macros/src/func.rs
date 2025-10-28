@@ -760,8 +760,7 @@ impl Parse for FunctionArguments {
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
-                        "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         \"local\"",
+                        "unexpected token, expected one of: \"fs\", \"network\", or \"operation\"",
                     ));
                 }
             }
