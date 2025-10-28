@@ -1239,6 +1239,10 @@ impl FileSystemPath {
         self.path.is_empty()
     }
 
+    pub fn is_in_node_modules(&self) -> bool {
+        self.path.starts_with("node_modules/") || self.path.contains("/node_modules/")
+    }
+
     /// Returns the path of `inner` relative to `self`.
     ///
     /// Note: this method always strips the leading `/` from the result.

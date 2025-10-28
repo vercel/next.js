@@ -1965,7 +1965,9 @@ export default async function getBaseWebpackConfig(
     plugins: [
       // In prod Webpack will already have a runtime for all reachable chunks.
       // During dev, it will update the runtime as chunks come in which may be too late for Flight.
-      dev && new ForceCompleteRuntimePlugin(),
+      //
+      // TODO: Rspack currently does not support the hooks and chunk methods required by ForceCompleteRuntimePlugin.
+      dev && !isRspack && new ForceCompleteRuntimePlugin(),
       isNodeServer &&
         new bundler.NormalModuleReplacementPlugin(
           /\.\/(.+)\.shared-runtime$/,
