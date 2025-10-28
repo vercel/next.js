@@ -1,8 +1,15 @@
 {
-  // Formatting using Prettier by default for all languages
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  // Formatting using Prettier for JavaScript, overrides VSCode default.
+  "oxc.fmt.experimental": true,
+  "oxc.fmt.configPath": ".prettierrc.json",
+  "oxc.enable": false,
+  "oxc.requireConfig": true,
+  // Formatting using oxfmt by default for all languages
+   "editor.defaultFormatter": "oxc.oxc-vscode",
+  // Formatting using oxfmt for JavaScript, overrides VSCode default.
   "[javascript]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[mdx]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   // Formatting using Rust-Analyzer for Rust.
