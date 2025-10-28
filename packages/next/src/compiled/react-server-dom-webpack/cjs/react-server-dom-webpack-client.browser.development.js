@@ -1542,13 +1542,24 @@
             var listener = resolveListeners[i];
             if ("function" !== typeof listener) {
               var cyclicHandler = resolveBlockedCycle(chunk, listener);
-              null !== cyclicHandler &&
-                (fulfillReference(listener, cyclicHandler.value, chunk),
-                resolveListeners.splice(i, 1),
-                i--,
-                null !== rejectListeners &&
-                  ((listener = rejectListeners.indexOf(listener)),
-                  -1 !== listener && rejectListeners.splice(listener, 1)));
+              if (null !== cyclicHandler)
+                switch (
+                  (fulfillReference(listener, cyclicHandler.value, chunk),
+                  resolveListeners.splice(i, 1),
+                  i--,
+                  null !== rejectListeners &&
+                    ((listener = rejectListeners.indexOf(listener)),
+                    -1 !== listener && rejectListeners.splice(listener, 1)),
+                  chunk.status)
+                ) {
+                  case "fulfilled":
+                    wakeChunk(resolveListeners, chunk.value, chunk);
+                    return;
+                  case "rejected":
+                    null !== rejectListeners &&
+                      rejectChunk(rejectListeners, chunk.reason);
+                    return;
+                }
             }
           }
         case "pending":
@@ -4925,10 +4936,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-6160773f-20251023",
+      version: "19.3.0-canary-b4455a6e-20251027",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-6160773f-20251023",
+      reconcilerVersion: "19.3.0-canary-b4455a6e-20251027",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
