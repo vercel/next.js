@@ -1241,7 +1241,6 @@ macro_rules! get_node_idx {
         }
     }};
 }
-pub(crate) use get_node_idx;
 
 impl ModuleGraph {
     pub async fn read_graphs(self: Vc<ModuleGraph>) -> Result<ModuleGraphRef> {

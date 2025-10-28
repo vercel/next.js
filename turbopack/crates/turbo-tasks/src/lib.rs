@@ -33,7 +33,6 @@
 #![feature(error_generic_member_access)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(new_zeroed_alloc)]
 #![feature(never_type)]
 #![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
