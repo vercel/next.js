@@ -24,7 +24,7 @@ turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/browserify-ug
 turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/browserify/input.js
 # () wrapper removed
 turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/webpack-wrapper-name/mangled.js
- # () wrapper removed
+# () wrapper removed
 turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/webpack-wrapper-null/mangled.js
 # inline comment moved to new line
 turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/webpack-wrapper-strs-namespaces-large/input.js
