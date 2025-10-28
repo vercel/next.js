@@ -23,7 +23,7 @@ import {
   type FulfilledSegmentCacheEntry,
   upgradeToPendingSegment,
   waitForSegmentCacheEntry,
-  resetRevalidatingSegmentEntry,
+  overwriteRevalidatingSegmentCacheEntry,
   getGenericSegmentKeypathFromFetchStrategy,
   canNewFetchStrategyProvideMoreContent,
   type SegmentCacheKeypath,
@@ -1265,7 +1265,6 @@ function pingRouteTreeAndIncludeDynamicData(
         spawnedSegment = pingFullSegmentRevalidation(
           now,
           route,
-          segment,
           tree,
           fetchStrategy
         )
@@ -1285,7 +1284,6 @@ function pingRouteTreeAndIncludeDynamicData(
         spawnedSegment = pingFullSegmentRevalidation(
           now,
           route,
-          segment,
           tree,
           fetchStrategy
         )
@@ -1421,7 +1419,7 @@ function pingStaticSegmentData(
           if (background(task)) {
             // TODO: Instead of speculatively revalidating, consider including
             // `hasLoading` in the route tree prefetch response.
-            pingPPRSegmentRevalidation(now, segment, route, routeKey, tree)
+            pingPPRSegmentRevalidation(now, route, routeKey, tree)
           }
           break
         default:
@@ -1449,7 +1447,7 @@ function pingStaticSegmentData(
           // Because a rejected segment will definitely prevent the segment (and
           // all of its children) from rendering, we perform this revalidation
           // immediately instead of deferring it to a background task.
-          pingPPRSegmentRevalidation(now, segment, route, routeKey, tree)
+          pingPPRSegmentRevalidation(now, route, routeKey, tree)
           break
         default:
           segment.fetchStrategy satisfies never
@@ -1470,14 +1468,15 @@ function pingStaticSegmentData(
 
 function pingPPRSegmentRevalidation(
   now: number,
-  currentSegment: SegmentCacheEntry,
   route: FulfilledRouteCacheEntry,
   routeKey: RouteCacheKey,
   tree: RouteTree
 ): void {
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
     now,
-    currentSegment
+    FetchStrategy.PPR,
+    route,
+    tree.cacheKey
   )
   switch (revalidatingSegment.status) {
     case EntryStatus.Empty:
@@ -1516,13 +1515,14 @@ function pingPPRSegmentRevalidation(
 function pingFullSegmentRevalidation(
   now: number,
   route: FulfilledRouteCacheEntry,
-  currentSegment: SegmentCacheEntry,
   tree: RouteTree,
   fetchStrategy: FetchStrategy.Full | FetchStrategy.PPRRuntime
 ): PendingSegmentCacheEntry | null {
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
     now,
-    currentSegment
+    fetchStrategy,
+    route,
+    tree.cacheKey
   )
   if (revalidatingSegment.status === EntryStatus.Empty) {
     // During a Full/PPRRuntime prefetch, a single dynamic request is made for all the
@@ -1554,8 +1554,10 @@ function pingFullSegmentRevalidation(
     ) {
       // The existing revalidation was fetched using a less specific strategy.
       // Reset it and start a new revalidation.
-      const emptySegment = resetRevalidatingSegmentEntry(
-        nonEmptyRevalidatingSegment
+      const emptySegment = overwriteRevalidatingSegmentCacheEntry(
+        fetchStrategy,
+        route,
+        tree.cacheKey
       )
       const pendingSegment = upgradeToPendingSegment(
         emptySegment,

@@ -58,7 +58,6 @@ import {
 import {
   createCacheMap,
   getFromCacheMap,
-  getRevalidatingValueFromCacheMap,
   setInCacheMap,
   setSizeInCacheMap,
   deleteFromCacheMap,
@@ -159,7 +158,6 @@ type RouteCacheEntryShared = {
   size: number
   staleAt: number
   version: number
-  revalidating: RouteCacheEntry | null
 }
 
 /**
@@ -220,7 +218,6 @@ type SegmentCacheEntryShared = {
   size: number
   staleAt: number
   version: number
-  revalidating: SegmentCacheEntry | null
 }
 
 export type EmptySegmentCacheEntry = SegmentCacheEntryShared & {
@@ -400,7 +397,14 @@ export function readRouteCacheEntry(
   key: RouteCacheKey
 ): RouteCacheEntry | null {
   const keypath: RouteCacheKeypath = [key.pathname, key.search, key.nextUrl]
-  return getFromCacheMap(now, getCurrentCacheVersion(), routeCacheMap, keypath)
+  const isRevalidation = false
+  return getFromCacheMap(
+    now,
+    getCurrentCacheVersion(),
+    routeCacheMap,
+    keypath,
+    isRevalidation
+  )
 }
 
 export function getCanonicalSegmentKeypath(
@@ -453,19 +457,28 @@ export function readSegmentCacheEntry(
   now: number,
   keypath: SegmentCacheKeypath
 ): SegmentCacheEntry | null {
+  const isRevalidation = false
   return getFromCacheMap(
     now,
     getCurrentCacheVersion(),
     segmentCacheMap,
-    keypath
+    keypath,
+    isRevalidation
   )
 }
 
 function readRevalidatingSegmentCacheEntry(
   now: number,
-  owner: SegmentCacheEntry
+  keypath: SegmentCacheKeypath
 ): SegmentCacheEntry | null {
-  return getRevalidatingValueFromCacheMap(now, getCurrentCacheVersion(), owner)
+  const isRevalidation = true
+  return getFromCacheMap(
+    now,
+    getCurrentCacheVersion(),
+    segmentCacheMap,
+    keypath,
+    isRevalidation
+  )
 }
 
 export function waitForSegmentCacheEntry(
@@ -524,10 +537,10 @@ export function readOrCreateRouteCacheEntry(
     // be updated when the data is populated.
     staleAt: Infinity,
     version: getCurrentCacheVersion(),
-    revalidating: null,
   }
   const keypath: RouteCacheKeypath = [key.pathname, key.search, key.nextUrl]
-  setInCacheMap(routeCacheMap, keypath, pendingEntry)
+  const isRevalidation = false
+  setInCacheMap(routeCacheMap, keypath, pendingEntry, isRevalidation)
   return pendingEntry
 }
 
@@ -671,7 +684,6 @@ export function requestOptimisticRouteCacheEntry(
     size: 0,
     staleAt: routeWithNoSearchParams.staleAt,
     version: routeWithNoSearchParams.version,
-    revalidating: null,
   }
 
   // Do not insert this entry into the cache. It only exists so we can
@@ -701,14 +713,37 @@ export function readOrCreateSegmentCacheEntry(
     cacheKey
   )
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
-  setInCacheMap(segmentCacheMap, genericKeypath, pendingEntry)
+  const isRevalidation = false
+  setInCacheMap(segmentCacheMap, genericKeypath, pendingEntry, isRevalidation)
   return pendingEntry
 }
 
 export function readOrCreateRevalidatingSegmentEntry(
   now: number,
-  prevEntry: SegmentCacheEntry
+  fetchStrategy: FetchStrategy,
+  route: FulfilledRouteCacheEntry,
+  cacheKey: SegmentCacheKey
 ): SegmentCacheEntry {
+  // This function is called when we've already confirmed that a particular
+  // segment is cached, but we want to perform another request anyway in case it
+  // returns more complete and/or fresher data than we already have. The logic
+  // for deciding whether to replace the existing entry is handled elsewhere;
+  // this function just handles retrieving a cache entry that we can use to
+  // track the revalidation.
+  //
+  // The reason revalidations are stored in the cache is because we need to be
+  // able to dedupe multiple revalidation requests. The reason they have to be
+  // handled specially is because we shouldn't overwrite a "normal" entry if
+  // one exists at the same keypath. So, for each internal cache location, there
+  // is a special "revalidation" slot that is used solely for this purpose.
+  //
+  // You can think of it as if all the revalidation entries were stored in a
+  // separate cache map from the canonical entries, and then transfered to the
+  // canonical cache map once the request is complete — this isn't how it's
+  // actually implemented, since it's more efficient to store them in the same
+  // data structure as the normal entries, but that's how it's modeled
+  // conceptually.
+
   // TODO: Once we implement Fallback behavior for params, where an entry is
   // re-keyed based on response information, we'll need to account for the
   // possibility that the keypath of the previous entry is more generic than
@@ -716,24 +751,39 @@ export function readOrCreateRevalidatingSegmentEntry(
   // return a less generic entry upon revalidation. For now, though, this isn't
   // a concern because the keypath is based solely on the prefetch strategy,
   // not on data contained in the response.
-  const existingRevalidation = readRevalidatingSegmentCacheEntry(now, prevEntry)
-  if (existingRevalidation !== null) {
-    return existingRevalidation
+  const canonicalKeypath = getCanonicalSegmentKeypath(route, cacheKey)
+  const existingEntry = readRevalidatingSegmentCacheEntry(now, canonicalKeypath)
+  if (existingEntry !== null) {
+    return existingEntry
   }
-  const pendingEntry = createDetachedSegmentCacheEntry(prevEntry.staleAt)
+  // Create a pending entry and add it to the cache.
+  const genericKeypath = getGenericSegmentKeypathFromFetchStrategy(
+    fetchStrategy,
+    route,
+    cacheKey
+  )
+  const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
+  const isRevalidation = true
+  setInCacheMap(segmentCacheMap, genericKeypath, pendingEntry, isRevalidation)
+  return pendingEntry
+}
 
-  // Background revalidations are not stored directly in the cache map or LRU;
-  // they're stashed on the entry that they will (potentially) replace.
-  //
-  // Note that we don't actually ever clear this field, except when the entry
-  // expires. When the revalidation finishes, one of two things will happen:
-  //
-  //  1) the revalidation is successful, `prevEntry` is removed from the cache
-  //     and garbage collected (so there's no point clearing any of its fields)
-  //  2) the revalidation fails, and we'll use the `revalidating` field to
-  //     prevent subsequent revalidation attempts, until it expires.
-  prevEntry.revalidating = pendingEntry
-
+export function overwriteRevalidatingSegmentCacheEntry(
+  fetchStrategy: FetchStrategy,
+  route: FulfilledRouteCacheEntry,
+  cacheKey: SegmentCacheKey
+) {
+  // This function is called when we've already decided to replace an existing
+  // revalidation entry. Create a new entry and write it into the cache,
+  // overwriting the previous value.
+  const genericKeypath = getGenericSegmentKeypathFromFetchStrategy(
+    fetchStrategy,
+    route,
+    cacheKey
+  )
+  const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
+  const isRevalidation = true
+  setInCacheMap(segmentCacheMap, genericKeypath, pendingEntry, isRevalidation)
   return pendingEntry
 }
 
@@ -771,11 +821,11 @@ export function upsertSegmentEntry(
       // (TODO: can this be true if `candidateEntry.fetchStrategy >= existingEntry.fetchStrategy`?)
       (!existingEntry.isPartial && candidateEntry.isPartial)
     ) {
-      // We're going to leave the entry on the owner's `revalidating` field
-      // so that it doesn't get revalidated again unnecessarily. Downgrade the
-      // Fulfilled entry to Rejected and null out the data so it can be garbage
-      // collected. We leave `staleAt` intact to prevent subsequent revalidation
-      // attempts only until the entry expires.
+      // We're going to leave revalidating entry in the cache so that it doesn't
+      // get revalidated again unnecessarily. Downgrade the Fulfilled entry to
+      // Rejected and null out the data so it can be garbage collected. We leave
+      // `staleAt` intact to prevent subsequent revalidation attempts only until
+      // the entry expires.
       const rejectedEntry: RejectedSegmentCacheEntry = candidateEntry as any
       rejectedEntry.status = EntryStatus.Rejected
       rejectedEntry.loading = null
@@ -786,7 +836,9 @@ export function upsertSegmentEntry(
     // Evict the existing entry from the cache.
     deleteFromCacheMap(existingEntry)
   }
-  setInCacheMap(segmentCacheMap, keypath, candidateEntry)
+
+  const isRevalidation = false
+  setInCacheMap(segmentCacheMap, keypath, candidateEntry, isRevalidation)
   return candidateEntry
 }
 
@@ -808,7 +860,6 @@ export function createDetachedSegmentCacheEntry(
     size: 0,
     staleAt,
     version: 0,
-    revalidating: null,
   }
   return emptyEntry
 }
@@ -827,39 +878,6 @@ export function upgradeToPendingSegment(
   // before the data is read on the server.
   pendingEntry.version = getCurrentCacheVersion()
   return pendingEntry
-}
-
-function clearRevalidatingSegmentFromOwner(owner: SegmentCacheEntry): void {
-  // Revalidating segments are not stored in the cache directly; they're
-  // stored as a field on the entry that they will (potentially) replace. So
-  // to dispose of an existing revalidation, we just need to null out the field
-  // on the owner.
-  const revalidatingSegment = owner.revalidating
-  if (revalidatingSegment !== null) {
-    cancelEntryListeners(revalidatingSegment)
-    owner.revalidating = null
-  }
-}
-
-export function resetRevalidatingSegmentEntry(
-  owner: SegmentCacheEntry
-): EmptySegmentCacheEntry {
-  clearRevalidatingSegmentFromOwner(owner)
-  const emptyEntry = createDetachedSegmentCacheEntry(owner.staleAt)
-  owner.revalidating = emptyEntry
-  return emptyEntry
-}
-
-function cancelEntryListeners(entry: SegmentCacheEntry): void {
-  if (entry.status === EntryStatus.Pending && entry.promise !== null) {
-    // There were listeners for this entry. Resolve them with `null` to indicate
-    // that the prefetch failed. It's up to the listener to decide how to handle
-    // this case.
-    // NOTE: We don't currently propagate the reason the prefetch was canceled
-    // but we could by accepting a `reason` argument.
-    entry.promise.resolve(null)
-    entry.promise = null
-  }
 }
 
 function pingBlockedTasks(entry: {
@@ -1435,7 +1453,8 @@ export async function fetchRouteOnCacheMiss(
       // exists at the new keypath, and if so, whether we should keep that
       // one instead.
       const newKeypath: RouteCacheKeypath = [pathname, search, Fallback]
-      setInCacheMap(routeCacheMap, newKeypath, entry)
+      const isRevalidation = false
+      setInCacheMap(routeCacheMap, newKeypath, entry, isRevalidation)
     }
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.

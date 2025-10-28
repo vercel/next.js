@@ -74,7 +74,6 @@ type EmptyMapEntry<
   V extends MapValue,
 > = MapEntryShared<K, V> & {
   value: null
-  hasValue: false
 }
 
 type FullMapEntry<
@@ -82,7 +81,6 @@ type FullMapEntry<
   V extends MapValue,
 > = MapEntryShared<K, V> & {
   value: V
-  hasValue: true
 }
 
 export type MapEntry<K extends readonly unknown[], V extends MapValue> =
@@ -104,7 +102,6 @@ export interface MapValue {
   size: number
   staleAt: number
   version: number
-  revalidating: MapValue | null
 }
 
 type KeyWithFallback<K extends readonly unknown[]> = {
@@ -114,6 +111,10 @@ type KeyWithFallback<K extends readonly unknown[]> = {
 export type FallbackType = { __brand: 'Fallback' }
 export const Fallback = {} as FallbackType
 
+// This is a special internal key that is used for "revalidation" entries. It's
+// an implementation detail that shouldn't leak outside of this module.
+const Revalidation = {}
+
 export function createCacheMap<
   Keypath extends Array<any>,
   V extends MapValue,
@@ -121,7 +122,6 @@ export function createCacheMap<
   let cacheMap: MapEntry<Keypath, V> = {
     parent: null,
     key: null,
-    hasValue: false,
     value: null,
     map: null,
 
@@ -135,7 +135,8 @@ export function createCacheMap<
 
 function getOrInitialize<K extends readonly unknown[], V extends MapValue>(
   cacheMap: CacheMap<K, V>,
-  keys: K
+  keys: K,
+  isRevalidation: boolean
 ): MapEntry<K, V> {
   // Go through each level of keys until we find the entry that matches, or
   // create a new entry if one doesn't exist.
@@ -144,8 +145,30 @@ function getOrInitialize<K extends readonly unknown[], V extends MapValue>(
   // Unlike getWithFallback, it will not access fallback entries unless it's
   // explicitly part of the keypath.
   let entry = cacheMap
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i]
+  let i = 0
+  while (true) {
+    let key
+    if (i < keys.length) {
+      key = keys[i]
+    } else if (isRevalidation && i === keys.length) {
+      // During a revalidation, we append an internal "Revalidation" key to
+      // the end of the keypath. The "normal" entry is its parent.
+
+      // However, if the parent entry is currently empty, we don't need to store
+      // this as a revalidation entry. Just insert the revalidation into the
+      // normal slot.
+      if (entry.value === null) {
+        return entry
+      }
+
+      // Otheriwse, create a child entry.
+      key = Revalidation
+    } else {
+      // There are no more keys. This is the terminal entry.
+      break
+    }
+    i++
+
     let map = entry.map
     if (map !== null) {
       const existingEntry = map.get(key)
@@ -163,7 +186,6 @@ function getOrInitialize<K extends readonly unknown[], V extends MapValue>(
       parent: entry,
       key,
       value: null,
-      hasValue: false,
       map: null,
 
       // LRU-related fields
@@ -185,37 +207,23 @@ export function getFromCacheMap<
   now: number,
   currentCacheVersion: number,
   rootEntry: CacheMap<K, V>,
-  keys: KeyWithFallback<K>
+  keys: KeyWithFallback<K>,
+  isRevalidation: boolean
 ): V | null {
   const entry = getEntryWithFallbackImpl(
     now,
     currentCacheVersion,
     rootEntry,
     keys,
+    isRevalidation,
     0
   )
-  if (entry === null || !entry.hasValue) {
+  if (entry === null || entry.value === null) {
     return null
   }
   // This is an LRU access. Move the entry to the front of the list.
   lruPut(entry)
   return entry.value
-}
-
-export function getRevalidatingValueFromCacheMap<V extends MapValue>(
-  now: number,
-  currentCacheVersion: number,
-  value: V
-): V | null {
-  // TODO: Move the rest of the "revalidating" logic into this module.
-  const revalidating = value.revalidating
-  if (
-    revalidating !== null &&
-    !isValueExpired(now, currentCacheVersion, revalidating)
-  ) {
-    return revalidating as V
-  }
-  return null
 }
 
 export function isValueExpired<V extends MapValue>(
@@ -234,7 +242,7 @@ function lazilyEvictIfNeeded<K extends readonly unknown[], V extends MapValue>(
   // We have a matching entry, but before we can return it, we need to check if
   // it's still fresh. Otherwise it should be treated the same as a cache miss.
 
-  if (!entry.hasValue) {
+  if (entry.value === null) {
     // This entry has no value, so there's nothing to evict.
     return entry
   }
@@ -243,7 +251,6 @@ function lazilyEvictIfNeeded<K extends readonly unknown[], V extends MapValue>(
   if (isValueExpired(now, currentCacheVersion, value)) {
     // The value expired. Lazily evict it from the cache, and return null. This
     // is conceptually the same as a cache miss.
-    // TODO: If there's a revalidating entry, upsert it here.
     deleteMapEntry(entry)
     return null
   }
@@ -260,6 +267,7 @@ function getEntryWithFallbackImpl<
   currentCacheVersion: number,
   entry: MapEntry<K, V>,
   keys: K,
+  isRevalidation: boolean,
   index: number
 ): MapEntry<K, V> | null {
   // This is similar to getExactEntry, but if an exact match is not found for
@@ -268,7 +276,14 @@ function getEntryWithFallbackImpl<
   // valid match for [a, b, c, d].
   //
   // It will return the most specific match available.
-  if (index >= keys.length) {
+  let key
+  if (index < keys.length) {
+    key = keys[index]
+  } else if (isRevalidation && index === keys.length) {
+    // During a revalidation, we append an internal "Revalidation" key to
+    // the end of the keypath.
+    key = Revalidation
+  } else {
     // There are no more keys. This is the terminal entry.
 
     // TODO: When performing a lookup during a navigation, as opposed to a
@@ -279,7 +294,6 @@ function getEntryWithFallbackImpl<
 
     return lazilyEvictIfNeeded(now, currentCacheVersion, entry)
   }
-  const key = keys[index]
   const map = entry.map
   if (map !== null) {
     const existingEntry = map.get(key)
@@ -290,6 +304,7 @@ function getEntryWithFallbackImpl<
         currentCacheVersion,
         existingEntry,
         keys,
+        isRevalidation,
         index + 1
       )
       if (result !== null) {
@@ -305,6 +320,7 @@ function getEntryWithFallbackImpl<
         currentCacheVersion,
         fallbackEntry,
         keys,
+        isRevalidation,
         index + 1
       )
     }
@@ -315,12 +331,13 @@ function getEntryWithFallbackImpl<
 export function setInCacheMap<K extends readonly unknown[], V extends MapValue>(
   cacheMap: CacheMap<K, V>,
   keys: K,
-  value: V
+  value: V,
+  isRevalidation: boolean
 ): void {
   // Add a value to the map at the given keypath. If the value is already
   // part of the map, it's removed from its previous keypath. (NOTE: This is
   // unlike a regular JS map, but the behavior is intentional.)
-  const entry = getOrInitialize(cacheMap, keys)
+  const entry = getOrInitialize(cacheMap, keys, isRevalidation)
   setMapEntryValue(entry, value)
 
   // This is an LRU access. Move the entry to the front of the list.
@@ -332,7 +349,7 @@ function setMapEntryValue<K extends readonly unknown[], V extends MapValue>(
   entry: MapEntry<K, V>,
   value: V
 ): void {
-  if (entry.hasValue) {
+  if (entry.value !== null) {
     // There's already a value at the given keypath. Disconnect the old value
     // from the map. We're not calling `deleteMapEntry` here because the
     // entry itself is still in the map. We just want to overwrite its value.
@@ -340,7 +357,6 @@ function setMapEntryValue<K extends readonly unknown[], V extends MapValue>(
 
     // Fill the entry with the updated value.
     const emptyEntry: EmptyMapEntry<K, V> = entry as any
-    emptyEntry.hasValue = false
     emptyEntry.value = null
     fillEmptyReference(emptyEntry, value)
   } else {
@@ -357,13 +373,12 @@ function fillEmptyReference<K extends readonly unknown[], V extends MapValue>(
   const oldEntry = value.ref
 
   const fullEntry: FullMapEntry<K, V> = entry as any
-  fullEntry.hasValue = true
   fullEntry.value = value
   value.ref = fullEntry
 
   updateLruSize(fullEntry, value.size)
 
-  if (oldEntry !== null && oldEntry !== entry && oldEntry.hasValue) {
+  if (oldEntry !== null && oldEntry !== entry && oldEntry.value === value) {
     // This value is already in the map at a different keypath in the map.
     // Values only exist at a single keypath at a time. Remove it from the
     // previous keypath.
@@ -399,13 +414,13 @@ function deleteMapEntry<K extends readonly unknown[], V extends MapValue>(
 ): void {
   // Delete the entry from the cache.
   const emptyEntry: EmptyMapEntry<K, V> = entry as any
-  emptyEntry.hasValue = false
   emptyEntry.value = null
 
   deleteFromLru(entry)
 
   // Check if we can garbage collect the entry.
-  if (emptyEntry.map === null) {
+  const map = emptyEntry.map
+  if (map === null) {
     // Since this entry has no value, and also no child entries, we can
     // garbage collect it. Remove it from its parent, and keep garbage
     // collecting the parents until we reach a non-empty entry.
@@ -418,7 +433,7 @@ function deleteMapEntry<K extends readonly unknown[], V extends MapValue>(
         if (parentMap.size === 0) {
           // We just removed the last entry in the parent map.
           parent.map = null
-          if (!parent.hasValue) {
+          if (parent.value === null) {
             // The parent node has no child entries, nor does it have a value
             // on itself. It can be garbage collected. Keep going.
             key = parent.key
@@ -429,6 +444,13 @@ function deleteMapEntry<K extends readonly unknown[], V extends MapValue>(
       }
       // The parent is not empty. Stop garbage collecting.
       break
+    }
+  } else {
+    // Check if there's a revalidating entry. If so, promote it to a
+    // "normal" entry, since the normal one was just deleted.
+    const revalidatingEntry = map.get(Revalidation)
+    if (revalidatingEntry !== undefined && revalidatingEntry.value !== null) {
+      setMapEntryValue(emptyEntry, revalidatingEntry.value)
     }
   }
 }
