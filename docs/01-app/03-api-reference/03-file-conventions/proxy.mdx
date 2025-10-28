@@ -622,25 +622,15 @@ export const config = {
 
 > **Good to know**:
 >
-<<<<<<< HEAD:docs/01-app/03-api-reference/03-file-conventions/middleware.mdx
-> - Even when `_next/data` is excluded in a negative matcher pattern, middleware will still be invoked for `_next/data` routes. This is intentional behavior to prevent accidental security issues where you might protect a page but forget to protect the corresponding data route.
->
-> ```js filename="middleware.js"
-=======
 > - Even when `_next/data` is excluded in a negative matcher pattern, proxy will still be invoked for `_next/data` routes. This is intentional behavior to prevent accidental security issues where you might protect a page but forget to protect the corresponding data route.
 >
 > ```js filename="proxy.js"
->>>>>>> canary:docs/01-app/03-api-reference/03-file-conventions/proxy.mdx
 > export const config = {
 >   matcher:
 >     "/((?!api|_next/data|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
 > };
 >
-<<<<<<< HEAD:docs/01-app/03-api-reference/03-file-conventions/middleware.mdx
-> // Middleware will still run for /_next/data/* routes despite being excluded
-=======
 > // Proxy will still run for /_next/data/* routes despite being excluded
->>>>>>> canary:docs/01-app/03-api-reference/03-file-conventions/proxy.mdx
 > ```
 
 ### `waitUntil` and `NextFetchEvent`
