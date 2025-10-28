@@ -147,7 +147,9 @@ export const fetchCache = 'auto'
 
 ### `runtime`
 
-We recommend using the Node.js runtime for rendering your application, and the Edge runtime for Proxy.
+We recommend using the Node.js runtime for rendering your application. This option cannot be used in [Proxy](/docs/app/api-reference/file-conventions/proxy).
+
+> **Good to know**: Using `runtime: 'edge'` is **not supported** for Cache Components.
 
 ```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const runtime = 'nodejs'
