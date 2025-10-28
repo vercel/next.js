@@ -12,16 +12,16 @@ export default function Page() {
       id="click-me"
       onClick={(e) => {
         e.preventDefault()
+        // this should throw an error on load since prefetch
+        // receives the invalid href
         router[method](invalidLink)
       }}
     >
       invalid link :o
     </a>
   ) : (
-    // this should throw an error on load since prefetch
-    // receives the invalid href
     <Link href={invalidLink} id="click-me">
-      invalid link :o
+      valid link :o
     </Link>
   )
 }

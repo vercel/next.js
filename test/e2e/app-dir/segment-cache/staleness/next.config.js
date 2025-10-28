@@ -2,9 +2,8 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  cacheComponents: true,
   experimental: {
-    ppr: true,
-    dynamicIO: true,
     clientSegmentCache: true,
     staleTimes: {
       dynamic: 30,

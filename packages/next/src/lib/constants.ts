@@ -1,5 +1,8 @@
 import type { ServerRuntime } from '../types'
 
+export const TEXT_PLAIN_CONTENT_TYPE_HEADER = 'text/plain'
+export const HTML_CONTENT_TYPE_HEADER = 'text/html; charset=utf-8'
+export const JSON_CONTENT_TYPE_HEADER = 'application/json; charset=utf-8'
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
@@ -43,6 +46,10 @@ export const INFINITE_CACHE = 0xfffffffe
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
 
+// Patterns to detect proxy files (replacement for middleware)
+export const PROXY_FILENAME = 'proxy'
+export const PROXY_LOCATION_REGEXP = `(?:src/)?${PROXY_FILENAME}`
+
 // Pattern to detect instrumentation hooks file
 export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
 
@@ -56,6 +63,8 @@ export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
 export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
 export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-server-reference'
 export const RSC_CACHE_WRAPPER_ALIAS = 'private-next-rsc-cache-wrapper'
+export const RSC_DYNAMIC_IMPORT_WRAPPER_ALIAS =
+  'private-next-rsc-track-dynamic-import'
 export const RSC_ACTION_ENCRYPTION_ALIAS = 'private-next-rsc-action-encryption'
 export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
   'private-next-rsc-action-client-wrapper'
@@ -94,6 +103,8 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   experimentalEdge: 'experimental-edge',
   nodejs: 'nodejs',
 }
+
+export const WEB_SOCKET_MAX_RECONNECTIONS = 12
 
 /**
  * The names of the webpack layers. These layers are the primitives for the

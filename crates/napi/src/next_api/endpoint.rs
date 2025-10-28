@@ -1,21 +1,23 @@
 use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use napi::{bindgen_prelude::External, JsFunction};
+use futures_util::TryFutureExt;
+use napi::{JsFunction, bindgen_prelude::External};
 use next_api::{
+    operation::OptionEndpoint,
     paths::ServerPath,
     route::{
-        endpoint_server_changed_operation, endpoint_write_to_disk_operation, Endpoint,
-        EndpointOutputPaths,
+        EndpointOutputPaths, endpoint_client_changed_operation, endpoint_server_changed_operation,
+        endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
-use turbopack_core::{diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue};
+use turbopack_core::{diagnostics::PlainDiagnostic, issue::PlainIssue};
 
 use super::utils::{
-    strongly_consistent_catch_collectables, subscribe, NapiDiagnostic, NapiIssue, RootTask,
-    TurbopackResult, VcArc,
+    DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
+    strongly_consistent_catch_collectables, subscribe,
 };
 
 #[napi(object)]
@@ -32,7 +34,7 @@ pub struct NapiServerPath {
 impl From<ServerPath> for NapiServerPath {
     fn from(server_path: ServerPath) -> Self {
         Self {
-            path: server_path.path,
+            path: server_path.path.into_owned(),
             content_hash: format!("{:x}", server_path.content_hash),
         }
     }
@@ -57,7 +59,7 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
                 client_paths,
             }) => Self {
                 r#type: "nodejs".to_string(),
-                entry_path: Some(server_entry_path),
+                entry_path: Some(server_entry_path.into_owned()),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
@@ -71,7 +73,7 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
-            None => Self {
+            Some(EndpointOutputPaths::NotFound) | None => Self {
                 r#type: "none".to_string(),
                 ..Default::default()
             },
@@ -85,10 +87,10 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
 //    some async functions (in this case `endpoint_write_to_disk`) can cause
 //    higher-ranked lifetime errors. See https://github.com/rust-lang/rust/issues/102211
 // 2. the type_complexity clippy lint.
-pub struct ExternalEndpoint(pub VcArc<Box<dyn Endpoint>>);
+pub struct ExternalEndpoint(pub DetachedVc<OptionEndpoint>);
 
 impl Deref for ExternalEndpoint {
-    type Target = VcArc<Box<dyn Endpoint>>;
+    type Target = DetachedVc<OptionEndpoint>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -105,7 +107,7 @@ struct WrittenEndpointWithIssues {
 
 #[turbo_tasks::function(operation)]
 async fn get_written_endpoint_with_issues_operation(
-    endpoint_op: OperationVc<Box<dyn Endpoint>>,
+    endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
     let (written, issues, diagnostics, effects) =
@@ -119,15 +121,17 @@ async fn get_written_endpoint_with_issues_operation(
     .cell())
 }
 
+#[tracing::instrument(level = "info", name = "write endpoint to disk", skip_all)]
 #[napi]
-#[tracing::instrument(skip_all)]
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
-    let turbo_tasks = endpoint.turbo_tasks().clone();
+    let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ***endpoint;
-    let (written, issues, diags) = turbo_tasks
-        .run_once(async move {
+    let (written, issues, diags) = endpoint
+        .turbopack_ctx()
+        .turbo_tasks()
+        .run(async move {
             let written_entrypoint_with_issues_op =
                 get_written_endpoint_with_issues_operation(endpoint_op);
             let WrittenEndpointWithIssues {
@@ -142,8 +146,8 @@ pub async fn endpoint_write_to_disk(
 
             Ok((written.clone(), issues.clone(), diagnostics.clone()))
         })
-        .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
     Ok(TurbopackResult {
         result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
@@ -151,16 +155,17 @@ pub async fn endpoint_write_to_disk(
     })
 }
 
+#[tracing::instrument(level = "info", name = "get server-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_server_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
     issues: bool,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = endpoint.turbo_tasks().clone();
+    let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint = ***endpoint;
     subscribe(
-        turbo_tasks,
+        turbopack_ctx,
         func,
         move || {
             async move {
@@ -214,7 +219,7 @@ impl Eq for EndpointIssuesAndDiags {}
 
 #[turbo_tasks::function(operation)]
 async fn subscribe_issues_and_diags_operation(
-    endpoint_op: OperationVc<Box<dyn Endpoint>>,
+    endpoint_op: OperationVc<OptionEndpoint>,
     should_include_issues: bool,
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
     let changed_op = endpoint_server_changed_operation(endpoint_op);
@@ -241,22 +246,16 @@ async fn subscribe_issues_and_diags_operation(
     }
 }
 
-#[turbo_tasks::function(operation)]
-fn endpoint_client_changed_operation(
-    endpoint_op: OperationVc<Box<dyn Endpoint>>,
-) -> Vc<Completion> {
-    endpoint_op.connect().client_changed()
-}
-
+#[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_client_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbo_tasks = endpoint.turbo_tasks().clone();
+    let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint_op = ***endpoint;
     subscribe(
-        turbo_tasks,
+        turbopack_ctx,
         func,
         move || {
             async move {

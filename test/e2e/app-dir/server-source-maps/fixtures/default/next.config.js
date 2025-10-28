@@ -2,8 +2,9 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  cacheComponents: true,
   experimental: {
-    dynamicIO: true,
+    cpus: 1,
     serverSourceMaps: true,
   },
   serverExternalPackages: ['external-pkg'],

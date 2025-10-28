@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-identical-title */
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'
@@ -24,7 +23,6 @@ const context = {
   page: new File(join(__dirname, '../pages/index.js')),
 }
 const appOption = {
-  env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
   onStdout(msg) {
     context.logs.output += msg
     context.logs.stdout += msg

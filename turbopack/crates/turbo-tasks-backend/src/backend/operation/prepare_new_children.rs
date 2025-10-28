@@ -6,7 +6,7 @@ use turbo_tasks::TaskId;
 use crate::backend::{
     get,
     operation::{
-        is_aggregating_node, is_root_node, AggregationUpdateJob, AggregationUpdateQueue, TaskGuard,
+        AggregationUpdateJob, AggregationUpdateQueue, TaskGuard, is_aggregating_node, is_root_node,
     },
 };
 
@@ -18,9 +18,7 @@ pub fn prepare_new_children(
     new_children: &FxHashSet<TaskId>,
     queue: &mut AggregationUpdateQueue,
 ) {
-    if new_children.is_empty() {
-        return;
-    }
+    debug_assert!(!new_children.is_empty());
     let children_count = new_children.len();
 
     // Compute future parent aggregation number based on the number of children

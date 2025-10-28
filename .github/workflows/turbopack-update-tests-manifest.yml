@@ -2,9 +2,9 @@
 name: Update Turbopack test manifest
 
 on:
-  schedule:
-    # Every day at 7AM UTC https://crontab.guru/#0_7_*_*_*
-    - cron: '0 7 * * *'
+  # schedule:
+  # Every day at 7AM UTC https://crontab.guru/#0_7_*_*_*
+  # - cron: '0 7 * * *'
   workflow_dispatch:
 
 jobs:

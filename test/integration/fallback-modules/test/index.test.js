@@ -3,6 +3,7 @@
 import { remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
+import { readFileSync, statSync } from 'fs'
 
 const fixturesDir = join(__dirname, '..', 'fixtures')
 
@@ -11,7 +12,6 @@ describe('Fallback Modules', () => {
     'production mode',
     () => {
       describe('Crypto Application', () => {
-        let stdout
         const appDir = join(fixturesDir, 'with-crypto')
 
         beforeAll(async () => {
@@ -23,34 +23,44 @@ describe('Fallback Modules', () => {
             return
           }
 
-          ;({ stdout } = await nextBuild(appDir, [], {
+          await nextBuild(appDir, [], {
             stdout: true,
-          }))
+          })
 
-          console.log(stdout)
+          // Read build manifest to get chunk files for the index page
+          const buildManifestPath = join(appDir, '.next', 'build-manifest.json')
+          const buildManifest = JSON.parse(
+            readFileSync(buildManifestPath, 'utf8')
+          )
 
-          const parsePageSize = (page) =>
-            stdout.match(
-              new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
-            )[1]
+          // Get chunks for the '/' page
+          const indexPageChunks = buildManifest.pages['/'] || []
 
-          const parsePageFirstLoad = (page) =>
-            stdout.match(
-              new RegExp(
-                ` ${page} .*?(?:(?:\\d|\\.){1,}) .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`
-              )
-            )[1]
+          // Calculate total size of all chunks for the index page
+          let totalSize = 0
+          for (const chunkPath of indexPageChunks) {
+            const fullChunkPath = join(appDir, '.next', chunkPath)
+            try {
+              const stats = statSync(fullChunkPath)
+              totalSize += stats.size
+            } catch (error) {
+              console.warn(`Could not read chunk: ${chunkPath}`, error.message)
+            }
+          }
 
-          const indexSize = parsePageSize('/')
-          const indexFirstLoad = parsePageFirstLoad('/')
+          // Convert to kB for easier comparison
+          const totalSizeKB = totalSize / 1024
 
-          // expect(parseFloat(indexSize)).toBeLessThanOrEqual(3.1)
-          // expect(parseFloat(indexSize)).toBeGreaterThanOrEqual(2)
-          expect(indexSize.endsWith('kB')).toBe(true)
+          console.log(`Index page total size: ${totalSizeKB.toFixed(2)} kB`)
+          console.log(`Index page chunks: ${indexPageChunks.join(', ')}`)
 
-          // expect(parseFloat(indexFirstLoad)).toBeLessThanOrEqual(67.9)
-          // expect(parseFloat(indexFirstLoad)).toBeGreaterThanOrEqual(60)
-          expect(indexFirstLoad.endsWith('kB')).toBe(true)
+          // Assert on reasonable size bounds
+          // The total should be reasonable for a simple page without crypto
+          expect(totalSizeKB).toBeGreaterThan(10) // At least 10kB (has some framework code)
+          expect(totalSizeKB).toBeLessThan(400) // Less than 400kB (no large crypto libraries)
+
+          // Ensure we have the expected chunks
+          expect(indexPageChunks.length).toBeGreaterThan(0)
         })
       })
     }

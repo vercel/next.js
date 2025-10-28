@@ -8,7 +8,7 @@ const mockedGoogleFontResponses = require.resolve(
 )
 
 // Turbopack intentionally does not support these events
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'next/font used telemetry',
   () => {
     let next: NextInstance
@@ -44,7 +44,7 @@ const mockedGoogleFontResponses = require.resolve(
 )
 
 // Turbopack intentionally does not support these events
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'next/font unused telemetry',
   () => {
     let next: NextInstance

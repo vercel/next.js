@@ -11,7 +11,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
-import { getUtils } from '../server-utils'
+import { getServerUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import { CloseController, trackStreamConsumed } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
@@ -71,7 +71,7 @@ export class EdgeRouteModuleWrapper {
     request: NextRequest,
     evt: NextFetchEvent
   ): Promise<Response> {
-    const utils = getUtils({
+    const utils = getServerUtils({
       pageIsDynamic: this.matcher.isDynamic,
       page: this.matcher.definition.pathname,
       basePath: request.nextUrl.basePath,
@@ -107,11 +107,11 @@ export class EdgeRouteModuleWrapper {
         waitUntil,
         onClose: closeController.onClose.bind(closeController),
         onAfterTaskError: undefined,
+        cacheComponents: !!process.env.__NEXT_CACHE_COMPONENTS,
         experimental: {
-          dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
-        cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+        cacheLifeProfiles: this.nextConfig.cacheLife,
       },
       sharedContext: {
         buildId: '', // TODO: Populate this properly.

@@ -38,8 +38,8 @@ pub(crate) async fn build_fallback_definition(fallbacks: Vc<FontFallbacks>) -> R
                     {}
                 }}
             "#,
-                fallback.scoped_font_family.await?,
-                fallback.local_font_family.await?,
+                fallback.scoped_font_family,
+                fallback.local_font_family,
                 override_properties
             ));
         }
@@ -67,13 +67,13 @@ pub(super) async fn build_font_class_rules(
             .weight
             .await?
             .as_ref()
-            .map(|w| format!("font-weight: {};\n", w))
+            .map(|w| format!("font-weight: {w};\n"))
             .unwrap_or_else(|| "".to_owned()),
         css_properties
             .style
             .await?
             .as_ref()
-            .map(|s| format!("font-style: {};\n", s))
+            .map(|s| format!("font-style: {s};\n"))
             .unwrap_or_else(|| "".to_owned()),
     );
 

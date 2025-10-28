@@ -267,6 +267,29 @@ describe('app-dir - logging', () => {
           })
         })
 
+        it('should log requests for after revalidation via server action', async () => {
+          let outputIndex = next.cliOutput.length
+          const browser = await next.browser('/default-cache')
+
+          const expectedUrl = withFullUrlFetches
+            ? 'https://next-data-api-endpoint.vercel.app/api/random'
+            : 'https://next-data-api-en../api/random'
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+          })
+
+          outputIndex = next.cliOutput.length
+
+          await browser.elementById('revalidate-button').click()
+
+          await retry(() => {
+            const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
+          })
+        })
+
         describe('when logging.fetches.hmrRefreshes is true', () => {
           beforeAll(async () => {
             await next.patchFile('next.config.js', (content) =>
@@ -344,7 +367,7 @@ describe('app-dir - logging', () => {
 
         await retry(() => {
           const output = stripAnsi(next.cliOutput.slice(logLength))
-          expect(output).toContain('/dynamic/[slug]/icon')
+          expect(output).toContain('/dynamic/big/icon')
           expect(output).not.toContain('/(group)')
           expect(output).not.toContain('[__metadata_id__]')
           expect(output).not.toContain('/route')

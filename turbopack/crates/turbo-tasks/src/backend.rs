@@ -1,29 +1,28 @@
 use std::{
     borrow::Cow,
+    error::Error,
     fmt::{self, Debug, Display},
     future::Future,
     hash::{BuildHasherDefault, Hash},
     pin::Pin,
+    sync::Arc,
     time::Duration,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
+use serde::{Deserialize, Serialize};
 use tracing::Span;
+use turbo_rcstr::RcStr;
 
-pub use crate::id::BackendJobId;
 use crate::{
-    event::EventListener,
-    magic_any::MagicAny,
-    manager::{ReadConsistency, TurboTasksBackendApi},
-    raw_vc::CellId,
-    registry,
-    task::shared_reference::TypedSharedReference,
-    task_statistics::TaskStatisticsApi,
+    RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
+    TraitRef, TraitTypeId, TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
+    event::EventListener, macro_helpers::NativeFunction, magic_any::MagicAny,
+    manager::TurboTasksBackendApi, raw_vc::CellId, registry,
+    task::shared_reference::TypedSharedReference, task_statistics::TaskStatisticsApi,
     triomphe_utils::unchecked_sidecast_triomphe_arc,
-    FunctionId, RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef,
-    TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
 pub type TransientTaskRoot =
@@ -62,14 +61,16 @@ impl Debug for TransientTaskType {
 /// backend either to execute a function or to look up a cached result.
 #[derive(Debug, Eq)]
 pub struct CachedTaskType {
-    pub fn_type: FunctionId,
+    pub native_fn: &'static NativeFunction,
     pub this: Option<RawVc>,
     pub arg: Box<dyn MagicAny>,
 }
 
 impl CachedTaskType {
+    /// Get the name of the function from the registry. Equivalent to the
+    /// [`Display`]/[`ToString::to_string`] implementation, but does not allocate a [`String`].
     pub fn get_name(&self) -> &'static str {
-        &registry::get_function(self.fn_type).name
+        self.native_fn.name
     }
 }
 
@@ -78,7 +79,7 @@ impl CachedTaskType {
 impl PartialEq for CachedTaskType {
     #[expect(clippy::op_ref)]
     fn eq(&self, other: &Self) -> bool {
-        self.fn_type == other.fn_type && self.this == other.this && &self.arg == &other.arg
+        self.native_fn == other.native_fn && self.this == other.this && &self.arg == &other.arg
     }
 }
 
@@ -86,13 +87,13 @@ impl PartialEq for CachedTaskType {
 // complains if we have a derived `Hash` impl, but manual `PartialEq` impl.
 impl Hash for CachedTaskType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.fn_type.hash(state);
+        self.native_fn.hash(state);
         self.this.hash(state);
         self.arg.hash(state);
     }
 }
 
-impl fmt::Display for CachedTaskType {
+impl Display for CachedTaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.get_name())
     }
@@ -102,9 +103,9 @@ mod ser {
     use std::any::Any;
 
     use serde::{
+        Deserialize, Deserializer, Serialize, Serializer,
         de::{self},
         ser::{SerializeSeq, SerializeTuple},
-        Deserialize, Deserializer, Serialize, Serializer,
     };
 
     use super::*;
@@ -115,13 +116,13 @@ mod ser {
             S: Serializer,
         {
             let value_type = registry::get_value_type(self.0);
-            let serializable = if let Some(value) = &self.1 .0 {
+            let serializable = if let Some(value) = &self.1.0 {
                 value_type.any_as_serializable(&value.0)
             } else {
                 None
             };
             let mut state = serializer.serialize_tuple(3)?;
-            state.serialize_element(registry::get_value_type_global_name(self.0))?;
+            state.serialize_element(&self.0)?;
             if let Some(serializable) = serializable {
                 state.serialize_element(&true)?;
                 state.serialize_element(serializable)?;
@@ -151,11 +152,9 @@ mod ser {
                 where
                     A: de::SeqAccess<'de>,
                 {
-                    let value_type = seq
+                    let value_type: ValueTypeId = seq
                         .next_element()?
                         .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-                    let value_type = registry::get_value_type_id_by_global_name(value_type)
-                        .ok_or_else(|| de::Error::custom("Unknown value type"))?;
                     let has_value: bool = seq
                         .next_element()?
                         .ok_or_else(|| de::Error::invalid_length(1, &self))?;
@@ -188,11 +187,11 @@ mod ser {
 
     enum FunctionAndArg<'a> {
         Owned {
-            fn_type: FunctionId,
+            native_fn: &'static NativeFunction,
             arg: Box<dyn MagicAny>,
         },
         Borrowed {
-            fn_type: FunctionId,
+            native_fn: &'static NativeFunction,
             arg: &'a dyn MagicAny,
         },
     }
@@ -202,13 +201,13 @@ mod ser {
         where
             S: Serializer,
         {
-            let FunctionAndArg::Borrowed { fn_type, arg } = self else {
+            let FunctionAndArg::Borrowed { native_fn, arg } = self else {
                 unreachable!();
             };
             let mut state = serializer.serialize_seq(Some(2))?;
-            state.serialize_element(&fn_type)?;
+            state.serialize_element(&registry::get_function_id(native_fn))?;
             let arg = *arg;
-            let arg = registry::get_function(*fn_type).arg_meta.as_serialize(arg);
+            let arg = native_fn.arg_meta.as_serialize(arg);
             state.serialize_element(arg)?;
             state.end()
         }
@@ -228,16 +227,15 @@ mod ser {
                 where
                     A: serde::de::SeqAccess<'de>,
                 {
-                    let fn_type = seq
+                    let fn_id = seq
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                    let seed = registry::get_function(fn_type)
-                        .arg_meta
-                        .deserialization_seed();
+                    let native_fn = registry::get_native_function(fn_id);
+                    let seed = native_fn.arg_meta.deserialization_seed();
                     let arg = seq
                         .next_element_seed(seed)?
                         .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                    Ok(FunctionAndArg::Owned { fn_type, arg })
+                    Ok(FunctionAndArg::Owned { native_fn, arg })
                 }
             }
             deserializer.deserialize_seq(Visitor)
@@ -249,10 +247,14 @@ mod ser {
         where
             S: ser::Serializer,
         {
-            let CachedTaskType { fn_type, this, arg } = self;
+            let CachedTaskType {
+                native_fn,
+                this,
+                arg,
+            } = self;
             let mut s = serializer.serialize_tuple(2)?;
             s.serialize_element(&FunctionAndArg::Borrowed {
-                fn_type: *fn_type,
+                native_fn,
                 arg: &**arg,
             })?;
             s.serialize_element(this)?;
@@ -274,7 +276,7 @@ mod ser {
                 where
                     A: serde::de::SeqAccess<'de>,
                 {
-                    let FunctionAndArg::Owned { fn_type, arg } = seq
+                    let FunctionAndArg::Owned { native_fn, arg } = seq
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?
                     else {
@@ -283,7 +285,11 @@ mod ser {
                     let this = seq
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                    Ok(CachedTaskType { fn_type, this, arg })
+                    Ok(CachedTaskType {
+                        native_fn,
+                        this,
+                        arg,
+                    })
                 }
             }
             deserializer.deserialize_tuple(2, Visitor)
@@ -312,7 +318,7 @@ impl Display for CellContent {
 
 impl TypedCellContent {
     pub fn cast<T: VcValueType>(self) -> Result<ReadRef<T>> {
-        let data = self.1 .0.ok_or_else(|| anyhow!("Cell is empty"))?;
+        let data = self.1.0.ok_or_else(|| anyhow!("Cell is empty"))?;
         let data = data
             .downcast::<<T::Read as VcRead<T>>::Repr>()
             .map_err(|_err| anyhow!("Unexpected type in cell"))?;
@@ -332,7 +338,7 @@ impl TypedCellContent {
     {
         let shared_reference = self
             .1
-             .0
+            .0
             .ok_or_else(|| anyhow!("Cell is empty"))?
             .into_typed(self.0);
         Ok(
@@ -348,7 +354,7 @@ impl TypedCellContent {
 
 impl From<TypedSharedReference> for TypedCellContent {
     fn from(value: TypedSharedReference) -> Self {
-        TypedCellContent(value.0, CellContent(Some(value.1)))
+        TypedCellContent(value.type_id, CellContent(Some(value.reference)))
     }
 }
 
@@ -356,8 +362,8 @@ impl TryFrom<TypedCellContent> for TypedSharedReference {
     type Error = TypedCellContent;
 
     fn try_from(content: TypedCellContent) -> Result<Self, TypedCellContent> {
-        if let TypedCellContent(type_id, CellContent(Some(shared_reference))) = content {
-            Ok(TypedSharedReference(type_id, shared_reference))
+        if let TypedCellContent(type_id, CellContent(Some(reference))) = content {
+            Ok(TypedSharedReference { type_id, reference })
         } else {
             Err(content)
         }
@@ -396,6 +402,101 @@ impl TryFrom<CellContent> for SharedReference {
 
 pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1>;
 
+// Structurally and functionally similar to Cow<&'static, str> but explicitly notes the importance
+// of non-static strings potentially containing PII (Personal Identifiable Information).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum TurboTasksExecutionErrorMessage {
+    PIISafe(Cow<'static, str>),
+    NonPIISafe(String),
+}
+
+impl Display for TurboTasksExecutionErrorMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TurboTasksExecutionErrorMessage::PIISafe(msg) => write!(f, "{msg}"),
+            TurboTasksExecutionErrorMessage::NonPIISafe(msg) => write!(f, "{msg}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TurboTasksError {
+    pub message: TurboTasksExecutionErrorMessage,
+    pub source: Option<TurboTasksExecutionError>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TurboTaskContextError {
+    pub task: RcStr,
+    pub source: Option<TurboTasksExecutionError>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum TurboTasksExecutionError {
+    Panic(Arc<TurboTasksPanic>),
+    Error(Arc<TurboTasksError>),
+    TaskContext(Arc<TurboTaskContextError>),
+}
+
+impl TurboTasksExecutionError {
+    pub fn with_task_context(&self, task: impl Display) -> Self {
+        TurboTasksExecutionError::TaskContext(Arc::new(TurboTaskContextError {
+            task: RcStr::from(task.to_string()),
+            source: Some(self.clone()),
+        }))
+    }
+}
+
+impl Error for TurboTasksExecutionError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            TurboTasksExecutionError::Panic(_panic) => None,
+            TurboTasksExecutionError::Error(error) => {
+                error.source.as_ref().map(|s| s as &dyn Error)
+            }
+            TurboTasksExecutionError::TaskContext(context_error) => {
+                context_error.source.as_ref().map(|s| s as &dyn Error)
+            }
+        }
+    }
+}
+
+impl Display for TurboTasksExecutionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TurboTasksExecutionError::Panic(panic) => write!(f, "{}", &panic),
+            TurboTasksExecutionError::Error(error) => {
+                write!(f, "{}", error.message)
+            }
+            TurboTasksExecutionError::TaskContext(context_error) => {
+                write!(f, "Execution of {} failed", context_error.task)
+            }
+        }
+    }
+}
+
+impl<'l> From<&'l (dyn std::error::Error + 'static)> for TurboTasksExecutionError {
+    fn from(err: &'l (dyn std::error::Error + 'static)) -> Self {
+        if let Some(err) = err.downcast_ref::<TurboTasksExecutionError>() {
+            return err.clone();
+        }
+        let message = err.to_string();
+        let source = err.source().map(|source| source.into());
+
+        TurboTasksExecutionError::Error(Arc::new(TurboTasksError {
+            message: TurboTasksExecutionErrorMessage::NonPIISafe(message),
+            source,
+        }))
+    }
+}
+
+impl From<anyhow::Error> for TurboTasksExecutionError {
+    fn from(err: anyhow::Error) -> Self {
+        let current: &(dyn std::error::Error + 'static) = err.as_ref();
+        current.into()
+    }
+}
+
 pub trait Backend: Sync + Send {
     #[allow(unused_variables)]
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
@@ -424,29 +525,6 @@ pub trait Backend: Sync + Send {
 
     fn get_task_description(&self, task: TaskId) -> String;
 
-    /// Task-local state that stored inside of [`TurboTasksBackendApi`]. Constructed with
-    /// [`Self::new_task_state`].
-    ///
-    /// This value that can later be written to or read from using
-    /// [`crate::TurboTasksBackendApiExt::write_task_state`] or
-    /// [`crate::TurboTasksBackendApiExt::read_task_state`]
-    ///
-    /// This data may be shared across multiple threads (must be `Sync`) in order to support
-    /// detached futures ([`crate::TurboTasksApi::detached_for_testing`]) and [pseudo-tasks using
-    /// `local` execution][crate::function]. A [`RwLock`][std::sync::RwLock] is used to provide
-    /// concurrent access.
-    type TaskState: Send + Sync + 'static;
-
-    /// Constructs a new task-local [`Self::TaskState`] for the given `task_id`.
-    ///
-    /// If a task is re-executed (e.g. because it is invalidated), this function will be called
-    /// again with the same [`TaskId`].
-    ///
-    /// This value can be written to or read from using
-    /// [`crate::TurboTasksBackendApiExt::write_task_state`] and
-    /// [`crate::TurboTasksBackendApiExt::read_task_state`]
-    fn new_task_state(&self, task: TaskId) -> Self::TaskState;
-
     fn try_start_task_execution<'a>(
         &'a self,
         task: TaskId,
@@ -455,85 +533,69 @@ pub trait Backend: Sync + Send {
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
-    fn task_execution_result(
-        &self,
-        task: TaskId,
-        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    );
-
     fn task_execution_completed(
         &self,
         task: TaskId,
         duration: Duration,
         memory_usage: usize,
+        result: Result<RawVc, TurboTasksExecutionError>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
+        has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;
 
+    type BackendJob: Send + 'static;
+
     fn run_backend_job<'a>(
         &'a self,
-        id: BackendJobId,
+        job: Self::BackendJob,
         turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
+    /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
+    /// using it could break cache invalidation.
     fn try_read_task_output(
         &self,
         task: TaskId,
-        reader: TaskId,
-        consistency: ReadConsistency,
+        reader: Option<TaskId>,
+        options: ReadOutputOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
     /// using it could break cache invalidation.
-    fn try_read_task_output_untracked(
-        &self,
-        task: TaskId,
-        consistency: ReadConsistency,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<RawVc, EventListener>>;
-
     fn try_read_task_cell(
         &self,
         task: TaskId,
         index: CellId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>>;
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    fn try_read_task_cell_untracked(
-        &self,
-        task: TaskId,
-        index: CellId,
-        options: ReadCellOptions,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>>;
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: CellId,
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
-        match self.try_read_task_cell_untracked(current_task, index, options, turbo_tasks)? {
+        match self.try_read_task_cell(current_task, index, None, options, turbo_tasks)? {
             Ok(content) => Ok(content),
             Err(_) => Ok(TypedCellContent(index.type_id, CellContent(None))),
         }
     }
 
+    /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
+    /// using it could break cache invalidation.
     fn read_task_collectibles(
         &self,
         task: TaskId,
         trait_id: TraitTypeId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskCollectiblesMap;
 
@@ -565,25 +627,21 @@ pub trait Backend: Sync + Send {
     fn get_or_create_persistent_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
     fn get_or_create_transient_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
-
-    /// For persistent tasks with associated [`NativeFunction`][turbo_tasks::NativeFunction]s,
-    /// return the [`FunctionId`].
-    fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId>;
 
     fn connect_task(
         &self,
         task: TaskId,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
@@ -621,4 +679,6 @@ pub trait Backend: Sync + Send {
     fn dispose_root_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
     fn task_statistics(&self) -> &TaskStatisticsApi;
+
+    fn is_tracking_dependencies(&self) -> bool;
 }

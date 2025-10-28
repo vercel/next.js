@@ -4,8 +4,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
-    ValueToString, Vc,
+    NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 
 use crate::{
@@ -29,6 +29,18 @@ pub enum ModuleOrBatch {
     Module(ResolvedVc<Box<dyn Module>>),
     Batch(ResolvedVc<ModuleBatch>),
     None(usize),
+}
+
+impl ModuleOrBatch {
+    pub async fn ident_strings(self) -> Result<IdentStrings> {
+        Ok(match self {
+            ModuleOrBatch::Module(module) => {
+                IdentStrings::Single(module.ident().to_string().await?)
+            }
+            ModuleOrBatch::Batch(batch) => IdentStrings::Multiple(batch.ident_strings().await?),
+            ModuleOrBatch::None(_) => IdentStrings::None,
+        })
+    }
 }
 
 #[derive(

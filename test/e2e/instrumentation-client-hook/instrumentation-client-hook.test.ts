@@ -49,6 +49,59 @@ describe('Instrumentation Client Hook', () => {
     })
   })
 
+  describe('onRouterTransitionStart', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'app-router'),
+    })
+
+    function filterNavigationStartLogs(logs: Array<{ message: string }>) {
+      const result = []
+      for (const log of logs) {
+        if (log.message.startsWith('[Router Transition Start]')) {
+          result.push(log.message)
+        }
+      }
+      return result
+    }
+
+    it('onRouterTransitionStart fires at the start of a navigation', async () => {
+      const browser = await next.browser('/')
+
+      const linkToSomePage = await browser.elementByCss('a[href="/some-page"]')
+      await linkToSomePage.click()
+      await browser.elementById('some-page')
+
+      const linkToHome = await browser.elementByCss('a[href="/"]')
+      await linkToHome.click()
+      await browser.elementById('home')
+
+      expect(filterNavigationStartLogs(await browser.log())).toEqual([
+        '[Router Transition Start] [push] /some-page',
+        '[Router Transition Start] [push] /',
+      ])
+    })
+
+    it('onRouterTransitionStart fires at the start of a back/forward navigation', async () => {
+      const browser = await next.browser('/')
+
+      const linkToSomePage = await browser.elementByCss('a[href="/some-page"]')
+      await linkToSomePage.click()
+      await browser.elementById('some-page')
+
+      await browser.back()
+      await browser.elementById('home')
+
+      await browser.forward()
+      await browser.elementById('some-page')
+
+      expect(filterNavigationStartLogs(await browser.log())).toEqual([
+        '[Router Transition Start] [push] /some-page',
+        '[Router Transition Start] [traverse] /',
+        '[Router Transition Start] [traverse] /some-page',
+      ])
+    })
+  })
+
   describe('HMR in development mode', () => {
     const { next, isNextDev } = nextTestSetup({
       files: path.join(__dirname, 'app-router'),

@@ -6,6 +6,7 @@ import {
   killApp,
   launchApp,
   nextBuild,
+  retry,
   runNextCommand,
   runNextCommandDev,
 } from 'next-test-utils'
@@ -17,6 +18,8 @@ import stripAnsi from 'strip-ansi'
 
 const dirBasic = join(__dirname, '../basic')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
+
+const itCI = process.env.NEXT_TEST_CI ? it : it.skip
 
 const runAndCaptureOutput = async ({ port }) => {
   let stdout = ''
@@ -568,6 +571,35 @@ describe('CLI Usage', () => {
       }
     })
 
+    test("NODE_OPTIONS='--inspect=:0'", async () => {
+      const port = await findPort()
+      let output = ''
+      let errOutput = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          onStderr(msg) {
+            errOutput += stripAnsi(msg)
+          },
+          env: { NODE_OPTIONS: '--inspect=:0' },
+        }
+      )
+      try {
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(() => errOutput, /Debugger listening on/)
+        expect(errOutput).not.toContain('address already in use')
+        expect(errOutput).toContain('Debugger listening on')
+        console.log(output)
+        expect(output).toContain('the --inspect option was detected')
+      } finally {
+        await killApp(app)
+      }
+    })
+
     test("NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'", async () => {
       const port = await findPort()
       let output = ''
@@ -656,6 +688,7 @@ describe('CLI Usage', () => {
       expect(stdout).not.toMatch(/ready/i)
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
+      expect(stripAnsi(stdout).trim()).toBeFalsy()
     })
 
     test('Allow retry if default port is already in use', async () => {
@@ -675,7 +708,9 @@ describe('CLI Usage', () => {
         await killApp(appTwo).catch(console.error)
       }
 
-      expect(output).toMatch('⚠ Port 3000 is in use, trying 3001 instead.')
+      expect(output).toMatch(
+        '⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.'
+      )
     })
 
     test('-p reserved', async () => {
@@ -736,16 +771,8 @@ describe('CLI Usage', () => {
       }
     })
 
-    // only runs on CI as it requires administrator privileges
-    test('--experimental-https', async () => {
-      if (!process.env.CI) {
-        console.warn(
-          '--experimental-https only runs on CI as it requires administrator privileges'
-        )
-
-        return
-      }
-
+    itCI('--experimental-https', async () => {
+      // only runs on CI as it requires administrator privileges
       const port = await findPort()
       let output = ''
       const app = await runNextCommandDev(
@@ -758,9 +785,11 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, /Network:\s*http:\/\/\[::\]:(\d+)/)
-        await check(() => output, /https:\/\/localhost:(\d+)/)
-        await check(() => output, /Certificates created in/)
+        await retry(() => {
+          expect(output).toMatch(/Network:\s*https:\/\//)
+        })
+        expect(output).toMatch(/Local:\s*https:\/\/localhost:(\d+)/)
+        expect(output).toContain('Certificates created in')
       } finally {
         await killApp(app)
       }
@@ -899,7 +928,7 @@ Relevant Packages:
   eslint-config-next: .*
   react: .*
   react-dom: .*
-  typescript: .*
+  typescript: .*${process.env.NEXT_RSPACK ? '\n  next-rspack: .*' : ''}
 Next.js Config:
   output: ${nextConfigOutput}
 `)

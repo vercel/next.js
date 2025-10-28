@@ -1,10 +1,11 @@
-import Document from '../../../../pages/_document'
 import App from '../../../../pages/_app'
+import Document from '../../../../pages/_document'
 import { RouteKind } from '../../../route-kind'
 
 import * as moduleError from '../../../../pages/_error'
 
 import PagesRouteModule from '../module'
+import { getHandler } from '../pages-handler'
 
 export const routeModule = new PagesRouteModule({
   // TODO: add descriptor for internal error page
@@ -15,10 +16,19 @@ export const routeModule = new PagesRouteModule({
     filename: '',
     bundlePath: '',
   },
+  distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
+  relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   components: {
     App,
     Document,
   },
-  // @ts-expect-error -- Types don't account for getInitialProps. `Error` requires to be instantiated with `statusCode` but the types currently don't guarantee that.
   userland: moduleError,
+})
+
+export const handler = getHandler({
+  srcPage: '/_error',
+  routeModule,
+  userland: moduleError,
+  config: {},
+  isFallbackError: true,
 })

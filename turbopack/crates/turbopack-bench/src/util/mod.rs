@@ -12,13 +12,13 @@ use chromiumoxide::{
     browser::{Browser, BrowserConfig},
     error::CdpError::Ws,
 };
-use criterion::{async_executor::AsyncExecutor, black_box, measurement::WallTime, AsyncBencher};
+use criterion::{AsyncBencher, async_executor::AsyncExecutor, black_box, measurement::WallTime};
 use futures::{Future, StreamExt};
 pub use page_guard::PageGuard;
 use parking_lot::Mutex;
 pub use prepared_app::PreparedApp;
 use regex::Regex;
-use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
+use tungstenite::{Error::Protocol, error::ProtocolError::ResetWithoutClosingHandshake};
 use turbo_tasks::util::FormatDuration;
 use turbo_tasks_testing::retry::{retry, retry_async};
 use turbopack_create_test_app::test_app_builder::{
@@ -155,7 +155,7 @@ pub trait AsyncBencherExtension<A: AsyncExecutor> {
         TF: Future<Output = ()>;
 }
 
-impl<A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'_, '_, A, WallTime> {
+impl<A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'_, '_, A> {
     fn try_iter_custom<R, F>(&mut self, routine: R)
     where
         R: Fn(u64, WallTime) -> F,

@@ -1,14 +1,14 @@
-use std::{future::IntoFuture, mem::replace};
+use std::future::IntoFuture;
 
 use anyhow::Result;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef,
-    ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
 use super::{Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext};
@@ -26,7 +26,6 @@ use crate::{
         },
     },
     module_graph::ModuleGraph,
-    output::OutputAssets,
 };
 
 mod dev;
@@ -283,15 +282,13 @@ async fn batch_chunk_items_with_info_with_type(
     Ok(Vc::cell(map))
 }
 
-/// Creates chunks based on heuristics for the passed `chunk_items`. Also
-/// attaches `referenced_output_assets` to the first chunk.
+/// Creates chunks based on heuristics for the passed `chunk_items`.
 pub async fn make_chunks(
     module_graph: Vc<ModuleGraph>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
     batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     key_prefix: RcStr,
-    mut referenced_output_assets: Vc<OutputAssets>,
 ) -> Result<Vec<ResolvedVc<Box<dyn Chunk>>>> {
     let chunking_configs = &*chunking_context.chunking_configs().await?;
 
@@ -303,8 +300,8 @@ pub async fn make_chunks(
     let chunk_items: Vec<ReadRef<ChunkItemsWithInfo>> = batch_info(
         &batch_groups,
         &chunk_items_or_batches,
-        |batch_group| batch_chunk_items_with_info(batch_group, chunking_context).into_future(),
-        |c| chunk_items_with_info(c.clone(), chunking_context).to_resolved(),
+        |batch_group| batch_chunk_items_with_info(batch_group, *chunking_context).into_future(),
+        |c| chunk_items_with_info(c.clone(), *chunking_context).to_resolved(),
     )
     .instrument(span)
     .await?
@@ -324,14 +321,12 @@ pub async fn make_chunks(
     let mut chunks = Vec::new();
     for (ty, (chunk_items, batch_groups)) in map {
         let ty_name = ty.to_string().await?;
-        let span = tracing::trace_span!("make chunks for type", name = ty_name.as_str());
+        let span = tracing::trace_span!("make chunks for type", name = display(&ty_name));
         async {
             let mut split_context = SplitContext {
                 ty,
                 chunking_context,
                 chunks: &mut chunks,
-                referenced_output_assets: &mut referenced_output_assets,
-                empty_referenced_output_assets: OutputAssets::empty().resolve().await?,
             };
 
             if let Some(chunking_config) = chunking_configs.get(&ty) {
@@ -396,23 +391,23 @@ pub async fn make_chunks(
 
 struct SplitContext<'a> {
     ty: ResolvedVc<Box<dyn ChunkType>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    // resolution of `chunks` is deferred so it can be done with `try_join` at the end, letting as
+    // much work happen in parallel as possible.
     chunks: &'a mut Vec<Vc<Box<dyn Chunk>>>,
-    referenced_output_assets: &'a mut Vc<OutputAssets>,
-    empty_referenced_output_assets: Vc<OutputAssets>,
 }
 
 /// Creates a chunk with the given `chunk_items. `key` should be unique.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(key = display(key)))]
-async fn make_chunk<'l>(
-    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+async fn make_chunk(
+    chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     key: &mut String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
     split_context.chunks.push(
         split_context.ty.chunk(
-            split_context.chunking_context,
+            *split_context.chunking_context,
             chunk_items
                 .into_iter()
                 .map(|item| match item {
@@ -425,10 +420,6 @@ async fn make_chunk<'l>(
                 })
                 .collect(),
             ResolvedVc::deref_vec(batch_groups),
-            replace(
-                split_context.referenced_output_assets,
-                split_context.empty_referenced_output_assets,
-            ),
         ),
     );
     Ok(())

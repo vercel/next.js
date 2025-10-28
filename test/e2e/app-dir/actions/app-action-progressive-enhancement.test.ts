@@ -1,7 +1,5 @@
-/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-import type { Response } from 'playwright'
 
 describe('app-dir action progressive enhancement', () => {
   const { next } = nextTestSetup({
@@ -17,7 +15,7 @@ describe('app-dir action progressive enhancement', () => {
     const browser = await next.browser('/server', {
       disableJavaScript: true,
       beforePageLoad(page) {
-        page.on('response', (response: Response) => {
+        page.on('response', (response) => {
           const url = new URL(response.url())
           const status = response.status()
           if (url.pathname.includes('/server')) {
@@ -72,7 +70,7 @@ describe('app-dir action progressive enhancement', () => {
       await browser.elementById('set-cookie').click()
 
       await retry(async () => {
-        expect(await browser.elementById('referer').text()).toBe('')
+        expect(await browser.elementById('referer').text()).toBe('<null>')
       })
 
       await browser.elementById('get-cookie').click()

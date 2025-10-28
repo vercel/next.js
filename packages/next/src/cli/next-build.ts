@@ -10,34 +10,43 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
+import { parseBundlerArgs } from '../lib/bundler'
+import {
+  resolveBuildPaths,
+  parseBuildPathsInput,
+} from '../lib/resolve-build-paths'
 
 export type NextBuildOptions = {
   debug?: boolean
+  debugPrerender?: boolean
   profile?: boolean
-  lint: boolean
   mangling: boolean
   turbo?: boolean
   turbopack?: boolean
+  webpack?: boolean
   experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env'
   experimentalUploadTrace?: string
+  experimentalNextConfigStripTypes?: boolean
+  debugBuildPaths?: string
 }
 
-const nextBuild = (options: NextBuildOptions, directory?: string) => {
+const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   process.on('SIGTERM', () => process.exit(143))
   process.on('SIGINT', () => process.exit(130))
 
   const {
     debug,
+    debugPrerender,
     experimentalDebugMemoryUsage,
     profile,
-    lint,
     mangling,
     experimentalAppOnly,
     experimentalBuildMode,
     experimentalUploadTrace,
+    debugBuildPaths,
   } = options
 
   let traceUploadUrl: string | undefined
@@ -45,19 +54,23 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     traceUploadUrl = experimentalUploadTrace
   }
 
-  if (!lint) {
-    warn('Linting is disabled.')
-  }
-
   if (!mangling) {
     warn(
-      'Mangling is disabled. Note: This may affect performance and should only be used for debugging purposes.'
+      `Mangling is disabled. ${italic('Note: This may affect performance and should only be used for debugging purposes.')}`
     )
   }
 
   if (profile) {
     warn(
       `Profiling is enabled. ${italic('Note: This may affect performance.')}`
+    )
+  }
+
+  if (debugPrerender) {
+    warn(
+      `Prerendering is running in debug mode. ${italic(
+        'Note: This may affect performance and should not be used for production.'
+      )}`
     )
   }
 
@@ -72,20 +85,41 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (options.turbo || options.turbopack) {
-    process.env.TURBOPACK = '1'
+  const bundler = parseBundlerArgs(options)
+
+  // Resolve selective build paths
+  let resolvedAppPaths: string[] | undefined
+  let resolvedPagePaths: string[] | undefined
+
+  if (debugBuildPaths) {
+    try {
+      const patterns = parseBuildPathsInput(debugBuildPaths)
+
+      if (patterns.length > 0) {
+        const resolved = await resolveBuildPaths(patterns, dir)
+        // Pass empty arrays to indicate "build nothing" vs undefined for "build everything"
+        resolvedAppPaths = resolved.appPaths
+        resolvedPagePaths = resolved.pagePaths
+      }
+    } catch (err) {
+      printAndExit(
+        `Failed to resolve build paths: ${isError(err) ? err.message : String(err)}`
+      )
+    }
   }
 
   return build(
     dir,
     profile,
     debug || Boolean(process.env.NEXT_DEBUG_BUILD),
-    lint,
+    debugPrerender,
     !mangling,
     experimentalAppOnly,
-    !!process.env.TURBOPACK,
+    bundler,
     experimentalBuildMode,
-    traceUploadUrl
+    traceUploadUrl,
+    resolvedAppPaths,
+    resolvedPagePaths
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {

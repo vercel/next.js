@@ -1,29 +1,33 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Result};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::{glob::Glob, File, FileContent};
+use anyhow::{Result, bail};
+use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::{File, FileContent, glob::Glob};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset, MergeableModule,
+        MergeableModules, MergeableModulesExposed,
+    },
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
     reference::ModuleReferences,
-    resolve::ModulePart,
+    resolve::{ExportUsage, ModulePart},
 };
 
 use super::chunk_item::EcmascriptModuleFacadeChunkItem;
 use crate::{
+    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleContent,
+    EcmascriptModuleContentOptions, EcmascriptOptions, MergedEcmascriptModule, SpecifiedModuleType,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    code_gen::CodeGeneration,
-    parse::ParseResult,
+    code_gen::CodeGens,
+    export::Liveness,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
-        esm::{EsmExport, EsmExports},
+        esm::{EsmExport, EsmExports, base::EsmAssetReferences},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
-    EcmascriptAnalyzable,
 };
 
 /// A module derived from an original ecmascript module that only contains all
@@ -31,9 +35,11 @@ use crate::{
 /// [EcmascriptModuleLocalsModule]. It allows to follow
 #[turbo_tasks::value]
 pub struct EcmascriptModuleFacadeModule {
-    pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub parsed: ResolvedVc<ParseResult>,
-    pub ty: ModulePart,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    /// The part of the module that this facade represents.
+    /// ModulePart::Facade | ModulePart::RenamedExport |
+    /// ModulePart::RenamedNamespace
+    part: ModulePart,
 }
 
 #[turbo_tasks::value_impl]
@@ -41,10 +47,18 @@ impl EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
     pub fn new(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        parsed: ResolvedVc<ParseResult>,
-        ty: ModulePart,
+        part: ModulePart,
     ) -> Vc<Self> {
-        EcmascriptModuleFacadeModule { module, parsed, ty }.cell()
+        debug_assert!(
+            matches!(
+                part,
+                ModulePart::Facade
+                    | ModulePart::RenamedExport { .. }
+                    | ModulePart::RenamedNamespace { .. }
+            ),
+            "{part:?} is unexpected for EcmascriptModuleFacadeModule"
+        );
+        EcmascriptModuleFacadeModule { module, part }.cell()
     }
 
     #[turbo_tasks::function]
@@ -67,98 +81,63 @@ impl EcmascriptModuleFacadeModule {
 }
 
 impl EcmascriptModuleFacadeModule {
-    pub async fn code_generation(
-        self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        parsed: Vc<ParseResult>,
-    ) -> Result<Vec<CodeGeneration>> {
-        let this = self.await?;
-        Ok(match &this.ty {
-            ModulePart::Evaluation => {
-                let Some(module) =
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(this.module)
-                else {
-                    bail!(
-                        "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
-                         ModulePart::Evaluation"
-                    );
-                };
-                let result = module.analyze().await?;
-                let mut code_gens = result
-                    .esm_evaluation_references
-                    .await?
-                    .iter()
-                    .map(|r| r.code_generation(chunking_context))
-                    .try_join()
-                    .await?;
-                code_gens.push(
-                    EcmascriptModulePartReference::new_part(
-                        *this.module,
-                        parsed,
-                        ModulePart::locals(),
-                    )
-                    .code_generation(module_graph, chunking_context)
-                    .await?,
-                );
-                code_gens
-            }
-            ModulePart::Exports => {
-                let Some(module) =
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(this.module)
-                else {
-                    bail!(
-                        "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
-                         ModulePart::Exports"
-                    );
-                };
-                let result = module.analyze().await?;
-                let mut code_gens = result
-                    .esm_reexport_references
-                    .await?
-                    .iter()
-                    .map(|r| r.code_generation(chunking_context))
-                    .try_join()
-                    .await?;
-                code_gens.push(
-                    EcmascriptModulePartReference::new_part(
-                        *this.module,
-                        parsed,
-                        ModulePart::locals(),
-                    )
-                    .code_generation(module_graph, chunking_context)
-                    .await?,
-                );
-                code_gens
-            }
+    pub async fn specific_references(
+        &self,
+    ) -> Result<(
+        Vec<ResolvedVc<EcmascriptModulePartReference>>,
+        ResolvedVc<EsmAssetReferences>,
+    )> {
+        Ok(match &self.part {
             ModulePart::Facade => {
-                vec![
-                    EcmascriptModulePartReference::new_part(
-                        *this.module,
-                        parsed,
-                        ModulePart::evaluation(),
-                    )
-                    .code_generation(module_graph, chunking_context)
-                    .await?,
-                    EcmascriptModulePartReference::new_part(
-                        *this.module,
-                        parsed,
-                        ModulePart::exports(),
-                    )
-                    .code_generation(module_graph, chunking_context)
-                    .await?,
-                ]
+                let Some(module) =
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module)
+                else {
+                    bail!(
+                        "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
+                         ModulePart::Facade"
+                    );
+                };
+                let result = module.analyze().await?;
+                (
+                    vec![
+                        // TODO skip if side effect free and no local exports
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            ModulePart::locals(),
+                            ExportUsage::all(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ],
+                    result.esm_reexport_references,
+                )
             }
-            ModulePart::RenamedNamespace { .. } => vec![
-                EcmascriptModulePartReference::new(*this.module, parsed)
-                    .code_generation(module_graph, chunking_context)
+            ModulePart::RenamedNamespace { .. } => (
+                vec![
+                    EcmascriptModulePartReference::new_normal(
+                        *self.module,
+                        self.part.clone(),
+                        ExportUsage::all(),
+                    )
+                    .to_resolved()
                     .await?,
-            ],
-            ModulePart::RenamedExport { .. } => vec![
-                EcmascriptModulePartReference::new(*this.module, parsed)
-                    .code_generation(module_graph, chunking_context)
+                ],
+                EsmAssetReferences::empty().to_resolved().await?,
+            ),
+            ModulePart::RenamedExport {
+                original_export, ..
+            } => (
+                vec![
+                    EcmascriptModulePartReference::new_normal(
+                        *self.module,
+                        self.part.clone(),
+                        ExportUsage::named(original_export.clone()),
+                    )
+                    .to_resolved()
                     .await?,
-            ],
+                ],
+                EsmAssetReferences::empty().to_resolved().await?,
+            ),
             _ => {
                 bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule");
             }
@@ -169,107 +148,18 @@ impl EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let inner = self.module.ident();
-
-        Ok(inner.with_part(self.ty.clone()))
+    fn ident(&self) -> Vc<AssetIdent> {
+        self.module.ident().with_part(self.part.clone())
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let references = match &self.ty {
-            ModulePart::Evaluation => {
-                let Some(module) =
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module)
-                else {
-                    bail!(
-                        "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
-                         ModulePart::Evaluation"
-                    );
-                };
-                let result = module.analyze().await?;
-                result
-                    .esm_evaluation_references
-                    .await?
-                    .iter()
-                    .map(|r| ResolvedVc::upcast(*r))
-                    .chain(std::iter::once(ResolvedVc::upcast(
-                        EcmascriptModulePartReference::new_part(
-                            *self.module,
-                            *self.parsed,
-                            ModulePart::locals(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    )))
-                    .collect()
-            }
-            ModulePart::Exports => {
-                let Some(module) =
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module)
-                else {
-                    bail!(
-                        "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
-                         ModulePart::Exports"
-                    );
-                };
-                let result = module.analyze().await?;
-                result
-                    .esm_reexport_references
-                    .await?
-                    .iter()
-                    .map(|r| ResolvedVc::upcast(*r))
-                    .chain(std::iter::once(ResolvedVc::upcast(
-                        EcmascriptModulePartReference::new_part(
-                            *self.module,
-                            *self.parsed,
-                            ModulePart::locals(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    )))
-                    .collect()
-            }
-            ModulePart::Facade => {
-                vec![
-                    ResolvedVc::upcast(
-                        EcmascriptModulePartReference::new_part(
-                            *self.module,
-                            *self.parsed,
-                            ModulePart::evaluation(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    ),
-                    ResolvedVc::upcast(
-                        EcmascriptModulePartReference::new_part(
-                            *self.module,
-                            *self.parsed,
-                            ModulePart::exports(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    ),
-                ]
-            }
-            ModulePart::RenamedNamespace { .. } => {
-                vec![ResolvedVc::upcast(
-                    EcmascriptModulePartReference::new(*self.module, *self.parsed)
-                        .to_resolved()
-                        .await?,
-                )]
-            }
-            ModulePart::RenamedExport { .. } => {
-                vec![ResolvedVc::upcast(
-                    EcmascriptModulePartReference::new(*self.module, *self.parsed)
-                        .to_resolved()
-                        .await?,
-                )]
-            }
-            _ => {
-                bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule");
-            }
-        };
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
+        let (part_references, esm_references) = self.await?.specific_references().await?;
+        let references = part_references
+            .iter()
+            .map(|r| ResolvedVc::upcast(*r))
+            .chain(esm_references.await?.iter().map(|r| ResolvedVc::upcast(*r)))
+            .collect();
         Ok(Vc::cell(references))
     }
 
@@ -298,14 +188,59 @@ impl Asset for EcmascriptModuleFacadeModule {
 }
 
 #[turbo_tasks::value_impl]
+impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
+    #[turbo_tasks::function]
+    fn analyze(&self) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
+        bail!("EcmascriptModuleFacadeModule::analyze shouldn't be called");
+    }
+
+    #[turbo_tasks::function]
+    fn module_content_without_analysis(
+        &self,
+        _generate_source_map: bool,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        bail!("EcmascriptModuleFacadeModule::module_content_without_analysis shouldn't be called");
+    }
+
+    #[turbo_tasks::function]
+    async fn module_content_options(
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContentOptions>> {
+        let (part_references, esm_references) = self.await?.specific_references().await?;
+
+        Ok(EcmascriptModuleContentOptions {
+            parsed: None,
+            module: ResolvedVc::upcast(self),
+            specified_module_type: SpecifiedModuleType::EcmaScript,
+            chunking_context,
+            references: self.references().to_resolved().await?,
+            part_references,
+            esm_references,
+            code_generation: CodeGens::empty().to_resolved().await?,
+            async_module: ResolvedVc::cell(Some(self.async_module().to_resolved().await?)),
+            // The facade module cannot generate source maps, because the inserted references
+            // contain spans from the original module, but the facade module itself doesn't have the
+            // original module's swc_common::SourceMap in `parsed`.
+            generate_source_map: false,
+            original_source_map: None,
+            exports: self.get_exports().to_resolved().await?,
+            async_module_info,
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
         let mut exports = BTreeMap::new();
         let mut star_exports = Vec::new();
 
-        match &self.ty {
-            ModulePart::Exports => {
+        match &self.part {
+            ModulePart::Facade => {
                 let EcmascriptExports::EsmExports(esm_exports) = *self.module.get_exports().await?
                 else {
                     bail!(
@@ -316,21 +251,21 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 for (name, export) in &esm_exports.exports {
                     let name = name.clone();
                     match export {
-                        EsmExport::LocalBinding(_, mutable) => {
+                        EsmExport::LocalBinding(_, liveness) => {
                             exports.insert(
                                 name.clone(),
                                 EsmExport::ImportedBinding(
                                     ResolvedVc::upcast(
                                         EcmascriptModulePartReference::new_part(
                                             *self.module,
-                                            *self.parsed,
                                             ModulePart::locals(),
+                                            ExportUsage::named(name.clone()),
                                         )
                                         .to_resolved()
                                         .await?,
                                     ),
                                     name,
-                                    *mutable,
+                                    *liveness == Liveness::Mutable,
                                 ),
                             );
                         }
@@ -354,44 +289,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 }
                 star_exports.extend(esm_exports.star_exports.iter().copied());
             }
-            ModulePart::Facade => {
-                // Reexport everything from the reexports module
-                // (including default export if any)
-                let EcmascriptExports::EsmExports(esm_exports) = *self.module.get_exports().await?
-                else {
-                    bail!(
-                        "EcmascriptModuleFacadeModule must only be used on modules with EsmExports"
-                    );
-                };
-                let esm_exports = esm_exports.await?;
-                if esm_exports.exports.keys().any(|name| name == "default") {
-                    exports.insert(
-                        "default".into(),
-                        EsmExport::ImportedBinding(
-                            ResolvedVc::upcast(
-                                EcmascriptModulePartReference::new_part(
-                                    *self.module,
-                                    *self.parsed,
-                                    ModulePart::exports(),
-                                )
-                                .to_resolved()
-                                .await?,
-                            ),
-                            "default".into(),
-                            false,
-                        ),
-                    );
-                }
-                star_exports.push(ResolvedVc::upcast(
-                    EcmascriptModulePartReference::new_part(
-                        *self.module,
-                        *self.parsed,
-                        ModulePart::exports(),
-                    )
-                    .to_resolved()
-                    .await?,
-                ));
-            }
             ModulePart::RenamedExport {
                 original_export,
                 export,
@@ -400,9 +297,13 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                     export.clone(),
                     EsmExport::ImportedBinding(
                         ResolvedVc::upcast(
-                            EcmascriptModulePartReference::new(*self.module, *self.parsed)
-                                .to_resolved()
-                                .await?,
+                            EcmascriptModulePartReference::new_normal(
+                                *self.module,
+                                self.part.clone(),
+                                ExportUsage::named(original_export.clone()),
+                            )
+                            .to_resolved()
+                            .await?,
                         ),
                         original_export.clone(),
                         false,
@@ -413,14 +314,15 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 exports.insert(
                     export.clone(),
                     EsmExport::ImportedNamespace(ResolvedVc::upcast(
-                        EcmascriptModulePartReference::new(*self.module, *self.parsed)
-                            .to_resolved()
-                            .await?,
+                        EcmascriptModulePartReference::new_normal(
+                            *self.module,
+                            self.part.clone(),
+                            ExportUsage::all(),
+                        )
+                        .to_resolved()
+                        .await?,
                     )),
                 );
-            }
-            ModulePart::Evaluation => {
-                // no exports
             }
             _ => bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule"),
         }
@@ -434,17 +336,17 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
+    fn is_marked_as_side_effect_free(
         &self,
         side_effect_free_packages: Vc<Glob>,
     ) -> Result<Vc<bool>> {
-        Ok(match self.ty {
-            ModulePart::Evaluation | ModulePart::Facade => self
+        Ok(match self.part {
+            ModulePart::Facade => self
                 .module
                 .is_marked_as_side_effect_free(side_effect_free_packages),
-            ModulePart::Exports
-            | ModulePart::RenamedExport { .. }
-            | ModulePart::RenamedNamespace { .. } => Vc::cell(true),
+            ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. } => {
+                Vc::cell(true)
+            }
             _ => bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule"),
         })
     }
@@ -458,15 +360,14 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        _module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         Ok(Vc::upcast(
             EcmascriptModuleFacadeChunkItem {
                 module: self,
-                module_graph,
                 chunking_context,
             }
             .cell(),
@@ -476,3 +377,22 @@ impl ChunkableModule for EcmascriptModuleFacadeModule {
 
 #[turbo_tasks::value_impl]
 impl EvaluatableAsset for EcmascriptModuleFacadeModule {}
+
+#[turbo_tasks::value_impl]
+impl MergeableModule for EcmascriptModuleFacadeModule {
+    #[turbo_tasks::function]
+    async fn merge(
+        self: Vc<Self>,
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
+    ) -> Result<Vc<Box<dyn ChunkableModule>>> {
+        Ok(Vc::upcast(
+            *MergedEcmascriptModule::new(
+                modules,
+                entry_points,
+                EcmascriptOptions::default().resolved_cell(),
+            )
+            .await?,
+        ))
+    }
+}

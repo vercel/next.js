@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-identical-title */
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'
@@ -113,7 +112,7 @@ describe('Edge runtime code with imports', () => {
           expect(stderr).toContain(getUnsupportedModuleWarning(moduleName))
 
           // TODO: should this be failing build or not in turbopack
-          if (!process.env.TURBOPACK) {
+          if (!process.env.IS_TURBOPACK_TEST) {
             context.app = await nextStart(
               context.appDir,
               context.appPort,

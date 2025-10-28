@@ -30,7 +30,6 @@ const context = {
   ),
 }
 const appOption = {
-  env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
   onStdout(msg) {
     context.logs.output += msg
     context.logs.stdout += msg
@@ -115,17 +114,19 @@ describe('Edge runtime configurable guards', () => {
           const output = await nextBuild(context.appDir, undefined, {
             stdout: true,
             stderr: true,
-            env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: 1 },
+            env: process.env.IS_TURBOPACK_TEST
+              ? {}
+              : { NEXT_TELEMETRY_DEBUG: 1 },
           })
 
           expect(output.code).toBe(1)
-          if (!process.env.TURBOPACK) {
+          if (!process.env.IS_TURBOPACK_TEST) {
             expect(output.stderr).toContain(`./pages/api/route.js`)
           }
           expect(output.stderr).toContain(
             `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
           )
-          if (!process.env.TURBOPACK) {
+          if (!process.env.IS_TURBOPACK_TEST) {
             expect(output.stderr).toContain(`Used by default`)
             expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
           }
@@ -215,7 +216,7 @@ describe('Edge runtime configurable guards', () => {
       },
       // TODO: Re-enable when Turbopack applies the middleware dynamic code
       // evaluation transforms also to code in node_modules.
-      skip: Boolean(process.env.TURBOPACK),
+      skip: Boolean(process.env.IS_TURBOPACK_TEST),
     },
   ])('$title with allowed, used dynamic code', ({ init, url, skip }) => {
     beforeEach(() => init())
@@ -325,17 +326,19 @@ describe('Edge runtime configurable guards', () => {
       'production mode',
       () => {
         // This checks the unstable_allowDynamic configuration which is not supported in Turbopack.
-        ;(process.env.TURBOPACK ? it.skip : it)(
+        ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
           'build and does not warn at runtime',
           async () => {
             const output = await nextBuild(context.appDir, undefined, {
               stdout: true,
               stderr: true,
-              env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: 1 },
+              env: process.env.IS_TURBOPACK_TEST
+                ? {}
+                : { NEXT_TELEMETRY_DEBUG: 1 },
             })
             // eslint-disable-next-line jest/no-standalone-expect
             expect(output.stderr).not.toContain(`Build failed`)
-            if (!process.env.TURBOPACK) {
+            if (!process.env.IS_TURBOPACK_TEST) {
               // eslint-disable-next-line jest/no-standalone-expect
               expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
             }
@@ -384,7 +387,7 @@ describe('Edge runtime configurable guards', () => {
       },
       // TODO: Re-enable when Turbopack applies the edge runtime transforms also
       // to code in node_modules.
-      skip: Boolean(process.env.TURBOPACK),
+      skip: Boolean(process.env.IS_TURBOPACK_TEST),
     },
     {
       title: 'Middleware using lib',
@@ -409,7 +412,7 @@ describe('Edge runtime configurable guards', () => {
       },
       // TODO: Re-enable when Turbopack applies the middleware dynamic code
       // evaluation transforms also to code in node_modules.
-      skip: Boolean(process.env.TURBOPACK),
+      skip: Boolean(process.env.IS_TURBOPACK_TEST),
     },
   ])('$title with unallowed, used dynamic code', ({ init, url, skip }) => {
     beforeEach(() => init())
@@ -431,12 +434,14 @@ describe('Edge runtime configurable guards', () => {
           const output = await nextBuild(context.appDir, undefined, {
             stdout: true,
             stderr: true,
-            env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: 1 },
+            env: process.env.IS_TURBOPACK_TEST
+              ? {}
+              : { NEXT_TELEMETRY_DEBUG: 1 },
           })
           expect(output.stderr).toContain(
             `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
           )
-          if (!process.env.TURBOPACK) {
+          if (!process.env.IS_TURBOPACK_TEST) {
             expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
           }
         })
@@ -487,8 +492,7 @@ describe('Edge runtime configurable guards', () => {
       'production mode',
       () => {
         // This checks the unstable_allowDynamic configuration which is not supported in Turbopack.
-        // eslint-disable-next-line jest/no-identical-title
-        ;(process.env.TURBOPACK ? it.skip : it)(
+        ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
           'build and does not warn at runtime',
           async () => {
             const output = await nextBuild(context.appDir, undefined, {

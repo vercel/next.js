@@ -1,8 +1,15 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
+import {
+  formatDebugAddress,
+  formatNodeOptions,
+  getNodeDebugType,
+  getParsedDebugAddress,
+  getParsedNodeOptionsWithoutInspect,
+} from '../server/lib/utils'
 
-type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
+type FarmOptions = NonNullable<ConstructorParameters<typeof JestWorker>[1]>
 
 const RESTARTED = Symbol('restarted')
 
@@ -14,12 +21,33 @@ const cleanupWorkers = (worker: JestWorker) => {
   }
 }
 
+export function getNextBuildDebuggerPortOffset(_: {
+  kind: 'export-page'
+}): number {
+  // 0: export worker
+  return 0
+}
+
 export class Worker {
   private _worker: JestWorker | undefined
 
   constructor(
     workerPath: string,
-    options: FarmOptions & {
+    options: Omit<FarmOptions, 'forkOptions'> & {
+      forkOptions?:
+        | (Omit<NonNullable<FarmOptions['forkOptions']>, 'env'> & {
+            env?: Partial<NodeJS.ProcessEnv> | undefined
+          })
+        | undefined
+      /**
+       * `-1` if not inspectable
+       */
+      debuggerPortOffset: number
+      enableSourceMaps?: boolean
+      /**
+       * True if `--max-old-space-size` should not be forwarded to the worker.
+       */
+      isolatedMemory: boolean
       timeout?: number
       onActivity?: () => void
       onActivityAbort?: () => void
@@ -29,7 +57,15 @@ export class Worker {
       enableWorkerThreads?: boolean
     }
   ) {
-    let { timeout, onRestart, logger = console, ...farmOptions } = options
+    let {
+      enableSourceMaps,
+      timeout,
+      onRestart,
+      logger = console,
+      debuggerPortOffset,
+      isolatedMemory,
+      ...farmOptions
+    } = options
 
     let restartPromise: Promise<typeof RESTARTED>
     let resolveRestartPromise: (arg: typeof RESTARTED) => void
@@ -42,16 +78,62 @@ export class Worker {
       this.close()
     })
 
+    const nodeOptions = getParsedNodeOptionsWithoutInspect()
+
+    if (debuggerPortOffset !== -1) {
+      const nodeDebugType = getNodeDebugType()
+      if (nodeDebugType) {
+        const address = getParsedDebugAddress()
+        address.port =
+          address.port === 0
+            ? 0
+            : address.port +
+              // current process runs on `address.port`
+              1 +
+              debuggerPortOffset
+        nodeOptions[nodeDebugType] = formatDebugAddress(address)
+      }
+    }
+
+    if (enableSourceMaps) {
+      nodeOptions['enable-source-maps'] = true
+    }
+
+    if (isolatedMemory) {
+      delete nodeOptions['max-old-space-size']
+      delete nodeOptions['max_old_space_size']
+    }
+
     const createWorker = () => {
+      const workerEnv: NodeJS.ProcessEnv = {
+        ...process.env,
+        ...((farmOptions.forkOptions?.env || {}) as any),
+        IS_NEXT_WORKER: 'true',
+        NODE_OPTIONS: formatNodeOptions(nodeOptions),
+      }
+
+      if (workerEnv.FORCE_COLOR === undefined) {
+        // Mirror the enablement heuristic from picocolors (see https://github.com/vercel/next.js/blob/6a40da0345939fe4f7b1ae519b296a86dd103432/packages/next/src/lib/picocolors.ts#L21-L24).
+        // Picocolors snapshots `process.env`/`stdout.isTTY` at module load time, so when the worker
+        // process bootstraps with piped stdio its own check would disable colors. Re-evaluating the
+        // same conditions here lets us opt the worker into color output only when the parent would
+        // have seen colors, while still respecting explicit opt-outs like NO_COLOR.
+        const supportsColors =
+          !workerEnv.NO_COLOR &&
+          !workerEnv.CI &&
+          workerEnv.TERM !== 'dumb' &&
+          (process.stdout.isTTY || process.stderr?.isTTY)
+
+        if (supportsColors) {
+          workerEnv.FORCE_COLOR = '1'
+        }
+      }
+
       this._worker = new JestWorker(workerPath, {
         ...farmOptions,
         forkOptions: {
           ...farmOptions.forkOptions,
-          env: {
-            ...((farmOptions.forkOptions?.env || {}) as any),
-            ...process.env,
-            IS_NEXT_WORKER: 'true',
-          } as any,
+          env: workerEnv,
         },
         maxRetries: 0,
       }) as JestWorker

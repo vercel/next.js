@@ -26,50 +26,43 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
+use anyhow::Context;
 use napi::bindgen_prelude::*;
-use rustc_hash::FxHashMap;
-use serde::Deserialize;
+use serde::Serialize;
 use swc_core::{
-    base::{config::JsMinifyOptions, try_with_handler, BoolOrDataConfig, TransformOutput},
-    common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
-    ecma::minifier::option::{
-        terser::{TerserCompressorOptions, TerserInlineOption},
-        MangleOptions,
-    },
+    base::{config::JsMinifyOptions, try_with_handler},
+    common::{FileName, GLOBALS, errors::ColorConfig},
 };
 
 use crate::{get_compiler, util::MapErr};
 
 pub struct MinifyTask {
     c: swc_core::base::Compiler,
-    code: MinifyTarget,
-    opts: swc_core::base::config::JsMinifyOptions,
+    code: Option<String>,
+    opts: JsMinifyOptions,
 }
 
-#[derive(Deserialize)]
-#[serde(untagged)]
-enum MinifyTarget {
-    /// Code to minify.
-    Single(String),
-    /// `{ filename: code }`
-    Map(FxHashMap<String, String>),
+// Same as the swc_core::base::TransformOutput, but using our napi-rs v2's derived #[napi], while
+// swc is already on napi-rs v3.
+#[napi_derive::napi(object)]
+#[derive(Debug, Serialize)]
+pub struct TransformOutput {
+    pub code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub map: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output: Option<String>,
+    pub diagnostics: std::vec::Vec<String>,
 }
 
-impl MinifyTarget {
-    fn to_file(&self, cm: Lrc<SourceMap>) -> Lrc<SourceFile> {
-        match self {
-            MinifyTarget::Single(code) => cm.new_source_file(FileName::Anon.into(), code.clone()),
-            MinifyTarget::Map(codes) => {
-                assert_eq!(
-                    codes.len(),
-                    1,
-                    "swc.minify does not support concatenating multiple files yet"
-                );
-
-                let (filename, code) = codes.iter().next().unwrap();
-
-                cm.new_source_file(FileName::Real(filename.clone().into()).into(), code.clone())
-            }
+impl From<swc_core::base::TransformOutput> for TransformOutput {
+    fn from(other: swc_core::base::TransformOutput) -> Self {
+        Self {
+            code: other.code,
+            map: other.map,
+            output: other.output,
+            diagnostics: other.diagnostics,
         }
     }
 }
@@ -81,6 +74,8 @@ impl Task for MinifyTask {
     type JsValue = TransformOutput;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
+        let code = self.code.take().unwrap_or_default();
+
         try_with_handler(
             self.c.cm.clone(),
             swc_core::base::HandlerOpts {
@@ -89,45 +84,19 @@ impl Task for MinifyTask {
             },
             |handler| {
                 GLOBALS.set(&Default::default(), || {
-                    let fm = self.code.to_file(self.c.cm.clone());
+                    let fm = self.c.cm.new_source_file(FileName::Anon.into(), code);
 
                     self.c.minify(fm, handler, &self.opts, Default::default())
                 })
             },
         )
+        .map(TransformOutput::from)
+        .map_err(|e| e.to_pretty_error())
         .convert_err()
     }
 
     fn resolve(&mut self, _: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
         Ok(output)
-    }
-}
-
-/// **NOTE** `inline: 3` breaks some codes.
-///
-/// <https://github.com/vercel/next.js/pull/57904>
-fn patch_opts(opts: &mut JsMinifyOptions) {
-    opts.compress = BoolOrDataConfig::from_obj(TerserCompressorOptions {
-        inline: Some(TerserInlineOption::Num(2)),
-        global_defs: [(
-            "process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE".into(),
-            false.into(),
-        )]
-        .iter()
-        .cloned()
-        .collect(),
-        ..Default::default()
-    });
-
-    if !opts.mangle.is_false() {
-        let mut mangle = std::mem::take(&mut opts.mangle);
-        if mangle.is_true() {
-            mangle = BoolOrDataConfig::from_obj(MangleOptions::default());
-        }
-        opts.mangle = mangle.map(|mut mangle_opts| {
-            mangle_opts.reserved.push("AbortSignal".into());
-            mangle_opts
-        });
     }
 }
 
@@ -137,26 +106,32 @@ pub fn minify(
     opts: Buffer,
     signal: Option<AbortSignal>,
 ) -> napi::Result<AsyncTask<MinifyTask>> {
-    let code = serde_json::from_slice(&input)?;
-    let mut opts = serde_json::from_slice(&opts)?;
-    patch_opts(&mut opts);
+    let code = String::from_utf8(input.into())
+        .context("failed to convert input to string")
+        .convert_err()?;
+    let opts = serde_json::from_slice(&opts)?;
 
     let c = get_compiler();
 
-    let task = MinifyTask { c, code, opts };
+    let task = MinifyTask {
+        c,
+        code: Some(code),
+        opts,
+    };
 
     Ok(AsyncTask::with_optional_signal(task, signal))
 }
 
 #[napi]
 pub fn minify_sync(input: Buffer, opts: Buffer) -> napi::Result<TransformOutput> {
-    let code: MinifyTarget = serde_json::from_slice(&input)?;
-    let mut opts = serde_json::from_slice(&opts)?;
-    patch_opts(&mut opts);
+    let code = String::from_utf8(input.into())
+        .context("failed to convert input to string")
+        .convert_err()?;
+    let opts = serde_json::from_slice(&opts)?;
 
     let c = get_compiler();
 
-    let fm = code.to_file(c.cm.clone());
+    let fm = c.cm.new_source_file(FileName::Anon.into(), code);
 
     try_with_handler(
         c.cm.clone(),
@@ -170,5 +145,7 @@ pub fn minify_sync(input: Buffer, opts: Buffer) -> napi::Result<TransformOutput>
             })
         },
     )
+    .map(TransformOutput::from)
+    .map_err(|e| e.to_pretty_error())
     .convert_err()
 }

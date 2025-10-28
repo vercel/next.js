@@ -1,0 +1,1 @@
+require('bindings')('not-found')

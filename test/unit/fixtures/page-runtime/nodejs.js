@@ -3,6 +3,5 @@ export default function Nodejs() {
 }
 
 export const config = {
-  amp: false,
   runtime: 'nodejs',
 }

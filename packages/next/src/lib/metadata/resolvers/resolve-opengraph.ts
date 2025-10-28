@@ -1,4 +1,4 @@
-import type { ResolvedMetadata } from '../types/metadata-interface'
+import type { ResolvedMetadataWithURLs } from '../types/metadata-interface'
 import type {
   OpenGraphType,
   OpenGraph,
@@ -6,6 +6,7 @@ import type {
 } from '../types/opengraph-types'
 import type {
   FieldResolverExtraArgs,
+  AsyncFieldResolverExtraArgs,
   MetadataContext,
 } from '../types/resolvers'
 import type { ResolvedTwitterMetadata, Twitter } from '../types/twitter-types'
@@ -15,13 +16,13 @@ import {
   isStringOrURL,
   resolveUrl,
   resolveAbsoluteUrlWithPathname,
+  type MetadataBaseURL,
 } from './resolve-url'
 import { resolveTitle } from './resolve-title'
 import { isFullStringUrl } from '../../url'
 import { warnOnce } from '../../../build/output/log'
 
 type FlattenArray<T> = T extends (infer U)[] ? U : T
-type ResolvedMetadataBase = ResolvedMetadata['metadataBase']
 
 const OgTypeFields = {
   article: ['authors', 'tags'],
@@ -41,7 +42,7 @@ const OgTypeFields = {
 
 function resolveAndValidateImage(
   item: FlattenArray<OpenGraph['images'] | Twitter['images']>,
-  metadataBase: ResolvedMetadataBase,
+  metadataBase: MetadataBaseURL,
   isStaticMetadataRouteFile: boolean | undefined
 ) {
   if (!item) return undefined
@@ -108,21 +109,21 @@ function resolveAndValidateImage(
 
 export function resolveImages(
   images: Twitter['images'],
-  metadataBase: ResolvedMetadataBase,
+  metadataBase: MetadataBaseURL,
   isStaticMetadataRouteFile: boolean
-): NonNullable<ResolvedMetadata['twitter']>['images']
+): NonNullable<ResolvedMetadataWithURLs['twitter']>['images']
 export function resolveImages(
   images: OpenGraph['images'],
-  metadataBase: ResolvedMetadataBase,
+  metadataBase: MetadataBaseURL,
   isStaticMetadataRouteFile: boolean
-): NonNullable<ResolvedMetadata['openGraph']>['images']
+): NonNullable<ResolvedMetadataWithURLs['openGraph']>['images']
 export function resolveImages(
   images: OpenGraph['images'] | Twitter['images'],
-  metadataBase: ResolvedMetadataBase,
+  metadataBase: MetadataBaseURL,
   isStaticMetadataRouteFile: boolean
 ):
-  | NonNullable<ResolvedMetadata['twitter']>['images']
-  | NonNullable<ResolvedMetadata['openGraph']>['images'] {
+  | NonNullable<ResolvedMetadataWithURLs['twitter']>['images']
+  | NonNullable<ResolvedMetadataWithURLs['openGraph']>['images'] {
   const resolvedImages = resolveAsArrayOrUndefined(images)
   if (!resolvedImages) return resolvedImages
 
@@ -157,10 +158,16 @@ function getFieldsByOgType(ogType: OpenGraphType | undefined) {
   return ogTypeToFields[ogType].concat(OgTypeFields.basic)
 }
 
-export const resolveOpenGraph: FieldResolverExtraArgs<
+export const resolveOpenGraph: AsyncFieldResolverExtraArgs<
   'openGraph',
-  [ResolvedMetadataBase, MetadataContext, string | null]
-> = (openGraph, metadataBase, metadataContext, titleTemplate) => {
+  [MetadataBaseURL, Promise<string>, MetadataContext, string | null]
+> = async (
+  openGraph,
+  metadataBase,
+  pathname,
+  metadataContext,
+  titleTemplate
+) => {
   if (!openGraph) return null
 
   function resolveProps(target: ResolvedOpenGraph, og: OpenGraph) {
@@ -191,6 +198,7 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
     ? resolveAbsoluteUrlWithPathname(
         openGraph.url,
         metadataBase,
+        await pathname,
         metadataContext
       )
     : null
@@ -208,7 +216,7 @@ const TwitterBasicInfoKeys = [
 
 export const resolveTwitter: FieldResolverExtraArgs<
   'twitter',
-  [ResolvedMetadataBase, MetadataContext, string | null]
+  [MetadataBaseURL, MetadataContext, string | null]
 > = (twitter, metadataBase, metadataContext, titleTemplate) => {
   if (!twitter) return null
   let card = 'card' in twitter ? twitter.card : undefined
@@ -239,8 +247,11 @@ export const resolveTwitter: FieldResolverExtraArgs<
         resolved.app = resolved.app || {}
         break
       }
-      default:
+      case 'summary':
+      case 'summary_large_image':
         break
+      default:
+        resolved satisfies never
     }
   }
 

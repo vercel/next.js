@@ -1,5 +1,6 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use indoc::formatdoc;
+use itertools::Itertools;
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 
@@ -8,7 +9,7 @@ use crate::next_font::{
     font_fallback::FontFallbacks,
     local::NextFontLocalFontFileOptions,
     stylesheet::{build_fallback_definition, build_font_class_rules},
-    util::{get_scoped_font_family, FontCssProperties, FontFamilyType},
+    util::{FontCssProperties, FontFamilyType, get_scoped_font_family},
 };
 
 #[turbo_tasks::function]
@@ -18,7 +19,7 @@ pub(super) async fn build_stylesheet(
     css_properties: Vc<FontCssProperties>,
 ) -> Result<Vc<RcStr>> {
     let scoped_font_family =
-        get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family());
+        get_scoped_font_family(FontFamilyType::WebFont, options.font_family().await?);
 
     Ok(Vc::cell(
         formatdoc!(
@@ -39,7 +40,7 @@ pub(super) async fn build_stylesheet(
 /// Builds a string of `@font-face` definitions for each local font file
 #[turbo_tasks::function]
 pub(super) async fn build_font_face_definitions(
-    scoped_font_family: Vc<RcStr>,
+    scoped_font_family: RcStr,
     options: Vc<NextFontLocalOptions>,
     has_size_adjust: Vc<bool>,
 ) -> Result<Vc<RcStr>> {
@@ -64,13 +65,21 @@ pub(super) async fn build_font_face_definitions(
         definitions.push_str(&formatdoc!(
             r#"
                 @font-face {{
+                    {}
                     font-family: '{}';
                     src: url('@vercel/turbopack-next/internal/font/local/font?{}') format('{}');
                     font-display: {};
                     {}{}
                 }}
             "#,
-            *scoped_font_family.await?,
+            options.declarations.as_ref().map_or_else(
+                || "".to_owned(),
+                |declarations| declarations
+                    .iter()
+                    .map(|declaration| format!("{}: {};", declaration.prop, declaration.value))
+                    .join("\n")
+            ),
+            scoped_font_family,
             query_str,
             ext_to_format(&font.ext)?,
             options.display,
@@ -78,12 +87,12 @@ pub(super) async fn build_font_face_definitions(
                 .weight
                 .as_ref()
                 .or(options.default_weight.as_ref())
-                .map_or_else(|| "".to_owned(), |w| format!("font-weight: {};", w)),
+                .map_or_else(|| "".to_owned(), |w| format!("font-weight: {w};")),
             &font
                 .style
                 .as_ref()
                 .or(options.default_style.as_ref())
-                .map_or_else(|| "".to_owned(), |s| format!("font-style: {};", s)),
+                .map_or_else(|| "".to_owned(), |s| format!("font-style: {s};")),
         ));
     }
 

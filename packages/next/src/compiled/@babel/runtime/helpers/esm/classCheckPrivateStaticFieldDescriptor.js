@@ -1,5 +1,4 @@
-export default function _classCheckPrivateStaticFieldDescriptor(descriptor, action) {
-  if (descriptor === undefined) {
-    throw new TypeError("attempted to " + action + " private static field before its declaration");
-  }
+function _classCheckPrivateStaticFieldDescriptor(t, e) {
+  if (void 0 === t) throw new TypeError("attempted to " + e + " private static field before its declaration");
 }
+export { _classCheckPrivateStaticFieldDescriptor as default };

@@ -9,6 +9,8 @@ describe('ReactRefreshLogBox-builtins app', () => {
     skipStart: true,
   })
 
+  const isRspack = !!process.env.NEXT_RSPACK
+
   // Module trace is only available with webpack 5
   test('Node.js builtins', async () => {
     await using sandbox = await createSandbox(
@@ -48,7 +50,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'dns'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -59,10 +60,29 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module not found: Can't resolve 'dns' in '<FIXME-project-root>/node_modules/my-package'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./node_modules/my-package/index.js
+         × Module not found: Can't resolve 'dns' in '<FIXME-project-root>/node_modules/my-package'
+          ╭─[1:12]
+        1 │ const dns = require('dns')
+          ·             ──────────────
+        2 │ module.exports = dns
+          ╰────
+       Import trace for requested module:
+       ./node_modules/my-package/index.js
+       ./index.js
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'dns'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -97,7 +117,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'b'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -108,10 +127,30 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module not found: Can't resolve 'b' in '<FIXME-project-root>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module not found: Can't resolve 'b' in '<FIXME-project-root>'
+          ╭─[2:17]
+        1 │ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+        2 │ import Comp from 'b';
+          ·                  ───
+        3 │ export default function Oops() {
+        4 │     return /*#__PURE__*/ _jsxDEV("div", {
+          ╰────
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'b'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -147,7 +186,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'b'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -158,10 +196,29 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module not found: Can't resolve 'b' in '<FIXME-project-root>/app'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/page.js
+         × Module not found: Can't resolve 'b' in '<FIXME-project-root>/app'
+          ╭─[2:17]
+        1 │ /* __next_internal_client_entry_do_not_use__ default auto */ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+        2 │ import Comp from 'b';
+          ·                  ───
+        3 │ export default function Oops() {
+        4 │     return /*#__PURE__*/ _jsxDEV("div", {
+          ╰────
+       Import trace for requested module:
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve 'b'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -195,7 +252,6 @@ describe('ReactRefreshLogBox-builtins app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve './non-existent.css'",
          "environmentLabel": null,
          "label": "Build Error",
@@ -206,10 +262,27 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module not found: Can't resolve './non-existent.css' in '<FIXME-project-root>/app'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/page.js
+         × Module not found: Can't resolve './non-existent.css' in '<FIXME-project-root>/app'
+          ╭─[2:7]
+        1 │ /* __next_internal_client_entry_do_not_use__ default auto */ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+        2 │ import './non-existent.css';
+          ·        ────────────────────
+        3 │ export default function Page(props) {
+        4 │     return /*#__PURE__*/ _jsxDEV("p", {
+          ╰────",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
          "description": "Module not found: Can't resolve './non-existent.css'",
          "environmentLabel": null,
          "label": "Build Error",

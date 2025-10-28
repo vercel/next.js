@@ -1,6 +1,6 @@
 use anyhow::Result;
 use rustc_hash::FxHashMap;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{ChunkItemExt, ModuleId},

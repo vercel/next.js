@@ -15,7 +15,7 @@ describe('app dir - css', () => {
   }
 
   describe('sass support', () => {
-    ;(process.env.TURBOPACK ? describe : describe.skip)(
+    ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
       'error handling',
       () => {
         it('should use original source points for sass errors', async () => {
@@ -27,7 +27,7 @@ describe('app dir - css', () => {
           // css-loader does not report an error for this case
           expect(source).toMatchInlineSnapshot(`
            "./app/global.scss.css (45:1)
-           Parsing css source code failed
+           Parsing CSS source code failed
              43 | }
              44 |
            > 45 | input.defaultCheckbox::before path {
@@ -36,7 +36,13 @@ describe('app dir - css', () => {
              47 | }
              48 |
 
-           Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")' at [project]/app/global.scss.css:0:884"
+           Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")'
+
+           Import trace:
+             Client Component Browser:
+               ./app/global.scss.css [Client Component Browser]
+               ./app/layout.js [Client Component Browser]
+               ./app/layout.js [Server Component]"
           `)
         })
       }

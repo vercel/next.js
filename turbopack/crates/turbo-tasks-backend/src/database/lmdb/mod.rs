@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fs::create_dir_all, path::Path, thread::available_parallelism};
+use std::{fs::create_dir_all, path::Path, thread::available_parallelism};
 
 use anyhow::{Context, Result};
 use lmdb::{
@@ -8,7 +8,7 @@ use lmdb::{
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
-    write_batch::{BaseWriteBatch, SerialWriteBatch, WriteBatch},
+    write_batch::{BaseWriteBatch, SerialWriteBatch, WriteBatch, WriteBuffer},
 };
 
 mod extended_key;
@@ -74,12 +74,6 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
         = RoTransaction<'l>
     where
         Self: 'l;
-
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        tx
-    }
 
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
         Ok(self.env.begin_ro_txn()?)
@@ -164,7 +158,12 @@ impl<'a> BaseWriteBatch<'a> for LmbdWriteBatch<'a> {
 }
 
 impl<'a> SerialWriteBatch<'a> for LmbdWriteBatch<'a> {
-    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+    fn put(
+        &mut self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
         extended_key::put(
             &mut self.tx,
             self.this.db(key_space),
@@ -175,13 +174,18 @@ impl<'a> SerialWriteBatch<'a> for LmbdWriteBatch<'a> {
         Ok(())
     }
 
-    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+    fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         extended_key::delete(
             &mut self.tx,
             self.this.db(key_space),
             &key,
             WriteFlags::empty(),
         )?;
+        Ok(())
+    }
+
+    fn flush(&mut self, _key_space: KeySpace) -> Result<()> {
+        // this is an unimplemented optimization, this LMDB implementation is only used in testing
         Ok(())
     }
 }

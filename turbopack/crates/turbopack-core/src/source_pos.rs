@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbo_tasks_hash::DeterministicHash;
 
 /// LINE FEED (LF), one of the basic JS line terminators.
@@ -32,8 +32,11 @@ pub struct SourcePos {
 }
 
 impl SourcePos {
-    pub fn new() -> Self {
-        Default::default()
+    pub fn new(start_line: u32) -> Self {
+        Self {
+            line: start_line,
+            column: 0,
+        }
     }
 
     pub fn max() -> Self {
@@ -52,7 +55,7 @@ impl SourcePos {
         // JS source text is interpreted as UCS-2, which is basically UTF-16 with less
         // restrictions. We cannot iterate UTF-8 bytes here, 2-byte UTF-8 octets
         // should count as a 1 char and not 2.
-        let SourcePos {
+        let &mut SourcePos {
             mut line,
             mut column,
         } = self;

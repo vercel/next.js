@@ -5,7 +5,7 @@ import type {
   DynamicParamTypesShort,
   FlightRouterState,
   FlightSegmentPath,
-} from '../app-render/types'
+} from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type HotReloaderWebpack from './hot-reloader-webpack'
@@ -13,10 +13,8 @@ import type HotReloaderWebpack from './hot-reloader-webpack'
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import {
-  getStaticInfoIncludingLayouts,
-  runDependingOnPageType,
-} from '../../build/entries'
+import { runDependingOnPageType } from '../../build/entries'
+import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -38,13 +36,18 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_SERVER,
+} from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
+import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -190,7 +193,6 @@ interface EntryType {
 }
 
 // Shadowing check in ESLint does not account for enum
-// eslint-disable-next-line no-shadow
 export const enum EntryTypes {
   ENTRY,
   CHILD_ENTRY,
@@ -393,8 +395,9 @@ export async function findPagePathData(
   rootDir: string,
   page: string,
   extensions: string[],
-  pagesDir?: string,
-  appDir?: string
+  pagesDir: string | undefined,
+  appDir: string | undefined,
+  isGlobalNotFoundEnabled: boolean
 ): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
@@ -436,23 +439,43 @@ export async function findPagePathData(
   // Check appDir first falling back to pagesDir
   if (appDir) {
     if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
-      const notFoundPath = await findPageFile(
-        appDir,
-        'not-found',
-        extensions,
-        true
-      )
-      if (notFoundPath) {
-        return {
-          filename: join(appDir, notFoundPath),
-          bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
-          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+      // Load `global-not-found` when global-not-found is enabled.
+      // Prefer to load it when both `global-not-found` and root `not-found` present.
+      if (isGlobalNotFoundEnabled) {
+        const globalNotFoundPath = await findPageFile(
+          appDir,
+          'global-not-found',
+          extensions,
+          true
+        )
+        if (globalNotFoundPath) {
+          return {
+            filename: join(appDir, globalNotFoundPath),
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+          }
+        }
+      } else {
+        // Then if global-not-found.js doesn't exist then load not-found.js
+        const notFoundPath = await findPageFile(
+          appDir,
+          'not-found',
+          extensions,
+          true
+        )
+        if (notFoundPath) {
+          return {
+            filename: join(appDir, notFoundPath),
+            bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+          }
         }
       }
 
+      // If they're not presented, then fallback to global-not-found
       return {
         filename: require.resolve(
-          'next/dist/client/components/not-found-error'
+          'next/dist/client/components/builtin/global-not-found'
         ),
         bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
         page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
@@ -726,7 +749,8 @@ export function onDemandEntryHandler({
           page,
           nextConfig.pageExtensions,
           pagesDir,
-          appDir
+          appDir,
+          !!nextConfig.experimental.globalNotFound
         )
       }
 
@@ -807,10 +831,6 @@ export function onDemandEntryHandler({
 
       let pageRuntime = staticInfo.runtime
 
-      if (isMiddlewareFile(page) && !nextConfig.experimental.nodeMiddleware) {
-        pageRuntime = 'edge'
-      }
-
       runDependingOnPageType({
         page: route.page,
         pageRuntime,
@@ -865,7 +885,11 @@ export function onDemandEntryHandler({
 
       if (hasNewEntry) {
         const routePage = isApp ? route.page : normalizeAppPath(route.page)
-        reportTrigger(routePage, url)
+        // If proxy file, remove the leading slash from "/proxy" to "proxy".
+        reportTrigger(
+          isMiddlewareFile(routePage) ? routePage.slice(1) : routePage,
+          url
+        )
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -966,7 +990,7 @@ export function onDemandEntryHandler({
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
             hotReloader.send({
-              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
+              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR,
               errorJSON: stringifyError(error),
             })
             bufferedHmrServerError = null
@@ -976,12 +1000,30 @@ export function onDemandEntryHandler({
             typeof data !== 'string' ? data.toString() : data
           )
 
-          if (parsedData.event === 'ping') {
+          if (parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.PING) {
             if (parsedData.appDirRoute) {
               handleAppDirPing(parsedData.tree)
             } else {
               handlePing(parsedData.page)
             }
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE
+          ) {
+            handleErrorStateResponse(
+              parsedData.requestId,
+              parsedData.errorState,
+              parsedData.url
+            )
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE
+          ) {
+            handlePageMetadataResponse(
+              parsedData.requestId,
+              parsedData.segmentTrieData,
+              parsedData.url
+            )
           }
         } catch {}
       })

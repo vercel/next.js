@@ -1,11 +1,10 @@
-import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
-import { RuleTester as ESLintTesterV9 } from 'eslint'
+import { RuleTester } from 'eslint'
 import { rules } from '@next/eslint-plugin-next'
 
 const NextESLintRule = rules['no-async-client-component']
 
 const message =
-  'Prevent client components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component'
+  'Prevent Client Components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component'
 
 const tests = {
   valid: [
@@ -118,18 +117,7 @@ const tests = {
 }
 
 describe('no-async-client-component', () => {
-  new ESLintTesterV8({
-    parserOptions: {
-      ecmaVersion: 2018,
-      sourceType: 'module',
-      ecmaFeatures: {
-        modules: true,
-        jsx: true,
-      },
-    },
-  }).run('eslint-v8', NextESLintRule, tests)
-
-  new ESLintTesterV9({
+  new RuleTester({
     languageOptions: {
       ecmaVersion: 2018,
       sourceType: 'module',
@@ -140,5 +128,5 @@ describe('no-async-client-component', () => {
         },
       },
     },
-  }).run('eslint-v9', NextESLintRule, tests)
+  }).run('eslint', NextESLintRule, tests)
 })

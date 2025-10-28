@@ -1,4 +1,4 @@
-import { report } from "../tick";
-import "./c";
+import { report } from '../tick'
+import './c'
 
-report("b");
+report('b')

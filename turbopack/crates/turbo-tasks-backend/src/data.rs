@@ -3,10 +3,11 @@ use std::cmp::Ordering;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
+    CellId, KeyValuePair, SessionId, TaskExecutionReason, TaskId, TraitTypeId,
+    TypedSharedReference, ValueTypeId,
+    backend::TurboTasksExecutionError,
     event::{Event, EventListener},
     registry,
-    util::SharedError,
-    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
 };
 
 use crate::{
@@ -52,20 +53,18 @@ pub struct CollectiblesRef {
     pub collectible_type: TraitTypeId,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
-    Error,
-    Panic,
+    Error(TurboTasksExecutionError),
 }
 impl OutputValue {
     fn is_transient(&self) -> bool {
         match self {
             OutputValue::Cell(cell) => cell.task.is_transient(),
             OutputValue::Output(task) => task.is_transient(),
-            OutputValue::Error => false,
-            OutputValue::Panic => false,
+            OutputValue::Error(_) => false,
         }
     }
 }
@@ -96,7 +95,7 @@ impl ActivenessState {
             root_ty: None,
             active_until_clean: false,
             all_clean_event: Event::new(move || {
-                format!("ActivenessState::all_clean_event {:?}", id)
+                move || format!("ActivenessState::all_clean_event {id:?}")
             }),
         }
     }
@@ -167,7 +166,7 @@ fn add_with_diff(v: &mut i32, u: i32) -> i32 {
     }
 }
 
-/// Represents a count of dirty containers. Since dirtyness can be session dependent, there might be
+/// Represents a count of dirty containers. Since dirtiness can be session dependent, there might be
 /// a different count for a specific session. It only need to store the highest session count, since
 /// old sessions can't be visited again, so we can ignore their counts.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -180,10 +179,10 @@ impl DirtyContainerCount {
     /// Get the count for a specific session. It's only expected to be asked for the current
     /// session, since old session counts might be dropped.
     pub fn get(&self, session: SessionId) -> i32 {
-        if let Some((s, count)) = self.count_in_session {
-            if s == session {
-                return count;
-            }
+        if let Some((s, count)) = self.count_in_session
+            && s == session
+        {
+            return count;
         }
         self.count
     }
@@ -283,7 +282,7 @@ impl DirtyContainerCount {
         diff
     }
 
-    /// Returns true if the count is zero and appling it would have no effect
+    /// Returns true if the count is zero and applying it would have no effect
     pub fn is_zero(&self) -> bool {
         self.count == 0 && self.count_in_session.map(|(_, c)| c == 0).unwrap_or(true)
     }
@@ -294,6 +293,194 @@ impl DirtyContainerCount {
             count: -self.count,
             count_in_session: self.count_in_session.map(|(s, c)| (s, -c)),
         }
+    }
+}
+
+#[cfg(test)]
+mod dirty_container_count_tests {
+    use turbo_tasks::SessionId;
+
+    use super::*;
+
+    const SESSION_1: SessionId = unsafe { SessionId::new_unchecked(1) };
+    const SESSION_2: SessionId = unsafe { SessionId::new_unchecked(2) };
+    const SESSION_3: SessionId = unsafe { SessionId::new_unchecked(3) };
+
+    #[test]
+    fn test_update() {
+        let mut count = DirtyContainerCount::default();
+        assert!(count.is_zero());
+
+        let diff = count.update(1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update(-1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update(2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 2);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 2);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update(-1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 0);
+
+        let diff = count.update(-1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update(-1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), -1);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), -1);
+        assert_eq!(diff.get(SESSION_2), 0);
+
+        let diff = count.update(2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update(-2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), -1);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), -1);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update(1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), 0);
+    }
+
+    #[test]
+    fn test_session_dependent() {
+        let mut count = DirtyContainerCount::default();
+        assert!(count.is_zero());
+
+        let diff = count.update_session_dependent(SESSION_1, 1);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update_session_dependent(SESSION_1, -1);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let diff = count.update_session_dependent(SESSION_1, 2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 2);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.update_session_dependent(SESSION_2, -2);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 2);
+        assert_eq!(diff.get(SESSION_2), 0);
+        assert_eq!(count.get(SESSION_3), 0);
+        assert_eq!(diff.get(SESSION_3), -1);
+    }
+
+    #[test]
+    fn test_update_with_dirty_state() {
+        let mut count = DirtyContainerCount::default();
+        let dirty = DirtyState {
+            clean_in_session: None,
+        };
+        let diff = count.update_with_dirty_state(&dirty);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.undo_update_with_dirty_state(&dirty);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+
+        let mut count = DirtyContainerCount::default();
+        let dirty = DirtyState {
+            clean_in_session: Some(SESSION_1),
+        };
+        let diff = count.update_with_dirty_state(&dirty);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 1);
+
+        let diff = count.undo_update_with_dirty_state(&dirty);
+        assert!(count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), 0);
+        assert_eq!(count.get(SESSION_2), 0);
+        assert_eq!(diff.get(SESSION_2), -1);
+    }
+
+    #[test]
+    fn test_replace_dirty_state() {
+        let mut count = DirtyContainerCount::default();
+        let old = DirtyState {
+            clean_in_session: None,
+        };
+        let new = DirtyState {
+            clean_in_session: Some(SESSION_1),
+        };
+        count.update_with_dirty_state(&old);
+        let diff = count.replace_dirty_state(&old, &new);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 0);
+        assert_eq!(diff.get(SESSION_1), -1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 0);
+
+        let mut count = DirtyContainerCount::default();
+        let old = DirtyState {
+            clean_in_session: Some(SESSION_1),
+        };
+        let new = DirtyState {
+            clean_in_session: None,
+        };
+        count.update_with_dirty_state(&old);
+        let diff = count.replace_dirty_state(&old, &new);
+        assert!(!count.is_zero());
+        assert_eq!(count.get(SESSION_1), 1);
+        assert_eq!(diff.get(SESSION_1), 1);
+        assert_eq!(count.get(SESSION_2), 1);
+        assert_eq!(diff.get(SESSION_2), 0);
     }
 }
 
@@ -309,7 +496,11 @@ pub struct InProgressStateInner {
     #[allow(dead_code)]
     pub once_task: bool,
     pub session_dependent: bool,
+    /// Early marking as completed. This is set before the output is available and will ignore full
+    /// task completion of the task for strongly consistent reads.
     pub marked_as_completed: bool,
+    /// Event that is triggered when the task output is available (completed flag set).
+    /// This is used to wait for completion when reading the task output before it's available.
     pub done_event: Event,
     /// Children that should be connected to the task and have their active_count decremented
     /// once the task completes.
@@ -318,7 +509,13 @@ pub struct InProgressStateInner {
 
 #[derive(Debug)]
 pub enum InProgressState {
-    Scheduled { done_event: Event },
+    Scheduled {
+        /// Event that is triggered when the task output is available (completed flag set).
+        /// This is used to wait for completion when reading the task output before it's available.
+        done_event: Event,
+        /// Reason for scheduling the task.
+        reason: TaskExecutionReason,
+    },
     InProgress(Box<InProgressStateInner>),
     Canceled,
 }
@@ -340,7 +537,7 @@ impl InProgressCellState {
     pub fn new(task_id: TaskId, cell: CellId) -> Self {
         InProgressCellState {
             event: Event::new(move || {
-                format!("InProgressCellState::event ({} {:?})", task_id, cell)
+                move || format!("InProgressCellState::event ({task_id} {cell:?})")
             }),
         }
     }
@@ -421,11 +618,11 @@ pub enum CachedDataItem {
     },
     Follower {
         task: TaskId,
-        value: i32,
+        value: u32,
     },
     Upper {
         task: TaskId,
-        value: i32,
+        value: u32,
     },
 
     // Aggregated Data
@@ -443,6 +640,12 @@ pub enum CachedDataItem {
 
     // Flags
     Stateful {
+        value: (),
+    },
+    HasInvalidator {
+        value: (),
+    },
+    Immutable {
         value: (),
     },
 
@@ -482,12 +685,6 @@ pub enum CachedDataItem {
         target: CollectiblesRef,
         value: (),
     },
-
-    // Transient Error State
-    #[serde(skip)]
-    Error {
-        value: SharedError,
-    },
 }
 
 impl CachedDataItem {
@@ -516,6 +713,8 @@ impl CachedDataItem {
             }
             CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
             CachedDataItem::Stateful { .. } => true,
+            CachedDataItem::HasInvalidator { .. } => true,
+            CachedDataItem::Immutable { .. } => true,
             CachedDataItem::Activeness { .. } => false,
             CachedDataItem::InProgress { .. } => false,
             CachedDataItem::InProgressCell { .. } => false,
@@ -523,27 +722,42 @@ impl CachedDataItem {
             CachedDataItem::OutdatedOutputDependency { .. } => false,
             CachedDataItem::OutdatedCellDependency { .. } => false,
             CachedDataItem::OutdatedCollectiblesDependency { .. } => false,
-            CachedDataItem::Error { .. } => false,
         }
     }
 
-    pub fn new_scheduled(description: impl Fn() -> String + Sync + Send + 'static) -> Self {
+    pub fn new_scheduled<InnerFnDescription>(
+        reason: TaskExecutionReason,
+        description: impl FnOnce() -> InnerFnDescription,
+    ) -> Self
+    where
+        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
+    {
+        let done_event = Event::new(move || {
+            let inner = description();
+            move || format!("{} done_event", inner())
+        });
         CachedDataItem::InProgress {
-            value: InProgressState::Scheduled {
-                done_event: Event::new(move || format!("{} done_event", description())),
-            },
+            value: InProgressState::Scheduled { done_event, reason },
         }
     }
 
-    pub fn new_scheduled_with_listener(
-        description: impl Fn() -> String + Sync + Send + 'static,
-        note: impl Fn() -> String + Sync + Send + 'static,
-    ) -> (Self, EventListener) {
-        let done_event = Event::new(move || format!("{} done_event", description()));
+    pub fn new_scheduled_with_listener<InnerFnDescription, InnerFnNote>(
+        reason: TaskExecutionReason,
+        description: impl FnOnce() -> InnerFnDescription,
+        note: impl FnOnce() -> InnerFnNote,
+    ) -> (Self, EventListener)
+    where
+        InnerFnDescription: Fn() -> String + Sync + Send + 'static,
+        InnerFnNote: Fn() -> String + Sync + Send + 'static,
+    {
+        let done_event = Event::new(move || {
+            let inner = description();
+            move || format!("{} done_event", inner())
+        });
         let listener = done_event.listen_with_note(note);
         (
             CachedDataItem::InProgress {
-                value: InProgressState::Scheduled { done_event },
+                value: InProgressState::Scheduled { done_event, reason },
             },
             listener,
         )
@@ -551,26 +765,28 @@ impl CachedDataItem {
 
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            Self::Collectible { .. }
-            | Self::Child { .. }
-            | Self::CellData { .. }
+            Self::CellData { .. }
             | Self::CellTypeMaxIndex { .. }
             | Self::OutputDependency { .. }
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. } => TaskDataCategory::Data,
 
-            Self::Output { .. }
+            Self::Collectible { .. }
+            | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
             | Self::Follower { .. }
+            | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. } => TaskDataCategory::Meta,
+            | Self::Stateful { .. }
+            | Self::HasInvalidator { .. }
+            | Self::Immutable { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
@@ -578,9 +794,12 @@ impl CachedDataItem {
             | Self::OutdatedCollectiblesDependency { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
-            | Self::Error { .. }
             | Self::Activeness { .. } => TaskDataCategory::All,
         }
+    }
+
+    pub fn is_optional(&self) -> bool {
+        matches!(self, CachedDataItem::CellData { .. })
     }
 }
 
@@ -610,6 +829,8 @@ impl CachedDataItemKey {
             }
             CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
             CachedDataItemKey::Stateful { .. } => true,
+            CachedDataItemKey::HasInvalidator { .. } => true,
+            CachedDataItemKey::Immutable { .. } => true,
             CachedDataItemKey::Activeness { .. } => false,
             CachedDataItemKey::InProgress { .. } => false,
             CachedDataItemKey::InProgressCell { .. } => false,
@@ -617,12 +838,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::OutdatedOutputDependency { .. } => false,
             CachedDataItemKey::OutdatedCellDependency { .. } => false,
             CachedDataItemKey::OutdatedCollectiblesDependency { .. } => false,
-            CachedDataItemKey::Error { .. } => false,
         }
-    }
-
-    pub fn is_optional(&self) -> bool {
-        matches!(self, CachedDataItemKey::CellData { .. })
     }
 
     pub fn category(&self) -> TaskDataCategory {
@@ -633,26 +849,28 @@ impl CachedDataItemKey {
 impl CachedDataItemType {
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            Self::Collectible { .. }
-            | Self::Child { .. }
-            | Self::CellData { .. }
+            Self::CellData { .. }
             | Self::CellTypeMaxIndex { .. }
             | Self::OutputDependency { .. }
             | Self::CellDependency { .. }
             | Self::CollectiblesDependency { .. }
             | Self::OutputDependent { .. }
-            | Self::CellDependent { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
+            | Self::CellDependent { .. } => TaskDataCategory::Data,
 
-            Self::Output { .. }
+            Self::Collectible { .. }
+            | Self::Output { .. }
             | Self::AggregationNumber { .. }
             | Self::Dirty { .. }
             | Self::Follower { .. }
+            | Self::Child { .. }
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. }
-            | Self::Stateful { .. } => TaskDataCategory::Meta,
+            | Self::Stateful { .. }
+            | Self::HasInvalidator { .. }
+            | Self::Immutable { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
@@ -660,8 +878,41 @@ impl CachedDataItemType {
             | Self::OutdatedCollectiblesDependency { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
-            | Self::Error { .. }
             | Self::Activeness { .. } => TaskDataCategory::All,
+        }
+    }
+
+    pub fn is_persistent(&self) -> bool {
+        match self {
+            Self::Output
+            | Self::Collectible
+            | Self::Dirty
+            | Self::Child
+            | Self::CellData
+            | Self::CellTypeMaxIndex
+            | Self::OutputDependency
+            | Self::CellDependency
+            | Self::CollectiblesDependency
+            | Self::OutputDependent
+            | Self::CellDependent
+            | Self::CollectiblesDependent
+            | Self::AggregationNumber
+            | Self::Follower
+            | Self::Upper
+            | Self::AggregatedDirtyContainer
+            | Self::AggregatedCollectible
+            | Self::AggregatedDirtyContainerCount
+            | Self::Stateful
+            | Self::HasInvalidator
+            | Self::Immutable => true,
+
+            Self::Activeness
+            | Self::InProgress
+            | Self::InProgressCell
+            | Self::OutdatedCollectible
+            | Self::OutdatedOutputDependency
+            | Self::OutdatedCellDependency
+            | Self::OutdatedCollectiblesDependency => false,
         }
     }
 }
@@ -675,30 +926,16 @@ pub mod allow_mut_access {
     pub const Activeness: () = ();
 }
 
-impl CachedDataItemValue {
+impl CachedDataItemValueRef<'_> {
     pub fn is_persistent(&self) -> bool {
         match self {
-            CachedDataItemValue::Output { value } => !value.is_transient(),
-            CachedDataItemValue::CellData { value } => {
-                registry::get_value_type(value.0).is_serializable()
+            CachedDataItemValueRef::Output { value } => !value.is_transient(),
+            CachedDataItemValueRef::CellData { value } => {
+                registry::get_value_type(value.type_id).is_serializable()
             }
             _ => true,
         }
     }
-}
-
-#[derive(Debug)]
-pub enum CachedDataUpdate {
-    /// Sets the current task id.
-    Task { task: TaskId },
-    /// An item was added. There was no old value.
-    New { item: CachedDataItem },
-    /// An item was removed.
-    Removed { old_item: CachedDataItem },
-    /// An item was replaced. This is step 1 and tells about the key and the old value
-    Replace1 { old_item: CachedDataItem },
-    /// An item was replaced. This is step 2 and tells about the new value.
-    Replace2 { value: CachedDataItemValue },
 }
 
 #[cfg(test)]
@@ -710,6 +947,5 @@ mod tests {
         assert_eq!(std::mem::size_of::<super::CachedDataItemKey>(), 20);
         assert_eq!(std::mem::size_of::<super::CachedDataItemValue>(), 32);
         assert_eq!(std::mem::size_of::<super::CachedDataItemStorage>(), 48);
-        assert_eq!(std::mem::size_of::<super::CachedDataUpdate>(), 48);
     }
 }

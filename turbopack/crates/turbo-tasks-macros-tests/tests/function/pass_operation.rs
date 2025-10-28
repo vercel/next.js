@@ -14,7 +14,7 @@ async fn multiply(value: OperationVc<i32>, coefficient: i32) -> Result<Vc<i32>> 
 #[allow(dead_code)]
 fn use_operations() {
     let twenty_one: OperationVc<i32> = bare_op_fn();
-    let _fourty_two: OperationVc<i32> = multiply(twenty_one, 2);
+    let _forty_two: OperationVc<i32> = multiply(twenty_one, 2);
 }
 
 fn main() {}

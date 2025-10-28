@@ -118,7 +118,7 @@ export const tokenizeArgs = (input: string): string[] => {
  *
  * @returns An array of strings with the node options.
  */
-const getNodeOptionsArgs = () => {
+export const getNodeOptionsArgs = () => {
   if (!process.env.NODE_OPTIONS) return []
 
   return tokenizeArgs(process.env.NODE_OPTIONS)
@@ -170,6 +170,13 @@ export const getParsedDebugAddress = (): DebugAddress => {
 
   return { host: undefined, port: parseInt(address, 10) }
 }
+
+/**
+ * Checks if the debug address from `NODE_OPTIONS` specifies to use a random port (e.g., the port set to 0).
+ *
+ * @returns A boolean indicating whether or not the debug address is assigned to a random port.
+ */
+export const isDebugAddressEphemeral = () => getParsedDebugAddress()?.port === 0
 
 /**
  * Get the debug address from the `NODE_OPTIONS` environment variable and format

@@ -33,7 +33,7 @@ describe('Image Component assetPrefix Tests', () => {
           const bgImage = await browser.eval(
             `document.getElementById('${id}').style['background-image']`
           )
-          if (process.env.TURBOPACK) {
+          if (process.env.IS_TURBOPACK_TEST) {
             expect(bgImage).toContain('data:image/jpeg;')
           } else {
             expect(bgImage).toMatch(

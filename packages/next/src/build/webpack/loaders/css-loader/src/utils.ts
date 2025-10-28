@@ -11,6 +11,7 @@ import localByDefault from 'next/dist/compiled/postcss-modules-local-by-default'
 import extractImports from 'next/dist/compiled/postcss-modules-extract-imports'
 import modulesScope from 'next/dist/compiled/postcss-modules-scope'
 import camelCase from './camelcase'
+import { normalizePath } from '../../../../../lib/normalize-path'
 
 const whitespace = '[\\x20\\t\\r\\n\\f]'
 const unescapeRegExp = new RegExp(
@@ -23,7 +24,6 @@ function unescape(str: string) {
   return str.replace(unescapeRegExp, (_, escaped, escapedWhitespace) => {
     const high = (`0x${escaped}` as any) - 0x10000
 
-    /* eslint-disable line-comment-position */
     // NaN means non-codepoint
     // Workaround erroneous numeric interpretation of +"0x"
     // eslint-disable-next-line no-self-compare
@@ -33,14 +33,8 @@ function unescape(str: string) {
         ? // BMP codepoint
           String.fromCharCode(high + 0x10000)
         : // Supplemental Plane codepoint (surrogate pair)
-          // eslint-disable-next-line no-bitwise
           String.fromCharCode((high >> 10) | 0xd800, (high & 0x3ff) | 0xdc00)
-    /* eslint-enable line-comment-position */
   })
-}
-
-function normalizePath(file: string) {
-  return path.sep === '\\' ? file.replace(/\\/g, '/') : file
 }
 
 function fixedEncodeURIComponent(str: string) {
@@ -66,7 +60,6 @@ function normalizeUrl(url: string, isStringValue: boolean) {
 
   normalizedUrl = unescape(normalizedUrl)
 
-  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   if (isDataUrl(url)) {
     return fixedEncodeURIComponent(normalizedUrl)
   }

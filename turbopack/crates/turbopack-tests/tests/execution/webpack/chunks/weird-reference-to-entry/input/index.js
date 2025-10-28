@@ -1,10 +1,10 @@
-it("should handle reference to entry chunk correctly", function (done) {
-  import(/* webpackChunkName: "main" */ "./module-a")
+it('should handle reference to entry chunk correctly', function (done) {
+  import(/* webpackChunkName: "main" */ './module-a')
     .then(function (result) {
-      expect(result.default).toBe("ok");
-      done();
+      expect(result.default).toBe('ok')
+      done()
     })
     .catch(function (e) {
-      done(e);
-    });
-});
+      done(e)
+    })
+})

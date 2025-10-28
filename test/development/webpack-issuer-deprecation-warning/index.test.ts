@@ -3,7 +3,7 @@ import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 // Skip on Turbopack because it's not supported
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'webpack-issuer-deprecation-warning',
   () => {
     let next: NextInstance

@@ -5,11 +5,9 @@ const MODERN_BROWSERSLIST_TARGET = require('./src/shared/lib/modern-browserslist
 
 const path = require('path')
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 const transform = require('@swc/core').transform
 
 module.exports = function (task) {
-  // eslint-disable-next-line require-yield
   task.plugin(
     'swc',
     {},
@@ -166,11 +164,24 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
 
         output.code += Buffer.from(`\n//# sourceMappingURL=${map}`)
 
+        const sourceMapPayload = JSON.parse(output.map)
+        if ('ignoreList' in sourceMapPayload) {
+          throw new Error(
+            'SWC already sets an ignoreList. We may no longer need to manually set ignoreList.'
+          )
+        }
+        // ignore-list everything
+        sourceMapPayload.ignoreList = sourceMapPayload.sources.map(
+          (source, sourceIndex) => {
+            return sourceIndex
+          }
+        )
+
         // add sourcemap to `files` array
         this._.files.push({
           base: map,
           dir: file.dir,
-          data: Buffer.from(output.map),
+          data: Buffer.from(JSON.stringify(sourceMapPayload)),
         })
       }
 

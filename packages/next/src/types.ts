@@ -7,7 +7,6 @@
 import type { Agent as HttpAgent } from 'http'
 import type { Agent as HttpsAgent } from 'https'
 
-import type React from 'react'
 import type { ParsedUrlQuery } from 'querystring'
 import type { IncomingMessage, ServerResponse } from 'http'
 
@@ -28,6 +27,8 @@ export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from './server/config'
+
+export type { NextAdapter, AdapterOutput } from './build/adapter/build-complete'
 
 export type {
   Metadata,
@@ -53,17 +54,12 @@ export type { Instrumentation } from './server/instrumentation/types'
  */
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
-// isn't generated yet. It will be replaced when the webpack plugin runs.
+// isn't generated yet. It will be replaced when type generation runs.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type Route<RouteInferType = any> = string & {}
 
 // Extend the React types with missing properties
 declare module 'react' {
-  // <html amp=""> support
-  interface HtmlHTMLAttributes<T> extends React.HTMLAttributes<T> {
-    amp?: string
-  }
-
   // <img fetchPriority=""> support
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- It's actually required for module augmentation to work.
   interface ImgHTMLAttributes<T> {
@@ -112,7 +108,6 @@ export type ResponseLimit = SizeLimit | boolean
  * `Config` type, use it for export const config
  */
 export type PageConfig = {
-  amp?: boolean | 'hybrid'
   api?: {
     /**
      * Configures or disables body size limit warning. Can take a number or

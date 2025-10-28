@@ -6,6 +6,7 @@ use crate::data::{
     CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut,
 };
 
+#[derive(Debug, Clone)]
 pub struct DynamicStorage {
     map: Vec<CachedDataItemStorage>,
 }
@@ -74,11 +75,11 @@ impl DynamicStorage {
         })
     }
 
-    pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef> {
+    pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
         self.get_map(key.ty()).and_then(|m| m.get(key))
     }
 
-    pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut> {
+    pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
         self.get_map_mut(key.ty()).and_then(|m| m.get_mut(key))
     }
 
@@ -162,9 +163,24 @@ impl DynamicStorage {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.map.iter().map(|m| m.len()).sum()
+    }
+
     pub fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
         if let Some(map) = self.get_map_mut(ty) {
             map.shrink_to_fit();
+        }
+    }
+
+    pub fn snapshot_for_persisting(&self) -> Self {
+        Self {
+            map: self
+                .map
+                .iter()
+                .filter(|m| m.ty().is_persistent())
+                .cloned()
+                .collect(),
         }
     }
 }

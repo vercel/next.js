@@ -77,7 +77,6 @@
             ),
         ],
         span: 46..56,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -157,7 +156,6 @@
             ),
         ],
         span: 66..77,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -237,7 +235,6 @@
             ),
         ],
         span: 89..104,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -360,7 +357,6 @@
             ),
         ],
         span: 259..280,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -608,7 +604,6 @@
             ),
         ],
         span: 327..348,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -759,9 +754,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -877,7 +870,6 @@
             ),
         ],
         span: 515..522,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -1169,7 +1161,6 @@
             ),
         ],
         span: 828..861,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -1494,7 +1485,6 @@
             ),
         ],
         span: 965..985,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -1649,7 +1639,6 @@
             ),
         ],
         span: 965..975,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -2001,9 +1990,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -2076,7 +2063,6 @@
             ),
         ],
         span: 1113..1120,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -2237,7 +2223,6 @@
             ),
         ],
         span: 1156..1177,
-        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -2433,7 +2418,6 @@
             ),
         ],
         span: 1252..1273,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2444,11 +2428,12 @@
         ),
         args: [
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Variable(
+                    (
+                        "moduleId",
+                        #6,
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -2685,12 +2670,9 @@
             ),
         ],
         span: 1342..1356,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "module",
-        ),
+        var: "module",
         ast_path: [
             Program(
                 Script,
@@ -2761,6 +2743,5 @@
             ),
         ],
         span: 1342..1348,
-        in_try: false,
     },
 ]

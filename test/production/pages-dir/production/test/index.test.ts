@@ -25,7 +25,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 const glob = promisify(globOriginal)
 
-if (process.env.TEST_WASM) {
+if (process.env.NEXT_TEST_WASM) {
   jest.setTimeout(120 * 1000)
 }
 
@@ -111,7 +111,7 @@ describe('Production Usage', () => {
   })
 
   it('should contain generated page count in output', async () => {
-    const pageCount = 37
+    const pageCount = 34
     expect(next.cliOutput).toContain(`Generating static pages (0/${pageCount})`)
     expect(next.cliOutput).toContain(
       `Generating static pages (${pageCount}/${pageCount})`
@@ -320,7 +320,7 @@ describe('Production Usage', () => {
   })
 
   // This test checks webpack chunks in particular
-  ;(process.env.TURBOPACK ? it.skip : it)(
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
     'should not contain currentScript usage for publicPath',
     async () => {
       const globResult = await glob('webpack-*.js', {
@@ -341,8 +341,8 @@ describe('Production Usage', () => {
   )
 
   // This test checks webpack chunks in particular
-  ;(process.env.TURBOPACK ? it.skip : it)(
-    'should not contain amp, rsc APIs in main chunk',
+  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
+    'should not contain rsc APIs in main chunk',
     async () => {
       const globResult = await glob('main-*.js', {
         cwd: join(next.testDir, '.next/static/chunks'),
@@ -357,8 +357,6 @@ describe('Production Usage', () => {
         'utf8'
       )
 
-      // eslint-disable-next-line jest/no-standalone-expect
-      expect(content).not.toContain('useAmp')
       // eslint-disable-next-line jest/no-standalone-expect
       expect(content).not.toContain('useRefreshRoot')
     }
@@ -578,7 +576,7 @@ describe('Production Usage', () => {
     it('should set Cache-Control header', async () => {
       const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
       const reactLoadableManifest = await next.readJSON(
-        process.env.TURBOPACK
+        process.env.IS_TURBOPACK_TEST
           ? `.next/server/pages/dynamic/css/${REACT_LOADABLE_MANIFEST}`
           : `.next/${REACT_LOADABLE_MANIFEST}`
       )
@@ -587,7 +585,7 @@ describe('Production Usage', () => {
       const resources: Set<string> = new Set()
 
       let manifestKey: string
-      if (process.env.TURBOPACK) {
+      if (process.env.IS_TURBOPACK_TEST) {
         // the key is an arbitrary and changing number for Turbopack prod, but each page has its own manifest
         expect(Object.keys(reactLoadableManifest).length).toBe(1)
         manifestKey = Object.keys(reactLoadableManifest)[0]
@@ -615,7 +613,7 @@ describe('Production Usage', () => {
         { pathnameFilter: (f) => /\.css$/.test(f) }
       )
       expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
-      if (!process.env.TURBOPACK) {
+      if (!process.env.IS_TURBOPACK_TEST) {
         expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
       }
       const mediaStaticAssets = await recursiveReadDir(
@@ -623,7 +621,7 @@ describe('Production Usage', () => {
         { pathnameFilter: (f) => /\.svg$/.test(f) }
       )
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
-      if (!process.env.TURBOPACK) {
+      if (!process.env.IS_TURBOPACK_TEST) {
         expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
       }
       ;[...cssStaticAssets, ...mediaStaticAssets].forEach((asset) => {
@@ -783,7 +781,8 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      // Just wait for google.com to be revealed. We can't control which input we get.
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -800,7 +799,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -820,7 +819,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -936,19 +935,6 @@ describe('Production Usage', () => {
         await browser.close()
       })
     }
-
-    it('should have default runtime values when not defined', async () => {
-      const html = await renderViaHTTP(next.appPort, '/runtime-config')
-      expect(html).toMatch(/found public config/)
-      expect(html).toMatch(/found server config/)
-    })
-
-    it('should not have runtimeConfig in __NEXT_DATA__', async () => {
-      const html = await renderViaHTTP(next.appPort, '/runtime-config')
-      const $ = cheerio.load(html)
-      const script = $('#__NEXT_DATA__').html()
-      expect(script).not.toMatch(/runtimeConfig/)
-    })
 
     it('should add autoExport for auto pre-rendered pages', async () => {
       for (const page of ['/about']) {
@@ -1117,12 +1103,6 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should handle AMP correctly in IE', async () => {
-    const browser = await webdriver(next.appPort, '/some-amp')
-    const text = await browser.elementByCss('p').text()
-    expect(text).toBe('Not AMP')
-  })
-
   it('should warn when prefetch is true', async () => {
     if (global.browserName !== 'chrome') return
     let browser
@@ -1156,9 +1136,15 @@ describe('Production Usage', () => {
       const version = await browser.eval('window.next.version')
       expect(version).toBeTruthy()
       expect(version).toBe(
-        (await next.readJSON('node_modules/next/package.json')).version +
-          (process.env.TURBOPACK ? '-turbo' : '')
+        (await next.readJSON('node_modules/next/package.json')).version
       )
+
+      const turbopack = await browser.eval('window.next.turbopack')
+      if (process.env.IS_TURBOPACK_TEST) {
+        expect(turbopack).toBeTrue()
+      } else {
+        expect(turbopack).toBeFalsy()
+      }
     } finally {
       if (browser) {
         await browser.close()

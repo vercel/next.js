@@ -1,16 +1,15 @@
 use anyhow::Result;
 
 use crate::{self as turbo_tasks, RawVc, ResolvedVc, TryJoinIterExt, Vc};
+
 /// Just an empty type, but it's never equal to itself.
 ///
-/// [`Vc<Completion>`] can be used as return value instead of `()`
-/// to have a concrete reference that can be awaited.
-/// It will invalidate the awaiting task everytime the referenced
-/// task has been executed.
+/// [`Vc<Completion>`] can be used as return value instead of `()` to have a concrete reference that
+/// can be awaited. It will invalidate the awaiting task everytime the referenced task has been
+/// executed.
 ///
-/// Note: [`PartialEq`] is not implemented since it doesn't make sense to
-/// compare `Completion` this way. You probably want to use [`ReadRef::ptr_eq`]
-/// instead.
+/// Note: [`PartialEq`] is not implemented since it doesn't make sense to compare `Completion` this
+/// way. You probably want to use [`ReadRef::ptr_eq`][crate::ReadRef::ptr_eq] instead.
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 #[derive(Debug)]
 pub struct Completion;
@@ -38,7 +37,9 @@ impl Completion {
         // This is the same code that Completion::cell uses except that it
         // only updates the cell when it is empty (Completion::cell opted-out of
         // that via `#[turbo_tasks::value(cell = "new")]`)
-        let cell = turbo_tasks::macro_helpers::find_cell_by_type(*COMPLETION_VALUE_TYPE_ID);
+        let cell = turbo_tasks::macro_helpers::find_cell_by_type(
+            <Completion as crate::VcValueType>::get_value_type_id(),
+        );
         cell.conditional_update(|old| old.is_none().then_some(Completion));
         let raw: RawVc = cell.into();
         raw.into()

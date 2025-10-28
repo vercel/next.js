@@ -1,4 +1,6 @@
-use std::{env, process::Command, str};
+use std::{env, fs, path::Path, process::Command, str};
+
+use serde_json::Value;
 
 extern crate napi_build;
 
@@ -6,13 +8,32 @@ fn main() -> anyhow::Result<()> {
     println!("cargo:rerun-if-env-changed=CI");
     let is_ci = env::var("CI").is_ok_and(|value| !value.is_empty());
 
+    let nextjs_version = {
+        let package_json_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("packages/next/package.json");
+
+        println!("cargo:rerun-if-changed={}", package_json_path.display());
+
+        let package_json_content = fs::read_to_string(&package_json_path)?;
+        let package_json: Value = serde_json::from_str(&package_json_content)?;
+
+        package_json["version"]
+            .as_str()
+            .expect("Expected a Next.js `version` string in its package.json")
+            .to_string()
+    };
+
+    // Make the Next.js version available as a build-time environment variable
+    println!("cargo:rustc-env=NEXTJS_VERSION={nextjs_version}");
+
     // Generates, stores build-time information as static values.
     // There are some places relying on correct values for this (i.e telemetry),
     // So failing build if this fails.
     let cargo = vergen_gitcl::CargoBuilder::default()
         .target_triple(true)
         .build()?;
-    // We use the git dirty state to disable persistent caching (persistent caching relies on a
+    // We use the git dirty state to disable filesystem cache (filesystem cache relies on a
     // commit hash to be safe). One tradeoff of this is that we must invalidate the rust build more
     // often.
     //
@@ -25,7 +46,7 @@ fn main() -> anyhow::Result<()> {
     //
     // However, in practice that shouldn't be much of an issue: If no other dependency of this
     // top-level crate has changed (which would've triggered our rebuild), then the resulting binary
-    // must be equivalent to a clean build anyways. Therefore, persistent caching using the HEAD
+    // must be equivalent to a clean build anyways. Therefore, filesystem cache using the HEAD
     // commit hash as a version is okay.
     let git = vergen_gitcl::GitclBuilder::default()
         .dirty(/* include_untracked */ true)
@@ -67,9 +88,6 @@ fn main() -> anyhow::Result<()> {
     // https://github.com/napi-rs/napi-rs/issues/1782
     #[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
     println!("cargo:rustc-link-arg=-Wl,--warn-unresolved-symbols");
-
-    #[cfg(not(target_arch = "wasm32"))]
-    turbo_tasks_build::generate_register();
 
     Ok(())
 }

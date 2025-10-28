@@ -8,11 +8,17 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP, findPort } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  fetchViaHTTP,
+  findPort,
+  getDistDir,
+} from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
-import { BrowserInterface } from '../browsers/base'
+import { Playwright } from 'next-webdriver'
 import escapeStringRegexp from 'escape-string-regexp'
+import { Page, Response } from 'playwright'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -35,15 +41,16 @@ export interface NextInstanceOpts {
   nextConfig?: NextConfig
   installCommand?: InstallCommand
   buildCommand?: string
-  buildOptions?: string[]
+  buildArgs?: string[]
   startCommand?: string
-  startOptions?: string[]
+  startArgs?: string[]
   env?: Record<string, string>
-  dirSuffix?: string
+  subDir?: string
   turbo?: boolean
   forcedPort?: string
   serverReadyPattern?: RegExp
   patchFileDelay?: number
+  startServerTimeout?: number
 }
 
 /**
@@ -58,7 +65,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "^19.0.0";
+const nextjsReactPeerVersion = "19.2.0";
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -66,25 +73,27 @@ export class NextInstance {
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
   public buildCommand?: string
-  public buildOptions?: string
+  public buildArgs?: string[]
   protected startCommand?: string
-  protected startOptions?: string[]
+  protected startArgs?: string[]
   protected dependencies?: PackageJson['dependencies'] = {}
   protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
+  public distDir: string
   tmpRepoDir: string
   protected isStopping: boolean = false
   protected isDestroyed: boolean = false
   protected childProcess?: ChildProcess
   protected _url: string
   protected _parsedUrl: URL
-  protected packageJson?: PackageJson = {}
+  protected packageJson: PackageJson = {}
   protected basePath?: string
   public env: Record<string, string>
   public forcedPort?: string
-  public dirSuffix: string = ''
-  public serverReadyPattern?: RegExp = / ✓ Ready in /
+  public subDir: string = ''
+  public startServerTimeout: number = 10_000 // 10 seconds
+  public serverReadyPattern: RegExp = / ✓ Ready in /
   patchFileDelay: number = 0
 
   constructor(opts: NextInstanceOpts) {
@@ -96,7 +105,8 @@ export class NextInstance {
         ...this.env,
         // remove node_modules/.bin repo path from env
         // to match CI $PATH value and isolate further
-        PATH: process.env.PATH.split(path.delimiter)
+        PATH: process.env
+          .PATH!.split(path.delimiter)
           .filter((part) => {
             return !part.includes(path.join('node_modules', '.bin'))
           })
@@ -146,6 +156,15 @@ export class NextInstance {
           await fs.mkdir(path.dirname(outputFilename), { recursive: true })
           await fs.writeFile(outputFilename, item)
         } else {
+          try {
+            const existingStat = await fs.lstat(outputFilename)
+            if (existingStat.isFile() || existingStat.isSymbolicLink()) {
+              await fs.unlink(outputFilename)
+            }
+          } catch {
+            // file might not exist or can't be unliked. carry on
+          }
+
           await fs.cp(item.fsPath, outputFilename, { recursive: true })
         }
       }
@@ -197,22 +216,30 @@ export class NextInstance {
           : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
         this.testDir = path.join(
           tmpDir,
-          `next-test-${Date.now()}-${(Math.random() * 1000) | 0}${
-            this.dirSuffix
-          }`
+          `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`,
+          this.subDir
         )
+        this.distDir = getDistDir()
 
         const reactVersion =
           process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
-          '@types/react': 'latest',
-          '@types/react-dom': 'latest',
+          '@types/react': '19.2.2',
+          '@types/react-dom': '19.2.1',
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
+        }
+
+        if (
+          process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
+          !finalDependencies['babel-plugin-react-compiler']
+        ) {
+          finalDependencies['babel-plugin-react-compiler'] =
+            '0.0.0-experimental-3fde738-20250918'
         }
 
         if (skipInstall || skipIsolatedNext) {
@@ -233,7 +260,7 @@ export class NextInstance {
                 scripts: {
                   // since we can't get the build id as a build artifact, make it
                   // available under the static files
-                  'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
+                  'post-build': `cp ${this.distDir}/BUILD_ID ${this.distDir}/static/__BUILD_ID`,
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
@@ -269,7 +296,7 @@ export class NextInstance {
               resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
-              dirSuffix: this.dirSuffix,
+              subDir: this.subDir,
               keepRepoDir: true,
               beforeInstall: async (span, installDir) => {
                 this.testDir = installDir
@@ -279,7 +306,7 @@ export class NextInstance {
                 await this.beforeInstall(span)
               },
             })
-            this.tmpRepoDir = tmpRepoDir
+            this.tmpRepoDir = tmpRepoDir!
           }
         }
 
@@ -295,8 +322,27 @@ export class NextInstance {
           )
         }
 
+        if (this.nextConfig?.distDir) {
+          this.distDir = this.nextConfig.distDir
+        }
+        // Same logic as we get the basePath in isNextDeploy
+        if (nextConfigFile) {
+          const content = await fs.readFile(
+            path.join(this.testDir, nextConfigFile),
+            'utf8'
+          )
+          if (content.includes('distDir')) {
+            const match = content.match(
+              /['"`]?distDir['"`]?:.*?['"`](.*?)['"`]/
+            )?.[1]
+            if (match) {
+              this.distDir = match
+            }
+          }
+        }
+
         if (this.nextConfig || (isNextDeploy && !nextConfigFile)) {
-          const functions = []
+          const functions: string[] = []
           const exportDeclare =
             this.packageJson?.type === 'module'
               ? 'export default'
@@ -308,7 +354,7 @@ export class NextInstance {
                 {
                   ...this.nextConfig,
                 } as NextConfig,
-                (key, val) => {
+                (key, val: unknown) => {
                   if (typeof val === 'function') {
                     functions.push(
                       val
@@ -324,8 +370,21 @@ export class NextInstance {
                 },
                 2
               ).replace(/"__func_[\d]{1,}"/g, function (str) {
-                return functions.shift()
+                return functions.shift()!
               })
+          )
+        }
+
+        const tsConfigTestFile = testDirFiles.find(
+          (file) => file === 'tsconfig.test.json'
+        )
+        if (tsConfigTestFile) {
+          require('console').log(
+            'tsconfig.test.json found, using it for this test'
+          )
+          await fs.copyFile(
+            path.join(this.testDir, 'tsconfig.test.json'),
+            path.join(this.testDir, 'tsconfig.json')
           )
         }
 
@@ -350,6 +409,11 @@ export class NextInstance {
           // env variable during deploy
           if (process.env.NEXT_PRIVATE_TEST_MODE) {
             process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
+          }
+
+          // alias experimental feature flags for deployment compatibility
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
+            process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
           }
         `
           )
@@ -385,7 +449,7 @@ export class NextInstance {
 
   protected setServerReadyTimeout(
     reject: (reason?: unknown) => void,
-    ms = 10_000
+    ms: number
   ): NodeJS.Timeout {
     return setTimeout(() => {
       reject(
@@ -428,7 +492,13 @@ export class NextInstance {
     await this.writeInitialFiles()
   }
 
-  public async build(): Promise<{ exitCode?: number; cliOutput?: string }> {
+  public async build(options?: {
+    env?: Record<string, string>
+    args?: string[]
+  }): Promise<{
+    exitCode: NodeJS.Signals | number | null
+    cliOutput: string
+  }> {
     throw new Error('Not implemented')
   }
 
@@ -439,7 +509,7 @@ export class NextInstance {
     }
   }
 
-  public async start(useDirArg: boolean = false): Promise<void> {}
+  public async start(options?: { skipBuild?: boolean }): Promise<void> {}
 
   public async stop(
     signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL' = 'SIGKILL'
@@ -455,7 +525,7 @@ export class NextInstance {
       this.isStopping = true
       const closePromise = once(this.childProcess, 'close')
       await new Promise<void>((resolve) => {
-        treeKill(this.childProcess.pid, signal, (err) => {
+        treeKill(this.childProcess!.pid!, signal, (err) => {
           if (err) {
             require('console').error('tree-kill', err)
           }
@@ -484,14 +554,14 @@ export class NextInstance {
       if (process.env.TRACE_PLAYWRIGHT) {
         await fs
           .cp(
-            path.join(this.testDir, '.next/trace'),
+            path.join(this.testDir, this.distDir, 'trace'),
             path.join(
               __dirname,
               '../../traces',
               `${path
                 .relative(
                   path.join(__dirname, '../../'),
-                  process.env.TEST_FILE_PATH
+                  process.env.TEST_FILE_PATH!
                 )
                 .replace(/\//g, '-')}`,
               `next-trace`
@@ -541,6 +611,16 @@ export class NextInstance {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
 
+  public async readFileBuffer(
+    filename: string
+  ): Promise<Buffer<ArrayBufferLike>> {
+    return fs.readFile(path.join(this.testDir, filename))
+  }
+
+  public async writeFileBuffer(filename: string, data: Buffer): Promise<void> {
+    return fs.writeFile(path.join(this.testDir, filename), data)
+  }
+
   public async readFiles(
     dirname: string,
     predicate: (filename: string) => boolean
@@ -576,7 +656,7 @@ export class NextInstance {
 
   public async patchFile(
     filename: string,
-    content: string | ((content: string) => string),
+    content: string | ((content: string | undefined) => string),
     runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
   ): Promise<{ newFile: boolean }> {
     const outputPath = path.join(this.testDir, filename)
@@ -616,6 +696,23 @@ export class NextInstance {
     )
   }
 
+  /**
+   * Makes `linkFilename` point to `targetFilename`.
+   *
+   * Performs an atomic update to the symlink:
+   * https://blog.moertel.com/posts/2005-08-22-how-to-change-symlinks-atomically.html
+   */
+  public async symlink(targetFilename: string, linkFilename: string) {
+    const tmpLinkPath = path.join(this.testDir, linkFilename + '.tmp')
+    try {
+      await fs.symlink(path.join(this.testDir, targetFilename), tmpLinkPath)
+      await fs.rename(tmpLinkPath, path.join(this.testDir, linkFilename))
+    } catch (e) {
+      await fs.unlink(tmpLinkPath)
+      throw e
+    }
+  }
+
   public async renameFolder(foldername: string, newFoldername: string) {
     await fs.rename(
       path.join(this.testDir, foldername),
@@ -631,12 +728,55 @@ export class NextInstance {
   }
 
   /**
-   * Create new browser window for the Next.js app.
+   * Create a new browser window for the Next.js app.
    */
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
-  ): Promise<BrowserInterface> {
+  ): Promise<Playwright> {
     return webdriver(this.url, ...args)
+  }
+
+  /**
+   * Create a new browser window for the Next.js app, and also return the page's
+   * response.
+   */
+  public async browserWithResponse(
+    ...args: Parameters<OmitFirstArgument<typeof webdriver>>
+  ): Promise<{ browser: Playwright; response: Response }> {
+    const [url, options = {}] = args
+
+    let resolveResponse: (response: Response) => void
+
+    const responsePromise = new Promise<Response>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(`Timed out waiting for the response of ${url}`)
+      }, 10_000)
+
+      resolveResponse = (response: Response) => {
+        clearTimeout(timer)
+        resolve(response)
+      }
+    })
+
+    const absoluteUrl = new URL(url, this.url).href
+
+    const [browser, response] = await Promise.all([
+      webdriver(this.url, url, {
+        ...options,
+        async beforePageLoad(page: Page) {
+          await options.beforePageLoad?.(page)
+
+          page.on('response', async (response) => {
+            if (response.url() === absoluteUrl) {
+              resolveResponse(response)
+            }
+          })
+        },
+      }),
+      responsePromise,
+    ])
+
+    return { browser, response }
   }
 
   /**

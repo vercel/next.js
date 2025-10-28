@@ -1,4 +1,4 @@
-use std::cmp::{max, Reverse};
+use std::cmp::{Reverse, max};
 
 use either::Either;
 use itertools::Itertools;
@@ -173,11 +173,7 @@ impl ValueMode {
 ///
 /// cases where count per time is very low is probably not important
 fn value_over_time(value: u64, time: Timestamp) -> u64 {
-    if *time == 0 {
-        0
-    } else {
-        value / *time
-    }
+    if *time == 0 { 0 } else { value / *time }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -992,9 +988,11 @@ impl Viewer {
                                 }
                             }
                             ViewSpan {
-                                id: (!span.is_root())
-                                    .then(|| span.id().get() as u64)
-                                    .unwrap_or_default(),
+                                id: if !span.is_root() {
+                                    span.id().get() as u64
+                                } else {
+                                    Default::default()
+                                },
                                 start: entry.start,
                                 width: entry.width,
                                 category: category.to_string(),

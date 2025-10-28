@@ -1,0 +1,29 @@
+[
+    (
+        "runGetClassesOrUseCache",
+        Function(
+            4,
+            52,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Str(
+                            Atom(
+                                "value a",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "value b",
+                            ),
+                        ),
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+]

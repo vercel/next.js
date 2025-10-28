@@ -14,7 +14,7 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 
 // Webpack specific config tests.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'devtool set in development mode in next config',
   () => {
     it('should warn and revert when a devtool is set in development mode', async () => {
@@ -22,7 +22,6 @@ const appDir = join(__dirname, '../')
 
       const appPort = await findPort()
       const app = await launchApp(appDir, appPort, {
-        env: { __NEXT_TEST_WITH_DEVTOOL: true },
         onStderr(msg) {
           stderr += msg || ''
         },

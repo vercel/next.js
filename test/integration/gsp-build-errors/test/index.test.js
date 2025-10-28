@@ -17,7 +17,7 @@ describe('GSP build errors', () => {
     'production mode',
     () => {
       afterEach(() => fs.remove(pagesDir))
-      ;(process.env.TURBOPACK ? it.skip : it)(
+      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
         'should fail build from module not found',
         async () => {
           await writePage(`

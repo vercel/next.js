@@ -1,139 +1,139 @@
-import { IPC } from "./index";
-import type { Ipc as GenericIpc } from "./index";
+import { IPC } from './index'
+import type { Ipc as GenericIpc } from './index'
 
 type IpcIncomingMessage =
   | {
-      type: "evaluate";
-      args: string[];
+      type: 'evaluate'
+      args: string[]
     }
   | {
-      type: "result";
-      id: number;
-      error: string | null;
-      data: any | null;
-    };
+      type: 'result'
+      id: number
+      error: string | null
+      data: any | null
+    }
 
 type IpcOutgoingMessage =
   | {
-      type: "end";
-      data: string | undefined;
-      duration: number;
+      type: 'end'
+      data: string | undefined
+      duration: number
     }
   | {
-      type: "info";
-      data: any;
+      type: 'info'
+      data: any
     }
   | {
-      type: "request";
-      id: number;
-      data: any;
-    };
+      type: 'request'
+      id: number
+      data: any
+    }
 
 export type Ipc<IM, RM> = {
-  sendInfo(message: IM): Promise<void>;
-  sendRequest(message: RM): Promise<unknown>;
-  sendError(error: Error): Promise<never>;
-};
-const ipc = IPC as GenericIpc<IpcIncomingMessage, IpcOutgoingMessage>;
+  sendInfo(message: IM): Promise<void>
+  sendRequest(message: RM): Promise<unknown>
+  sendError(error: Error): Promise<never>
+}
+const ipc = IPC as GenericIpc<IpcIncomingMessage, IpcOutgoingMessage>
 
-const queue: string[][] = [];
+const queue: string[][] = []
 
 export const run = async (
   moduleFactory: () => Promise<{
-    init?: () => Promise<void>;
-    default: (ipc: Ipc<any, any>, ...deserializedArgs: any[]) => any;
+    init?: () => Promise<void>
+    default: (ipc: Ipc<any, any>, ...deserializedArgs: any[]) => any
   }>
 ) => {
-  let nextId = 1;
-  const requests = new Map();
+  let nextId = 1
+  const requests = new Map()
   const internalIpc = {
     sendInfo: (message: any) =>
       ipc.send({
-        type: "info",
+        type: 'info',
         data: message,
       }),
     sendRequest: (message: any) => {
-      const id = nextId++;
-      let resolve, reject;
+      const id = nextId++
+      let resolve, reject
       const promise = new Promise((res, rej) => {
-        resolve = res;
-        reject = rej;
-      });
-      requests.set(id, { resolve, reject });
+        resolve = res
+        reject = rej
+      })
+      requests.set(id, { resolve, reject })
       return ipc
-        .send({ type: "request", id, data: message })
-        .then(() => promise);
+        .send({ type: 'request', id, data: message })
+        .then(() => promise)
     },
     sendError: (error: Error) => {
-      return ipc.sendError(error);
+      return ipc.sendError(error)
     },
-  };
+  }
 
   // Initialize module and send ready message
-  let getValue: (ipc: Ipc<any, any>, ...deserializedArgs: any[]) => any;
+  let getValue: (ipc: Ipc<any, any>, ...deserializedArgs: any[]) => any
   try {
-    const module = await moduleFactory();
-    if (typeof module.init === "function") {
-      await module.init();
+    const module = await moduleFactory()
+    if (typeof module.init === 'function') {
+      await module.init()
     }
-    getValue = module.default;
-    await ipc.sendReady();
+    getValue = module.default
+    await ipc.sendReady()
   } catch (err) {
-    await ipc.sendReady();
-    await ipc.sendError(err as Error);
+    await ipc.sendReady()
+    await ipc.sendError(err as Error)
   }
 
   // Queue handling
-  let isRunning = false;
+  let isRunning = false
   const run = async () => {
     while (queue.length > 0) {
-      const args = queue.shift()!;
+      const args = queue.shift()!
       try {
-        const value = await getValue(internalIpc, ...args);
+        const value = await getValue(internalIpc, ...args)
         await ipc.send({
-          type: "end",
+          type: 'end',
           data:
             value === undefined ? undefined : JSON.stringify(value, null, 2),
           duration: 0,
-        });
+        })
       } catch (e) {
-        await ipc.sendError(e as Error);
+        await ipc.sendError(e as Error)
       }
     }
-    isRunning = false;
-  };
+    isRunning = false
+  }
 
   // Communication handling
   while (true) {
-    const msg = await ipc.recv();
+    const msg = await ipc.recv()
 
     switch (msg.type) {
-      case "evaluate": {
-        queue.push(msg.args);
+      case 'evaluate': {
+        queue.push(msg.args)
         if (!isRunning) {
-          isRunning = true;
-          run();
+          isRunning = true
+          run()
         }
-        break;
+        break
       }
-      case "result": {
-        const request = requests.get(msg.id);
+      case 'result': {
+        const request = requests.get(msg.id)
         if (request) {
-          requests.delete(msg.id);
+          requests.delete(msg.id)
           if (msg.error) {
-            request.reject(new Error(msg.error));
+            request.reject(new Error(msg.error))
           } else {
-            request.resolve(msg.data);
+            request.resolve(msg.data)
           }
         }
-        break;
+        break
       }
       default: {
-        console.error("unexpected message type", (msg as any).type);
-        process.exit(1);
+        console.error('unexpected message type', (msg as any).type)
+        process.exit(1)
       }
     }
   }
-};
+}
 
-export type { IpcIncomingMessage, IpcOutgoingMessage };
+export type { IpcIncomingMessage, IpcOutgoingMessage }

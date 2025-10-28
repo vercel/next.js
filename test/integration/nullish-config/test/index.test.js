@@ -18,9 +18,6 @@ const runTests = (type) => {
           env: undefined,
           webpack: undefined,
           pageExtensions: undefined,
-          amp: {
-            canonicalBase: undefined,
-          },
         }
       `
     )
@@ -43,9 +40,6 @@ const runTests = (type) => {
           env: null,
           webpack: null,
           pageExtensions: null,
-          amp: {
-            canonicalBase: null,
-          },
         }
       `
     )

@@ -1,1 +1,1 @@
-export * from "./hmr-client";
+export * from './hmr-client'

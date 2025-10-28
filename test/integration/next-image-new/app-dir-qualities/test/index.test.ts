@@ -1,12 +1,10 @@
 /* eslint-env jest */
 
 import {
-  assertHasRedbox,
   assertNoRedbox,
   fetchViaHTTP,
   findPort,
   getImagesManifest,
-  getRedboxHeader,
   killApp,
   launchApp,
   nextBuild,
@@ -73,19 +71,16 @@ function runTests(mode: 'dev' | 'server') {
     expect(res.status).toStrictEqual(200)
   })
 
-  it('should fail to load img when quality is 100', async () => {
+  it('should coerce quality 100 to closest matching of 88', async () => {
     const page = '/invalid-quality'
     const browser = await webdriver(appPort, page)
     if (mode === 'dev') {
-      await assertHasRedbox(browser)
-      expect(await getRedboxHeader(browser)).toMatch(
-        /Invalid quality prop (.+) on `next\/image` does not match `images.qualities` configured/g
-      )
-    } else {
-      const url = await getSrc(browser, 'q-100')
-      const res = await fetchViaHTTP(appPort, url)
-      expect(res.status).toBe(400)
+      await assertNoRedbox(browser)
     }
+    const url = await getSrc(browser, 'q-100')
+    expect(url).toContain('&q=88') // coerced to closest matching of 88
+    const res = await fetchViaHTTP(appPort, url)
+    expect(res.status).toBe(200)
   })
 
   if (mode === 'server') {
@@ -97,22 +92,30 @@ function runTests(mode: 'dev' | 'server') {
           contentDispositionType: 'attachment',
           contentSecurityPolicy:
             "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowLocalIP: false,
           dangerouslyAllowSVG: false,
           deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
           disableStaticImages: false,
           domains: [],
           formats: ['image/webp'],
-          imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+          imageSizes: [32, 48, 64, 96, 128, 256, 384],
           loader: 'default',
           loaderFile: '',
           remotePatterns: [],
-          localPatterns: undefined,
-          minimumCacheTTL: 60,
+          localPatterns: [
+            {
+              pathname:
+                '^(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)\\/?)$',
+              search: '',
+            },
+          ],
+          maximumRedirects: 3,
+          minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [42, 69, 88],
           sizes: [
-            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
-            128, 256, 384,
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128,
+            256, 384,
           ],
           unoptimized: false,
         },

@@ -5332,6 +5332,7 @@ async function main() {
     await collectAndUpload(kv, {
       jsonPrefix: 'rspack-',
       kvPrefix: 'rspack-',
+      deploymentDomain: 'arewerspackyet.com',
     })
   } catch (error) {
     console.log(error)

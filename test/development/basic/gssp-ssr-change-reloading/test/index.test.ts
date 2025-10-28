@@ -10,9 +10,13 @@ const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
       window.checkInterval = setInterval(function() {
       const root = document.querySelector('nextjs-portal').shadowRoot;
-      const indicator = root.querySelector('[data-next-mark]')
+      const statusElement = root.querySelector('[data-indicator-status]')
+      const badge = root.querySelector('[data-next-badge]')
+      const status = badge ? badge.getAttribute('data-status') : null
+
+      // Check if we're showing any status
       window.showedBuilder = window.showedBuilder || (
-        indicator.getAttribute('data-next-mark-loading') === 'true'
+        statusElement !== null || (status && status !== 'none')
       )
       if (window.showedBuilder) clearInterval(window.checkInterval)
     }, 50)
@@ -274,8 +278,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:
+         "description": "Additional keys were returned from \`getStaticProps\`. Properties intended for your component must be nested under the \`props\` key, e.g.:
 
        	return { props: { title: 'My Title', content: '...' } }
 
@@ -316,8 +319,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 1,
-         "description": "Error: custom oops",
+         "description": "custom oops",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "pages/index.js (18:9) @ getStaticProps

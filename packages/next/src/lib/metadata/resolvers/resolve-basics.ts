@@ -1,36 +1,42 @@
-import type {
-  AlternateLinkDescriptor,
-  ResolvedAlternateURLs,
-} from '../types/alternative-urls-types'
+import type { AlternateLinkDescriptor } from '../types/alternative-urls-types'
 import type {
   Metadata,
-  ResolvedMetadata,
+  ResolvedMetadataWithURLs,
   Viewport,
 } from '../types/metadata-interface'
 import type { ResolvedVerification } from '../types/metadata-types'
 import type {
   FieldResolver,
-  FieldResolverExtraArgs,
+  AsyncFieldResolverExtraArgs,
   MetadataContext,
 } from '../types/resolvers'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
-import { resolveAbsoluteUrlWithPathname } from './resolve-url'
+import {
+  resolveAbsoluteUrlWithPathname,
+  type MetadataBaseURL,
+} from './resolve-url'
 
 function resolveAlternateUrl(
   url: string | URL,
-  metadataBase: URL | null,
+  metadataBase: MetadataBaseURL,
+  pathname: string,
   metadataContext: MetadataContext
 ) {
   // If alter native url is an URL instance,
   // we treat it as a URL base and resolve with current pathname
   if (url instanceof URL) {
-    const newUrl = new URL(metadataContext.pathname, url)
+    const newUrl = new URL(pathname, url)
     url.searchParams.forEach((value, key) =>
       newUrl.searchParams.set(key, value)
     )
     url = newUrl
   }
-  return resolveAbsoluteUrlWithPathname(url, metadataBase, metadataContext)
+  return resolveAbsoluteUrlWithPathname(
+    url,
+    metadataBase,
+    pathname,
+    metadataContext
+  )
 }
 
 export const resolveThemeColor: FieldResolver<'themeColor', Viewport> = (
@@ -52,7 +58,7 @@ export const resolveThemeColor: FieldResolver<'themeColor', Viewport> = (
   return themeColorDescriptors
 }
 
-function resolveUrlValuesOfObject(
+async function resolveUrlValuesOfObject(
   obj:
     | Record<
         string,
@@ -60,23 +66,36 @@ function resolveUrlValuesOfObject(
       >
     | null
     | undefined,
-  metadataBase: ResolvedMetadata['metadataBase'],
+  metadataBase: MetadataBaseURL,
+  pathname: Promise<string>,
   metadataContext: MetadataContext
-): null | Record<string, AlternateLinkDescriptor[]> {
+): Promise<null | Record<string, AlternateLinkDescriptor[]>> {
   if (!obj) return null
 
   const result: Record<string, AlternateLinkDescriptor[]> = {}
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === 'string' || value instanceof URL) {
+      const pathnameForUrl = await pathname
       result[key] = [
         {
-          url: resolveAlternateUrl(value, metadataBase, metadataContext),
+          url: resolveAlternateUrl(
+            value,
+            metadataBase,
+            pathnameForUrl,
+            metadataContext
+          ),
         },
       ]
-    } else {
+    } else if (value && value.length) {
       result[key] = []
-      value?.forEach((item, index) => {
-        const url = resolveAlternateUrl(item.url, metadataBase, metadataContext)
+      const pathnameForUrl = await pathname
+      value.forEach((item, index) => {
+        const url = resolveAlternateUrl(
+          item.url,
+          metadataBase,
+          pathnameForUrl,
+          metadataContext
+        )
         result[key][index] = {
           url,
           title: item.title,
@@ -87,11 +106,12 @@ function resolveUrlValuesOfObject(
   return result
 }
 
-function resolveCanonicalUrl(
+async function resolveCanonicalUrl(
   urlOrDescriptor: string | URL | null | AlternateLinkDescriptor | undefined,
-  metadataBase: URL | null,
+  metadataBase: MetadataBaseURL,
+  pathname: Promise<string>,
   metadataContext: MetadataContext
-): null | AlternateLinkDescriptor {
+): Promise<null | AlternateLinkDescriptor> {
   if (!urlOrDescriptor) return null
 
   const url =
@@ -99,47 +119,56 @@ function resolveCanonicalUrl(
       ? urlOrDescriptor
       : urlOrDescriptor.url
 
+  const pathnameForUrl = await pathname
+
   // Return string url because structureClone can't handle URL instance
   return {
-    url: resolveAlternateUrl(url, metadataBase, metadataContext),
+    url: resolveAlternateUrl(
+      url,
+      metadataBase,
+      pathnameForUrl,
+      metadataContext
+    ),
   }
 }
 
-export const resolveAlternates: FieldResolverExtraArgs<
+export const resolveAlternates: AsyncFieldResolverExtraArgs<
   'alternates',
-  [ResolvedMetadata['metadataBase'], MetadataContext]
-> = (alternates, metadataBase, context) => {
+  [MetadataBaseURL, Promise<string>, MetadataContext]
+> = async (alternates, metadataBase, pathname, context) => {
   if (!alternates) return null
 
-  const canonical = resolveCanonicalUrl(
+  const canonical = await resolveCanonicalUrl(
     alternates.canonical,
     metadataBase,
+    pathname,
     context
   )
-  const languages = resolveUrlValuesOfObject(
+  const languages = await resolveUrlValuesOfObject(
     alternates.languages,
     metadataBase,
+    pathname,
     context
   )
-  const media = resolveUrlValuesOfObject(
+  const media = await resolveUrlValuesOfObject(
     alternates.media,
     metadataBase,
+    pathname,
     context
   )
-  const types = resolveUrlValuesOfObject(
+  const types = await resolveUrlValuesOfObject(
     alternates.types,
     metadataBase,
+    pathname,
     context
   )
 
-  const result: ResolvedAlternateURLs = {
+  return {
     canonical,
     languages,
     media,
     types,
   }
-
-  return result
 }
 
 const robotsKeys = [
@@ -240,18 +269,23 @@ export const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
     // @ts-ignore // TODO: type infer
     appLinks[key] = resolveAsArrayOrUndefined(appLinks[key])
   }
-  return appLinks as ResolvedMetadata['appLinks']
+  return appLinks as ResolvedMetadataWithURLs['appLinks']
 }
 
-export const resolveItunes: FieldResolverExtraArgs<
+export const resolveItunes: AsyncFieldResolverExtraArgs<
   'itunes',
-  [ResolvedMetadata['metadataBase'], MetadataContext]
-> = (itunes, metadataBase, context) => {
+  [MetadataBaseURL, Promise<string>, MetadataContext]
+> = async (itunes, metadataBase, pathname, context) => {
   if (!itunes) return null
   return {
     appId: itunes.appId,
     appArgument: itunes.appArgument
-      ? resolveAlternateUrl(itunes.appArgument, metadataBase, context)
+      ? resolveAlternateUrl(
+          itunes.appArgument,
+          metadataBase,
+          await pathname,
+          context
+        )
       : undefined,
   }
 }
@@ -264,16 +298,26 @@ export const resolveFacebook: FieldResolver<'facebook'> = (facebook) => {
   }
 }
 
-export const resolvePagination: FieldResolverExtraArgs<
+export const resolvePagination: AsyncFieldResolverExtraArgs<
   'pagination',
-  [ResolvedMetadata['metadataBase'], MetadataContext]
-> = (pagination, metadataBase, context) => {
+  [MetadataBaseURL, Promise<string>, MetadataContext]
+> = async (pagination, metadataBase, pathname, context) => {
   return {
     previous: pagination?.previous
-      ? resolveAlternateUrl(pagination.previous, metadataBase, context)
+      ? resolveAlternateUrl(
+          pagination.previous,
+          metadataBase,
+          await pathname,
+          context
+        )
       : null,
     next: pagination?.next
-      ? resolveAlternateUrl(pagination.next, metadataBase, context)
+      ? resolveAlternateUrl(
+          pagination.next,
+          metadataBase,
+          await pathname,
+          context
+        )
       : null,
   }
 }

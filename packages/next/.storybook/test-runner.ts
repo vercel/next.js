@@ -15,6 +15,9 @@ const config: TestRunnerConfig = {
       detailedReportOptions: {
         html: true,
       },
+      // Verbose prints additional logs in the terminal on passing tests taking up space
+      // that's needed by failed tests.
+      verbose: false,
     })
   },
 }

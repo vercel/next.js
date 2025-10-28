@@ -1,1 +1,0 @@
-require("@tpluscode/sparql-builder");

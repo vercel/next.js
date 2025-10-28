@@ -1,4 +1,4 @@
-@import "another.css";
+@import 'another.css';
 
 .foo {
   background-color: red;
