@@ -343,7 +343,7 @@ Rather than unmounting the previous route when you navigate away, Next.js sets t
 
 This behavior improves the navigation experience by maintaining UI state (form inputs, or expanded sections) when users navigate back and forth between routes.
 
-> **Good to know**: Next.js uses heuristics to keep a few recently visited routes hidden with Activity to preserve their state, while older routes are removed from the DOM to prevent excessive growth.
+> **Good to know**: Next.js uses heuristics to keep a few recently visited routes [`"hidden"`](https://react.dev/reference/react/Activity#activity), while older routes are removed from the DOM to prevent excessive growth.
 
 <details>
 <summary>**Portals under Activity require manual cleanup**</summary>
