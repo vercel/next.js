@@ -3,8 +3,8 @@ use std::{fmt, sync::Arc};
 use anyhow::{Result, anyhow};
 
 use crate::{
-    MagicAny, OutputContent, RawVc, TaskExecutionReason, TaskPersistence, TraitMethod,
-    TurboTasksBackendApi, ValueTypeId,
+    MagicAny, OutputContent, RawVc, TaskPersistence, TraitMethod, TurboTasksBackendApi,
+    ValueTypeId,
     backend::{Backend, TaskExecutionSpec, TypedCellContent},
     event::Event,
     macro_helpers::NativeFunction,
@@ -25,15 +25,8 @@ pub fn get_local_task_execution_spec<'a>(
     persistence: TaskPersistence,
 ) -> TaskExecutionSpec<'a> {
     match ty.task_type {
-        LocalTaskType::Native { native_fn } => {
-            let span = native_fn.span(TaskPersistence::Local, TaskExecutionReason::Local);
-            let entered = span.enter();
-            let future = native_fn.execute(ty.this, &*ty.arg);
-            drop(entered);
-            TaskExecutionSpec { future, span }
-        }
         LocalTaskType::ResolveNative { native_fn } => {
-            let span = native_fn.resolve_span(TaskPersistence::Local);
+            let span = native_fn.resolve_span();
             let entered = span.enter();
             let future = Box::pin(LocalTaskType::run_resolve_native(
                 native_fn,
@@ -71,11 +64,8 @@ pub struct LocalTaskSpec {
 
 #[derive(Copy, Clone)]
 pub enum LocalTaskType {
-    /// A normal task execution a native (rust) function
-    Native { native_fn: &'static NativeFunction },
-
     /// A resolve task, which resolves arguments and calls the function with resolve arguments. The
-    /// inner function call will be a `PersistentTaskType` or `LocalTaskType::Native`.
+    /// inner function call will be a `PersistentTaskType`.
     ResolveNative { native_fn: &'static NativeFunction },
 
     /// A trait method resolve task. It resolves the first (`self`) argument and looks up the trait
@@ -87,7 +77,6 @@ pub enum LocalTaskType {
 impl fmt::Display for LocalTaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LocalTaskType::Native { native_fn } => f.write_str(native_fn.name),
             LocalTaskType::ResolveNative { native_fn } => write!(f, "*{}", native_fn.name),
             LocalTaskType::ResolveTrait { trait_method } => write!(
                 f,
@@ -164,11 +153,11 @@ pub(crate) mod tests {
     #[test]
     fn test_fmt() {
         assert_eq!(
-            LocalTaskType::Native {
+            LocalTaskType::ResolveNative {
                 native_fn: &MOCK_FUNC_TASK_FUNCTION,
             }
             .to_string(),
-            "mock_func_task",
+            "*mock_func_task",
         );
         assert_eq!(
             LocalTaskType::ResolveTrait {

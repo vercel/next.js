@@ -279,16 +279,6 @@ pub enum TaskPersistence {
     /// type [`TransientValue`][crate::value::TransientValue] or
     /// [`TransientInstance`][crate::value::TransientInstance].
     Transient,
-
-    /// Tasks that are persisted only for the lifetime of the nearest non-`Local` parent caller.
-    ///
-    /// This task does not have a unique task id, and is not shared with the backend. Instead it
-    /// uses the parent task's id.
-    ///
-    /// This is useful for functions that have a low cache hit rate. Those functions could be
-    /// converted to non-task functions, but that would break their function signature. This
-    /// provides a mechanism for skipping caching without changing the function signature.
-    Local,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]
@@ -620,42 +610,23 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
-        match persistence {
-            TaskPersistence::Local => {
-                let task_type = LocalTaskSpec {
-                    task_type: LocalTaskType::Native { native_fn },
-                    this,
-                    arg,
-                };
-                self.schedule_local_task(task_type, persistence)
-            }
-            TaskPersistence::Transient => {
-                let task_type = CachedTaskType {
-                    native_fn,
-                    this,
-                    arg,
-                };
-
-                RawVc::TaskOutput(self.backend.get_or_create_transient_task(
-                    task_type,
-                    current_task_if_available("turbo_function calls"),
-                    self,
-                ))
-            }
-            TaskPersistence::Persistent => {
-                let task_type = CachedTaskType {
-                    native_fn,
-                    this,
-                    arg,
-                };
-
-                RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-                    task_type,
-                    current_task_if_available("turbo_function calls"),
-                    self,
-                ))
-            }
-        }
+        let task_type = CachedTaskType {
+            native_fn,
+            this,
+            arg,
+        };
+        RawVc::TaskOutput(match persistence {
+            TaskPersistence::Transient => self.backend.get_or_create_transient_task(
+                task_type,
+                current_task_if_available("turbo_function calls"),
+                self,
+            ),
+            TaskPersistence::Persistent => self.backend.get_or_create_persistent_task(
+                task_type,
+                current_task_if_available("turbo_function calls"),
+                self,
+            ),
+        })
     }
 
     pub fn dynamic_call(
@@ -794,12 +765,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         ty: LocalTaskSpec,
         // if this is a `LocalTaskType::Resolve*`, we may spawn another task with this persistence,
-        // if this is a `LocalTaskType::Native`, persistence is unused.
-        //
-        // TODO: In the rare case that we're crossing a transient->persistent boundary, we should
-        // force `LocalTaskType::Native` to be spawned as real tasks, so that any cells they create
-        // have the correct persistence. This is not an issue for resolution stub task, as they
-        // don't end up owning any cells.
         persistence: TaskPersistence,
     ) -> RawVc {
         let task_type = ty.task_type;
