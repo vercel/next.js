@@ -171,7 +171,8 @@ pub async fn split_output_asset_into_parts(
                 generated_column,
                 lines,
             );
-            let len = mapping_end_column - current_generated_column;
+            // TODO: Handle this better
+            let len = mapping_end_column.saturating_sub(current_generated_column);
             add_chunk_part_range(
                 source.clone(),
                 ChunkPartRange {
