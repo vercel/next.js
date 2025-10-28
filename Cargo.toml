@@ -44,6 +44,8 @@ opt-level = 1
 opt-level = 3
 
 [profile.release]
+# Reduce binary size
+codegen-units = 1
 
 [profile.release.package]
 
