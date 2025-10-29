@@ -52,7 +52,7 @@ After you've successfully setup your StatelyDB Store. You can deploy this applic
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FStatelyCloud%2Fstatelytv-demo&env=STATELY_STORE_ID,STATELY_ACCESS_KEY&envDescription=API%20keys%20and%20Store%20configuration.&envLink=https%3A%2F%2Fdocs.stately.cloud%2Fguides%2Fconnect%2F&skippable-integrations=1)
 
 
-After Vercel has cloned this repo, you **must** repeate the steps above to generating the SDK in your new repo, and then push those changes.
+After Vercel has cloned this repo, you **must** repeat the steps above to generating the SDK in your new repo, and then push those changes.
 
 ## Exploring the Demo
 
