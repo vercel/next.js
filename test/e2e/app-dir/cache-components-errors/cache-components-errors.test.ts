@@ -2666,12 +2666,12 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser('/use-cache-low-expire')
 
             if (isTurbopack) {
-              await expect(browser).toDisplayRedbox(
-                `"Expected Redbox but found no visible one."`
+              await expect(browser).toDisplayCollapsedRedbox(
+                `"Redbox did not open."`
               )
             } else {
-              await expect(browser).toDisplayRedbox(
-                `"Expected Redbox but found no visible one."`
+              await expect(browser).toDisplayCollapsedRedbox(
+                `"Redbox did not open."`
               )
             }
           })
@@ -2771,12 +2771,12 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser('/use-cache-revalidate-0')
 
             if (isTurbopack) {
-              await expect(browser).toDisplayRedbox(
-                `"Expected Redbox but found no visible one."`
+              await expect(browser).toDisplayCollapsedRedbox(
+                `"Redbox did not open."`
               )
             } else {
-              await expect(browser).toDisplayRedbox(
-                `"Expected Redbox but found no visible one."`
+              await expect(browser).toDisplayCollapsedRedbox(
+                `"Redbox did not open."`
               )
             }
           })
@@ -2876,12 +2876,12 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser('/use-cache-params/foo')
 
             if (isTurbopack) {
-              await expect(browser).toDisplayRedbox(
-                `"Expected Redbox but found no visible one."`
+              await expect(browser).toDisplayCollapsedRedbox(
+                `"Redbox did not open."`
               )
             } else {
-              await expect(browser).toDisplayRedbox(
-                `"Expected Redbox but found no visible one."`
+              await expect(browser).toDisplayCollapsedRedbox(
+                `"Redbox did not open."`
               )
             }
           })
