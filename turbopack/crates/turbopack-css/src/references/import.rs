@@ -21,6 +21,7 @@ use crate::{
 };
 
 #[turbo_tasks::value(eq = "manual", serialization = "none", shared)]
+#[derive(PartialEq)]
 pub enum ImportAttributes {
     LightningCss {
         #[turbo_tasks(trace_ignore)]
@@ -32,11 +33,7 @@ pub enum ImportAttributes {
     },
 }
 
-impl PartialEq for ImportAttributes {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
-}
+impl Eq for ImportAttributes {}
 
 impl ImportAttributes {
     pub fn new_from_lightningcss(prelude: &ImportRule<'static>) -> Self {
