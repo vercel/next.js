@@ -80,4 +80,24 @@ describe('app-dir refresh', () => {
       })
     }
   })
+
+  it('should let you read your write after a redirect and refresh', async () => {
+    const browser = await next.browser('/redirect-and-refresh')
+
+    const todoEntries = await browser.elementById('todo-entries').text()
+    expect(todoEntries).toBe('No entries')
+
+    const todoInput = await browser.elementById('todo-input')
+    await todoInput.fill('foo')
+
+    await browser.elementById('add-button').click()
+
+    await retry(async () => {
+      const newTodoEntries = await browser.elementById('todo-entries').text()
+      expect(newTodoEntries).toContain('foo')
+    })
+
+    expect(await browser.hasElementByCssSelector('#foo-page')).toBe(true)
+    expect(await browser.url()).toContain('/redirect-and-refresh/foo')
+  })
 })
