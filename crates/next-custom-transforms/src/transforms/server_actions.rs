@@ -2418,9 +2418,10 @@ fn wrap_cache_expr(
     bound_args_length: usize,
     inner_fn: Box<Expr>,
     fn_ident: Option<Ident>,
-    span: Span,
+    original_span: Span,
 ) -> Box<Expr> {
     let cache_call = CallExpr {
+        span: original_span,
         callee: quote_ident!("$$cache__").as_callee(),
         args: vec![
             ExprOrSpread {
@@ -2460,7 +2461,7 @@ fn wrap_cache_expr(
                 })],
                 ..Default::default()
             }),
-            span,
+            span: original_span,
             ..Default::default()
         }),
     }));
