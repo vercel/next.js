@@ -2280,33 +2280,63 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser('/use-cache-low-expire')
 
-            // FIXME: Should have a codeframe
-            await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Uncached data was accessed outside of <Suspense>
+            if (isTurbopack) {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Uncached data was accessed outside of <Suspense>
 
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-             To fix this, you can either:
+               To fix this, you can either:
 
-             Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+               Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
 
-             or
+               or
 
-             Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+               Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
 
-             Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+               Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
-             Learn more: https://nextjs.org/docs/messages/blocking-route",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": null,
-               "stack": [
-                 "Page [Server] <anonymous>",
-                 "LogSafely <anonymous>",
-               ],
-             }
-            `)
+               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "environmentLabel": "Server",
+                 "label": "Blocking Route",
+                 "source": "app/use-cache-low-expire/page.tsx (3:31) @ Page
+               > 3 | export default async function Page() {
+                   |                               ^",
+                 "stack": [
+                   "Page app/use-cache-low-expire/page.tsx (3:31)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            } else {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Uncached data was accessed outside of <Suspense>
+
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+
+               To fix this, you can either:
+
+               Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+               or
+
+               Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+               Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "environmentLabel": "Server",
+                 "label": "Blocking Route",
+                 "source": null,
+                 "stack": [
+                   "Page about:/Server/webpack-internal:///(rsc)/app/use-cache-low-expire/page.tsx (23:81)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            }
           })
         } else {
           it('should error the build', async () => {
@@ -2402,33 +2432,63 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser('/use-cache-revalidate-0')
 
-            // FIXME: Should have a codeframe
-            await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "description": "Uncached data was accessed outside of <Suspense>
+            if (isTurbopack) {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Uncached data was accessed outside of <Suspense>
 
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-             To fix this, you can either:
+               To fix this, you can either:
 
-             Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+               Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
 
-             or
+               or
 
-             Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+               Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
 
-             Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+               Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
-             Learn more: https://nextjs.org/docs/messages/blocking-route",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": null,
-               "stack": [
-                 "Page [Server] <anonymous>",
-                 "LogSafely <anonymous>",
-               ],
-             }
-            `)
+               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "environmentLabel": "Server",
+                 "label": "Blocking Route",
+                 "source": "app/use-cache-revalidate-0/page.tsx (3:31) @ Page
+               > 3 | export default async function Page() {
+                   |                               ^",
+                 "stack": [
+                   "Page app/use-cache-revalidate-0/page.tsx (3:31)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            } else {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Uncached data was accessed outside of <Suspense>
+
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+
+               To fix this, you can either:
+
+               Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+               or
+
+               Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+               Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "environmentLabel": "Server",
+                 "label": "Blocking Route",
+                 "source": null,
+                 "stack": [
+                   "Page about:/Server/webpack-internal:///(rsc)/app/use-cache-revalidate-0/page.tsx (23:81)",
+                   "LogSafely <anonymous>",
+                 ],
+               }
+              `)
+            }
           })
         } else {
           it('should error the build', async () => {
