@@ -166,7 +166,7 @@ const nextTypegen = async (
     nextConfig
   )
 
-  writeValidatorFile(routeTypesManifest, validatorFilePath)
+  await writeValidatorFile(routeTypesManifest, validatorFilePath)
 
   // Generate cache-life types if cacheLife config exists
   const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')
