@@ -487,7 +487,7 @@ impl Issue for CssGlobalImportIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.into()
+        IssueStage::ProcessModule.cell()
     }
 
     // TODO(PACK-4879): compute the source information by following the module references

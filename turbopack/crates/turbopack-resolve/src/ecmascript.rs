@@ -83,7 +83,7 @@ pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<V
         conditions.insert(rcstr!("import"), ConditionValue::Unset);
         conditions.insert(rcstr!("require"), ConditionValue::Set);
     }
-    Ok(options.into())
+    Ok(options.cell())
 }
 
 pub async fn esm_resolve(

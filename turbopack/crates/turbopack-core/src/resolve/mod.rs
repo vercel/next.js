@@ -906,7 +906,7 @@ impl ResolveResult {
             primary: new_primary,
             affecting_sources: self.affecting_sources.clone(),
         }
-        .into())
+        .cell())
     }
 
     /// Returns a new [ResolveResult] where all [RequestKey]s are updated. The prefix is removed
@@ -932,7 +932,7 @@ impl ResolveResult {
             primary: new_primary,
             affecting_sources: self.affecting_sources.clone(),
         }
-        .into())
+        .cell())
     }
 
     /// Returns a new [ResolveResult] where all [RequestKey]s are updated. All keys matching
@@ -969,7 +969,7 @@ impl ResolveResult {
             primary: new_primary,
             affecting_sources: self.affecting_sources.clone(),
         }
-        .into())
+        .cell())
     }
 
     /// Returns a new [ResolveResult] where all [RequestKey]s are set to the
@@ -993,7 +993,7 @@ impl ResolveResult {
             primary: new_primary,
             affecting_sources: self.affecting_sources.clone(),
         }
-        .into()
+        .cell()
     }
 }
 
@@ -1221,16 +1221,16 @@ pub async fn find_context_file_or_package_key(
             &*read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?
         && json.get(&*package_key).is_some()
     {
-        return Ok(FindContextFileResult::Found(package_json_path, Vec::new()).into());
+        return Ok(FindContextFileResult::Found(package_json_path, Vec::new()).cell());
     }
     for name in &*names.await? {
         let fs_path = lookup_path.join(name)?;
         if let Some(fs_path) = exists(&fs_path, None).await? {
-            return Ok(FindContextFileResult::Found(fs_path, Vec::new()).into());
+            return Ok(FindContextFileResult::Found(fs_path, Vec::new()).cell());
         }
     }
     if lookup_path.is_root() {
-        return Ok(FindContextFileResult::NotFound(Vec::new()).into());
+        return Ok(FindContextFileResult::NotFound(Vec::new()).cell());
     }
 
     Ok(find_context_file(lookup_path.parent(), names, false))

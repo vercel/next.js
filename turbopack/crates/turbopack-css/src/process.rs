@@ -285,8 +285,8 @@ pub async fn finalize_css(
                     code,
                     ..
                 } => (stylesheet.to_static(options.clone()), *code),
-                ParseCssResult::Unparsable => return Ok(FinalCssResult::Unparsable.into()),
-                ParseCssResult::NotFound => return Ok(FinalCssResult::NotFound.into()),
+                ParseCssResult::Unparsable => return Ok(FinalCssResult::Unparsable.cell()),
+                ParseCssResult::NotFound => return Ok(FinalCssResult::NotFound.cell()),
             };
 
             let url_references = *url_references;
@@ -330,10 +330,10 @@ pub async fn finalize_css(
                 exports: result.exports,
                 source_map: ResolvedVc::cell(srcmap),
             }
-            .into())
+            .cell())
         }
-        CssWithPlaceholderResult::Unparsable => Ok(FinalCssResult::Unparsable.into()),
-        CssWithPlaceholderResult::NotFound => Ok(FinalCssResult::NotFound.into()),
+        CssWithPlaceholderResult::Unparsable => Ok(FinalCssResult::Unparsable.cell()),
+        CssWithPlaceholderResult::NotFound => Ok(FinalCssResult::NotFound.cell()),
     }
 }
 

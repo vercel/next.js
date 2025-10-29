@@ -20,7 +20,7 @@ use crate::{
     references::css_resolve,
 };
 
-#[turbo_tasks::value(into = "new", eq = "manual", serialization = "none")]
+#[turbo_tasks::value(eq = "manual", serialization = "none", shared)]
 pub enum ImportAttributes {
     LightningCss {
         #[turbo_tasks(trace_ignore)]
@@ -174,7 +174,7 @@ impl CodeGenerateable for ImportAssetReference {
             )))
         }
 
-        Ok(CodeGeneration { imports }.into())
+        Ok(CodeGeneration { imports }.cell())
     }
 }
 
