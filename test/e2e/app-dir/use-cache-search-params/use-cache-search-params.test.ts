@@ -203,11 +203,7 @@ describe('use-cache-search-params', () => {
 
     it('should resume a cached page that does not access search params without hydration errors', async () => {
       await next.build({
-        env: {
-          NEXT_PRIVATE_APP_PATHS: JSON.stringify([
-            '/search-params-unused/page.tsx',
-          ]),
-        },
+        args: ['--debug-build-paths', 'app/search-params-unused/page.tsx'],
       })
 
       await next.start({ skipBuild: true })

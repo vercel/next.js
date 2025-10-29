@@ -64,18 +64,19 @@ describe('Cache Components Errors', () => {
     })
 
     const prerender = async (pathname: string) => {
-      const args = ['--experimental-build-mode', 'generate']
+      const args = [
+        '--experimental-build-mode',
+        'generate',
+        '--debug-build-paths',
+        // Escape square brackets for pathnames with dynamic segments.
+        `app${pathname.replace(/([[\]])/g, '\\$1')}/page.tsx`,
+      ]
 
       if (isDebugPrerender) {
         args.push('--debug-prerender')
       }
 
-      await next.build({
-        env: {
-          NEXT_PRIVATE_APP_PATHS: JSON.stringify([`${pathname}/page.tsx`]),
-        },
-        args,
-      })
+      await next.build({ args })
     }
 
     describe('Dynamic Metadata - Static Route', () => {

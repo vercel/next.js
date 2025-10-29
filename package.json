@@ -165,6 +165,7 @@
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.1",
     "@types/relay-runtime": "14.1.13",
+    "@types/shell-quote": "1.7.1",
     "@types/string-hash": "1.1.1",
     "@types/trusted-types": "2.0.3",
     "@vercel/devlow-bench": "workspace:*",
