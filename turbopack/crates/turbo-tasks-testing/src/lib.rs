@@ -261,7 +261,13 @@ impl TurboTasksApi for VcStorage {
         .into_typed(index.type_id))
     }
 
-    fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent) {
+    fn update_own_task_cell(
+        &self,
+        task: TaskId,
+        index: CellId,
+        content: CellContent,
+        _never_equal: bool,
+    ) {
         let mut map = self.cells.lock().unwrap();
         let cell = map.entry((task, index)).or_default();
         *cell = content;

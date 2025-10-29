@@ -2672,12 +2672,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
+        never_equal: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::UpdateCellOperation::run(
             task_id,
             cell,
             content,
+            never_equal,
             self.execute_context(turbo_tasks),
         );
     }
@@ -3271,9 +3273,11 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
+        never_equal: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        self.0.update_task_cell(task_id, cell, content, turbo_tasks);
+        self.0
+            .update_task_cell(task_id, cell, content, never_equal, turbo_tasks);
     }
 
     fn mark_own_task_as_finished(

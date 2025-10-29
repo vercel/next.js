@@ -40,7 +40,13 @@ pub enum UpdateCellOperation {
 }
 
 impl UpdateCellOperation {
-    pub fn run(task_id: TaskId, cell: CellId, content: CellContent, mut ctx: impl ExecuteContext) {
+    pub fn run(
+        task_id: TaskId,
+        cell: CellId,
+        content: CellContent,
+        never_equal: bool,
+        mut ctx: impl ExecuteContext,
+    ) {
         let content = if let CellContent(Some(new_content)) = content {
             Some(new_content.into_typed(cell.type_id))
         } else {
@@ -66,7 +72,7 @@ impl UpdateCellOperation {
                 // It's not expected that content changes during recomputation.
 
                 // Check if this assumption holds.
-                if !is_stateful && content.as_ref() != old_content {
+                if !is_stateful && !never_equal && content.as_ref() != old_content {
                     let task_description = ctx.get_task_description(task_id);
                     let cell_type = registry::get_value_type(cell.type_id).global_name;
                     println!(

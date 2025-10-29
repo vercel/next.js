@@ -621,6 +621,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         index: CellId,
         content: CellContent,
+        never_equal: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
