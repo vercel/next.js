@@ -19,6 +19,6 @@ async function Component({ foo }) {
     const a = 123;
     var fn = $$RSC_SERVER_CACHE_0.bind(null, encryptActionBoundArgs("c03128060c414d59f8552e4788b846c0d2b7f74743", a, foo));
     const data = await fn();
-    // @ts-expect-error: data is not a valid react child
+    // @ts-ignore: data is not a valid react child
     return <div>{data}</div>;
 }
