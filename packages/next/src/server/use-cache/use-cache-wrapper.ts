@@ -137,7 +137,7 @@ function generateCacheEntry(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  sharedErrorStack: string | undefined
+  timeoutError: UseCacheTimeoutError
 ) {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
   // generation cannot read anything from the context we're currently executing which
@@ -151,7 +151,7 @@ function generateCacheEntry(
     clientReferenceManifest,
     encodedArguments,
     fn,
-    sharedErrorStack
+    timeoutError
   )
 }
 
@@ -161,7 +161,7 @@ function generateCacheEntryWithRestoredWorkStore(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  sharedErrorStack: string | undefined
+  timeoutError: UseCacheTimeoutError
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
   // Note: We explicitly don't restore the RequestStore nor the PrerenderStore.
@@ -178,7 +178,7 @@ function generateCacheEntryWithRestoredWorkStore(
     clientReferenceManifest,
     encodedArguments,
     fn,
-    sharedErrorStack
+    timeoutError
   )
 }
 
@@ -284,7 +284,7 @@ function generateCacheEntryWithCacheContext(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  sharedErrorStack: string | undefined
+  timeoutError: UseCacheTimeoutError
 ) {
   if (!workStore.cacheLifeProfiles) {
     throw new InvariantError('cacheLifeProfiles should always be provided.')
@@ -309,7 +309,7 @@ function generateCacheEntryWithCacheContext(
       clientReferenceManifest,
       encodedArguments,
       fn,
-      sharedErrorStack
+      timeoutError
     )
   )
 }
@@ -524,7 +524,7 @@ async function generateCacheEntryImpl(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  sharedErrorStack: string | undefined
+  timeoutError: UseCacheTimeoutError
 ): Promise<GenerateCacheEntryResult> {
   const temporaryReferences = createServerTemporaryReferenceSet()
   const outerWorkUnitStore = cacheContext.outerWorkUnitStore
@@ -630,12 +630,8 @@ async function generateCacheEntryImpl(
       // Otherwise we assume you stalled on hanging input and de-opt. This needs
       // to be lower than just the general timeout of 60 seconds.
       const timer = setTimeout(() => {
-        const error = new UseCacheTimeoutError()
-        if (sharedErrorStack) {
-          error.stack = error.name + ': ' + error.message + sharedErrorStack
-        }
-        workStore.invalidDynamicUsageError = error
-        timeoutAbortController.abort(error)
+        workStore.invalidDynamicUsageError = timeoutError
+        timeoutAbortController.abort(timeoutError)
       }, 50000)
 
       const dynamicAccessAbortSignal =
@@ -829,20 +825,6 @@ function createTrackedReadableStream(
   })
 }
 
-function wrapAsInvalidDynamicUsageError(
-  error: Error,
-  sharedErrorStack: string | undefined,
-  workStore: WorkStore
-) {
-  if (sharedErrorStack) {
-    error.stack = error.name + ': ' + error.message + sharedErrorStack
-  }
-
-  workStore.invalidDynamicUsageError ??= error
-
-  return error
-}
-
 export async function cache(
   kind: string,
   id: string,
@@ -862,12 +844,18 @@ export async function cache(
     throw new Error('Unknown cache handler: ' + kind)
   }
 
-  // Capture a better error stack in this scope.
-  const sharedError = new Error()
-  Error.captureStackTrace(sharedError, cache)
-  const sharedErrorStack = sharedError.stack?.slice(
-    sharedError.stack.indexOf('\n')
-  )
+  const timeoutError = new UseCacheTimeoutError()
+  Error.captureStackTrace(timeoutError, cache)
+
+  const wrapAsInvalidDynamicUsageError = (
+    error: Error,
+    workStore: WorkStore
+  ) => {
+    Error.captureStackTrace(error, cache)
+    workStore.invalidDynamicUsageError ??= error
+
+    return error
+  }
 
   const workStore = workAsyncStorage.getStore()
   if (workStore === undefined) {
@@ -914,7 +902,6 @@ export async function cache(
             // TODO: Add a link to an error documentation page when we have one.
             `${expression} must not be used within \`unstable_cache()\`.`
           ),
-          sharedErrorStack,
           workStore
         )
       }
@@ -924,7 +911,6 @@ export async function cache(
             // TODO: Add a link to an error documentation page when we have one.
             `${expression} must not be used within "use cache". It can only be nested inside of another ${expression}.`
           ),
-          sharedErrorStack,
           workStore
         )
       }
@@ -942,7 +928,6 @@ export async function cache(
             // TODO: Add a link to an error documentation page when we have one.
             `${expression} cannot be used outside of a request context.`
           ),
-          sharedErrorStack,
           workStore
         )
       default:
@@ -1560,7 +1545,7 @@ export async function cache(
         clientReferenceManifest,
         encodedCacheKeyParts,
         fn,
-        sharedErrorStack
+        timeoutError
       )
 
       if (result.type === 'prerender-dynamic') {
@@ -1640,7 +1625,7 @@ export async function cache(
           clientReferenceManifest,
           encodedCacheKeyParts,
           fn,
-          sharedErrorStack
+          timeoutError
         )
 
         if (result.type === 'cached') {
