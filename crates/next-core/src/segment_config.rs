@@ -468,15 +468,13 @@ pub async fn parse_segment_config_from_source(
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
                         for specifier in &named.specifiers {
                             if let ExportSpecifier::Named(named) = specifier {
-                                parse(
-                                    match named.exported.as_ref().unwrap_or(&named.orig) {
-                                        ModuleExportName::Ident(ident) => &ident.sym,
-                                        ModuleExportName::Str(s) => &*s.value,
-                                    },
-                                    None,
-                                    specifier.span(),
-                                )
-                                .await?;
+                                let src = match named.exported.as_ref().unwrap_or(&named.orig) {
+                                    ModuleExportName::Ident(ident) => ident.sym.clone(),
+                                    ModuleExportName::Str(s) => {
+                                        s.value.to_atom_lossy().into_owned()
+                                    }
+                                };
+                                parse(&src, None, specifier.span()).await?;
                             }
                         }
                     }

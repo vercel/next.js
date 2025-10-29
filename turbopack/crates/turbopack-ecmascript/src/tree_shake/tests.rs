@@ -176,7 +176,7 @@ fn run(input: PathBuf) {
         )
         .unwrap();
 
-        let uri_of_module = atom!("entry.js");
+        let uri_of_module = atom!("entry.js").into();
 
         let mut describe =
             |is_debug: bool, title: &str, entries: Vec<ItemIdGroupKind>, skip_parts: bool| {
@@ -264,7 +264,7 @@ fn run(input: PathBuf) {
 }
 
 struct SingleModuleLoader<'a> {
-    entry_module_uri: &'a str,
+    entry_module_uri: &'a Wtf8Atom,
     modules: &'a [Module],
 }
 
