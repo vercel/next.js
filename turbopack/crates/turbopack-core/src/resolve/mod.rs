@@ -575,30 +575,25 @@ impl ResolveResult {
     }
 
     pub fn source(source: ResolvedVc<Box<dyn Source>>) -> ResolvedVc<Self> {
-        Self::source_with_key(RequestKey::default(), source)
+        Self::source_with_key(RequestKey::default(), source).resolved_cell()
     }
 
-    pub fn source_with_key(
-        request_key: RequestKey,
-        source: ResolvedVc<Box<dyn Source>>,
-    ) -> ResolvedVc<Self> {
+    fn source_with_key(request_key: RequestKey, source: ResolvedVc<Box<dyn Source>>) -> Self {
         ResolveResult {
             primary: vec![(request_key, ResolveResultItem::Source(source))].into_boxed_slice(),
             affecting_sources: Default::default(),
         }
-        .resolved_cell()
     }
 
-    pub fn source_with_affecting_sources(
+    fn source_with_affecting_sources(
         request_key: RequestKey,
         source: ResolvedVc<Box<dyn Source>>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
-    ) -> ResolvedVc<Self> {
+    ) -> Self {
         ResolveResult {
             primary: vec![(request_key, ResolveResultItem::Source(source))].into_boxed_slice(),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
-        .resolved_cell()
     }
 }
 
@@ -1416,17 +1411,17 @@ pub async fn resolve_raw(
 ) -> Result<Vc<ResolveResult>> {
     async fn to_result(
         request: RcStr,
-        path: FileSystemPath,
+        path: &FileSystemPath,
         collect_affecting_sources: bool,
-    ) -> Result<Vc<ResolveResult>> {
+    ) -> Result<ResolveResult> {
         let result = &*path.realpath_with_links().await?;
         let path = match &result.path_result {
             Ok(path) => path,
-            Err(e) => bail!(e.as_error_message(&path, result)),
+            Err(e) => bail!(e.as_error_message(path, result)),
         };
         let request_key = RequestKey::new(request);
         let source = ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?);
-        Ok(*if collect_affecting_sources {
+        Ok(if collect_affecting_sources {
             ResolveResult::source_with_affecting_sources(
                 request_key,
                 source,
@@ -1449,17 +1444,22 @@ pub async fn resolve_raw(
         matches: &[PatternMatch],
         collect_affecting_sources: bool,
     ) -> Result<Vec<Vc<ResolveResult>>> {
-        matches
+        Ok(matches
             .iter()
             .map(|m| async move {
                 Ok(if let PatternMatch::File(request, path) = m {
-                    Some(to_result(request.clone(), path.clone(), collect_affecting_sources).await?)
+                    Some(to_result(request.clone(), path, collect_affecting_sources).await?)
                 } else {
                     None
                 })
             })
             .try_flat_join()
-            .await
+            .await?
+            // Construct all the cells after resolving the results to ensure they are constructed in
+            // a deterministic order.
+            .into_iter()
+            .map(|res| res.cell())
+            .collect())
     }
 
     let mut results = Vec::new();
@@ -2847,8 +2847,8 @@ async fn resolved(
             .to_resolved()
             .await?,
     );
-    if options_value.collect_affecting_sources {
-        Ok(*ResolveResult::source_with_affecting_sources(
+    Ok(if options_value.collect_affecting_sources {
+        ResolveResult::source_with_affecting_sources(
             request_key,
             source,
             result
@@ -2861,10 +2861,11 @@ async fn resolved(
                 })
                 .try_join()
                 .await?,
-        ))
+        )
     } else {
-        Ok(*ResolveResult::source_with_key(request_key, source))
+        ResolveResult::source_with_key(request_key, source)
     }
+    .cell())
 }
 
 async fn handle_exports_imports_field(
