@@ -421,7 +421,6 @@ export default abstract class Server<
   }
 
   private readonly isAppPPREnabled: boolean
-  private readonly isAppSegmentPrefetchEnabled: boolean
 
   /**
    * This is used to persist cache scopes across
@@ -489,10 +488,6 @@ export default abstract class Server<
       this.enabledDirectories.app &&
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
-    this.isAppSegmentPrefetchEnabled =
-      this.enabledDirectories.app &&
-      this.nextConfig.experimental.clientSegmentCache === true
-
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
       // mode as otherwise that route is not exposed external to the server as
@@ -505,10 +500,9 @@ export default abstract class Server<
         this.isAppPPREnabled && this.minimalMode
           ? new PrefetchRSCPathnameNormalizer()
           : undefined,
-      segmentPrefetchRSC:
-        this.isAppSegmentPrefetchEnabled && this.minimalMode
-          ? new SegmentPrefixRSCPathnameNormalizer()
-          : undefined,
+      segmentPrefetchRSC: this.minimalMode
+        ? new SegmentPrefixRSCPathnameNormalizer()
+        : undefined,
       data: this.enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildId)
         : undefined,
@@ -550,10 +544,6 @@ export default abstract class Server<
         expireTime: this.nextConfig.expireTime,
         staleTimes: this.nextConfig.experimental.staleTimes,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
-        clientSegmentCache:
-          this.nextConfig.experimental.clientSegmentCache === 'client-only'
-            ? 'client-only'
-            : Boolean(this.nextConfig.experimental.clientSegmentCache),
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,

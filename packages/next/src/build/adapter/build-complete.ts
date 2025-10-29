@@ -1502,12 +1502,7 @@ export async function handleBuildComplete({
           route.page
         ) + getDestinationQuery(route.routeKeys)
 
-      if (
-        appPageKeys &&
-        appPageKeys.length > 0 &&
-        (config.experimental.cacheComponents ||
-          config.experimental.clientSegmentCache)
-      ) {
+      if (appPageKeys && appPageKeys.length > 0 && config.cacheComponents) {
         // If we have fallback root params (implying we've already
         // emitted a rewrite for the /_tree request), or if the route
         // has PPR enabled and client param parsing is enabled, then

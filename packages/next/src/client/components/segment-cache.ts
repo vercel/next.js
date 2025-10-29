@@ -24,92 +24,68 @@ export type {
   NormalizedSearch,
 } from './segment-cache-impl/cache-key'
 
-const notEnabled: any = () => {
-  throw new Error(
-    'Segment Cache experiment is not enabled. This is a bug in Next.js.'
-  )
-}
-
 export const prefetch: typeof import('./segment-cache-impl/prefetch').prefetch =
-  process.env.__NEXT_CLIENT_SEGMENT_CACHE
-    ? function (...args) {
-        return (
-          require('./segment-cache-impl/prefetch') as typeof import('./segment-cache-impl/prefetch')
-        ).prefetch(...args)
-      }
-    : notEnabled
+  function (...args) {
+    return (
+      require('./segment-cache-impl/prefetch') as typeof import('./segment-cache-impl/prefetch')
+    ).prefetch(...args)
+  }
 
 export const navigate: typeof import('./segment-cache-impl/navigation').navigate =
-  process.env.__NEXT_CLIENT_SEGMENT_CACHE
-    ? function (...args) {
-        return (
-          require('./segment-cache-impl/navigation') as typeof import('./segment-cache-impl/navigation')
-        ).navigate(...args)
-      }
-    : notEnabled
+  function (...args) {
+    return (
+      require('./segment-cache-impl/navigation') as typeof import('./segment-cache-impl/navigation')
+    ).navigate(...args)
+  }
 
 export const revalidateEntireCache: typeof import('./segment-cache-impl/cache').revalidateEntireCache =
-  process.env.__NEXT_CLIENT_SEGMENT_CACHE
-    ? function (...args) {
-        return (
-          require('./segment-cache-impl/cache') as typeof import('./segment-cache-impl/cache')
-        ).revalidateEntireCache(...args)
-      }
-    : notEnabled
+  function (...args) {
+    return (
+      require('./segment-cache-impl/cache') as typeof import('./segment-cache-impl/cache')
+    ).revalidateEntireCache(...args)
+  }
 
 export const getCurrentCacheVersion: typeof import('./segment-cache-impl/cache').getCurrentCacheVersion =
-  process.env.__NEXT_CLIENT_SEGMENT_CACHE
-    ? function (...args) {
-        return (
-          require('./segment-cache-impl/cache') as typeof import('./segment-cache-impl/cache')
-        ).getCurrentCacheVersion(...args)
-      }
-    : notEnabled
+  function (...args) {
+    return (
+      require('./segment-cache-impl/cache') as typeof import('./segment-cache-impl/cache')
+    ).getCurrentCacheVersion(...args)
+  }
 
 export const schedulePrefetchTask: typeof import('./segment-cache-impl/scheduler').schedulePrefetchTask =
-  process.env.__NEXT_CLIENT_SEGMENT_CACHE
-    ? function (...args) {
-        return (
-          require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
-        ).schedulePrefetchTask(...args)
-      }
-    : notEnabled
+  function (...args) {
+    return (
+      require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
+    ).schedulePrefetchTask(...args)
+  }
 
 export const cancelPrefetchTask: typeof import('./segment-cache-impl/scheduler').cancelPrefetchTask =
-  process.env.__NEXT_CLIENT_SEGMENT_CACHE
-    ? function (...args) {
-        return (
-          require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
-        ).cancelPrefetchTask(...args)
-      }
-    : notEnabled
+  function (...args) {
+    return (
+      require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
+    ).cancelPrefetchTask(...args)
+  }
 
 export const reschedulePrefetchTask: typeof import('./segment-cache-impl/scheduler').reschedulePrefetchTask =
-  process.env.__NEXT_CLIENT_SEGMENT_CACHE
-    ? function (...args) {
-        return (
-          require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
-        ).reschedulePrefetchTask(...args)
-      }
-    : notEnabled
+  function (...args) {
+    return (
+      require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
+    ).reschedulePrefetchTask(...args)
+  }
 
 export const isPrefetchTaskDirty: typeof import('./segment-cache-impl/scheduler').isPrefetchTaskDirty =
-  process.env.__NEXT_CLIENT_SEGMENT_CACHE
-    ? function (...args) {
-        return (
-          require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
-        ).isPrefetchTaskDirty(...args)
-      }
-    : notEnabled
+  function (...args) {
+    return (
+      require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
+    ).isPrefetchTaskDirty(...args)
+  }
 
 export const createCacheKey: typeof import('./segment-cache-impl/cache-key').createCacheKey =
-  process.env.__NEXT_CLIENT_SEGMENT_CACHE
-    ? function (...args) {
-        return (
-          require('./segment-cache-impl/cache-key') as typeof import('./segment-cache-impl/cache-key')
-        ).createCacheKey(...args)
-      }
-    : notEnabled
+  function (...args) {
+    return (
+      require('./segment-cache-impl/cache-key') as typeof import('./segment-cache-impl/cache-key')
+    ).createCacheKey(...args)
+  }
 
 /**
  * Below are public constants. They're small enough that we don't need to
