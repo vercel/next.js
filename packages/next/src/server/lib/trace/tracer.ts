@@ -13,6 +13,8 @@ import type {
 } from 'next/dist/compiled/@opentelemetry/api'
 import { isThenable } from '../../../shared/lib/is-thenable'
 
+const NEXT_OTEL_PERFORMANCE_PREFIX = process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
 
 // we want to allow users to use their own version of @opentelemetry/api if they
@@ -274,7 +276,7 @@ class NextTracerImpl implements NextTracer {
     const spanName = options.spanName ?? type
 
     if (
-      (!NextVanillaSpanAllowlist.includes(type) &&
+      (!NextVanillaSpanAllowlist.has(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
       options.hideSpan
     ) {
@@ -307,20 +309,26 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         (span: Span) => {
-          const startTime =
-            'performance' in globalThis && 'measure' in performance
-              ? globalThis.performance.now()
-              : undefined
+          let startTime: number | undefined
+          if (
+            NEXT_OTEL_PERFORMANCE_PREFIX &&
+            type &&
+            LogSpanAllowList.has(type)
+          ) {
+            startTime =
+              'performance' in globalThis && 'measure' in performance
+                ? globalThis.performance.now()
+                : undefined
+          }
 
+          let cleanedUp = false
           const onCleanup = () => {
+            if (cleanedUp) return
+            cleanedUp = true
             rootSpanAttributesStore.delete(spanId)
-            if (
-              startTime &&
-              process.env.NEXT_OTEL_PERFORMANCE_PREFIX &&
-              LogSpanAllowList.includes(type || ('' as any))
-            ) {
+            if (startTime) {
               performance.measure(
-                `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+                `${NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
                   type.split('.').pop() || ''
                 ).replace(
                   /[A-Z]/g,
@@ -367,14 +375,14 @@ class NextTracerImpl implements NextTracer {
                 .finally(onCleanup)
             } else {
               span.end()
-              onCleanup()
             }
 
             return result
           } catch (err: any) {
             closeSpanWithError(span, err)
-            onCleanup()
             throw err
+          } finally {
+            onCleanup()
           }
         }
       )
@@ -398,7 +406,7 @@ class NextTracerImpl implements NextTracer {
       args.length === 3 ? args : [args[0], {}, args[1]]
 
     if (
-      !NextVanillaSpanAllowlist.includes(name) &&
+      !NextVanillaSpanAllowlist.has(name) &&
       process.env.NEXT_OTEL_VERBOSE !== '1'
     ) {
       return fn
