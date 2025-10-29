@@ -1149,7 +1149,7 @@ describe('opentelemetry with custom server', () => {
     await collector.shutdown()
   })
 
-  it('should set attributes correctly on handeRequest span', async () => {
+  it('should set attributes correctly on handleRequest span', async () => {
     await next.fetch('/app/param/rsc-fetch')
 
     await expectTrace(getCollector(), [
