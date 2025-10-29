@@ -5,17 +5,17 @@ use std::{
 
 use pathdiff::diff_paths;
 use swc_core::{
-    atoms::{atom, Atom},
-    common::{errors::HANDLER, FileName, Span, DUMMY_SP},
+    atoms::{Atom, Wtf8Atom, atom},
+    common::{DUMMY_SP, FileName, Span, errors::HANDLER},
     ecma::{
         ast::{
-            op, ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee,
-            Expr, ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
+            ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
+            ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
             ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem, ObjectLit, Pass, Prop,
-            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp,
+            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp, op,
         },
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{fold_pass, Fold, FoldWith, VisitMut, VisitMutWith},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{Fold, FoldWith, VisitMut, VisitMutWith, fold_pass},
     },
     quote,
 };
@@ -91,7 +91,7 @@ struct NextDynamicPatcher {
     filename: Arc<FileName>,
     dynamic_bindings: Vec<Id>,
     is_next_dynamic_first_arg: bool,
-    dynamically_imported_specifier: Option<(Atom, Span)>,
+    dynamically_imported_specifier: Option<(Wtf8Atom, Span)>,
     state: NextDynamicPatcherState,
 }
 
