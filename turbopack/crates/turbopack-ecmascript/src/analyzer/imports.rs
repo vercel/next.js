@@ -473,7 +473,7 @@ impl Visit for Analyzer<'_> {
         if internal_symbol.is_none() {
             self.ensure_reference(
                 import.span,
-                import.src.value.clone().to_atom_lossy().into_owned(),
+                import.src.value.clone(),
                 ImportedSymbol::ModuleEvaluation,
                 annotations.clone(),
             );
@@ -485,7 +485,7 @@ impl Visit for Analyzer<'_> {
                 .unwrap_or_else(|| get_import_symbol_from_import(s));
             let i = self.ensure_reference(
                 import.span,
-                import.src.value.clone().to_atom_lossy().into_owned(),
+                import.src.value.clone(),
                 symbol,
                 annotations.clone(),
             );
@@ -584,7 +584,7 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Namespace {
-                            exported: export_as_atom(&n.name).clone(),
+                            exported: export_as_atom(&n.name).clone().into_owned(),
                         },
                     ));
                 }
@@ -601,9 +601,10 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Named {
-                            imported: export_as_atom(&n.orig).clone(),
+                            imported: export_as_atom(&n.orig).clone().into_owned(),
                             exported: export_as_atom(n.exported.as_ref().unwrap_or(&n.orig))
-                                .clone(),
+                                .clone()
+                                .into_owned(),
                         },
                     ));
                 }
@@ -817,7 +818,7 @@ fn parse_ignore_directive(comments: &dyn Comments, value: Option<&ExprOrSpread>)
 pub(crate) fn orig_name(n: &ModuleExportName) -> Atom {
     match n {
         ModuleExportName::Ident(v) => v.sym.clone(),
-        ModuleExportName::Str(v) => v.value.clone(),
+        ModuleExportName::Str(v) => v.value.clone().to_atom_lossy().into_owned(),
     }
 }
 
