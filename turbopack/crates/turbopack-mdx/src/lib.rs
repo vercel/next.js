@@ -11,8 +11,8 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     issue::{
-        Issue, IssueDescriptionExt, IssueExt, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
+        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+        StyledString,
     },
     source::Source,
     source_pos::SourcePos,
@@ -117,20 +117,9 @@ impl Source for MdxTransformedAsset {
 #[turbo_tasks::value_impl]
 impl Asset for MdxTransformedAsset {
     #[turbo_tasks::function]
-    async fn content(self: ResolvedVc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
-        Ok(*transform_process_operation(self)
-            .issue_file_path(this.source.ident().path(), "MDX processing")
-            .await?
-            .connect()
-            .await?
-            .content)
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        Ok(*self.process().await?.content)
     }
-}
-
-#[turbo_tasks::function(operation)]
-fn transform_process_operation(asset: ResolvedVc<MdxTransformedAsset>) -> Vc<MdxTransformResult> {
-    asset.process()
 }
 
 #[turbo_tasks::value_impl]
@@ -190,7 +179,7 @@ impl MdxTransformedAsset {
             }
             .cell()),
             Err(err) => {
-                let loc = match err.place {
+                let source = match err.place {
                     Some(p) => {
                         let (start, end) = match *p {
                             // markdown's positions are 1-indexed, SourcePos is 0-indexed.
@@ -214,17 +203,16 @@ impl MdxTransformedAsset {
                             }
                         };
 
-                        Some(IssueSource::from_line_col(self.source, start, end))
+                        IssueSource::from_line_col(self.source, start, end)
                     }
-                    None => None,
+                    None => IssueSource::from_source_only(self.source),
                 };
 
                 MdxIssue {
-                    path: self.source.ident().path().to_resolved().await?,
-                    loc,
-                    reason: err.reason,
-                    mdx_rule_id: *err.rule_id,
-                    mdx_source: *err.source,
+                    source,
+                    reason: RcStr::from(err.reason),
+                    mdx_rule_id: RcStr::from(*err.rule_id),
+                    mdx_source: RcStr::from(*err.source),
                 }
                 .resolved_cell()
                 .emit();
@@ -247,29 +235,25 @@ struct MdxTransformResult {
 #[turbo_tasks::value]
 struct MdxIssue {
     /// Place of message.
-    path: ResolvedVc<FileSystemPath>,
-    loc: Option<IssueSource>,
+    source: IssueSource,
     /// Reason for message (should use markdown).
-    reason: String,
+    reason: RcStr,
     /// Category of message.
-    mdx_rule_id: String,
+    mdx_rule_id: RcStr,
     /// Namespace of message.
-    mdx_source: String,
+    mdx_source: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for MdxIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
-    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(match &self.loc {
-            Some(loc) => Some(loc.resolve_source_map().await?.into_owned()),
-            None => None,
-        }))
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]
@@ -285,15 +269,7 @@ impl Issue for MdxIssue {
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
-            StyledString::Text(self.reason.clone().into()).resolved_cell(),
+            StyledString::Text(self.reason.clone()).resolved_cell(),
         ))
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

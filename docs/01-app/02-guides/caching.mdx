@@ -31,7 +31,33 @@ By default, Next.js will cache as much as possible to improve performance and re
 
 Caching behavior changes depending on whether the route is statically or dynamically rendered, data is cached or uncached, and whether a request is part of an initial visit or a subsequent navigation. Depending on your use case, you can configure the caching behavior for individual routes and data requests.
 
-Fetch caching is **not** supported in `middleware`. Any fetches done inside of your `middleware` will be uncached.
+Fetch caching is **not** supported in `proxy`. Any fetches done inside of your `proxy` will be uncached.
+
+## Rendering Strategies
+
+To understand how caching works in Next.js, it's helpful to understand the rendering strategies available. The rendering strategy determines when your route's HTML is generated, which directly impacts what can be cached.
+
+### Static Rendering
+
+With Static Rendering, routes are rendered at **build time** or in the background after [data revalidation](/docs/app/guides/incremental-static-regeneration). The result is cached and can be reused across requests. Static routes are fully cached in the [Full Route Cache](#full-route-cache).
+
+### Dynamic Rendering
+
+With Dynamic Rendering, routes are rendered at **request time**. This happens when your route uses request-specific information like cookies, headers, or search params.
+
+A route becomes dynamic when it uses any of these APIs:
+
+- [`cookies`](/docs/app/api-reference/functions/cookies)
+- [`headers`](/docs/app/api-reference/functions/headers)
+- [`connection`](/docs/app/api-reference/functions/connection)
+- [`draftMode`](/docs/app/api-reference/functions/draft-mode)
+- [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
+- [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
+- [`fetch`](/docs/app/api-reference/functions/fetch) with `{ cache: 'no-store' }`
+
+Dynamic routes are not cached in the Full Route Cache, but can still use the [Data Cache](#data-cache) for data requests.
+
+> **Good to know**: You can use [Cache Components](/docs/app/getting-started/cache-components) to mix static and dynamic rendering within the same route.
 
 ## Request Memoization
 
@@ -293,7 +319,7 @@ This diagram shows the difference between statically and dynamically rendered ro
   height="1314"
 />
 
-Learn more about [static and dynamic rendering](/docs/app/getting-started/partial-prerendering#static-rendering).
+Learn more about [static and dynamic rendering](#rendering-strategies).
 
 ### Duration
 
@@ -312,13 +338,13 @@ You can opt out of the Full Route Cache, or in other words, dynamically render c
 
 - **Using a [Dynamic API](#dynamic-apis)**: This will opt the route out from the Full Route Cache and dynamically render it at request time. The Data Cache can still be used.
 - **Using the `dynamic = 'force-dynamic'` or `revalidate = 0` route segment config options**: This will skip the Full Route Cache and the Data Cache. Meaning components will be rendered and data fetched on every incoming request to the server. The Router Cache will still apply as it's a client-side cache.
-- **Opting out of the [Data Cache](#data-cache)**: If a route has a `fetch` request that is not cached, this will opt the route out of the Full Route Cache. The data for the specific `fetch` request will be fetched for every incoming request. Other `fetch` requests that do not opt out of caching will still be cached in the Data Cache. This allows for a hybrid of cached and uncached data.
+- **Opting out of the [Data Cache](#data-cache)**: If a route has a `fetch` request that is not cached, this will opt the route out of the Full Route Cache. The data for the specific `fetch` request will be fetched for every incoming request. Other `fetch` requests that explicitly enable caching will still be cached in the Data Cache. This allows for a hybrid of cached and uncached data.
 
 ## Client-side Router Cache
 
 Next.js has an in-memory client-side router cache that stores the RSC payload of route segments, split by layouts, loading states, and pages.
 
-When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/getting-started/linking-and-navigating#prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
+When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/getting-started/linking-and-navigating#prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of browser state and React state in shared layouts.
 
 With the Router Cache:
 
@@ -335,7 +361,7 @@ With the Router Cache:
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
 - **Session**: The cache persists across navigation. However, it's cleared on page refresh.
-- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the resource was [statically generated](/docs/app/getting-started/partial-prerendering#static-rendering):
+- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the resource was [statically generated](#static-rendering):
   - **Default Prefetching** (`prefetch={null}` or unspecified): not cached for dynamic pages, 5 minutes for static pages.
   - **Full Prefetching** (`prefetch={true}` or `router.prefetch`): 5 minutes for both static & dynamic pages.
 
@@ -376,24 +402,24 @@ When configuring the different caching mechanisms, it's important to understand 
 
 The following table provides an overview of how different Next.js APIs affect caching:
 
-| API                                                                     | Router Cache               | Full Route Cache      | Data Cache            | React Cache |
-| ----------------------------------------------------------------------- | -------------------------- | --------------------- | --------------------- | ----------- |
-| [`<Link prefetch>`](#link)                                              | Cache                      |                       |                       |             |
-| [`router.prefetch`](#routerprefetch)                                    | Cache                      |                       |                       |             |
-| [`router.refresh`](#routerrefresh)                                      | Revalidate                 |                       |                       |             |
-| [`fetch`](#fetch)                                                       |                            |                       | Cache                 | Cache       |
-| [`fetch` `options.cache`](#fetch-optionscache)                          |                            |                       | Cache or Opt out      |             |
-| [`fetch` `options.next.revalidate`](#fetch-optionsnextrevalidate)       |                            | Revalidate            | Revalidate            |             |
-| [`fetch` `options.next.tags`](#fetch-optionsnexttags-and-revalidatetag) |                            | Cache                 | Cache                 |             |
-| [`revalidateTag`](#fetch-optionsnexttags-and-revalidatetag)             | Revalidate (Server Action) | Revalidate            | Revalidate            |             |
-| [`revalidatePath`](#revalidatepath)                                     | Revalidate (Server Action) | Revalidate            | Revalidate            |             |
-| [`const revalidate`](#segment-config-options)                           |                            | Revalidate or Opt out | Revalidate or Opt out |             |
-| [`const dynamic`](#segment-config-options)                              |                            | Cache or Opt out      | Cache or Opt out      |             |
-| [`cookies`](#cookies)                                                   | Revalidate (Server Action) | Opt out               |                       |             |
-| [`headers`, `searchParams`](#dynamic-apis)                              |                            | Opt out               |                       |             |
-| [`generateStaticParams`](#generatestaticparams)                         |                            | Cache                 |                       |             |
-| [`React.cache`](#react-cache-function)                                  |                            |                       |                       | Cache       |
-| [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)    |                            |                       | Cache                 |             |
+| API                                                                     | Router Cache               | Full Route Cache      | Data Cache            | React Cache          |
+| ----------------------------------------------------------------------- | -------------------------- | --------------------- | --------------------- | -------------------- |
+| [`<Link prefetch>`](#link)                                              | Cache                      |                       |                       |                      |
+| [`router.prefetch`](#routerprefetch)                                    | Cache                      |                       |                       |                      |
+| [`router.refresh`](#routerrefresh)                                      | Revalidate                 |                       |                       |                      |
+| [`fetch`](#fetch)                                                       |                            |                       | Cache                 | Cache (GET and HEAD) |
+| [`fetch` `options.cache`](#fetch-optionscache)                          |                            |                       | Cache or Opt out      |                      |
+| [`fetch` `options.next.revalidate`](#fetch-optionsnextrevalidate)       |                            | Revalidate            | Revalidate            |                      |
+| [`fetch` `options.next.tags`](#fetch-optionsnexttags-and-revalidatetag) |                            | Cache                 | Cache                 |                      |
+| [`revalidateTag`](#fetch-optionsnexttags-and-revalidatetag)             | Revalidate (Server Action) | Revalidate            | Revalidate            |                      |
+| [`revalidatePath`](#revalidatepath)                                     | Revalidate (Server Action) | Revalidate            | Revalidate            |                      |
+| [`const revalidate`](#segment-config-options)                           |                            | Revalidate or Opt out | Revalidate or Opt out |                      |
+| [`const dynamic`](#segment-config-options)                              |                            | Cache or Opt out      | Cache or Opt out      |                      |
+| [`cookies`](#cookies)                                                   | Revalidate (Server Action) | Opt out               |                       |                      |
+| [`headers`, `searchParams`](#dynamic-apis)                              |                            | Opt out               |                       |                      |
+| [`generateStaticParams`](#generatestaticparams)                         |                            | Cache                 |                       |                      |
+| [`React.cache`](#react-cache-function)                                  |                            |                       |                       | Cache                |
+| [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)    |                            |                       | Cache                 |                      |
 
 ### `<Link>`
 
@@ -421,11 +447,10 @@ See the [`useRouter` hook](/docs/app/api-reference/functions/use-router) API ref
 
 Data returned from `fetch` is _not_ automatically cached in the Data Cache.
 
-The default caching behavior of `fetch` (e.g., when the `cache` option is not specified) is equal to setting the `cache` option to `no-store`:
+By default, when no `cache` or `next.revalidate` options are provided:
 
-```js
-let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })
-```
+- [Dynamic rendering](#dynamic-rendering): Fetch runs on every request and always returns fresh data.
+- [Static rendering](#static-rendering): Fetched data is stored in the [Data Cache](#data-cache), and the rendered output in the [Full Route Cache](#full-route-cache). Next.js serves this cached result until the path is revalidated.
 
 See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch) for more options.
 
@@ -573,7 +598,7 @@ To disable caching at request time, add the `export const dynamicParams = false`
 
 The React `cache` function allows you to memoize the return value of a function, allowing you to call the same function multiple times while only executing it once.
 
-Since `fetch` requests are automatically memoized, you do not need to wrap it in React `cache`. However, you can use `cache` to manually memoize data requests for use cases when the `fetch` API is not suitable. For example, some database clients, CMS clients, or GraphQL clients.
+`fetch` requests using the `GET` or `HEAD` methods are automatically memoized, so you do not need to wrap it in React `cache`. However, for other `fetch` methods, or when using data fetching libraries (such as some database, CMS, or GraphQL clients) that don't inherently memoize requests, you can use `cache` to manually memoize data requests.
 
 ```ts filename="utils/get-item.ts" switcher
 import { cache } from 'react'

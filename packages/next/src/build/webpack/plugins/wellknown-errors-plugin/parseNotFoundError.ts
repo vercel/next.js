@@ -5,6 +5,7 @@ import {
   getIgnoredSources,
 } from '../../../../server/dev/middleware-webpack'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { RawSourceMap } from 'next/dist/compiled/source-map08'
 
 // Based on https://github.com/webpack/webpack/blob/fcdd04a833943394bbb0a9eeb54a962a24cc7e41/lib/stats/DefaultStatsFactoryPlugin.js#L422-L431
 /*
@@ -46,11 +47,17 @@ function getModuleTrace(input: any, compilation: any) {
   return moduleTrace
 }
 
+function sourceMapIgnoreListsEverything(
+  sourceMap: RawSourceMap & { ignoreList?: number[] }
+): boolean {
+  return sourceMap.sources.length === sourceMap.ignoreList?.length
+}
+
 async function getSourceFrame(
   input: any,
   fileName: any,
   compilation: any
-): Promise<{ frame: string; lineNumber: string; column: string }> {
+): Promise<{ frame: string; line1: string; column1: string }> {
   try {
     const loc =
       input.loc || input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
@@ -62,6 +69,7 @@ async function getSourceFrame(
       const moduleId = compilation.chunkGraph.getModuleId(module)
 
       const result = await createOriginalStackFrame({
+        ignoredByDefault: sourceMapIgnoreListsEverything(sourceMap),
         source: {
           type: 'bundle',
           sourceMap,
@@ -75,21 +83,21 @@ async function getSourceFrame(
           arguments: [],
           file: fileName,
           methodName: '',
-          lineNumber: loc.start.line,
+          line1: loc.start.line,
           // loc is 0-based but columns in stack frames are 1-based.
-          column: (loc.start.column ?? 0) + 1,
+          column1: (loc.start.column ?? 0) + 1,
         },
       })
 
       return {
         frame: result?.originalCodeFrame ?? '',
-        lineNumber: result?.originalStackFrame?.lineNumber?.toString() ?? '',
-        column: result?.originalStackFrame?.column?.toString() ?? '',
+        line1: result?.originalStackFrame?.line1?.toString() ?? '',
+        column1: result?.originalStackFrame?.column1?.toString() ?? '',
       }
     }
   } catch {}
 
-  return { frame: '', lineNumber: '', column: '' }
+  return { frame: '', line1: '', column1: '' }
 }
 
 function getFormattedFileName(
@@ -133,7 +141,7 @@ export async function getNotFoundError(
   }
 
   try {
-    const { frame, lineNumber, column } = await getSourceFrame(
+    const { frame, line1, column1 } = await getSourceFrame(
       input,
       fileName,
       compilation
@@ -173,8 +181,8 @@ export async function getNotFoundError(
     const formattedFileName = getFormattedFileName(
       fileName,
       module,
-      lineNumber,
-      column
+      line1,
+      column1
     )
 
     return new SimpleWebpackError(formattedFileName, message)

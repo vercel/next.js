@@ -17,8 +17,8 @@ const baseStackFrame = {
   file: './app/page.tsx',
   methodName: 'Home',
   arguments: [],
-  lineNumber: 10,
-  column: 5,
+  line1: 10,
+  column1: 5,
 }
 
 export const SimpleCodeFrame: Story = {

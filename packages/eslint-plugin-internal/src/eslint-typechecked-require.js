@@ -34,12 +34,25 @@ module.exports = {
         node.callee.type !== 'Identifier' ||
         node.callee.name !== 'require' ||
         node.arguments.length !== 1 ||
-        node.arguments[0].type !== 'Literal'
+        !(
+          node.arguments[0].type === 'Literal' ||
+          node.arguments[0].type === 'TemplateLiteral'
+        )
       ) {
         return
       }
 
-      const requireSource = node.arguments[0].value
+      let requireSource
+      if (node.arguments[0].type === 'TemplateLiteral') {
+        if (node.arguments[0].quasis.length === 1) {
+          requireSource = node.arguments[0].quasis[0].value.cooked
+        } else {
+          // Ignore template literals with placeholders
+          return
+        }
+      } else {
+        requireSource = node.arguments[0].value
+      }
       const parent = node.parent
 
       // json is fine because we have resolveJsonModule disabled in our TS project

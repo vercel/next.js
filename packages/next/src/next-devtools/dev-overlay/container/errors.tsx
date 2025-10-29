@@ -1,4 +1,4 @@
-import { useMemo, useRef, Suspense } from 'react'
+import { useMemo, useRef, Suspense, useCallback } from 'react'
 import type { DebugInfo } from '../../shared/types'
 import { Overlay, OverlayBackdrop } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
@@ -15,11 +15,14 @@ import {
   NEXTJS_HYDRATION_ERROR_LINK,
 } from '../../shared/react-19-hydration-error'
 import type { ReadyRuntimeError } from '../utils/get-error-by-type'
+import { useFrames } from '../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 import type { HydrationErrorState } from '../../shared/hydration-error'
 import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
+import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 
-export interface ErrorsProps extends ErrorBaseProps {
+interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   runtimeErrors: ReadyRuntimeError[]
   debugInfo: DebugInfo
@@ -30,11 +33,11 @@ function isNextjsLink(text: string): boolean {
   return text.startsWith('https://nextjs.org')
 }
 
-export function HydrationErrorDescription({ message }: { message: string }) {
+function HydrationErrorDescription({ message }: { message: string }) {
   return <HotlinkedText text={message} matcher={isNextjsLink} />
 }
 
-export function GenericErrorDescription({ error }: { error: Error }) {
+function GenericErrorDescription({ error }: { error: Error }) {
   const environmentName =
     'environmentName' in error ? error.environmentName : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''
@@ -53,6 +56,49 @@ export function GenericErrorDescription({ error }: { error: Error }) {
   )
 }
 
+function BlockingPageLoadErrorDescription() {
+  return (
+    <div className="nextjs__blocking_page_load_error_description">
+      <h3 className="nextjs__blocking_page_load_error_description_title">
+        Uncached data was accessed outside of {'<Suspense>'}
+      </h3>
+      <p>
+        This delays the entire page from rendering, resulting in a slow user
+        experience. Next.js uses this error to ensure your app loads instantly
+        on every navigation.
+      </p>
+      <h4>To fix this, you can either:</h4>
+      <p className="nextjs__blocking_page_load_error_fix_option">
+        <strong>Wrap the component in a {'<Suspense>'} boundary.</strong> This
+        allows Next.js to stream its contents to the user as soon as it's ready,
+        without blocking the rest of the app.
+      </p>
+      <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
+        or
+      </h4>
+      <p className="nextjs__blocking_page_load_error_fix_option">
+        <strong>
+          Move the asynchronous await into a Cache Component (
+          <code>"use cache"</code>)
+        </strong>
+        . This allows Next.js to statically prerender the component as part of
+        the HTML document, so it's instantly visible to the user.
+      </p>
+      <p>
+        Note that request-specific information &mdash; such as params, cookies,
+        and headers &mdash; is not available during static prerendering, so must
+        be wrapped in {'<Suspense>'}.
+      </p>
+      <p>
+        Learn more:{' '}
+        <a href="https://nextjs.org/docs/messages/blocking-route">
+          https://nextjs.org/docs/messages/blocking-route
+        </a>
+      </p>
+    </div>
+  )
+}
+
 export function getErrorTypeLabel(
   error: Error,
   type: ReadyRuntimeError['type']
@@ -61,6 +107,12 @@ export function getErrorTypeLabel(
     return `Recoverable ${error.name}`
   }
   if (type === 'console') {
+    const isBlockingPageLoadError = error.message.includes(
+      'https://nextjs.org/docs/messages/blocking-route'
+    )
+    if (isBlockingPageLoadError) {
+      return 'Blocking Route'
+    }
     return `Console ${error.name}`
   }
   return `Runtime ${error.name}`
@@ -132,6 +184,83 @@ export function Errors({
     setActiveIndex,
   } = useActiveRuntimeError({ runtimeErrors, getSquashedHydrationErrorDetails })
 
+  // Get parsed frames data
+  const frames = useFrames(activeError)
+
+  const firstFrame = useMemo(() => {
+    const firstFirstPartyFrameIndex = frames.findIndex(
+      (entry) =>
+        !entry.ignored &&
+        Boolean(entry.originalCodeFrame) &&
+        Boolean(entry.originalStackFrame)
+    )
+
+    return frames[firstFirstPartyFrameIndex] ?? null
+  }, [frames])
+
+  const generateErrorInfo = useCallback(() => {
+    if (!activeError) return ''
+
+    const parts: string[] = []
+
+    // 1. Error Type
+    if (errorType) {
+      parts.push(`## Error Type\n${errorType}`)
+    }
+
+    // 2. Error Message
+    const error = activeError.error
+    let message = error.message
+    if ('environmentName' in error && error.environmentName) {
+      const envPrefix = `[ ${error.environmentName} ] `
+      if (message.startsWith(envPrefix)) {
+        message = message.slice(envPrefix.length)
+      }
+    }
+    if (message) {
+      parts.push(`## Error Message\n${message}`)
+    }
+    // Append call stack
+    if (frames.length > 0) {
+      const visibleFrames = frames.filter((frame) => !frame.ignored)
+      if (visibleFrames.length > 0) {
+        const stackLines = visibleFrames
+          .map((frame) => {
+            if (frame.originalStackFrame) {
+              const { methodName, file, line1, column1 } =
+                frame.originalStackFrame
+              return `    at ${methodName} (${file}:${line1}:${column1})`
+            } else if (frame.sourceStackFrame) {
+              const { methodName, file, line1, column1 } =
+                frame.sourceStackFrame
+              return `    at ${methodName} (${file}:${line1}:${column1})`
+            }
+            return ''
+          })
+          .filter(Boolean)
+
+        if (stackLines.length > 0) {
+          parts.push(`\n${stackLines.join('\n')}`)
+        }
+      }
+    }
+
+    // 3. Code Frame (decoded)
+    if (firstFrame?.originalCodeFrame) {
+      const decodedCodeFrame = stripAnsi(
+        formatCodeFrame(firstFrame.originalCodeFrame)
+      )
+      parts.push(`## Code Frame\n${decodedCodeFrame}`)
+    }
+
+    // Format as markdown error info
+    const errorInfo = `${parts.join('\n\n')}
+
+Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\n`
+
+    return errorInfo
+  }, [activeError, errorType, firstFrame, frames, props.versionInfo])
+
   if (isLoading) {
     // TODO: better loading state
     return (
@@ -157,6 +286,8 @@ export function Errors({
       errorMessage={
         hydrationWarning ? (
           <HydrationErrorDescription message={hydrationWarning} />
+        ) : errorType === 'Blocking Route' ? (
+          <BlockingPageLoadErrorDescription />
         ) : (
           <GenericErrorDescription error={error} />
         )
@@ -168,6 +299,7 @@ export function Errors({
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       dialogResizerRef={dialogResizerRef}
+      generateErrorInfo={generateErrorInfo}
       {...props}
     >
       <div className="error-overlay-notes-container">
@@ -267,5 +399,17 @@ export const styles = `
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;
+  }
+  .nextjs__blocking_page_load_error_description {
+    color: var(--color-stack-notes);
+  }
+  .nextjs__blocking_page_load_error_description_title {
+    color: var(--color-title-color);
+  }
+  .nextjs__blocking_page_load_error_fix_option {
+    background-color: var(--color-background-200);
+    padding: 14px;
+    border-radius: var(--rounded-md-2);
+    border: 1px solid var(--color-gray-alpha-400);
   }
 `

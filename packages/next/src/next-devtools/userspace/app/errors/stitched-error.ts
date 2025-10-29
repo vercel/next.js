@@ -2,14 +2,6 @@ import React from 'react'
 import isError from '../../../../lib/is-error'
 
 const ownerStacks = new WeakMap<Error, string | null>()
-const componentStacks = new WeakMap<Error, string>()
-
-export function getComponentStack(error: Error): string | undefined {
-  return componentStacks.get(error)
-}
-export function setComponentStack(error: Error, stack: string) {
-  componentStacks.set(error, stack)
-}
 
 export function getOwnerStack(error: Error): string | null | undefined {
   return ownerStacks.get(error)
@@ -27,4 +19,10 @@ export function setOwnerStackIfAvailable(error: Error): void {
   if ('captureOwnerStack' in React) {
     setOwnerStack(error, React.captureOwnerStack())
   }
+}
+
+export function decorateDevError(thrownValue: unknown) {
+  const error = coerceError(thrownValue)
+  setOwnerStackIfAvailable(error)
+  return error
 }

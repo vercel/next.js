@@ -1,5 +1,5 @@
 import { isNextDev, isNextDeploy, createNext } from 'e2e-utils'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'router-act'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
 import { findPort } from 'next-test-utils'
@@ -272,7 +272,7 @@ describe('segment cache (revalidation)', () => {
         includes: 'Page B content',
       },
       // Page A's content should not be prefetched because we're already on that
-      // page. When prefetching with `prefetch={true}`, we only prefetch the
+      // page. When prefetching with `prefetch='unstable_forceStale'`, we only prefetch the
       // delta between the current route and the target route.
       {
         includes: 'Page A content',
@@ -313,5 +313,55 @@ describe('segment cache (revalidation)', () => {
       // There should be no new requests because everything is fully prefetched.
       'no-requests'
     )
+  })
+
+  it('delay re-prefetch after revalidation to allow CDN propagation', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    const linkVisibilityToggle = await browser.elementByCss(
+      'input[data-link-accordion="/greeting"]'
+    )
+
+    // Reveal the link the target page to trigger a prefetch
+    await act(
+      async () => {
+        await linkVisibilityToggle.click()
+      },
+      {
+        includes: 'random-greeting',
+      }
+    )
+
+    // Perform an action that calls revalidatePath. This triggers a 300ms
+    // cooldown before any new prefetch requests can be made.
+    const revalidateByPath = await browser.elementById('revalidate-by-path')
+    await revalidateByPath.click()
+
+    // Immediately after revalidation, no prefetch should have occurred yet
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    TestLog.assert([])
+
+    // Halfway through cooldown (150ms), still no prefetch
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    TestLog.assert([])
+
+    // After cooldown expires (300ms + buffer), prefetch should have occurred
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    TestLog.assert(['REQUEST: random-greeting'])
+
+    // Navigate to the target page.
+    await act(async () => {
+      const link = await browser.elementByCss('a[href="/greeting"]')
+      await link.click()
+      // Navigation should finish immediately because the page is
+      // fully prefetched.
+      const greeting = await browser.elementById('greeting')
+      expect(await greeting.innerHTML()).toBe('random-greeting [1]')
+    }, 'no-requests')
   })
 })

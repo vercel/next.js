@@ -34,18 +34,30 @@ export declare class ExternalObject<T> {
     [K: symbol]: T
   }
 }
-export interface TransformOutput {
-  code: string
-  map?: string
-  output?: string
-  diagnostics: Array<string>
-}
+export declare function lockfileTryAcquireSync(
+  path: string
+): { __napiType: 'Lockfile' } | null
+export declare function lockfileTryAcquire(
+  path: string
+): Promise<{ __napiType: 'Lockfile' } | null>
+export declare function lockfileUnlockSync(lockfile: {
+  __napiType: 'Lockfile'
+}): void
+export declare function lockfileUnlock(lockfile: {
+  __napiType: 'Lockfile'
+}): Promise<void>
 export declare function mdxCompile(
   value: string,
   option: Buffer,
   signal?: AbortSignal | undefined | null
 ): Promise<unknown>
 export declare function mdxCompileSync(value: string, option: Buffer): string
+export interface TransformOutput {
+  code: string
+  map?: string
+  output?: string
+  diagnostics: Array<string>
+}
 export declare function minify(
   input: Buffer,
   opts: Buffer,
@@ -80,6 +92,10 @@ export interface NapiEnvVar {
   name: RcStr
   value: RcStr
 }
+export interface NapiOptionEnvVar {
+  name: RcStr
+  value?: RcStr
+}
 export interface NapiDraftModeOptions {
   previewModeId: RcStr
   previewModeEncryptionKey: RcStr
@@ -96,23 +112,26 @@ export interface NapiWatchOptions {
 }
 export interface NapiProjectOptions {
   /**
-   * A root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail. Think of this as a chroot.
+   * An absolute root path (Unix or Windows path) from which all files must be nested under.
+   * Trying to access a file outside this root will fail, so think of this as a chroot.
+   * E.g. `/home/user/projects/my-repo`.
    */
   rootPath: RcStr
-  /** A path inside the root_path which contains the app/pages directories. */
+  /**
+   * A path which contains the app/pages directories, relative to [`Project::root_path`], always
+   * Unix path. E.g. `apps/my-app`
+   */
   projectPath: RcStr
   /**
-   * next.config's distDir. Project initialization occurs eariler than
-   * deserializing next.config, so passing it as separate option.
+   * A path where to emit the build outputs, relative to [`Project::project_path`], always Unix
+   * path. Corresponds to next.config.js's `distDir`.
+   * E.g. `.next`
    */
   distDir: RcStr
   /** Filesystem watcher options. */
   watch: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
   nextConfig: RcStr
-  /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
-  jsConfig: RcStr
   /** A map of environment variables to use when compiling code. */
   env: Array<NapiEnvVar>
   /**
@@ -142,23 +161,27 @@ export interface NapiProjectOptions {
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
   /**
-   * A root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail. Think of this as a chroot.
+   * An absolute root path  (Unix or Windows path) from which all files must be nested under.
+   * Trying to access a file outside this root will fail, so think of this as a chroot.
+   * E.g. `/home/user/projects/my-repo`.
    */
   rootPath?: RcStr
-  /** A path inside the root_path which contains the app/pages directories. */
+  /**
+   * A path which contains the app/pages directories, relative to [`Project::root_path`], always
+   * a Unix path.
+   * E.g. `apps/my-app`
+   */
   projectPath?: RcStr
   /**
-   * next.config's distDir. Project initialization occurs eariler than
-   * deserializing next.config, so passing it as separate option.
+   * A path where to emit the build outputs, relative to [`Project::project_path`], always a
+   * Unix path. Corresponds to next.config.js's `distDir`.
+   * E.g. `.next`
    */
   distDir?: RcStr | undefined | null
   /** Filesystem watcher options. */
   watch?: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
   nextConfig?: RcStr
-  /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
-  jsConfig?: RcStr
   /** A map of environment variables to use when compiling code. */
   env?: Array<NapiEnvVar>
   /**
@@ -184,12 +207,12 @@ export interface NapiPartialProjectOptions {
   noMangling?: boolean
 }
 export interface NapiDefineEnv {
-  client: Array<NapiEnvVar>
-  edge: Array<NapiEnvVar>
-  nodejs: Array<NapiEnvVar>
+  client: Array<NapiOptionEnvVar>
+  edge: Array<NapiOptionEnvVar>
+  nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** Use the new backend with persistent caching enabled. */
+  /** Use the new backend with filesystem cache enabled. */
   persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
@@ -197,20 +220,23 @@ export interface NapiTurboEngineOptions {
   dependencyTracking?: boolean
   /** Whether the project is running in a CI environment. */
   isCi?: boolean
+  /** Whether the project is running in a short session. */
+  isShortSession?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,
-  turboEngineOptions: NapiTurboEngineOptions
+  turboEngineOptions: NapiTurboEngineOptions,
+  napiCallbacks: NapiNextTurbopackCallbacksJsObject
 ): Promise<{ __napiType: 'Project' }>
 export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
 ): Promise<void>
 /**
- * Invalidates the persistent cache so that it will be deleted next time that a turbopack project
- * is created with persistent caching enabled.
+ * Invalidates the filesystem cache so that it will be deleted next time that a turbopack project
+ * is created with filesystem cache enabled.
  */
-export declare function projectInvalidatePersistentCache(project: {
+export declare function projectInvalidateFileSystemCache(project: {
   __napiType: 'Project'
 }): Promise<void>
 /**
@@ -253,6 +279,7 @@ export interface NapiRoute {
 }
 export interface NapiMiddleware {
   endpoint: ExternalObject<ExternalEndpoint>
+  isProxy: boolean
 }
 export interface NapiInstrumentation {
   nodeJs: ExternalObject<ExternalEndpoint>
@@ -346,6 +373,31 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): string | null
+/**
+ * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
+ *
+ * This can be converted into a [`NapiNextTurbopackCallbacks`] with
+ * [`NapiNextTurbopackCallbacks::from_js`].
+ */
+export interface NapiNextTurbopackCallbacksJsObject {
+  /**
+   * Called when we've encountered a bug in Turbopack and not in the user's code. Constructs and
+   * throws a `TurbopackInternalError` type. Logs to anonymized telemetry.
+   *
+   * As a result of the use of `ErrorStrategy::CalleeHandled`, the first argument is an error if
+   * there's a runtime conversion error. This should never happen, but if it does, the function
+   * can throw it instead.
+   */
+  throwTurbopackInternalError: (
+    conversionError: Error | null,
+    opts: TurbopackInternalErrorOpts
+  ) => never
+}
+/** Arguments for [`NapiNextTurbopackCallbacks::throw_turbopack_internal_error`]. */
+export interface TurbopackInternalErrorOpts {
+  message: string
+  anonymizedLocation?: string
+}
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'
 }): void
@@ -381,6 +433,14 @@ export interface NapiDiagnostic {
   name: string
   payload: Record<string, string>
 }
+export declare function expandNextJsTemplate(
+  content: Buffer,
+  templatePath: string,
+  nextPackageDirPath: string,
+  replacements: Record<string, string>,
+  injections: Record<string, string>,
+  imports: Record<string, string | null>
+): string
 export declare function parse(
   src: string,
   options: Buffer,
@@ -414,7 +474,10 @@ export declare function transformSync(
   isModule: boolean,
   options: Buffer
 ): object
-export declare function startTurbopackTraceServer(path: string): void
+export declare function startTurbopackTraceServer(
+  path: string,
+  port?: number | undefined | null
+): void
 export interface NextBuildContext {
   /** The root directory of the workspace. */
   root?: string

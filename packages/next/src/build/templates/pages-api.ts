@@ -13,6 +13,7 @@ import * as userland from 'VAR_USERLAND'
 import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
+import { addRequestMeta } from '../../server/request-meta'
 
 // Re-export the handler (should be the default export).
 export default hoist(userland, 'default')
@@ -32,7 +33,7 @@ const routeModule = new PagesAPIRouteModule({
   },
   userland,
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
-  projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
+  relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
 
 export async function handler(
@@ -42,6 +43,9 @@ export async function handler(
     waitUntil?: (prom: Promise<void>) => void
   }
 ): Promise<void> {
+  if (routeModule.isDev) {
+    addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
+  }
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
@@ -60,7 +64,8 @@ export async function handler(
     return
   }
 
-  const { query, params, prerenderManifest } = prepareResult
+  const { query, params, prerenderManifest, routerServerContext } =
+    prepareResult
 
   try {
     const method = req.method || 'GET'
@@ -89,7 +94,8 @@ export async function handler(
           propagateError: false,
           dev: routeModule.isDev,
           page: 'VAR_DEFINITION_PAGE',
-          projectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
+
+          internalRevalidate: routerServerContext?.revalidate,
 
           onError: (...args: Parameters<InstrumentationOnRequestError>) =>
             onRequestError(req, ...args),
@@ -131,7 +137,7 @@ export async function handler(
             })
             span.updateName(name)
           } else {
-            span.updateName(`${method} ${req.url}`)
+            span.updateName(`${method} ${srcPage}`)
           }
         })
 
@@ -144,7 +150,7 @@ export async function handler(
         tracer.trace(
           BaseServerSpan.handleRequest,
           {
-            spanName: `${method} ${req.url}`,
+            spanName: `${method} ${srcPage}`,
             kind: SpanKind.SERVER,
             attributes: {
               'http.method': method,

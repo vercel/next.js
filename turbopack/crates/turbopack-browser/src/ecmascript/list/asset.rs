@@ -91,7 +91,7 @@ impl OutputAsset for EcmascriptDevChunkList {
         let ident = AssetIdent::new(ident);
         Ok(this
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".js")))
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
     }
 
     #[turbo_tasks::function]

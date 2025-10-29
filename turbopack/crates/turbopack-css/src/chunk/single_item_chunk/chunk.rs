@@ -53,7 +53,8 @@ impl SingleItemCssChunk {
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
-        let mut code = CodeBuilder::new(source_maps);
+        // CSS chunks never have debug IDs
+        let mut code = CodeBuilder::new(source_maps, false);
 
         if matches!(
             &*this.chunking_context.minify_type().await?,
@@ -82,9 +83,11 @@ impl SingleItemCssChunk {
 #[turbo_tasks::value_impl]
 impl Chunk for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn ident(self: Vc<Self>) -> Vc<AssetIdent> {
+    async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
         let self_as_output_asset: Vc<Box<dyn OutputAsset>> = Vc::upcast(self);
-        AssetIdent::from_path(self_as_output_asset.path())
+        Ok(AssetIdent::from_path(
+            self_as_output_asset.path().owned().await?,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -100,6 +103,7 @@ impl OutputAsset for SingleItemCssChunk {
         Ok(self.await?.chunking_context.chunk_path(
             Some(Vc::upcast(self)),
             self.ident_for_path(),
+            None,
             rcstr!(".single.css"),
         ))
     }

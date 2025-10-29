@@ -1,10 +1,10 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
-        MergeableModuleExposure,
+        MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
     },
     ident::AssetIdent,
     module::Module,
@@ -28,20 +28,34 @@ pub(crate) struct MergedEcmascriptModule {
 }
 
 impl MergedEcmascriptModule {
-    pub fn new(
-        modules: Vec<(
-            ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
-            MergeableModuleExposure,
-        )>,
-        entry_points: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
+    pub async fn new(
+        modules: Vc<MergeableModulesExposed>,
+        entry_points: Vc<MergeableModules>,
         options: ResolvedVc<EcmascriptOptions>,
-    ) -> ResolvedVc<Self> {
-        MergedEcmascriptModule {
-            modules,
-            entry_points,
+    ) -> Result<ResolvedVc<Self>> {
+        Ok(MergedEcmascriptModule {
+            modules: modules
+                .await?
+                .iter()
+                .map(|(m, exposed)| {
+                    Ok((
+                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
+                            .context("expected EcmascriptAnalyzable")?,
+                        *exposed,
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?,
+            entry_points: entry_points
+                .await?
+                .iter()
+                .map(|m| {
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(*m)
+                        .context("expected EcmascriptAnalyzable")
+                })
+                .collect::<Result<Vec<_>>>()?,
             options,
         }
-        .resolved_cell()
+        .resolved_cell())
     }
 }
 
@@ -78,13 +92,12 @@ impl ChunkableModule for MergedEcmascriptModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        module_graph: ResolvedVc<ModuleGraph>,
+        _module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
             MergedEcmascriptModuleChunkItem {
                 module: self,
-                module_graph,
                 chunking_context,
             }
             .cell(),
@@ -95,7 +108,6 @@ impl ChunkableModule for MergedEcmascriptModule {
 #[turbo_tasks::value]
 struct MergedEcmascriptModuleChunkItem {
     module: ResolvedVc<MergedEcmascriptModule>,
-    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -108,7 +120,7 @@ impl ChunkItem for MergedEcmascriptModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -141,17 +153,8 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
         let entry_points = &module.entry_points;
         let options = modules
             .iter()
-            .map(|(m, _)| {
-                let Some(m) = ResolvedVc::try_downcast::<Box<dyn EcmascriptAnalyzable>>(*m) else {
-                    anyhow::bail!("Expected EcmascriptAnalyzable in scope hoisting group");
-                };
-                Ok(m.module_content_options(
-                    *self.module_graph,
-                    *self.chunking_context,
-                    async_module_info,
-                ))
-            })
-            .collect::<Result<Vec<_>>>()?;
+            .map(|(m, _)| m.module_content_options(*self.chunking_context, async_module_info))
+            .collect::<Vec<_>>();
 
         let content = EcmascriptModuleContent::new_merged(
             modules.clone(),
@@ -165,7 +168,6 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
         Ok(EcmascriptChunkItemContent::new(
             content,
             *self.chunking_context,
-            *module.options,
             async_module_options,
         ))
     }

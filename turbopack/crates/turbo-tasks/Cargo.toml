@@ -31,7 +31,6 @@ erased-serde = { workspace = true }
 event-listener = "5.4.0"
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
-mopa = "0.2.0"
 once_cell = { workspace = true }
 parking_lot = { workspace = true, features = ["serde"]}
 pin-project-lite = { workspace = true }
@@ -48,11 +47,17 @@ tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 triomphe = { workspace = true, features = ["unsize", "unstable"] }
+turbo-dyn-eq-hash = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
+inventory = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+
+[[bench]]
+name = "mod"
+harness = false

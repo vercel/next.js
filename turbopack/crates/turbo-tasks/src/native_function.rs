@@ -1,14 +1,14 @@
-use std::{fmt::Debug, hash::Hash, pin::Pin};
+use std::{any::Any, fmt::Debug, hash::Hash, pin::Pin};
 
 use anyhow::Result;
 use futures::Future;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence,
     magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
-    registry::register_function,
     task::{
         IntoTaskFn, TaskFn,
         function::{IntoTaskFnWithThis, NativeTaskFuture},
@@ -105,19 +105,22 @@ fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> Resolv
 
 #[cfg(debug_assertions)]
 #[inline(never)]
-pub fn debug_downcast_args_error_msg(expected: &str, actual: &dyn MagicAny) -> String {
-    format!(
-        "Invalid argument type, expected {expected} got {}",
-        (*actual).magic_type_name()
-    )
+pub fn debug_downcast_args_error_msg(expected: &str, actual: &str) -> String {
+    format!("Invalid argument type, expected {expected} got {actual}")
 }
 
 pub fn downcast_args_owned<T: MagicAny>(args: Box<dyn MagicAny>) -> Box<T> {
-    #[allow(unused_variables)]
-    args.downcast::<T>()
-        .map_err(|args| {
+    #[cfg(debug_assertions)]
+    let args_type_name = args.magic_type_name();
+
+    (args as Box<dyn Any>)
+        .downcast::<T>()
+        .map_err(|_args| {
             #[cfg(debug_assertions)]
-            return debug_downcast_args_error_msg(std::any::type_name::<T>(), &*args);
+            return anyhow::anyhow!(debug_downcast_args_error_msg(
+                std::any::type_name::<T>(),
+                args_type_name,
+            ));
             #[cfg(not(debug_assertions))]
             return anyhow::anyhow!("Invalid argument type");
         })
@@ -125,12 +128,13 @@ pub fn downcast_args_owned<T: MagicAny>(args: Box<dyn MagicAny>) -> Box<T> {
 }
 
 pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
-    args.downcast_ref::<T>()
+    (args as &dyn Any)
+        .downcast_ref::<T>()
         .ok_or_else(|| {
             #[cfg(debug_assertions)]
             return anyhow::anyhow!(debug_downcast_args_error_msg(
                 std::any::type_name::<T>(),
-                args
+                args.magic_type_name(),
             ));
             #[cfg(not(debug_assertions))]
             return anyhow::anyhow!("Invalid argument type");
@@ -144,13 +148,6 @@ pub struct FunctionMeta {
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
     pub local: bool,
-
-    /// If true, the function will be allowed to call `get_invalidator`. If this is false, the
-    /// `get_invalidator` function will panic on calls.
-    pub invalidator: bool,
-
-    /// If true, the function is statically analyzable immutable.
-    pub immutable: bool,
 }
 
 /// A native (rust) turbo-tasks function. It's used internally by
@@ -166,12 +163,16 @@ pub struct NativeFunction {
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
     pub(crate) implementation: Box<dyn TaskFn + Send + Sync + 'static>,
+
+    // The globally unique name for this function, used when persisting
+    pub(crate) global_name: &'static str,
 }
 
 impl Debug for NativeFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NativeFunction")
             .field("name", &self.name)
+            .field("global_name", &self.global_name)
             .field("function_meta", &self.function_meta)
             .finish_non_exhaustive()
     }
@@ -180,6 +181,7 @@ impl Debug for NativeFunction {
 impl NativeFunction {
     pub fn new_function<Mode, Inputs>(
         name: &'static str,
+        global_name: &'static str,
         function_meta: FunctionMeta,
         implementation: impl IntoTaskFn<Mode, Inputs>,
     ) -> Self
@@ -188,6 +190,7 @@ impl NativeFunction {
     {
         Self {
             name,
+            global_name,
             function_meta,
             arg_meta: ArgMeta::new::<Inputs>(),
             implementation: Box::new(implementation.into_task_fn()),
@@ -196,6 +199,7 @@ impl NativeFunction {
 
     pub fn new_method_without_this<Mode, Inputs, I>(
         name: &'static str,
+        global_name: &'static str,
         function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
@@ -206,6 +210,7 @@ impl NativeFunction {
     {
         Self {
             name,
+            global_name,
             function_meta,
             arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
                 ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
@@ -218,6 +223,7 @@ impl NativeFunction {
 
     pub fn new_method<Mode, This, Inputs, I>(
         name: &'static str,
+        global_name: &'static str,
         function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
@@ -229,6 +235,7 @@ impl NativeFunction {
     {
         Self {
             name,
+            global_name,
             function_meta,
             arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
                 ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
@@ -242,13 +249,7 @@ impl NativeFunction {
     /// Executed the function
     pub fn execute(&'static self, this: Option<RawVc>, arg: &dyn MagicAny) -> NativeTaskFuture {
         match (self.implementation).functor(this, arg) {
-            Ok(functor) => {
-                if !self.function_meta.invalidator {
-                    return Box::pin(crate::invalidation::disallow_invalidator(functor));
-                }
-
-                functor
-            }
+            Ok(functor) => functor,
             Err(err) => Box::pin(async { Err(err) }),
         }
     }
@@ -275,23 +276,17 @@ impl NativeFunction {
         };
         tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, flags = flags)
     }
-
-    pub fn register(&'static self, global_name: &'static str) {
-        register_function(global_name, self);
-    }
 }
-
-impl PartialEq for &'static NativeFunction {
+impl PartialEq for NativeFunction {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(*self, *other)
+        std::ptr::eq(self, other)
     }
 }
 
-impl Eq for &'static NativeFunction {}
-
-impl Hash for &'static NativeFunction {
+impl Eq for NativeFunction {}
+impl Hash for NativeFunction {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        Hash::hash(&(*self as *const NativeFunction), state);
+        (self as *const NativeFunction).hash(state);
     }
 }
 
@@ -309,3 +304,7 @@ impl Ord for &'static NativeFunction {
         )
     }
 }
+
+pub struct CollectableFunction(pub &'static Lazy<NativeFunction>);
+
+inventory::collect! {CollectableFunction}

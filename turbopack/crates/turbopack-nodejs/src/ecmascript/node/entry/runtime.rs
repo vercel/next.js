@@ -69,7 +69,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
             StringifyJs(asset_prefix),
         )?;
 
-        match this.chunking_context.await?.runtime_type() {
+        match *this.chunking_context.runtime_type().await? {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     this.chunking_context.environment(),
@@ -95,12 +95,13 @@ impl EcmascriptBuildNodeRuntimeChunk {
     }
 
     #[turbo_tasks::function]
-    fn ident_for_path(self: Vc<Self>) -> Vc<AssetIdent> {
-        AssetIdent::from_path(
+    async fn ident_for_path(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
+        Ok(AssetIdent::from_path(
             turbopack_ecmascript_runtime::embed_fs()
                 .root()
-                .join(rcstr!("runtime.js")),
-        )
+                .await?
+                .join("runtime.js")?,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -131,7 +132,7 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
 
         Ok(this
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".js")))
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
     }
 
     #[turbo_tasks::function]
@@ -155,9 +156,13 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
 impl Asset for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let code = self.code().await?;
         Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
+            File::from(
+                self.code()
+                    .to_rope_with_magic_comments(|| self.source_map())
+                    .await?,
+            )
+            .into(),
         ))
     }
 }

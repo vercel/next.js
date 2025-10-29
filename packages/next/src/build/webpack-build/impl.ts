@@ -40,7 +40,7 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
-import { durationToString } from '../duration-to-string'
+import { durationToString, hrtimeToSeconds } from '../duration-to-string'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -328,12 +328,12 @@ export async function webpackBuildImpl(
       throw err
     }
     const err = new Error(
-      `Build failed because of ${process.env.NEXT_RSPACK ? 'rspack' : 'webpack'} errors`
+      `Build failed because of ${process.env.NEXT_RSPACK ? 'Rspack' : 'webpack'} errors`
     ) as NextError
     err.code = 'WEBPACK_ERRORS'
     throw err
   } else {
-    const duration = webpackBuildEnd[0]
+    const duration = hrtimeToSeconds(webpackBuildEnd)
     const durationString = durationToString(duration)
 
     if (result.warnings.length > 0) {
@@ -345,7 +345,7 @@ export async function webpackBuildImpl(
     }
 
     return {
-      duration: webpackBuildEnd[0],
+      duration,
       buildTraceContext: traceEntryPointsPlugin?.buildTraceContext,
       pluginState: getPluginState(),
       telemetryState: {
@@ -386,7 +386,10 @@ export async function workerMain(workerData: {
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
-    { debugPrerender: NextBuildContext.debugPrerender }
+    {
+      debugPrerender: NextBuildContext.debugPrerender,
+      reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+    }
   )
   NextBuildContext.nextBuildSpan = trace(
     `worker-main-${workerData.compilerName}`

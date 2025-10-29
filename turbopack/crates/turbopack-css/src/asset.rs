@@ -8,7 +8,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
-    module::{Module, OptionStyleType, StyleType},
+    module::{Module, StyleModule, StyleType},
     module_graph::ModuleGraph,
     output::OutputAssets,
     reference::{ModuleReference, ModuleReferences},
@@ -39,7 +39,6 @@ pub struct CssModuleAsset {
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleAssetType,
-    minify_type: MinifyType,
     environment: Option<ResolvedVc<Environment>>,
 }
 
@@ -51,7 +50,6 @@ impl CssModuleAsset {
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: CssModuleAssetType,
-        minify_type: MinifyType,
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
     ) -> Vc<Self> {
@@ -60,7 +58,6 @@ impl CssModuleAsset {
             asset_context,
             import_context,
             ty,
-            minify_type,
             environment,
         })
     }
@@ -147,18 +144,20 @@ impl Module for CssModuleAsset {
 
         match &*result {
             ParseCssResult::Ok { references, .. } => Ok(**references),
-            ParseCssResult::Unparseable => Ok(ModuleReferences::empty()),
+            ParseCssResult::Unparsable => Ok(ModuleReferences::empty()),
             ParseCssResult::NotFound => Ok(ModuleReferences::empty()),
         }
     }
+}
 
+#[turbo_tasks::value_impl]
+impl StyleModule for CssModuleAsset {
     #[turbo_tasks::function]
-    fn style_type(&self) -> Vc<OptionStyleType> {
-        let style_type = match self.ty {
-            CssModuleAssetType::Default => StyleType::GlobalStyle,
-            CssModuleAssetType::Module => StyleType::IsolatedStyle,
-        };
-        Vc::cell(Some(style_type))
+    fn style_type(&self) -> Vc<StyleType> {
+        match self.ty {
+            CssModuleAssetType::Default => StyleType::GlobalStyle.cell(),
+            CssModuleAssetType::Module => StyleType::IsolatedStyle.cell(),
+        }
     }
 }
 
@@ -218,7 +217,7 @@ impl ChunkItem for CssModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(*self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -316,7 +315,7 @@ impl CssChunkItem for CssModuleChunkItem {
         // need to keep that around to allow references into that
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
-        // TOOD use interval tree with references into "code_gens"
+        // TODO use interval tree with references into "code_gens"
         for code_gen in code_gens {
             for import in &code_gen.imports {
                 imports.push(import.clone());
@@ -325,7 +324,7 @@ impl CssChunkItem for CssModuleChunkItem {
 
         let result = self
             .module
-            .finalize_css(*chunking_context, self.module.await?.minify_type)
+            .finalize_css(*chunking_context, *chunking_context.minify_type().await?)
             .await?;
 
         if let FinalCssResult::Ok {
@@ -344,7 +343,7 @@ impl CssChunkItem for CssModuleChunkItem {
         } else {
             Ok(CssChunkItemContent {
                 inner_code: format!(
-                    "/* unparseable {} */",
+                    "/* unparsable {} */",
                     self.module.ident().to_string().await?
                 )
                 .into(),

@@ -1,14 +1,23 @@
 import { PAGE_SEGMENT_KEY } from '../segment'
-import type { Segment as FlightRouterStateSegment } from '../../../server/app-render/types'
+import type { Segment as FlightRouterStateSegment } from '../app-router-types'
+import type { NormalizedPathname } from '../../../client/components/segment-cache'
 
 // TypeScript trick to simulate opaque types, like in Flow.
 type Opaque<K, T> = T & { __brand: K }
 
-export type EncodedSegment = Opaque<'EncodedSegment', string>
+export type SegmentRequestKeyPart = Opaque<'SegmentRequestKeyPart', string>
+export type SegmentRequestKey = Opaque<'SegmentRequestKey', string>
+export type SegmentCacheKeyPart = Opaque<'SegmentCacheKeyPart', string>
+export type SegmentCacheKey = Opaque<'SegmentCacheKey', string>
 
-export function encodeSegment(
+export const ROOT_SEGMENT_REQUEST_KEY = '' as SegmentRequestKey
+export const ROOT_SEGMENT_CACHE_KEY = '' as SegmentCacheKey
+
+export const HEAD_REQUEST_KEY = '/_head' as SegmentRequestKey
+
+export function createSegmentRequestKeyPart(
   segment: FlightRouterStateSegment
-): EncodedSegment {
+): SegmentRequestKeyPart {
   if (typeof segment === 'string') {
     if (segment.startsWith(PAGE_SEGMENT_KEY)) {
       // The Flight Router State type sometimes includes the search params in
@@ -20,7 +29,7 @@ export function encodeSegment(
       // Segment Cache implementation has settled.
       // TODO: We should hoist the search params out of the FlightRouterState
       // type entirely, This is our plan for dynamic route params, too.
-      return PAGE_SEGMENT_KEY as EncodedSegment
+      return PAGE_SEGMENT_KEY as SegmentRequestKeyPart
     }
     const safeName =
       // TODO: FlightRouterState encodes Not Found routes as "/_not-found".
@@ -31,26 +40,22 @@ export function encodeSegment(
         : encodeToFilesystemAndURLSafeString(segment)
     // Since this is not a dynamic segment, it's fully encoded. It does not
     // need to be "hydrated" with a param value.
-    return safeName as EncodedSegment
+    return safeName as SegmentRequestKeyPart
   }
+
   const name = segment[0]
-  const paramValue = segment[1]
   const paramType = segment[2]
   const safeName = encodeToFilesystemAndURLSafeString(name)
-  const safeValue = encodeToFilesystemAndURLSafeString(paramValue)
 
-  const encodedName = '$' + paramType + '$' + safeName + '$' + safeValue
-  return encodedName as EncodedSegment
+  const encodedName = '$' + paramType + '$' + safeName
+  return encodedName as SegmentRequestKeyPart
 }
 
-export const ROOT_SEGMENT_KEY = ''
-
-export function encodeChildSegmentKey(
-  // TODO: Make segment keys an opaque type, too?
-  parentSegmentKey: string,
+export function appendSegmentRequestKeyPart(
+  parentRequestKey: SegmentRequestKey,
   parallelRouteKey: string,
-  segment: EncodedSegment
-): string {
+  childRequestKeyPart: SegmentRequestKeyPart
+): SegmentRequestKey {
   // Aside from being filesystem safe, segment keys are also designed so that
   // each segment and parallel route creates its own subdirectory. Roughly in
   // the same shape as the source app directory. This is mostly just for easier
@@ -61,10 +66,51 @@ export function encodeChildSegmentKey(
   // common case. Saves some bytes (and it's what the app directory does).
   const slotKey =
     parallelRouteKey === 'children'
-      ? segment
-      : `@${encodeToFilesystemAndURLSafeString(parallelRouteKey)}/${segment}`
+      ? childRequestKeyPart
+      : `@${encodeToFilesystemAndURLSafeString(parallelRouteKey)}/${childRequestKeyPart}`
+  return (parentRequestKey + '/' + slotKey) as SegmentRequestKey
+}
 
-  return parentSegmentKey + '/' + slotKey
+export function createSegmentCacheKeyPart(
+  requestKeyPart: SegmentRequestKeyPart,
+  segment: FlightRouterStateSegment
+): SegmentCacheKeyPart {
+  if (typeof segment === 'string') {
+    return requestKeyPart as any as SegmentCacheKeyPart
+  }
+  const paramValue = segment[1]
+  const safeValue = encodeToFilesystemAndURLSafeString(paramValue)
+  return (requestKeyPart + '$' + safeValue) as SegmentCacheKeyPart
+}
+
+export function appendSegmentCacheKeyPart(
+  parentSegmentKey: SegmentCacheKey,
+  parallelRouteKey: string,
+  childCacheKeyPart: SegmentCacheKeyPart
+): SegmentCacheKey {
+  const slotKey =
+    parallelRouteKey === 'children'
+      ? childCacheKeyPart
+      : `@${encodeToFilesystemAndURLSafeString(parallelRouteKey)}/${childCacheKeyPart}`
+  return (parentSegmentKey + '/' + slotKey) as SegmentCacheKey
+}
+
+export function createHeadCacheKey(
+  renderedPathname: NormalizedPathname
+): SegmentCacheKey {
+  // The "head" segment doesn't exist in the normal hierarchy of the page,
+  // but it needs to vary on all the route params. So we append the entire
+  // rendered pathname.
+  // TODO: Eventually, cache entries will only vary on params if they were
+  // actually accessed during server rendering. We'll do that by creating a
+  // separate key part for each of the route params (see: cache-map.ts). The
+  // same technique will also be used for the head segment.
+  return ('/_head/' +
+    encodeToFilesystemAndURLSafeString(renderedPathname)) as SegmentCacheKey
+}
+
+export function isHeadCacheKey(cacheKey: SegmentCacheKey): boolean {
+  return cacheKey.startsWith('/_head/')
 }
 
 // Define a regex pattern to match the most common characters found in a route

@@ -2,6 +2,7 @@ import type { Token } from 'next/dist/compiled/path-to-regexp'
 import { parse, tokensToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { parse as parseURL } from 'url'
 import isError from './is-error'
+import { normalizeTokensForRegexp } from './route-pattern-normalizer'
 
 interface ParseResult {
   error?: any
@@ -35,6 +36,22 @@ function reportError({ route, parsedPath }: ParseResult, err: any) {
 }
 
 /**
+ * Safe wrapper around tokensToRegexp that handles path-to-regexp 6.3.0+ validation errors.
+ */
+function safeTokensToRegexp(tokens: Token[]): RegExp {
+  try {
+    return tokensToRegexp(tokens)
+  } catch (error) {
+    if (isError(error)) {
+      // Try to normalize tokens with repeating modifiers but no prefix/suffix
+      const normalizedTokens = normalizeTokensForRegexp(tokens)
+      return tokensToRegexp(normalizedTokens)
+    }
+    throw error
+  }
+}
+
+/**
  * Attempts to parse a given route with `path-to-regexp` and returns an object
  * with the result. Whenever an error happens on parse, it will print an error
  * attempting to find the error position and showing a link to the docs. When
@@ -55,7 +72,11 @@ export function tryToParsePath(
     }
 
     result.tokens = parse(result.parsedPath)
-    result.regexStr = tokensToRegexp(result.tokens).source
+
+    // Use safe wrapper instead of proactive detection
+    if (result.tokens) {
+      result.regexStr = safeTokensToRegexp(result.tokens).source
+    }
   } catch (err) {
     reportError(result, err)
     result.error = err

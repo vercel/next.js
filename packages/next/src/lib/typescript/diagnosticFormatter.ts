@@ -1,15 +1,6 @@
 import { bold, cyan, red, yellow } from '../picocolors'
 import path from 'path'
 
-// eslint typescript has a bug with TS enums
-/* eslint-disable no-shadow */
-export enum DiagnosticCategory {
-  Warning = 0,
-  Error = 1,
-  Suggestion = 2,
-  Message = 3,
-}
-
 function getFormattedLinkDiagnosticMessageText(
   diagnostic: import('typescript').Diagnostic
 ) {
@@ -339,21 +330,22 @@ export function getFormattedDiagnostic(
   const category = diagnostic.category
   switch (category) {
     // Warning
-    case DiagnosticCategory.Warning: {
+    case ts.DiagnosticCategory.Warning: {
       message += yellow(bold('Type warning')) + ': '
       break
     }
     // Error
-    case DiagnosticCategory.Error: {
+    case ts.DiagnosticCategory.Error: {
       message += red(bold('Type error')) + ': '
       break
     }
     // 2 = Suggestion, 3 = Message
-    case DiagnosticCategory.Suggestion:
-    case DiagnosticCategory.Message:
-    default: {
+    case ts.DiagnosticCategory.Suggestion:
+    case ts.DiagnosticCategory.Message:
       message += cyan(bold(category === 2 ? 'Suggestion' : 'Info')) + ': '
       break
+    default: {
+      category satisfies never
     }
   }
 

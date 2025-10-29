@@ -45,7 +45,7 @@ impl TurboFn<'_> {
         orig_signature: &Signature,
         definition_context: DefinitionContext,
         args: FunctionArguments,
-    ) -> Option<TurboFn> {
+    ) -> Option<TurboFn<'_>> {
         if !orig_signature.generics.params.is_empty() {
             orig_signature
                 .generics
@@ -108,46 +108,8 @@ impl TurboFn<'_> {
                         _ => &definition_context,
                     };
 
-                    match self_type.as_ref() {
-                        // we allow `&Self` but not `&mut Self`
-                        syn::Type::Reference(type_reference) => {
-                            if let Some(m) = type_reference.mutability {
-                                m.span()
-                                    .unwrap()
-                                    .error(format!(
-                                        "{} cannot take self by mutable reference, use &self or \
-                                         self: Vc<Self> instead",
-                                        definition_context.function_type(),
-                                    ))
-                                    .emit();
-                                return None;
-                            }
-
-                            match type_reference.elem.as_ref() {
-                                syn::Type::Path(TypePath { qself: None, path })
-                                    if path.is_ident("Self") => {}
-                                _ => {
-                                    self_type
-                                        .span()
-                                        .unwrap()
-                                        .error(
-                                            "Unexpected `self` type, use `&self` or `self: \
-                                             Vc<Self>",
-                                        )
-                                        .emit();
-                                    return None;
-                                }
-                            }
-                        }
-                        syn::Type::Path(_) => {}
-                        _ => {
-                            self_type
-                                .span()
-                                .unwrap()
-                                .error("Unexpected `self` type, use `&self` or `self: Vc<Self>")
-                                .emit();
-                            return None;
-                        }
+                    if get_receiver_style(self_type, definition_context) == ReceiverStyle::Error {
+                        return None;
                     }
                     // We don't validate that the user provided a valid `turbo_tasks::Vc<Self>`
                     // here. We'll rely on the compiler to emit an error if the user provided an
@@ -695,6 +657,62 @@ impl TurboFn<'_> {
     }
 }
 
+#[derive(PartialEq, Eq)]
+pub enum ReceiverStyle {
+    // A reference like &self or self: &Self
+    Reference,
+    // A Vc<> type, this is optimistic
+    Vc,
+    Error,
+}
+
+pub(crate) fn get_receiver_style(
+    self_type: &Type,
+    definition_context: &DefinitionContext,
+) -> ReceiverStyle {
+    match self_type {
+        // we allow `&Self` but not `&mut Self`
+        syn::Type::Reference(type_reference) => {
+            if let Some(m) = type_reference.mutability {
+                m.span()
+                    .unwrap()
+                    .error(format!(
+                        "{} cannot take self by mutable reference, use &self or self: Vc<Self> \
+                         instead",
+                        definition_context.function_type(),
+                    ))
+                    .emit();
+                return ReceiverStyle::Error;
+            }
+
+            match type_reference.elem.as_ref() {
+                syn::Type::Path(TypePath { qself: None, path }) if path.is_ident("Self") => {}
+                _ => {
+                    self_type
+                        .span()
+                        .unwrap()
+                        .error("Unexpected `self` type, use `&self` or `self: Vc<Self>")
+                        .emit();
+                    return ReceiverStyle::Error;
+                }
+            }
+            return ReceiverStyle::Reference;
+        }
+        syn::Type::Path(_) => {}
+        _ => {
+            self_type
+                .span()
+                .unwrap()
+                .error("Unexpected `self` type, use `&self` or `self: Vc<Self>")
+                .emit();
+            return ReceiverStyle::Error;
+        }
+    }
+    // All other cases are assumed to be a VC, this is not guaranteed but we are happy to just have
+    // compiler errors when this assumption is wrong.
+    ReceiverStyle::Vc
+}
+
 /// An indication of what kind of IO this function does. Currently only used for
 /// static analysis, and ignored within this macro.
 #[derive(Hash, PartialEq, Eq)]
@@ -734,9 +752,6 @@ pub struct FunctionArguments {
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
     pub local: Option<Span>,
-    /// If true, the function will be allowed to call `get_invalidator` . If this is false, the
-    /// `get_invalidator` function will panic on calls.
-    pub invalidator: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -764,14 +779,11 @@ impl Parse for FunctionArguments {
                 ("local", Meta::Path(_)) => {
                     parsed_args.local = Some(meta.span());
                 }
-                ("invalidator", Meta::Path(_)) => {
-                    parsed_args.invalidator = Some(meta.span());
-                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         \"local\", \"invalidator\"",
+                         \"local\"",
                     ));
                 }
             }
@@ -1092,6 +1104,7 @@ pub struct FilterTraitCallArgsTokens {
 
 #[derive(Debug)]
 pub struct NativeFn {
+    pub function_global_name: TokenStream,
     pub function_path_string: String,
     pub function_path: ExprPath,
     pub is_method: bool,
@@ -1099,8 +1112,6 @@ pub struct NativeFn {
     pub is_self_used: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
     pub local: bool,
-    pub invalidator: bool,
-    pub immutable: bool,
 }
 
 impl NativeFn {
@@ -1110,14 +1121,13 @@ impl NativeFn {
 
     pub fn definition(&self) -> TokenStream {
         let Self {
+            function_global_name,
             function_path_string,
             function_path,
             is_method,
             is_self_used,
             filter_trait_call_args,
             local,
-            invalidator,
-            immutable,
         } = self;
 
         if *is_method {
@@ -1142,10 +1152,9 @@ impl NativeFn {
                         #[allow(deprecated)]
                         turbo_tasks::macro_helpers::NativeFunction::new_method(
                             #function_path_string,
+                            #function_global_name,
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
-                                invalidator: #invalidator,
-                                immutable: #immutable,
                             },
                             #arg_filter,
                             #function_path,
@@ -1158,10 +1167,9 @@ impl NativeFn {
                         #[allow(deprecated)]
                         turbo_tasks::macro_helpers::NativeFunction::new_method_without_this(
                             #function_path_string,
+                            #function_global_name,
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
-                                invalidator: #invalidator,
-                                immutable: #immutable,
                             },
                             #arg_filter,
                             #function_path,
@@ -1175,10 +1183,9 @@ impl NativeFn {
                     #[allow(deprecated)]
                     turbo_tasks::macro_helpers::NativeFunction::new_function(
                         #function_path_string,
+                        #function_global_name,
                         turbo_tasks::macro_helpers::FunctionMeta {
                             local: #local,
-                            invalidator: #invalidator,
-                            immutable: #immutable,
                         },
                         #function_path,
                     )

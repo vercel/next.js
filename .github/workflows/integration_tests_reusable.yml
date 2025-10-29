@@ -91,7 +91,7 @@ jobs:
       afterBuild: |
         # e2e and ${{ inputs.test_type }} tests with `node run-tests.js`
 
-        export NEXT_TEST_CONTINUE_ON_ERROR=TRUE
+        export NEXT_TEST_CONTINUE_ON_ERROR=true
         export NEXT_TEST_MODE=${{
           inputs.test_type == 'development' && 'dev' || 'start'
         }}
@@ -119,11 +119,11 @@ jobs:
         group: ${{ fromJSON(needs.generate-matrices.outputs.integration) }}
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         # legacy integration tests with `node run-tests.js`
 
-        export NEXT_TEST_CONTINUE_ON_ERROR=TRUE
+        export NEXT_TEST_CONTINUE_ON_ERROR=true
 
         # HACK: Despite the name, these environment variables are just used to
         # gate tests, so they're applicable to both turbopack and rspack tests

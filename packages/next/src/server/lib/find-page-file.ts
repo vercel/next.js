@@ -90,8 +90,18 @@ export function createValidFileMatcher(
       pageExtensions
     )}$`
   )
+
+  const leafOnlyRouteFileRegex = new RegExp(
+    `(^route|[\\\\/]route)\\.${getExtensionRegexString(pageExtensions)}$`
+  )
+  const leafOnlyLayoutFileRegex = new RegExp(
+    `(^(layout)|[\\\\/](layout))\\.${getExtensionRegexString(pageExtensions)}$`
+  )
   const rootNotFoundFileRegex = new RegExp(
     `^not-found\\.${getExtensionRegexString(pageExtensions)}$`
+  )
+  const leafOnlyDefaultFileRegex = new RegExp(
+    `(^(default)|[\\\\/](default))\\.${getExtensionRegexString(pageExtensions)}$`
   )
   /** TODO-METADATA: support other metadata routes
    *  regex for:
@@ -123,6 +133,19 @@ export function createValidFileMatcher(
     return leafOnlyPageFileRegex.test(filePath) || isMetadataFile(filePath)
   }
 
+  // Determine if the file is leaf node route file under app directory
+  function isAppRouterRoute(filePath: string) {
+    return leafOnlyRouteFileRegex.test(filePath)
+  }
+
+  function isAppLayoutPage(filePath: string) {
+    return leafOnlyLayoutFileRegex.test(filePath)
+  }
+
+  function isAppDefaultPage(filePath: string) {
+    return leafOnlyDefaultFileRegex.test(filePath)
+  }
+
   function isPageFile(filePath: string) {
     return validExtensionFileRegex.test(filePath) || isMetadataFile(filePath)
   }
@@ -141,6 +164,9 @@ export function createValidFileMatcher(
   return {
     isPageFile,
     isAppRouterPage,
+    isAppRouterRoute,
+    isAppLayoutPage,
+    isAppDefaultPage,
     isMetadataFile,
     isRootNotFound,
   }

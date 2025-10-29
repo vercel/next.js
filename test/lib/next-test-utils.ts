@@ -6,7 +6,7 @@ import {
   writeFileSync,
   createReadStream,
 } from 'fs'
-import { promisify } from 'util'
+import { inspect, promisify } from 'util'
 import http from 'http'
 import path from 'path'
 
@@ -28,16 +28,33 @@ import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import { Playwright } from 'next-webdriver'
 
-import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
+import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
+import escapeRegex from 'escape-string-regexp'
+
 // TODO: Create dedicated Jest environment that sets up these matchers
 // Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
 import './add-redbox-matchers'
 
-export { shouldRunTurboDevTest }
+export { shouldUseTurbopack }
 
 export const nextServer = server
 export const pkg = _pkg
+
+// This goes straight to Node’s stdout, avoiding Jest's verbose output:
+export const debugPrint = (...args: unknown[]) => {
+  const prettyArgs = args
+    .map((arg) =>
+      typeof arg === 'string'
+        ? arg
+        : inspect(arg, { colors: process.stdout.isTTY })
+    )
+    .join(' ')
+
+  const timestamp = new Date().toISOString().split('T')[1]
+
+  return process.stdout.write(`[${timestamp}] ${prettyArgs}\n`)
+}
 
 export function initNextServerScript(
   scriptPath: string,
@@ -215,12 +232,6 @@ export interface NextOptions {
   stdout?: true | 'log'
   ignoreFail?: boolean
 
-  /**
-   * If true, this enables the linting step in the build process. If false or
-   * undefined, it adds a `--no-lint` flag to the build command.
-   */
-  lint?: boolean
-
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
 }
@@ -247,7 +258,7 @@ export function runNextCommand(
   }
 
   return new Promise((resolve, reject) => {
-    console.log(`Running command "next ${argv.join(' ')}"`)
+    debugPrint(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
       [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
@@ -272,7 +283,7 @@ export function runNextCommand(
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStderr === 'function') {
           options.onStderr(chunk.toString())
@@ -291,7 +302,7 @@ export function runNextCommand(
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStdout === 'function') {
           options.onStdout(chunk.toString())
@@ -451,11 +462,11 @@ export function launchApp(
   opts?: NextDevOptions
 ) {
   const options = opts ?? {}
-  const useTurbo = shouldRunTurboDevTest()
+  const useTurbo = shouldUseTurbopack()
 
   return runNextCommandDev(
     [
-      useTurbo ? getTurbopackFlag() : undefined,
+      useTurbo ? '--turbopack' : undefined,
       dir,
       '-p',
       port as string,
@@ -472,21 +483,7 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
-  // If the build hasn't requested it to be linted explicitly, disable linting
-  // if it's not already disabled.
-  if (!opts.lint && !args.includes('--no-lint')) {
-    args.push('--no-lint')
-  }
-
   return runNextCommand(['build', dir, ...args], opts)
-}
-
-export function nextLint(
-  dir: string,
-  args: string[] = [],
-  opts: NextOptions = {}
-) {
-  return runNextCommand(['lint', dir, ...args], opts)
 }
 
 export function nextTest(
@@ -818,7 +815,7 @@ export async function retry<T>(
         )
         throw err
       }
-      console.log(
+      debugPrint(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
       await waitFor(interval)
@@ -962,6 +959,53 @@ export async function openDevToolsIndicatorPopover(
   }
 }
 
+export async function getSegmentExplorerRoute(browser: Playwright) {
+  return await browser
+    .elementByCss('.segment-explorer-page-route-bar-path')
+    .text()
+    .catch(() => '<empty>')
+}
+
+export async function getSegmentExplorerContent(browser: Playwright) {
+  // open the devtool button
+  await openDevToolsIndicatorPopover(browser)
+
+  // open the segment explorer
+  await browser.elementByCss('[data-segment-explorer]').click()
+
+  //  wait for the segment explorer to be visible
+  await browser.waitForElementByCss('[data-nextjs-devtool-segment-explorer]')
+
+  const rows = await browser.elementsByCss('.segment-explorer-item')
+  let result: string[] = []
+  for (const row of rows) {
+    // query filename of row: segment-explorer-filename
+    const segment = (
+      (await (await row.$('.segment-explorer-filename--path'))?.innerText()) ||
+      ''
+    ).trim()
+    const files = (
+      (await (await row.$('.segment-explorer-files'))?.innerText()) || ''
+    )
+      .split(/\n+/)
+      .map((file) => file.trim())
+
+    // line format: segment [files]
+    result.push(`${segment} [${files.join(', ')}]`)
+  }
+  return result.join('\n')
+}
+
+export async function hasDevToolsPanel(browser: Playwright) {
+  const result = await browser.eval(() => {
+    const portal = document.querySelector('nextjs-portal')
+    return (
+      portal?.shadowRoot?.querySelector('[data-nextjs-dialog-overlay]') != null
+    )
+  })
+  return result
+}
+
 export async function assertHasDevToolsIndicator(browser: Playwright) {
   const devToolsIndicator = browser.locateDevToolsIndicator()
   try {
@@ -989,35 +1033,37 @@ export async function assertNoDevToolsIndicator(browser: Playwright) {
   }
 }
 
-export async function getRouteTypeFromDevToolsIndicator(
-  browser: Playwright
-): Promise<'Static' | 'Dynamic'> {
+export async function assertStaticIndicator(
+  browser: Playwright,
+  expectedRouteType: 'Static' | 'Dynamic' | undefined
+): Promise<void> {
   await openDevToolsIndicatorPopover(browser)
 
-  return browser.eval(() => {
+  const routeType = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
 
-    const root = portal?.shadowRoot
-
-    // 'Route\nStatic' || 'Route\nDynamic'
-    const routeTypeText = root?.querySelector(
-      '[data-nextjs-route-type]'
-    )?.innerText
-
-    if (!routeTypeText) {
-      throw new Error('No Route Type Text Found')
-    }
-
-    // 'Static' || 'Dynamic'
-    const routeType = routeTypeText.split('\n').pop()
-    if (routeType !== 'Static' && routeType !== 'Dynamic') {
-      throw new Error(`Invalid Route Type: ${routeType}`)
-    }
-
-    return routeType as 'Static' | 'Dynamic'
+    return (
+      portal?.shadowRoot
+        // 'Route\nStatic' || 'Route\nDynamic'
+        ?.querySelector('[data-nextjs-route-type]')
+        ?.innerText.split('\n')
+        .pop()
+    )
   })
+
+  if (routeType !== expectedRouteType) {
+    if (expectedRouteType) {
+      throw new Error(
+        `Expected static indicator with route type ${expectedRouteType}, found ${routeType} instead.`
+      )
+    } else {
+      throw new Error(
+        `Expected no static indicator, found ${routeType} instead.`
+      )
+    }
+  }
 }
 
 export function getRedboxHeader(browser: Playwright): Promise<string | null> {
@@ -1162,11 +1208,11 @@ function readJson(path: string) {
 }
 
 export function getBuildManifest(dir: string) {
-  return readJson(path.join(dir, '.next/build-manifest.json'))
+  return readJson(path.join(dir, getDistDir(), 'build-manifest.json'))
 }
 
 export function getImagesManifest(dir: string) {
-  return readJson(path.join(dir, '.next/images-manifest.json'))
+  return readJson(path.join(dir, getDistDir(), 'images-manifest.json'))
 }
 
 export function getPageFilesFromBuildManifest(dir: string, page: string) {
@@ -1186,7 +1232,7 @@ export function getContentOfPageFilesFromBuildManifest(
   const pageFiles = getPageFilesFromBuildManifest(dir, page)
 
   return pageFiles
-    .map((file) => readFileSync(path.join(dir, '.next', file), 'utf8'))
+    .map((file) => readFileSync(path.join(dir, getDistDir(), file), 'utf8'))
     .join('\n')
 }
 
@@ -1207,17 +1253,17 @@ export function getPageFileFromBuildManifest(dir: string, page: string) {
 
 export function readNextBuildClientPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromBuildManifest(appDir, page)
-  return readFileSync(path.join(appDir, '.next', pageFile), 'utf8')
+  return readFileSync(path.join(appDir, getDistDir(), pageFile), 'utf8')
 }
 
 export function getPagesManifest(dir: string) {
-  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+  const serverFile = path.join(dir, getDistDir(), 'server/pages-manifest.json')
 
   return readJson(serverFile)
 }
 
 export function updatePagesManifest(dir: string, content: any) {
-  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+  const serverFile = path.join(dir, getDistDir(), 'server/pages-manifest.json')
 
   return writeFile(serverFile, content)
 }
@@ -1234,7 +1280,39 @@ export function getPageFileFromPagesManifest(dir: string, page: string) {
 
 export function readNextBuildServerPageFile(appDir: string, page: string) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
-  return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
+  return readFileSync(
+    path.join(appDir, getDistDir(), 'server', pageFile),
+    'utf8'
+  )
+}
+
+export function getClientBuildManifest(dir: string) {
+  let buildId = readFileSync(path.join(dir, getDistDir(), 'BUILD_ID'), 'utf8')
+  let code = readFileSync(
+    path.join(dir, getDistDir(), 'static', buildId, '_buildManifest.js'),
+    'utf8'
+  )
+  // eslint-disable-next-line no-eval
+  let manifest = (0, eval)(`var self = global;${code};self.__BUILD_MANIFEST`)
+  return manifest
+}
+
+export function getClientBuildManifestLoaderChunkUrlPath(
+  dir: string,
+  page: string
+) {
+  let manifest = getClientBuildManifest(dir)
+  let chunk: string[] | undefined = manifest[page]
+  if (chunk == null) {
+    throw new Error(`Couldn't find page "${page}" in _buildManifest.js`)
+  }
+  if (chunk.length !== 1) {
+    throw new Error(
+      `Expected a single chunk, but found ${chunk.length} for "${page}" in _buildManifest.js`
+    )
+  }
+  // Remove leading './' so that this can be used in a `url.contains(chunk)` check.
+  return encodeURI(chunk[0].replace(/^\.\//, ''))
 }
 
 function runSuite(
@@ -1360,7 +1438,7 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
     )
   }
 
-  const shouldRunTurboDev = shouldRunTurboDevTest()
+  const shouldRunTurboDev = shouldUseTurbopack()
   const shouldSkip =
     (runningEnv === 'turbo' && !shouldRunTurboDev) ||
     (runningEnv === 'default' && shouldRunTurboDev)
@@ -1368,24 +1446,75 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
   return shouldSkip ? describe.skip : describe
 }
 
+const nextjsClientComponentNames = [
+  // Pages Router
+  'App',
+  'AppContainer',
+  'Container',
+  'Head',
+  'PagesDevOverlayBridge',
+  'PagesDevOverlayErrorBoundary',
+  'PathnameContextProviderAdapter',
+  // App Router
+  'ClientPageRoot',
+  'ClientSegmentRoot',
+  'HTTPAccessFallbackBoundary',
+  'HTTPAccessFallbackErrorBoundary',
+  'InnerLayoutRouter',
+  'InnerScrollAndFocusHandler',
+  'RedirectBoundary',
+  'RedirectErrorBoundary',
+  'RenderFromTemplateContext',
+  'Root',
+  'ScrollAndFocusHandler',
+  'SegmentViewNode',
+  'SegmentTrieNode',
+  // These are added due to user actions e.g. loading.js -> LoadingBoundary
+  // They may be relevant in some context in the future.
+  // Consider including them in different assertions.
+  'ErrorBoundary',
+  'LoadingBoundary',
+]
+const nextjsClientComponentStackFrame = new RegExp(
+  `^(\\s*)<(${nextjsClientComponentNames.join('|')})(>| )`
+)
+
 /**
  * @returns `null` if there are no frames
  */
 export async function getRedboxComponentStack(
-  browser: Playwright
+  browser: Playwright,
+  includeNextjsInternalComponents = false
 ): Promise<string | null> {
-  const componentStackFrameElements = await browser.elementsByCss(
+  const componentStackTraceElements = await browser.elementsByCss(
     '[data-nextjs-container-errors-pseudo-html] code'
   )
-  if (componentStackFrameElements.length === 0) {
+  if (componentStackTraceElements.length === 0) {
     return null
   }
 
-  const componentStackFrameTexts = await Promise.all(
-    componentStackFrameElements.map((f) => f.innerText())
-  )
+  const componentStackTrace = await componentStackTraceElements[0].innerText()
+  const componentStackFrames = componentStackTrace.split('\n')
 
-  return componentStackFrameTexts.join('\n').trim()
+  return componentStackFrames
+    .map((componentStackFrame) => {
+      if (!includeNextjsInternalComponents) {
+        const componentStackFrameMatch = componentStackFrame.match(
+          nextjsClientComponentStackFrame
+        )
+        // React component stack frames aren't subject to ignore-listing.
+        // They're not relevant for our tests though.
+        // If you need to assert on Next.js internal component frames,
+        // use `getRedboxComponentStack(browser, true)` instead.
+        if (componentStackFrameMatch) {
+          return componentStackFrameMatch[1] + '<Next.js Internal Component>'
+        }
+      }
+
+      return componentStackFrame
+    })
+    .join('\n')
+    .trim()
 }
 
 export async function hasRedboxCallStack(browser: Playwright) {
@@ -1418,7 +1547,7 @@ export async function getRedboxCallStack(
         // `innerText` will be "${methodName}\n${location}".
         // Ideally `innerText` would be "${methodName} ${location}"
         // so that c&p automatically does the right thing.
-        const frame = frameElement.innerText.replace('\n', ' ')
+        const frame = frameElement.innerText.replace(/\n+/g, ' ')
 
         // TODO: Special marker if source-mapping fails.
 
@@ -1504,7 +1633,7 @@ export function getUrlFromBackgroundImage(backgroundImage: string) {
 }
 
 export const getTitle = (browser: Playwright) =>
-  browser.elementByCss('title').text()
+  browser.elementByCss('title', { state: 'attached' }).text()
 
 async function checkMeta(
   browser: Playwright,
@@ -1754,4 +1883,50 @@ export function trimEndMultiline(str: string) {
     .split('\n')
     .map((line) => line.trimEnd())
     .join('\n')
+}
+
+/**
+ * Normalizes the manifest by applying the replacements to the manifest. This
+ * is useful for testing the manifest in a snapshot test.
+ *
+ * @param manifest - The manifest to normalize.
+ * @param replacements - The replacements to perform on the manifest.
+ * @returns The normalized manifest.
+ */
+export function normalizeManifest<T>(
+  manifest: unknown,
+  replacements: [search: string, replace: string][]
+): T {
+  return JSON.parse(
+    replacements.reduce(
+      (acc, [search, replace]) =>
+        acc.replace(
+          new RegExp(
+            // We want to match the literal string, so we need to escape it
+            // again
+            escapeRegex(
+              JSON.stringify(
+                // The output has already been escaped, so we need to escape our
+                // search string.
+                escapeRegex(search)
+              )
+                // Remove the quotes added by the JSON.stringify call.
+                .replace(/^"(.*)"/, '$1')
+            ),
+            'g'
+          ),
+          replace
+        ),
+      // We'll perform the replacements on the JSON stringified manifest.
+      JSON.stringify(manifest)
+    )
+  )
+}
+
+export function getDistDir(): '.next' | '.next/dev' {
+  // global.isNextDev is set in e2e/development/production tests.
+  // NEXT_TEST_MODE is set in CI or local test-* commands.
+  return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev'
+    ? '.next/dev'
+    : '.next'
 }

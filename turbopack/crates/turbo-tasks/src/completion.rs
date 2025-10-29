@@ -37,7 +37,9 @@ impl Completion {
         // This is the same code that Completion::cell uses except that it
         // only updates the cell when it is empty (Completion::cell opted-out of
         // that via `#[turbo_tasks::value(cell = "new")]`)
-        let cell = turbo_tasks::macro_helpers::find_cell_by_type(*COMPLETION_VALUE_TYPE_ID);
+        let cell = turbo_tasks::macro_helpers::find_cell_by_type(
+            <Completion as crate::VcValueType>::get_value_type_id(),
+        );
         cell.conditional_update(|old| old.is_none().then_some(Completion));
         let raw: RawVc = cell.into();
         raw.into()

@@ -1,11 +1,14 @@
-const styles = `
+import { css } from '../../utils/css'
+
+const styles = css`
   [data-nextjs-dialog-overlay] {
     position: fixed;
     top: 0;
     right: 0;
     bottom: 0;
     left: 0;
-    z-index: 9000;
+    /* secondary z-index, -1 than toast z-index */
+    z-index: 2147483646;
 
     display: flex;
     align-content: center;

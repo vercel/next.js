@@ -75,11 +75,11 @@ impl DynamicStorage {
         })
     }
 
-    pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef> {
+    pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
         self.get_map(key.ty()).and_then(|m| m.get(key))
     }
 
-    pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut> {
+    pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
         self.get_map_mut(key.ty()).and_then(|m| m.get_mut(key))
     }
 

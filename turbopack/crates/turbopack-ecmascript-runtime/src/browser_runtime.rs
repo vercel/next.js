@@ -17,13 +17,13 @@ use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::emb
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
     environment: ResolvedVc<Environment>,
-    chunk_base_path: Option<RcStr>,
-    chunk_suffix_path: Option<RcStr>,
+    chunk_base_path: Vc<Option<RcStr>>,
+    chunk_suffix_path: Vc<Option<RcStr>>,
     runtime_type: RuntimeType,
     output_root_to_root_path: RcStr,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
-    let asset_context = get_runtime_asset_context(environment).await?;
+    let asset_context = get_runtime_asset_context(*environment).resolve().await?;
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
@@ -67,7 +67,6 @@ pub async fn get_browser_runtime_code(
             runtime_backend_code.push("browser/runtime/dom/dev-backend-dom.ts");
         }
         (ChunkLoading::Dom, RuntimeType::Production) => {
-            // TODO
             runtime_backend_code.push("browser/runtime/dom/runtime-backend-dom.ts");
         }
 
@@ -79,7 +78,9 @@ pub async fn get_browser_runtime_code(
 
     let mut code: CodeBuilder = CodeBuilder::default();
     let relative_root_path = output_root_to_root_path;
+    let chunk_base_path = chunk_base_path.await?;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
+    let chunk_suffix_path = chunk_suffix_path.await?;
     let chunk_suffix_path = chunk_suffix_path
         .as_ref()
         .map_or_else(|| "", |f| f.as_str());
@@ -162,8 +163,8 @@ pub async fn get_browser_runtime_code(
             code,
             r#"
             const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
-            chunkListsToRegister.forEach(registerChunkList);
             globalThis.TURBOPACK_CHUNK_LISTS = {{ push: registerChunkList }};
+            chunkListsToRegister.forEach(registerChunkList);
         "#
         )?;
     }

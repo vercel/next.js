@@ -1,0 +1,31 @@
+{
+  "name": "next-docs",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev-docs": "next dev --turbo",
+    "build-docs": "next build",
+    "start": "next start",
+    "postinstall": "fumadocs-mdx"
+  },
+  "dependencies": {
+    "fumadocs-core": "15.7.12",
+    "fumadocs-mdx": "11.10.0",
+    "fumadocs-ui": "15.7.12",
+    "next": "15.5.3",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "4.1.13",
+    "@types/mdx": "2.0.13",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "9.37.0",
+    "eslint-config-next": "canary",
+    "tailwindcss": "4.1.13",
+    "typescript": "^5"
+  }
+}

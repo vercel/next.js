@@ -3,7 +3,7 @@ import type { Telemetry } from '../../telemetry/storage'
 import { RESTART_EXIT_CODE } from '../../server/lib/utils'
 import { middlewareResponse } from './middleware-response'
 import type { Project } from '../../build/swc/types'
-import { invalidatePersistentCache as invalidateWebpackPersistentCache } from '../../build/webpack/cache-invalidation'
+import { invalidateFileSystemCache as invalidateWebpackFileSystemCache } from '../../build/webpack/cache-invalidation'
 
 const EVENT_DEV_OVERLAY_RESTART_SERVER = 'DEV_OVERLAY_RESTART_SERVER'
 
@@ -37,25 +37,25 @@ export function getRestartDevServerMiddleware({
       return middlewareResponse.methodNotAllowed(res)
     }
 
-    const shouldInvalidatePersistentCache = searchParams.has(
-      'invalidatePersistentCache'
+    const shouldInvalidateFileSystemCache = searchParams.has(
+      'invalidateFileSystemCache'
     )
-    if (shouldInvalidatePersistentCache) {
+    if (shouldInvalidateFileSystemCache) {
       if (webpackCacheDirectories != null) {
         await Promise.all(
           Array.from(webpackCacheDirectories).map(
-            invalidateWebpackPersistentCache
+            invalidateWebpackFileSystemCache
           )
         )
       }
       if (turbopackProject != null) {
-        await turbopackProject.invalidatePersistentCache()
+        await turbopackProject.invalidateFileSystemCache()
       }
     }
 
     telemetry.record({
       eventName: EVENT_DEV_OVERLAY_RESTART_SERVER,
-      payload: { invalidatePersistentCache: shouldInvalidatePersistentCache },
+      payload: { invalidateFileSystemCache: shouldInvalidateFileSystemCache },
     })
 
     // TODO: Use flushDetached

@@ -1,6 +1,6 @@
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import Anser, { type AnserJsonEntry } from 'next/dist/compiled/anser'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import type { StackFrame } from '../../../shared/stack-frame'
 
 // Strip leading spaces out of the code frame
 export function formatCodeFrame(codeFrame: string) {
@@ -77,19 +77,19 @@ export function parseLineNumberFromCodeFrameLine(
   stackFrame: StackFrame
 ) {
   let lineNumberToken: AnserJsonEntry | undefined
-  let lineNumber: string | undefined
+  let line1: string | undefined
   // parse line number from line first 2 tokens
   // e.g. ` > 1 | const foo = 'bar'` => `1`, first token is `1 |`
   // e.g. `  2 | const foo = 'bar'` => `2`. first 2 tokens are ' ' and ' 2 |'
   if (line[0]?.content === '>' || line[0]?.content === ' ') {
     lineNumberToken = line[1]
-    lineNumber = lineNumberToken?.content?.replace('|', '')?.trim()
+    line1 = lineNumberToken?.content?.replace('|', '')?.trim()
   }
 
   // When the line number is possibly undefined, it can be just the non-source code line
   // e.g. the ^ sign can also take a line, we skip rendering line number for it
   return {
-    lineNumber,
-    isErroredLine: lineNumber === stackFrame.lineNumber?.toString(),
+    lineNumber: line1,
+    isErroredLine: line1 === stackFrame.line1?.toString(),
   }
 }

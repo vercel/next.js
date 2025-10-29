@@ -3,6 +3,9 @@ import { nextTestSetup } from 'e2e-utils'
 describe('app-dir absolute assetPrefix', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    nextConfig: {
+      assetPrefix: 'https://example.vercel.sh/custom-asset-prefix',
+    },
   })
 
   it('bundles should return 200 on served assetPrefix', async () => {

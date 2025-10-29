@@ -11,27 +11,25 @@ use next_api::{
     project::{ProjectContainer, ProjectOptions},
     route::{Endpoint, EndpointOutputPaths, Route, endpoint_write_to_disk},
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadConsistency, ResolvedVc, TransientInstance, TurboTasks, Vc, get_effects};
 use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
 use turbo_tasks_malloc::TurboMalloc;
 
 pub async fn main_inner(
     tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
-    strat: Strategy,
+    strategy: Strategy,
     factor: usize,
     limit: usize,
     files: Option<Vec<String>>,
 ) -> Result<()> {
-    register();
-
     let path = std::env::current_dir()?.join("project_options.json");
     let mut file = std::fs::File::open(&path)
         .with_context(|| format!("loading file at {}", path.display()))?;
 
     let mut options: ProjectOptions = serde_json::from_reader(&mut file)?;
 
-    if matches!(strat, Strategy::Development { .. }) {
+    if matches!(strategy, Strategy::Development { .. }) {
         options.dev = true;
         options.watch.enable = true;
     } else {
@@ -40,8 +38,8 @@ pub async fn main_inner(
     }
 
     let project = tt
-        .run_once(async {
-            let project = ProjectContainer::new("next-build-test".into(), options.dev);
+        .run(async {
+            let project = ProjectContainer::new(rcstr!("next-build-test"), options.dev);
             let project = project.to_resolved().await?;
             project.initialize(options).await?;
             Ok(project)
@@ -49,12 +47,10 @@ pub async fn main_inner(
         .await?;
 
     tracing::info!("collecting endpoints");
-    let entrypoints = tt
-        .run_once(async move { project.entrypoints().await })
-        .await?;
+    let entrypoints = tt.run(async move { project.entrypoints().await }).await?;
 
     let mut routes = if let Some(files) = files {
-        tracing::info!("builing only the files:");
+        tracing::info!("building only the files:");
         for file in &files {
             tracing::info!("  {}", file);
         }
@@ -72,12 +68,12 @@ pub async fn main_inner(
         Box::new(entrypoints.routes.clone().into_iter())
     };
 
-    if strat.randomized() {
+    if strategy.randomized() {
         routes = Box::new(shuffle(routes))
     }
 
     let start = Instant::now();
-    let count = render_routes(tt, routes, strat, factor, limit).await?;
+    let count = render_routes(tt, routes, strategy, factor, limit).await?;
     tracing::info!("rendered {} pages in {:?}", count, start.elapsed());
 
     if count == 0 {
@@ -87,16 +83,11 @@ pub async fn main_inner(
         }
     }
 
-    if matches!(strat, Strategy::Development { .. }) {
+    if matches!(strategy, Strategy::Development { .. }) {
         hmr(tt, *project).await?;
     }
 
     Ok(())
-}
-
-pub fn register() {
-    next_api::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
 #[derive(PartialEq, Copy, Clone)]
@@ -165,7 +156,7 @@ pub async fn render_routes(
     limit: usize,
 ) -> Result<usize> {
     tracing::info!(
-        "rendering routes with {} parallel and strat {}",
+        "rendering routes with {} parallel and strategy {}",
         factor,
         strategy
     );
@@ -177,7 +168,7 @@ pub async fn render_routes(
 
             let memory = TurboMalloc::memory_usage();
 
-            tt.run_once({
+            tt.run({
                 let name = name.clone();
                 async move {
                     match route {
@@ -266,7 +257,7 @@ async fn hmr(
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
     let idents = tt
-        .run_once(async move { project.hmr_identifiers().await })
+        .run(async move { project.hmr_identifiers().await })
         .await?;
     let start = Instant::now();
     for ident in idents {

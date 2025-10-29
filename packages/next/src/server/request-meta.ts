@@ -1,4 +1,3 @@
-/* eslint-disable no-redeclare */
 import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
@@ -6,8 +5,13 @@ import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
-import type { ServerComponentsHmrCache } from './response-cache'
+import type {
+  ResponseCacheEntry,
+  ServerComponentsHmrCache,
+} from './response-cache'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
+import type { OpaqueFallbackRouteParams } from './request/fallback-params'
+import type { IncrementalCache } from './lib/incremental-cache'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -15,6 +19,28 @@ export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
 export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
   [NEXT_REQUEST_META]?: RequestMeta
 }
+
+/**
+ * The callback function to call when a response cache entry was generated or
+ * looked up in the cache. When it returns true, the server assumes that the
+ * handler has already responded to the request and will not do so itself.
+ */
+export type OnCacheEntryHandler = (
+  /**
+   * The response cache entry that was generated or looked up in the cache.
+   */
+  cacheEntry: ResponseCacheEntry,
+
+  /**
+   * The request metadata.
+   */
+  requestMeta: {
+    /**
+     * The URL that was used to make the request.
+     */
+    url: string | undefined
+  }
+) => Promise<boolean | void> | boolean | void
 
 export interface RequestMeta {
   /**
@@ -68,7 +94,7 @@ export interface RequestMeta {
   /**
    * The incremental cache to use for the request.
    */
-  incrementalCache?: any
+  incrementalCache?: IncrementalCache
 
   /**
    * The server components HMR cache, only for dev.
@@ -118,11 +144,16 @@ export interface RequestMeta {
   /**
    * If provided, this will be called when a response cache entry was generated
    * or looked up in the cache.
+   *
+   * @deprecated Use `onCacheEntryV2` instead.
    */
-  onCacheEntry?: (
-    cacheEntry: any,
-    requestMeta: any
-  ) => Promise<boolean | void> | boolean | void
+  onCacheEntry?: OnCacheEntryHandler
+
+  /**
+   * If provided, this will be called when a response cache entry was generated
+   * or looked up in the cache.
+   */
+  onCacheEntryV2?: OnCacheEntryHandler
 
   /**
    * The previous revalidate before rendering 404 page for notFound: true
@@ -197,19 +228,14 @@ export interface RequestMeta {
   defaultLocale?: string
 
   /**
-   * The project dir the server is running in
+   * The relative project dir the server is running in from project root
    */
-  projectDir?: string
+  relativeProjectDir?: string
 
   /**
    * The dist directory the server is currently using
    */
   distDir?: string
-
-  /**
-   * Whether we are generating the fallback version of the page in dev mode
-   */
-  isIsrFallback?: boolean
 
   /**
    * The query after resolving routes
@@ -222,11 +248,6 @@ export interface RequestMeta {
   params?: ParsedUrlQuery
 
   /**
-   * The AMP validator to use in development
-   */
-  ampValidator?: (html: string, pathname: string) => Promise<void>
-
-  /**
    * ErrorOverlay component to use in development for pages router
    */
   PagesErrorDebug?: PagesDevOverlayBridgeType
@@ -236,6 +257,19 @@ export interface RequestMeta {
    * specific flags in future)
    */
   minimalMode?: boolean
+
+  /**
+   * DEV only: The fallback params that should be used when validating prerenders during dev
+   */
+  devValidatingFallbackParams?: OpaqueFallbackRouteParams
+
+  /**
+   * DEV only: Request timings in process.hrtime.bigint()
+   */
+  devRequestTimingStart?: bigint
+  devRequestTimingMiddlewareStart?: bigint
+  devRequestTimingMiddlewareEnd?: bigint
+  devRequestTimingInternalsEnd?: bigint
 }
 
 /**
@@ -316,10 +350,7 @@ type NextQueryMetadata = {
   [NEXT_RSC_UNION_QUERY]?: string
 }
 
-export type NextParsedUrlQuery = ParsedUrlQuery &
-  NextQueryMetadata & {
-    amp?: '1'
-  }
+export type NextParsedUrlQuery = ParsedUrlQuery & NextQueryMetadata
 
 export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
   query: NextParsedUrlQuery

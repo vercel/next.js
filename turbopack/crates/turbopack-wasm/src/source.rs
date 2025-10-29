@@ -1,6 +1,5 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
@@ -51,14 +50,14 @@ impl WebAssemblySource {
 #[turbo_tasks::value_impl]
 impl Source for WebAssemblySource {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        match self.source_ty {
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(match self.source_ty {
             WebAssemblySourceType::Binary => self.source.ident(),
             WebAssemblySourceType::Text => self
                 .source
                 .ident()
-                .with_path(self.source.ident().path().append(rcstr!("_.wasm"))),
-        }
+                .with_path(self.source.ident().path().await?.append("_.wasm")?),
+        })
     }
 }
 

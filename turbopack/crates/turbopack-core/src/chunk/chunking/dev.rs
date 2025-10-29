@@ -78,8 +78,8 @@ pub async fn expand_batches(
 /// Split chunk items into app code and vendor code. Continues splitting with
 /// [package_name_split] if necessary.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
-pub async fn app_vendors_split<'l>(
-    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+pub async fn app_vendors_split(
+    chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     mut name: String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
@@ -149,8 +149,8 @@ pub async fn app_vendors_split<'l>(
 /// Split chunk items by node_modules package name. Continues splitting with
 /// [folder_split] if necessary.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
-async fn package_name_split<'l>(
-    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+async fn package_name_split(
+    chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     mut name: String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {

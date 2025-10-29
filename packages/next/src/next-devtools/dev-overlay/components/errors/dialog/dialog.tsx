@@ -3,7 +3,6 @@ import { Dialog } from '../../dialog/dialog'
 type ErrorOverlayDialogProps = {
   children?: React.ReactNode
   onClose?: () => void
-  dialogResizerRef?: React.RefObject<HTMLDivElement | null>
   footer?: React.ReactNode
 } & React.HTMLAttributes<HTMLDivElement>
 
@@ -31,7 +30,6 @@ export function ErrorOverlayDialog({
 
 export const DIALOG_STYLES = `
   .error-overlay-dialog-container {
-    -webkit-font-smoothing: antialiased;
     display: flex;
     flex-direction: column;
     background: var(--color-background-100);

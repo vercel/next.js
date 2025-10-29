@@ -1,0 +1,69 @@
+---
+title: Empty generateStaticParams with Cache Components
+---
+
+## Why This Error Occurred
+
+You're using [Cache Components](https://nextjs.org/docs/beta/app/api-reference/config/next-config-js/cacheComponents) in your Next.js application, and one of your `generateStaticParams` functions returned an empty array, which causes a build error.
+
+When Cache Components is enabled, Next.js performs build-time validation to ensure your routes can be properly prerendered without runtime dynamic access errors. If `generateStaticParams` returns an empty array, Next.js cannot validate that your route won't access dynamic values (like `await cookies()`, `await headers()`, or `await searchParams`) at runtime, which would cause errors.
+
+This strict requirement ensures:
+
+- Build-time validation catches potential runtime errors early
+- All routes using Cache Components have at least one static variant to validate against
+- You don't accidentally deploy routes that will fail at runtime
+
+## Possible Ways to Fix It
+
+### Option 1: Return at least one static param
+
+Modify your `generateStaticParams` function to return at least one set of parameters. This is the most common fix and allows build-time validation to work properly.
+
+```tsx filename="app/blog/[slug]/page.tsx"
+// ❌ This will cause an error with Cache Components
+export async function generateStaticParams() {
+  return [] // Empty array not allowed
+}
+
+// ✅ Return at least one param
+export async function generateStaticParams() {
+  return [{ slug: 'hello-world' }, { slug: 'getting-started' }]
+}
+```
+
+### Option 2: Use a placeholder param for validation
+
+If you don't know the actual values at build time but still want Cache Components, you can return a placeholder param for build-time validation:
+
+> This is not recommended and should only be used if you absolutely need to as it prevents build-time validation from working which will likely cause runtime errors.
+
+```tsx filename="app/blog/[slug]/page.tsx"
+export async function generateStaticParams() {
+  // Return a placeholder for build-time validation
+  // Real params will be generated at runtime via ISR
+  return [{ slug: '__placeholder__' }]
+}
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+
+  // Handle placeholder case
+  if (slug === '__placeholder__') {
+    notFound()
+  }
+
+  // Your actual page logic
+  const post = await getPost(slug)
+  return <div>{post.title}</div>
+}
+```
+
+## Useful Links
+
+- [Cache Components Documentation](https://nextjs.org/docs/beta/app/api-reference/config/next-config-js/cacheComponents)
+- [generateStaticParams API Reference](https://nextjs.org/docs/app/api-reference/functions/generate-static-params)

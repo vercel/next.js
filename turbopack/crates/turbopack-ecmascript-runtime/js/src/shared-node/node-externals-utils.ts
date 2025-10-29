@@ -30,3 +30,4 @@ function resolveAbsolutePath(modulePath?: string): string {
   }
   return ABSOLUTE_ROOT
 }
+Context.prototype.P = resolveAbsolutePath

@@ -1,5 +1,4 @@
 // @ts-ignore
-// eslint-disable-next-line import/no-extraneous-dependencies
 let fontFromBuffer: any
 try {
   // eslint-disable-next-line @next/internal/typechecked-require -- Module created during build.
@@ -68,10 +67,10 @@ const nextFontLocalFontLoader: FontLoader = async ({
         ...(hasCustomFontFamily ? [] : [['font-family', variableName]]),
         ['src', `url(${fontUrl}) format('${format}')`],
         ['font-display', display],
-        ...(weight ?? defaultWeight
+        ...((weight ?? defaultWeight)
           ? [['font-weight', weight ?? defaultWeight]]
           : []),
-        ...(style ?? defaultStyle
+        ...((style ?? defaultStyle)
           ? [['font-style', style ?? defaultStyle]]
           : []),
       ]

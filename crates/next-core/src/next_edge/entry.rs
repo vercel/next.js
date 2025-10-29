@@ -1,5 +1,6 @@
+use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -11,10 +12,10 @@ use turbopack_ecmascript::utils::StringifyJs;
 #[turbo_tasks::function]
 pub fn wrap_edge_entry(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: Vc<FileSystemPath>,
+    project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     pathname: RcStr,
-) -> Vc<Box<dyn Module>> {
+) -> Result<Vc<Box<dyn Module>>> {
     // The wrapped module could be an async module, we handle that with the proxy
     // here. The comma expression makes sure we don't call the function with the
     // module as the "this" arg.
@@ -45,18 +46,18 @@ pub fn wrap_edge_entry(
 
     // TODO(alexkirsz) Figure out how to name this virtual asset.
     let virtual_source = VirtualSource::new(
-        project_root.join("edge-wrapper.js".into()),
+        project_root.join("edge-wrapper.js")?,
         AssetContent::file(file.into()),
     );
 
     let inner_assets = fxindexmap! {
-        "MODULE".into() => entry
+        rcstr!("MODULE") => entry
     };
 
-    asset_context
+    Ok(asset_context
         .process(
             Vc::upcast(virtual_source),
             ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
-        .module()
+        .module())
 }

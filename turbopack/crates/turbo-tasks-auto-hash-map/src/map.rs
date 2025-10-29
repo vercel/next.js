@@ -840,6 +840,36 @@ where
 {
 }
 
+impl<K: Eq + Hash, V: Eq + Hash, MH: BuildHasher + Default, const I: usize> Hash
+    for AutoMap<K, V, MH, I>
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Hash the length first to distinguish maps of different sizes
+        self.len().hash(state);
+
+        // Use a commutative approach to ensure equal maps have equal hashes
+        // regardless of iteration order
+        let mut combined_hash = 0u64;
+
+        let hash_builder = MH::default();
+        for (k, v) in self.iter() {
+            use std::hash::Hasher;
+
+            // Hash each key-value pair independently
+            let mut entry_hasher = hash_builder.build_hasher();
+            k.hash(&mut entry_hasher);
+            v.hash(&mut entry_hasher);
+            let entry_hash = entry_hasher.finish();
+
+            // Combine using addition to make it order-independent (wrapping_add is commutative)
+            combined_hash = combined_hash.wrapping_add(entry_hash);
+        }
+
+        // Hash the combined result
+        combined_hash.hash(state);
+    }
+}
+
 impl<K, V, H, const I: usize> FromIterator<(K, V)> for AutoMap<K, V, H, I>
 where
     K: Eq + Hash,

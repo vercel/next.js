@@ -10,31 +10,30 @@ import type {
 import { handleExternalUrl } from './navigate-reducer'
 import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import { createEmptyCacheNode } from '../../app-router'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const {
-    serverResponse: { flightData, canonicalUrl: canonicalUrlOverride },
-    navigatedAt,
-  } = action
+  const { serverResponse, navigatedAt } = action
 
   const mutable: Mutable = {}
 
   mutable.preserveCustomHistoryState = false
 
   // Handle case when navigating to page in `pages` from `app`
-  if (typeof flightData === 'string') {
+  if (typeof serverResponse === 'string') {
     return handleExternalUrl(
       state,
       mutable,
-      flightData,
+      serverResponse,
       state.pushRef.pendingPush
     )
   }
+
+  const { flightData, canonicalUrl, renderedSearch } = serverResponse
 
   let currentTree = state.tree
   let currentCache = state.cache
@@ -69,18 +68,13 @@ export function serverPatchReducer(
       )
     }
 
-    const canonicalUrlOverrideHref = canonicalUrlOverride
-      ? createHrefFromUrl(canonicalUrlOverride)
-      : undefined
-
-    if (canonicalUrlOverrideHref) {
-      mutable.canonicalUrl = canonicalUrlOverrideHref
-    }
+    mutable.canonicalUrl = createHrefFromUrl(canonicalUrl)
 
     const cache: CacheNode = createEmptyCacheNode()
     applyFlightData(navigatedAt, currentCache, cache, normalizedFlightData)
 
     mutable.patchedTree = newTree
+    mutable.renderedSearch = renderedSearch
     mutable.cache = cache
 
     currentCache = cache

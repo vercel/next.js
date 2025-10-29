@@ -3,7 +3,6 @@ import type { NextConfigComplete } from '../config-shared'
 import '../require-hook'
 import '../node-environment'
 
-import { reduceAppConfig } from '../../build/utils'
 import { collectSegments } from '../../build/segment-config/app/app-segments'
 import type { StaticPathsResult } from '../../build/static-paths/types'
 import { loadComponents } from '../load-components'
@@ -19,13 +18,13 @@ import { collectRootParamKeys } from '../../build/segment-config/app/collect-roo
 import { buildAppStaticPaths } from '../../build/static-paths/app'
 import { buildPagesStaticPaths } from '../../build/static-paths/pages'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
+import type { AppPageRouteModule } from '../route-modules/app-page/module'
+import type { AppRouteRouteModule } from '../route-modules/app-route/module'
 
 type RuntimeConfig = {
   pprConfig: ExperimentalPPRConfig | undefined
   configFileName: string
-  publicRuntimeConfig: { [key: string]: any }
-  serverRuntimeConfig: { [key: string]: any }
-  dynamicIO: boolean
+  cacheComponents: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -43,7 +42,7 @@ export async function loadStaticPaths({
   page,
   isrFlushToDisk,
   fetchCacheKeyPrefix,
-  maxMemoryCacheSize,
+  cacheMaxMemorySize,
   requestHeaders,
   cacheHandler,
   cacheHandlers,
@@ -64,10 +63,10 @@ export async function loadStaticPaths({
   page: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
-  maxMemoryCacheSize?: number
+  cacheMaxMemorySize: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
-  cacheHandlers?: NextConfigComplete['experimental']['cacheHandlers']
+  cacheHandlers?: NextConfigComplete['cacheHandlers']
   cacheLifeProfiles?: {
     [profile: string]: import('../../server/use-cache/cache-life').CacheLife
   }
@@ -86,13 +85,10 @@ export async function loadStaticPaths({
     requestHeaders,
     fetchCacheKeyPrefix,
     flushToDisk: isrFlushToDisk,
-    cacheMaxMemorySize: maxMemoryCacheSize,
+    cacheMaxMemorySize,
   })
 
   // update work memory runtime-config
-  ;(
-    require('../../shared/lib/runtime-config.external') as typeof import('../../shared/lib/runtime-config.external')
-  ).setConfig(config)
   setHttpClientAndAgentOptions({
     httpAgentOptions,
   })
@@ -104,21 +100,27 @@ export async function loadStaticPaths({
     isAppPath,
     isDev: true,
     sriEnabled,
+    needsManifestsForLegacyReasons: true,
   })
 
   if (isAppPath) {
-    const segments = await collectSegments(components)
+    const routeModule = components.routeModule
+    const segments = await collectSegments(
+      // We know this is an app page or app route module because we checked
+      // above that the page type is 'app'.
+      routeModule as AppPageRouteModule | AppRouteRouteModule
+    )
 
     const isRoutePPREnabled =
-      isAppPageRouteModule(components.routeModule) &&
-      checkIsRoutePPREnabled(config.pprConfig, reduceAppConfig(segments))
+      isAppPageRouteModule(routeModule) &&
+      checkIsRoutePPREnabled(config.pprConfig)
 
-    const rootParamKeys = collectRootParamKeys(components)
+    const rootParamKeys = collectRootParamKeys(routeModule)
 
     return buildAppStaticPaths({
       dir,
       page: pathname,
-      dynamicIO: config.dynamicIO,
+      cacheComponents: config.cacheComponents,
       segments,
       distDir,
       requestHeaders,
@@ -126,7 +128,7 @@ export async function loadStaticPaths({
       cacheLifeProfiles,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
-      maxMemoryCacheSize,
+      cacheMaxMemorySize,
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,

@@ -45,20 +45,19 @@ The following methods are available:
 
 When setting a cookie, the following properties from the `options` object are supported:
 
-| Option            | Type                                   | Description                                                                        |
-| ----------------- | -------------------------------------- | ---------------------------------------------------------------------------------- |
-| `name`            | String                                 | Specifies the name of the cookie.                                                  |
-| `value`           | String                                 | Specifies the value to be stored in the cookie.                                    |
-| `expires`         | Date                                   | Defines the exact date when the cookie will expire.                                |
-| `maxAge`          | Number                                 | Sets the cookie’s lifespan in seconds.                                             |
-| `domain`          | String                                 | Specifies the domain where the cookie is available.                                |
-| `path`            | String, default: `'/'`                 | Limits the cookie's scope to a specific path within the domain.                    |
-| `secure`          | Boolean                                | Ensures the cookie is sent only over HTTPS connections for added security.         |
-| `httpOnly`        | Boolean                                | Restricts the cookie to HTTP requests, preventing client-side access.              |
-| `sameSite`        | Boolean, `'lax'`, `'strict'`, `'none'` | Controls the cookie's cross-site request behavior.                                 |
-| `priority`        | String (`"low"`, `"medium"`, `"high"`) | Specifies the cookie's priority                                                    |
-| `encode('value')` | Function                               | Specifies a function that will be used to encode a cookie's value.                 |
-| `partitioned`     | Boolean                                | Indicates whether the cookie is [partitioned](https://github.com/privacycg/CHIPS). |
+| Option        | Type                                   | Description                                                                        |
+| ------------- | -------------------------------------- | ---------------------------------------------------------------------------------- |
+| `name`        | String                                 | Specifies the name of the cookie.                                                  |
+| `value`       | String                                 | Specifies the value to be stored in the cookie.                                    |
+| `expires`     | Date                                   | Defines the exact date when the cookie will expire.                                |
+| `maxAge`      | Number                                 | Sets the cookie’s lifespan in seconds.                                             |
+| `domain`      | String                                 | Specifies the domain where the cookie is available.                                |
+| `path`        | String, default: `'/'`                 | Limits the cookie's scope to a specific path within the domain.                    |
+| `secure`      | Boolean                                | Ensures the cookie is sent only over HTTPS connections for added security.         |
+| `httpOnly`    | Boolean                                | Restricts the cookie to HTTP requests, preventing client-side access.              |
+| `sameSite`    | Boolean, `'lax'`, `'strict'`, `'none'` | Controls the cookie's cross-site request behavior.                                 |
+| `priority`    | String (`"low"`, `"medium"`, `"high"`) | Specifies the cookie's priority                                                    |
+| `partitioned` | Boolean                                | Indicates whether the cookie is [partitioned](https://github.com/privacycg/CHIPS). |
 
 The only option with a default value is `path`.
 
@@ -68,7 +67,7 @@ To learn more about these options, see the [MDN docs](https://developer.mozilla.
 
 - `cookies` is an **asynchronous** function that returns a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access cookies.
   - In version 14 and earlier, `cookies` was a synchronous function. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
-- `cookies` is a [Dynamic API](/docs/app/getting-started/partial-prerendering#dynamic-rendering) whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into [dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering).
+- `cookies` is a [Dynamic API](/docs/app/guides/caching#dynamic-rendering) whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into [dynamic rendering](/docs/app/guides/caching#dynamic-rendering).
 - The `.delete` method can only be called:
   - In a [Server Action](/docs/app/getting-started/updating-data) or [Route Handler](/docs/app/api-reference/file-conventions/route).
   - If it belongs to the same domain from which `.set` is called. For wildcard domains, the specific subdomain must be an exact match. Additionally, the code must be executed on the same protocol (HTTP or HTTPS) as the cookie you want to delete.
@@ -82,6 +81,14 @@ When working with cookies in Server Components, it's important to understand tha
 - **Setting cookies** cannot be done directly in a Server Component, even when using a Route Handler or Server Action. This is because cookies are actually stored by the browser, not the server.
 
 The server can only send instructions (via `Set-Cookie` headers) to tell the browser to store cookies - the actual storage happens on the client side. This is why cookie operations that modify state (`.set`, `.delete`, `.clear`) must be performed in a Route Handler or Server Action where the response headers can be properly set.
+
+## Understanding Cookie Behavior in Server Actions
+
+After you set or delete a cookie in a Server Action, Next.js re-renders the current page and its layouts on the server so the UI reflects the new cookie value. See the [Caching guide](/docs/app/guides/caching#cookies).
+
+The UI is not unmounted, but effects that depend on data coming from the server will re-run.
+
+To refresh cached data too, call [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) inside the action.
 
 ## Examples
 

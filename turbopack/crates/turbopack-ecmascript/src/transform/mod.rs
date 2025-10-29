@@ -2,7 +2,6 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use anyhow::Result;
 use async_trait::async_trait;
-use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::{Atom, atom},
     base::SwcComments,
@@ -15,20 +14,18 @@ use swc_core::{
                 assumptions::Assumptions,
                 helpers::{HELPERS, HelperData, Helpers},
             },
-            optimization::inline_globals,
             react::react,
         },
         utils::IsDirective,
     },
     quote,
 };
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{
-    environment::Environment,
-    issue::{Issue, IssueSeverity, IssueStage, StyledString},
-};
+use turbopack_core::{environment::Environment, source::Source};
+
+use crate::runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH};
 
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
@@ -44,9 +41,6 @@ pub enum EcmascriptInputTransform {
         import_source: ResolvedVc<Option<RcStr>>,
         // swc.jsc.transform.react.runtime,
         runtime: ResolvedVc<Option<RcStr>>,
-    },
-    GlobalTypeofs {
-        window_value: String,
     },
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here
@@ -120,7 +114,8 @@ pub struct TransformContext<'a> {
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
     pub query_str: RcStr,
-    pub file_path: ResolvedVc<FileSystemPath>,
+    pub file_path: FileSystemPath,
+    pub source: ResolvedVc<Box<dyn Source>>,
 }
 
 impl EcmascriptInputTransform {
@@ -139,22 +134,6 @@ impl EcmascriptInputTransform {
         } = ctx;
 
         Ok(match self {
-            EcmascriptInputTransform::GlobalTypeofs { window_value } => {
-                let mut typeofs: FxHashMap<Atom, Atom> = Default::default();
-                typeofs.insert(Atom::from("window"), Atom::from(&**window_value));
-
-                apply_transform(
-                    program,
-                    helpers,
-                    inline_globals(
-                        unresolved_mark,
-                        Default::default(),
-                        Default::default(),
-                        Default::default(),
-                        Arc::new(typeofs),
-                    ),
-                )
-            }
             EcmascriptInputTransform::React {
                 development,
                 refresh,
@@ -182,8 +161,8 @@ impl EcmascriptInputTransform {
                     development: Some(*development),
                     import_source: import_source.await?.as_deref().map(Atom::from),
                     refresh: if *refresh {
+                        debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
-                            // __turbopack_context__.k is __turbopack_refresh__
                             refresh_reg: atom!("__turbopack_context__.k.register"),
                             refresh_sig: atom!("__turbopack_context__.k.signature"),
                             ..Default::default()
@@ -209,12 +188,14 @@ impl EcmascriptInputTransform {
                 );
 
                 if *refresh {
+                    debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
+                    debug_assert_eq!(TURBOPACK_MODULE.full, "__turbopack_context__.m");
                     let stmt = quote!(
-                        // AMP / No-JS mode does not inject these helpers
-                        "\nif (typeof globalThis.$RefreshHelpers$ === 'object' && \
+                        // No-JS mode does not inject these helpers
+                        "if (typeof globalThis.$RefreshHelpers$ === 'object' && \
                          globalThis.$RefreshHelpers !== null) { \
-                         __turbopack_context__.k.registerExports(module, \
-                         globalThis.$RefreshHelpers$); }\n" as Stmt
+                         __turbopack_context__.k.registerExports(__turbopack_context__.m, \
+                         globalThis.$RefreshHelpers$); }" as Stmt
                     );
 
                     match program {
@@ -350,35 +331,5 @@ pub fn remove_directives(program: &mut Program) {
                 .count();
             script.body.drain(0..directive_count);
         }
-    }
-}
-
-#[turbo_tasks::value(shared)]
-pub struct UnsupportedServerActionIssue {
-    pub file_path: ResolvedVc<FileSystemPath>,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for UnsupportedServerActionIssue {
-    fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Error
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!(
-            "Server actions (\"use server\") are not yet supported in Turbopack"
-        ))
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
     }
 }

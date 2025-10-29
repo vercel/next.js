@@ -153,12 +153,17 @@ async function loadComponentsImpl<N = any>({
   isAppPath,
   isDev,
   sriEnabled,
+  // When route modules are used, which is the case for the server calls to loadComponents, it no longer needs manifest to be loaded here.
+  // Static generation still needs the manifests to be loaded here.
+  // In the future static generation will also use route modules, and we will remove this flag.
+  needsManifestsForLegacyReasons,
 }: {
   distDir: string
   page: string
   isAppPath: boolean
   isDev: boolean
   sriEnabled: boolean
+  needsManifestsForLegacyReasons: boolean
 }): Promise<LoadComponentsReturnType<N>> {
   let DocumentMod = {}
   let AppMod = {}
@@ -169,130 +174,172 @@ async function loadComponentsImpl<N = any>({
     ])
   }
 
-  // In dev mode we retry loading a manifest file to handle a race condition
-  // that can occur while app and pages are compiling at the same time, and the
-  // build-manifest is still being written to disk while an app path is
-  // attempting to load.
-  const manifestLoadAttempts = isDev ? 3 : 1
+  if (needsManifestsForLegacyReasons) {
+    // In dev mode we retry loading a manifest file to handle a race condition
+    // that can occur while app and pages are compiling at the same time, and the
+    // build-manifest is still being written to disk while an app path is
+    // attempting to load.
+    const manifestLoadAttempts = isDev ? 3 : 1
 
-  let reactLoadableManifestPath
-  if (!process.env.TURBOPACK) {
-    reactLoadableManifestPath = join(distDir, REACT_LOADABLE_MANIFEST)
-  } else if (isAppPath) {
-    reactLoadableManifestPath = join(
-      distDir,
-      'server',
-      'app',
-      page,
-      REACT_LOADABLE_MANIFEST
-    )
-  } else {
-    reactLoadableManifestPath = join(
-      distDir,
-      'server',
-      'pages',
-      normalizePagePath(page),
-      REACT_LOADABLE_MANIFEST
-    )
-  }
+    let reactLoadableManifestPath: string
+    if (!process.env.TURBOPACK) {
+      reactLoadableManifestPath = join(
+        /* turbopackIgnore: true */ distDir,
+        REACT_LOADABLE_MANIFEST
+      )
+    } else if (isAppPath) {
+      reactLoadableManifestPath = join(
+        /* turbopackIgnore: true */ distDir,
+        'server',
+        'app',
+        page,
+        REACT_LOADABLE_MANIFEST
+      )
+    } else {
+      reactLoadableManifestPath = join(
+        /* turbopackIgnore: true */ distDir,
+        'server',
+        'pages',
+        normalizePagePath(page),
+        REACT_LOADABLE_MANIFEST
+      )
+    }
 
-  // Make sure to avoid loading the manifest for static metadata routes for better performance.
-  const hasClientManifest = !isStaticMetadataRoute(page)
+    // Make sure to avoid loading the manifest for static metadata routes for better performance.
+    const hasClientManifest = !isStaticMetadataRoute(page)
 
-  // Load the manifest files first
-  //
-  // Loading page-specific manifests shouldn't throw an error if the manifest couldn't be found, so
-  // that the `requirePage` call below will throw the correct error in that case
-  // (a `PageNotFoundError`).
-  const [
-    buildManifest,
-    reactLoadableManifest,
-    dynamicCssManifest,
-    clientReferenceManifest,
-    serverActionsManifest,
-    subresourceIntegrityManifest,
-  ] = await Promise.all([
-    loadManifestWithRetries<BuildManifest>(
-      join(distDir, BUILD_MANIFEST),
-      manifestLoadAttempts
-    ),
-    tryLoadManifestWithRetries<ReactLoadableManifest>(
-      reactLoadableManifestPath,
-      manifestLoadAttempts
-    ),
-    // This manifest will only exist in Pages dir && Production && Webpack.
-    isAppPath || process.env.TURBOPACK
-      ? undefined
-      : loadManifestWithRetries<DynamicCssManifest>(
-          join(distDir, `${DYNAMIC_CSS_MANIFEST}.json`),
-          manifestLoadAttempts
-        ).catch(() => undefined),
-    isAppPath && hasClientManifest
-      ? tryLoadClientReferenceManifest(
-          join(
-            distDir,
-            'server',
-            'app',
-            page.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
-          ),
-          page.replace(/%5F/g, '_'),
-          manifestLoadAttempts
-        )
-      : undefined,
-    isAppPath
-      ? loadManifestWithRetries<ActionManifest>(
-          join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json'),
-          manifestLoadAttempts
-        ).catch(() => null)
-      : null,
-    sriEnabled
-      ? loadManifestWithRetries<DeepReadonly<Record<string, string>>>(
-          join(distDir, 'server', SUBRESOURCE_INTEGRITY_MANIFEST + '.json')
-        ).catch(() => undefined)
-      : undefined,
-  ])
-
-  // Before requiring the actual page module, we have to set the reference
-  // manifests to our global store so Server Action's encryption util can access
-  // to them at the top level of the page module.
-  if (serverActionsManifest && clientReferenceManifest) {
-    setReferenceManifestsSingleton({
-      page,
+    // Load the manifest files first
+    //
+    // Loading page-specific manifests shouldn't throw an error if the manifest couldn't be found, so
+    // that the `requirePage` call below will throw the correct error in that case
+    // (a `PageNotFoundError`).
+    const [
+      buildManifest,
+      reactLoadableManifest,
+      dynamicCssManifest,
       clientReferenceManifest,
       serverActionsManifest,
-      serverModuleMap: createServerModuleMap({
+      subresourceIntegrityManifest,
+    ] = await Promise.all([
+      loadManifestWithRetries<BuildManifest>(
+        join(/* turbopackIgnore: true */ distDir, BUILD_MANIFEST),
+        manifestLoadAttempts
+      ),
+      tryLoadManifestWithRetries<ReactLoadableManifest>(
+        reactLoadableManifestPath,
+        manifestLoadAttempts
+      ),
+      // This manifest will only exist in Pages dir && Production && Webpack.
+      isAppPath || process.env.TURBOPACK
+        ? undefined
+        : loadManifestWithRetries<DynamicCssManifest>(
+            join(
+              /* turbopackIgnore: true */ distDir,
+              `${DYNAMIC_CSS_MANIFEST}.json`
+            ),
+            manifestLoadAttempts
+          ).catch(() => undefined),
+      isAppPath && hasClientManifest
+        ? tryLoadClientReferenceManifest(
+            join(
+              /* turbopackIgnore: true */ distDir,
+              'server',
+              'app',
+              page.replace(/%5F/g, '_') +
+                '_' +
+                CLIENT_REFERENCE_MANIFEST +
+                '.js'
+            ),
+            page.replace(/%5F/g, '_'),
+            manifestLoadAttempts
+          )
+        : undefined,
+      isAppPath
+        ? loadManifestWithRetries<ActionManifest>(
+            join(
+              /* turbopackIgnore: true */ distDir,
+              'server',
+              SERVER_REFERENCE_MANIFEST + '.json'
+            ),
+            manifestLoadAttempts
+          ).catch(() => null)
+        : null,
+      sriEnabled
+        ? loadManifestWithRetries<DeepReadonly<Record<string, string>>>(
+            join(
+              /* turbopackIgnore: true */ distDir,
+              'server',
+              SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+            )
+          ).catch(() => undefined)
+        : undefined,
+    ])
+
+    // Before requiring the actual page module, we have to set the reference
+    // manifests to our global store so Server Action's encryption util can access
+    // to them at the top level of the page module.
+    if (serverActionsManifest && clientReferenceManifest) {
+      setReferenceManifestsSingleton({
+        page,
+        clientReferenceManifest,
         serverActionsManifest,
-      }),
-    })
-  }
+        serverModuleMap: createServerModuleMap({
+          serverActionsManifest,
+        }),
+      })
+    }
 
-  const ComponentMod = await requirePage(page, distDir, isAppPath)
+    const ComponentMod = await requirePage(page, distDir, isAppPath)
 
-  const Component = interopDefault(ComponentMod)
-  const Document = interopDefault(DocumentMod)
-  const App = interopDefault(AppMod)
+    const Component = interopDefault(ComponentMod)
+    const Document = interopDefault(DocumentMod)
+    const App = interopDefault(AppMod)
 
-  const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
-    ComponentMod
+    const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
+      ComponentMod
 
-  return {
-    App,
-    Document,
-    Component,
-    buildManifest,
-    subresourceIntegrityManifest,
-    reactLoadableManifest: reactLoadableManifest || {},
-    dynamicCssManifest,
-    pageConfig: ComponentMod.config || {},
-    ComponentMod,
-    getServerSideProps,
-    getStaticProps,
-    getStaticPaths,
-    clientReferenceManifest,
-    serverActionsManifest,
-    isAppPath,
-    page,
-    routeModule,
+    return {
+      App,
+      Document,
+      Component,
+      buildManifest,
+      subresourceIntegrityManifest,
+      reactLoadableManifest: reactLoadableManifest || {},
+      dynamicCssManifest,
+      pageConfig: ComponentMod.config || {},
+      ComponentMod,
+      getServerSideProps,
+      getStaticProps,
+      getStaticPaths,
+      clientReferenceManifest,
+      serverActionsManifest,
+      isAppPath,
+      page,
+      routeModule,
+    }
+  } else {
+    const ComponentMod = await requirePage(page, distDir, isAppPath)
+
+    const Component = interopDefault(ComponentMod)
+    const Document = interopDefault(DocumentMod)
+    const App = interopDefault(AppMod)
+
+    const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
+      ComponentMod
+
+    return {
+      App,
+      Document,
+      Component,
+      pageConfig: ComponentMod.config || {},
+      ComponentMod,
+      getServerSideProps,
+      getStaticProps,
+      getStaticPaths,
+      isAppPath,
+      page,
+      routeModule,
+    } as any // temporary `as any` to make TypeScript not fail so that the tests will run on the PR.
   }
 }
 

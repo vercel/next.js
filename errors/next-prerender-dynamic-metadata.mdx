@@ -4,7 +4,7 @@ title: Cannot access Request information or uncached data in `generateMetadata()
 
 ## Why This Error Occurred
 
-When `dynamicIO` is enabled, Next.js requires that `generateMetadata()` not depend on uncached data or Request data unless some other part of the page also has similar requirements. The reason for this is that while you normally control your intention for what is allowed to be dynamic by adding or removing Suspense boundaries in your Layout and Page components you are not in control of rendering metadata itself.
+When `cacheComponents` is enabled, Next.js requires that `generateMetadata()` not depend on uncached data or Request data unless some other part of the page also has similar requirements. The reason for this is that while you normally control your intention for what is allowed to be dynamic by adding or removing Suspense boundaries in your Layout and Page components you are not in control of rendering metadata itself.
 
 The heuristic Next.js uses to understand your intent with `generateMetadata()` is to look at the data requirements of the rest of the route. If other components depend on Request data or uncached data, then we allow `generateMetadata()` to have similar data requirements. If the rest of your page has no dependence on this type of data, we require that `generateMetadata()` also not have this type of data dependence.
 
@@ -141,7 +141,7 @@ export default function Page() {
 }
 ```
 
-Note: The reason to structure this `DynamicMarker` as a self-contained Suspense boundary is to avoid blocking the actual content of the page from being prerendered. When Partial Prerendering is enabled alongside `dynamicIO`, the static shell will still contain all of the prerenderable content, and only the metadata will stream in dynamically.
+Note: The reason to structure this `DynamicMarker` as a self-contained Suspense boundary is to avoid blocking the actual content of the page from being prerendered. When Partial Prerendering is enabled alongside `cacheComponents`, the static shell will still contain all of the prerenderable content, and only the metadata will stream in dynamically.
 
 ## Useful Links
 

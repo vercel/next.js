@@ -153,7 +153,7 @@ impl<'a> PreparedApp<'a> {
         // be completed.
         page.evaluate_expression(format!("window.location='{destination}'"))
             .await
-            .context("Unable to evaluate javascript to naviagate to target page")?;
+            .context("Unable to evaluate javascript to navigate to target page")?;
 
         // Wait for HTML response completed
         loop {

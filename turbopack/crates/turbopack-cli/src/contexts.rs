@@ -8,8 +8,8 @@ use turbopack::{
     ModuleAssetContext,
     ecmascript::TreeShakingMode,
     module_options::{
-        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
+        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
+        TypescriptTransformOptions,
     },
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
@@ -44,29 +44,27 @@ impl fmt::Display for NodeEnv {
     }
 }
 
-async fn foreign_code_context_condition() -> Result<ContextCondition> {
-    Ok(ContextCondition::InDirectory("node_modules".to_string()))
+fn foreign_code_context_condition() -> ContextCondition {
+    ContextCondition::InDirectory("node_modules".to_string())
 }
 
 #[turbo_tasks::function]
-pub async fn get_client_import_map(
-    project_path: ResolvedVc<FileSystemPath>,
-) -> Result<Vc<ImportMap>> {
+pub async fn get_client_import_map(project_path: FileSystemPath) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
-    import_map.insert_singleton_alias("@swc/helpers", project_path);
-    import_map.insert_singleton_alias("styled-jsx", project_path);
-    import_map.insert_singleton_alias("react", project_path);
-    import_map.insert_singleton_alias("react-dom", project_path);
+    import_map.insert_singleton_alias(rcstr!("@swc/helpers"), project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("styled-jsx"), project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("react"), project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("react-dom"), project_path.clone());
 
     import_map.insert_wildcard_alias(
-        "@vercel/turbopack-ecmascript-runtime/",
+        rcstr!("@vercel/turbopack-ecmascript-runtime/"),
         ImportMapping::PrimaryAlternative(
-            "./*".into(),
+            rcstr!("./*"),
             Some(
                 turbopack_ecmascript_runtime::embed_fs()
                     .root()
-                    .to_resolved()
+                    .owned()
                     .await?,
             ),
         )
@@ -78,13 +76,15 @@ pub async fn get_client_import_map(
 
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<ResolveOptionsContext>> {
-    let next_client_import_map = get_client_import_map(project_path).to_resolved().await?;
+    let next_client_import_map = get_client_import_map(project_path.clone())
+        .to_resolved()
+        .await?;
     let module_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().to_resolved().await?),
-        custom_conditions: vec![node_env.await?.to_string().into(), "browser".into()],
+        enable_node_modules: Some(project_path.root().owned().await?),
+        custom_conditions: vec![node_env.await?.to_string().into(), rcstr!("browser")],
         import_map: Some(next_client_import_map),
         browser: true,
         module: true,
@@ -94,7 +94,7 @@ pub async fn get_client_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         rules: vec![(
-            foreign_code_context_condition().await?,
+            foreign_code_context_condition(),
             module_options_context.clone().resolved_cell(),
         )],
         ..module_options_context
@@ -104,7 +104,7 @@ pub async fn get_client_resolve_options_context(
 
 #[turbo_tasks::function]
 async fn get_client_module_options_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     execution_context: ResolvedVc<ExecutionContext>,
     env: ResolvedVc<Environment>,
     node_env: Vc<NodeEnv>,
@@ -119,10 +119,11 @@ async fn get_client_module_options_context(
         ..Default::default()
     };
 
-    let resolve_options_context = get_client_resolve_options_context(project_path, node_env);
+    let resolve_options_context =
+        get_client_resolve_options_context(project_path.clone(), node_env);
 
     let enable_react_refresh = is_dev
-        && assert_can_resolve_react_refresh(project_path, resolve_options_context)
+        && assert_can_resolve_react_refresh(project_path.clone(), resolve_options_context)
             .await?
             .is_found();
 
@@ -132,21 +133,6 @@ async fn get_client_module_options_context(
             ..Default::default()
         }
         .resolved_cell(),
-    );
-
-    let conditions = RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".js".to_string()),
-        RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-        RuleCondition::ResourcePathEndsWith(".ts".to_string()),
-        RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-    ]);
-
-    let module_rules = ModuleRule::new(
-        conditions,
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![]),
-        }],
     );
 
     let module_options_context = ModuleOptionsContext {
@@ -160,10 +146,9 @@ async fn get_client_module_options_context(
         },
         enable_postcss_transform: Some(PostCssTransformOptions::default().resolved_cell()),
         rules: vec![(
-            foreign_code_context_condition().await?,
+            foreign_code_context_condition(),
             module_options_context.clone().resolved_cell(),
         )],
-        module_rules: vec![module_rules],
         ..module_options_context
     }
     .cell();
@@ -173,13 +158,14 @@ async fn get_client_module_options_context(
 
 #[turbo_tasks::function]
 pub fn get_client_asset_context(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     execution_context: Vc<ExecutionContext>,
     compile_time_info: Vc<CompileTimeInfo>,
     node_env: Vc<NodeEnv>,
     source_maps_type: SourceMapsType,
 ) -> Vc<Box<dyn AssetContext>> {
-    let resolve_options_context = get_client_resolve_options_context(project_path, node_env);
+    let resolve_options_context =
+        get_client_resolve_options_context(project_path.clone(), node_env);
     let module_options_context = get_client_module_options_context(
         project_path,
         execution_context,

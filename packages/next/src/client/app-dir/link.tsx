@@ -4,7 +4,6 @@ import React, { createContext, useContext, useOptimistic, useRef } from 'react'
 import type { UrlObject } from 'url'
 import { formatUrl } from '../../shared/lib/router/utils/format-url'
 import { AppRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
-import { PrefetchKind } from '../components/router-reducer/router-reducer-types'
 import { useMergedRef } from '../use-merged-ref'
 import { isAbsoluteUrl } from '../../shared/lib/utils'
 import { addBasePath } from '../add-base-path'
@@ -19,7 +18,10 @@ import {
   type LinkInstance,
 } from '../components/links'
 import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
-import { dispatchNavigateAction } from '../components/app-router-instance'
+import {
+  FetchStrategy,
+  type PrefetchTaskFetchStrategy,
+} from '../components/segment-cache'
 import { errorOnce } from '../../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
@@ -117,7 +119,7 @@ type InternalLinkProps = {
    *
    * @example
    * ```tsx
-   * <Link href="/dashboard" passHref>
+   * <Link href="/dashboard" passHref legacyBehavior>
    *   <MyStyledAnchor>Dashboard</MyStyledAnchor>
    * </Link>
    * ```
@@ -154,7 +156,7 @@ type InternalLinkProps = {
   prefetch?: boolean | 'auto' | null
 
   /**
-   * (unstable) Switch to a dynamic prefetch on hover. Effectively the same as
+   * (unstable) Switch to a full prefetch on hover. Effectively the same as
    * updating the prefetch prop to `true` in a mouse event.
    */
   unstable_dynamicOnHover?: boolean
@@ -182,10 +184,9 @@ type InternalLinkProps = {
   locale?: string | false
 
   /**
-   * Enable legacy link behavior, requiring an `<a>` tag to wrap the child content
-   * if the child is a string or number.
+   * Enable legacy link behavior.
    *
-   * @deprecated This will be removed in v16
+   * @deprecated This will be removed in a future version
    * @defaultValue `false`
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
@@ -216,7 +217,7 @@ type InternalLinkProps = {
 // adding this to the publicly exported type currently breaks existing apps
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
-// isn't generated yet. It will be replaced when the webpack plugin runs.
+// isn't generated yet. It will be replaced when type generation runs.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
@@ -244,55 +245,59 @@ function linkClicked(
   scroll?: boolean,
   onNavigate?: OnNavigateEventHandler
 ): void {
-  const { nodeName } = e.currentTarget
+  if (typeof window !== 'undefined') {
+    const { nodeName } = e.currentTarget
 
-  // anchors inside an svg have a lowercase nodeName
-  const isAnchorNodeName = nodeName.toUpperCase() === 'A'
-
-  if (
-    (isAnchorNodeName && isModifiedEvent(e)) ||
-    e.currentTarget.hasAttribute('download')
-  ) {
-    // ignore click for browser’s default behavior
-    return
-  }
-
-  if (!isLocalURL(href)) {
-    if (replace) {
-      // browser default behavior does not replace the history state
-      // so we need to do it manually
-      e.preventDefault()
-      location.replace(href)
-    }
-
-    // ignore click for browser’s default behavior
-    return
-  }
-
-  e.preventDefault()
-
-  if (onNavigate) {
-    let isDefaultPrevented = false
-
-    onNavigate({
-      preventDefault: () => {
-        isDefaultPrevented = true
-      },
-    })
-
-    if (isDefaultPrevented) {
+    // anchors inside an svg have a lowercase nodeName
+    const isAnchorNodeName = nodeName.toUpperCase() === 'A'
+    if (
+      (isAnchorNodeName && isModifiedEvent(e)) ||
+      e.currentTarget.hasAttribute('download')
+    ) {
+      // ignore click for browser’s default behavior
       return
     }
-  }
 
-  React.startTransition(() => {
-    dispatchNavigateAction(
-      as || href,
-      replace ? 'replace' : 'push',
-      scroll ?? true,
-      linkInstanceRef.current
-    )
-  })
+    if (!isLocalURL(href)) {
+      if (replace) {
+        // browser default behavior does not replace the history state
+        // so we need to do it manually
+        e.preventDefault()
+        location.replace(href)
+      }
+
+      // ignore click for browser’s default behavior
+      return
+    }
+
+    e.preventDefault()
+
+    if (onNavigate) {
+      let isDefaultPrevented = false
+
+      onNavigate({
+        preventDefault: () => {
+          isDefaultPrevented = true
+        },
+      })
+
+      if (isDefaultPrevented) {
+        return
+      }
+    }
+
+    const { dispatchNavigateAction } =
+      require('../components/app-router-instance') as typeof import('../components/app-router-instance')
+
+    React.startTransition(() => {
+      dispatchNavigateAction(
+        as || href,
+        replace ? 'replace' : 'push',
+        scroll ?? true,
+        linkInstanceRef.current
+      )
+    })
+  }
 }
 
 function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
@@ -356,17 +361,12 @@ export default function LinkComponent(
   const router = React.useContext(AppRouterContext)
 
   const prefetchEnabled = prefetchProp !== false
-  /**
-   * The possible states for prefetch are:
-   * - null: this is the default "auto" mode, where we will prefetch partially if the link is in the viewport
-   * - true: we will prefetch if the link is visible and prefetch the full page, not just partially
-   * - false: we will not prefetch if in the viewport at all
-   * - 'unstable_dynamicOnHover': this starts in "auto" mode, but switches to "full" when the link is hovered
-   */
-  const appPrefetchKind =
-    prefetchProp === null || prefetchProp === 'auto'
-      ? PrefetchKind.AUTO
-      : PrefetchKind.FULL
+
+  const fetchStrategy =
+    prefetchProp !== false
+      ? getFetchStrategyFromPrefetchProp(prefetchProp)
+      : // TODO: it makes no sense to assign a fetchStrategy when prefetching is disabled.
+        FetchStrategy.PPR
 
   if (process.env.NODE_ENV !== 'production') {
     function createPropError(args: {
@@ -403,7 +403,6 @@ export default function LinkComponent(
         }
       } else {
         // TypeScript trick for type-guarding:
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const _: never = key
       }
     })
@@ -479,7 +478,6 @@ export default function LinkComponent(
         }
       } else {
         // TypeScript trick for type-guarding:
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const _: never = key
       }
     })
@@ -527,6 +525,12 @@ export default function LinkComponent(
   // This will return the first child, if multiple are provided it will throw an error
   let child: any
   if (legacyBehavior) {
+    if ((children as any)?.$$typeof === Symbol.for('react.lazy')) {
+      throw new Error(
+        `\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.`
+      )
+    }
+
     if (process.env.NODE_ENV === 'development') {
       if (onClick) {
         console.warn(
@@ -581,7 +585,7 @@ export default function LinkComponent(
           element,
           href,
           router,
-          appPrefetchKind,
+          fetchStrategy,
           prefetchEnabled,
           setOptimisticLinkStatus
         )
@@ -595,7 +599,7 @@ export default function LinkComponent(
         unmountPrefetchableInstance(element)
       }
     },
-    [prefetchEnabled, href, router, appPrefetchKind, setOptimisticLinkStatus]
+    [prefetchEnabled, href, router, fetchStrategy, setOptimisticLinkStatus]
   )
 
   const mergedRef = useMergedRef(observeLinkVisibilityOnMount, childRef)
@@ -632,11 +636,9 @@ export default function LinkComponent(
       if (!router) {
         return
       }
-
       if (e.defaultPrevented) {
         return
       }
-
       linkClicked(e, href, as, linkInstanceRef, replace, scroll, onNavigate)
     },
     onMouseEnter(e) {
@@ -655,7 +657,6 @@ export default function LinkComponent(
       if (!router) {
         return
       }
-
       if (!prefetchEnabled || process.env.NODE_ENV === 'development') {
         return
       }
@@ -684,7 +685,6 @@ export default function LinkComponent(
           if (!router) {
             return
           }
-
           if (!prefetchEnabled) {
             return
           }
@@ -697,8 +697,6 @@ export default function LinkComponent(
         },
   }
 
-  // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
-  // defined, we specify the current 'href', so that repetition is not needed by the user.
   // If the url is absolute, we can bypass the logic to prepend the basePath.
   if (isAbsoluteUrl(as)) {
     childProps.href = as
@@ -743,4 +741,34 @@ const LinkStatusContext = createContext<
 
 export const useLinkStatus = () => {
   return useContext(LinkStatusContext)
+}
+
+function getFetchStrategyFromPrefetchProp(
+  prefetchProp: Exclude<LinkProps['prefetch'], undefined | false>
+): PrefetchTaskFetchStrategy {
+  if (
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    process.env.__NEXT_CLIENT_SEGMENT_CACHE
+  ) {
+    if (prefetchProp === true) {
+      return FetchStrategy.Full
+    }
+
+    // `null` or `"auto"`: this is the default "auto" mode, where we will prefetch partially if the link is in the viewport.
+    // This will also include invalid prop values that don't match the types specified here.
+    // (although those should've been filtered out by prop validation in dev)
+    prefetchProp satisfies null | 'auto'
+    // In `clientSegmentCache`, we default to PPR, and we'll discover whether or not the route supports it with the initial prefetch.
+    // If we're not using `clientSegmentCache`, this will be converted into a `PrefetchKind.AUTO`.
+    return FetchStrategy.PPR
+  } else {
+    return prefetchProp === null || prefetchProp === 'auto'
+      ? // In `clientSegmentCache`, we default to PPR, and we'll discover whether or not the route supports it with the initial prefetch.
+        // If we're not using `clientSegmentCache`, this will be converted into a `PrefetchKind.AUTO`.
+        FetchStrategy.PPR
+      : // In the old implementation without runtime prefetches, `prefetch={true}` forces all dynamic data to be prefetched.
+        // To preserve backwards-compatibility, anything other than `false`, `null`, or `"auto"` results in a full prefetch.
+        // (although invalid values should've been filtered out by prop validation in dev)
+        FetchStrategy.Full
+  }
 }

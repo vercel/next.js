@@ -1,4 +1,3 @@
-// tslint:disable:no-console
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../../server/config'
 import type { MittEmitter } from '../mitt'
@@ -22,7 +21,6 @@ import mitt from '../mitt'
 import { getLocationOrigin, getURL, loadGetInitialProps, ST } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
-import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
@@ -42,9 +40,16 @@ import { isLocalURL } from './utils/is-local-url'
 import { isBot } from './utils/is-bot'
 import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
-import { handleSmoothScroll } from './utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
 import type { Params } from '../../../server/request/params'
 import { MATCHED_PATH_HEADER } from '../../../lib/constants'
+
+let resolveRewrites: typeof import('./utils/resolve-rewrites').default
+if (process.env.__NEXT_HAS_REWRITES) {
+  resolveRewrites = (
+    require('./utils/resolve-rewrites') as typeof import('./utils/resolve-rewrites')
+  ).default
+}
 
 declare global {
   interface Window {
@@ -417,8 +422,7 @@ const manualScrollRestoration =
   !!(function () {
     try {
       let v = '__next'
-      // eslint-disable-next-line no-sequences
-      return sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true
+      return (sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true)
     } catch (n) {}
   })()
 
@@ -2280,7 +2284,7 @@ export default class Router implements BaseRouter {
   scrollToHash(as: string): void {
     const [, hash = ''] = as.split('#', 2)
 
-    handleSmoothScroll(
+    disableSmoothScrollDuringRouteTransition(
       () => {
         // Scroll to top if the hash is just `#` with no value or `#top`
         // To mirror browsers

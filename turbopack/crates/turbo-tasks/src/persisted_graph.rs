@@ -150,7 +150,7 @@ pub struct DeactivateResult {
     pub more_tasks_to_deactivate: SmallVec<[TaskId; 4]>,
 }
 
-pub type TypeIds = SmallVec<[TaskId; 4]>;
+pub type TaskIds = SmallVec<[TaskId; 4]>;
 
 pub trait PersistedGraph: Sync + Send {
     /// read task data and state for a specific task.
@@ -253,7 +253,7 @@ pub trait PersistedGraph: Sync + Send {
 
     /// Get tasks that have active update pending that need to be continued
     /// returns (tasks_to_activate, tasks_to_deactivate)
-    fn get_pending_active_update(&self, api: &dyn PersistedGraphApi) -> Result<(TypeIds, TypeIds)>;
+    fn get_pending_active_update(&self, api: &dyn PersistedGraphApi) -> Result<(TaskIds, TaskIds)>;
 
     /// Stop operations
     #[allow(unused_variables)]

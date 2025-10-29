@@ -1,10 +1,10 @@
-use std::ops::Deref;
+use std::{ops::Deref, sync::LazyLock};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::next_app::{AppPage, PageSegment, PageType};
@@ -42,11 +42,15 @@ pub struct MetadataFileMatch<'a> {
 }
 
 fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
-    let (_whole, stem, number) = lazy_regex::regex_captures!(
-        "^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$",
-        stem
-    )?;
-
+    static NUMBERED_METADATA_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new("^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$").unwrap()
+    });
+    let captures = NUMBERED_METADATA_RE.captures(stem)?;
+    // these captures must be defined if `captures` is `Some(...)`.
+    let (stem, number) = (
+        captures.get(1).unwrap().as_str(),
+        captures.get(2).unwrap().as_str(),
+    );
     Some((stem, number))
 }
 
@@ -83,12 +87,11 @@ fn match_metadata_file<'a>(
     })
 }
 
-pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String> {
-    let stem = &*path.file_stem().await?;
-    let ext = &*path.extension().await?;
+pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
+    let stem = path.file_stem();
+    let mut ext = path.extension();
 
-    let name = stem.as_deref().unwrap_or_default();
-    let mut ext = ext.as_str();
+    let name = stem.unwrap_or_default();
     if ext == "jpg" {
         ext = "jpeg"
     }
@@ -299,7 +302,7 @@ fn format_radix(mut x: u32, radix: u32) -> String {
 /// /(post)/sitemap -> /sitemap
 fn get_metadata_route_suffix(page: &str) -> Option<String> {
     // skip sitemap
-    if page.ends_with("/sitemap") {
+    if page.ends_with("/sitemap") || page.ends_with("/sitemap.xml") {
         return None;
     }
 

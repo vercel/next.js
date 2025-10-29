@@ -1,2 +1,2 @@
-export { styles } from './styles'
+import './style.css'
 export { Toast } from './toast'

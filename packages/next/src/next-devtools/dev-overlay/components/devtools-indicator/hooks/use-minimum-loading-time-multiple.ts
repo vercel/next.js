@@ -31,6 +31,7 @@ export function useMinimumLoadingTimeMultiple(
       if (loadStartTimeRef.current === null) {
         loadStartTimeRef.current = Date.now()
       }
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO
       setIsLoading(true)
     } else {
       // If we're exiting the "loading" state:

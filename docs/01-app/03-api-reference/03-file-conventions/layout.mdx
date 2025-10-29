@@ -61,8 +61,10 @@ A promise that resolves to an object containing the [dynamic route parameters](/
 
 ```tsx filename="app/dashboard/[team]/layout.tsx" switcher
 export default async function Layout({
+  children,
   params,
 }: {
+  children: React.ReactNode
   params: Promise<{ team: string }>
 }) {
   const { team } = await params
@@ -70,7 +72,7 @@ export default async function Layout({
 ```
 
 ```jsx filename="app/dashboard/[team]/layout.js" switcher
-export default async function Layout({ params }) {
+export default async function Layout({ children, params }) {
   const { team } = await params
 }
 ```
@@ -84,9 +86,30 @@ export default async function Layout({ params }) {
 - Since the `params` prop is a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access the values.
   - In version 14 and earlier, `params` was a synchronous prop. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
 
+### Layout Props Helper
+
+You can type layouts with `LayoutProps` to get a strongly typed `params` and named slots inferred from your directory structure. `LayoutProps` is a globally available helper.
+
+```tsx filename="app/dashboard/layout.tsx"
+export default function Layout(props: LayoutProps<'/dashboard'>) {
+  return (
+    <section>
+      {props.children}
+      {/* If you have app/dashboard/@analytics, it appears as a typed slot: */}
+      {/* {props.analytics} */}
+    </section>
+  )
+}
+```
+
+> **Good to know**:
+>
+> - Types are generated during `next dev`, `next build` or `next typegen`.
+> - After type generation, the `LayoutProps` helper is globally available. It doesn't need to be imported.
+
 ### Root Layout
 
-The `app` directory **must** include a root `app/layout.js`.
+The `app` directory **must** include a **root layout**, which is the top-most layout in the root `app` directory. Typically, the root layout is `app/layout.js`.
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -114,8 +137,9 @@ export default function RootLayout({ children }) {
 
 - The root layout **must** define `<html>` and `<body>` tags.
   - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/getting-started/metadata-and-og-images) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
-- You can use [route groups](/docs/app/api-reference/file-conventions/route-groups) to create multiple root layouts.
+- You can use [route groups](/docs/app/api-reference/file-conventions/route-groups) to create **multiple root layouts**.
   - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load. This **only** applies to multiple root layouts.
+- The root layout can be under a **dynamic segment**, for example when implementing [internationalization](/docs/app/guides/internationalization) with `app/[lang]/layout.js`.
 
 ## Caveats
 
@@ -211,7 +235,7 @@ export default function Layout({ children }) {
 
 Layouts do not re-render on navigation, so they do not access pathname which would otherwise become stale.
 
-To access the current pathname, you can read it inside a Client Component using the [`usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname) hook. Since Client Components re-render during navigation, they have access to the latest pathname.
+To access the current pathname, you can read it inside a Client Component using the [`usePathname`](/docs/app/api-reference/functions/use-pathname) hook. Since Client Components re-render during navigation, they have access to the latest pathname.
 
 ```tsx filename="app/ui/breadcrumbs.tsx" switcher
 'use client'
@@ -289,7 +313,7 @@ export default function Layout({ children }) {
 
 Layouts cannot pass data to their `children`. However, you can fetch the same data in a route more than once, and use React [`cache`](https://react.dev/reference/react/cache) to dedupe the requests without affecting performance.
 
-Alternatively, when using [`fetch`](https://nextjs.org/docs/app/api-reference/functions/fetch)in Next.js, requests are automatically deduped.
+Alternatively, when using [`fetch`](/docs/app/api-reference/functions/fetch)in Next.js, requests are automatically deduped.
 
 ```tsx filename="app/lib/data.ts" switcher
 export async function getUser(id: string) {
