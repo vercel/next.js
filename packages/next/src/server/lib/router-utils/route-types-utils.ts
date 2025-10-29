@@ -377,7 +377,7 @@ export async function writeValidatorFile(
   const dirname = path.dirname(filePath)
 
   if (!fs.existsSync(dirname)) {
-    await fs.promised.mkDir(dirname, { recursive: true })
+    await fs.promises.mkdir(dirname, { recursive: true })
   }
 
   await fs.promises.writeFile(filePath, generateValidatorFile(manifest))
