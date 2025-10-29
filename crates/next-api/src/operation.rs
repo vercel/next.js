@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -22,6 +23,7 @@ use crate::{
 /// This is needed to call `write_to_disk` which expects an `OperationVc<Endpoint>`.
 #[turbo_tasks::value(shared)]
 pub struct EntrypointsOperation {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub routes: FxIndexMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
@@ -204,13 +206,33 @@ async fn pick_endpoint(
     Ok(Vc::cell(endpoint))
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub struct InstrumentationOperation {
     pub node_js: OperationVc<OptionEndpoint>,
     pub edge: OperationVc<OptionEndpoint>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
 pub struct MiddlewareOperation {
     pub endpoint: OperationVc<OptionEndpoint>,
     pub is_proxy: bool,
@@ -244,6 +266,8 @@ pub enum RouteOperation {
     Clone,
     Debug,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct AppPageRouteOperation {
     pub original_name: RcStr,

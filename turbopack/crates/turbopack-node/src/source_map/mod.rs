@@ -8,7 +8,6 @@ use anyhow::Result;
 use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
-pub use trace::{StackFrame, TraceResult, trace_source_map};
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
     FileLinesContent, FileSystemPath, source_context::get_source_context, to_sys_path,
@@ -20,6 +19,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
+pub use crate::source_map::trace::{StackFrame, TraceResult, trace_source_map};
 use crate::{AssetsForSourceMapping, pool::FormattingMode};
 
 pub mod trace;

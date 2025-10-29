@@ -20,7 +20,10 @@ use super::{
 };
 
 #[turbo_tasks::value(transparent)]
-struct OutputAssetsMap(FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>);
+struct OutputAssetsMap(
+    #[bincode(with = "turbo_bincode::indexmap")]
+    FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
+);
 
 type ExpandedState = State<FxHashSet<RcStr>>;
 

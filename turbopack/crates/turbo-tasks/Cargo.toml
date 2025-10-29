@@ -25,6 +25,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
+bincode = { workspace = true }
 concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
 either = { workspace = true }

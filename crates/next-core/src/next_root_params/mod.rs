@@ -67,6 +67,7 @@ async fn get_next_root_params_mapping(
 #[turbo_tasks::value]
 struct NextRootParamsMapper {
     is_root_params_enabled: ResolvedVc<bool>,
+    #[bincode(with = "turbo_bincode::either")]
     context_type: Either<ServerContextType, ClientContextType>,
     collected_root_params: Option<ResolvedVc<CollectedRootParams>>,
 }

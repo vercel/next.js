@@ -394,6 +394,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 name = "auto-hash-map"
 version = "0.1.0"
 dependencies = [
+ "bincode 2.0.1",
  "hashbrown 0.14.5",
  "rustc-hash 2.1.1",
  "serde",
@@ -4261,6 +4262,7 @@ name = "next-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "byteorder",
  "either",
  "futures",
@@ -4275,6 +4277,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
@@ -4337,6 +4340,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.21.4",
+ "bincode 2.0.1",
  "either",
  "futures",
  "indexmap 2.9.0",
@@ -4361,6 +4365,7 @@ dependencies = [
  "swc_sourcemap",
  "thiserror 1.0.69",
  "tracing",
+ "turbo-bincode",
  "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
@@ -4425,6 +4430,7 @@ name = "next-swc-napi"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "console-subscriber",
  "dhat",
  "either",
@@ -6762,7 +6768,9 @@ version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 dependencies = [
+ "bincode 2.0.1",
  "serde",
+ "unty",
 ]
 
 [[package]]
@@ -9108,6 +9116,7 @@ name = "turbo-esregex"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "regex",
  "regress",
  "serde",
@@ -9156,6 +9165,7 @@ version = "0.1.0"
 name = "turbo-rcstr"
 version = "0.1.0"
 dependencies = [
+ "bincode 2.0.1",
  "bytes-str",
  "codspeed-criterion-compat",
  "napi",
@@ -9195,6 +9205,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "auto-hash-map",
+ "bincode 2.0.1",
  "codspeed-criterion-compat",
  "concurrent-queue",
  "dashmap 6.1.0",
@@ -9234,6 +9245,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "auto-hash-map",
+ "bincode 2.0.1",
  "bitfield",
  "byteorder",
  "codspeed-criterion-compat",
@@ -9287,6 +9299,7 @@ name = "turbo-tasks-bytes"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "bytes",
  "futures",
  "serde",
@@ -9301,6 +9314,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dotenvs",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
@@ -9331,6 +9345,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "auto-hash-map",
+ "bincode 2.0.1",
  "bitflags 1.3.2",
  "bytes",
  "codspeed-criterion-compat",
@@ -9356,6 +9371,7 @@ dependencies = [
  "tokio",
  "tracing",
  "triomphe 0.1.12",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
@@ -9446,6 +9462,7 @@ name = "turbopack"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "either",
  "regex",
  "rustc-hash 2.1.1",
@@ -9478,6 +9495,7 @@ name = "turbopack-analyze"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
@@ -9521,12 +9539,14 @@ name = "turbopack-browser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "either",
  "indoc",
  "serde",
  "serde_json",
  "serde_qs",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
@@ -9604,6 +9624,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "auto-hash-map",
+ "bincode 2.0.1",
  "bitfield",
  "browserslist-rs",
  "bytes-str",
@@ -9627,6 +9648,7 @@ dependencies = [
  "swc_sourcemap",
  "tokio",
  "tracing",
+ "turbo-bincode",
  "turbo-prehash",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9659,6 +9681,7 @@ name = "turbopack-css"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "indoc",
  "lightningcss",
  "parcel_selectors",
@@ -9669,6 +9692,7 @@ dependencies = [
  "swc_core",
  "tokio",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
@@ -9683,6 +9707,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "auto-hash-map",
+ "bincode 2.0.1",
  "flate2",
  "futures",
  "hyper 0.14.32",
@@ -9700,6 +9725,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
@@ -9720,6 +9746,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "auto-hash-map",
+ "bincode 2.0.1",
  "bytes-str",
  "codspeed-criterion-compat",
  "dashmap 6.1.0",
@@ -9743,6 +9770,7 @@ dependencies = [
  "swc_sourcemap",
  "tokio",
  "tracing",
+ "turbo-bincode",
  "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9775,6 +9803,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bincode 2.0.1",
  "indexmap 2.9.0",
  "rustc-hash 2.1.1",
  "serde",
@@ -9827,6 +9856,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.21.4",
+ "bincode 2.0.1",
  "image",
  "mime",
  "once_cell",
@@ -9834,6 +9864,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_with",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
@@ -9902,6 +9933,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "base64 0.21.4",
+ "bincode 2.0.1",
  "const_format",
  "either",
  "futures",
@@ -9917,6 +9949,7 @@ dependencies = [
  "serde_with",
  "tokio",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-bytes",
@@ -9933,8 +9966,10 @@ name = "turbopack-nodejs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "indoc",
  "tracing",
+ "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
@@ -9992,6 +10027,7 @@ name = "turbopack-test-utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "once_cell",
  "regex",
  "rustc-hash 2.1.1",
@@ -10010,6 +10046,7 @@ name = "turbopack-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "dunce",
  "once_cell",
  "rustc-hash 2.1.1",
@@ -10109,6 +10146,7 @@ name = "turbopack-wasm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode 2.0.1",
  "indoc",
  "serde",
  "turbo-rcstr",
@@ -10465,8 +10503,7 @@ dependencies = [
 [[package]]
 name = "virtue"
 version = "0.0.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
+source = "git+https://github.com/bgw/virtue.git?branch=bgw%2Ffix-generic-default-parsing#e386f35cf7f22d04a4db32231904cbe5dc52c01d"
 
 [[package]]
 name = "vlq"

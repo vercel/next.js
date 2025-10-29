@@ -302,8 +302,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[derive(
                     turbo_tasks::macro_helpers::serde::Serialize,
                     turbo_tasks::macro_helpers::serde::Deserialize,
+                    turbo_tasks::macro_helpers::bincode::Encode,
+                    turbo_tasks::macro_helpers::bincode::Decode,
                 )]
                 #[serde(crate = "turbo_tasks::macro_helpers::serde")]
+                #[bincode(crate = "turbo_tasks::macro_helpers::bincode")]
             });
             if transparent {
                 struct_attributes.push(quote! {

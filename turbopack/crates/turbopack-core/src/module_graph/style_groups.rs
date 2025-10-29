@@ -37,6 +37,7 @@ pub struct StyleGroupsConfig {
 pub struct StyleGroups {
     /// The key chunk item is contained in the value chunk item batch. All chunk items that are not
     /// contained in this map are placed in a separate chunk per chunk item.
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub shared_chunk_items:
         FxIndexMap<ChunkItemWithAsyncModuleInfo, ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>,
 }

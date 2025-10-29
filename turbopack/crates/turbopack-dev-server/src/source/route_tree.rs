@@ -1,6 +1,7 @@
 use std::{fmt::Write, mem::replace};
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -8,7 +9,7 @@ use turbo_tasks::{
     fxindexmap, trace::TraceRawVcs,
 };
 
-use super::{GetContentSourceContent, GetContentSourceContents};
+use crate::source::{GetContentSourceContent, GetContentSourceContents};
 
 /// The type of the route. This will decide about the remaining segments of the
 /// route after the base.
@@ -24,7 +25,18 @@ pub enum RouteType {
 
 /// Some normal segment of a route.
 #[derive(
-    TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+    TaskInput,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum BaseSegment {
     Static(RcStr),
@@ -106,6 +118,7 @@ impl RouteTrees {
 pub struct RouteTree {
     base: Vec<BaseSegment>,
     sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     static_segments: FxIndexMap<RcStr, ResolvedVc<RouteTree>>,
     dynamic_segments: Vec<ResolvedVc<RouteTree>>,
     catch_all_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,

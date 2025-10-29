@@ -1,3 +1,4 @@
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbo_tasks_hash::DeterministicHash;
@@ -23,6 +24,8 @@ const U8_CR: u8 = 0x0D;
     Deserialize,
     DeterministicHash,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct SourcePos {
     /// The line, 0-indexed.
