@@ -9666,6 +9666,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "strsim 0.11.1",
+ "swc_atoms 8.0.1",
  "swc_core 46.0.2",
  "swc_sourcemap",
  "tokio",
