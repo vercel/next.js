@@ -3,6 +3,7 @@ import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import type { PreloadCallbacks } from './types'
+import { ReactServer } from './entry-base'
 
 /**
  * Abstracts the rendering of CSS files based on whether they are inlined or not.
@@ -14,9 +15,6 @@ export function renderCssResource(
   ctx: AppRenderContext,
   preloadCallbacks?: PreloadCallbacks
 ) {
-  const {
-    componentMod: { createElement },
-  } = ctx
   return entryCssFiles.map((entryCssFile, index) => {
     // `Precedence` is an opt-in signal for React to handle resource
     // loading and deduplication, etc. It's also used as the key to sort
@@ -40,7 +38,7 @@ export function renderCssResource(
     )}${getAssetQueryString(ctx, true)}`
 
     if (entryCssFile.inlined && !ctx.parsedRequestHeaders.isRSCRequest) {
-      return createElement(
+      return ReactServer.createElement(
         'style',
         {
           key: index,
@@ -60,7 +58,7 @@ export function renderCssResource(
       )
     })
 
-    return createElement('link', {
+    return ReactServer.createElement('link', {
       key: index,
       rel: 'stylesheet',
       href: fullHref,

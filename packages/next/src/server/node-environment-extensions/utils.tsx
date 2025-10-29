@@ -1,13 +1,12 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import {
-  workUnitAsyncStorage,
-  type PrerenderStoreModern,
-} from '../app-render/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   abortOnSynchronousPlatformIOAccess,
   trackSynchronousPlatformIOAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { InvariantError } from '../../shared/lib/invariant-error'
+
+import { getServerReact, getClientReact } from '../runtime-reacts.external'
 
 type ApiType = 'time' | 'random' | 'crypto'
 
@@ -47,7 +46,7 @@ export function io(expression: string, type: ApiType) {
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
-          applyOwnerStack(new Error(message), workUnitStore),
+          applyOwnerStack(new Error(message)),
           workUnitStore
         )
       }
@@ -79,7 +78,7 @@ export function io(expression: string, type: ApiType) {
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
-          applyOwnerStack(new Error(message), workUnitStore),
+          applyOwnerStack(new Error(message)),
           workUnitStore
         )
       }
@@ -101,16 +100,15 @@ export function io(expression: string, type: ApiType) {
   }
 }
 
-function applyOwnerStack(error: Error, workUnitStore: PrerenderStoreModern) {
+function applyOwnerStack(error: Error) {
   // TODO: Instead of stitching the stacks here, we should log the original
   // error as-is when it occurs, and let `patchErrorInspect` handle adding the
   // owner stack, instead of logging it deferred in the `LogSafely` component
   // via `throwIfDisallowedDynamic`.
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    workUnitStore.captureOwnerStack
-  ) {
-    const ownerStack = workUnitStore.captureOwnerStack()
+  if (process.env.NODE_ENV !== 'production') {
+    const ownerStack =
+      getClientReact()?.captureOwnerStack() ??
+      getServerReact()?.captureOwnerStack()
 
     if (ownerStack) {
       let stack = ownerStack
