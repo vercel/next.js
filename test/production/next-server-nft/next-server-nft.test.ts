@@ -321,6 +321,7 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/next/dist/server/route-modules/pages/vendored/contexts/loadable.js",
          "/node_modules/next/dist/server/route-modules/pages/vendored/contexts/router-context.js",
          "/node_modules/next/dist/server/route-modules/pages/vendored/contexts/server-inserted-html.js",
+         "/node_modules/next/dist/server/runtime-reacts.external.js",
          "/node_modules/next/dist/shared/lib/deep-freeze.js",
          "/node_modules/next/dist/shared/lib/invariant-error.js",
          "/node_modules/next/dist/shared/lib/is-plain-object.js",
