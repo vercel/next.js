@@ -1,10 +1,11 @@
 use serde_json::Value;
 use swc_core::{
-    common::{errors::HANDLER, Spanned, DUMMY_SP},
+    atoms::Wtf8Atom,
+    common::{DUMMY_SP, Spanned, errors::HANDLER},
     ecma::{
         ast::*,
         atoms::Atom,
-        visit::{noop_visit_type, Visit},
+        visit::{Visit, noop_visit_type},
     },
 };
 
@@ -66,9 +67,10 @@ impl FontImportsGenerator<'_> {
 
                         return Some(ImportDecl {
                             src: Box::new(Str {
-                                value: Atom::from(format!(
+                                value: Wtf8Atom::from(format!(
                                     "{}/target.css?{}",
-                                    font_function.loader, query_json
+                                    font_function.loader.to_string_lossy(),
+                                    query_json
                                 )),
                                 raw: None,
                                 span: DUMMY_SP,
@@ -223,7 +225,7 @@ fn object_lit_to_json(object_lit: &ObjectLit) -> Value {
 
 fn expr_to_json(expr: &Expr) -> Result<Value, ()> {
     match expr {
-        Expr::Lit(Lit::Str(str)) => Ok(Value::String(String::from(&*str.value))),
+        Expr::Lit(Lit::Str(str)) => Ok(Value::String(str.value.to_string_lossy().into_owned())),
         Expr::Lit(Lit::Bool(Bool { value, .. })) => Ok(Value::Bool(*value)),
         Expr::Lit(Lit::Num(Number { value, .. })) => {
             Ok(Value::Number(serde_json::Number::from_f64(*value).unwrap()))

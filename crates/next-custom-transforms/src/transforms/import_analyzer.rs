@@ -1,12 +1,12 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     ecma::{
         ast::{
             Expr, Id, ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, MemberProp,
             Module, ModuleExportName,
         },
-        visit::{noop_visit_type, Visit, VisitWith},
+        visit::{Visit, VisitWith, noop_visit_type},
     },
 };
 
@@ -17,7 +17,7 @@ pub(crate) struct ImportMap {
 
     namespace_imports: FxHashMap<Id, Atom>,
 
-    imported_modules: FxHashSet<Atom>,
+    imported_modules: FxHashSet<Wtf8Atom>,
 }
 
 #[allow(unused)]
