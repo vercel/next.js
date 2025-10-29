@@ -772,13 +772,9 @@ describe('Prerender', () => {
       const browser = await webdriver(next.url, '/')
       await browser.eval('window.beforeClick = "abc"')
       await browser.elementByCss('#broken-post').click()
-      expect(
-        await check(() => browser.eval('window.beforeClick'), {
-          test(v) {
-            return v !== 'abc'
-          },
-        })
-      ).toBe(true)
+      await retry(async () => {
+        expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+      })
     })
 
     it('should SSR dynamic page with brackets in param as object', async () => {
@@ -906,13 +902,9 @@ describe('Prerender', () => {
         const browser = await webdriver(next.url, '/')
         await browser.eval('window.beforeClick = "abc"')
         await browser.elementByCss('#broken-at-first-post').click()
-        expect(
-          await check(() => browser.eval('window.beforeClick'), {
-            test(v) {
-              return v !== 'abc'
-            },
-          })
-        ).toBe(true)
+        await retry(async () => {
+          expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+        })
 
         const text = await browser.elementByCss('#params').text()
         expect(text).toMatch(/post.*?post-999/)
