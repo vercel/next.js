@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use anyhow::{Result, bail};
 use lightningcss::{
-    css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
+    css_modules::{CssModuleExport, Pattern, Segment},
     stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
     targets::{BrowserslistConfig, Features, Targets},
     traits::ToCss,
@@ -193,25 +193,16 @@ pub enum CssWithPlaceholderResult {
     NotFound,
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none")]
 pub enum FinalCssResult {
     Ok {
         #[turbo_tasks(trace_ignore)]
         output_code: String,
 
-        #[turbo_tasks(trace_ignore)]
-        exports: Option<CssModuleExports>,
-
         source_map: ResolvedVc<OptionStringifiedSourceMap>,
     },
     Unparsable,
     NotFound,
-}
-
-impl PartialEq for FinalCssResult {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
 }
 
 #[turbo_tasks::function]
@@ -327,7 +318,6 @@ pub async fn finalize_css(
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
-                exports: result.exports,
                 source_map: ResolvedVc::cell(srcmap),
             }
             .cell())

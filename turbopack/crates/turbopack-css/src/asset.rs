@@ -330,7 +330,6 @@ impl CssChunkItem for CssModuleChunkItem {
         if let FinalCssResult::Ok {
             output_code,
             source_map,
-            ..
         } = &*result
         {
             Ok(CssChunkItemContent {
