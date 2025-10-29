@@ -2,7 +2,6 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
   retry,
-  check,
   waitFor,
   getRedboxSource,
   getDistDir,
@@ -527,8 +526,14 @@ describe('app-dir action handling', () => {
 
     // navigate to server
     await browser.elementByCss('#navigate-server').click()
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/server`, true, 2)
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/server`)
+      },
+      2000,
+      1000
+    )
 
     browser = await next.browser('/server')
 
@@ -536,8 +541,14 @@ describe('app-dir action handling', () => {
 
     // navigate to client
     await browser.elementByCss('#navigate-client').click()
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/client`, true, 2)
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/client`)
+      },
+      2000,
+      1000
+    )
   })
 
   it('should not block router.back() while a server action is in flight', async () => {
@@ -549,8 +560,14 @@ describe('app-dir action handling', () => {
 
     await browser.back()
 
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/`, true, 2)
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/`)
+      },
+      2000,
+      1000
+    )
   })
 
   it('should trigger a refresh for a server action that also dispatches a navigation event', async () => {

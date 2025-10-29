@@ -697,25 +697,18 @@ export async function startCleanStaticServer(dir: string) {
 /**
  * Check for content in 1 second intervals timing out after 30 seconds.
  * @deprecated use retry + expect instead
- * @param {() => Promise<unknown> | unknown} contentFn
- * @param {RegExp | string | number} regex
- * @param {boolean} hardError
- * @param {number} maxRetries
- * @returns {Promise<boolean>}
  */
 export async function check(
-  contentFn: () => any | Promise<any>,
-  regex: any,
-  hardError = true,
-  maxRetries = 30
-) {
-  let content
-  let lastErr
+  contentFn: () => unknown | Promise<unknown>,
+  regex: any
+): Promise<boolean> {
+  let content: unknown
+  let lastErr: unknown
 
-  for (let tries = 0; tries < maxRetries; tries++) {
+  for (let tries = 0; tries < 30; tries++) {
     try {
       content = await contentFn()
-      if (typeof regex !== typeof /regex/) {
+      if (typeof regex !== 'object') {
         if (regex === content) {
           return true
         }
@@ -730,11 +723,7 @@ export async function check(
     }
   }
   console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
-
-  if (hardError) {
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
-  }
-  return false
+  throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
 }
 
 export class File {

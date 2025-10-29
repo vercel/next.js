@@ -598,13 +598,9 @@ const runTests = (isDev = false, isDeploy = false) => {
 
   it('should load a fast refresh page', async () => {
     const browser = await webdriver(next.url, '/refresh')
-    expect(
-      await check(
-        () => browser.elementByCss('p').text(),
-        /client loaded/,
-        false
-      )
-    ).toBe(true)
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toMatch(/client loaded/)
+    })
   })
 
   it('should provide correct query value for dynamic page', async () => {
