@@ -52,7 +52,7 @@ impl AstModifier for UnreachableModifier {
 
         *node = Expr::Lit(Lit::Str(Str {
             span,
-            value: unreachable_atom(),
+            value: unreachable_atom().into(),
             raw: None,
         }));
     }

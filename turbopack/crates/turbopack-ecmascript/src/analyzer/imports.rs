@@ -455,7 +455,7 @@ impl Analyzer<'_> {
     }
 }
 
-fn export_as_atom(name: &ModuleExportName) -> Cow<Atom> {
+fn export_as_atom(name: &'_ ModuleExportName) -> Cow<'_, Atom> {
     match name {
         ModuleExportName::Ident(ident) => Cow::Borrowed(&ident.sym),
         ModuleExportName::Str(s) => s.value.to_atom_lossy(),
