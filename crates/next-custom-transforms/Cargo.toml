@@ -66,6 +66,7 @@ swc_relay = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, optional = true }
 turbo-rcstr = { workspace = true }
 urlencoding = { workspace = true }
+swc_atoms = "8.0.1"
 
 react_remove_properties = { workspace = true }
 remove_console = { workspace = true }

@@ -11,19 +11,19 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::{
+        DUMMY_SP, FileName, Span, Spanned,
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::{
         ast::*,
-        utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
+        utils::{ExprFactory, prepend_stmts, quote_ident, quote_str},
         visit::{
-            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
-            VisitWith,
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
         },
     },
 };
@@ -446,7 +446,7 @@ fn collect_top_level_directives_and_imports(
                     type_only: false, ..
                 },
             )) => {
-                let source = import.src.value.clone();
+                let source = import.src.value.clone().to_atom_lossy().into_owned();
                 let specifiers = import
                     .specifiers
                     .iter()
@@ -463,7 +463,9 @@ fn collect_top_level_directives_and_imports(
                         ImportSpecifier::Named(named) => match &named.imported {
                             Some(imported) => match &imported {
                                 ModuleExportName::Ident(i) => (i.to_id().0, i.span),
-                                ModuleExportName::Str(s) => (s.value.clone(), s.span),
+                                ModuleExportName::Str(s) => {
+                                    (s.value.clone().to_atom_lossy().into_owned(), s.span)
+                                }
                             },
                             None => (named.local.to_id().0, named.local.span),
                         },
@@ -488,11 +490,15 @@ fn collect_top_level_directives_and_imports(
                         ExportSpecifier::Named(named) => match &named.exported {
                             Some(exported) => match &exported {
                                 ModuleExportName::Ident(i) => i.sym.clone(),
-                                ModuleExportName::Str(s) => s.value.clone(),
+                                ModuleExportName::Str(s) => {
+                                    s.value.clone().to_atom_lossy().into_owned()
+                                }
                             },
                             _ => match &named.orig {
                                 ModuleExportName::Ident(i) => i.sym.clone(),
-                                ModuleExportName::Str(s) => s.value.clone(),
+                                ModuleExportName::Str(s) => {
+                                    s.value.clone().to_atom_lossy().into_owned()
+                                }
                             },
                         },
                     })
@@ -872,7 +878,10 @@ impl ReactServerComponentValidator {
                                         collect_possibly_invalid_exports(&i.sym, &named.span);
                                     }
                                     ModuleExportName::Str(s) => {
-                                        collect_possibly_invalid_exports(&s.value, &named.span);
+                                        collect_possibly_invalid_exports(
+                                            &s.value.to_atom_lossy().into_owned(),
+                                            &named.span,
+                                        );
                                     }
                                 }
                             }
