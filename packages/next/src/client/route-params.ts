@@ -13,7 +13,7 @@ import {
 import type {
   NormalizedPathname,
   NormalizedSearch,
-} from './components/segment-cache'
+} from './components/segment-cache/cache-key'
 import type { RSCResponse } from './components/router-reducer/fetch-server-response'
 import type { ParsedUrlQuery } from 'querystring'
 

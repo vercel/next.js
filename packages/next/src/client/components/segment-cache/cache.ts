@@ -93,8 +93,16 @@ import {
   DOC_PREFETCH_RANGE_HEADER_VALUE,
   doesExportedHtmlMatchBuildId,
 } from '../../../shared/lib/segment-cache/output-export-prefetch-encoding'
-import { FetchStrategy, getStaleTimeMs } from '../segment-cache'
+import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
+
+/**
+ * Ensures a minimum stale time of 30s to avoid issues where the server sends a too
+ * short-lived stale time, which would prevent anything from being prefetched.
+ */
+export function getStaleTimeMs(staleTimeSeconds: number): number {
+  return Math.max(staleTimeSeconds, 30) * 1000
+}
 
 // A note on async/await when working in the prefetch cache:
 //
