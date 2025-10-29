@@ -347,7 +347,7 @@ pub fn import(args: Vec<JsValue>) -> JsValue {
     match &args[..] {
         [JsValue::Constant(ConstantValue::Str(v))] => {
             JsValue::promise(JsValue::Module(ModuleValue {
-                module: v.as_atom().into_owned(),
+                module: v.as_atom().into_owned().into(),
                 annotations: ImportAnnotations::default(),
             }))
         }

@@ -11,7 +11,6 @@ use next_custom_transforms::transforms::{
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
-    atoms::atom,
     common::{FileName, Mark},
     ecma::{
         parser::{EsSyntax, Syntax},

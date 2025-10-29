@@ -4,7 +4,6 @@ use swc_core::{
     common::{DUMMY_SP, Spanned, errors::HANDLER},
     ecma::{
         ast::*,
-        atoms::Atom,
         visit::{Visit, noop_visit_type},
     },
 };

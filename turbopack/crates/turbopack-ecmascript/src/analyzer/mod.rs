@@ -2112,7 +2112,7 @@ impl JsValue {
                         let first_str: &str = first_str;
                         if var_graph
                             .free_var_ids
-                            .get(&first_str.into())
+                            .get(&Atom::from(first_str))
                             .is_some_and(|id| var_graph.values.contains_key(id))
                         {
                             // `typeof foo...` but `foo` was reassigned
