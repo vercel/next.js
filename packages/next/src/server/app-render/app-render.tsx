@@ -30,6 +30,7 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 import * as ReactClient from 'react'
+import { ReactServer } from './entry-base'
 
 import RenderResult, {
   type AppPageRenderResultMetadata,
@@ -218,6 +219,9 @@ import { imageConfigDefault } from '../../shared/lib/image-config'
 import { RenderStage, StagedRenderingController } from './staged-rendering'
 import { anySegmentHasRuntimePrefetchEnabled } from './staged-validation'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
+
+const serverCreateElement = ReactServer.createElement
+const ServerFragment = ReactServer.Fragment
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -421,12 +425,10 @@ function makeGetDynamicParamFromSegment(
 }
 
 function NonIndex({
-  createElement,
   pagePath,
   statusCode,
   isPossibleServerAction,
 }: {
-  createElement: typeof ReactClient.createElement
   pagePath: string
   statusCode: number | undefined
   isPossibleServerAction: boolean
@@ -437,7 +439,7 @@ function NonIndex({
   // Only render noindex for page request, skip for server actions
   // TODO: is this correct if `isPossibleServerAction` is a false positive?
   if (!isPossibleServerAction && (is404Page || isInvalidStatusCode)) {
-    return createElement('meta', {
+    return serverCreateElement('meta', {
       name: 'robots',
       content: 'noindex',
     })
@@ -471,9 +473,7 @@ async function generateDynamicRSCPayload(
       routeModule: {
         userland: { loaderTree },
       },
-      createElement,
       createMetadataComponents,
-      Fragment,
     },
     getDynamicParamFromSegment,
     query,
@@ -505,21 +505,20 @@ async function generateDynamicRSCPayload(
         parentParams: {},
         flightRouterState,
         // For flight, render metadata inside leaf page
-        rscHead: createElement(
-          Fragment,
+        rscHead: serverCreateElement(
+          ServerFragment,
           {
             key: flightDataPathHeadKey,
           },
-          createElement(NonIndex, {
-            createElement,
+          serverCreateElement(NonIndex, {
             pagePath: ctx.pagePath,
             statusCode: ctx.res.statusCode,
             isPossibleServerAction: ctx.isPossibleServerAction,
           }),
-          createElement(Viewport, {
+          serverCreateElement(Viewport, {
             key: getFlightViewportKey(requestId),
           }),
-          createElement(Metadata, {
+          serverCreateElement(Metadata, {
             key: getFlightMetadataKey(requestId),
           })
         ),
@@ -718,13 +717,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   initialRequestStore: RequestStore,
   createRequestStore: (() => RequestStore) | undefined
 ): Promise<RenderResult> {
-  const {
-    htmlRequestId,
-    renderOpts,
-    requestId,
-    workStore,
-    componentMod: { createElement },
-  } = ctx
+  const { htmlRequestId, renderOpts, requestId, workStore } = ctx
 
   const {
     dev = false,
@@ -758,9 +751,12 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     if (isBypassingCachesInDev(renderOpts, requestStore)) {
       // Mark the RSC payload to indicate that caches were bypassed in dev.
       // This lets the client know not to cache anything based on this render.
-      payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
-        route: workStore.route,
-      })
+      payload._bypassCachesInDev = serverCreateElement(
+        WarnForBypassCachesInDev,
+        {
+          route: workStore.route,
+        }
+      )
     }
 
     return payload
@@ -1226,7 +1222,7 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
-    componentMod: { createMetadataComponents, createElement, Fragment },
+    componentMod: { createMetadataComponents },
     url,
     workStore,
   } = ctx
@@ -1278,21 +1274,20 @@ async function getRSCPayload(
   const couldBeIntercepted =
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
-  const initialHead = createElement(
-    Fragment,
+  const initialHead = serverCreateElement(
+    ServerFragment,
     {
       key: flightDataPathHeadKey,
     },
-    createElement(NonIndex, {
-      createElement,
+    serverCreateElement(NonIndex, {
       pagePath: ctx.pagePath,
       statusCode: ctx.res.statusCode,
       isPossibleServerAction: ctx.isPossibleServerAction,
     }),
-    createElement(Viewport, null),
-    createElement(Metadata, null),
+    serverCreateElement(Viewport, null),
+    serverCreateElement(Metadata, null),
     appUsingSizeAdjustment
-      ? createElement('meta', {
+      ? serverCreateElement('meta', {
           name: 'next-size-adjust',
           content: '',
         })
@@ -1316,7 +1311,7 @@ async function getRSCPayload(
 
   return {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
-    P: createElement(Preloads, {
+    P: serverCreateElement(Preloads, {
       preloadCallbacks: preloadCallbacks,
     }),
     b: ctx.sharedContext.buildId,
@@ -1359,7 +1354,7 @@ async function getErrorRSCPayload(
   const {
     getDynamicParamFromSegment,
     query,
-    componentMod: { createMetadataComponents, createElement, Fragment },
+    componentMod: { createMetadataComponents },
     url,
     workStore,
   } = ctx
@@ -1376,24 +1371,23 @@ async function getErrorRSCPayload(
     serveStreamingMetadata: serveStreamingMetadata,
   })
 
-  const initialHead = createElement(
-    Fragment,
+  const initialHead = serverCreateElement(
+    ServerFragment,
     {
       key: flightDataPathHeadKey,
     },
-    createElement(NonIndex, {
-      createElement,
+    serverCreateElement(NonIndex, {
       pagePath: ctx.pagePath,
       statusCode: ctx.res.statusCode,
       isPossibleServerAction: ctx.isPossibleServerAction,
     }),
-    createElement(Viewport, null),
+    serverCreateElement(Viewport, null),
     process.env.NODE_ENV === 'development' &&
-      createElement('meta', {
+      serverCreateElement('meta', {
         name: 'next-error',
         content: 'not-found',
       }),
-    createElement(Metadata, null)
+    serverCreateElement(Metadata, null)
   )
 
   const initialTree = createFlightRouterStateFromLoaderTree(
@@ -1410,17 +1404,17 @@ async function getErrorRSCPayload(
   // For metadata notFound error there's no global not found boundary on top
   // so we create a not found page with AppRouter
   const seedData: CacheNodeSeedData = [
-    createElement(
+    serverCreateElement(
       'html',
       {
         id: '__next_error__',
       },
-      createElement('head', null),
-      createElement(
+      serverCreateElement('head', null),
+      serverCreateElement(
         'body',
         null,
         process.env.NODE_ENV !== 'production' && err
-          ? createElement('template', {
+          ? serverCreateElement('template', {
               'data-next-error-message': err.message,
               'data-next-error-digest': 'digest' in err ? err.digest : '',
               'data-next-error-stack': err.stack,
@@ -2335,10 +2329,7 @@ async function renderToStream(
     basePath,
     buildManifest,
     clientReferenceManifest,
-    ComponentMod: {
-      createElement,
-      renderToReadableStream: serverRenderToReadableStream,
-    },
+    ComponentMod: { renderToReadableStream: serverRenderToReadableStream },
     crossOrigin,
     dev = false,
     experimental,
@@ -2479,9 +2470,12 @@ async function renderToStream(
             // we know this is available  when cacheComponents is enabled, but typeguard to be safe
             renderOpts.setCacheStatus('bypass', htmlRequestId, requestId)
           }
-          payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
-            route: workStore.route,
-          })
+          payload._bypassCachesInDev = serverCreateElement(
+            WarnForBypassCachesInDev,
+            {
+              route: workStore.route,
+            }
+          )
         }
 
         return payload
@@ -3313,8 +3307,6 @@ async function spawnDynamicValidationInDev(
   // ready to cut the render off.
   const cacheSignal = new CacheSignal()
 
-  const { createElement } = ComponentMod
-
   // The resume data cache here should use a fresh instance as it's
   // performing a fresh prerender. If we get to implementing the
   // prerendering of an already prerendered page, we should use the passed
@@ -3444,7 +3436,7 @@ async function spawnDynamicValidationInDev(
   const { invalidDynamicUsageError } = workStore
   if (invalidDynamicUsageError) {
     resolveValidation(
-      createElement(LogSafely, {
+      serverCreateElement(LogSafely, {
         fn: () => {
           console.error(invalidDynamicUsageError)
         },
@@ -3797,7 +3789,7 @@ async function spawnDynamicValidationInDev(
 
     const { preludeIsEmpty } = await processPrelude(unprocessedPrelude)
     resolveValidation(
-      createElement(LogSafely, {
+      serverCreateElement(LogSafely, {
         fn: throwIfDisallowedDynamic.bind(
           null,
           workStore,
@@ -3833,7 +3825,7 @@ async function spawnDynamicValidationInDev(
     }
 
     resolveValidation(
-      createElement(LogSafely, {
+      serverCreateElement(LogSafely, {
         fn: loggingFunction,
       })
     )
@@ -5304,9 +5296,6 @@ const getGlobalErrorStyles = async (
     modules: { 'global-error': globalErrorModule },
   } = parseLoaderTree(tree)
 
-  const {
-    componentMod: { createElement },
-  } = ctx
   const GlobalErrorComponent: GlobalErrorComponent =
     ctx.componentMod.GlobalError
   let globalErrorStyles
@@ -5335,7 +5324,7 @@ const getGlobalErrorStyles = async (
       globalErrorStyles =
         // This will be rendered next to GlobalError component under ErrorBoundary,
         // it requires a key to avoid React warning about duplicate keys.
-        createElement(
+        serverCreateElement(
           SegmentViewNode,
           {
             key: 'ge-svn',

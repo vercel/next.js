@@ -5,6 +5,7 @@ import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import type { PreloadCallbacks } from './types'
 import { renderCssResource } from './render-css-resource'
+import { ReactServer } from './entry-base'
 
 export function getLayerAssets({
   ctx,
@@ -21,9 +22,6 @@ export function getLayerAssets({
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
 }): React.ReactNode {
-  const {
-    componentMod: { createElement },
-  } = ctx
   const { styles: styleTags, scripts: scriptTags } = layoutOrPagePath
     ? getLinkAndScriptTags(
         ctx.clientReferenceManifest,
@@ -83,7 +81,7 @@ export function getLayerAssets({
           href
         )}${getAssetQueryString(ctx, true)}`
 
-        return createElement('script', {
+        return ReactServer.createElement('script', {
           src: fullSrc,
           async: true,
           key: `script-${index}`,

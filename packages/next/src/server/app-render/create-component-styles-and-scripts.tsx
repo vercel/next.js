@@ -4,6 +4,7 @@ import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import { renderCssResource } from './render-css-resource'
+import { ReactServer } from './entry-base'
 
 export async function createComponentStylesAndScripts({
   filePath,
@@ -18,9 +19,6 @@ export async function createComponentStylesAndScripts({
   injectedJS: Set<string>
   ctx: AppRenderContext
 }): Promise<[React.ComponentType<any>, React.ReactNode, React.ReactNode]> {
-  const {
-    componentMod: { createElement },
-  } = ctx
   const { styles: entryCssFiles, scripts: jsHrefs } = getLinkAndScriptTags(
     ctx.clientReferenceManifest,
     filePath,
@@ -32,7 +30,7 @@ export async function createComponentStylesAndScripts({
 
   const scripts = jsHrefs
     ? jsHrefs.map((href, index) =>
-        createElement('script', {
+        ReactServer.createElement('script', {
           src: `${ctx.assetPrefix}/_next/${encodeURIPath(href)}${getAssetQueryString(ctx, true)}`,
           async: true,
           key: `script-${index}`,
