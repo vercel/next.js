@@ -12,8 +12,8 @@ use swc_core::{
     common::comments::Comments,
     ecma::{
         ast::{
-            Decl, ExportSpecifier, Id, ModuleDecl, ModuleItem, ObjectLit, Program,
-            PropOrSpread::Prop,
+            Decl, ExportSpecifier, Id, ModuleDecl, ModuleExportName, ModuleItem, ObjectLit,
+            Program, PropOrSpread::Prop,
         },
         utils::find_pat_ids,
     },
@@ -366,20 +366,15 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                         for s in decl.specifiers.iter() {
                             match s {
                                 ExportSpecifier::Named(named) => {
-                                    exports.push(
-                                        named
-                                            .exported
-                                            .as_ref()
-                                            .unwrap_or(&named.orig)
-                                            .atom()
-                                            .clone(),
-                                    );
+                                    exports.push(module_export_name_to_atom(
+                                        named.exported.as_ref().unwrap_or(&named.orig),
+                                    ));
                                 }
                                 ExportSpecifier::Default(_) => {
                                     exports.push(atom!("default"));
                                 }
                                 ExportSpecifier::Namespace(e) => {
-                                    exports.push(e.name.atom().clone());
+                                    exports.push(module_export_name_to_atom(&e.name));
                                 }
                             }
                         }
@@ -414,6 +409,13 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
             })
         })
         .unwrap_or(false)
+}
+
+fn module_export_name_to_atom(name: &ModuleExportName) -> Atom {
+    match name {
+        ModuleExportName::Ident(ident) => ident.sym.clone(),
+        ModuleExportName::Str(s) => s.value.to_atom_lossy().into_owned(),
+    }
 }
 
 type HashToLayerNameModule = Vec<(String, (ActionLayer, String, ResolvedVc<Box<dyn Module>>))>;
