@@ -13,16 +13,16 @@ use swc_core::{
 #[derive(Debug, Default)]
 pub(crate) struct ImportMap {
     /// Map from module name to (module path, exported symbol)
-    imports: FxHashMap<Id, (Atom, Atom)>,
+    imports: FxHashMap<Id, (Wtf8Atom, Atom)>,
 
-    namespace_imports: FxHashMap<Id, Atom>,
+    namespace_imports: FxHashMap<Id, Wtf8Atom>,
 
     imported_modules: FxHashSet<Wtf8Atom>,
 }
 
 #[allow(unused)]
 impl ImportMap {
-    pub fn is_module_imported(&mut self, module: &Atom) -> bool {
+    pub fn is_module_imported(&mut self, module: &Wtf8Atom) -> bool {
         self.imported_modules.contains(module)
     }
 
@@ -99,6 +99,6 @@ impl Visit for Analyzer<'_> {
 fn orig_name(n: &ModuleExportName) -> Atom {
     match n {
         ModuleExportName::Ident(v) => v.sym.clone(),
-        ModuleExportName::Str(v) => v.value.clone(),
+        ModuleExportName::Str(v) => v.value.clone().to_atom_lossy().into_owned(),
     }
 }

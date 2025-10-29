@@ -5,7 +5,7 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold},
+        visit::{Fold, fold_pass},
     },
 };
 
@@ -31,7 +31,11 @@ impl Fold for NamedImportTransform {
         // Match named imports and check if it's included in the packages
         let src_value = decl.src.value.clone();
 
-        if self.packages.iter().any(|p| src_value == *p) {
+        if self
+            .packages
+            .iter()
+            .any(|p| src_value.as_str() == Some(&**p))
+        {
             let mut specifier_names = HashSet::new();
 
             // Skip the transform if the default or namespace import is present
@@ -47,7 +51,8 @@ impl Fold for NamedImportTransform {
                                     specifier_names.insert(ident.sym.to_string());
                                 }
                                 ModuleExportName::Str(str_) => {
-                                    specifier_names.insert(str_.value.to_string());
+                                    specifier_names
+                                        .insert(str_.value.to_string_lossy().into_owned());
                                 }
                             }
                         } else {
@@ -73,7 +78,7 @@ impl Fold for NamedImportTransform {
                 let new_src = format!(
                     "__barrel_optimize__?names={}!=!{}",
                     names.join(","),
-                    src_value
+                    src_value.to_string_lossy()
                 );
 
                 // Create a new import declaration, keep everything the same except the source

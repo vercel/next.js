@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
+use swc_atoms::Wtf8Atom;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::DUMMY_SP,
     ecma::{
         ast::*,
         utils::private_ident,
-        visit::{fold_pass, Fold},
+        visit::{Fold, fold_pass},
     },
 };
 
@@ -47,7 +48,9 @@ impl Fold for OptimizeBarrel {
                                     match &s.imported {
                                         Some(n) => match &n {
                                             ModuleExportName::Ident(n) => n.sym.clone(),
-                                            ModuleExportName::Str(n) => n.value.clone(),
+                                            ModuleExportName::Str(n) => {
+                                                n.value.clone().to_atom_lossy().into_owned()
+                                            }
                                         },
                                         None => s.local.sym.clone(),
                                     },
@@ -94,7 +97,9 @@ impl Fold for OptimizeBarrel {
                                     ExportSpecifier::Namespace(s) => {
                                         let name_str = match &s.name {
                                             ModuleExportName::Ident(n) => n.sym.clone(),
-                                            ModuleExportName::Str(n) => n.value.clone(),
+                                            ModuleExportName::Str(n) => {
+                                                n.value.clone().to_atom_lossy().into_owned()
+                                            }
                                         };
                                         if let Some(src) = &export_named.src {
                                             export_map.push((
@@ -105,7 +110,7 @@ impl Fold for OptimizeBarrel {
                                         } else if self.wildcard {
                                             export_map.push((
                                                 name_str.clone(),
-                                                Atom::default(),
+                                                Wtf8Atom::default(),
                                                 atom!("*"),
                                             ));
                                         } else {
@@ -116,12 +121,16 @@ impl Fold for OptimizeBarrel {
                                     ExportSpecifier::Named(s) => {
                                         let orig_str = match &s.orig {
                                             ModuleExportName::Ident(n) => n.sym.clone(),
-                                            ModuleExportName::Str(n) => n.value.clone(),
+                                            ModuleExportName::Str(n) => {
+                                                n.value.clone().to_atom_lossy().into_owned()
+                                            }
                                         };
                                         let name_str = match &s.exported {
                                             Some(n) => match &n {
                                                 ModuleExportName::Ident(n) => n.sym.clone(),
-                                                ModuleExportName::Str(n) => n.value.clone(),
+                                                ModuleExportName::Str(n) => {
+                                                    n.value.clone().to_atom_lossy().into_owned()
+                                                }
                                             },
                                             None => orig_str.clone(),
                                         };
@@ -143,7 +152,7 @@ impl Fold for OptimizeBarrel {
                                         } else if self.wildcard {
                                             export_map.push((
                                                 name_str.clone(),
-                                                Atom::default(),
+                                                Wtf8Atom::default(),
                                                 orig_str.clone(),
                                             ));
                                         } else {
@@ -161,7 +170,8 @@ impl Fold for OptimizeBarrel {
                             }
                         }
                         ModuleDecl::ExportAll(export_all) => {
-                            export_wildcards.push(export_all.src.value.to_string());
+                            export_wildcards
+                                .push(export_all.src.value.to_string_lossy().into_owned());
                         }
                         ModuleDecl::ExportDecl(export_decl) => {
                             // Export declarations are not allowed in barrel files.
@@ -174,21 +184,21 @@ impl Fold for OptimizeBarrel {
                                 Decl::Class(class) => {
                                     export_map.push((
                                         class.ident.sym.clone(),
-                                        Atom::default(),
+                                        Wtf8Atom::default(),
                                         Atom::default(),
                                     ));
                                 }
                                 Decl::Fn(func) => {
                                     export_map.push((
                                         func.ident.sym.clone(),
-                                        Atom::default(),
+                                        Wtf8Atom::default(),
                                         Atom::default(),
                                     ));
                                 }
                                 Decl::Var(var) => {
                                     let ids = collect_idents_in_var_decls(&var.decls);
                                     for id in ids {
-                                        export_map.push((id, Atom::default(), Atom::default()));
+                                        export_map.push((id, Wtf8Atom::default(), Atom::default()));
                                     }
                                 }
                                 _ => {}
@@ -208,7 +218,7 @@ impl Fold for OptimizeBarrel {
                         Expr::Lit(l) => {
                             if let Lit::Str(s) = l {
                                 if allowed_directives && s.value.starts_with("use ") {
-                                    directives.push(s.value.to_string());
+                                    directives.push(s.value.to_string_lossy().into_owned());
                                 }
                             } else {
                                 allowed_directives = false;
