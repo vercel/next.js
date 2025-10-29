@@ -82,6 +82,7 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
+swc_atoms = "8.0.1"
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

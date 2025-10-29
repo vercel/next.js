@@ -712,7 +712,7 @@ async fn analyze_ecmascript_module_internal(
             let mut should_add_evaluation = false;
             let reference = EsmAssetReference::new(
                 origin,
-                RcStr::from(&*r.module_path),
+                RcStr::from(&*r.module_path.to_string_lossy()),
                 r.issue_source
                     .unwrap_or_else(|| IssueSource::from_source_only(source)),
                 r.annotations.clone(),
@@ -731,7 +731,7 @@ async fn analyze_ecmascript_module_internal(
                                 "Internal imports only exist in reexports only mode when \
                                  importing {:?} from {}",
                                 r.imported_symbol,
-                                r.module_path
+                                r.module_path.to_string_lossy()
                             );
                         }
                         if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {

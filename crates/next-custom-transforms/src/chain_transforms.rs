@@ -160,7 +160,7 @@ where
         let file = file.clone();
 
         fn_pass(move |program| {
-            if let Some(config) = opts.styled_jsx.to_option() {
+            if let Some(..) = opts.styled_jsx.to_option() {
                 let target_browsers = opts
                     .css_env
                     .as_ref()

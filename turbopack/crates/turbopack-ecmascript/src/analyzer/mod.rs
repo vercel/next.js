@@ -15,6 +15,7 @@ use num_bigint::BigInt;
 use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHasher;
+use swc_atoms::Wtf8Atom;
 use swc_core::{
     common::Mark,
     ecma::{
@@ -285,7 +286,7 @@ impl Display for ConstantValue {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ModuleValue {
-    pub module: Atom,
+    pub module: Wtf8Atom,
     pub annotations: ImportAnnotations,
 }
 
@@ -3689,7 +3690,7 @@ pub mod test_utils {
             ) => match &args[0] {
                 JsValue::Constant(ConstantValue::Str(v)) => {
                     JsValue::promise(JsValue::Module(ModuleValue {
-                        module: v.as_atom().into_owned(),
+                        module: v.as_atom().into_owned().into(),
                         annotations: ImportAnnotations::default(),
                     }))
                 }

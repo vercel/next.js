@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -64,13 +64,16 @@ impl ImportAnnotations {
             Some((&kv.key, str))
         }) {
             let key = match key {
-                PropName::Ident(ident) => ident.sym.as_str(),
-                PropName::Str(str) => str.value.as_str(),
+                PropName::Ident(ident) => Cow::Borrowed(ident.sym.as_str()),
+                PropName::Str(str) => str.value.to_string_lossy(),
                 // the rest are invalid, ignore for now till SWC ast is correct
                 _ => continue,
             };
 
-            map.insert(key.into(), value.value.as_str().into());
+            map.insert(
+                key.into(),
+                value.value.to_string_lossy().into_owned().into(),
+            );
         }
 
         ImportAnnotations { map }
@@ -183,7 +186,7 @@ pub(crate) struct ImportMap {
 
     /// The module specifiers of star imports that are accessed dynamically and should be imported
     /// as a whole.
-    full_star_imports: FxHashSet<Atom>,
+    full_star_imports: FxHashSet<Wtf8Atom>,
 
     pub(crate) exports: FxHashMap<RcStr, Id>,
 }
@@ -242,7 +245,7 @@ pub(crate) enum ImportedSymbol {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ImportMapReference {
-    pub module_path: Atom,
+    pub module_path: Wtf8Atom,
     pub imported_symbol: ImportedSymbol,
     pub annotations: ImportAnnotations,
     pub issue_source: Option<IssueSource>,
@@ -428,7 +431,7 @@ impl Analyzer<'_> {
     fn ensure_reference(
         &mut self,
         span: Span,
-        module_path: Atom,
+        module_path: Wtf8Atom,
         imported_symbol: ImportedSymbol,
         annotations: ImportAnnotations,
     ) -> Option<usize> {
@@ -452,10 +455,10 @@ impl Analyzer<'_> {
     }
 }
 
-fn export_as_atom(name: &ModuleExportName) -> &Atom {
+fn export_as_atom(name: &ModuleExportName) -> Cow<Atom> {
     match name {
-        ModuleExportName::Ident(ident) => &ident.sym,
-        ModuleExportName::Str(s) => &s.value,
+        ModuleExportName::Ident(ident) => Cow::Borrowed(&ident.sym),
+        ModuleExportName::Str(s) => s.value.to_atom_lossy(),
     }
 }
 
@@ -470,7 +473,7 @@ impl Visit for Analyzer<'_> {
         if internal_symbol.is_none() {
             self.ensure_reference(
                 import.span,
-                import.src.value.clone(),
+                import.src.value.clone().to_atom_lossy().into_owned(),
                 ImportedSymbol::ModuleEvaluation,
                 annotations.clone(),
             );
@@ -482,7 +485,7 @@ impl Visit for Analyzer<'_> {
                 .unwrap_or_else(|| get_import_symbol_from_import(s));
             let i = self.ensure_reference(
                 import.span,
-                import.src.value.clone(),
+                import.src.value.clone().to_atom_lossy().into_owned(),
                 symbol,
                 annotations.clone(),
             );

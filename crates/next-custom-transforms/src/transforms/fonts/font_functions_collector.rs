@@ -3,7 +3,6 @@ use swc_core::{
     common::errors::HANDLER,
     ecma::{
         ast::*,
-        atoms::Atom,
         visit::{Visit, noop_visit_type},
     },
 };
