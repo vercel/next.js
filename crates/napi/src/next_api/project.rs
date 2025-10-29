@@ -20,6 +20,7 @@ use next_api::{
         DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
         ProjectOptions, WatchOptions,
     },
+    route::EndpointGroupKey,
 };
 use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
@@ -1026,7 +1027,7 @@ async fn output_assets_operation(
             let output_assets = endpoint_group.output_assets();
             let analyze_data = AnalyzeDataOutputAsset::new(
                 analyze_output_root
-                    .join(&key.to_string())?
+                    .join(&encode_analyze_data_path(key))?
                     .join("analyze.data")?,
                 output_assets,
             )
@@ -1836,4 +1837,9 @@ pub async fn project_analyze_data(
             .map(|d| NapiDiagnostic::from(d))
             .collect(),
     })
+}
+
+fn encode_analyze_data_path(key: &EndpointGroupKey) -> RcStr {
+    // While `~` is fine on most file systems, the browser filesystem api won't allow it.
+    key.to_string().replace("~", "%7E").into()
 }
