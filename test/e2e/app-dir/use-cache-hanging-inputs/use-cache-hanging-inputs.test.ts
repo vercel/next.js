@@ -14,7 +14,7 @@ const expectedTimeoutErrorMessage =
   'Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
 
 describe('use-cache-hanging-inputs', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
@@ -45,37 +45,20 @@ describe('use-cache-hanging-inputs', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        if (isTurbopack) {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise/page.tsx (10:13) @ module evaluation
+        expect(errorSource).toMatchInlineSnapshot(`
+         "app/uncached-promise/page.tsx (10:13) @ Foo
 
-              8 | }
-              9 |
-           > 10 | const Foo = async ({ promise }) => {
-                |             ^
-             11 |   'use cache'
-             12 |
-             13 |   return ("
-          `)
+            8 | }
+            9 |
+         > 10 | const Foo = async ({ promise }) => {
+              |             ^
+           11 |   'use cache'
+           12 |
+           13 |   return ("
+        `)
 
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at module evaluation`)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise/page.tsx (10:13) @ eval
-
-              8 | }
-              9 |
-           > 10 | const Foo = async ({ promise }) => {
-                |             ^
-             11 |   'use cache'
-             12 |
-             13 |   return ("
-          `)
-
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/uncached-promise/page.tsx:10:13)`)
-        }
+        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+    at Foo (app/uncached-promise/page.tsx:10:13)`)
       }, 180_000)
     })
 
@@ -99,37 +82,21 @@ describe('use-cache-hanging-inputs', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        if (isTurbopack) {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise-nested/page.tsx (16:1) @ module evaluation
+        expect(errorSource).toMatchInlineSnapshot(`
+         "app/uncached-promise-nested/page.tsx (16:1) @ indirection
 
-             14 | }
-             15 |
-           > 16 | async function indirection(promise: Promise<number>) {
-                | ^
-             17 |   'use cache'
-             18 |
-             19 |   return getCachedData(promise)"
-          `)
+           14 | }
+           15 |
+         > 16 | async function indirection(promise: Promise<number>) {
+              | ^
+           17 |   'use cache'
+           18 |
+           19 |   return getCachedData(promise)"
+        `)
 
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at module evaluation`)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/uncached-promise-nested/page.tsx (16:1) @ eval
-
-             14 | }
-             15 |
-           > 16 | async function indirection(promise: Promise<number>) {
-                | ^
-             17 |   'use cache'
-             18 |
-             19 |   return getCachedData(promise)"
-          `)
-
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/uncached-promise-nested/page.tsx:16:1)`)
-        }
+        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+    at indirection (app/uncached-promise-nested/page.tsx:16:1)
+    at Page (app/uncached-promise-nested/page.tsx:23:22)`)
       }, 180_000)
     })
 
@@ -154,37 +121,20 @@ describe('use-cache-hanging-inputs', () => {
 
         expect(errorDescription).toBe(expectedTimeoutErrorMessage)
 
-        if (isTurbopack) {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "app/bound-args/page.tsx (13:15) @ module evaluation
+        expect(errorSource).toMatchInlineSnapshot(`
+         "app/bound-args/page.tsx (13:15) @ Foo
 
-             11 |   const uncachedDataPromise = fetchUncachedData()
-             12 |
-           > 13 |   const Foo = async () => {
-                |               ^
-             14 |     'use cache'
-             15 |
-             16 |     return ("
-          `)
+           11 |   const uncachedDataPromise = fetchUncachedData()
+           12 |
+         > 13 |   const Foo = async () => {
+              |               ^
+           14 |     'use cache'
+           15 |
+           16 |     return ("
+        `)
 
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at module evaluation`)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
-            "app/bound-args/page.tsx (13:15) @ eval
-
-              11 |   const uncachedDataPromise = fetchUncachedData()
-              12 |
-            > 13 |   const Foo = async () => {
-                 |               ^
-              14 |     'use cache'
-              15 |
-              16 |     return ("
-          `)
-
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
-    at eval (app/bound-args/page.tsx:13:15)`)
-        }
+        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+    at Foo (app/bound-args/page.tsx:13:15)`)
       }, 180_000)
     })
 

@@ -2280,63 +2280,34 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser('/use-cache-low-expire')
 
-            if (isTurbopack) {
-              await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "description": "Uncached data was accessed outside of <Suspense>
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "description": "Uncached data was accessed outside of <Suspense>
 
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-               To fix this, you can either:
+             To fix this, you can either:
 
-               Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+             Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
 
-               or
+             or
 
-               Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+             Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
 
-               Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+             Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
-                 "environmentLabel": "Server",
-                 "label": "Blocking Route",
-                 "source": "app/use-cache-low-expire/page.tsx (3:31) @ Page
-               > 3 | export default async function Page() {
-                   |                               ^",
-                 "stack": [
-                   "Page app/use-cache-low-expire/page.tsx (3:31)",
-                   "LogSafely <anonymous>",
-                 ],
-               }
-              `)
-            } else {
-              await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "description": "Uncached data was accessed outside of <Suspense>
-
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
-
-               To fix this, you can either:
-
-               Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-               or
-
-               Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-               Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
-                 "environmentLabel": "Server",
-                 "label": "Blocking Route",
-                 "source": null,
-                 "stack": [
-                   "Page about:/Server/webpack-internal:///(rsc)/app/use-cache-low-expire/page.tsx (23:81)",
-                   "LogSafely <anonymous>",
-                 ],
-               }
-              `)
-            }
+             Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": "app/use-cache-low-expire/page.tsx (3:16) @ Page
+             > 3 | export default async function Page() {
+                 |                ^",
+               "stack": [
+                 "Page app/use-cache-low-expire/page.tsx (3:16)",
+                 "LogSafely <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -2432,63 +2403,34 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser('/use-cache-revalidate-0')
 
-            if (isTurbopack) {
-              await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "description": "Uncached data was accessed outside of <Suspense>
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "description": "Uncached data was accessed outside of <Suspense>
 
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
 
-               To fix this, you can either:
+             To fix this, you can either:
 
-               Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+             Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
 
-               or
+             or
 
-               Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+             Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
 
-               Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+             Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
 
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
-                 "environmentLabel": "Server",
-                 "label": "Blocking Route",
-                 "source": "app/use-cache-revalidate-0/page.tsx (3:31) @ Page
-               > 3 | export default async function Page() {
-                   |                               ^",
-                 "stack": [
-                   "Page app/use-cache-revalidate-0/page.tsx (3:31)",
-                   "LogSafely <anonymous>",
-                 ],
-               }
-              `)
-            } else {
-              await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "description": "Uncached data was accessed outside of <Suspense>
-
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
-
-               To fix this, you can either:
-
-               Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-               or
-
-               Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-               Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
-                 "environmentLabel": "Server",
-                 "label": "Blocking Route",
-                 "source": null,
-                 "stack": [
-                   "Page about:/Server/webpack-internal:///(rsc)/app/use-cache-revalidate-0/page.tsx (23:81)",
-                   "LogSafely <anonymous>",
-                 ],
-               }
-              `)
-            }
+             Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": "app/use-cache-revalidate-0/page.tsx (3:16) @ Page
+             > 3 | export default async function Page() {
+                 |                ^",
+               "stack": [
+                 "Page app/use-cache-revalidate-0/page.tsx (3:16)",
+                 "LogSafely <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -2703,12 +2645,12 @@ describe('Cache Components Errors', () => {
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": null,
                  "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ module evaluation
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <unknown>
                > 21 | const getCachedData = unstable_cache(async () => {
                     |                                      ^",
                  "stack": [
-                   "module evaluation app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                   "<FIXME-next-dist-dir>",
+                   "<unknown> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "async ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
                  ],
                }
               `)
@@ -2739,7 +2681,7 @@ describe('Cache Components Errors', () => {
                     |                                      ^",
                  "stack": [
                    "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                   "<FIXME-next-dist-dir>",
+                   "async ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
                  ],
                }
               `)
@@ -2762,8 +2704,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at module evaluation (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at a (<next-dist-dir>)
+                     at <unknown> (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at async ComponentWithCachedData (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -2780,7 +2722,8 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at module evaluation (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at <unknown> (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at async h (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -2818,7 +2761,8 @@ describe('Cache Components Errors', () => {
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at 0 (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at <unknown> (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at async ComponentWithCachedData (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -2838,6 +2782,7 @@ describe('Cache Components Errors', () => {
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
+                     at c (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2863,12 +2808,12 @@ describe('Cache Components Errors', () => {
                  "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
                  "environmentLabel": null,
                  "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ module evaluation
+                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
                > 15 | async function Private() {
                     | ^",
                  "stack": [
-                   "module evaluation app/use-cache-private-in-use-cache/page.tsx (15:1)",
-                   "<FIXME-next-dist-dir>",
+                   "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
+                   "stringify <anonymous>",
                  ],
                }
               `)
@@ -2894,12 +2839,12 @@ describe('Cache Components Errors', () => {
                  "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
                  "environmentLabel": null,
                  "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ eval
+                 "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
                > 15 | async function Private() {
                     | ^",
                  "stack": [
-                   "eval app/use-cache-private-in-use-cache/page.tsx (15:1)",
-                   "<FIXME-next-dist-dir>",
+                   "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
+                   "stringify <anonymous>",
                  ],
                }
               `)
@@ -2923,8 +2868,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at module evaluation (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at a (<next-dist-dir>)
+                     at Private (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at stringify (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2933,8 +2878,8 @@ describe('Cache Components Errors', () => {
                    17 |
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at module evaluation (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at b (<next-dist-dir>)
+                     at Private (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at stringify (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2951,7 +2896,8 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at module evaluation (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at <unknown> (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at a (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2960,7 +2906,8 @@ describe('Cache Components Errors', () => {
                    17 |
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at module evaluation (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at <unknown> (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at b (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -3008,7 +2955,8 @@ describe('Cache Components Errors', () => {
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at 0 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at Private (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at stringify (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -3017,7 +2965,8 @@ describe('Cache Components Errors', () => {
                    17 |
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at 1 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at Private (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at stringify (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -3036,10 +2985,10 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
+                     at b (<anonymous>)
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
+                     at d (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3078,10 +3027,11 @@ describe('Cache Components Errors', () => {
              Learn more: https://nextjs.org/docs/messages/blocking-route",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
-             > 10 |       <Private />
-                  |       ^",
+               "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
+             > 15 | async function Private() {
+                  | ^",
                "stack": [
+                 "Private app/use-cache-private-without-suspense/page.tsx (15:1)",
                  "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
                  "LogSafely <anonymous>",
                ],
