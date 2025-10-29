@@ -707,7 +707,7 @@ export async function check(
   contentFn: () => any | Promise<any>,
   regex: any,
   hardError = true,
-  maxRetries = 30
+  maxRetries = 5
 ) {
   let content
   let lastErr
