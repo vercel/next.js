@@ -19,6 +19,7 @@ import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
   EntryStatus,
   readRouteCacheEntry,
+  getCanonicalSegmentKeypath,
   readSegmentCacheEntry,
   waitForSegmentCacheEntry,
   requestOptimisticRouteCacheEntry,
@@ -123,7 +124,13 @@ export function navigate(
     const prefetchSeedData = snapshot.seedData
     const prefetchHead = route.head
     const isPrefetchHeadPartial = route.isHeadPartial
-    const newCanonicalUrl = route.canonicalUrl
+    // TODO: The "canonicalUrl" stored in the cache doesn't include the hash,
+    // because hash entries do not vary by hash fragment. However, the one
+    // we set in the router state *does* include the hash, and it's used to
+    // sync with the actual browser location. To make this less of a refactor
+    // hazard, we should always track the hash separately from the rest of
+    // the URL.
+    const newCanonicalUrl = route.canonicalUrl + url.hash
     const renderedSearch = route.renderedSearch
     return navigateUsingPrefetchedRouteTree(
       now,
@@ -166,7 +173,7 @@ export function navigate(
       const prefetchSeedData = snapshot.seedData
       const prefetchHead = optimisticRoute.head
       const isPrefetchHeadPartial = optimisticRoute.isHeadPartial
-      const newCanonicalUrl = optimisticRoute.canonicalUrl
+      const newCanonicalUrl = optimisticRoute.canonicalUrl + url.hash
       const newRenderedSearch = optimisticRoute.renderedSearch
       return navigateUsingPrefetchedRouteTree(
         now,
@@ -338,7 +345,11 @@ function readRenderSnapshotFromCache(
   let loading: LoadingModuleData | Promise<LoadingModuleData> = null
   let isPartial: boolean = true
 
-  const segmentEntry = readSegmentCacheEntry(now, route, tree.cacheKey)
+  const canonicalSegmentKeypath = getCanonicalSegmentKeypath(
+    route,
+    tree.cacheKey
+  )
+  const segmentEntry = readSegmentCacheEntry(now, canonicalSegmentKeypath)
   if (segmentEntry !== null) {
     switch (segmentEntry.status) {
       case EntryStatus.Fulfilled: {

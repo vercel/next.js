@@ -1215,7 +1215,10 @@ export default async function build(
 
       for (const rootPath of rootPaths) {
         const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
-        const isAtConventionLevel = fileDir === '/' || fileDir === '/src'
+
+        const normalizedFileDir = normalizePathSep(fileDir)
+        const isAtConventionLevel =
+          normalizedFileDir === '/' || normalizedFileDir === '/src'
 
         if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
           middlewareFilePath = rootPath
@@ -1272,6 +1275,11 @@ export default async function build(
           })
         )
       NextBuildContext.mappedPages = mappedPages
+
+      // Update appDirOnly if no user pages routes are found
+      if (Object.keys(mappedPages).length === 0 && !appDirOnly) {
+        NextBuildContext.appDirOnly = appDirOnly = true
+      }
 
       let mappedAppPages: MappedPages | undefined
       let mappedAppLayouts: MappedPages | undefined
@@ -2610,7 +2618,9 @@ export default async function build(
           return serverFilesManifest
         })
 
-      const middlewareFile = proxyFilePath || middlewareFilePath
+      const middlewareFile = normalizePathSep(
+        proxyFilePath || middlewareFilePath || ''
+      )
       let hasNodeMiddleware = false
 
       if (middlewareFile) {
@@ -4263,6 +4273,7 @@ export default async function build(
           pageExtensions: config.pageExtensions,
           buildManifest,
           middlewareManifest,
+          functionsConfigManifest,
           hasGSPAndRevalidateZero,
         })
       )

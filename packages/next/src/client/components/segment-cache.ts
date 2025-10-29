@@ -162,3 +162,11 @@ export type PrefetchTaskFetchStrategy =
   | FetchStrategy.PPR
   | FetchStrategy.PPRRuntime
   | FetchStrategy.Full
+
+/**
+ * Ensures a minimum stale time of 30s to avoid issues where the server sends a too
+ * short-lived stale time, which would prevent anything from being prefetched.
+ */
+export function getStaleTimeMs(staleTimeSeconds: number): number {
+  return Math.max(staleTimeSeconds, 30) * 1000
+}
