@@ -62,6 +62,7 @@ pub enum CommonJsReferenceSubType {
 )]
 pub enum ImportWithType {
     Json,
+    Bytes,
 }
 
 #[derive(

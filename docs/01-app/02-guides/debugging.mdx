@@ -22,7 +22,7 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
       "name": "Next.js: debug server-side",
       "type": "node-terminal",
       "request": "launch",
-      "command": "npm run dev"
+      "command": "npm run dev -- --inspect"
     },
     {
       "name": "Next.js: debug client-side",
@@ -111,23 +111,15 @@ For React-specific debugging, install the [React Developer Tools](https://react.
 
 ### Server-side code
 
-To debug server-side Next.js code with browser DevTools, you need to pass the [`--inspect`](https://nodejs.org/api/cli.html#cli_inspect_host_port) flag to the underlying Node.js process:
+To debug server-side Next.js code with browser DevTools, you need to pass the `--inspect` flag:
 
 ```bash filename="Terminal"
-NODE_OPTIONS='--inspect' next dev
+next dev --inspect
 ```
 
-> **Good to know**: Use `NODE_OPTIONS='--inspect=0.0.0.0'` to allow remote debugging access outside localhost, such as when running the app in a Docker container.
+The value of `--inspect` is passed to the underlying Node.js process. Check out the [`--inspect` docs for advanced use cases](https://nodejs.org/api/cli.html#--inspecthostport).
 
-If you're using `npm run dev` or `yarn dev` then you should update the `dev` script on your `package.json`:
-
-```json filename="package.json"
-{
-  "scripts": {
-    "dev": "NODE_OPTIONS='--inspect' next dev"
-  }
-}
-```
+> **Good to know**: Use `--inspect=0.0.0.0` to allow remote debugging access outside localhost, such as when running the app in a Docker container.
 
 Launching the Next.js dev server with the `--inspect` flag will look something like this:
 
@@ -140,21 +132,21 @@ ready - started server on 0.0.0.0:3000, url: http://localhost:3000
 For Chrome:
 
 1. Open a new tab and visit `chrome://inspect`
-2. Click **Configure...** to ensure both debugging ports are listed
-3. Add both `localhost:9229` and `localhost:9230` if they're not already present
-4. Look for your Next.js application in the **Remote Target** section
-5. Click **inspect** to open a separate DevTools window
-6. Go to the **Sources** tab
+1. Look for your Next.js application in the **Remote Target** section
+1. Click **inspect** to open a separate DevTools window
+1. Go to the **Sources** tab
 
 For Firefox:
 
 1. Open a new tab and visit `about:debugging`
-2. Click **This Firefox** in the left sidebar
-3. Under **Remote Targets**, find your Next.js application
-4. Click **Inspect** to open the debugger
-5. Go to the **Debugger** tab
+1. Click **This Firefox** in the left sidebar
+1. Under **Remote Targets**, find your Next.js application
+1. Click **Inspect** to open the debugger
+1. Go to the **Debugger** tab
 
 Debugging server-side code works similarly to client-side debugging. When searching for files (`Ctrl+P`/`⌘+P`), your source files will have paths starting with `webpack://{application-name}/./` (where `{application-name}` will be replaced with the name of your application according to your `package.json` file).
+
+To use `--inspect-brk` or `--inspect-wait`, you have to specify `NODE_OPTIONS` instead. e.g. `NODE_OPTIONS=--inspect-brk next dev`.
 
 ### Inspect Server Errors with Browser DevTools
 
@@ -164,19 +156,7 @@ Next.js will display a Node.js icon underneath the Next.js version indicator on 
 
 ### Debugging on Windows
 
-Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as that syntax is not supported on Windows platforms. To get around this, install the [`cross-env`](https://www.npmjs.com/package/cross-env) package as a development dependency (`-D` with `npm` and `yarn`) and replace the `dev` script with the following.
-
-```json filename="package.json"
-{
-  "scripts": {
-    "dev": "cross-env NODE_OPTIONS='--inspect' next dev"
-  }
-}
-```
-
-`cross-env` will set the `NODE_OPTIONS` environment variable regardless of which platform you are on (including Mac, Linux, and Windows) and allow you to debug consistently across devices and operating systems.
-
-> **Good to know**: Ensure Windows Defender is disabled on your machine. This external service will check _every file read_, which has been reported to greatly increase Fast Refresh time with `next dev`. This is a known issue, not related to Next.js, but it does affect Next.js development.
+Ensure Windows Defender is disabled on your machine. This external service will check _every file read_, which has been reported to greatly increase Fast Refresh time with `next dev`. This is a known issue, not related to Next.js, but it does affect Next.js development.
 
 ## More information
 

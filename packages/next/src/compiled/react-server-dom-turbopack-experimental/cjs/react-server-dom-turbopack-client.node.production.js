@@ -49,7 +49,9 @@ function resolveServerReference(bundlerConfig, id) {
           '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
       );
   }
-  return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+  return resolvedModuleData.async
+    ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
+    : [resolvedModuleData.id, resolvedModuleData.chunks, name];
 }
 function requireAsyncModule(id) {
   var promise = globalThis.__next_require__(id);
@@ -789,13 +791,24 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
         var listener = resolveListeners[i];
         if ("function" !== typeof listener) {
           var cyclicHandler = resolveBlockedCycle(chunk, listener);
-          null !== cyclicHandler &&
-            (fulfillReference(listener, cyclicHandler.value),
-            resolveListeners.splice(i, 1),
-            i--,
-            null !== rejectListeners &&
-              ((listener = rejectListeners.indexOf(listener)),
-              -1 !== listener && rejectListeners.splice(listener, 1)));
+          if (null !== cyclicHandler)
+            switch (
+              (fulfillReference(listener, cyclicHandler.value),
+              resolveListeners.splice(i, 1),
+              i--,
+              null !== rejectListeners &&
+                ((listener = rejectListeners.indexOf(listener)),
+                -1 !== listener && rejectListeners.splice(listener, 1)),
+              chunk.status)
+            ) {
+              case "fulfilled":
+                wakeChunk(resolveListeners, chunk.value);
+                return;
+              case "rejected":
+                null !== rejectListeners &&
+                  rejectChunk(rejectListeners, chunk.reason);
+                return;
+            }
         }
       }
     case "pending":
@@ -875,10 +888,17 @@ function initializeModelChunk(chunk) {
   try {
     var value = JSON.parse(resolvedModel, response._fromJSON),
       resolveListeners = chunk.value;
-    null !== resolveListeners &&
-      ((chunk.value = null),
-      (chunk.reason = null),
-      wakeChunk(resolveListeners, value, chunk));
+    if (null !== resolveListeners)
+      for (
+        chunk.value = null, chunk.reason = null, resolvedModel = 0;
+        resolvedModel < resolveListeners.length;
+        resolvedModel++
+      ) {
+        var listener = resolveListeners[resolvedModel];
+        "function" === typeof listener
+          ? listener(value)
+          : fulfillReference(listener, value, chunk);
+      }
     if (null !== initializingHandler) {
       if (initializingHandler.errored) throw initializingHandler.reason;
       if (0 < initializingHandler.deps) {
@@ -937,7 +957,13 @@ function fulfillReference(reference, value) {
     i < path.length;
     i++
   ) {
-    for (; value.$$typeof === REACT_LAZY_TYPE; )
+    for (
+      ;
+      "object" === typeof value &&
+      null !== value &&
+      value.$$typeof === REACT_LAZY_TYPE;
+
+    )
       if (((value = value._payload), value === handler.chunk))
         value = handler.value;
       else {
@@ -976,9 +1002,33 @@ function fulfillReference(reference, value) {
       }
     value = value[path[i]];
   }
-  reference = map(response, value, parentObject, key);
-  parentObject[key] = reference;
-  "" === key && null === handler.value && (handler.value = reference);
+  for (
+    ;
+    "object" === typeof value &&
+    null !== value &&
+    value.$$typeof === REACT_LAZY_TYPE;
+
+  )
+    if (((reference = value._payload), reference === handler.chunk))
+      value = handler.value;
+    else {
+      switch (reference.status) {
+        case "resolved_model":
+          initializeModelChunk(reference);
+          break;
+        case "resolved_module":
+          initializeModuleChunk(reference);
+      }
+      switch (reference.status) {
+        case "fulfilled":
+          value = reference.value;
+          continue;
+      }
+      break;
+    }
+  response = map(response, value, parentObject, key);
+  parentObject[key] = response;
+  "" === key && null === handler.value && (handler.value = response);
   if (
     parentObject[0] === REACT_ELEMENT_TYPE &&
     "object" === typeof handler.value &&
@@ -987,7 +1037,7 @@ function fulfillReference(reference, value) {
   )
     switch (((parentObject = handler.value), key)) {
       case "3":
-        parentObject.props = reference;
+        parentObject.props = response;
     }
   handler.deps--;
   0 === handler.deps &&
@@ -1149,30 +1199,36 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
   }
   switch (id.status) {
     case "fulfilled":
-      var value = id.value;
-      for (id = 1; id < reference.length; id++) {
-        for (; value.$$typeof === REACT_LAZY_TYPE; ) {
-          value = value._payload;
-          switch (value.status) {
+      id = id.value;
+      for (var i = 1; i < reference.length; i++) {
+        for (
+          ;
+          "object" === typeof id &&
+          null !== id &&
+          id.$$typeof === REACT_LAZY_TYPE;
+
+        ) {
+          id = id._payload;
+          switch (id.status) {
             case "resolved_model":
-              initializeModelChunk(value);
+              initializeModelChunk(id);
               break;
             case "resolved_module":
-              initializeModuleChunk(value);
+              initializeModuleChunk(id);
           }
-          switch (value.status) {
+          switch (id.status) {
             case "fulfilled":
-              value = value.value;
+              id = id.value;
               break;
             case "blocked":
             case "pending":
               return waitForReference(
-                value,
+                id,
                 parentObject,
                 key,
                 response,
                 map,
-                reference.slice(id - 1)
+                reference.slice(i - 1)
               );
             case "halted":
               return (
@@ -1193,12 +1249,12 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
                 initializingHandler
                   ? ((initializingHandler.errored = !0),
                     (initializingHandler.value = null),
-                    (initializingHandler.reason = value.reason))
+                    (initializingHandler.reason = id.reason))
                   : (initializingHandler = {
                       parent: null,
                       chunk: null,
                       value: null,
-                      reason: value.reason,
+                      reason: id.reason,
                       deps: 0,
                       errored: !0
                     }),
@@ -1206,9 +1262,31 @@ function getOutlinedModel(response, reference, parentObject, key, map) {
               );
           }
         }
-        value = value[reference[id]];
+        id = id[reference[i]];
       }
-      return map(response, value, parentObject, key);
+      for (
+        ;
+        "object" === typeof id &&
+        null !== id &&
+        id.$$typeof === REACT_LAZY_TYPE;
+
+      ) {
+        reference = id._payload;
+        switch (reference.status) {
+          case "resolved_model":
+            initializeModelChunk(reference);
+            break;
+          case "resolved_module":
+            initializeModuleChunk(reference);
+        }
+        switch (reference.status) {
+          case "fulfilled":
+            id = reference.value;
+            continue;
+        }
+        break;
+      }
+      return map(response, id, parentObject, key);
     case "pending":
     case "blocked":
       return waitForReference(id, parentObject, key, response, map, reference);
@@ -1482,8 +1560,8 @@ function startReadableStream(response, id, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$52 = new ReactPromise("pending", null, null);
-        chunk$52.then(
+        var chunk$54 = new ReactPromise("pending", null, null);
+        chunk$54.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -1491,10 +1569,10 @@ function startReadableStream(response, id, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$52;
+        previousBlockedChunk = chunk$54;
         chunk.then(function () {
-          previousBlockedChunk === chunk$52 && (previousBlockedChunk = null);
-          resolveModelChunk(response, chunk$52, json);
+          previousBlockedChunk === chunk$54 && (previousBlockedChunk = null);
+          resolveModelChunk(response, chunk$54, json);
         });
       }
     },
@@ -1636,8 +1714,8 @@ function mergeBuffer(buffer, lastChunk) {
   for (var l = buffer.length, byteLength = lastChunk.length, i = 0; i < l; i++)
     byteLength += buffer[i].byteLength;
   byteLength = new Uint8Array(byteLength);
-  for (var i$53 = (i = 0); i$53 < l; i$53++) {
-    var chunk = buffer[i$53];
+  for (var i$55 = (i = 0); i$55 < l; i$55++) {
+    var chunk = buffer[i$55];
     byteLength.set(chunk, i);
     i += chunk.byteLength;
   }

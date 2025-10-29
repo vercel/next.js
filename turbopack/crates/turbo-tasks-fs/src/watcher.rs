@@ -739,7 +739,7 @@ impl DiskWatcher {
 #[instrument(
     parent = None,
     level = "info",
-    name = "DiskFileSystem file change",
+    name = "file change",
     skip_all,
     fields(name = %path.display())
 )]

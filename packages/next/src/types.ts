@@ -7,7 +7,6 @@
 import type { Agent as HttpAgent } from 'http'
 import type { Agent as HttpsAgent } from 'https'
 
-import type React from 'react'
 import type { ParsedUrlQuery } from 'querystring'
 import type { IncomingMessage, ServerResponse } from 'http'
 
@@ -61,11 +60,6 @@ export type Route<RouteInferType = any> = string & {}
 
 // Extend the React types with missing properties
 declare module 'react' {
-  // <html amp=""> support
-  interface HtmlHTMLAttributes<T> extends React.HTMLAttributes<T> {
-    amp?: string
-  }
-
   // <img fetchPriority=""> support
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- It's actually required for module augmentation to work.
   interface ImgHTMLAttributes<T> {
@@ -114,11 +108,6 @@ export type ResponseLimit = SizeLimit | boolean
  * `Config` type, use it for export const config
  */
 export type PageConfig = {
-  /**
-   * @deprecated built-in amp support will be removed in Next 16
-   * @see [`next/amp`](https://nextjs.org/docs/api-reference/next/amp)
-   */
-  amp?: boolean | 'hybrid'
   api?: {
     /**
      * Configures or disables body size limit warning. Can take a number or

@@ -5,8 +5,8 @@ import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-ro
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
-  MiddlewareConfig,
-  MiddlewareMatcher,
+  ProxyConfig,
+  ProxyMatcher,
   PageStaticInfo,
 } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
@@ -29,7 +29,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import {
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
@@ -42,6 +41,7 @@ import type { __ApiPreviewProps } from '../server/api-utils'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
+  isProxyFile,
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
 } from './utils'
@@ -552,6 +552,12 @@ export async function createPagesMapping({
       // added or removed.
       const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
 
+      // If there are no user pages routes, treat this as app-dir-only mode.
+      // The pages/ folder could be present and the initial appDirOnly is treated as false, but no valid routes are found.
+      if (Object.keys(pages).length === 0 && !appDirOnly) {
+        appDirOnly = true
+      }
+
       return {
         // Don't add default pages entries if this is an app-router-only build
         ...((isDev || !appDirOnly) && {
@@ -572,7 +578,7 @@ export interface CreateEntrypointsParams {
   buildId: string
   config: NextConfigComplete
   envFiles: LoadedEnvFiles
-  isDev?: boolean
+  isDev: boolean
   pages: MappedPages
   pagesDir?: string
   previewMode: __ApiPreviewProps
@@ -594,12 +600,12 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: MappedPages
-  middleware?: Partial<MiddlewareConfig>
+  middleware?: Partial<ProxyConfig>
   pagesType: PAGE_TYPES
   appDirLoader?: string
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
-  middlewareConfig?: MiddlewareConfig
+  middlewareConfig?: ProxyConfig
 }) {
   if (
     opts.pagesType === 'app' &&
@@ -615,9 +621,7 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
-      cacheHandlers: JSON.stringify(
-        opts.config.experimental.cacheHandlers || {}
-      ),
+      cacheHandlers: JSON.stringify(opts.config.cacheHandlers || {}),
     }
 
     return {
@@ -643,6 +647,7 @@ export function getEdgeServerEntry(opts: {
     return {
       import: `next-middleware-loader?${stringify(loaderParams)}!`,
       layer: WEBPACK_LAYERS.middleware,
+      filename: opts.isDev ? 'middleware.js' : undefined,
     }
   }
 
@@ -684,7 +689,7 @@ export function getEdgeServerEntry(opts: {
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
     serverActions: opts.config.experimental.serverActions,
-    cacheHandlers: JSON.stringify(opts.config.experimental.cacheHandlers || {}),
+    cacheHandlers: JSON.stringify(opts.config.cacheHandlers || {}),
   }
 
   return {
@@ -765,6 +770,11 @@ export function runDependingOnPageType<T>(params: {
     return
   }
 
+  if (isProxyFile(params.page)) {
+    params.onServer()
+    return
+  }
+
   if (isMiddlewareFile(params.page)) {
     if (params.pageRuntime === 'nodejs') {
       params.onServer()
@@ -831,7 +841,7 @@ export async function createEntrypoints(
   const edgeServer: webpack.EntryObject = {}
   const server: webpack.EntryObject = {}
   const client: webpack.EntryObject = {}
-  let middlewareMatchers: MiddlewareMatcher[] | undefined = undefined
+  let middlewareMatchers: ProxyMatcher[] | undefined = undefined
 
   let appPathsPerRoute: Record<string, string[]> = {}
   if (appDir && appPaths) {
@@ -1144,7 +1154,6 @@ export function finalizeEntrypoint({
         name !== CLIENT_STATIC_FILES_RUNTIME_POLYFILLS &&
         name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
         name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
-        name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
         name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
       ) {
         if (isAppLayer) {

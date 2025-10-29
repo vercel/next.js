@@ -43,7 +43,6 @@ describe('Basic CSS Module Support', () => {
       it('should have compiled successfully', () => {
         expect(code).toBe(0)
         expect(stdout).toMatch(/Compiled successfully/)
-        expect(stdout).toContain('.css')
       })
 
       it(`should've emitted a single CSS file`, async () => {
@@ -137,7 +136,7 @@ describe('3rd Party CSS Module Support', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index-module__jAE1EW__foo{position:relative}.index-module__jAE1EW__foo .bar{height:100%;overflow:hidden}.index-module__jAE1EW__foo .baz{height:100%;overflow:hidden}.index-module__jAE1EW__foo .lol{width:80%}.index-module__jAE1EW__foo>.lel{width:80%}"`
+            `".index-module__jAE1EW__foo{position:relative}:is(.index-module__jAE1EW__foo .bar,.index-module__jAE1EW__foo .baz){height:100%;overflow:hidden}.index-module__jAE1EW__foo .lol{width:80%}.index-module__jAE1EW__foo>.lel{width:80%}"`
           )
         } else {
           expect(
@@ -447,7 +446,6 @@ describe('Valid CSS Module Usage from within node_modules', () => {
           await killApp(app)
         })
 
-        // eslint-disable-next-line jest/no-identical-title
         it(`should've prerendered with relevant data`, async () => {
           const content = await renderViaHTTP(appPort, '/')
           const $ = cheerio.load(content)
@@ -458,7 +456,6 @@ describe('Valid CSS Module Usage from within node_modules', () => {
           )
         })
 
-        // eslint-disable-next-line jest/no-identical-title
         it(`should've emitted a single CSS file`, async () => {
           const content = await renderViaHTTP(appPort, '/')
           const $ = cheerio.load(content)

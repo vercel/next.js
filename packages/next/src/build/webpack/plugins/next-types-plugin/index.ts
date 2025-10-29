@@ -52,6 +52,8 @@ ${
     : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
+import type { PrefetchForTypeCheckInternal } from 'next/dist/build/segment-config/app/app-segment-config.js'
+
 type TEntry = typeof import('${relativePath}.js')
 
 type SegmentParams<T extends Object = any> = T extends Record<string, any>
@@ -67,7 +69,7 @@ checkFields<Diff<{
   }
   config?: {}
   generateStaticParams?: Function
-  unstable_prefetch?: 'unstable_static' | 'unstable_runtime'
+  unstable_prefetch?: PrefetchForTypeCheckInternal
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean
@@ -83,7 +85,6 @@ checkFields<Diff<{
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
-  experimental_ppr?: boolean
   `
   }
 }, TEntry, ''>>()
@@ -402,9 +403,7 @@ function isSubpath(parentLayoutPath: string, potentialChildLayoutPath: string) {
   )
 }
 
-function createServerDefinitions(
-  rootParams: { param: string; optional: boolean }[]
-) {
+function createServerDefinitions() {
   return `
   declare module 'next/server' {
 
@@ -415,7 +414,7 @@ function createServerDefinitions(
     export { NextFetchEvent } from 'next/dist/server/web/spec-extension/fetch-event'
     export { NextRequest } from 'next/dist/server/web/spec-extension/request'
     export { NextResponse } from 'next/dist/server/web/spec-extension/response'
-    export { NextMiddleware, MiddlewareConfig } from 'next/dist/server/web/types'
+    export { NextMiddleware, MiddlewareConfig, NextProxy, ProxyConfig } from 'next/dist/server/web/types'
     export { userAgentFromString } from 'next/dist/server/web/spec-extension/user-agent'
     export { userAgent } from 'next/dist/server/web/spec-extension/user-agent'
     export { URLPattern } from 'next/dist/compiled/@edge-runtime/primitives/url'
@@ -423,15 +422,6 @@ function createServerDefinitions(
     export type { ImageResponseOptions } from 'next/dist/compiled/@vercel/og/types'
     export { after } from 'next/dist/server/after'
     export { connection } from 'next/dist/server/request/connection'
-    export type { UnsafeUnwrappedSearchParams } from 'next/dist/server/request/search-params'
-    export type { UnsafeUnwrappedParams } from 'next/dist/server/request/params'
-    export function unstable_rootParams(): Promise<{ ${rootParams
-      .map(
-        ({ param, optional }) =>
-          // ensure params with dashes are valid keys
-          `${param.includes('-') ? `'${param}'` : param}${optional ? '?' : ''}: string`
-      )
-      .join(', ')} }>
   }
   `
 }
@@ -500,7 +490,7 @@ function createCustomCacheLifeDefinitions(cacheLife: {
      * \`\`\`
      * ${description}
      */
-    export function unstable_cacheLife(profile: ${JSON.stringify(profileName)}): void
+    export function cacheLife(profile: ${JSON.stringify(profileName)}): void
     `
   }
 
@@ -517,7 +507,7 @@ function createCustomCacheLifeDefinitions(cacheLife: {
      *
      * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
      */
-    export function unstable_cacheLife(profile: {
+    export function cacheLife(profile: {
       /**
        * This cache may be stale on clients for ... seconds before checking with the server.
        */
@@ -539,16 +529,20 @@ function createCustomCacheLifeDefinitions(cacheLife: {
 declare module 'next/cache' {
   export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
   export {
+    updateTag,
     revalidateTag,
     revalidatePath,
-    unstable_expireTag,
-    unstable_expirePath,
+    refresh,
   } from 'next/dist/server/web/spec-extension/revalidate'
   export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
 
   ${overloads}
 
-  export { cacheTag as unstable_cacheTag } from 'next/dist/server/use-cache/cache-tag'
+  import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
+  export { cacheTag }
+
+  export const unstable_cacheTag: typeof cacheTag
+  export const unstable_cacheLife: typeof cacheLife
 }
 `
 }
@@ -816,7 +810,7 @@ export class NextTypesPlugin {
             compilation.emitAsset(
               serverTypesPath,
               new sources.RawSource(
-                createServerDefinitions(rootParams)
+                createServerDefinitions()
               ) as unknown as webpack.sources.RawSource
             )
           }

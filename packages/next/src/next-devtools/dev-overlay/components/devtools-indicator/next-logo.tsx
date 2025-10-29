@@ -1,18 +1,19 @@
 import { useRef, useState } from 'react'
 import { useUpdateAnimation } from './hooks/use-update-animation'
 import { useMeasureWidth } from './hooks/use-measure-width'
-import { useMinimumLoadingTimeMultiple } from './hooks/use-minimum-loading-time-multiple'
 import { Cross } from '../../icons/cross'
 import { Warning } from '../../icons/warning'
 import { css } from '../../utils/css'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useRenderErrorContext } from '../../dev-overlay'
+import { useDelayedRender } from '../../hooks/use-delayed-render'
 import {
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
 } from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
 import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
+import { StatusIndicator, Status, getCurrentStatus } from './status-indicator'
 
 const SHORT_DURATION_MS = 150
 
@@ -40,13 +41,38 @@ export function NextLogo({
     SHORT_DURATION_MS
   )
 
+  // Cache indicator state management
+  const isCacheFilling = state.cacheIndicator === 'filling'
+  const isCacheBypassing = state.cacheIndicator === 'bypass'
+
+  // Determine if we should show any status (excluding cache bypass, which renders like error badge)
+  const shouldShowStatus =
+    state.buildingIndicator || state.renderingIndicator || isCacheFilling
+
+  // Delay showing for 400ms to catch fast operations,
+  // and keep visible for minimum time (longer for warnings)
+  const { rendered: showStatusIndicator } = useDelayedRender(shouldShowStatus, {
+    enterDelay: 400,
+    exitDelay: 500,
+  })
+
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
 
-  const isLoading = useMinimumLoadingTimeMultiple(
-    state.buildingIndicator || state.renderingIndicator
+  // Get the current status from the state
+  const currentStatus = getCurrentStatus(
+    state.buildingIndicator,
+    state.renderingIndicator,
+    state.cacheIndicator
   )
-  const isExpanded = isErrorExpanded || state.disableDevIndicator
+
+  const displayStatus = showStatusIndicator ? currentStatus : Status.None
+
+  const isExpanded =
+    isErrorExpanded ||
+    isCacheBypassing ||
+    showStatusIndicator ||
+    state.disableDevIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
 
   return (
@@ -146,6 +172,15 @@ export function NextLogo({
                 &:hover {
                   background: var(--color-hover-alpha-error-2);
                 }
+              }
+            }
+
+            &[data-cache-bypassing='true']:not([data-error='true']) {
+              background: rgba(217, 119, 6, 0.95);
+              --color-inner-border: rgba(245, 158, 11, 0.9);
+
+              [data-issues-open] {
+                color: white;
               }
             }
 
@@ -300,15 +335,6 @@ export function NextLogo({
             }
           }
 
-          .path0 {
-            animation: draw0 1.5s ease-in-out infinite;
-          }
-
-          .path1 {
-            animation: draw1 1.5s ease-out infinite;
-            animation-delay: 0.3s;
-          }
-
           .paused {
             stroke-dashoffset: 0;
           }
@@ -339,44 +365,6 @@ export function NextLogo({
             }
           }
 
-          @keyframes draw0 {
-            0%,
-            25% {
-              stroke-dashoffset: -29.6;
-            }
-            25%,
-            50% {
-              stroke-dashoffset: 0;
-            }
-            50%,
-            75% {
-              stroke-dashoffset: 0;
-            }
-            75%,
-            100% {
-              stroke-dashoffset: 29.6;
-            }
-          }
-
-          @keyframes draw1 {
-            0%,
-            20% {
-              stroke-dashoffset: -11.6;
-            }
-            20%,
-            50% {
-              stroke-dashoffset: 0;
-            }
-            50%,
-            75% {
-              stroke-dashoffset: 0;
-            }
-            75%,
-            100% {
-              stroke-dashoffset: 11.6;
-            }
-          }
-
           @media (prefers-reduced-motion) {
             [data-issues-count-exit],
             [data-issues-count-enter],
@@ -390,6 +378,8 @@ export function NextLogo({
         data-next-badge
         data-error={hasError}
         data-error-expanded={isExpanded}
+        data-status={hasError || isCacheBypassing ? Status.None : currentStatus}
+        data-cache-bypassing={isCacheBypassing}
         data-animate={newErrorDetected}
         style={{ width }}
       >
@@ -400,7 +390,6 @@ export function NextLogo({
               id="next-logo"
               ref={triggerRef}
               data-next-mark
-              data-next-mark-loading={isLoading}
               onClick={onTriggerClick}
               disabled={state.disableDevIndicator}
               aria-haspopup="menu"
@@ -408,76 +397,103 @@ export function NextLogo({
               aria-controls="nextjs-dev-tools-menu"
               aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
               data-nextjs-dev-tools-button
+              style={{
+                display:
+                  showStatusIndicator && !hasError && !isCacheBypassing
+                    ? 'none'
+                    : 'flex',
+              }}
               {...buttonProps}
             >
-              <NextMark
-                isLoading={isLoading}
-                isDevBuilding={state.buildingIndicator}
-              />
+              <NextMark />
             </button>
           )}
           {isExpanded && (
-            <div data-issues>
-              <button
-                data-issues-open
-                aria-label="Open issues overlay"
-                onClick={() => {
-                  if (state.isErrorOverlayOpen) {
-                    dispatch({
-                      type: ACTION_ERROR_OVERLAY_CLOSE,
-                    })
-                    return
-                  }
-                  dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
-                  setPanel(null)
-                }}
-              >
-                {state.disableDevIndicator && (
-                  <div data-disabled-icon>
-                    <Warning />
-                  </div>
-                )}
-                <AnimateCount
-                  // Used the key to force a re-render when the count changes.
-                  key={totalErrorCount}
-                  animate={newErrorDetected}
-                  data-issues-count-animation
-                >
-                  {totalErrorCount}
-                </AnimateCount>{' '}
-                <div>
-                  Issue
-                  {totalErrorCount > 1 && (
-                    <span
-                      aria-hidden
-                      data-issues-count-plural
-                      // This only needs to animate once the count changes from 1 -> 2,
-                      // otherwise it should stay static between re-renders.
-                      data-animate={newErrorDetected && totalErrorCount === 2}
+            <>
+              {/* Error badge has priority over cache indicator */}
+              {(isErrorExpanded || state.disableDevIndicator) && (
+                <div data-issues>
+                  <button
+                    data-issues-open
+                    aria-label="Open issues overlay"
+                    onClick={() => {
+                      if (state.isErrorOverlayOpen) {
+                        dispatch({
+                          type: ACTION_ERROR_OVERLAY_CLOSE,
+                        })
+                        return
+                      }
+                      dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
+                      setPanel(null)
+                    }}
+                  >
+                    {state.disableDevIndicator && (
+                      <div data-disabled-icon>
+                        <Warning />
+                      </div>
+                    )}
+                    <AnimateCount
+                      // Used the key to force a re-render when the count changes.
+                      key={totalErrorCount}
+                      animate={newErrorDetected}
+                      data-issues-count-animation
                     >
-                      s
-                    </span>
+                      {totalErrorCount}
+                    </AnimateCount>{' '}
+                    <div>
+                      Issue
+                      {totalErrorCount > 1 && (
+                        <span
+                          aria-hidden
+                          data-issues-count-plural
+                          // This only needs to animate once the count changes from 1 -> 2,
+                          // otherwise it should stay static between re-renders.
+                          data-animate={
+                            newErrorDetected && totalErrorCount === 2
+                          }
+                        >
+                          s
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                  {!state.buildError && (
+                    <button
+                      data-issues-collapse
+                      aria-label="Collapse issues badge"
+                      onClick={() => {
+                        if (state.disableDevIndicator) {
+                          setDismissed(true)
+                        } else {
+                          setIsErrorExpanded(false)
+                        }
+                        // Move focus to the trigger to prevent having it stuck on this element
+                        triggerRef.current?.focus()
+                      }}
+                    >
+                      <Cross data-cross />
+                    </button>
                   )}
                 </div>
-              </button>
-              {!state.buildError && (
-                <button
-                  data-issues-collapse
-                  aria-label="Collapse issues badge"
-                  onClick={() => {
-                    if (state.disableDevIndicator) {
-                      setDismissed(true)
-                    } else {
-                      setIsErrorExpanded(false)
-                    }
-                    // Move focus to the trigger to prevent having it stuck on this element
-                    triggerRef.current?.focus()
-                  }}
-                >
-                  <Cross data-cross />
-                </button>
               )}
-            </div>
+              {/* Cache bypass badge shown when cache is being bypassed */}
+              {isCacheBypassing && !hasError && !state.disableDevIndicator && (
+                <CacheBypassBadge
+                  onTriggerClick={onTriggerClick}
+                  triggerRef={triggerRef}
+                />
+              )}
+              {/* Status indicator shown when no errors and no cache bypass */}
+              {showStatusIndicator &&
+                !hasError &&
+                !isCacheBypassing &&
+                !state.disableDevIndicator && (
+                  <StatusIndicator
+                    status={displayStatus}
+                    onClick={onTriggerClick}
+                  />
+                )}
+            </>
           )}
         </div>
       </div>
@@ -506,25 +522,50 @@ function AnimateCount({
   )
 }
 
-function NextMark({
-  isLoading,
-  isDevBuilding,
+function CacheBypassBadge({
+  onTriggerClick,
+  triggerRef,
 }: {
-  isLoading?: boolean
-  isDevBuilding?: boolean
+  onTriggerClick: () => void
+  triggerRef: React.RefObject<HTMLButtonElement | null>
 }) {
-  const strokeColor = isDevBuilding ? 'rgba(255,255,255,0.7)' : 'white'
+  const [dismissed, setDismissed] = useState(false)
+
+  if (dismissed) {
+    return null
+  }
+
   return (
-    <svg
-      width="40"
-      height="40"
-      viewBox="0 0 40 40"
-      fill="none"
-      data-next-mark-loading={isLoading}
-    >
+    <div data-issues data-cache-bypass-badge>
+      <button
+        data-issues-open
+        data-nextjs-dev-tools-button
+        aria-label="Open Next.js Dev Tools"
+        onClick={onTriggerClick}
+      >
+        Cache disabled
+      </button>
+      <button
+        data-issues-collapse
+        aria-label="Collapse cache bypass badge"
+        onClick={() => {
+          setDismissed(true)
+          // Move focus to the trigger to prevent having it stuck on this element
+          triggerRef.current?.focus()
+        }}
+      >
+        <Cross data-cross />
+      </button>
+    </div>
+  )
+}
+
+function NextMark() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
       <g transform="translate(8.5, 13)">
         <path
-          className={isLoading ? 'path0' : 'paused'}
+          className="paused"
           d="M13.3 15.2 L2.34 1 V12.6"
           fill="none"
           stroke="url(#next_logo_paint0_linear_1357_10853)"
@@ -534,7 +575,7 @@ function NextMark({
           strokeDashoffset="29.6"
         />
         <path
-          className={isLoading ? 'path1' : 'paused'}
+          className="paused"
           d="M11.825 1.5 V13.1"
           strokeWidth="1.86"
           stroke="url(#next_logo_paint1_linear_1357_10853)"
@@ -551,9 +592,9 @@ function NextMark({
           y2="17.9671"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor={strokeColor} />
-          <stop offset="0.604072" stopColor={strokeColor} stopOpacity="0" />
-          <stop offset="1" stopColor={strokeColor} stopOpacity="0" />
+          <stop stopColor="white" />
+          <stop offset="0.604072" stopColor="white" stopOpacity="0" />
+          <stop offset="1" stopColor="white" stopOpacity="0" />
         </linearGradient>
         <linearGradient
           id="next_logo_paint1_linear_1357_10853"
@@ -563,8 +604,8 @@ function NextMark({
           y2="9.62542"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor={strokeColor} />
-          <stop offset="1" stopColor={strokeColor} stopOpacity="0" />
+          <stop stopColor="white" />
+          <stop offset="1" stopColor="white" stopOpacity="0" />
         </linearGradient>
         <mask id="next_logo_mask0">
           <rect width="100%" height="100%" fill="white" />

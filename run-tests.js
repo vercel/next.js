@@ -16,7 +16,7 @@ const { getTestFilter } = require('./test/get-test-filter')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.1.0";
+const nextjsReactPeerVersion = "19.2.0";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -55,7 +55,9 @@ const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
 // Check env to see if test should continue even if some of test fails
-const shouldContinueTestsOnError = !!process.env.NEXT_TEST_CONTINUE_ON_ERROR
+const shouldContinueTestsOnError =
+  process.env.NEXT_TEST_CONTINUE_ON_ERROR === 'true'
+
 // Check env to load a list of test paths to skip retry. This is to be used in conjunction with NEXT_TEST_CONTINUE_ON_ERROR,
 // When try to run all of the tests regardless of pass / fail and want to skip retrying `known` failed tests.
 // manifest should be a json file with an array of test paths.
@@ -500,6 +502,7 @@ ${ENDGROUP}`)
   )
   let firstError = true
   let killed = false
+  let hadFailures = false
 
   const runTest = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
@@ -689,7 +692,7 @@ ${ENDGROUP}`)
 
       // we only restrict 1 test per directory for
       // legacy integration tests
-      if (test.file.startsWith('test/integration') && dirSema === undefined) {
+      if (/^test[/\\]integration/.test(test.file) && dirSema === undefined) {
         directorySemas.set(dirName, (dirSema = new Sema(1)))
       }
       if (dirSema) await dirSema.acquire()
@@ -734,7 +737,7 @@ ${ENDGROUP}`)
               // if test is nested in a test folder traverse up a dir to ensure
               // we clean up relevant test files
               if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
-                testDir = path.join(testDir, '../')
+                testDir = path.join(testDir, '..')
               }
               console.log('Cleaning test files at', testDir)
               await exec(`git clean -fdx "${testDir}"`)
@@ -756,6 +759,7 @@ ${ENDGROUP}`)
           children.forEach((child) => child.kill())
           cleanUpAndExit(1)
         } else {
+          hadFailures = true
           console.log(
             `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
           )
@@ -852,10 +856,20 @@ ${ENDGROUP}`)
       }
     }
   }
+
+  // Return whether there were any failures
+  return hadFailures
 }
 
 main()
-  .then(() => cleanUpAndExit(0))
+  .then((hadFailures) => {
+    if (hadFailures) {
+      console.error('Some tests failed')
+      cleanUpAndExit(1)
+    } else {
+      cleanUpAndExit(0)
+    }
+  })
   .catch((err) => {
     console.error(err)
     cleanUpAndExit(1)

@@ -29,21 +29,20 @@ export const wellKnownProperties = new Set([
   'toLocaleString',
 
   // Promise prototype
-  // fallthrough
   'then',
   'catch',
   'finally',
 
   // React Promise extension
-  // fallthrough
   'status',
+  // 'value',
+  // 'error',
 
   // React introspection
   'displayName',
   '_debugInfo',
 
   // Common tested properties
-  // fallthrough
   'toJSON',
   '$$typeof',
   '__esModule',

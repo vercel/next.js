@@ -280,7 +280,7 @@ pub fn make_task_dirty_internal(
     )
     .entered();
 
-    let should_schedule = if ctx.should_track_children() {
+    let should_schedule = {
         let aggregated_update = dirty_container.update_with_dirty_state(&DirtyState {
             clean_in_session: None,
         });
@@ -291,8 +291,6 @@ pub fn make_task_dirty_internal(
             ));
         }
         !ctx.should_track_activeness() || task.has_key(&CachedDataItemKey::Activeness {})
-    } else {
-        true
     };
 
     if should_schedule {

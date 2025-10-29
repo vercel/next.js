@@ -43,8 +43,8 @@ describe('global-default-cache-handler', () => {
             console.log('symbol getExpiration', tags)
           },
         
-          expireTags(...tags) {
-            console.log('symbol expireTags', tags)
+          updateTags(...tags) {
+            console.log('symbol updateTags', tags)
           }
         }
       }
@@ -93,12 +93,12 @@ describe('global-default-cache-handler', () => {
     })
   })
 
-  it('should call expireTags on global default cache handler', async () => {
+  it('should call updateTags on global default cache handler', async () => {
     const res = await fetchViaHTTP(appPort, '/revalidate-tag', { tag: 'tag1' })
     expect(res.status).toBe(200)
 
     await retry(() => {
-      expect(output).toContain('symbol expireTags')
+      expect(output).toContain('symbol updateTags')
       expect(output).toContain('tag1')
     })
   })

@@ -5,7 +5,7 @@ export default async function Page() {
   // This promise will reject after we abort during prerendering
   setTimeout(() => {
     Promise.reject('BAM')
-  }, 0)
+  }, 10)
 
   return (
     <>

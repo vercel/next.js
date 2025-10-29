@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../../shared'
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 export default async function Page() {
   return (
@@ -24,6 +24,6 @@ async function RuntimePrefetchable() {
 
 async function publicCache() {
   'use cache'
-  unstable_cacheLife('seconds')
+  cacheLife('seconds')
   await cachedDelay([__dirname])
 }

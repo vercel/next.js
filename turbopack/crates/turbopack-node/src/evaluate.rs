@@ -177,6 +177,7 @@ async fn emit_evaluate_pool_assets_operation(
             .with_entry(*ResolvedVc::try_downcast(entry_module).unwrap()),
         module_graph,
         OutputAssets::empty(),
+        OutputAssets::empty(),
     );
 
     let output_root = chunking_context.output_root().owned().await?;

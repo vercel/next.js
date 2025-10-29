@@ -28,20 +28,21 @@ pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<S
         .context("Expected root to have a DiskFileSystem")?
         .await?;
 
+    let path = match path {
+        Some(path) => root.join(path)?,
+        None => root,
+    };
+
+    let sys_path = root_fs.to_sys_path(&path);
+    let sys_path = sys_path.to_string_lossy();
+
     Ok(format!(
         "file://{}",
-        &sys_to_unix(
-            &root_fs
-                .to_sys_path(match path {
-                    Some(path) => root.join(path)?,
-                    None => root,
-                })?
-                .to_string_lossy()
-        )
-        .split('/')
-        .map(|s| urlencoding::encode(s))
-        .collect::<Vec<_>>()
-        .join("/")
+        sys_to_unix(&sys_path)
+            .split('/')
+            .map(|s| urlencoding::encode(s))
+            .collect::<Vec<_>>()
+            .join("/")
     ))
 }
 
@@ -52,10 +53,11 @@ pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<S
         .context("Expected root to have a DiskFileSystem")?
         .await?;
 
-    let sys_path = root_fs.to_sys_path(match path {
+    let sys_path = match path {
         Some(path) => root.join(path.into())?,
         None => root,
-    })?;
+    };
+    let sys_path = root_fs.to_sys_path(&sys_path);
 
     let raw_path = sys_path.to_string_lossy().to_string();
     let normalized_path = raw_path.replace('\\', "/");

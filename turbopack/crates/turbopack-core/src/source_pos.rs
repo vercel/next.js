@@ -32,8 +32,11 @@ pub struct SourcePos {
 }
 
 impl SourcePos {
-    pub fn new() -> Self {
-        Default::default()
+    pub fn new(start_line: u32) -> Self {
+        Self {
+            line: start_line,
+            column: 0,
+        }
     }
 
     pub fn max() -> Self {

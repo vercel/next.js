@@ -234,7 +234,6 @@ pub mod tests {
         collections::HashMap,
         fs::{File, create_dir},
         io::prelude::*,
-        os::unix::fs::symlink,
     };
 
     use turbo_rcstr::{RcStr, rcstr};
@@ -317,6 +316,8 @@ pub mod tests {
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_symlinks() {
+        use std::os::unix::fs::symlink;
+
         let scratch = tempfile::tempdir().unwrap();
         {
             // root.js

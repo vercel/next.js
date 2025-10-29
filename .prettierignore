@@ -17,7 +17,6 @@ packages/next/wasm/@next
 packages/next/errors.json
 
 .github/actions/next-stats-action/.work
-.changeset/*.md
 
 crates/**/tests/**/output*
 crates/core/tests/loader/issue-32553/input.js
@@ -48,13 +47,11 @@ bench/nested-deps/components/**/*
 
 **/convex/_generated/**
 **/.tina/__generated__/**
-test/lib/amp-validator-wasm.js
-test/production/pages-dir/production/fixture/amp-validator-wasm.js
 test/e2e/app-dir/server-source-maps/fixtures/default/app/bad-sourcemap/page.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/ignored.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js
 test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js
-test/e2e/async-modules/amp-validator-wasm.js
+test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx
 
 # turbopack crates, disable for some tests and precompiled dependencies.
 /turbopack/crates/*/js/src/compiled
@@ -67,6 +64,7 @@ test/e2e/async-modules/amp-validator-wasm.js
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/broken.js
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-parse-error/input/invalid-export/broken.js
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/**/not-compiled.js
+/turbopack/crates/turbopack-tests/tests/snapshot/basic/ts-parse-error/input/other.ts
 /turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/mod.cjs
 /turbopack/crates/turbopack-tests/tests/snapshot/source_maps/*
 /turbopack/crates/turbopack-tests/tests/**/output*

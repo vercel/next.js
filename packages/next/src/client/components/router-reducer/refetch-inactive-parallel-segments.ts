@@ -74,8 +74,9 @@ async function refreshInactiveParallelSegmentsImpl({
         flightRouterState: [rootTree[0], rootTree[1], rootTree[2], 'refetch'],
         nextUrl: includeNextUrl ? state.nextUrl : null,
       }
-    ).then(({ flightData }) => {
-      if (typeof flightData !== 'string') {
+    ).then((result) => {
+      if (typeof result !== 'string') {
+        const { flightData } = result
         for (const flightDataPath of flightData) {
           // we only pass the new cache as this function is called after clearing the router cache
           // and filling in the new page data from the server. Meaning the existing cache is actually the cache that's
@@ -88,7 +89,7 @@ async function refreshInactiveParallelSegmentsImpl({
           )
         }
       } else {
-        // When flightData is a string, it suggests that the server response should have triggered an MPA navigation
+        // When result is a string, it suggests that the server response should have triggered an MPA navigation
         // I'm not 100% sure of this decision, but it seems unlikely that we'd want to introduce a redirect side effect
         // when refreshing on-screen data, so handling this has been ommitted.
       }

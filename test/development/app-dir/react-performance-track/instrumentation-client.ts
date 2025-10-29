@@ -55,16 +55,14 @@ window.reactServerRequests = {
   },
 }
 
-let registeredServerRequestsTrack = false
-
 const originalConsoleTimeStamp = console.timeStamp
 console.timeStamp = (...args: any) => {
   originalConsoleTimeStamp.apply(console, args)
-  const [_entryName, startTime, endTime, track, name] = args
+  const [name, startTime, endTime, track] = args
 
   if (track === 'Server Requests ⚛') {
-    // React will always call one console.timeStamp to register the track in Chrome's performance panel.
-    if (registeredServerRequestsTrack) {
+    const isRegisterTrackRequest = startTime === 0.001 && endTime === 0.001
+    if (!isRegisterTrackRequest) {
       reactServerRequests.push({
         type: 'console',
         name: name ?? '',
@@ -76,7 +74,6 @@ console.timeStamp = (...args: any) => {
         listener()
       }
     }
-    registeredServerRequestsTrack = true
   }
 }
 
