@@ -2155,7 +2155,6 @@ export default async function getBaseWebpackConfig(
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          cacheLifeConfig: config.cacheLife,
           originalRewrites,
           originalRedirects,
         }),
