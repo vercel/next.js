@@ -1,7 +1,6 @@
 {
   "oxc.fmt.experimental": true,
   "oxc.fmt.configPath": ".prettierrc.json",
-  "oxc.enable": false,
   "oxc.requireConfig": true,
   // Formatting using oxfmt by default for all languages
    "editor.defaultFormatter": "oxc.oxc-vscode",
@@ -10,6 +9,18 @@
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "[mdx]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[yaml]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   // Formatting using Rust-Analyzer for Rust.
