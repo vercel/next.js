@@ -381,7 +381,7 @@ describe('Prerender', () => {
       ]
 
       for (const toBuild of toBuildBatches) {
-        // eslint-disable-next-line no-loop-func -- we're not accessign `next` after the loop was exited.
+        // eslint-disable-next-line no-loop-func -- we're not accessing `next` after the loop was exited.
         await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
       }
 
