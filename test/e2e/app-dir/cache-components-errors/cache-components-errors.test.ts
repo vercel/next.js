@@ -2662,19 +2662,36 @@ describe('Cache Components Errors', () => {
 
       describe('cacheLife with expire < 5 minutes', () => {
         if (isNextDev) {
-          // FIXME: This should show a redbox error, but currently does not.
           it('should show a redbox error', async () => {
             const browser = await next.browser('/use-cache-low-expire')
 
-            if (isTurbopack) {
-              await expect(browser).toDisplayCollapsedRedbox(
-                `"Redbox did not open."`
-              )
-            } else {
-              await expect(browser).toDisplayCollapsedRedbox(
-                `"Redbox did not open."`
-              )
-            }
+            // FIXME: Should have a codeframe
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "description": "Uncached data was accessed outside of <Suspense>
+
+             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+
+             To fix this, you can either:
+
+             Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+             or
+
+             Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+             Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+
+             Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": null,
+               "stack": [
+                 "Page [Server] <anonymous>",
+                 "LogSafely <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -2767,19 +2784,36 @@ describe('Cache Components Errors', () => {
 
       describe('cacheLife with revalidate: 0', () => {
         if (isNextDev) {
-          // FIXME: This should show a redbox error, but currently does not.
           it('should show a redbox error', async () => {
             const browser = await next.browser('/use-cache-revalidate-0')
 
-            if (isTurbopack) {
-              await expect(browser).toDisplayCollapsedRedbox(
-                `"Redbox did not open."`
-              )
-            } else {
-              await expect(browser).toDisplayCollapsedRedbox(
-                `"Redbox did not open."`
-              )
-            }
+            // FIXME: Should have a codeframe
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "description": "Uncached data was accessed outside of <Suspense>
+
+             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+
+             To fix this, you can either:
+
+             Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+             or
+
+             Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+             Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+
+             Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": null,
+               "stack": [
+                 "Page [Server] <anonymous>",
+                 "LogSafely <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
@@ -3381,15 +3415,34 @@ describe('Cache Components Errors', () => {
               '/use-cache-private-without-suspense'
             )
 
-            if (isTurbopack) {
-              await expect(browser).toDisplayCollapsedRedbox(
-                `"Redbox did not open."`
-              )
-            } else {
-              await expect(browser).toDisplayCollapsedRedbox(
-                `"Redbox did not open."`
-              )
-            }
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "description": "Uncached data was accessed outside of <Suspense>
+
+             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation.
+
+             To fix this, you can either:
+
+             Wrap the component in a <Suspense> boundary. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+             or
+
+             Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+             Note that request-specific information — such as params, cookies, and headers — is not available during static prerendering, so must be wrapped in <Suspense>.
+
+             Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
+             > 10 |       <Private />
+                  |       ^",
+               "stack": [
+                 "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
+                 "LogSafely <anonymous>",
+               ],
+             }
+            `)
           })
         } else {
           it('should error the build', async () => {
