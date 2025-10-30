@@ -382,6 +382,7 @@ impl<B: BackingStorage> TaskGuardImpl<'_, B> {
     /// Verify that the task guard restored the correct category
     /// before accessing the data.
     #[inline]
+    #[track_caller]
     fn check_access(&self, category: TaskDataCategory) {
         {
             match category {
@@ -434,6 +435,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task_id
     }
 
+    #[track_caller]
     fn add(&mut self, item: CachedDataItem) -> bool {
         let category = item.category();
         self.check_access(category);
@@ -446,12 +448,14 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.add(item)
     }
 
+    #[track_caller]
     fn add_new(&mut self, item: CachedDataItem) {
         self.check_access(item.category());
         let added = self.add(item);
         assert!(added, "Item already exists");
     }
 
+    #[track_caller]
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
         let category = item.category();
         self.check_access(category);
@@ -461,6 +465,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.insert(item)
     }
 
+    #[track_caller]
     fn update(
         &mut self,
         key: CachedDataItemKey,
@@ -474,6 +479,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.update(key, update);
     }
 
+    #[track_caller]
     fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
         let category = key.category();
         self.check_access(category);
@@ -488,6 +494,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.get(key)
     }
 
+    #[track_caller]
     fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
         let category = key.category();
         self.check_access(category);
@@ -497,6 +504,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.get_mut(key)
     }
 
+    #[track_caller]
     fn get_mut_or_insert_with(
         &mut self,
         key: CachedDataItemKey,
@@ -510,11 +518,13 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.get_mut_or_insert_with(key, insert)
     }
 
+    #[track_caller]
     fn has_key(&self, key: &CachedDataItemKey) -> bool {
         self.check_access(key.category());
         self.task.contains_key(key)
     }
 
+    #[track_caller]
     fn count(&self, ty: CachedDataItemType) -> usize {
         self.check_access(ty.category());
         self.task.count(ty)
@@ -532,6 +542,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.shrink_to_fit(ty)
     }
 
+    #[track_caller]
     fn extract_if<'l, F>(
         &'l mut self,
         ty: CachedDataItemType,
