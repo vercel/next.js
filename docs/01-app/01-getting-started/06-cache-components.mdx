@@ -25,7 +25,7 @@ When developing dynamic applications, you have to balance two primary approaches
 
 With Cache Components enabled, Next.js treats all routes as **dynamic by default**. Every request renders with the latest available data. However, most pages are made up of both static and dynamic parts, and not all dynamic data needs to be resolved from source on every request.
 
-Cache Components allows you to mark data, and even parts of your UI as cacheable, which includes them in the pre-render pass alongside static parts of the page.
+Cache Components allows you to mark data, and even parts of your UI as cacheable, which includes them in the prerender pass alongside static parts of the page.
 
 > **Before Cache Components**, Next.js tried to statically optimize **entire** pages automatically, which could lead to unexpected behavior when adding dynamic code.
 
@@ -48,11 +48,11 @@ When a user visits a route:
 
 > **🎥 Watch:** Why PPR and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
 
-## Pre-rendering Model
+## Prerendering Model
 
-Next.js attempts to pre-render everything during the build phase. When it encounters work that cannot complete during pre-rendering (dynamic I/O, runtime APIs), that work is deferred to request time:
+Next.js attempts to prerender everything during the build phase. When it encounters work that cannot complete during prerendering (dynamic I/O, runtime APIs), that work is deferred to request time:
 
-1. **Pre-rendering starts**: Next.js tries to render the entire page
+1. **Prerendering starts**: Next.js tries to render the entire page
 2. **Hits dynamic work**: Encounters `fetch()`, `cookies()`, etc. that cannot complete
 3. **Requires fallback**: Must be wrapped in `<Suspense>` to define the fallback UI to use in the static shell
 4. **Result**: Static shell with clearly defined dynamic sections
@@ -70,9 +70,9 @@ Before Cache Components, a single dynamic operation (like `fetch` with `cache: '
 
 Cache Components gives you three key tools to control rendering:
 
-### Static (Pre-renderable)
+### Static (Prerendered)
 
-Work that can complete during the build or pre-render phase:
+Work that can complete during the build or prerender phase:
 
 ```tsx filename="page.tsx"
 export default async function Page() {
@@ -94,7 +94,7 @@ export default async function Page() {
 
 ### Dynamic (Defers to Request Time)
 
-Operations that perform external I/O or access non-deterministic values. These create dynamic holes (deferred UI parts requiring `<Suspense>`) during pre-rendering unless wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache):
+Operations that perform external I/O or access non-deterministic values. These create dynamic holes (deferred UI parts requiring `<Suspense>`) during prerendering unless wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache):
 
 ```tsx filename="page.tsx"
 import { connection } from 'next/server'
@@ -217,7 +217,7 @@ export default async function Page() {
 
 React [Suspense](https://react.dev/reference/react/Suspense) boundaries let you define what fallback UI to use when it wraps dynamic or runtime data.
 
-Content outside the boundary, including the fallback UI, is pre-rendered as a static shell, while content inside the boundary streams in when ready.
+Content outside the boundary, including the fallback UI, is prerendered as a static shell, while content inside the boundary streams in when ready.
 
 Here's how to use `Suspense` with Cache Components:
 
@@ -227,7 +227,7 @@ import { Suspense } from 'react'
 export default function Page() {
   return (
     <>
-      <h1>This will be pre-rendered</h1>
+      <h1>This will be prerendered</h1>
       <Suspense fallback={<Skeleton />}>
         <DynamicContent />
       </Suspense>
@@ -248,7 +248,7 @@ import { Suspense } from 'react'
 export default function Page() {
   return (
     <>
-      <h1>This will be pre-rendered</h1>
+      <h1>This will be prerendered</h1>
       <Suspense fallback={<Skeleton />}>
         <DynamicContent />
       </Suspense>
@@ -263,7 +263,7 @@ async function DynamicContent() {
 }
 ```
 
-At build time, Next.js pre-renders the static content and the `fallback` UI, while the dynamic content is postponed until a user requests the route.
+At build time, Next.js prerenders the static content and the `fallback` UI, while the dynamic content is postponed until a user requests the route.
 
 > **Good to know**: Wrapping a component in `Suspense` doesn't make it dynamic; your API usage does. `Suspense` acts as a boundary that encapsulates dynamic content and enables streaming.
 
@@ -303,7 +303,7 @@ rendering.
   height="785"
 />
 
-With partial pre-rendering, the initial UI can be sent immediately to the browser while the dynamic parts render. This decreases time to UI and may decrease total request time depending on how much of your UI is pre-rendered.
+With partial prerendering, the initial UI can be sent immediately to the browser while the dynamic parts render. This decreases time to UI and may decrease total request time depending on how much of your UI is prerendered.
 
 <Image
   alt="Diagram showing parallelization of route segments during streaming, showing data fetching,rendering, and hydration of individual chunks."
@@ -387,7 +387,7 @@ export async function CachedWrapper({ children }) {
 
 #### Avoid passing dynamic inputs
 
-You must not pass dynamic or runtime data into `use cache` functions unless you avoid introspecting them. Passing values from `cookies()`, `headers()`, or other runtime APIs as arguments will cause errors, as the cache key cannot be determined at pre-render time.
+You must not pass dynamic or runtime data into `use cache` functions unless you avoid introspecting them. Passing values from `cookies()`, `headers()`, or other runtime APIs as arguments will cause errors, as the cache key cannot be determined at prerender time.
 
 #### Runtime caching considerations
 
@@ -578,7 +578,7 @@ export default async function Page() {
 
 ### Route Handlers with Cache Components
 
-`GET` and `HEAD` Route Handlers follow the same model as normal UI routes in your application. They are dynamic by default, can be pre-rendered when deterministic, and you can `use cache` to include more dynamic data in the cached response. Other HTTP methods (POST, PUT, DELETE, PATCH, OPTIONS) are always dynamic and never pre-rendered.
+`GET` and `HEAD` Route Handlers follow the same model as normal UI routes in your application. They are dynamic by default, can be prerendered when deterministic, and you can `use cache` to include more dynamic data in the cached response. Other HTTP methods (POST, PUT, DELETE, PATCH, OPTIONS) are always dynamic and never prerendered.
 
 Dynamic example, returns a different number for every request:
 
@@ -590,7 +590,7 @@ export async function GET() {
 }
 ```
 
-A handler that returns only static data will be pre-rendered at build time:
+A handler that returns only static data will be prerendered at build time:
 
 ```tsx filename="app/api/project-info/route.ts"
 export async function GET() {
@@ -633,7 +633,7 @@ async function getProducts() {
 >
 > - `use cache` cannot be used directly inside a Route Handler body; extract it to a helper.
 > - Cached responses revalidate according to `cacheLife` when a new request arrives.
-> - Using runtime APIs like [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), or calling [`connection()`](/docs/app/api-reference/functions/connection), always defers to request time (no pre-rendering).
+> - Using runtime APIs like [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), or calling [`connection()`](/docs/app/api-reference/functions/connection), always defers to request time (no prerendering).
 
 ## Before vs. after Cache Components
 
@@ -641,7 +641,7 @@ Understanding how Cache Components changes your mental model:
 
 ### Before Cache Components
 
-- **Static by default**: Next.js tried to pre-render and cache as much as possible for you unless you opted out
+- **Static by default**: Next.js tried to prerender and cache as much as possible for you unless you opted out
 - **Route-level controls**: Switches like `dynamic`, `revalidate`, `fetchCache` controlled caching for the whole page
 - **Limits of `fetch`**: Using `fetch` alone was incomplete, as it didn't cover direct database clients or other server-side IO. A nested `fetch` switching to dynamic (e.g., `{ cache: 'no-store' }`) could unintentionally change the entire route behavior
 
@@ -657,7 +657,7 @@ Understanding how Cache Components changes your mental model:
 
 ### Dynamic APIs
 
-When accessing runtime APIs like `cookies()`, Next.js will only pre-render the fallback UI above this component.
+When accessing runtime APIs like `cookies()`, Next.js will only prerender the fallback UI above this component.
 
 In this example, we have no fallback defined, so Next.js shows an error instructing us to provide one. The `<User />` component needs to be wrapped in `Suspense` because it uses the `cookies` API:
 
@@ -679,7 +679,7 @@ export async function User() {
 }
 ```
 
-Now we have a `Suspense` boundary around our User component we can pre-render the Page with a Skeleton UI and stream in the `<User />` UI when a specific user makes a request
+Now we have a `Suspense` boundary around our User component we can prerender the Page with a Skeleton UI and stream in the `<User />` UI when a specific user makes a request
 
 ```tsx filename="app/page.tsx" switcher
 import { Suspense } from 'react'
@@ -688,7 +688,7 @@ import { User, AvatarSkeleton } from './user'
 export default function Page() {
   return (
     <section>
-      <h1>This will be pre-rendered</h1>
+      <h1>This will be prerendered</h1>
       <Suspense fallback={<AvatarSkeleton />}>
         <User />
       </Suspense>
@@ -704,7 +704,7 @@ import { User, AvatarSkeleton } from './user'
 export default function Page() {
   return (
     <section>
-      <h1>This will be pre-rendered</h1>
+      <h1>This will be prerendered</h1>
       <Suspense fallback={<AvatarSkeleton />}>
         <User />
       </Suspense>
@@ -728,7 +728,7 @@ export default function Page({
 }) {
   return (
     <section>
-      <h1>This will be pre-rendered</h1>
+      <h1>This will be prerendered</h1>
       <Suspense fallback={<TableSkeleton />}>
         <Table searchParams={searchParams.then((search) => search.sort)} />
       </Suspense>
@@ -744,7 +744,7 @@ import { Suspense } from 'react'
 export default function Page({ searchParams }) {
   return (
     <section>
-      <h1>This will be pre-rendered</h1>
+      <h1>This will be prerendered</h1>
       <Suspense fallback={<TableSkeleton />}>
         <Table searchParams={searchParams.then((search) => search.sort)} />
       </Suspense>
@@ -753,7 +753,7 @@ export default function Page({ searchParams }) {
 }
 ```
 
-Inside of the table component, accessing the value from `searchParams` will make the component dynamic while the rest of the page will be pre-rendered.
+Inside of the table component, accessing the value from `searchParams` will make the component dynamic while the rest of the page will be prerendered.
 
 ```tsx filename="app/table.tsx" switcher
 export async function Table({ sortPromise }: { sortPromise: Promise<string> }) {
