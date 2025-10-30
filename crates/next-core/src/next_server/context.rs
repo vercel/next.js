@@ -1063,8 +1063,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
     } else {
-        // TODO(lukesandberg): switch to relative once next is compatible.
-        SourceMapSourceType::TurbopackUri
+        SourceMapSourceType::RelativeUri
     });
     if next_mode.is_production() {
         builder = builder
@@ -1149,8 +1148,7 @@ pub async fn get_server_chunking_context(
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
     } else {
         builder = builder
-            // TODO(lukesandberg): switch to relative once next is compatible.
-            .source_map_source_type(SourceMapSourceType::TurbopackUri)
+            .source_map_source_type(SourceMapSourceType::RelativeUri)
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
