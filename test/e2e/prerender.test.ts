@@ -371,19 +371,19 @@ describe('Prerender', () => {
 
   const navigateTest = (isDev = false) => {
     it('should navigate between pages successfully', async () => {
-      const toBuild = [
-        '/',
-        '/another',
-        '/something',
-        '/normal',
-        '/blog/post-1',
-        '/blog/post-1/comment-1',
-        '/catchall/first',
+      // TODO: Compiling this many pages in parallel hits some race condition
+      // causing "SyntaxError: Unexpected non-whitespace character after JSON at position 614"
+      // which persists throughout Next.js Server instance lifetime.
+      // Compiling in batches to avoid that unknown bug.
+      const toBuildBatches = [
+        ['/', '/another', '/something', '/normal'],
+        ['/blog/post-1', '/blog/post-1/comment-1', '/catchall/first'],
       ]
 
-      await waitFor(2500)
-
-      await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      for (const toBuild of toBuildBatches) {
+        // eslint-disable-next-line no-loop-func -- we're not accessign `next` after the loop was exited.
+        await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      }
 
       const browser = await webdriver(next.url, '/')
       let text = await browser.elementByCss('p').text()
