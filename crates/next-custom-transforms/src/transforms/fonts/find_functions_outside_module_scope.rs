@@ -2,7 +2,7 @@ use swc_core::{
     common::errors::HANDLER,
     ecma::{
         ast::*,
-        visit::{Visit, noop_visit_type},
+        visit::{noop_visit_type, Visit},
     },
 };
 pub struct FindFunctionsOutsideModuleScope<'a> {
