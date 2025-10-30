@@ -66,6 +66,8 @@ Before Cache Components, a single dynamic operation (like `fetch` with `cache: '
 
 ## How it works
 
+> **Good to know:** Cache Components is an opt-in feature. Enable it by setting the `cacheComponents` flag to `true` in your Next config file. See [Enabling Cache Components](#enabling-cache-components) for more details.
+
 Cache Components gives you three key tools to control rendering:
 
 ### Static (Pre-renderable)
@@ -210,11 +212,6 @@ export default async function Page() {
   return <div>I render</div>
 }
 ```
-
-> **Good to know:**
->
-> - Cache Components is an opt-in feature. Enable it by setting the `cacheComponents` flag to `true` in your Next config file. See [Enabling Cache Components](#enabling-cache-components) for more details.
-> - For technical details on serialization, cache keys, and constraints, see the [Cache Components API Reference](/docs/app/api-reference/Cache-Components).
 
 ## Using Suspense boundaries
 
@@ -645,7 +642,7 @@ Understanding how Cache Components changes your mental model:
 ### Before Cache Components
 
 - **Static by default**: Next.js tried to pre-render and cache as much as possible for you unless you opted out
-- **Route-level controls**: Switches like `dynamic`, `revalidate`, `fetchCache` controlled caching for the whole page (see [how these are replaced](/docs/app/api-reference/Cache-Components#effect-on-route-segment-config))
+- **Route-level controls**: Switches like `dynamic`, `revalidate`, `fetchCache` controlled caching for the whole page
 - **Limits of `fetch`**: Using `fetch` alone was incomplete, as it didn't cover direct database clients or other server-side IO. A nested `fetch` switching to dynamic (e.g., `{ cache: 'no-store' }`) could unintentionally change the entire route behavior
 
 ### With Cache Components
