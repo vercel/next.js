@@ -42,7 +42,7 @@ export function makeHangingPromise<T>(
   expression: string
 ): Promise<T> {
   if (signal.aborted) {
-    return Promise.reject(new HangingPromiseRejectionError(route, expression))
+    return makeRejectedHangingPromise(route, expression)
   } else {
     const hangingPromise = new Promise<T>((_, reject) => {
       const boundRejection = reject.bind(
@@ -72,6 +72,13 @@ export function makeHangingPromise<T>(
     hangingPromise.catch(ignoreReject)
     return hangingPromise
   }
+}
+
+export function makeRejectedHangingPromise(
+  route: string,
+  expression: string
+): Promise<never> {
+  return Promise.reject(new HangingPromiseRejectionError(route, expression))
 }
 
 function ignoreReject() {}

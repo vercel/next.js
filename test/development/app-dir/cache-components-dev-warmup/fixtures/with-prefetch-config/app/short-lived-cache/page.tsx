@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { CachedData, UncachedFetch } from '../data-fetching'
-import { ShortLivedCache } from './data-fetching'
+import { DynamicCache, ShortLivedCache } from './data-fetching'
 
 const CACHE_KEY = __dirname + '/__PAGE__'
 
@@ -13,6 +13,10 @@ export default async function Page() {
 
       <Suspense fallback="Loading short-lived cache...">
         <ShortLivedCache label="page" cacheKey={CACHE_KEY} />
+      </Suspense>
+
+      <Suspense fallback="Loading dynamic cache...">
+        <DynamicCache label="page" cacheKey={CACHE_KEY} />
       </Suspense>
 
       <Suspense fallback="Loading uncached fetch...">

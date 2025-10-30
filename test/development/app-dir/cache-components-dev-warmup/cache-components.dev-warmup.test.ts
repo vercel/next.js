@@ -246,13 +246,19 @@ describe.each([
             assertLog(logs, 'after cache read - page', 'Prerender')
 
             // Short lived caches are dynamic holes in static prerenders,
-            // so they shouldn't resolve in the static stage.
+            // so they shouldn't resolve in the static stage,
+            // but they should resolve in the runtime stage.
             assertLog(logs, 'after short-lived cache read - page', RUNTIME_ENV)
             assertLog(
               logs,
               'after short-lived cache read - layout',
               RUNTIME_ENV
             )
+
+            // Dynamic caches are holes in static and runtime prerenders,
+            // so they should only resolve in the dynamic stage.
+            assertLog(logs, 'after dynamic cache read - layout', 'Server')
+            assertLog(logs, 'after dynamic cache read - page', 'Server')
 
             assertLog(logs, 'after uncached fetch - layout', 'Server')
             assertLog(logs, 'after uncached fetch - page', 'Server')
