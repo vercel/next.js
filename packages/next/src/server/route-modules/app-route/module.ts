@@ -310,8 +310,7 @@ export class AppRouteRouteModule extends RouteModule<
     context: AppRouteRouteHandlerContext
   ) {
     const isStaticGeneration = workStore.isStaticGeneration
-    const cacheComponentsEnabled =
-      !!context.renderOpts.experimental?.cacheComponents
+    const cacheComponentsEnabled = !!context.renderOpts.cacheComponents
 
     // Patch the global fetch.
     patchFetch({
@@ -414,7 +413,6 @@ export class AppRouteRouteModule extends RouteModule<
               prerenderResumeDataCache,
               renderResumeDataCache: null,
               hmrRefreshHash: undefined,
-              captureOwnerStack: undefined,
             })
 
           let prospectiveResult
@@ -506,7 +504,6 @@ export class AppRouteRouteModule extends RouteModule<
             prerenderResumeDataCache,
             renderResumeDataCache: null,
             hmrRefreshHash: undefined,
-            captureOwnerStack: undefined,
           })
 
           let responseHandled = false

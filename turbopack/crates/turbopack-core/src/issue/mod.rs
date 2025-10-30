@@ -98,6 +98,26 @@ pub enum StyledString {
     Strong(RcStr),
 }
 
+impl StyledString {
+    pub fn to_unstyled_string(&self) -> String {
+        match self {
+            StyledString::Line(items) => items
+                .iter()
+                .map(|item| item.to_unstyled_string())
+                .collect::<Vec<_>>()
+                .join(""),
+            StyledString::Stack(items) => items
+                .iter()
+                .map(|item| item.to_unstyled_string())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            StyledString::Text(s) | StyledString::Code(s) | StyledString::Strong(s) => {
+                s.to_string()
+            }
+        }
+    }
+}
+
 #[turbo_tasks::value_trait]
 pub trait Issue {
     /// Severity allows the user to filter out unimportant issues, with Bug
@@ -840,7 +860,7 @@ where
     }
 
     fn drop_issues(self) {
-        let _ = self.take_collectibles::<Box<dyn Issue>>();
+        self.drop_collectibles::<Box<dyn Issue>>();
     }
 }
 

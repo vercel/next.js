@@ -71,6 +71,7 @@ import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import { isReactLargeShellError } from '../app-render/react-large-shell-error'
 import type { CacheLife } from './cache-life'
+import { RenderStage } from '../app-render/staged-rendering'
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -733,6 +734,12 @@ async function generateCacheEntryImpl(
     errors
   )
 
+  if (process.env.NODE_ENV === 'development') {
+    // Name the stream for React DevTools.
+    // @ts-expect-error
+    returnStream.name = 'use cache'
+  }
+
   return {
     type: 'cached',
     // Return the stream as we're creating it. This means that if it ends up
@@ -1014,9 +1021,11 @@ export function cache(
             if (process.env.NODE_ENV === 'development') {
               // Similar to runtime prerenders, private caches should not resolve in the static stage
               // of a dev request, so we delay them.
-              // When we implement the 3-task render, this will change to match the codepath above.
-              // (to resolve them in the runtime stage, and not later)
-              await makeDevtoolsIOAwarePromise(undefined)
+              await makeDevtoolsIOAwarePromise(
+                undefined,
+                outerWorkUnitStore,
+                RenderStage.Runtime
+              )
             }
             break
           }
@@ -1202,6 +1211,10 @@ export function cache(
         case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
+        // TODO(restart-on-cache-miss): We need to handle params/searchParams on page components.
+        // the promises will be tasky, so `encodeCacheKeyParts` will not resolve in the static stage.
+        // We have not started a cache read at this point, so we might just miss the cache completely.
+        // fallthrough
         case 'cache':
         case 'private-cache':
         case 'unstable-cache':
@@ -1276,7 +1289,11 @@ export function cache(
                     // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
                     // We don't end the cache read here, so this will always appear as a cache miss in the static stage,
                     // and thus will cause a restart even if all caches are filled.
-                    await makeDevtoolsIOAwarePromise(undefined)
+                    await makeDevtoolsIOAwarePromise(
+                      undefined,
+                      workUnitStore,
+                      RenderStage.Runtime
+                    )
                   }
                   break
                 }
@@ -1306,10 +1323,25 @@ export function cache(
                     workStore.route,
                     'dynamic "use cache"'
                   )
+                case 'request': {
+                  if (process.env.NODE_ENV === 'development') {
+                    // We delay the cache here so that it doesn't resolve in the runtime phase --
+                    // in a regular runtime prerender, it'd be a hanging promise, and we need to reflect that,
+                    // so it has to resolve later.
+                    // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
+                    // We don't end the cache read here, so this will always appear as a cache miss in the runtime stage,
+                    // and thus will cause a restart even if all caches are filled.
+                    await makeDevtoolsIOAwarePromise(
+                      undefined,
+                      workUnitStore,
+                      RenderStage.Dynamic
+                    )
+                  }
+                  break
+                }
                 case 'prerender':
                 case 'prerender-ppr':
                 case 'prerender-legacy':
-                case 'request':
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
@@ -1473,7 +1505,11 @@ export function cache(
                 // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
                 // We don't end the cache read here, so this will always appear as a cache miss in the static stage,
                 // and thus will cause a restart even if all caches are filled.
-                await makeDevtoolsIOAwarePromise(undefined)
+                await makeDevtoolsIOAwarePromise(
+                  undefined,
+                  workUnitStore,
+                  RenderStage.Runtime
+                )
               }
               break
             }

@@ -93,7 +93,7 @@ export function onRequestError(
   context: {
     routerKind: 'Pages Router' | 'App Router' // the router type
     routePath: string // the route file path, e.g. /app/blog/[dynamic]
-    routeType: 'render' | 'route' | 'action' | 'middleware' // the context in which the error occurred
+    routeType: 'render' | 'route' | 'action' | 'proxy' // the context in which the error occurred
     renderSource:
       | 'react-server-components'
       | 'react-server-components-payload'
@@ -106,7 +106,7 @@ export function onRequestError(
 
 - `error`: The caught error itself (type is always `Error`), and a `digest` property which is the unique ID of the error.
 - `request`: Read-only request information associated with the error.
-- `context`: The context in which the error occurred. This can be the type of router (App or Pages Router), and/or (Server Components (`'render'`), Route Handlers (`'route'`), Server Actions (`'action'`), or Middleware (`'middleware'`)).
+- `context`: The context in which the error occurred. This can be the type of router (App or Pages Router), and/or (Server Components (`'render'`), Route Handlers (`'route'`), Server Actions (`'action'`), or Proxy (`'proxy'`)).
 
 ### Specifying the runtime
 

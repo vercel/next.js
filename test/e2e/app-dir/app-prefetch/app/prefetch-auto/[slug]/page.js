@@ -4,7 +4,7 @@ function getData() {
   const res = new Promise((resolve) => {
     setTimeout(() => {
       resolve({ message: 'Page Data!' })
-    }, 2000)
+    }, 1000)
   })
   return res
 }

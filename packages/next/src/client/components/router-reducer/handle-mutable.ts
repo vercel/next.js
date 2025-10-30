@@ -35,11 +35,8 @@ export function handleMutable(
 
   return {
     // Set href.
-    canonicalUrl: isNotUndefined(mutable.canonicalUrl)
-      ? mutable.canonicalUrl === state.canonicalUrl
-        ? state.canonicalUrl
-        : mutable.canonicalUrl
-      : state.canonicalUrl,
+    canonicalUrl: mutable.canonicalUrl ?? state.canonicalUrl,
+    renderedSearch: mutable.renderedSearch ?? state.renderedSearch,
     pushRef: {
       pendingPush: isNotUndefined(mutable.pendingPush)
         ? mutable.pendingPush
@@ -78,14 +75,12 @@ export function handleMutable(
     },
     // Apply cache.
     cache: mutable.cache ? mutable.cache : state.cache,
-    prefetchCache: mutable.prefetchCache
-      ? mutable.prefetchCache
-      : state.prefetchCache,
     // Apply patched router state.
     tree: isNotUndefined(mutable.patchedTree)
       ? mutable.patchedTree
       : state.tree,
     nextUrl,
     previousNextUrl: previousNextUrl,
+    debugInfo: mutable.collectedDebugInfo ?? null,
   }
 }

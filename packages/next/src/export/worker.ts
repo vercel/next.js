@@ -239,6 +239,7 @@ async function exportPageImpl(
       commonRenderOpts.cacheLifeProfiles,
       htmlFilepath,
       fileWriter,
+      commonRenderOpts.cacheComponents,
       commonRenderOpts.experimental,
       buildId
     )
@@ -339,7 +340,7 @@ export async function exportPages(
 
   installGlobalBehaviors(nextConfig)
 
-  if (nextConfig.experimental.enablePrerenderSourceMaps) {
+  if (nextConfig.enablePrerenderSourceMaps) {
     try {
       // Same as `next dev`
       // Limiting the stack trace to a useful amount of frames is handled by ignore-listing.
@@ -359,7 +360,7 @@ export async function exportPages(
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
-    cacheHandlers: nextConfig.experimental.cacheHandlers,
+    cacheHandlers: nextConfig.cacheHandlers,
   })
 
   renderOpts.incrementalCache = incrementalCache

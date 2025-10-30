@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { getCommonMetadataHeadTags } from './utils'
 
 describe('metadata-files-static-output-intercepting-route', () => {
-  if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
     // Cache Components build fails when metadata files are inside a dynamic route.
     //
     // Route "/dynamic/[id]" has a `generateMetadata` that depends on Request data (`cookies()`, etc...)

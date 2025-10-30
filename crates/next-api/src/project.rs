@@ -479,18 +479,15 @@ impl ProjectContainer {
             current_node_js_version = options.current_node_js_version.clone();
         }
 
-        let dist_dir = next_config
-            .dist_dir()
-            .await?
-            .as_ref()
-            .map_or_else(|| rcstr!(".next"), |d| d.clone());
-
+        let dist_dir = next_config.dist_dir().owned().await?;
+        let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
             root_path,
             project_path,
             watch,
             next_config: next_config.to_resolved().await?,
             dist_dir,
+            dist_dir_root,
             env: ResolvedVc::upcast(env_map.to_resolved().await?),
             define_env: define_env.to_resolved().await?,
             browserslist_query,
@@ -553,6 +550,11 @@ pub struct Project {
     /// Unix path. Corresponds to next.config.js's `distDir`.
     /// E.g. `.next`
     dist_dir: RcStr,
+
+    /// The root directory of the distDir. Generally the same as `distDir` but when
+    /// `isolatedDevBuild` is true it is the parent directory of `distDir`.  This is used to
+    /// ensure that the bundler doesn't traverse into the output directory.
+    dist_dir_root: RcStr,
 
     /// Filesystem watcher options.
     watch: WatchOptions,
@@ -668,8 +670,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub fn project_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), self.root_path.clone())
+    pub fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
+        let denied_path = match join_path(&self.project_path, &self.dist_dir_root) {
+            Some(dist_dir_root) => dist_dir_root.into(),
+            None => {
+                bail!(
+                    "Invalid distDirRoot: {:?}. distDirRoot should not navigate out of the \
+                     projectPath.",
+                    self.dist_dir_root
+                );
+            }
+        };
+
+        Ok(DiskFileSystem::new_with_denied_path(
+            rcstr!(PROJECT_FILESYSTEM_NAME),
+            self.root_path.clone(),
+            denied_path,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1061,6 +1078,7 @@ impl Project {
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             debug_ids: self.next_config().turbopack_debug_ids(),
+            should_use_absolute_url_references: self.next_config().inline_css(),
         }))
     }
 
@@ -1082,13 +1100,11 @@ impl Project {
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             debug_ids: self.next_config().turbopack_debug_ids(),
+            client_root: self.client_relative_path().owned().await?,
+            asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
         };
         Ok(if client_assets {
-            get_server_chunking_context_with_client_assets(
-                options,
-                self.client_relative_path().owned().await?,
-                self.next_config().computed_asset_prefix().owned().await?,
-            )
+            get_server_chunking_context_with_client_assets(options)
         } else {
             get_server_chunking_context(options)
         })
@@ -1111,13 +1127,11 @@ impl Project {
             turbo_source_maps: self.next_config().server_source_maps(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
+            client_root: self.client_relative_path().owned().await?,
+            asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
         };
         Ok(if client_assets {
-            get_edge_chunking_context_with_client_assets(
-                options,
-                self.client_relative_path().owned().await?,
-                self.next_config().computed_asset_prefix(),
-            )
+            get_edge_chunking_context_with_client_assets(options)
         } else {
             get_edge_chunking_context(options)
         })
@@ -1424,28 +1438,6 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
-        let edge_module_context = self.edge_middleware_context();
-
-        let middleware = self.find_middleware();
-        let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
-            return Ok(edge_module_context);
-        };
-        let source = Vc::upcast(FileSource::new(fs_path.clone()));
-
-        let runtime = parse_segment_config_from_source(source, ParseSegmentMode::Base)
-            .await?
-            .runtime
-            .unwrap_or(NextRuntime::Edge);
-
-        if matches!(runtime, NextRuntime::NodeJs) {
-            Ok(self.node_middleware_context())
-        } else {
-            Ok(edge_module_context)
-        }
-    }
-
-    #[turbo_tasks::function]
     async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
             self.project_path().owned().await?,
@@ -1469,7 +1461,25 @@ impl Project {
             .as_ref()
             .map(|_| AppProject::client_transition_name());
 
-        let middleware_asset_context = self.middleware_context();
+        let is_proxy = fs_path.file_stem() == Some("proxy");
+        let config = parse_segment_config_from_source(
+            source,
+            if is_proxy {
+                ParseSegmentMode::Proxy
+            } else {
+                ParseSegmentMode::Base
+            },
+        );
+        let runtime = config.await?.runtime.unwrap_or(if is_proxy {
+            NextRuntime::NodeJs
+        } else {
+            NextRuntime::Edge
+        });
+
+        let middleware_asset_context = match runtime {
+            NextRuntime::NodeJs => self.node_middleware_context(),
+            NextRuntime::Edge => self.edge_middleware_context(),
+        };
 
         Ok(Vc::upcast(MiddlewareEndpoint::new(
             self,
@@ -1477,6 +1487,8 @@ impl Project {
             source,
             app_dir.clone(),
             ecmascript_client_reference_transition_name,
+            config,
+            runtime,
         )))
     }
 

@@ -9,7 +9,9 @@ export {
 
 export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
 
-export { cacheTag as unstable_cacheTag } from 'next/dist/server/use-cache/cache-tag'
+import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
+
+export { cacheTag }
 
 /**
  * Cache this `"use cache"` for a timespan defined by the `"default"` profile.
@@ -23,21 +25,21 @@ export { cacheTag as unstable_cacheTag } from 'next/dist/server/use-cache/cache-
  * If the server receives a new request after 15 minutes, start revalidating new values in the background.
  * It lives for the maximum age of the server cache. If this entry has no traffic for a while, it may serve an old value the next request.
  */
-export function unstable_cacheLife(profile: 'default'): void
+export function cacheLife(profile: 'default'): void
 
 /**
  * Cache this `"use cache"` for a timespan defined by the `"seconds"` profile.
  * ```
- *   stale:      0 seconds
- *   revalidate: 1 seconds
+ *   stale:      30 seconds
+ *   revalidate: 1 second
  *   expire:     1 minute
  * ```
  *
- * This cache may be stale on clients for 0 seconds before checking with the server.
+ * This cache may be stale on clients for 30 seconds before checking with the server.
  * If the server receives a new request after 1 second, start revalidating new values in the background.
  * If this entry has no traffic for 1 minute it will expire. The next request will recompute it.
  */
-export function unstable_cacheLife(profile: 'seconds'): void
+export function cacheLife(profile: 'seconds'): void
 
 /**
  * Cache this `"use cache"` for a timespan defined by the `"minutes"` profile.
@@ -51,7 +53,7 @@ export function unstable_cacheLife(profile: 'seconds'): void
  * If the server receives a new request after 1 minute, start revalidating new values in the background.
  * If this entry has no traffic for 1 hour it will expire. The next request will recompute it.
  */
-export function unstable_cacheLife(profile: 'minutes'): void
+export function cacheLife(profile: 'minutes'): void
 
 /**
  * Cache this `"use cache"` for a timespan defined by the `"hours"` profile.
@@ -65,7 +67,7 @@ export function unstable_cacheLife(profile: 'minutes'): void
  * If the server receives a new request after 1 hour, start revalidating new values in the background.
  * If this entry has no traffic for 1 day it will expire. The next request will recompute it.
  */
-export function unstable_cacheLife(profile: 'hours'): void
+export function cacheLife(profile: 'hours'): void
 
 /**
  * Cache this `"use cache"` for a timespan defined by the `"days"` profile.
@@ -79,7 +81,7 @@ export function unstable_cacheLife(profile: 'hours'): void
  * If the server receives a new request after 1 day, start revalidating new values in the background.
  * If this entry has no traffic for 1 week it will expire. The next request will recompute it.
  */
-export function unstable_cacheLife(profile: 'days'): void
+export function cacheLife(profile: 'days'): void
 
 /**
  * Cache this `"use cache"` for a timespan defined by the `"weeks"` profile.
@@ -93,7 +95,7 @@ export function unstable_cacheLife(profile: 'days'): void
  * If the server receives a new request after 1 week, start revalidating new values in the background.
  * If this entry has no traffic for 30 days it will expire. The next request will recompute it.
  */
-export function unstable_cacheLife(profile: 'weeks'): void
+export function cacheLife(profile: 'weeks'): void
 
 /**
  * Cache this `"use cache"` for a timespan defined by the `"max"` profile.
@@ -107,7 +109,7 @@ export function unstable_cacheLife(profile: 'weeks'): void
  * If the server receives a new request after 30 days, start revalidating new values in the background.
  * It lives for the maximum age of the server cache. If this entry has no traffic for a while, it may serve an old value the next request.
  */
-export function unstable_cacheLife(profile: 'max'): void
+export function cacheLife(profile: 'max'): void
 
 /**
  * Cache this `"use cache"` using a custom profile "...".
@@ -119,7 +121,7 @@ export function unstable_cacheLife(profile: 'max'): void
  *
  * You can define custom profiles in `next.config.ts`.
  */
-export function unstable_cacheLife(profile: string): void
+export function cacheLife(profile: string): void
 
 /**
  * Cache this `"use cache"` using a custom timespan.
@@ -133,7 +135,7 @@ export function unstable_cacheLife(profile: string): void
  *
  * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
  */
-export function unstable_cacheLife(profile: {
+export function cacheLife(profile: {
   /**
    * This cache may be stale on clients for ... seconds before checking with the server.
    */
@@ -147,3 +149,6 @@ export function unstable_cacheLife(profile: {
    */
   expire?: number
 }): void
+
+export const unstable_cacheLife: typeof cacheLife
+export const unstable_cacheTag: typeof cacheTag

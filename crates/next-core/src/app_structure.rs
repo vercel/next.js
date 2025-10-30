@@ -896,15 +896,24 @@ impl Issue for MissingDefaultParallelRouteIssue {
     #[turbo_tasks::function]
     async fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
-            StyledString::Text(
-                format!(
-                    "The parallel route slot \"@{}\" is missing a default.js file. When using \
-                     parallel routes, each slot must have a default.js file to serve as a \
-                     fallback.\n\nCreate a default.js file at: {}/@{}/default.js",
-                    self.slot_name, self.app_page, self.slot_name
-                )
-                .into(),
-            )
+            StyledString::Stack(vec![
+                StyledString::Text(
+                    format!(
+                        "The parallel route slot \"@{}\" is missing a default.js file. When using \
+                         parallel routes, each slot must have a default.js file to serve as a \
+                         fallback.",
+                        self.slot_name
+                    )
+                    .into(),
+                ),
+                StyledString::Text(
+                    format!(
+                        "Create a default.js file at: {}/@{}/default.js",
+                        self.app_page, self.slot_name
+                    )
+                    .into(),
+                ),
+            ])
             .resolved_cell(),
         ))
     }
@@ -938,6 +947,32 @@ fn page_path_except_parallel(loader_tree: &AppPageLoaderTree) -> Option<AppPage>
     }
 
     None
+}
+
+/// Checks if a directory tree has child routes (non-parallel, non-group routes).
+/// Leaf segments don't need default.js because there are no child routes
+/// that could cause the parallel slot to unmatch.
+fn has_child_routes(directory_tree: &PlainDirectoryTree) -> bool {
+    for (name, subdirectory) in &directory_tree.subdirectories {
+        // Skip parallel routes (start with '@')
+        if is_parallel_route(name) {
+            continue;
+        }
+
+        // Skip route groups, but check if they have pages inside
+        if is_group_route(name) {
+            // Recursively check if the group has child routes
+            if has_child_routes(subdirectory) {
+                return true;
+            }
+            continue;
+        }
+
+        // If we get here, it's a regular route segment (child route)
+        return true;
+    }
+
+    false
 }
 
 async fn check_duplicate(
@@ -1200,9 +1235,20 @@ async fn directory_tree_to_loader_tree_internal(
                 //   /[...catchAll]/@slot - is_inside_catchall = true (skip validation) ✓
                 //   /@slot/[...catchAll] - is_inside_catchall = false (require default) ✓
                 // The catch-all provides fallback behavior, so default.js is not required.
+                //
+                // Also skip validation if this is a leaf segment (no child routes).
+                // Leaf segments don't need default.js because there are no child routes
+                // that could cause the parallel slot to unmatch. For example:
+                //   /repo-overview/@slot/page with no child routes - is_leaf_segment = true (skip
+                // validation) ✓   /repo-overview/@slot/page with
+                // /repo-overview/child/page - is_leaf_segment = false (require default) ✓
+                // This also handles route groups correctly by filtering them out.
+                let is_leaf_segment = !has_child_routes(directory_tree);
+
                 if key != "children"
                     && subdirectory.modules.default.is_none()
                     && !is_inside_catchall
+                    && !is_leaf_segment
                 {
                     missing_default_parallel_route_issue(
                         app_dir.clone(),
@@ -1275,10 +1321,14 @@ async fn directory_tree_to_loader_tree_internal(
 
             let is_inside_catchall = app_page.is_catchall();
 
+            // Check if this is a leaf segment (no child routes).
+            let is_leaf_segment = !has_child_routes(directory_tree);
+
             // Only emit the issue if this is not the children slot and there's no default
             // component. The children slot is implicit and doesn't require a default.js
-            // file. Also skip validation if the slot is UNDER a catch-all route.
-            if default.is_none() && key != "children" && !is_inside_catchall {
+            // file. Also skip validation if the slot is UNDER a catch-all route or if
+            // this is a leaf segment (no child routes).
+            if default.is_none() && key != "children" && !is_inside_catchall && !is_leaf_segment {
                 missing_default_parallel_route_issue(
                     app_dir.clone(),
                     app_page.clone(),

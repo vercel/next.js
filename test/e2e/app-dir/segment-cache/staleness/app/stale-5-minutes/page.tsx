@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 async function Content() {
   'use cache'

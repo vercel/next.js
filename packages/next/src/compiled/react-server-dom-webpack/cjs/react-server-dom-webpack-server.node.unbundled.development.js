@@ -51,13 +51,13 @@
     function writeChunkAndReturn(destination, chunk) {
       if ("string" === typeof chunk) {
         if (0 !== chunk.length)
-          if (2048 < 3 * chunk.length)
+          if (4096 < 3 * chunk.length)
             0 < writtenBytes &&
               (writeToDestination(
                 destination,
                 currentView.subarray(0, writtenBytes)
               ),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = 0)),
               writeToDestination(destination, chunk);
           else {
@@ -71,25 +71,25 @@
                 destination,
                 currentView.subarray(0, writtenBytes)
               ),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = textEncoder.encodeInto(
                 chunk.slice(read),
                 currentView
               ).written));
-            2048 === writtenBytes &&
+            4096 === writtenBytes &&
               (writeToDestination(destination, currentView),
-              (currentView = new Uint8Array(2048)),
+              (currentView = new Uint8Array(4096)),
               (writtenBytes = 0));
           }
       } else
         0 !== chunk.byteLength &&
-          (2048 < chunk.byteLength
+          (4096 < chunk.byteLength
             ? (0 < writtenBytes &&
                 (writeToDestination(
                   destination,
                   currentView.subarray(0, writtenBytes)
                 ),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0)),
               writeToDestination(destination, chunk))
             : ((target = currentView.length - writtenBytes),
@@ -100,13 +100,13 @@
                     (writtenBytes += target),
                     writeToDestination(destination, currentView),
                     (chunk = chunk.subarray(target))),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0)),
               currentView.set(chunk, writtenBytes),
               (writtenBytes += chunk.byteLength),
-              2048 === writtenBytes &&
+              4096 === writtenBytes &&
                 (writeToDestination(destination, currentView),
-                (currentView = new Uint8Array(2048)),
+                (currentView = new Uint8Array(4096)),
                 (writtenBytes = 0))));
       return destinationHasCapacity;
     }
@@ -2040,8 +2040,13 @@
       return task;
     }
     function visitAsyncNode(request, task, node, visited, cutOff) {
-      if (visited.has(node)) return null;
-      visited.add(node);
+      if (visited.has(node)) return visited.get(node);
+      visited.set(node, null);
+      request = visitAsyncNodeImpl(request, task, node, visited, cutOff);
+      null !== request && visited.set(node, request);
+      return request;
+    }
+    function visitAsyncNodeImpl(request, task, node, visited, cutOff) {
       if (0 <= node.end && node.end <= request.timeOrigin) return null;
       var previousIONode = null;
       if (
@@ -2092,7 +2097,7 @@
             ((node = promise._debugInfo),
             null == node ||
               visited.has(node) ||
-              (visited.add(node), forwardDebugInfo(request, task, node)));
+              (visited.set(node, null), forwardDebugInfo(request, task, node)));
           return previousIONode;
         case 4:
           return previousIONode;
@@ -2117,6 +2122,7 @@
                   ? (request.status === ABORTING &&
                       startTime > request.abortTime) ||
                     (serializeIONode(request, promise, awaited.promise),
+                    visited.set(promise, null),
                     null != node.owner &&
                       outlineComponentInfo(request, node.owner),
                     (cutOff = (0, request.environmentName)()),
@@ -2141,7 +2147,7 @@
             ((node = node._debugInfo),
             null == node ||
               visited.has(node) ||
-              (visited.add(node), forwardDebugInfo(request, task, node)));
+              (visited.set(node, null), forwardDebugInfo(request, task, node)));
           return previousIONode;
         default:
           throw Error("Unknown AsyncSequence tag. This is a bug in React.");
@@ -2155,8 +2161,8 @@
       owner,
       stack
     ) {
-      var visited = new Set();
-      alreadyForwardedDebugInfo && visited.add(alreadyForwardedDebugInfo);
+      var visited = new Map();
+      alreadyForwardedDebugInfo && visited.set(alreadyForwardedDebugInfo, null);
       node = visitAsyncNode(request, task, node, visited, task.time);
       void 0 !== node &&
         null !== node &&
@@ -3978,7 +3984,7 @@
     function flushCompletedChunks(request) {
       if (null !== request.debugDestination) {
         var debugDestination = request.debugDestination;
-        currentView = new Uint8Array(2048);
+        currentView = new Uint8Array(4096);
         writtenBytes = 0;
         destinationHasCapacity = !0;
         try {
@@ -3997,7 +4003,7 @@
       }
       debugDestination = request.destination;
       if (null !== debugDestination) {
-        currentView = new Uint8Array(2048);
+        currentView = new Uint8Array(4096);
         writtenBytes = 0;
         destinationHasCapacity = !0;
         try {
@@ -5600,67 +5606,76 @@
                     previous: null
                   });
             else if (
-              "Microtask" !== type &&
-              "TickObject" !== type &&
-              "Immediate" !== type
-            )
-              if (void 0 === trigger)
-                (trigger = resolveOwner()),
-                  (trigger = {
-                    tag: 0,
-                    owner: trigger,
-                    stack:
-                      null === trigger
-                        ? parseStackTracePrivate(Error(), 3)
-                        : null,
-                    start: performance.now(),
-                    end: -1.1,
-                    promise: null,
-                    awaited: null,
-                    previous: null
-                  });
-              else {
-                if (2 === trigger.tag || 4 === trigger.tag)
-                  (resource = resolveOwner()),
-                    (trigger = {
-                      tag: 0,
-                      owner: resource,
-                      stack:
-                        null === resource
-                          ? parseStackTracePrivate(Error(), 3)
-                          : null,
-                      start: performance.now(),
-                      end: -1.1,
-                      promise: null,
-                      awaited: null,
-                      previous: trigger
-                    });
-              }
-            else if (void 0 === trigger) return;
+              "bound-anonymous-fn" === type ||
+              "Microtask" === type ||
+              "TickObject" === type ||
+              "Immediate" === type
+            ) {
+              if (void 0 === trigger) return;
+            } else if (void 0 === trigger)
+              (trigger = resolveOwner()),
+                (trigger = {
+                  tag: 0,
+                  owner: trigger,
+                  stack:
+                    null === trigger
+                      ? parseStackTracePrivate(Error(), 3)
+                      : null,
+                  start: performance.now(),
+                  end: -1.1,
+                  promise: null,
+                  awaited: null,
+                  previous: null
+                });
+            else if (2 === trigger.tag || 4 === trigger.tag)
+              (resource = resolveOwner()),
+                (trigger = {
+                  tag: 0,
+                  owner: resource,
+                  stack:
+                    null === resource
+                      ? parseStackTracePrivate(Error(), 3)
+                      : null,
+                  start: performance.now(),
+                  end: -1.1,
+                  promise: null,
+                  awaited: null,
+                  previous: trigger
+                });
             pendingOperations.set(asyncId, trigger);
           },
           before: function (asyncId) {
-            asyncId = pendingOperations.get(asyncId);
-            if (void 0 !== asyncId)
-              switch (asyncId.tag) {
+            var node = pendingOperations.get(asyncId);
+            if (void 0 !== node)
+              switch (node.tag) {
                 case 0:
                   lastRanAwait = null;
-                  asyncId.end = performance.now();
+                  0 > node.end
+                    ? (node.end = performance.now())
+                    : ((node = {
+                        tag: 0,
+                        owner: node.owner,
+                        stack: node.stack,
+                        start: node.start,
+                        end: performance.now(),
+                        promise: node.promise,
+                        awaited: node.awaited,
+                        previous: node.previous
+                      }),
+                      pendingOperations.set(asyncId, node));
                   break;
                 case 4:
                   lastRanAwait = resolvePromiseOrAwaitNode(
-                    asyncId,
+                    node,
                     performance.now()
                   );
                   break;
                 case 2:
-                  lastRanAwait = asyncId;
+                  lastRanAwait = node;
                   break;
                 case 3:
-                  resolvePromiseOrAwaitNode(
-                    asyncId,
-                    performance.now()
-                  ).previous = lastRanAwait;
+                  resolvePromiseOrAwaitNode(node, performance.now()).previous =
+                    lastRanAwait;
                   lastRanAwait = null;
                   break;
                 default:

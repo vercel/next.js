@@ -110,7 +110,7 @@ describe('Browserslist: New', () => {
 
         if (process.env.IS_TURBOPACK_TEST) {
           expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
-            `"a{all:initial}@media (resolution>=2x){.image{background-image:url(data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==)}}"`
+            `"a{all:initial}@media (min-resolution:2x){.image{background-image:url(data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==)}}"`
           )
         } else {
           expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(

@@ -417,7 +417,7 @@ pub struct ClientChunkingContextOptions {
     pub root_path: FileSystemPath,
     pub client_root: FileSystemPath,
     pub client_root_to_root_path: RcStr,
-    pub asset_prefix: Vc<Option<RcStr>>,
+    pub asset_prefix: Vc<RcStr>,
     pub chunk_suffix_path: Vc<Option<RcStr>>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
@@ -427,6 +427,7 @@ pub struct ClientChunkingContextOptions {
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub debug_ids: Vc<bool>,
+    pub should_use_absolute_url_references: Vc<bool>,
 }
 
 #[turbo_tasks::function]
@@ -448,6 +449,7 @@ pub async fn get_client_chunking_context(
         no_mangling,
         scope_hoisting,
         debug_ids,
+        should_use_absolute_url_references,
     } = options;
 
     let next_mode = mode.await?;
@@ -463,7 +465,7 @@ pub async fn get_client_chunking_context(
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
-    .chunk_base_path(asset_prefix.clone())
+    .chunk_base_path(Some(asset_prefix.clone()))
     .chunk_suffix_path(chunk_suffix_path)
     .minify_type(if *minify.await? {
         MinifyType::Minify {
@@ -477,11 +479,12 @@ pub async fn get_client_chunking_context(
     } else {
         SourceMapsType::None
     })
-    .asset_base_path(asset_prefix)
+    .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .export_usage(*export_usage.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .debug_ids(*debug_ids.await?);
+    .debug_ids(*debug_ids.await?)
+    .should_use_absolute_url_references(*should_use_absolute_url_references.await?);
 
     if next_mode.is_development() {
         builder = builder

@@ -34,6 +34,7 @@ import type { NextConfigComplete } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
+import ForceCompleteRuntimePlugin from './webpack/plugins/force-complete-runtime'
 import MiddlewarePlugin, {
   getEdgePolyfilledModules,
   handleWebpackExternalForEdgeRuntime,
@@ -55,7 +56,7 @@ import type {
   SWC_TARGET_TRIPLE,
 } from './webpack/plugins/telemetry-plugin/telemetry-plugin'
 import type { Span } from '../trace'
-import type { MiddlewareMatcher } from './analysis/get-page-static-info'
+import type { ProxyMatcher } from './analysis/get-page-static-info'
 import loadJsConfig, {
   type JsConfig,
   type ResolvedBaseUrl,
@@ -345,7 +346,7 @@ export default async function getBaseWebpackConfig(
     originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
     appDir: string | undefined
-    middlewareMatchers?: MiddlewareMatcher[]
+    middlewareMatchers?: ProxyMatcher[]
     noMangling?: boolean
     jsConfig: any
     jsConfigPath?: string
@@ -686,7 +687,6 @@ export default async function getBaseWebpackConfig(
     : distDir
 
   const conditionNames = [
-    ...(config.experimental?.cacheComponents === true ? ['next-js'] : []),
     ...(isEdgeServer ? [edgeConditionName] : []),
     // inherits Webpack's default conditions
     '...',
@@ -1388,6 +1388,17 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        {
+          issuerLayer: {
+            not: [WEBPACK_LAYERS.middleware, WEBPACK_LAYERS.instrument],
+          },
+          resolve: {
+            conditionNames: [
+              config.cacheComponents ? 'next-js' : '',
+              '...',
+            ].filter(Boolean) as string[],
+          },
+        },
         // Alias server-only and client-only to proper exports based on bundling layers
         {
           issuerLayer: {
@@ -1554,8 +1565,8 @@ export default async function getBaseWebpackConfig(
         ...getNextRootParamsRules({
           isRootParamsEnabled:
             config.experimental.rootParams ??
-            // `experimental.cacheComponents` implies `experimental.rootParams`.
-            config.experimental.cacheComponents ??
+            // `cacheComponents` implies `experimental.rootParams`.
+            config.cacheComponents ??
             false,
           isClient,
           appDir,
@@ -1952,6 +1963,11 @@ export default async function getBaseWebpackConfig(
       ],
     },
     plugins: [
+      // In prod Webpack will already have a runtime for all reachable chunks.
+      // During dev, it will update the runtime as chunks come in which may be too late for Flight.
+      //
+      // TODO: Rspack currently does not support the hooks and chunk methods required by ForceCompleteRuntimePlugin.
+      dev && !isRspack && new ForceCompleteRuntimePlugin(),
       isNodeServer &&
         new bundler.NormalModuleReplacementPlugin(
           /\.\/(.+)\.shared-runtime$/,
@@ -2139,7 +2155,7 @@ export default async function getBaseWebpackConfig(
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          cacheLifeConfig: config.experimental.cacheLife,
+          cacheLifeConfig: config.cacheLife,
           originalRewrites,
           originalRedirects,
         }),

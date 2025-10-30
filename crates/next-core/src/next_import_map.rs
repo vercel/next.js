@@ -128,12 +128,11 @@ pub async fn get_next_client_import_map(
         ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
             // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
-            let react_flavor =
-                if *next_config.enable_ppr().await? || *next_config.enable_taint().await? {
-                    "-experimental"
-                } else {
-                    ""
-                };
+            let react_flavor = if *next_config.enable_taint().await? {
+                "-experimental"
+            } else {
+                ""
+            };
 
             import_map.insert_exact_alias(
                 rcstr!("react"),
@@ -830,9 +829,8 @@ async fn apply_vendored_react_aliases_server(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let react_channel = if ppr || taint { "-experimental" } else { "" };
+    let react_channel = if taint { "-experimental" } else { "" };
     let react_condition = if ty.should_use_react_server_condition() {
         "server"
     } else {

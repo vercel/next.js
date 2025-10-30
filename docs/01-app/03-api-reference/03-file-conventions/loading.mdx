@@ -86,7 +86,7 @@ In the same folder, `loading.js` will be nested inside `layout.js`. It will auto
 ### SEO
 
 - For bots that only scrape static HTML, and cannot execute JavaScript like a full browser, such as Twitterbot, Next.js resolves [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) before streaming UI, and metadata is placed in the `<head>` of the initial HTML.
-- Otherwise, [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) may be used used. Next.js automatically detects user agents to choose between blocking and streaming behavior.
+- Otherwise, [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) may be used. Next.js automatically detects user agents to choose between blocking and streaming behavior.
 - Since streaming is server-rendered, it does not impact SEO. You can use the [Rich Results Test](https://search.google.com/test/rich-results) tool from Google to see how your page appears to Google's web crawlers and view the serialized HTML ([source](https://web.dev/rendering-on-the-web/#seo-considerations)).
 
 ### Status Codes
@@ -101,7 +101,7 @@ Some crawlers may label these responses as “soft 404s”. In the streaming cas
 
 If you need a 404 status, for compliance or analytics, ensure the resource exists before the response body is streamed, so that the server can set the HTTP status code.
 
-You can run this check in [`middleware`](/docs/app/api-reference/file-conventions/middleware) to rewrite missing slugs to a not-found route, or [produce a 404 response](/docs/app/api-reference/file-conventions/middleware#producing-a-response). Keep middleware checks fast, and avoid fetching full content there.
+You can run this check in [`proxy`](/docs/app/api-reference/file-conventions/proxy) to rewrite missing slugs to a not-found route, or [produce a 404 response](/docs/app/api-reference/file-conventions/proxy#producing-a-response). Keep proxy checks fast, and avoid fetching full content there.
 
 <details>
 <summary>When is the response body streamed?</summary>

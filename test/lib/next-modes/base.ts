@@ -156,6 +156,15 @@ export class NextInstance {
           await fs.mkdir(path.dirname(outputFilename), { recursive: true })
           await fs.writeFile(outputFilename, item)
         } else {
+          try {
+            const existingStat = await fs.lstat(outputFilename)
+            if (existingStat.isFile() || existingStat.isSymbolicLink()) {
+              await fs.unlink(outputFilename)
+            }
+          } catch {
+            // file might not exist or can't be unliked. carry on
+          }
+
           await fs.cp(item.fsPath, outputFilename, { recursive: true })
         }
       }
@@ -404,7 +413,7 @@ export class NextInstance {
 
           // alias experimental feature flags for deployment compatibility
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
-            process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
+            process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
           }
         `
           )

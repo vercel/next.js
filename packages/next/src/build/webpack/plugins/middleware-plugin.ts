@@ -3,7 +3,7 @@ import type {
   EdgeMiddlewareMeta,
 } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
-import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
+import type { ProxyMatcher } from '../../analysis/get-page-static-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
@@ -44,7 +44,7 @@ export interface EdgeFunctionDefinition {
   files: string[]
   name: string
   page: string
-  matchers: MiddlewareMatcher[]
+  matchers: ProxyMatcher[]
   env: Record<string, string>
   wasm?: AssetBinding[]
   assets?: AssetBinding[]

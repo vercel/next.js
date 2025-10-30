@@ -15,10 +15,11 @@ import {
   listenForDynamicRequest,
   type Task as PPRNavigationTask,
 } from '../router-reducer/ppr-navigations'
-import { createHrefFromUrl as createCanonicalUrl } from '../router-reducer/create-href-from-url'
+import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
   EntryStatus,
   readRouteCacheEntry,
+  getCanonicalSegmentKeypath,
   readSegmentCacheEntry,
   waitForSegmentCacheEntry,
   requestOptimisticRouteCacheEntry,
@@ -48,6 +49,7 @@ type SuccessfulNavigationResult = {
     flightRouterState: FlightRouterState
     cacheNode: CacheNode
     canonicalUrl: string
+    renderedSearch: string
     scrollableSegments: Array<FlightSegmentPath>
     shouldScroll: boolean
     hash: string
@@ -81,7 +83,8 @@ export function navigate(
   currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
-  shouldScroll: boolean
+  shouldScroll: boolean,
+  accumulation: { collectedDebugInfo?: Array<unknown> }
 ): NavigationResult {
   const now = Date.now()
   const href = url.href
@@ -119,9 +122,17 @@ export function navigate(
     const snapshot = readRenderSnapshotFromCache(now, route, route.tree)
     const prefetchFlightRouterState = snapshot.flightRouterState
     const prefetchSeedData = snapshot.seedData
-    const prefetchHead = route.head
-    const isPrefetchHeadPartial = route.isHeadPartial
-    const newCanonicalUrl = route.canonicalUrl
+    const headSnapshot = readHeadSnapshotFromCache(now, route)
+    const prefetchHead = headSnapshot.rsc
+    const isPrefetchHeadPartial = headSnapshot.isPartial
+    // TODO: The "canonicalUrl" stored in the cache doesn't include the hash,
+    // because hash entries do not vary by hash fragment. However, the one
+    // we set in the router state *does* include the hash, and it's used to
+    // sync with the actual browser location. To make this less of a refactor
+    // hazard, we should always track the hash separately from the rest of
+    // the URL.
+    const newCanonicalUrl = route.canonicalUrl + url.hash
+    const renderedSearch = route.renderedSearch
     return navigateUsingPrefetchedRouteTree(
       now,
       url,
@@ -135,6 +146,7 @@ export function navigate(
       prefetchHead,
       isPrefetchHeadPartial,
       newCanonicalUrl,
+      renderedSearch,
       shouldScroll,
       url.hash
     )
@@ -160,9 +172,11 @@ export function navigate(
       )
       const prefetchFlightRouterState = snapshot.flightRouterState
       const prefetchSeedData = snapshot.seedData
-      const prefetchHead = optimisticRoute.head
-      const isPrefetchHeadPartial = optimisticRoute.isHeadPartial
-      const newCanonicalUrl = optimisticRoute.canonicalUrl
+      const headSnapshot = readHeadSnapshotFromCache(now, optimisticRoute)
+      const prefetchHead = headSnapshot.rsc
+      const isPrefetchHeadPartial = headSnapshot.isPartial
+      const newCanonicalUrl = optimisticRoute.canonicalUrl + url.hash
+      const newRenderedSearch = optimisticRoute.renderedSearch
       return navigateUsingPrefetchedRouteTree(
         now,
         url,
@@ -176,6 +190,7 @@ export function navigate(
         prefetchHead,
         isPrefetchHeadPartial,
         newCanonicalUrl,
+        newRenderedSearch,
         shouldScroll,
         url.hash
       )
@@ -183,6 +198,10 @@ export function navigate(
   }
 
   // There's no matching prefetch for this route in the cache.
+  let collectedDebugInfo = accumulation.collectedDebugInfo ?? []
+  if (accumulation.collectedDebugInfo === undefined) {
+    collectedDebugInfo = accumulation.collectedDebugInfo = []
+  }
   return {
     tag: NavigationResultTag.Async,
     data: navigateDynamicallyWithNoPrefetch(
@@ -194,7 +213,8 @@ export function navigate(
       currentCacheNode,
       currentFlightRouterState,
       shouldScroll,
-      url.hash
+      url.hash,
+      collectedDebugInfo
     ),
   }
 }
@@ -212,6 +232,7 @@ function navigateUsingPrefetchedRouteTree(
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
   canonicalUrl: string,
+  renderedSearch: string,
   shouldScroll: boolean,
   hash: string
 ): SuccessfulNavigationResult | NoOpNavigationResult | MPANavigationResult {
@@ -253,6 +274,7 @@ function navigateUsingPrefetchedRouteTree(
       task,
       currentCacheNode,
       canonicalUrl,
+      renderedSearch,
       scrollableSegments,
       shouldScroll,
       hash
@@ -273,6 +295,7 @@ function navigationTaskToResult(
   task: PPRNavigationTask,
   currentCacheNode: CacheNode,
   canonicalUrl: string,
+  renderedSearch: string,
   scrollableSegments: Array<FlightSegmentPath>,
   shouldScroll: boolean,
   hash: string
@@ -293,6 +316,7 @@ function navigationTaskToResult(
       flightRouterState,
       cacheNode: newCacheNode !== null ? newCacheNode : currentCacheNode,
       canonicalUrl,
+      renderedSearch,
       scrollableSegments,
       shouldScroll,
       hash,
@@ -323,7 +347,11 @@ function readRenderSnapshotFromCache(
   let loading: LoadingModuleData | Promise<LoadingModuleData> = null
   let isPartial: boolean = true
 
-  const segmentEntry = readSegmentCacheEntry(now, route, tree.cacheKey)
+  const canonicalSegmentKeypath = getCanonicalSegmentKeypath(
+    route,
+    tree.cacheKey
+  )
+  const segmentEntry = readSegmentCacheEntry(now, canonicalSegmentKeypath)
   if (segmentEntry !== null) {
     switch (segmentEntry.status) {
       case EntryStatus.Fulfilled: {
@@ -384,15 +412,45 @@ function readRenderSnapshotFromCache(
       null,
       tree.isRootLayout,
     ],
-    seedData: [
-      segment,
-      rsc,
-      childSeedDatas,
-      loading,
-      isPartial,
-      hasRuntimePrefetch,
-    ],
+    seedData: [rsc, childSeedDatas, loading, isPartial, hasRuntimePrefetch],
   }
+}
+
+function readHeadSnapshotFromCache(
+  now: number,
+  route: FulfilledRouteCacheEntry
+): { rsc: HeadData; isPartial: boolean } {
+  // Same as readRenderSnapshotFromCache, but for the head
+  let rsc: React.ReactNode | null = null
+  let isPartial: boolean = true
+  const canonicalSegmentKeypath = getCanonicalSegmentKeypath(
+    route,
+    route.metadata.cacheKey
+  )
+  const segmentEntry = readSegmentCacheEntry(now, canonicalSegmentKeypath)
+  if (segmentEntry !== null) {
+    switch (segmentEntry.status) {
+      case EntryStatus.Fulfilled: {
+        rsc = segmentEntry.rsc
+        isPartial = segmentEntry.isPartial
+        break
+      }
+      case EntryStatus.Pending: {
+        const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
+        rsc = promiseForFulfilledEntry.then((entry) =>
+          entry !== null ? entry.rsc : null
+        )
+        isPartial = true
+        break
+      }
+      case EntryStatus.Empty:
+      case EntryStatus.Rejected:
+        break
+      default:
+        segmentEntry satisfies never
+    }
+  }
+  return { rsc, isPartial }
 }
 
 async function navigateDynamicallyWithNoPrefetch(
@@ -404,7 +462,8 @@ async function navigateDynamicallyWithNoPrefetch(
   currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
   shouldScroll: boolean,
-  hash: string
+  hash: string,
+  collectedDebugInfo: Array<unknown>
 ): Promise<
   MPANavigationResult | SuccessfulNavigationResult | NoOpNavigationResult
 > {
@@ -424,16 +483,24 @@ async function navigateDynamicallyWithNoPrefetch(
     flightRouterState: currentFlightRouterState,
     nextUrl,
   })
-  const { flightData, canonicalUrl: canonicalUrlOverride } =
-    await promiseForDynamicServerResponse
-
-  if (typeof flightData === 'string') {
+  const result = await promiseForDynamicServerResponse
+  if (typeof result === 'string') {
     // This is an MPA navigation.
-    const newUrl = flightData
+    const newUrl = result
     return {
       tag: NavigationResultTag.MPA,
       data: newUrl,
     }
+  }
+
+  const {
+    flightData,
+    canonicalUrl,
+    renderedSearch,
+    debugInfo: debugInfoFromResponse,
+  } = result
+  if (debugInfoFromResponse !== null) {
+    collectedDebugInfo.push(...debugInfoFromResponse)
   }
 
   // Since the response format of dynamic requests and prefetches is slightly
@@ -449,10 +516,6 @@ async function navigateDynamicallyWithNoPrefetch(
   const prefetchSeedData = null
   const prefetchHead = null
   const isPrefetchHeadPartial = true
-
-  const canonicalUrl = createCanonicalUrl(
-    canonicalUrlOverride ? canonicalUrlOverride : url
-  )
 
   // Now we proceed exactly as we would for normal navigation.
   const scrollableSegments: Array<FlightSegmentPath> = []
@@ -487,7 +550,8 @@ async function navigateDynamicallyWithNoPrefetch(
     return navigationTaskToResult(
       task,
       currentCacheNode,
-      canonicalUrl,
+      createHrefFromUrl(canonicalUrl),
+      renderedSearch,
       scrollableSegments,
       shouldScroll,
       hash
@@ -498,7 +562,7 @@ async function navigateDynamicallyWithNoPrefetch(
   return {
     tag: NavigationResultTag.NoOp,
     data: {
-      canonicalUrl,
+      canonicalUrl: createHrefFromUrl(canonicalUrl),
       shouldScroll,
     },
   }

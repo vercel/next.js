@@ -169,6 +169,13 @@ function checkDeprecations(
     silent
   )
 
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'eslint',
+    `\`eslint\` configuration in ${configFileName} is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options`,
+    silent
+  )
+
   if (userConfig.images?.domains?.length) {
     warnOptionHasBeenDeprecated(
       userConfig,
@@ -378,13 +385,22 @@ function assignDefaultsAndValidate(
     )
   }
 
+  // Validate sassOptions.functions is not used with Turbopack
+  if (
+    process.env.TURBOPACK &&
+    result.sassOptions &&
+    'functions' in result.sassOptions
+  ) {
+    throw new Error(
+      `The "sassOptions.functions" option is not supported when using Turbopack. ` +
+        `Custom Sass functions are only available with webpack. ` +
+        `Please remove the "functions" property from your sassOptions in ${configFileName}.`
+    )
+  }
+
   if (isStableBuild()) {
     // Prevents usage of certain experimental features outside of canary
-    if (result.experimental?.cacheComponents) {
-      throw new CanaryOnlyConfigError({
-        feature: 'experimental.cacheComponents',
-      })
-    } else if (result.experimental?.turbopackFileSystemCacheForBuild) {
+    if (result.experimental?.turbopackFileSystemCacheForBuild) {
       throw new CanaryOnlyConfigError({
         feature: 'experimental.turbopackFileSystemCacheForBuild',
       })
@@ -393,7 +409,7 @@ function assignDefaultsAndValidate(
 
   if (result.experimental.ppr) {
     throw new HardDeprecatedConfigError(
-      `\`experimental.ppr\` has been merged into \`experimental.cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`experimental.cacheComponents\`. Please update your ${configFileName} accordingly.`
+      `\`experimental.ppr\` has been merged into \`cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`cacheComponents\`. Please update your ${configFileName} accordingly.`
     )
   }
 
@@ -707,6 +723,34 @@ function assignDefaultsAndValidate(
     configFileName,
     silent
   )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'enablePrerenderSourceMaps',
+    'enablePrerenderSourceMaps',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'cacheComponents',
+    'cacheComponents',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'cacheLife',
+    'cacheLife',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'cacheHandlers',
+    'cacheHandlers',
+    configFileName,
+    silent
+  )
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
@@ -791,6 +835,28 @@ function assignDefaultsAndValidate(
     userConfig.skipMiddlewareUrlNormalize !== undefined
   ) {
     result.skipProxyUrlNormalize = userConfig.skipMiddlewareUrlNormalize
+  }
+  // Inverse case: when new name is set but not the old name, copy the value to the old name
+  // to avoid breaking change on resolved config object written to `.next/`
+  if (
+    userConfig.experimental?.proxyPrefetch !== undefined &&
+    userConfig.experimental?.middlewarePrefetch === undefined
+  ) {
+    result.experimental.middlewarePrefetch =
+      userConfig.experimental.proxyPrefetch
+  }
+  if (
+    userConfig.experimental?.externalProxyRewritesResolve !== undefined &&
+    userConfig.experimental?.externalMiddlewareRewritesResolve === undefined
+  ) {
+    result.experimental.externalMiddlewareRewritesResolve =
+      userConfig.experimental.externalProxyRewritesResolve
+  }
+  if (
+    userConfig.skipProxyUrlNormalize !== undefined &&
+    userConfig.skipMiddlewareUrlNormalize === undefined
+  ) {
+    result.skipMiddlewareUrlNormalize = userConfig.skipProxyUrlNormalize
   }
 
   // Normalize & validate experimental.proxyClientMaxBodySize
@@ -1076,12 +1142,12 @@ function assignDefaultsAndValidate(
     }
   }
 
-  if (result.experimental) {
-    result.experimental.cacheLife = {
-      ...defaultConfig.experimental?.cacheLife,
-      ...result.experimental.cacheLife,
+  if (result.cacheLife) {
+    result.cacheLife = {
+      ...defaultConfig.cacheLife,
+      ...result.cacheLife,
     }
-    const defaultDefault = defaultConfig.experimental?.cacheLife?.['default']
+    const defaultDefault = defaultConfig.cacheLife?.['default']
     if (
       !defaultDefault ||
       defaultDefault.revalidate === undefined ||
@@ -1090,9 +1156,9 @@ function assignDefaultsAndValidate(
     ) {
       throw new Error('No default cacheLife profile.')
     }
-    const defaultCacheLifeProfile = result.experimental.cacheLife['default']
+    const defaultCacheLifeProfile = result.cacheLife['default']
     if (!defaultCacheLifeProfile) {
-      result.experimental.cacheLife['default'] = defaultDefault
+      result.cacheLife['default'] = defaultDefault
     } else {
       if (defaultCacheLifeProfile.stale === undefined) {
         const staticStaleTime = result.experimental.staleTimes?.static
@@ -1109,16 +1175,16 @@ function assignDefaultsAndValidate(
     }
   }
 
-  if (result.experimental?.cacheHandlers) {
+  if (result.cacheHandlers) {
     const allowedHandlerNameRegex = /[a-z-]/
 
-    if (typeof result.experimental.cacheHandlers !== 'object') {
+    if (typeof result.cacheHandlers !== 'object') {
       throw new Error(
-        `Invalid "experimental.cacheHandlers" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(result.experimental.cacheHandlers)}`
+        `Invalid "cacheHandlers" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(result.cacheHandlers)}`
       )
     }
 
-    const handlerKeys = Object.keys(result.experimental.cacheHandlers)
+    const handlerKeys = Object.keys(result.cacheHandlers)
     const invalidHandlerItems: Array<{ key: string; reason: string }> = []
 
     for (const key of handlerKeys) {
@@ -1135,7 +1201,7 @@ function assignDefaultsAndValidate(
         })
       } else {
         const handlerPath = (
-          result.experimental.cacheHandlers as {
+          result.cacheHandlers as {
             [handlerName: string]: string | undefined
           }
         )[key]
@@ -1149,7 +1215,7 @@ function assignDefaultsAndValidate(
       }
       if (invalidHandlerItems.length) {
         throw new Error(
-          `Invalid handler fields configured for "experimental.cacheHandler":\n${invalidHandlerItems.map((item) => `${key}: ${item.reason}`).join('\n')}`
+          `Invalid handler fields configured for "cacheHandlers":\n${invalidHandlerItems.map((item) => `${key}: ${item.reason}`).join('\n')}`
         )
       }
     }
@@ -1269,18 +1335,25 @@ function assignDefaultsAndValidate(
     result.experimental.mcpServer = true
   }
 
-  // TODO: remove once we've finished migrating internally to cacheComponents.
-  if (result.experimental.cacheComponents) {
+  if (result.cacheComponents) {
+    // TODO: remove once we've finished migrating internally to cacheComponents.
     result.experimental.ppr = true
+
+    // Prerender sourcemaps are enabled by default when using cacheComponents, unless explicitly disabled.
+    if (result.enablePrerenderSourceMaps === undefined) {
+      result.enablePrerenderSourceMaps = true
+    }
   }
 
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
   // we transfer the value for cacheComponents to the explicit useCache flag to ensure
   // backwards compatibility.
   if (result.experimental.useCache === undefined) {
-    result.experimental.useCache = result.experimental.cacheComponents
+    result.experimental.useCache = result.cacheComponents
   }
 
+  // Store the distDirRoot in the config before it is modified by the isolatedDevBuild flag
+  ;(result as NextConfigComplete).distDirRoot = result.distDir
   if (
     phase === PHASE_DEVELOPMENT_SERVER &&
     result.experimental?.isolatedDevBuild
@@ -1734,6 +1807,9 @@ function enforceExperimentalFeatures(
     debugPrerender &&
     (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
   ) {
+    // TODO: This is not an experimental feature, but should be enabled alongside other prerender debugging features.
+    config.enablePrerenderSourceMaps = true
+
     setExperimentalFeatureForDebugPrerender(
       config.experimental,
       'serverSourceMaps',
@@ -1750,13 +1826,6 @@ function enforceExperimentalFeatures(
 
     setExperimentalFeatureForDebugPrerender(
       config.experimental,
-      'enablePrerenderSourceMaps',
-      true,
-      configuredExperimentalFeatures
-    )
-
-    setExperimentalFeatureForDebugPrerender(
-      config.experimental,
       'prerenderEarlyExit',
       false,
       configuredExperimentalFeatures
@@ -1765,21 +1834,12 @@ function enforceExperimentalFeatures(
 
   // TODO: Remove this once we've made Cache Components the default.
   if (
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
+    process.env.__NEXT_CACHE_COMPONENTS === 'true' &&
     // We do respect an explicit value in the user config.
-    (config.experimental.cacheComponents === undefined ||
-      (isDefaultConfig && !config.experimental.cacheComponents))
+    (config.cacheComponents === undefined ||
+      (isDefaultConfig && !config.cacheComponents))
   ) {
-    config.experimental.cacheComponents = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'cacheComponents',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
-      )
-    }
+    config.cacheComponents = true
   }
 
   // TODO: Remove this once using the debug channel is the default.
@@ -1809,22 +1869,6 @@ function enforceExperimentalFeatures(
   ) {
     config.reactCompiler = true
     // TODO: Report if we enable non-experimental features via env
-  }
-
-  if (
-    config.experimental.enablePrerenderSourceMaps === undefined &&
-    config.experimental.cacheComponents === true
-  ) {
-    config.experimental.enablePrerenderSourceMaps = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'enablePrerenderSourceMaps',
-        true,
-        'enabled by `experimental.cacheComponents`'
-      )
-    }
   }
 }
 
@@ -1979,18 +2023,7 @@ async function validateConfigSchema(
       }
 
       const fullErrorMessage = errorMessages.join('\n')
-
-      let err: Error
-      // Hide the stack trace for this error as the trace is not useful here.
-      const stackTraceLimit = Error.stackTraceLimit
-      Error.stackTraceLimit = 0
-      try {
-        err = new Error(fullErrorMessage)
-      } finally {
-        Error.stackTraceLimit = stackTraceLimit
-      }
-
-      throw err
+      throw new Error(fullErrorMessage)
     }
   }
 }

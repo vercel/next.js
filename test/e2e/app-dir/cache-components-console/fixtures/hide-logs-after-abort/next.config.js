@@ -2,10 +2,8 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-    hideLogsAfterAbort: true,
-  },
+  cacheComponents: true,
+  experimental: { hideLogsAfterAbort: true },
 }
 
 module.exports = nextConfig

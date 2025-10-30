@@ -37,7 +37,7 @@ use turbopack_ecmascript::{
 use crate::{
     app_structure::AppPageLoaderTree,
     next_config::RouteHas,
-    next_manifests::MiddlewareMatcher,
+    next_manifests::ProxyMatcher,
     util::{MiddlewareMatcherKind, NextRuntime},
 };
 
@@ -89,7 +89,6 @@ pub struct NextSegmentConfig {
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
-    pub experimental_ppr: Option<bool>,
     pub middleware_matcher: Option<Vec<MiddlewareMatcherKind>>,
 
     /// Whether these exports are defined in the source file.
@@ -118,7 +117,6 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
-            experimental_ppr,
             ..
         } = self;
         *dynamic = dynamic.or(parent.dynamic);
@@ -127,7 +125,6 @@ impl NextSegmentConfig {
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
         *runtime = runtime.or(parent.runtime);
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
-        *experimental_ppr = experimental_ppr.or(parent.experimental_ppr);
     }
 
     /// Applies a config from a parallel route to this config, returning an
@@ -161,7 +158,6 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
-            experimental_ppr,
             ..
         } = self;
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
@@ -177,11 +173,6 @@ impl NextSegmentConfig {
             preferred_region,
             &parallel_config.preferred_region,
             "preferredRegion",
-        )?;
-        merge_parallel(
-            experimental_ppr,
-            &parallel_config.experimental_ppr,
-            "experimental_ppr",
         )?;
         Ok(())
     }
@@ -298,6 +289,8 @@ pub enum ParseSegmentMode {
     Base,
     // Disallows "use client + generateStatic" and ignores/warns about `export const config`
     App,
+    // Disallows config = { runtime: "edge" }
+    Proxy,
 }
 
 /// Parse the raw source code of a file to get the segment config local to that file.
@@ -395,6 +388,7 @@ pub async fn parse_segment_config_from_source(
             EcmascriptModuleAssetType::Ecmascript
         },
         EcmascriptInputTransforms::empty(),
+        false,
         false,
     )
     .await?;
@@ -675,21 +669,35 @@ async fn parse_config_value(
                             .await;
                         };
 
-                        config.runtime =
-                            match serde_json::from_value(Value::String(val.to_string())) {
-                                Ok(runtime) => Some(runtime),
-                                Err(err) => {
-                                    return invalid_config(
-                                        source,
-                                        "config",
-                                        span,
-                                        format!("`runtime` has an invalid value: {err}.").into(),
-                                        Some(value),
-                                        IssueSeverity::Error,
-                                    )
-                                    .await;
-                                }
-                            };
+                        let runtime = match serde_json::from_value(Value::String(val.to_string())) {
+                            Ok(runtime) => Some(runtime),
+                            Err(err) => {
+                                return invalid_config(
+                                    source,
+                                    "config",
+                                    span,
+                                    format!("`runtime` has an invalid value: {err}.").into(),
+                                    Some(value),
+                                    IssueSeverity::Error,
+                                )
+                                .await;
+                            }
+                        };
+
+                        if mode == ParseSegmentMode::Proxy && runtime == Some(NextRuntime::Edge) {
+                            invalid_config(
+                                source,
+                                "config",
+                                span,
+                                rcstr!("Proxy does not support Edge runtime."),
+                                Some(value),
+                                IssueSeverity::Error,
+                            )
+                            .await?;
+                            continue;
+                        }
+
+                        config.runtime = runtime
                     }
                     "matcher" => {
                         config.middleware_matcher =
@@ -930,35 +938,6 @@ async fn parse_config_value(
         "generateStaticParams" => {
             config.generate_static_params = Some(span);
         }
-        "experimental_ppr" => {
-            let Some(value) = get_value() else {
-                return invalid_config(
-                    source,
-                    "experimental_ppr",
-                    span,
-                    rcstr!("It mustn't be reexported."),
-                    None,
-                    IssueSeverity::Error,
-                )
-                .await;
-            };
-            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
-                return Ok(());
-            }
-            let Some(val) = value.as_bool() else {
-                return invalid_config(
-                    source,
-                    "experimental_ppr",
-                    span,
-                    rcstr!("`experimental_ppr` needs to be a static boolean."),
-                    Some(&value),
-                    IssueSeverity::Error,
-                )
-                .await;
-            };
-
-            config.experimental_ppr = Some(val);
-        }
         _ => {}
     }
 
@@ -1158,7 +1137,7 @@ async fn parse_route_matcher_from_js_value(
                 if let Some(matcher) = item.as_str() {
                     matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
                 } else if let JsValue::Object { parts, .. } = item {
-                    let mut matcher = MiddlewareMatcher::default();
+                    let mut matcher = ProxyMatcher::default();
                     let mut had_source = false;
                     for matcher_part in parts {
                         if let ObjectPart::KeyValue(key, value) = matcher_part {

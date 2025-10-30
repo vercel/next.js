@@ -9,7 +9,7 @@ import { isFullStringUrl } from './url'
 
 export type RouteHas =
   | {
-      type: string
+      type: 'header' | 'cookie' | 'query'
       key: string
       value?: string
     }

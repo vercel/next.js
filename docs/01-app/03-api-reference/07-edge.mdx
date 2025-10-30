@@ -8,7 +8,7 @@ description: API Reference for the Edge Runtime.
 Next.js has two server runtimes you can use in your application:
 
 - The **Node.js Runtime** (default), which has access to all Node.js APIs and is used for rendering your application.
-- The **Edge Runtime** which contains a more limited [set of APIs](#reference), used in [Middleware](/docs/app/api-reference/file-conventions/middleware).
+- The **Edge Runtime** which contains a more limited [set of APIs](#reference), used in [Proxy](/docs/app/api-reference/file-conventions/proxy).
 
 ## Caveats
 
@@ -159,9 +159,9 @@ The following JavaScript language features are disabled, and **will not work:**
 | [`WebAssembly.instantiate`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate) | Compiles and instantiates a WebAssembly module from a buffer source |
 
 In rare cases, your code could contain (or import) some dynamic code evaluation statements which _can not be reached at runtime_ and which can not be removed by treeshaking.
-You can relax the check to allow specific files with your Middleware configuration:
+You can relax the check to allow specific files with your Proxy configuration:
 
-```javascript filename="middleware.ts"
+```javascript filename="proxy.ts"
 export const config = {
   unstable_allowDynamic: [
     // allows a single file
