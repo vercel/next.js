@@ -26,7 +26,8 @@ const runTests = () => {
     const props = await getProps('/')
     expect(props.params).toEqual({})
 
-    await waitFor(1000)
+    // revalidate and some buffer for the page to be ISR'd
+    await waitFor(1000 + 100)
     await getProps('/')
 
     const newProps = await getProps('/')
@@ -38,7 +39,8 @@ const runTests = () => {
     const props = await getProps('/a')
     expect(props.params).toEqual({ slug: ['a'] })
 
-    await waitFor(1000)
+    // revalidate and some buffer for the page to be ISR'd
+    await waitFor(1000 + 100)
     await getProps('/a')
 
     const newProps = await getProps('/a')
@@ -50,7 +52,8 @@ const runTests = () => {
     const props = await getProps('/hello/world')
     expect(props.params).toEqual({ slug: ['hello', 'world'] })
 
-    await waitFor(1000)
+    // revalidate and some buffer for the page to be ISR'd
+    await waitFor(1000 + 100)
     await getProps('/hello/world')
 
     const newProps = await getProps('/hello/world')
