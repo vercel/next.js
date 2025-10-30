@@ -904,6 +904,7 @@ async function getBuildId(
 
 export default async function build(
   dir: string,
+  experimentalAnalyze = false,
   reactProductionProfiling = false,
   debugOutput = false,
   debugPrerender = false,
@@ -918,6 +919,7 @@ export default async function build(
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
+  NextBuildContext.analyze = experimentalAnalyze
   const buildStartTime = Date.now()
 
   let loadedConfig: NextConfigComplete | undefined

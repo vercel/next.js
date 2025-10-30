@@ -534,6 +534,7 @@ impl ProjectContainer {
     }
 }
 
+#[derive(Clone)]
 #[turbo_tasks::value]
 pub struct Project {
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
@@ -793,7 +794,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn next_config(&self) -> Vc<NextConfig> {
+    pub fn next_config(&self) -> Vc<NextConfig> {
         *self.next_config
     }
 
@@ -1884,6 +1885,15 @@ impl Project {
         } else {
             Ok(Vc::cell(None))
         }
+    }
+
+    #[turbo_tasks::function]
+    pub async fn with_next_config(&self, next_config: Vc<NextConfig>) -> Result<Vc<Self>> {
+        Ok(Self {
+            next_config: next_config.to_resolved().await?,
+            ..(*self).clone()
+        }
+        .cell())
     }
 }
 

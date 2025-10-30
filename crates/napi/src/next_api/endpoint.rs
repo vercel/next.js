@@ -2,10 +2,7 @@ use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
 use futures_util::TryFutureExt;
-use napi::{
-    JsFunction,
-    bindgen_prelude::{Buffer, External},
-};
+use napi::{JsFunction, bindgen_prelude::External};
 use next_api::{
     operation::OptionEndpoint,
     paths::ServerPath,
@@ -16,15 +13,11 @@ use next_api::{
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
-use turbo_tasks_fs::FileContent;
-use turbopack_core::{diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue};
+use turbopack_core::{diagnostics::PlainDiagnostic, issue::PlainIssue};
 
 use super::utils::{
     DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
     strongly_consistent_catch_collectables, subscribe,
-};
-use crate::next_api::analyze::{
-    AnalyzeDataWithIssues, get_analyze_data_for_endpoint_with_issues_operation,
 };
 
 #[napi(object)]
@@ -159,49 +152,6 @@ pub async fn endpoint_write_to_disk(
         result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
-    })
-}
-
-#[napi]
-pub async fn endpoint_analyze_data(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
-) -> napi::Result<TurbopackResult<Option<Buffer>>> {
-    let endpoint_op: OperationVc<OptionEndpoint> = ***endpoint;
-    let (analyze_data, issues, diagnostics) = endpoint
-        .turbopack_ctx()
-        .turbo_tasks()
-        .run_once(async move {
-            let analyze_data_op = get_analyze_data_for_endpoint_with_issues_operation(endpoint_op);
-            let AnalyzeDataWithIssues {
-                analyze_data,
-                issues,
-                diagnostics,
-                effects: _,
-            } = &*analyze_data_op.connect().await?;
-            Ok((
-                if let Some(content) = analyze_data.as_ref() {
-                    if let FileContent::Content(file) = &**content {
-                        Some(file.content().to_bytes().into_owned())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                },
-                issues.clone(),
-                diagnostics.clone(),
-            ))
-        })
-        .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-
-    Ok(TurbopackResult {
-        result: analyze_data.map(Buffer::from),
-        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: diagnostics
-            .iter()
-            .map(|d| NapiDiagnostic::from(d))
-            .collect(),
     })
 }
 

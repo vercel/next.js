@@ -1,15 +1,14 @@
-use std::{borrow::Cow, io::Write, iter::once, path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{Context, Result, anyhow, bail};
 use flate2::write::GzEncoder;
 use futures_util::TryFutureExt;
 use napi::{
     Env, JsFunction, JsObject, Status,
-    bindgen_prelude::{Buffer, External, within_runtime_if_available},
+    bindgen_prelude::{External, within_runtime_if_available},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use next_api::{
-    analyze::{AnalyzeDataOutputAsset, ModulesDataOutputAsset},
     entrypoints::Entrypoints,
     next_server_nft::next_server_nft_assets,
     operation::{
@@ -20,7 +19,7 @@ use next_api::{
         DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
         ProjectOptions, WatchOptions,
     },
-    route::EndpointGroupKey,
+    route::Endpoint,
 };
 use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
@@ -64,7 +63,7 @@ use url::Url;
 
 use crate::{
     next_api::{
-        analyze::{AnalyzeDataWithIssues, get_analyze_data_with_issues_operation},
+        analyze::{WriteAnalyzeResult, write_analyze_data_with_issues_operation},
         endpoint::ExternalEndpoint,
         turbopack_ctx::{
             NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject, NextTurboTasks,
@@ -917,6 +916,13 @@ fn project_container_entrypoints_operation(
 }
 
 #[turbo_tasks::value(serialization = "none")]
+struct OperationResult {
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
+}
+
+#[turbo_tasks::value(serialization = "none")]
 struct AllWrittenEntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1012,62 +1018,28 @@ async fn output_assets_operation(
     app_dir_only: bool,
 ) -> Result<Vc<OutputAssets>> {
     let project = container.project();
-    let analyze_output_root = project
-        .node_root()
-        .owned()
-        .await?
-        .join("diagnostics/analyze")?;
     let whole_app_module_graphs = project.whole_app_module_graphs();
-    let analyze_output_root = &analyze_output_root;
-    let endpoint_assets_and_analyze_data = project
-        .get_all_endpoint_groups(app_dir_only)
+    let endpoint_assets = project
+        .get_all_endpoints(app_dir_only)
         .await?
         .iter()
-        .map(|(key, endpoint_group)| async move {
-            let output_assets = endpoint_group.output_assets();
-            let analyze_data = AnalyzeDataOutputAsset::new(
-                analyze_output_root
-                    .join(&encode_analyze_data_path(key))?
-                    .join("analyze.data")?,
-                output_assets,
-            )
-            .to_resolved()
-            .await?;
-
-            Ok((output_assets.await?, ResolvedVc::upcast(analyze_data)))
-        })
+        .map(|endpoint| async move { endpoint.output().await?.output_assets.await })
         .try_join()
         .await?;
 
-    let output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> =
-        endpoint_assets_and_analyze_data
-            .iter()
-            .flat_map(|(assets, _)| assets.iter().copied())
-            .collect();
+    let output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = endpoint_assets
+        .iter()
+        .flat_map(|assets| assets.iter().copied())
+        .collect();
 
     let nft = next_server_nft_assets(project).await?;
 
     whole_app_module_graphs.as_side_effect().await?;
 
-    let modules_data = ResolvedVc::upcast(
-        ModulesDataOutputAsset::new(
-            analyze_output_root.join("modules.data")?,
-            Vc::cell(vec![whole_app_module_graphs.await?.full]),
-        )
-        .to_resolved()
-        .await?,
-    );
-
     Ok(Vc::cell(
         output_assets
             .into_iter()
             .chain(nft.iter().copied())
-            .chain(once(modules_data))
-            .chain(
-                endpoint_assets_and_analyze_data
-                    .iter()
-                    .map(|&(_, data)| data),
-            )
             .collect(),
     ))
 }
@@ -1799,49 +1771,35 @@ pub fn project_get_source_map_sync(
 }
 
 #[napi]
-pub async fn project_analyze_data(
+pub async fn project_write_analyze_data(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-) -> napi::Result<TurbopackResult<Option<Buffer>>> {
+    app_dir_only: bool,
+) -> napi::Result<TurbopackResult<()>> {
     let container = project.container;
-    let (analyze_data, issues, diagnostics) = project
+    let (issues, diagnostics) = project
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
-            let analyze_data_op = get_analyze_data_with_issues_operation(container);
-            let AnalyzeDataWithIssues {
-                analyze_data,
+            let analyze_data_op = write_analyze_data_with_issues_operation(container, app_dir_only);
+            let WriteAnalyzeResult {
                 issues,
                 diagnostics,
-                effects: _,
-            } = &*analyze_data_op.connect().await?;
-            Ok((
-                if let Some(content) = analyze_data.as_ref() {
-                    if let FileContent::Content(file) = &**content {
-                        Some(file.content().to_bytes().into_owned())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                },
-                issues.clone(),
-                diagnostics.clone(),
-            ))
+                effects,
+            } = &*analyze_data_op.read_strongly_consistent().await?;
+
+            // Write the files to disk
+            effects.apply().await?;
+            Ok((issues.clone(), diagnostics.clone()))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
     Ok(TurbopackResult {
-        result: analyze_data.map(Buffer::from),
+        result: (),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diagnostics
             .iter()
             .map(|d| NapiDiagnostic::from(d))
             .collect(),
     })
-}
-
-fn encode_analyze_data_path(key: &EndpointGroupKey) -> RcStr {
-    // While `~` is fine on most file systems, the browser filesystem api won't allow it.
-    key.to_string().replace("~", "%7E").into()
 }

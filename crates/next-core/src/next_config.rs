@@ -110,7 +110,7 @@ pub struct NextConfig {
     dev_indicators: Option<DevIndicatorsConfig>,
     output: Option<OutputType>,
     turbopack: Option<TurbopackConfig>,
-    production_browser_source_maps: bool,
+    pub production_browser_source_maps: bool,
     output_file_tracing_includes: Option<serde_json::Value>,
     output_file_tracing_excludes: Option<serde_json::Value>,
     // TODO: This option is not respected, it uses Turbopack's root instead.
@@ -156,6 +156,18 @@ pub struct NextConfig {
     use_file_system_public_routes: bool,
     cache_components: Option<bool>,
     webpack: Option<serde_json::Value>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextConfig {
+    #[turbo_tasks::function]
+    pub fn with_production_browser_source_maps(&self) -> Vc<Self> {
+        Self {
+            production_browser_source_maps: true,
+            ..self.clone()
+        }
+        .cell()
+    }
 }
 
 #[derive(

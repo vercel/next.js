@@ -79,9 +79,6 @@ export interface NapiWrittenEndpoint {
 export declare function endpointWriteToDisk(endpoint: {
   __napiType: 'Endpoint'
 }): Promise<TurbopackResult>
-export declare function endpointAnalyzeData(endpoint: {
-  __napiType: 'Endpoint'
-}): Promise<TurbopackResult>
 export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
@@ -379,9 +376,10 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): string | null
-export declare function projectAnalyzeData(project: {
-  __napiType: 'Project'
-}): Promise<TurbopackResult>
+export declare function projectWriteAnalyzeData(
+  project: { __napiType: 'Project' },
+  appDirOnly: boolean
+): Promise<TurbopackResult>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *
