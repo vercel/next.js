@@ -423,6 +423,7 @@ struct TaskExecutionCompletePrepareResult {
     pub new_children: FxHashSet<TaskId>,
     pub removed_data: Vec<CachedDataItem>,
     pub is_now_immutable: bool,
+    #[cfg(feature = "verify_determinism")]
     pub no_output_set: bool,
     pub new_output: Option<OutputValue>,
     pub output_dependent_tasks: SmallVec<[TaskId; 4]>,
@@ -1766,6 +1767,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             new_children,
             mut removed_data,
             is_now_immutable,
+            #[cfg(feature = "verify_determinism")]
             no_output_set,
             new_output,
             output_dependent_tasks,
@@ -1811,6 +1813,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if self.task_execution_completed_finish(
             &mut ctx,
             task_id,
+            #[cfg(feature = "verify_determinism")]
             no_output_set,
             new_output,
             &mut removed_data,
@@ -1846,6 +1849,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 new_children: Default::default(),
                 removed_data: Default::default(),
                 is_now_immutable: false,
+                #[cfg(feature = "verify_determinism")]
                 no_output_set: false,
                 new_output: None,
                 output_dependent_tasks: Default::default(),
@@ -2025,6 +2029,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Check if output need to be updated
         let current_output = get!(task, Output);
+        #[cfg(feature = "verify_determinism")]
         let no_output_set = current_output.is_none();
         let new_output = match result {
             Ok(RawVc::TaskOutput(output_task_id)) => {
@@ -2097,6 +2102,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             new_children,
             removed_data,
             is_now_immutable,
+            #[cfg(feature = "verify_determinism")]
             no_output_set,
             new_output,
             output_dependent_tasks,
@@ -2238,7 +2244,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
-        no_output_set: bool,
+        #[cfg(feature = "verify_determinism")] no_output_set: bool,
         new_output: Option<OutputValue>,
         removed_data: &mut Vec<CachedDataItem>,
         is_now_immutable: bool,
@@ -2361,7 +2367,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             None
         };
 
+        #[cfg(feature = "verify_determinism")]
         let reschedule = (dirty_changed || no_output_set) && !task_id.is_transient();
+        #[cfg(not(feature = "verify_determinism"))]
+        let reschedule = false;
         if reschedule {
             task.add_new(CachedDataItem::InProgress {
                 value: InProgressState::Scheduled {
