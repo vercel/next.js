@@ -1060,11 +1060,14 @@ pub async fn get_server_chunking_context_with_client_assets(
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?);
 
-    if next_mode.is_development() {
-        builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
+    builder = builder.source_map_source_type(if next_mode.is_development() {
+        SourceMapSourceType::AbsoluteFileUri
     } else {
+        // TODO(lukesandberg): switch to relative once next is compatible.
+        SourceMapSourceType::TurbopackUri
+    });
+    if next_mode.is_production() {
         builder = builder
-            .source_map_source_type(SourceMapSourceType::RelativeUri)
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
@@ -1146,7 +1149,8 @@ pub async fn get_server_chunking_context(
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
     } else {
         builder = builder
-            .source_map_source_type(SourceMapSourceType::RelativeUri)
+            // TODO(lukesandberg): switch to relative once next is compatible.
+            .source_map_source_type(SourceMapSourceType::TurbopackUri)
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {

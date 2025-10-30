@@ -139,7 +139,7 @@ pub enum SourceMapSourceType {
     AbsoluteFileUri,
     RelativeUri,
     #[default]
-    TurbopackUriScheme,
+    TurbopackUri,
 }
 
 /// A context for the chunking that influences the way chunks are created

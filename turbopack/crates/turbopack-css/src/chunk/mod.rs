@@ -119,7 +119,7 @@ impl CssChunk {
                     )
                     .await?
                 }
-                SourceMapSourceType::TurbopackUriScheme => content.source_map.clone(),
+                SourceMapSourceType::TurbopackUri => content.source_map.clone(),
             };
 
             body.push_source(&content.inner_code, source_map);

@@ -87,7 +87,7 @@ impl EcmascriptChunkItemContent {
                         .owned()
                         .await?,
                 ),
-                SourceMapSourceType::TurbopackUriScheme => RewriteSourcePath::None,
+                SourceMapSourceType::TurbopackUri => RewriteSourcePath::None,
             },
             inner_code: content.inner_code.clone(),
             source_map: content.source_map.clone(),

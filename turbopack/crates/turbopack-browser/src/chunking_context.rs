@@ -311,7 +311,7 @@ impl BrowserChunkingContext {
                 client_root,
                 client_roots: Default::default(),
                 chunk_root_path,
-                source_map_source_type: SourceMapSourceType::TurbopackUriScheme,
+                source_map_source_type: SourceMapSourceType::TurbopackUri,
                 asset_root_path,
                 asset_root_paths: Default::default(),
                 chunk_base_path: None,

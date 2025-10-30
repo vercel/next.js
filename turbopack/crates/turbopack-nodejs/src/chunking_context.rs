@@ -222,7 +222,7 @@ impl NodeJsChunkingContext {
                 minify_type: MinifyType::NoMinify,
                 source_maps_type: SourceMapsType::Full,
                 manifest_chunks: false,
-                source_map_source_type: SourceMapSourceType::TurbopackUriScheme,
+                source_map_source_type: SourceMapSourceType::TurbopackUri,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 export_usage: None,
                 chunking_configs: Default::default(),
