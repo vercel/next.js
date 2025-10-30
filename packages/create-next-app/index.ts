@@ -241,7 +241,6 @@ async function run(): Promise<void> {
       importAlias: '@/*',
       customizeImportAlias: false,
       empty: false,
-      turbopack: true,
       disableGit: false,
       reactCompiler: false,
     }
@@ -261,7 +260,6 @@ async function run(): Promise<void> {
       { key: 'tailwind', values: { true: 'Tailwind CSS' } },
       { key: 'srcDir', values: { true: 'src/ dir' } },
       { key: 'app', values: { true: 'App Router', false: 'Pages Router' } },
-      { key: 'turbopack', values: { true: 'Turbopack' } },
     ]
 
     // Helper to format settings for display based on displayConfig
@@ -545,32 +543,6 @@ async function run(): Promise<void> {
         opts.app = Boolean(app)
         preferences.app = Boolean(app)
       }
-    }
-
-    if (
-      !opts.turbopack &&
-      !args.includes('--no-turbopack') &&
-      !opts.webpack &&
-      !opts.rspack
-    ) {
-      if (skipPrompt) {
-        opts.turbopack = getPrefOrDefault('turbopack')
-      } else {
-        const styledTurbo = blue('Turbopack')
-        const { turbopack } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'turbopack',
-          message: `Would you like to use ${styledTurbo}? (recommended)`,
-          initial: getPrefOrDefault('turbopack'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        opts.turbopack = Boolean(turbopack)
-        preferences.turbopack = Boolean(turbopack)
-      }
-      // If Turbopack is not selected, default to Webpack
-      opts.webpack = !opts.turbopack
     }
 
     const importAliasPattern = /^[^*"]+\/\*\s*$/

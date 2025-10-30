@@ -172,10 +172,13 @@ macro_rules! task_inputs_impl {
 /// gives the compiler more chances to dedupe monomorphized code across small functions with less
 /// typevars.
 fn get_args<T: MagicAny + Clone>(arg: &dyn MagicAny) -> Result<T> {
-    let value = arg.downcast_ref::<T>().cloned();
+    let value = (arg as &dyn std::any::Any).downcast_ref::<T>().cloned();
     #[cfg(debug_assertions)]
     return anyhow::Context::with_context(value, || {
-        crate::native_function::debug_downcast_args_error_msg(std::any::type_name::<T>(), arg)
+        crate::native_function::debug_downcast_args_error_msg(
+            std::any::type_name::<T>(),
+            arg.magic_type_name(),
+        )
     });
     #[cfg(not(debug_assertions))]
     return anyhow::Context::context(value, "Invalid argument type");

@@ -4,7 +4,7 @@ import fs from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   findPort,
   killApp,
   launchApp,
@@ -98,7 +98,7 @@ describe('server-side dev errors', () => {
       `)
 
       await fs.writeFile(gspPage, content, { flush: true })
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     } finally {
       await fs.writeFile(gspPage, content)
     }
@@ -148,7 +148,7 @@ describe('server-side dev errors', () => {
       `)
 
       await fs.writeFile(gsspPage, content)
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     } finally {
       await fs.writeFile(gsspPage, content)
     }
@@ -262,7 +262,7 @@ describe('server-side dev errors', () => {
       await retry(async () => {
         // manually refresh as this is an API route
         await browser.refresh()
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       })
     } finally {
       await fs.writeFile(apiPage, content)
@@ -328,7 +328,7 @@ describe('server-side dev errors', () => {
       await retry(async () => {
         // manually refresh as this is an API route
         await browser.refresh()
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       })
     } finally {
       await fs.writeFile(dynamicApiPage, content)

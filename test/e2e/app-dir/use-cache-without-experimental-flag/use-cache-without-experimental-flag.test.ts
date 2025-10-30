@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { NextConfig } from 'next'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getRedboxDescription,
   getRedboxSource,
   retry,
@@ -105,7 +105,7 @@ describe('use-cache-without-experimental-flag', () => {
     it('should show a build error', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
@@ -176,7 +176,7 @@ describe('use-cache-without-experimental-flag', () => {
     it('should recover from the build error if useCache flag is set', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       await next.patchFile(
         'next.config.js',
@@ -184,7 +184,7 @@ describe('use-cache-without-experimental-flag', () => {
         () =>
           retry(async () => {
             expect(await browser.elementByCss('p').text()).toBe('hello world')
-            await assertNoRedbox(browser)
+            await waitForNoRedbox(browser)
           })
       )
     })

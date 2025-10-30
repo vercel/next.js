@@ -76,7 +76,7 @@ describe('ReactRefreshRegression', () => {
     )
 
     // Verify no hydration mismatch:
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   // https://github.com/vercel/next.js/issues/13978
@@ -341,7 +341,7 @@ describe('ReactRefreshRegression', () => {
 
     let didNotReload = await session.patch('pages/mdx.mdx', `Hello Foo!`)
     expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(
         () => document.querySelector('#__next').textContent
@@ -350,7 +350,7 @@ describe('ReactRefreshRegression', () => {
 
     didNotReload = await session.patch('pages/mdx.mdx', `Hello Bar!`)
     expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(
         () => document.querySelector('#__next').textContent

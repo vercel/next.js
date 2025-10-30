@@ -19,7 +19,10 @@
 
 export type { NavigationResult } from './segment-cache-impl/navigation'
 export type { PrefetchTask } from './segment-cache-impl/scheduler'
-export type { NormalizedSearch } from './segment-cache-impl/cache-key'
+export type {
+  NormalizedPathname,
+  NormalizedSearch,
+} from './segment-cache-impl/cache-key'
 
 const notEnabled: any = () => {
   throw new Error(
@@ -162,3 +165,11 @@ export type PrefetchTaskFetchStrategy =
   | FetchStrategy.PPR
   | FetchStrategy.PPRRuntime
   | FetchStrategy.Full
+
+/**
+ * Ensures a minimum stale time of 30s to avoid issues where the server sends a too
+ * short-lived stale time, which would prevent anything from being prefetched.
+ */
+export function getStaleTimeMs(staleTimeSeconds: number): number {
+  return Math.max(staleTimeSeconds, 30) * 1000
+}

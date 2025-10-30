@@ -248,6 +248,31 @@ opt-level = 3
 [profile.release.package.serde]
 opt-level = 3
 
+[profile.release.package.wasmer]
+opt-level = "s"
+
+[profile.release.package.wasmer-vm]
+opt-level = "s"
+
+[profile.release.package.wasmer-compiler-cranelift]
+opt-level = "s"
+
+[profile.release.package.regalloc2]
+opt-level = "s"
+
+[profile.release.package.swc_plugin_backend_wasmer]
+opt-level = "s"
+
+[profile.release.package.globset]
+opt-level = "s"
+
+[profile.release.package.toml_edit]
+opt-level = "s"
+
+[profile.release.package.miette]
+opt-level = "s"
+
+
 # Use a custom profile for CI where many tests are performance sensitive but we still want the additional validation of debug-assertions
 [profile.release-with-assertions]
 inherits = "release"

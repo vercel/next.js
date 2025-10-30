@@ -82,8 +82,8 @@ export class NextInstance {
   public testDir: string
   public distDir: string
   tmpRepoDir: string
-  protected isStopping: boolean = false
-  protected isDestroyed: boolean = false
+  protected isStopping: Error | null = null
+  protected isDestroyed: Error | null = null
   protected childProcess?: ChildProcess
   protected _url: string
   protected _parsedUrl: URL
@@ -515,14 +515,16 @@ export class NextInstance {
     signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL' = 'SIGKILL'
   ): Promise<void> {
     if (this.childProcess) {
-      if (this.isStopping) {
+      if (this.isStopping !== null) {
         // warn for debugging, but don't prevent sending two signals in succession
         // (e.g. SIGINT and then SIGKILL)
         require('console').error(
-          `Next server is already being stopped (received signal: ${signal})`
+          `Next server is already being stopped (received signal: ${signal}): `,
+          this.isStopping
         )
       }
-      this.isStopping = true
+      this.isStopping = Error()
+      Error.captureStackTrace(this.isStopping, this.stop)
       const closePromise = once(this.childProcess, 'close')
       await new Promise<void>((resolve) => {
         treeKill(this.childProcess!.pid!, signal, (err) => {
@@ -535,7 +537,7 @@ export class NextInstance {
       this.childProcess.kill(signal)
       await closePromise
       this.childProcess = undefined
-      this.isStopping = false
+      this.isStopping = null
       require('console').log(`Stopped next server`)
     }
   }
@@ -545,9 +547,13 @@ export class NextInstance {
       require('console').time('destroyed next instance')
 
       if (this.isDestroyed) {
-        throw new Error(`next instance already destroyed`)
+        throw new Error(`next instance already destroyed`, {
+          cause: this.isDestroyed,
+        })
       }
-      this.isDestroyed = true
+      this.isDestroyed = Error()
+      Error.captureStackTrace(this.isDestroyed, this.destroy)
+
       this.emit('destroy', [])
       await this.stop().catch(console.error)
 
@@ -600,6 +606,22 @@ export class NextInstance {
 
   public get cliOutput(): string {
     return ''
+  }
+
+  protected throwIfUnavailable(): void | never {
+    if (this.isStopping !== null) {
+      throw new Error('Next.js is no longer available.', {
+        cause: this.isStopping,
+      })
+    }
+    if (this.isDestroyed !== null) {
+      throw new Error('Next.js is no longer available.', {
+        cause: this.isDestroyed,
+      })
+    }
+    if (this.childProcess === undefined) {
+      throw new Error('No child process available')
+    }
   }
 
   // TODO: block these in deploy mode
@@ -733,6 +755,12 @@ export class NextInstance {
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
   ): Promise<Playwright> {
+    try {
+      this.throwIfUnavailable()
+    } catch (error) {
+      Error.captureStackTrace(error, this.browser)
+      throw error
+    }
     return webdriver(this.url, ...args)
   }
 
@@ -743,6 +771,12 @@ export class NextInstance {
   public async browserWithResponse(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
   ): Promise<{ browser: Playwright; response: Response }> {
+    try {
+      this.throwIfUnavailable()
+    } catch (error) {
+      Error.captureStackTrace(error, this.browserWithResponse)
+      throw error
+    }
     const [url, options = {}] = args
 
     let resolveResponse: (response: Response) => void
@@ -785,6 +819,12 @@ export class NextInstance {
   public async render$(
     ...args: Parameters<OmitFirstArgument<typeof renderViaHTTP>>
   ): Promise<ReturnType<typeof cheerio.load>> {
+    try {
+      this.throwIfUnavailable()
+    } catch (error) {
+      Error.captureStackTrace(error, this.render$)
+      throw error
+    }
     const html = await renderViaHTTP(this.url, ...args)
     return cheerio.load(html)
   }
@@ -795,6 +835,12 @@ export class NextInstance {
   public async render(
     ...args: Parameters<OmitFirstArgument<typeof renderViaHTTP>>
   ) {
+    try {
+      this.throwIfUnavailable()
+    } catch (error) {
+      Error.captureStackTrace(error, this.render)
+      throw error
+    }
     return renderViaHTTP(this.url, ...args)
   }
 
@@ -809,6 +855,12 @@ export class NextInstance {
     pathname: string,
     opts?: import('node-fetch').RequestInit
   ) {
+    try {
+      this.throwIfUnavailable()
+    } catch (error) {
+      Error.captureStackTrace(error, this.fetch)
+      throw error
+    }
     return fetchViaHTTP(this.url, pathname, null, opts)
   }
 

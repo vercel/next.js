@@ -142,7 +142,7 @@ var decode = Uint8Array.fromBase64 || function Uint8Array_fromBase64(base64) {
                     inner_code: inner_code.build(),
                     ..Default::default()
                 }
-                .into())
+                .cell())
             }
             FileContent::NotFound => {
                 bail!("File not found: {}", self.module.ident().to_string().await?);
