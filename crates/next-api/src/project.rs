@@ -905,7 +905,7 @@ impl Project {
                             EndpointGroup {
                                 primary: vec![*html_endpoint],
                                 // This only exists in development mode for HMR
-                                additional: data_endpoint.into_iter().copied().collect(),
+                                additional: data_endpoint.iter().copied().collect(),
                             },
                         ));
                         add_pages_entries = true;

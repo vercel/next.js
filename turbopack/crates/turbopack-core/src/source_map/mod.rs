@@ -602,7 +602,7 @@ impl SourceMap {
                 let offset_column = if line == 0 { offset_column + col } else { col };
                 if let Some(source_map) = section.get_sourcemap() {
                     Either::Left(Box::new(decoded_map_to_tokens(
-                        &source_map,
+                        source_map,
                         offset_line,
                         offset_column,
                     )) as Box<dyn Iterator<Item = Token>>)

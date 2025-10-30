@@ -37,7 +37,7 @@ impl EdgesData {
     fn from_iterator<'a>(iterable: impl IntoIterator<Item = &'a Vec<u32>> + Clone) -> Self {
         let mut current_offset = 0;
         let sum: usize = iterable.clone().into_iter().map(|v| v.len()).sum();
-        let mut data = Vec::with_capacity(sum as usize);
+        let mut data = Vec::with_capacity(sum);
         let offsets = iterable
             .into_iter()
             .map(|edges| {
@@ -371,7 +371,7 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
         let chunk_parts = split_output_asset_into_parts(*asset).await?;
         for chunk_part in chunk_parts {
             let source_index = builder
-                .ensure_source(&chunk_part.source.trim_start_matches(&prefix))
+                .ensure_source(chunk_part.source.trim_start_matches(&prefix))
                 .1;
             let chunk_part_index = builder.add_chunk_part(AnalyzeChunkPart {
                 source_index,
@@ -429,9 +429,8 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
         })?;
     }
 
-    async fn mapper(
-        (from, to): (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>),
-    ) -> Result<Option<(RcStr, RcStr)>> {
+    type ModulePair = (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>);
+    async fn mapper((from, to): ModulePair) -> Result<Option<(RcStr, RcStr)>> {
         if from == to {
             return Ok(None);
         }
@@ -439,6 +438,7 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
         let to_path = to.ident().path().to_string().owned().await?;
         Ok(Some((from_path, to_path)))
     }
+
     let all_edges = all_edges
         .iter()
         .copied()

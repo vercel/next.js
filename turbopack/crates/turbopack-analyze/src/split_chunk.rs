@@ -83,14 +83,14 @@ pub async fn split_output_asset_into_parts(
         let start_line = start_line.min(lines.len() as u32 - 1);
         let end_line = end_line.min(lines.len() as u32 - 1);
         if start_line == end_line {
-            return (end_column - start_column) as u32;
+            return end_column - start_column;
         }
         let mut len = lines[start_line as usize].len() as u32 - start_column + 1;
         for line in &lines[start_line as usize + 1..end_line as usize] {
             len += line.len() as u32 + 1;
         }
         len += end_column;
-        len as u32
+        len
     }
 
     let mut chunk_parts = FxIndexMap::default();

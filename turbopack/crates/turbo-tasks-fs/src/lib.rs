@@ -2289,6 +2289,11 @@ impl FileLine {
     pub fn len(&self) -> usize {
         self.content.len()
     }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[turbo_tasks::value(shared, serialization = "none")]
