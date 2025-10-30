@@ -251,11 +251,7 @@ impl NativeFunction {
     }
 
     pub fn resolve_span(&'static self) -> Span {
-        tracing::trace_span!(
-            "turbo_tasks::resolve_call",
-            name = self.name,
-            flags = "local"
-        )
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name)
     }
 }
 impl PartialEq for NativeFunction {

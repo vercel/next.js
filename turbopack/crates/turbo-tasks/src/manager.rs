@@ -825,7 +825,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
                 let output = match result {
                     Ok(raw_vc) => OutputContent::Link(raw_vc),
-                    Err(err) => OutputContent::Error(triomphe::Arc::new(err)),
+                    Err(err) => OutputContent::Error(
+                        TurboTasksExecutionError::from(err).with_task_context(task_type),
+                    ),
                 };
 
                 let local_task = LocalTask::Done { output };

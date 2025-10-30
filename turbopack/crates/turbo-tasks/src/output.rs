@@ -1,15 +1,14 @@
 use std::fmt::{self, Display};
 
-use anyhow::{Error, anyhow};
-use triomphe::Arc;
+use anyhow::anyhow;
 
-use crate::RawVc;
+use crate::{RawVc, backend::TurboTasksExecutionError};
 
 /// A helper type representing the output of a resolved task.
 #[derive(Clone, Debug)]
 pub enum OutputContent {
     Link(RawVc),
-    Error(Arc<Error>),
+    Error(TurboTasksExecutionError),
 }
 
 impl OutputContent {
