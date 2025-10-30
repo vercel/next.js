@@ -2,7 +2,7 @@ use std::mem::take;
 
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use turbo_tasks::{CellId, TaskId, TypedSharedReference, backend::CellContent, registry};
+use turbo_tasks::{CellId, TaskId, TypedSharedReference, backend::CellContent};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
@@ -76,7 +76,7 @@ impl UpdateCellOperation {
                 #[cfg(feature = "verify_determinism")]
                 if !is_stateful && !never_equal && content.as_ref() != old_content {
                     let task_description = ctx.get_task_description(task_id);
-                    let cell_type = registry::get_value_type(cell.type_id).global_name;
+                    let cell_type = turbo_tasks::registry::get_value_type(cell.type_id).global_name;
                     println!(
                         "Task {} updated cell #{} (type: {}) while recomputing",
                         task_description, cell.index, cell_type
