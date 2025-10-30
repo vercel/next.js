@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   getRedboxDescription,
   getRedboxSource,
   openRedbox,
@@ -68,7 +68,7 @@ describe('use-cache-close-over-function', () => {
       const outputIndex = next.cliOutput.length
       const browser = await next.browser('/server')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)

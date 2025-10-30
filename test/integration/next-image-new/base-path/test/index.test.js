@@ -1,8 +1,8 @@
 /* eslint-env jest */
 
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   check,
   findPort,
   getRedboxHeader,
@@ -131,7 +131,7 @@ function runTests(mode) {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/docs/missing-src')
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -141,7 +141,7 @@ function runTests(mode) {
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/docs/invalid-src')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
@@ -153,7 +153,7 @@ function runTests(mode) {
         '/docs/invalid-src-proto-relative'
       )
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )

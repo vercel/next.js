@@ -12,7 +12,7 @@ import {
   normalizeRegEx,
   renderViaHTTP,
   waitFor,
-  assertHasRedbox,
+  waitForRedbox,
 } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -598,13 +598,9 @@ const runTests = (isDev = false, isDeploy = false) => {
 
   it('should load a fast refresh page', async () => {
     const browser = await webdriver(next.url, '/refresh')
-    expect(
-      await check(
-        () => browser.elementByCss('p').text(),
-        /client loaded/,
-        false
-      )
-    ).toBe(true)
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toMatch(/client loaded/)
+    })
   })
 
   it('should provide correct query value for dynamic page', async () => {
@@ -772,7 +768,7 @@ const runTests = (isDev = false, isDeploy = false) => {
       const browser = await webdriver(next.url, '/')
       await browser.elementByCss('#non-json').click()
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       await expect(getRedboxHeader(browser)).resolves.toMatch(
         /Error serializing `.time` returned from `getServerSideProps`/
       )

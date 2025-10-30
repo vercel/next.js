@@ -15,6 +15,7 @@ import {
   navigate as navigateUsingSegmentCache,
   NavigationResultTag,
   type NavigationResult,
+  getStaleTimeMs,
 } from '../../segment-cache'
 
 // These values are set by `define-env-plugin` (based on `nextConfig.experimental.staleTimes`)
@@ -22,8 +23,9 @@ import {
 export const DYNAMIC_STALETIME_MS =
   Number(process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME) * 1000
 
-export const STATIC_STALETIME_MS =
-  Number(process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME) * 1000
+export const STATIC_STALETIME_MS = getStaleTimeMs(
+  Number(process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME)
+)
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,

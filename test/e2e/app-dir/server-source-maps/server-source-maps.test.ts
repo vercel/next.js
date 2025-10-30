@@ -41,7 +41,7 @@ describe('app-dir - server source maps', () => {
         )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-        '\nError: rsc-error-log' +
+        'Error: rsc-error-log' +
           '\n    at logError (app/rsc-error-log/page.js:4:17)' +
           '\n    at Page (app/rsc-error-log/page.js:9:3)' +
           '\n  2 |' +
@@ -82,7 +82,7 @@ describe('app-dir - server source maps', () => {
         )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-        '\nError: rsc-error-log-cause' +
+        'Error: rsc-error-log-cause' +
           '\n    at logError (app/rsc-error-log-cause/page.js:2:17)' +
           '\n    at Page (app/rsc-error-log-cause/page.js:8:3)' +
           '\n  1 | function logError(cause) {' +
@@ -140,7 +140,7 @@ describe('app-dir - server source maps', () => {
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         isTurbopack
-          ? '\nError: ssr-error-log-ignore-listed' +
+          ? 'Error: ssr-error-log-ignore-listed' +
               '\n    at logError (app/ssr-error-log-ignore-listed/page.js:9:17)' +
               '\n    at runWithInternalIgnored (app/ssr-error-log-ignore-listed/page.js:19:13)' +
               '\n    at runWithExternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:18:29)' +
@@ -154,7 +154,7 @@ describe('app-dir - server source maps', () => {
               '\n    at Page (app/ssr-error-log-ignore-listed/page.js:14:14)' +
               '\n   7 |' +
               '\n'
-          : '\nError: ssr-error-log-ignore-listed' +
+          : 'Error: ssr-error-log-ignore-listed' +
               '\n    at logError (app/ssr-error-log-ignore-listed/page.js:9:17)' +
               '\n    at runWithInternalIgnored (app/ssr-error-log-ignore-listed/page.js:19:13)' +
               // TODO(veil-NDX-910): Webpacks's sourcemap loader drops `ignoreList`
@@ -256,7 +256,7 @@ describe('app-dir - server source maps', () => {
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         isTurbopack
-          ? '\nError: rsc-error-log-ignore-listed' +
+          ? 'Error: rsc-error-log-ignore-listed' +
               '\n    at logError (app/rsc-error-log-ignore-listed/page.js:8:17)' +
               '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:18:13)' +
               '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:17:29)' +
@@ -270,7 +270,7 @@ describe('app-dir - server source maps', () => {
               '\n    at Page (app/rsc-error-log-ignore-listed/page.js:13:14)' +
               '\n   6 |' +
               '\n'
-          : '\nError: rsc-error-log-ignore-listed' +
+          : 'Error: rsc-error-log-ignore-listed' +
               '\n    at logError (app/rsc-error-log-ignore-listed/page.js:8:17)' +
               '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:18:13)' +
               // TODO(veil): Webpacks's sourcemap loader drops `ignoreList`
@@ -393,7 +393,7 @@ describe('app-dir - server source maps', () => {
         expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
           // Node.js is fine with invalid URLs in index maps apparently.
           '' +
-            '\nError: bad-sourcemap' +
+            'Error: bad-sourcemap' +
             '\n    at logError (app/bad-sourcemap/custom:/[badhost]/app/bad-sourcemap/page.js:6:17)' +
             '\n    at Page (app/bad-sourcemap/custom:/[badhost]/app/bad-sourcemap/page.js:10:3)' +
             '\n'
@@ -673,7 +673,7 @@ describe('app-dir - server source maps', () => {
 
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         '' +
-          '\nError: rsc-anonymous-stack-frame-sandwich: external' +
+          'Error: rsc-anonymous-stack-frame-sandwich: external' +
           '\n    at Page (app/rsc-anonymous-stack-frame-sandwich/page.js:5:29)' +
           '\n  3 |' +
           '\n  4 | export default function Page() {' +
@@ -763,7 +763,7 @@ describe('app-dir - server source maps', () => {
 
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         '' +
-          '\nError: ssr-anonymous-stack-frame-sandwich: external' +
+          'Error: ssr-anonymous-stack-frame-sandwich: external' +
           '\n    at Page (app/ssr-anonymous-stack-frame-sandwich/page.js:6:29)' +
           '\n  4 |' +
           '\n  5 | export default function Page() {' +

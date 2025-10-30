@@ -122,8 +122,9 @@ export function navigate(
     const snapshot = readRenderSnapshotFromCache(now, route, route.tree)
     const prefetchFlightRouterState = snapshot.flightRouterState
     const prefetchSeedData = snapshot.seedData
-    const prefetchHead = route.head
-    const isPrefetchHeadPartial = route.isHeadPartial
+    const headSnapshot = readHeadSnapshotFromCache(now, route)
+    const prefetchHead = headSnapshot.rsc
+    const isPrefetchHeadPartial = headSnapshot.isPartial
     // TODO: The "canonicalUrl" stored in the cache doesn't include the hash,
     // because hash entries do not vary by hash fragment. However, the one
     // we set in the router state *does* include the hash, and it's used to
@@ -171,8 +172,9 @@ export function navigate(
       )
       const prefetchFlightRouterState = snapshot.flightRouterState
       const prefetchSeedData = snapshot.seedData
-      const prefetchHead = optimisticRoute.head
-      const isPrefetchHeadPartial = optimisticRoute.isHeadPartial
+      const headSnapshot = readHeadSnapshotFromCache(now, optimisticRoute)
+      const prefetchHead = headSnapshot.rsc
+      const isPrefetchHeadPartial = headSnapshot.isPartial
       const newCanonicalUrl = optimisticRoute.canonicalUrl + url.hash
       const newRenderedSearch = optimisticRoute.renderedSearch
       return navigateUsingPrefetchedRouteTree(
@@ -412,6 +414,43 @@ function readRenderSnapshotFromCache(
     ],
     seedData: [rsc, childSeedDatas, loading, isPartial, hasRuntimePrefetch],
   }
+}
+
+function readHeadSnapshotFromCache(
+  now: number,
+  route: FulfilledRouteCacheEntry
+): { rsc: HeadData; isPartial: boolean } {
+  // Same as readRenderSnapshotFromCache, but for the head
+  let rsc: React.ReactNode | null = null
+  let isPartial: boolean = true
+  const canonicalSegmentKeypath = getCanonicalSegmentKeypath(
+    route,
+    route.metadata.cacheKey
+  )
+  const segmentEntry = readSegmentCacheEntry(now, canonicalSegmentKeypath)
+  if (segmentEntry !== null) {
+    switch (segmentEntry.status) {
+      case EntryStatus.Fulfilled: {
+        rsc = segmentEntry.rsc
+        isPartial = segmentEntry.isPartial
+        break
+      }
+      case EntryStatus.Pending: {
+        const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
+        rsc = promiseForFulfilledEntry.then((entry) =>
+          entry !== null ? entry.rsc : null
+        )
+        isPartial = true
+        break
+      }
+      case EntryStatus.Empty:
+      case EntryStatus.Rejected:
+        break
+      default:
+        segmentEntry satisfies never
+    }
+  }
+  return { rsc, isPartial }
 }
 
 async function navigateDynamicallyWithNoPrefetch(
