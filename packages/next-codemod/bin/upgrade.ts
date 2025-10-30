@@ -100,7 +100,13 @@ export async function runUpgrade(
       { encoding: 'utf-8' }
     )
     targetNextPackageJson = JSON.parse(targetNextPackage)
-  } catch {}
+  } catch (e) {
+    const output = e.output[1]
+    if (output) {
+      console.error(pc.red(output))
+    }
+    throw new BadInput('Failed to fetch Next.js versions using npm view.')
+  }
 
   const validRevision =
     targetNextPackageJson !== null &&
