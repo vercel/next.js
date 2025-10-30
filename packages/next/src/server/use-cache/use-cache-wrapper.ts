@@ -684,7 +684,7 @@ async function generateCacheEntryImpl(
         const hangingPromise = makeHangingPromise<never>(
           outerWorkUnitStore.renderSignal,
           workStore.route,
-          abortSignal.reason.message
+          'dynamic "use cache"'
         )
 
         if (outerWorkUnitStore.cacheSignal) {
@@ -1185,7 +1185,7 @@ export async function cache(
           return makeHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
-            dynamicAccessAbortController.signal.reason.message
+            'dynamic "use cache"'
           )
         }
         break
