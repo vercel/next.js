@@ -321,13 +321,23 @@ describe('console-exit patches', () => {
         }
 
         // Install patches - this wraps the current console.log
-        const {
-          registerGetCacheSignal,
-        } = require('next/dist/server/node-environment-extensions/console-dim.external')
+        require('next/dist/server/node-environment-extensions/console-dim.external')
 
-        registerGetCacheSignal(() => null)
-        registerGetCacheSignal(() => controller?.signal)
-        registerGetCacheSignal(() => null)
+        const {
+          registerServerReact,
+          registerClientReact,
+        } = require('next/dist/server/runtime-reacts.external')
+
+        registerServerReact({
+          cacheSignal() {
+            return controller?.signal
+          },
+        })
+        registerClientReact({
+          cacheSignal() {
+            return null
+          },
+        })
 
         console.log('before abort')
         controller.abort()

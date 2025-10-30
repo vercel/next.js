@@ -1,7 +1,7 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getRedboxCallStack,
   getRedboxSource,
 } from 'next-test-utils'
@@ -43,7 +43,7 @@ describe('non-root-project-monorepo', () => {
     it('should work on client-side', async () => {
       const browser = await next.browser('/monorepo-package-ssr')
       expect(await browser.elementByCss('p').text()).toBe('Hello Typescript')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('p').text()).toBe('Hello Typescript')
       await browser.close()
     })
@@ -66,7 +66,7 @@ describe('non-root-project-monorepo', () => {
 
     it('should work on client-side', async () => {
       const browser = await next.browser('/import-meta-url-ssr')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       if (isTurbopack) {
         // Turbopack intentionally doesn't expose the full path to the browser bundles
         expect(await browser.elementByCss('p').text()).toBe(
@@ -85,7 +85,7 @@ describe('non-root-project-monorepo', () => {
     describe('source-maps', () => {
       it('should work on RSC', async () => {
         const browser = await next.browser('/source-maps-rsc')
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         if (isTurbopack) {
           // TODO the function name should be hidden
@@ -148,7 +148,7 @@ describe('non-root-project-monorepo', () => {
 
       it('should work on SSR', async () => {
         const browser = await next.browser('/source-maps-ssr')
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         if (isTurbopack) {
           // TODO the function name should be hidden
@@ -211,7 +211,7 @@ describe('non-root-project-monorepo', () => {
 
       it('should work on client-side', async () => {
         const browser = await next.browser('/source-maps-client')
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         if (isTurbopack) {
           // TODO the function name should be hidden

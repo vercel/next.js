@@ -152,6 +152,6 @@ impl EcmascriptChunkItem for RawModuleChunkItem {
             .into(),
             ..Default::default()
         }
-        .into())
+        .cell())
     }
 }

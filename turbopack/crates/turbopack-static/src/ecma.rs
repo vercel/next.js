@@ -93,7 +93,7 @@ impl ChunkableModule for StaticUrlJsModule {
 impl EcmascriptChunkPlaceable for StaticUrlJsModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.into()
+        EcmascriptExports::Value.cell()
     }
 }
 
@@ -152,6 +152,6 @@ impl EcmascriptChunkItem for StaticUrlJsChunkItem {
             .into(),
             ..Default::default()
         }
-        .into())
+        .cell())
     }
 }

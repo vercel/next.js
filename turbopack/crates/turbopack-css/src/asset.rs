@@ -330,7 +330,6 @@ impl CssChunkItem for CssModuleChunkItem {
         if let FinalCssResult::Ok {
             output_code,
             source_map,
-            ..
         } = &*result
         {
             Ok(CssChunkItemContent {
@@ -339,7 +338,7 @@ impl CssChunkItem for CssModuleChunkItem {
                 import_context: self.module.await?.import_context,
                 source_map: source_map.owned().await?,
             }
-            .into())
+            .cell())
         } else {
             Ok(CssChunkItemContent {
                 inner_code: format!(
@@ -351,7 +350,7 @@ impl CssChunkItem for CssModuleChunkItem {
                 import_context: None,
                 source_map: None,
             }
-            .into())
+            .cell())
         }
     }
 }

@@ -552,6 +552,12 @@ export async function createPagesMapping({
       // added or removed.
       const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
 
+      // If there are no user pages routes, treat this as app-dir-only mode.
+      // The pages/ folder could be present and the initial appDirOnly is treated as false, but no valid routes are found.
+      if (Object.keys(pages).length === 0 && !appDirOnly) {
+        appDirOnly = true
+      }
+
       return {
         // Don't add default pages entries if this is an app-router-only build
         ...((isDev || !appDirOnly) && {

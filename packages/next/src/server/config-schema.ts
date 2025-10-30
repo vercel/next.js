@@ -172,7 +172,7 @@ export const experimentalSchema = {
   staleTimes: z
     .object({
       dynamic: z.number().optional(),
-      static: z.number().optional(),
+      static: z.number().gte(30).optional(),
     })
     .optional(),
   cacheLife: z

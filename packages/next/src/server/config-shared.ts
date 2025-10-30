@@ -299,6 +299,7 @@ export interface ExperimentalConfig {
    */
   staleTimes?: {
     dynamic?: number
+    /** Must be greater than or equal to 30 seconds, to ensure prefetching is not completely wasteful */
     static?: number
   }
   /**

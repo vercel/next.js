@@ -6,7 +6,7 @@ import escapeRegex from 'escape-string-regexp'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   check,
   fetchViaHTTP,
   getBrowserBodyText,
@@ -1356,7 +1356,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1372,7 +1372,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
