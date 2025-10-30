@@ -638,13 +638,9 @@ const runTests = (isDev = false, isDeploy = false) => {
     await waitFor(500)
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
-    expect(
-      await check(() => browser.eval('window.beforeClick'), {
-        test(v) {
-          return v !== 'abc'
-        },
-      })
-    ).toBe(true)
+    await retry(async () => {
+      expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+    })
   })
 
   it('should always call getServerSideProps without caching', async () => {
