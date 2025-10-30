@@ -76,7 +76,7 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
             inner_code: code.into(),
             ..Default::default()
         }
-        .into())
+        .cell())
     }
 }
 

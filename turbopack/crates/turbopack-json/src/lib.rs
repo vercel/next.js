@@ -168,7 +168,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
                     inner_code: code.into_source_code(),
                     ..Default::default()
                 }
-                .into())
+                .cell())
             }
             FileJsonContent::Unparsable(e) => {
                 let mut message = "Unable to make a module from invalid JSON: ".to_string();

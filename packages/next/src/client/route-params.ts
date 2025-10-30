@@ -10,7 +10,10 @@ import {
   NEXT_REWRITTEN_QUERY_HEADER,
   NEXT_RSC_UNION_QUERY,
 } from './components/app-router-headers'
-import type { NormalizedSearch } from './components/segment-cache'
+import type {
+  NormalizedPathname,
+  NormalizedSearch,
+} from './components/segment-cache'
 import type { RSCResponse } from './components/router-reducer/fetch-server-response'
 import type { ParsedUrlQuery } from 'querystring'
 
@@ -42,14 +45,14 @@ export function getRenderedSearch(
 
 export function getRenderedPathname(
   response: RSCResponse<unknown> | Response
-): string {
+): NormalizedPathname {
   // If the server performed a rewrite, the pathname used to render the
   // page will be different from the pathname in the request URL. In this case,
   // the response will include a header that gives the rewritten pathname.
   const rewrittenPath = response.headers.get(NEXT_REWRITTEN_PATH_HEADER)
-  return (
-    rewrittenPath ?? urlToUrlWithoutFlightMarker(new URL(response.url)).pathname
-  )
+  return (rewrittenPath ??
+    urlToUrlWithoutFlightMarker(new URL(response.url))
+      .pathname) as NormalizedPathname
 }
 
 export function parseDynamicParamFromURLPart(

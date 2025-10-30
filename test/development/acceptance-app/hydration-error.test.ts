@@ -3,7 +3,7 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   getRedboxErrorLink,
   getToastErrorCount,
   retry,
@@ -89,7 +89,7 @@ describe('Error overlay for hydration errors in App router', () => {
       }
     `,
       async () => {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
         expect(await browser.elementByCss('.child').text()).toBe('Value')
       }
     )

@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from '../../../lib/next-test-utils'
+import { waitForNoRedbox } from '../../../lib/next-test-utils'
 
 describe('use-cache-errors', () => {
   const { next } = nextTestSetup({
@@ -12,7 +12,7 @@ describe('use-cache-errors', () => {
     // statement (`var _s = __turbopack_context__.k.signature`) does not
     // interfere with our "use cache" directive misplacement detection.
     const browser = await next.browser('/')
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should show a runtime error when calling the incorrectly used cache function', async () => {

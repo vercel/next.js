@@ -674,6 +674,7 @@ function pingRootRouteTree(
           //
           // Then, if there are any segments that need a runtime request,
           // do another pass to perform a runtime prefetch.
+          pingStaticHead(now, task, route)
           const exitStatus = pingSharedPartOfCacheComponentsTree(
             now,
             task,
@@ -693,6 +694,13 @@ function pingRootRouteTree(
               SegmentCacheKey,
               PendingSegmentCacheEntry
             >()
+            pingRuntimeHead(
+              now,
+              task,
+              route,
+              spawnedEntries,
+              FetchStrategy.PPRRuntime
+            )
             const requestTree = pingRuntimePrefetches(
               now,
               task,
@@ -732,6 +740,7 @@ function pingRootRouteTree(
             SegmentCacheKey,
             PendingSegmentCacheEntry
           >()
+          pingRuntimeHead(now, task, route, spawnedEntries, fetchStrategy)
           const dynamicRequestTree = diffRouteTreeAgainstCurrent(
             now,
             task,
@@ -741,41 +750,8 @@ function pingRootRouteTree(
             spawnedEntries,
             fetchStrategy
           )
-
           let needsDynamicRequest = spawnedEntries.size > 0
-
-          if (
-            !needsDynamicRequest &&
-            route.isHeadPartial &&
-            route.TODO_metadataStatus === EntryStatus.Empty
-          ) {
-            // All the segment data is already cached, however, we need to issue
-            // a request anyway so we can prefetch the head. Update the status
-            // field to prevent additional requests from being spawned while
-            // this one is in progress.
-            // TODO: This is a temporary, targeted solution to fix a regression
-            // we found. It exists to prevent the scheduler from sending a
-            // redundant request if there's already one in progress.
-            // Essentially, it will attempt once at most, then give up until the
-            // route entry expires or is evicted by other means. But because
-            // this doesn't have its own stale time separate from the route
-            // itself, there will be edge cases where the metadata fails to be
-            // fully prefetched. Consider caching metadata using a separate
-            // entry type so we can model this more cleanly. The circumstances
-            // that lead to this branch running in the first place are
-            // relatively rare, so it's not critical.
-            route.TODO_metadataStatus = EntryStatus.Fulfilled
-            needsDynamicRequest = true
-            // This instructs the server to only send the metadata.
-            dynamicRequestTree[3] = 'metadata-only'
-            // We can null out the children to reduce the request size, since
-            // they won't be needed.
-            dynamicRequestTree[1] = {}
-          }
-
           if (needsDynamicRequest) {
-            // Perform a dynamic prefetch request and populate the cache with
-            // the result
             spawnPrefetchSubtask(
               fetchSegmentPrefetchesUsingDynamicRequest(
                 task,
@@ -799,6 +775,56 @@ function pingRootRouteTree(
   }
   return PrefetchTaskExitStatus.Done
 }
+
+function pingStaticHead(
+  now: number,
+  task: PrefetchTask,
+  route: FulfilledRouteCacheEntry
+): void {
+  // The Head data for a page (metadata, viewport) is not really a route
+  // segment, in the sense that it doesn't appear in the route tree. But we
+  // store it in the cache as if it were, using a special key.
+  pingStaticSegmentData(
+    now,
+    task,
+    route,
+    readOrCreateSegmentCacheEntry(
+      now,
+      FetchStrategy.PPR,
+      route,
+      route.metadata.cacheKey
+    ),
+    task.key,
+    route.metadata
+  )
+}
+
+function pingRuntimeHead(
+  now: number,
+  task: PrefetchTask,
+  route: FulfilledRouteCacheEntry,
+  spawnedEntries: Map<string, PendingSegmentCacheEntry>,
+  fetchStrategy:
+    | FetchStrategy.Full
+    | FetchStrategy.PPRRuntime
+    | FetchStrategy.LoadingBoundary
+): void {
+  pingRouteTreeAndIncludeDynamicData(
+    now,
+    task,
+    route,
+    route.metadata,
+    false,
+    spawnedEntries,
+    // When prefetching the head, there's no difference between Full
+    // and LoadingBoundary
+    fetchStrategy === FetchStrategy.LoadingBoundary
+      ? FetchStrategy.Full
+      : fetchStrategy
+  )
+}
+
+// TODO: Rename dynamic -> runtime throughout this module
 
 function pingSharedPartOfCacheComponentsTree(
   now: number,

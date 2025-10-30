@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('HMR Move File', () => {
   const { next } = nextTestSetup({
@@ -17,7 +17,7 @@ describe('HMR Move File', () => {
       content.replace('./button', './button2')
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     expect(await browser.elementByCss('#hello-world-button').text()).toBe(
       'hello world'

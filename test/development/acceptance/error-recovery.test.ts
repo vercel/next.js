@@ -122,7 +122,7 @@ describe('pages/ error recovery', () => {
       /Count: 1/
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   test('logbox: can recover from a event handler error', async () => {
@@ -189,7 +189,7 @@ describe('pages/ error recovery', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
@@ -199,7 +199,7 @@ describe('pages/ error recovery', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   it('logbox: can recover from a component error', async () => {
@@ -342,7 +342,7 @@ describe('pages/ error recovery', () => {
     )
 
     expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello')
@@ -725,7 +725,7 @@ describe('pages/ error recovery', () => {
     )
 
     // Expected: this fixes the problem
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554150098

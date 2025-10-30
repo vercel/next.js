@@ -370,7 +370,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
             ..Default::default()
         }
-        .into(),
+        .cell(),
         ResolveOptionsContext {
             enable_typescript: true,
             enable_react: true,

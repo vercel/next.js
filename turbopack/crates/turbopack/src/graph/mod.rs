@@ -35,9 +35,9 @@ impl AggregatedGraph {
     #[turbo_tasks::function]
     pub async fn content(self: Vc<Self>) -> Result<Vc<AggregatedGraphNodeContent>> {
         Ok(match *self.await? {
-            AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(asset).into(),
+            AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(asset).cell(),
             AggregatedGraph::Node { ref content, .. } => {
-                AggregatedGraphNodeContent::Children(content.clone()).into()
+                AggregatedGraphNodeContent::Children(content.clone()).cell()
             }
         })
     }
@@ -52,7 +52,7 @@ impl AggregatedGraph {
                         refs.insert(AggregatedGraph::leaf(**reference).to_resolved().await?);
                     }
                 }
-                AggregatedGraphsSet { set: refs }.into()
+                AggregatedGraphsSet { set: refs }.cell()
             }
             AggregatedGraph::Node { references, .. } => {
                 let mut set = FxHashSet::default();
@@ -64,7 +64,7 @@ impl AggregatedGraph {
                 {
                     set.insert(item.to_resolved().await?);
                 }
-                AggregatedGraphsSet { set }.into()
+                AggregatedGraphsSet { set }.cell()
             }
         })
     }
@@ -72,9 +72,9 @@ impl AggregatedGraph {
     #[turbo_tasks::function]
     async fn cost(self: Vc<Self>) -> Result<Vc<AggregationCost>> {
         Ok(match *self.await? {
-            AggregatedGraph::Leaf(asset) => AggregationCost(asset.references().await?.len()).into(),
+            AggregatedGraph::Leaf(asset) => AggregationCost(asset.references().await?.len()).cell(),
             AggregatedGraph::Node { ref references, .. } => {
-                AggregationCost(references.len()).into()
+                AggregationCost(references.len()).cell()
             }
         })
     }
@@ -107,7 +107,7 @@ impl AggregatedGraph {
             outer,
             references,
         }
-        .into())
+        .cell())
     }
 }
 
@@ -179,7 +179,7 @@ async fn aggregate_more(node: ResolvedVc<AggregatedGraph>) -> Result<Vc<Aggregat
         content,
         references,
     }
-    .into())
+    .cell())
 }
 
 #[turbo_tasks::value(shared)]

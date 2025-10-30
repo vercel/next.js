@@ -73,7 +73,7 @@ pub fn generic_type(input: TokenStream) -> TokenStream {
             turbo_tasks::VcTransparentRead<#ty, #ty, #repr>
         },
         quote! {
-            turbo_tasks::VcCellSharedMode<#ty>
+            turbo_tasks::VcCellCompareMode<#ty>
         },
         quote! {
             turbo_tasks::ValueType::new_with_any_serialization::<#repr>(#name)

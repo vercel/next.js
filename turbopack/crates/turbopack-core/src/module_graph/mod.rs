@@ -176,7 +176,7 @@ impl GraphEntries {
     }
 }
 
-#[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
+#[turbo_tasks::value(cell = "new", eq = "manual")]
 #[derive(Clone, Default)]
 pub struct SingleModuleGraph {
     pub graph: TracedDiGraph<SingleModuleGraphNode, RefData>,
