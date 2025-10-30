@@ -164,9 +164,6 @@ opt-level = "s"
 [profile.release.package.swc_ecma_transforms_typescript]
 opt-level = 3
 
-[profile.release.package.swc_css_prefixer]
-opt-level = "s"
-
 [profile.release.package.zstd-sys]
 opt-level = 3
 
