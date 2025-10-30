@@ -105,7 +105,7 @@ describe('app-dir - server source maps', () => {
     } else {
       if (isTurbopack) {
         // TODO(veil): Sourcemap names
-        // TODO(veil): relative paths in webpack
+        // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '(bundler:///app/rsc-error-log-cause/page.js:2:17)'
         )
