@@ -255,34 +255,39 @@ module.exports = class MemoryCacheHandler {
 
 ### External storage pattern
 
-For durable storage like Redis or a database, you'll need to serialize the cache entries:
+For durable storage like Redis or a database, you'll need to serialize the cache entries. Here's a simple Redis example:
 
-```js filename="cache-handlers/external-handler.js"
-module.exports = class ExternalCacheHandler {
+```js filename="cache-handlers/redis-handler.js"
+const { createClient } = require('redis')
+
+module.exports = class RedisCacheHandler {
+  constructor() {
+    this.client = createClient({ url: process.env.REDIS_URL })
+    this.client.connect()
+  }
+
   async get(cacheKey, softTags) {
-    // Retrieve from external storage
-    const stored = await externalStorage.get(cacheKey)
-    if (!stored) {
-      return undefined
-    }
+    // Retrieve from Redis
+    const stored = await this.client.get(cacheKey)
+    if (!stored) return undefined
 
     // Deserialize the entry
-    // Note: You'll need to reconstruct the ReadableStream from stored data
-    const entry = {
+    const data = JSON.parse(stored)
+
+    // Reconstruct the ReadableStream from stored data
+    return {
       value: new ReadableStream({
         start(controller) {
-          controller.enqueue(stored.data)
+          controller.enqueue(Buffer.from(data.value, 'base64'))
           controller.close()
         },
       }),
-      tags: stored.tags,
-      stale: stored.stale,
-      timestamp: stored.timestamp,
-      expire: stored.expire,
-      revalidate: stored.revalidate,
+      tags: data.tags,
+      stale: data.stale,
+      timestamp: data.timestamp,
+      expire: data.expire,
+      revalidate: data.revalidate,
     }
-
-    return entry
   }
 
   async set(cacheKey, pendingEntry) {
@@ -302,34 +307,37 @@ module.exports = class ExternalCacheHandler {
       reader.releaseLock()
     }
 
-    // Combine chunks and store to external storage
+    // Combine chunks and serialize for Redis storage
     const data = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)))
 
-    await externalStorage.set(cacheKey, {
-      data,
-      tags: entry.tags,
-      stale: entry.stale,
-      timestamp: entry.timestamp,
-      expire: entry.expire,
-      revalidate: entry.revalidate,
-    })
+    await this.client.set(
+      cacheKey,
+      JSON.stringify({
+        value: data.toString('base64'),
+        tags: entry.tags,
+        stale: entry.stale,
+        timestamp: entry.timestamp,
+        expire: entry.expire,
+        revalidate: entry.revalidate,
+      }),
+      { EX: entry.expire } // Use Redis TTL for automatic expiration
+    )
   }
 
   async refreshTags() {
-    // Sync with external tag service if applicable
-    // await externalTagService.refresh()
+    // No-op for basic Redis implementation
+    // Could sync with external tag service if needed
   }
 
   async getExpiration(tags) {
-    // Query external service for tag expiration
-    // const expiration = await externalTagService.getExpiration(tags)
-    // return expiration
+    // Return 0 to indicate no tags have been revalidated
+    // Could query Redis for tag expiration timestamps if tracking them
     return 0
   }
 
   async updateTags(tags, durations) {
-    // Update external tag service
-    // await externalTagService.updateTags(tags, durations)
+    // Implement tag-based invalidation if needed
+    // Could iterate over keys with matching tags and delete them
   }
 }
 ```
