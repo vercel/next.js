@@ -1,0 +1,1195 @@
+use std::{num::NonZeroUsize, ops::Range, sync::LazyLock};
+
+use phf::phf_set;
+use regex::Regex;
+use regex_automata::{Input, PatternID, meta::Regex as MetaRegex};
+use serde::Deserialize;
+
+/// A styled byte range within a line (non-overlapping, sorted by start)
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct StyleSpan {
+    /// Start byte offset relative to line start (0-indexed, inclusive)
+    pub start: usize,
+    /// End byte offset relative to line start (0-indexed, exclusive)
+    pub end: usize,
+    /// The token type being styled
+    pub token_type: TokenType,
+}
+
+/// Token types for syntax highlighting
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TokenType {
+    Keyword,
+    Identifier,
+    String,
+    Number,
+    Regex,
+    Comment,
+}
+
+/// Language hint for keyword highlighting.
+///
+/// Determines which set of keywords are recognized as `TokenType::Keyword`.
+/// Non-keyword tokens (strings, comments, numbers, etc.) are language-agnostic.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Language {
+    /// JavaScript/TypeScript keywords
+    #[default]
+    JavaScript,
+    /// CSS keywords (currently empty — CSS has no keyword highlighting)
+    Css,
+}
+
+impl Language {
+    /// Returns true if the given identifier is a keyword in this language.
+    pub fn is_keyword(self, ident: &str) -> bool {
+        match self {
+            Language::JavaScript => JS_KEYWORDS.contains(ident),
+            Language::Css => false,
+        }
+    }
+}
+
+/// JavaScript/TypeScript keywords (compile-time perfect hash set)
+static JS_KEYWORDS: phf::Set<&'static str> = phf_set! {
+    "as",
+    "async",
+    "await",
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "enum",
+    "export",
+    "extends",
+    "false",
+    "finally",
+    "for",
+    "from",
+    "function",
+    "if",
+    "implements",
+    "import",
+    "in",
+    "instanceof",
+    "interface",
+    "let",
+    "new",
+    "null",
+    "of",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "return",
+    "static",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "true",
+    "try",
+    "type",
+    "typeof",
+    "undefined",
+    "var",
+    "void",
+    "while",
+    "with",
+    "yield",
+};
+
+/// ANSI color codes for token types
+#[derive(Debug, Clone, Copy)]
+pub struct ColorScheme {
+    pub reset: &'static str,
+    pub keyword: &'static str,
+    pub identifier: &'static str,
+    pub string: &'static str,
+    pub number: &'static str,
+    pub regex: &'static str,
+    pub comment: &'static str,
+    pub gutter: &'static str,
+    pub marker: &'static str,
+    pub message: &'static str,
+}
+
+impl ColorScheme {
+    /// Get a color scheme with ANSI colors (matching babel-code-frame)
+    pub const fn colored() -> Self {
+        Self {
+            reset: "\x1b[0m",
+            keyword: "\x1b[36m",        // cyan
+            identifier: "\x1b[33m",     // yellow
+            string: "\x1b[32m",         // green
+            number: "\x1b[35m",         // magenta
+            regex: "\x1b[35m",          // magenta
+            comment: "\x1b[90m",        // gray
+            gutter: "\x1b[90m",         // gray
+            marker: "\x1b[31m\x1b[1m",  // red + bold
+            message: "\x1b[31m\x1b[1m", // red + bold (same as marker for now)
+        }
+    }
+
+    /// Get a plain color scheme with no ANSI codes (all empty strings)
+    pub const fn plain() -> Self {
+        Self {
+            reset: "",
+            keyword: "",
+            identifier: "",
+            string: "",
+            number: "",
+            regex: "",
+            comment: "",
+            gutter: "",
+            marker: "",
+            message: "",
+        }
+    }
+
+    /// Get the color for a token type
+    pub fn color_for_token(&self, token_type: TokenType) -> &'static str {
+        match token_type {
+            TokenType::Keyword => self.keyword,
+            TokenType::Identifier => self.identifier,
+            TokenType::String => self.string,
+            TokenType::Number => self.number,
+            TokenType::Regex => self.regex,
+            TokenType::Comment => self.comment,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Shared line-boundary helpers
+// ---------------------------------------------------------------------------
+
+/// Precomputed line index over a source string.
+///
+/// Scans for line terminators once on construction, then provides O(1)
+/// access to line content and byte ranges without allocating a `Vec<&str>`.
+///
+/// Recognized line terminators (per ECMA-262 §12.3):
+/// - LF (`\n`), CRLF (`\r\n`), standalone CR (`\r`)
+/// - U+2028 LINE SEPARATOR, U+2029 PARAGRAPH SEPARATOR
+pub(crate) struct Lines<'a> {
+    source: &'a str,
+    /// Byte offset of the start of each line. First entry is always 0.
+    line_starts: Vec<usize>,
+}
+
+impl<'a> Lines<'a> {
+    /// Build the line index by scanning for all ECMA-262 line terminators.
+    ///
+    /// Uses `memchr3` to scan for `\n` (0x0A), `\r` (0x0D), and 0xE2 (the
+    /// leading byte of the 3-byte UTF-8 encoding of U+2028 / U+2029)
+    /// concurrently.
+    pub fn new(source: &'a str) -> Self {
+        let bytes = source.as_bytes();
+        let mut line_starts = vec![0usize];
+        let mut offset = 0;
+
+        while let Some(pos) = memchr::memchr3(b'\n', b'\r', b'\xE2', &bytes[offset..]) {
+            let found_at = offset + pos;
+            let byte = bytes[found_at];
+
+            if byte == b'\n' {
+                // LF — next line starts after it
+                line_starts.push(found_at + 1);
+                offset = found_at + 1;
+            } else if byte == b'\r' {
+                // CR or CRLF — if followed by LF, consume both
+                let next_line = if found_at + 1 < bytes.len() && bytes[found_at + 1] == b'\n' {
+                    found_at + 2
+                } else {
+                    found_at + 1
+                };
+                line_starts.push(next_line);
+                offset = next_line;
+            } else {
+                // N.B. we are parsing UTF8 and in UTF8 overlong encoding are an error so we can
+                // rely on this exact byte sequence safely 0xE2: check for U+2028
+                // (E2 80 A8) or U+2029 (E2 80 A9)
+                debug_assert_eq!(byte, b'\xE2');
+                if found_at + 2 < bytes.len()
+                    && bytes[found_at + 1] == 0x80
+                    && (bytes[found_at + 2] == 0xA8 || bytes[found_at + 2] == 0xA9)
+                {
+                    line_starts.push(found_at + 3);
+                    offset = found_at + 3;
+                } else {
+                    // Not a line terminator — skip past this 0xE2 byte
+                    offset = found_at + 1;
+                }
+            }
+        }
+
+        Self {
+            source,
+            line_starts,
+        }
+    }
+
+    /// Number of lines (always at least 1).
+    pub fn len(&self) -> NonZeroUsize {
+        // SAFETY: line_starts always contains at least [0] from the constructor.
+        NonZeroUsize::new(self.line_starts.len()).unwrap()
+    }
+
+    /// The full source string.
+    pub fn source(&self) -> &'a str {
+        self.source
+    }
+
+    /// The raw line-start offsets (for passing to highlight internals).
+    pub fn starts(&self) -> &[usize] {
+        &self.line_starts
+    }
+
+    /// Get the content of line `idx` (0-indexed), stripping the trailing
+    /// line terminator (LF, CRLF, CR, U+2028, or U+2029).
+    pub fn content(&self, idx: usize) -> &'a str {
+        let (start, end) = self.byte_bounds(idx);
+        let line = &self.source[start..end];
+        line.strip_suffix("\r\n")
+            .or_else(|| line.strip_suffix('\n'))
+            .or_else(|| line.strip_suffix('\r'))
+            .or_else(|| line.strip_suffix('\u{2028}'))
+            .or_else(|| line.strip_suffix('\u{2029}'))
+            .unwrap_or(line)
+    }
+
+    /// Byte range `[start, end)` for line `idx` (including the newline terminator).
+    pub fn byte_bounds(&self, idx: usize) -> (usize, usize) {
+        line_bounds(&self.line_starts, self.source.len(), idx)
+    }
+}
+
+/// Look up which line (0-indexed) a byte offset falls on via binary search.
+fn lookup_line(line_starts: &[usize], byte_offset: usize) -> usize {
+    match line_starts.binary_search(&byte_offset) {
+        Ok(idx) => idx,
+        Err(idx) => idx.saturating_sub(1),
+    }
+}
+
+/// Get the byte range [start, end) for a given line index (0-indexed).
+fn line_bounds(line_starts: &[usize], source_len: usize, line_idx: usize) -> (usize, usize) {
+    let start = line_starts.get(line_idx).copied().unwrap_or(source_len);
+    let end = line_starts.get(line_idx + 1).copied().unwrap_or(source_len);
+    (start, end)
+}
+
+/// Tokenizer state that scans source code and collects syntax-highlight spans.
+///
+/// The scanner always tokenizes from a given `start_pos` to `scan_end` within
+/// the full `source`, but only *emits* spans that overlap with `output_range`.
+/// This lets callers scan from byte 0 (to maintain correct tokenizer state
+/// across multiline comments/strings) while only producing output for the
+/// visible window of lines.
+struct Scanner<'a> {
+    markers: Vec<StyleSpan>,
+    line_starts: &'a [usize],
+    source: &'a str,
+    /// Byte range of lines we're producing highlights for (filters output spans).
+    output_range: (usize, usize),
+    language: Language,
+}
+
+impl<'a> Scanner<'a> {
+    fn new(
+        line_starts: &'a [usize],
+        source: &'a str,
+        output_range: (usize, usize),
+        language: Language,
+    ) -> Self {
+        Self {
+            markers: Vec::new(),
+            line_starts,
+            source,
+            output_range,
+            language,
+        }
+    }
+
+    /// Push a style span for a byte range.
+    ///
+    /// When a token spans multiple lines, it is split into one span per line
+    /// so that each line's spans are self-contained. Spans outside
+    /// `output_range` are skipped.
+    fn add_span(&mut self, start: usize, end: usize, token_type: TokenType) {
+        if start >= end {
+            return;
+        }
+
+        let (range_start, range_end) = self.output_range;
+        if end <= range_start || start >= range_end {
+            return;
+        }
+
+        let source_len = self.source.len();
+        let start_line = lookup_line(self.line_starts, start);
+        let end_line = lookup_line(self.line_starts, end.saturating_sub(1));
+
+        if start_line != end_line {
+            // If the token spans lines, split it so each line's spans are self-contained.
+            for line_idx in start_line..=end_line {
+                let (line_start, line_end) = line_bounds(self.line_starts, source_len, line_idx);
+                let span_start = start.max(line_start);
+                let span_end = end.min(line_end);
+                if span_start < span_end && !(span_end <= range_start || span_start >= range_end) {
+                    self.markers.push(StyleSpan {
+                        start: span_start,
+                        end: span_end,
+                        token_type,
+                    });
+                }
+            }
+            return;
+        }
+
+        self.markers.push(StyleSpan {
+            start,
+            end,
+            token_type,
+        });
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Public entry point
+// ---------------------------------------------------------------------------
+
+/// Extract syntax highlighting markers for source code.
+///
+/// Uses a language-agnostic byte-scanning tokenizer inspired by the `js-tokens`
+/// regex approach. It never fails and produces best-effort highlighting for any
+/// input — recognizing quoted strings, comments, numbers, regex literals, and
+/// capitalized identifiers.
+///
+/// # Parameters
+/// - `source`: The source code to highlight
+/// - `line_range`: Range of line indices (0-indexed, start inclusive, end exclusive). Style markers
+///   are only produced for lines within this range. Pass `0..usize::MAX` to produce markers for all
+///   lines.
+pub fn extract_highlights(
+    lines: &Lines<'_>,
+    line_range: Range<usize>,
+    language: Language,
+) -> Vec<Vec<StyleSpan>> {
+    let line_starts = lines.starts();
+    let source = lines.source();
+    let line_count = line_starts.len();
+
+    let byte_range = {
+        let start_byte = if line_range.start < line_count {
+            line_starts[line_range.start]
+        } else {
+            usize::MAX
+        };
+
+        let end_byte = if line_range.end < line_count {
+            line_bounds(line_starts, source.len(), line_range.end).0
+        } else {
+            source.len()
+        };
+
+        (start_byte, end_byte)
+    };
+
+    // We scan from byte 0 to maintain correct tokenizer state across
+    // multiline comments and strings that may start before the visible
+    // window. The scanner exits early once it passes the end of the
+    // output range since no further tokens can be visible.
+    // TODO: consider heuristics to start scanning later, see what vim does: https://neovim.io/doc/user/syntax.html#_11.-synchronizing
+
+    let mut scanner = Scanner::new(line_starts, source, byte_range, language);
+    scanner.scan(0, source.len(), None);
+    let all_spans = scanner.markers;
+
+    debug_assert!(
+        all_spans.windows(2).all(|w| w[0].start <= w[1].start),
+        "spans should already be sorted by the left-to-right scan"
+    );
+    debug_assert!(
+        all_spans.windows(2).all(|w| w[0].end <= w[1].start),
+        "spans should be non-overlapping"
+    );
+    group_spans_by_line(&all_spans, line_starts, source, line_range)
+}
+
+// ---------------------------------------------------------------------------
+// Tokenizer (language-agnostic, js-tokens style)
+// ---------------------------------------------------------------------------
+
+/// Token kinds recognized by the scanner, used for match dispatch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TokenKind {
+    String,
+    Template,
+    LineComment,
+    BlockComment,
+    Number,
+    Ident,
+    Close,
+    Brace,
+    Postfix,
+    Slash,
+    Op,
+}
+
+/// Each entry pairs a `TokenKind` with its regex pattern. Order matters:
+/// earlier patterns take priority when multiple can match at the same
+/// position (e.g. `//` before `/`). The `PatternID` returned by the
+/// multi-pattern regex indexes directly into this array.
+const TOKEN_RULES: &[(TokenKind, &str)] = &[
+    (
+        TokenKind::String,
+        r#""(?:[^"\\]|\\.)*"?|'(?:[^'\\]|\\.)*'?"#,
+    ),
+    (TokenKind::Template, r"`(?:[^`\\]|\\.)*`?"),
+    (TokenKind::LineComment, r"//[^\n]*"),
+    (TokenKind::BlockComment, r"(?s)/\*.*?\*/"),
+    (
+        TokenKind::Number,
+        r"0[xX][\da-fA-F]+|0[oO][0-7]+|0[bB][01]+|(?:\d*\.\d+|\d+\.?)(?:[eE][+-]?\d+)?",
+    ),
+    (TokenKind::Ident, r"[A-Za-z_$\x80-\xff][\w$\x80-\xff]*"),
+    (TokenKind::Close, r"[)\]]"),
+    (TokenKind::Brace, r"[(\[{}]"),
+    (TokenKind::Postfix, r"\+\+|--"),
+    (TokenKind::Slash, r"/"),
+    // Operators / punctuation catch-all for `last_token` tracking
+    (TokenKind::Op, r"[=+\-*%<>&|^!~?:;,.]"),
+];
+
+impl TokenKind {
+    fn from_pattern_id(id: PatternID) -> Self {
+        TOKEN_RULES[id.as_usize()].0
+    }
+}
+
+/// A multi-pattern regex where each pattern corresponds to a `TokenKind`.
+/// `regex_automata::meta::Regex::new_many()` returns the `PatternID` directly
+/// from a match, avoiding capture-group overhead and linear scanning.
+/// Pattern ordering determines match priority (leftmost-first semantics).
+static TOKEN_RE: LazyLock<MetaRegex> = LazyLock::new(|| {
+    let patterns: Vec<&str> = TOKEN_RULES.iter().map(|(_, p)| *p).collect();
+    MetaRegex::new_many(&patterns).expect("token patterns must compile")
+});
+
+/// Regex that matches a regex literal starting at the opening `/`.
+/// Handles character classes `[...]` (where `/` is literal), escape sequences,
+/// and flags. Does not match across newlines (regex literals are single-line).
+///
+/// Structure: `/` then body then `/` then optional flags:
+/// - `[^\\/\[\n\r]` — normal chars (not `\`, `/`, `[`, newline)
+/// - `\\.`          — escape sequences
+/// - `\[(?:[^\]\\\n\r]|\\.)*\]` — character classes with their own escapes
+static REGEX_LITERAL_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"/(?:[^\\/\[\n\r]|\\.|\[(?:[^\]\\\n\r]|\\.)*\])+/[A-Za-z]*"#)
+        .expect("regex literal regex must compile")
+});
+
+impl Scanner<'_> {
+    /// Scan a template literal's content (between backticks), emitting String
+    /// markers for quasis and recursively tokenizing `${...}` expressions.
+    fn scan_template_content(&mut self, tpl_start: usize, tpl_end: usize) {
+        let bytes = self.source.as_bytes();
+        // Start after the opening backtick
+        let mut i = tpl_start + 1;
+        let content_end = if tpl_end > tpl_start && bytes.get(tpl_end - 1) == Some(&b'`') {
+            tpl_end - 1
+        } else {
+            tpl_end
+        };
+
+        // Track start of current string segment (includes the backtick/closing brace)
+        let mut seg_start = tpl_start;
+
+        while i < content_end {
+            if bytes[i] == b'\\' {
+                // Skip escape sequence
+                i += 2;
+                continue;
+            }
+            if bytes[i] == b'$' && i + 1 < content_end && bytes[i + 1] == b'{' {
+                // End the current string segment at the `$`
+                if i > seg_start {
+                    self.add_span(seg_start, i, TokenType::String);
+                }
+
+                // Tokenize the expression with brace_depth=1. Returns the
+                // position after the matching `}`.
+                let expr_start = i + 2;
+                let expr_end = self.scan(expr_start, content_end, Some(1));
+
+                // The next string segment starts at the closing `}`
+                if expr_end > expr_start && expr_end <= content_end && bytes[expr_end - 1] == b'}' {
+                    seg_start = expr_end - 1;
+                } else {
+                    // Unclosed expression — no more string segments
+                    seg_start = expr_end;
+                }
+                i = expr_end;
+                continue;
+            }
+            i += 1;
+        }
+
+        // Emit the final string segment (includes the closing backtick)
+        if tpl_end > seg_start {
+            self.add_span(seg_start, tpl_end, TokenType::String);
+        }
+    }
+
+    /// Core tokenizer loop. Scans `source[start_pos..scan_end]` and appends
+    /// style markers.
+    ///
+    /// When `brace_depth` is `Some(n)` we are inside a template expression
+    /// `${...}`. The scanner tracks `{` / `}` tokens and returns as soon as
+    /// the matching `}` brings the depth back to 0, returning the byte
+    /// position just past the `}`. Pass `None` for top-level scanning.
+    fn scan(&mut self, start_pos: usize, scan_end: usize, mut brace_depth: Option<u32>) -> usize {
+        let mut pos = start_pos;
+
+        // Track the last non-whitespace, non-comment token kind for regex
+        // disambiguation. A `/` following a value or close bracket is division;
+        // following an operator or at start of input it's a regex.
+        let mut last_token = LastToken::None;
+
+        while let Some(m) = TOKEN_RE.search(&Input::new(self.source).range(pos..scan_end)) {
+            let start = m.start();
+            let raw_end = m.end();
+
+            // Once we're past the output range, no future tokens can be visible.
+            if start >= self.output_range.1 {
+                break;
+            }
+
+            // Clamp the match end to scan_end
+            let end = raw_end.min(scan_end);
+
+            match TokenKind::from_pattern_id(m.pattern()) {
+                TokenKind::String => {
+                    self.add_span(start, end, TokenType::String);
+                    last_token = LastToken::Value;
+                }
+                TokenKind::Template => {
+                    // Split template literal into string parts and expression
+                    // holes. Quasis are marked as String; expression contents
+                    // are recursively tokenized.
+                    self.scan_template_content(start, end);
+                    last_token = LastToken::Value;
+                }
+                TokenKind::LineComment | TokenKind::BlockComment => {
+                    self.add_span(start, end, TokenType::Comment);
+                    // Comments don't update last_token
+                }
+                TokenKind::Postfix => {
+                    last_token = LastToken::PostfixOp;
+                }
+                TokenKind::Slash => {
+                    if last_token.slash_means_regex()
+                        && let Some(re_match) = REGEX_LITERAL_RE.find_at(self.source, start)
+                        && re_match.start() == start
+                    {
+                        let re_end = re_match.end().min(scan_end);
+                        self.add_span(start, re_end, TokenType::Regex);
+                        last_token = LastToken::Value;
+                        pos = re_end;
+                        continue;
+                    }
+                    last_token = LastToken::Operator;
+                }
+                TokenKind::Close => {
+                    last_token = LastToken::CloseBracket;
+                }
+                TokenKind::Brace => {
+                    let ch = self.source.as_bytes()[start];
+                    if ch == b'{' {
+                        if let Some(ref mut depth) = brace_depth {
+                            *depth += 1;
+                        }
+                    } else if ch == b'}'
+                        && let Some(ref mut depth) = brace_depth
+                    {
+                        // test first to avoid underflow
+                        if *depth <= 1 {
+                            return end;
+                        }
+                        *depth -= 1;
+                    }
+                    last_token = LastToken::Operator;
+                }
+                TokenKind::Op => {
+                    last_token = LastToken::Operator;
+                }
+                TokenKind::Number => {
+                    self.add_span(start, end, TokenType::Number);
+                    last_token = LastToken::Value;
+                }
+                TokenKind::Ident => {
+                    let ident = &self.source[start..end];
+                    let token_type = if self.language.is_keyword(ident) {
+                        Some(TokenType::Keyword)
+                    } else if ident.as_bytes()[0].is_ascii_uppercase() {
+                        // Highlight capitalized identifiers (matching Babel behavior)
+                        Some(TokenType::Identifier)
+                    } else {
+                        None
+                    };
+                    if let Some(tt) = token_type {
+                        self.add_span(start, end, tt);
+                    }
+                    last_token = LastToken::Value;
+                }
+            }
+
+            assert!(
+                raw_end > pos,
+                "TOKEN_RE produced a zero-width match at byte {pos}"
+            );
+            pos = raw_end;
+        }
+
+        scan_end
+    }
+}
+
+/// Tracks the kind of the last non-whitespace, non-comment token for regex
+/// disambiguation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LastToken {
+    /// Start of input
+    None,
+    /// Identifier, number, string, regex — values that end expressions
+    Value,
+    /// `)` or `]` — could end an expression
+    CloseBracket,
+    /// `++` or `--` — postfix operators end expressions
+    PostfixOp,
+    /// Operators, open brackets, commas, semicolons, `{`, `}` — regex follows
+    Operator,
+}
+
+impl LastToken {
+    /// Returns true if a `/` at this position should be treated as starting a regex literal.
+    fn slash_means_regex(self) -> bool {
+        match self {
+            LastToken::None | LastToken::Operator => true,
+            LastToken::Value | LastToken::CloseBracket | LastToken::PostfixOp => false,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Span → per-line grouping
+// ---------------------------------------------------------------------------
+
+/// Group spans by line. O(spans) single pass.
+fn group_spans_by_line(
+    spans: &[StyleSpan],
+    line_starts: &[usize],
+    source: &str,
+    line_range: Range<usize>,
+) -> Vec<Vec<StyleSpan>> {
+    if source.is_empty() {
+        return Vec::new();
+    }
+
+    let line_count = line_starts.len();
+
+    let start_line_idx = line_range.start.min(line_count);
+    let end_line_idx = line_range.end.min(line_count);
+
+    let output_line_count = end_line_idx.saturating_sub(start_line_idx);
+    let mut line_highlights = Vec::with_capacity(output_line_count);
+
+    let mut span_idx = 0;
+
+    for line_idx in start_line_idx..end_line_idx {
+        let (line_start, line_end) = line_bounds(line_starts, source.len(), line_idx);
+
+        let mut line_spans = Vec::new();
+
+        while span_idx < spans.len() {
+            let span = &spans[span_idx];
+
+            if span.start >= line_end {
+                break;
+            }
+            debug_assert!(
+                span.start >= line_start,
+                "span at {} precedes line start {line_start}",
+                span.start
+            );
+
+            line_spans.push(StyleSpan {
+                start: span.start - line_start,
+                end: span.end - line_start,
+                token_type: span.token_type,
+            });
+
+            span_idx += 1;
+        }
+
+        line_highlights.push(line_spans);
+    }
+
+    line_highlights
+}
+
+// ---------------------------------------------------------------------------
+// Line rendering with truncation-aware highlighting
+// ---------------------------------------------------------------------------
+
+/// Apply syntax highlighting to a (possibly truncated) line of text.
+///
+/// Iterates the line's `StyleSpan`s, converting from line-relative offsets to
+/// display offsets accounting for truncation, and inserts ANSI color codes.
+///
+/// - `truncation_offset`: byte offset in the original line where visible source content starts
+/// - `prefix_len`: byte length of any prefix prepended before source content (e.g., `"..."` = 3)
+pub fn apply_line_highlights(
+    visible_content: &str,
+    spans: &[StyleSpan],
+    color_scheme: &ColorScheme,
+    truncation_offset: usize,
+    prefix_len: usize,
+) -> String {
+    if spans.is_empty() {
+        return visible_content.to_string();
+    }
+
+    // The visible source region in original-line coordinates
+    let visible_end = truncation_offset + visible_content.len().saturating_sub(prefix_len);
+
+    let mut result = String::with_capacity(visible_content.len() + spans.len() * 10);
+    let mut last_offset = 0;
+
+    // Skip spans that end before the visible window
+    let start_idx = spans.partition_point(|s| s.end <= truncation_offset);
+
+    for span in &spans[start_idx..] {
+        if span.start >= visible_end {
+            break;
+        }
+
+        // Clamp span to the visible window and convert to display coordinates
+        let display_start = (span.start.max(truncation_offset) - truncation_offset + prefix_len)
+            .min(visible_content.len());
+        let display_end =
+            (span.end.min(visible_end) - truncation_offset + prefix_len).min(visible_content.len());
+
+        if display_start < display_end {
+            // Emit unstyled text before this span
+            if display_start > last_offset {
+                result.push_str(&visible_content[last_offset..display_start]);
+            }
+            // Emit styled span content
+            result.push_str(color_scheme.color_for_token(span.token_type));
+            result.push_str(&visible_content[display_start..display_end]);
+            result.push_str(color_scheme.reset);
+            last_offset = display_end;
+        }
+    }
+
+    // Emit any remaining unstyled text
+    if last_offset < visible_content.len() {
+        result.push_str(&visible_content[last_offset..]);
+    }
+
+    result
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    /// Default language for tests
+    const JS: Language = Language::JavaScript;
+
+    /// Strip ANSI escape codes from a string
+    pub fn strip_ansi_codes(s: &str) -> String {
+        let mut result = String::with_capacity(s.len());
+        let mut chars = s.chars();
+
+        while let Some(ch) = chars.next() {
+            if ch == '\x1b' {
+                if chars.next() == Some('[') {
+                    for ch in chars.by_ref() {
+                        if ch.is_alphabetic() {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+
+        result
+    }
+
+    // -----------------------------------------------------------------------
+    // Basic highlighting tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_apply_line_highlights_basic() {
+        let source = "const Foo = 123";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let color_scheme = ColorScheme::colored();
+
+        let result = apply_line_highlights(source, &highlights[0], &color_scheme, 0, 0);
+
+        assert!(result.contains("\x1b["), "Result should contain ANSI codes");
+        assert!(result.contains("const"), "Result should contain 'const'");
+        assert!(result.contains("Foo"), "Result should contain 'Foo'");
+        assert!(result.contains("123"), "Result should contain '123'");
+    }
+
+    #[test]
+    fn test_apply_line_highlights_plain() {
+        let source = "const foo = 123";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let color_scheme = ColorScheme::plain();
+
+        let result = apply_line_highlights(source, &highlights[0], &color_scheme, 0, 0);
+        assert_eq!(result, source);
+    }
+
+    #[test]
+    fn test_only_capitalized_identifiers_highlighted() {
+        let source = "const foo = Bar";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+
+        let has_identifier = highlights[0]
+            .iter()
+            .any(|s| s.token_type == TokenType::Identifier);
+        assert!(has_identifier, "Capitalized 'Bar' should be highlighted");
+
+        let ident_starts: Vec<usize> = highlights[0]
+            .iter()
+            .filter(|s| s.token_type == TokenType::Identifier)
+            .map(|s| s.start)
+            .collect();
+        assert_eq!(
+            ident_starts,
+            vec![12],
+            "Only 'Bar' at offset 12 should be highlighted"
+        );
+    }
+
+    #[test]
+    fn test_strip_ansi_codes() {
+        let input = "\x1b[36mconst\x1b[0m foo = \x1b[35m123\x1b[0m";
+        let result = strip_ansi_codes(input);
+        assert_eq!(result, "const foo = 123");
+    }
+
+    #[test]
+    fn test_apply_line_highlights_with_truncation() {
+        let source = "const Foo = 123";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let color_scheme = ColorScheme::colored();
+
+        // Truncate to show "Foo = 123" (offset 6, length 9, no prefix)
+        let visible = &source[6..];
+        let result = apply_line_highlights(visible, &highlights[0], &color_scheme, 6, 0);
+
+        let stripped = strip_ansi_codes(&result);
+        assert_eq!(stripped, "Foo = 123");
+        assert!(
+            result.contains("\x1b["),
+            "Should contain ANSI codes for Foo/123"
+        );
+    }
+
+    #[test]
+    fn test_apply_line_highlights_overlapping_truncation() {
+        // "hello world" is a string starting at offset 10
+        // Truncating at offset 15 lands inside the string ("o world";)
+        let source = r#"const x = "hello world";"#;
+        let truncation_offset = 15;
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        let color_scheme = ColorScheme::colored();
+
+        let visible = &source[truncation_offset..];
+        let result =
+            apply_line_highlights(visible, &highlights[0], &color_scheme, truncation_offset, 0);
+
+        let stripped = strip_ansi_codes(&result);
+        assert_eq!(stripped, visible);
+        // The visible portion starts inside the string, so it should
+        // begin with an ANSI code for the overlapping string style
+        assert!(
+            result.starts_with("\x1b["),
+            "Should start with ANSI code for the overlapping string: {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_comments_and_numbers() {
+        let source = "const x = 42; // comment\nobj.foo = 10;";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+
+        assert_eq!(highlights.len(), 2);
+
+        let line1_has_comment = highlights[0]
+            .iter()
+            .any(|m| m.token_type == TokenType::Comment);
+        assert!(line1_has_comment, "First line should have comment markers");
+
+        let line1_has_number = highlights[0]
+            .iter()
+            .any(|m| m.token_type == TokenType::Number);
+        let line2_has_number = highlights[1]
+            .iter()
+            .any(|m| m.token_type == TokenType::Number);
+        assert!(line1_has_number);
+        assert!(line2_has_number);
+    }
+
+    #[test]
+    fn test_multiline_comment() {
+        let source = "const x = 1;\n/* multi\n   line */\nconst y = 2;";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+
+        assert_eq!(highlights.len(), 4);
+
+        let line2_has_comment = highlights[1]
+            .iter()
+            .any(|m| m.token_type == TokenType::Comment);
+        let line3_has_comment = highlights[2]
+            .iter()
+            .any(|m| m.token_type == TokenType::Comment);
+
+        assert!(line2_has_comment, "Line 2 should have comment marker");
+        assert!(line3_has_comment, "Line 3 should have comment marker");
+    }
+
+    #[test]
+    fn test_multiline_template_literal() {
+        let source = "const x = `line1\nline2\nline3`;";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+
+        assert_eq!(highlights.len(), 3);
+
+        for (i, highlight) in highlights.iter().enumerate() {
+            let has_string = highlight.iter().any(|m| m.token_type == TokenType::String);
+            assert!(
+                has_string,
+                "Line {} should have string markers for the template literal",
+                i + 1
+            );
+        }
+    }
+
+    #[test]
+    fn test_template_literal_with_expression() {
+        // `hello ${name}!` should mark `hello ` and `!` as string,
+        // but NOT mark `name` as string.
+        let source = "const x = `hello ${name}!`;";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+
+        let string_spans: Vec<(usize, usize)> = highlights[0]
+            .iter()
+            .filter(|s| s.token_type == TokenType::String)
+            .map(|s| (s.start, s.end))
+            .collect();
+
+        // Should have two string segments: `hello ${ and }!`
+        // The `name` between ${ and } should NOT be in any string range
+        assert!(
+            string_spans.len() >= 2,
+            "Should have at least 2 string segments: got {:?}",
+            string_spans
+        );
+
+        // Verify "name" is NOT inside any string span
+        let name_offset = source.find("name").unwrap();
+        let name_in_string = highlights[0].iter().any(|s| {
+            s.token_type == TokenType::String && s.start <= name_offset && s.end > name_offset
+        });
+        assert!(
+            !name_in_string,
+            "'name' should not be marked as part of a string"
+        );
+    }
+
+    #[test]
+    fn test_template_literal_nested() {
+        // Nested template literal: `a ${`b ${c}`} d`
+        let source = r#"const x = `a ${`b ${c}`} d`;"#;
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+
+        // Should not panic and should produce some markers
+        assert!(!highlights.is_empty());
+        let has_string = highlights[0]
+            .iter()
+            .any(|m| m.token_type == TokenType::String);
+        assert!(has_string, "Should have string markers");
+    }
+
+    // -----------------------------------------------------------------------
+    // Unbalanced template literal tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_template_unclosed_expression() {
+        // `hello ${name` — the `${` is never closed with `}`
+        // Should not panic; the string part before `${` should still be marked.
+        let source = "const x = `hello ${name";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        assert!(!highlights.is_empty(), "Should produce highlights");
+
+        // Should have at least one string marker for the "`hello " part
+        let has_string = highlights[0]
+            .iter()
+            .any(|m| m.token_type == TokenType::String);
+        assert!(has_string, "Should still mark the string part before ${{");
+
+        // "name" should NOT be marked as string since it's inside an expression hole
+        let name_offset = source.find("name").unwrap();
+        let name_in_string = highlights[0].iter().any(|s| {
+            s.token_type == TokenType::String && s.start <= name_offset && s.end > name_offset
+        });
+        assert!(
+            !name_in_string,
+            "'name' inside unclosed expression should not be a string"
+        );
+    }
+
+    #[test]
+    fn test_template_brace_in_string_inside_expression() {
+        // `${ "}" }` — the `}` inside the string should not close the expression
+        let source = r#"const x = `${  "}" } end`;"#;
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        assert!(!highlights.is_empty());
+
+        // The " end" part after the real closing } should be marked as string
+        let end_offset = source.find(" end").unwrap();
+        let has_end_string = highlights[0].iter().any(|s| {
+            s.token_type == TokenType::String && s.start <= end_offset && s.end > end_offset
+        });
+        assert!(
+            has_end_string,
+            "String part after expression should be marked"
+        );
+    }
+
+    #[test]
+    fn test_template_empty_expression() {
+        // `hello ${}world` — empty expression hole
+        let source = "const x = `hello ${}world`;";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+        assert!(!highlights.is_empty());
+
+        // Both "hello " and "world" parts should be string-marked
+        let string_spans: Vec<usize> = highlights[0]
+            .iter()
+            .filter(|s| s.token_type == TokenType::String)
+            .map(|s| s.start)
+            .collect();
+        assert!(
+            string_spans.len() >= 2,
+            "Empty expression should still split into two string segments, got {:?}",
+            string_spans
+        );
+    }
+
+    #[test]
+    fn test_line_range_filtering() {
+        let source = "const a = 1;\nconst b = 2;\nconst c = 3;\nconst d = 4;\nconst e = 5;";
+
+        let highlights = extract_highlights(&Lines::new(source), 1..4, JS);
+
+        assert_eq!(highlights.len(), 3);
+        assert!(highlights.iter().all(|h| !h.is_empty()));
+    }
+
+    // -----------------------------------------------------------------------
+    // Regex literal tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_regex_after_equals() {
+        let source = "const re = /foo/gi;";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+
+        let has_regex = highlights[0]
+            .iter()
+            .any(|m| m.token_type == TokenType::Regex);
+        assert!(has_regex, "/foo/gi should be highlighted as regex");
+    }
+
+    #[test]
+    fn test_division_not_regex() {
+        // After an identifier, `/` is division not regex
+        let source = "const x = a / b / c;";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+
+        let has_regex = highlights[0]
+            .iter()
+            .any(|m| m.token_type == TokenType::Regex);
+        assert!(!has_regex, "a / b / c should not have regex markers");
+    }
+
+    // -----------------------------------------------------------------------
+    // Keyword highlighting tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_js_keywords_highlighted() {
+        let source = "const foo = function() { return true; }";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS);
+
+        let keyword_starts: Vec<usize> = highlights[0]
+            .iter()
+            .filter(|s| s.token_type == TokenType::Keyword)
+            .map(|s| s.start)
+            .collect();
+
+        // "const" at 0..5, "function" at 12..20, "return" at 25..31, "true" at 32..36
+        assert!(
+            keyword_starts.contains(&0),
+            "'const' should start at offset 0"
+        );
+        assert!(
+            keyword_starts.contains(&12),
+            "'function' should start at offset 12"
+        );
+        assert!(
+            keyword_starts.contains(&25),
+            "'return' should start at offset 25"
+        );
+        assert!(
+            keyword_starts.contains(&32),
+            "'true' should start at offset 32"
+        );
+    }
+
+    #[test]
+    fn test_css_no_keywords() {
+        let source = "const foo = function() { return true; }";
+        let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, Language::Css);
+
+        let has_keyword = highlights[0]
+            .iter()
+            .any(|m| m.token_type == TokenType::Keyword);
+        assert!(
+            !has_keyword,
+            "CSS language should not produce keyword markers"
+        );
+    }
+}

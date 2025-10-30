@@ -1119,9 +1119,6 @@ importers:
         specifier: ^0.34.5
         version: 0.34.5
     devDependencies:
-      '@babel/code-frame':
-        specifier: 7.26.2
-        version: 7.26.2
       '@babel/core':
         specifier: 7.26.10
         version: 7.26.10

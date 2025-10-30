@@ -11,7 +11,7 @@ import {
   sourceMapIgnoreListsEverything,
 } from './lib/source-maps'
 import { parseStack, type StackFrame } from './lib/parse-stack'
-import { getOriginalCodeFrame } from '../next-devtools/server/shared'
+import type { IgnorableStackFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { dim, italic } from '../lib/picocolors'
 
@@ -30,8 +30,29 @@ export function setBundlerFindSourceMapImplementation(
   bundlerFindSourceMapPayload = findSourceMapImplementation
 }
 
-interface IgnorableStackFrame extends StackFrame {
-  ignored: boolean
+// Code frame renderer - injected by dev/build to avoid hard dependency on native bindings
+type CodeFrameRenderer = (
+  frame: IgnorableStackFrame,
+  source: string | null,
+  colors: boolean
+) => string | null
+
+let codeFrameRenderer: CodeFrameRenderer | undefined
+
+export function setCodeFrameRenderer(renderer: CodeFrameRenderer): void {
+  codeFrameRenderer = renderer
+}
+
+function getOriginalCodeFrame(
+  frame: IgnorableStackFrame,
+  source: string | null,
+  colors: boolean = process.stdout.isTTY
+): string | null {
+  if (!codeFrameRenderer) {
+    // No renderer available - gracefully degrade
+    return null
+  }
+  return codeFrameRenderer(frame, source, colors)
 }
 
 type SourceMapCache = Map<
