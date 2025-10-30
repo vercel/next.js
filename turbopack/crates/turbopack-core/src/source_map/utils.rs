@@ -287,6 +287,12 @@ pub async fn absolute_fileify_source_map(
     .await
 }
 
+fn uri_encode_path(path: &str) -> String {
+    path.split('/')
+        .map(|s| urlencoding::encode(s))
+        .collect::<Vec<_>>()
+        .join("/")
+}
 /// Turns `turbopack:///[project]` references in sourcemap sources into relative './' prefixed uris.
 /// This is useful in server environments and especially build environments.
 pub async fn relative_fileify_source_map(
@@ -302,11 +308,15 @@ pub async fn relative_fileify_source_map(
     transform_relative_files(map, &context_path, |_context_fs, src_rest| {
         // NOTE: we just include the relative path prefix here instead of using `sourceRoot`
         // since the spec on sourceRoot is broken.
-        // src_rest is already uri encoded as it was part of a sourcemap
+
+        // TODO(bgw): this shouldn't be necessary to uri encode since the strings we get out of the
+        // source map should already be uri encoded, however in the case of the turbopack scheme in
+        // particular we are inconsistent so be defensive here.
+        let src_rest = uri_encode_path(src_rest);
         if relative_path_to_output_root.is_empty() {
             Ok(src_rest.to_string())
         } else {
-            Ok(format!("{relative_path_to_output_root}/{src_rest}"))
+            Ok(format!("{relative_path_to_output_root}/{src_rest}",))
         }
     })
     .await
