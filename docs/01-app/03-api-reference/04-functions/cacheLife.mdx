@@ -52,7 +52,7 @@ Choose a profile based on how frequently your content changes:
 - **`hours`** - Multiple daily updates (product inventory, weather)
 - **`days`** - Daily updates (blog posts, articles)
 - **`weeks`** - Weekly updates (podcasts, newsletters)
-- **`max`** - Rarely changes (legal pages, documentation)
+- **`max`** - Rarely changes (legal pages, archived content)
 
 Import `cacheLife` and pass a profile name:
 
@@ -84,10 +84,9 @@ Cache profiles control caching behavior through three timing properties:
 
 #### `stale`
 
-How long the client can use cached data without checking the server.
+**Client-side:** How long the client can use cached data without checking the server.
 
-- During this time, the client serves cached content immediately without a network request
-- After this period expires, the client checks with the server for updates
+During this time, the client-side router displays cached content immediately without any network request. After this period expires, the router must check with the server on the next navigation or request. This provides instant page loads from the client cache, but data may be outdated.
 
 ```tsx
 cacheLife({ stale: 300 }) // 5 minutes
@@ -109,9 +108,9 @@ cacheLife({ revalidate: 900 }) // 15 minutes
 
 #### `expire`
 
-Maximum time before cached content must be regenerated.
+Maximum time before the server must regenerate cached content.
 
-- After this period with no traffic, the next request regenerates content synchronously
+- After this period with no traffic, the server regenerates content synchronously on the next request
 - When you set both `revalidate` and `expire`, `expire` must be longer than `revalidate`. Next.js validates this and raises an error for invalid configurations.
 
 ```tsx
