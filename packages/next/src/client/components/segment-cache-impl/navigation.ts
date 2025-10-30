@@ -19,6 +19,7 @@ import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
   EntryStatus,
   readRouteCacheEntry,
+  getCanonicalSegmentKeypath,
   readSegmentCacheEntry,
   waitForSegmentCacheEntry,
   requestOptimisticRouteCacheEntry,
@@ -121,9 +122,16 @@ export function navigate(
     const snapshot = readRenderSnapshotFromCache(now, route, route.tree)
     const prefetchFlightRouterState = snapshot.flightRouterState
     const prefetchSeedData = snapshot.seedData
-    const prefetchHead = route.head
-    const isPrefetchHeadPartial = route.isHeadPartial
-    const newCanonicalUrl = route.canonicalUrl
+    const headSnapshot = readHeadSnapshotFromCache(now, route)
+    const prefetchHead = headSnapshot.rsc
+    const isPrefetchHeadPartial = headSnapshot.isPartial
+    // TODO: The "canonicalUrl" stored in the cache doesn't include the hash,
+    // because hash entries do not vary by hash fragment. However, the one
+    // we set in the router state *does* include the hash, and it's used to
+    // sync with the actual browser location. To make this less of a refactor
+    // hazard, we should always track the hash separately from the rest of
+    // the URL.
+    const newCanonicalUrl = route.canonicalUrl + url.hash
     const renderedSearch = route.renderedSearch
     return navigateUsingPrefetchedRouteTree(
       now,
@@ -164,9 +172,10 @@ export function navigate(
       )
       const prefetchFlightRouterState = snapshot.flightRouterState
       const prefetchSeedData = snapshot.seedData
-      const prefetchHead = optimisticRoute.head
-      const isPrefetchHeadPartial = optimisticRoute.isHeadPartial
-      const newCanonicalUrl = optimisticRoute.canonicalUrl
+      const headSnapshot = readHeadSnapshotFromCache(now, optimisticRoute)
+      const prefetchHead = headSnapshot.rsc
+      const isPrefetchHeadPartial = headSnapshot.isPartial
+      const newCanonicalUrl = optimisticRoute.canonicalUrl + url.hash
       const newRenderedSearch = optimisticRoute.renderedSearch
       return navigateUsingPrefetchedRouteTree(
         now,
@@ -338,7 +347,11 @@ function readRenderSnapshotFromCache(
   let loading: LoadingModuleData | Promise<LoadingModuleData> = null
   let isPartial: boolean = true
 
-  const segmentEntry = readSegmentCacheEntry(now, route, tree.cacheKey)
+  const canonicalSegmentKeypath = getCanonicalSegmentKeypath(
+    route,
+    tree.cacheKey
+  )
+  const segmentEntry = readSegmentCacheEntry(now, canonicalSegmentKeypath)
   if (segmentEntry !== null) {
     switch (segmentEntry.status) {
       case EntryStatus.Fulfilled: {
@@ -399,15 +412,45 @@ function readRenderSnapshotFromCache(
       null,
       tree.isRootLayout,
     ],
-    seedData: [
-      segment,
-      rsc,
-      childSeedDatas,
-      loading,
-      isPartial,
-      hasRuntimePrefetch,
-    ],
+    seedData: [rsc, childSeedDatas, loading, isPartial, hasRuntimePrefetch],
   }
+}
+
+function readHeadSnapshotFromCache(
+  now: number,
+  route: FulfilledRouteCacheEntry
+): { rsc: HeadData; isPartial: boolean } {
+  // Same as readRenderSnapshotFromCache, but for the head
+  let rsc: React.ReactNode | null = null
+  let isPartial: boolean = true
+  const canonicalSegmentKeypath = getCanonicalSegmentKeypath(
+    route,
+    route.metadata.cacheKey
+  )
+  const segmentEntry = readSegmentCacheEntry(now, canonicalSegmentKeypath)
+  if (segmentEntry !== null) {
+    switch (segmentEntry.status) {
+      case EntryStatus.Fulfilled: {
+        rsc = segmentEntry.rsc
+        isPartial = segmentEntry.isPartial
+        break
+      }
+      case EntryStatus.Pending: {
+        const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
+        rsc = promiseForFulfilledEntry.then((entry) =>
+          entry !== null ? entry.rsc : null
+        )
+        isPartial = true
+        break
+      }
+      case EntryStatus.Empty:
+      case EntryStatus.Rejected:
+        break
+      default:
+        segmentEntry satisfies never
+    }
+  }
+  return { rsc, isPartial }
 }
 
 async function navigateDynamicallyWithNoPrefetch(

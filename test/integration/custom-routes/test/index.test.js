@@ -9,7 +9,7 @@ import WebSocket from 'ws'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   launchApp,
   killApp,
   findPort,
@@ -296,7 +296,7 @@ const runTests = (isDev = false) => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     if (isDev) {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
   })
 
@@ -2443,6 +2443,12 @@ const runTests = (isDev = false) => {
            "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
          },
          "staticRoutes": [
+           {
+             "namedRegex": "^/api/hello(?:/)?$",
+             "page": "/api/hello",
+             "regex": "^/api/hello(?:/)?$",
+             "routeKeys": {},
+           },
            {
              "namedRegex": "^/auto\\-export/another(?:/)?$",
              "page": "/auto-export/another",

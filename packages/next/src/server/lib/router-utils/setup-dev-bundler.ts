@@ -85,8 +85,11 @@ import {
   writeRouteTypesManifest,
   writeValidatorFile,
 } from './route-types-utils'
+import { writeCacheLifeTypes } from './cache-life-type-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import { Lockfile } from '../../../build/lockfile'
+import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -175,6 +178,15 @@ async function startWatcher(
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
+  let lockfile
+  if (opts.nextConfig.experimental.lockDistDir) {
+    fs.mkdirSync(distDir, { recursive: true })
+    lockfile = await Lockfile.acquireWithRetriesOrExit(
+      path.join(distDir, 'lock'),
+      'next dev'
+    )
+  }
+
   const validFileMatcher = createValidFileMatcher(
     nextConfig.pageExtensions,
     appDir
@@ -196,7 +208,8 @@ async function startWatcher(
           opts,
           serverFields,
           distDir,
-          resetFetch
+          resetFetch,
+          lockfile
         )
       })()
     : await (async () => {
@@ -218,6 +231,8 @@ async function startWatcher(
           rewrites: opts.fsChecker.rewrites,
           previewProps: opts.fsChecker.prerenderManifest.preview,
           resetFetch,
+          lockfile,
+          onDevServerCleanup: opts.onDevServerCleanup,
         })
       })()
 
@@ -419,11 +434,11 @@ async function startWatcher(
             const cwd = process.cwd()
 
             throw new Error(
-              `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, middlewareFilePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, proxyFilePath)}" are detected. Please use "./${path.relative(cwd, proxyFilePath)}" only.`
+              `Both ${MIDDLEWARE_FILENAME} file "./${path.relative(cwd, middlewareFilePath)}" and ${PROXY_FILENAME} file "./${path.relative(cwd, proxyFilePath)}" are detected. Please use "./${path.relative(cwd, proxyFilePath)}" only. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
             )
           }
           Log.warnOnce(
-            `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
+            `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
           )
         }
 
@@ -1151,6 +1166,10 @@ async function startWatcher(
             opts.nextConfig
           )
           await writeValidatorFile(routeTypesManifest, validatorFilePath)
+
+          // Generate cache-life types if cacheLife config exists
+          const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
+          writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
         }
 
         if (!resolved) {
@@ -1211,6 +1230,9 @@ async function startWatcher(
     err: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
+    if (err instanceof Error) {
+      err.message = deobfuscateText(err.message)
+    }
     if (err instanceof ModuleBuildError) {
       // Errors that may come from issues from the user's code
       Log.error(err.message)

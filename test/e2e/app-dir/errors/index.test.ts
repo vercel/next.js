@@ -27,7 +27,7 @@ describe('app-dir - errors', () => {
       if (isNextDev) {
         // TODO: investigate desired behavior here as it is currently
         // minimized by default
-        // await assertHasRedbox(browser)
+        // await waitForRedbox(browser)
         // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
       } else {
         expect(
@@ -63,7 +63,7 @@ describe('app-dir - errors', () => {
 
       if (isNextDev) {
         // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
-        // await assertHasRedbox(browser)
+        // await waitForRedbox(browser)
         // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
       }
 

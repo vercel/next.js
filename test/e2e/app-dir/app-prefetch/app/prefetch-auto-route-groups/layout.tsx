@@ -5,22 +5,16 @@ import Link from 'next/link'
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <nav className="bg-gray-800">
-        <ul className="flex">
-          <li className="mr-6">
-            <Link href="/prefetch-auto-route-groups">
-              <p className="text-white hover:text-gray-300">Dashboard</p>
-            </Link>
+      <nav style={{ border: '1px solid #1f2937' }}>
+        <ul style={{ display: 'flex' }}>
+          <li style={{ marginRight: '1.5rem' }}>
+            <Link href="/prefetch-auto-route-groups">Dashboard</Link>
           </li>
-          <li className="mr-6">
-            <Link href="/prefetch-auto-route-groups/sub/foo">
-              <p className="text-white hover:text-gray-300">Foo</p>
-            </Link>
+          <li style={{ marginRight: '1.5rem' }}>
+            <Link href="/prefetch-auto-route-groups/sub/foo">Foo</Link>
           </li>
-          <li className="mr-6">
-            <Link href="/prefetch-auto-route-groups/sub/bar">
-              <p className="text-white hover:text-gray-300">Bar</p>
-            </Link>
+          <li style={{ marginRight: '1.5rem' }}>
+            <Link href="/prefetch-auto-route-groups/sub/bar">Bar</Link>
           </li>
         </ul>
       </nav>

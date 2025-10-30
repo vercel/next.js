@@ -6,8 +6,7 @@ use next_core::{
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
-    parse_segment_config_from_source,
-    segment_config::ParseSegmentMode,
+    segment_config::NextSegmentConfig,
     util::{MiddlewareMatcherKind, NextRuntime},
 };
 use tracing::Instrument;
@@ -49,6 +48,8 @@ pub struct MiddlewareEndpoint {
     source: ResolvedVc<Box<dyn Source>>,
     app_dir: Option<FileSystemPath>,
     ecmascript_client_reference_transition_name: Option<RcStr>,
+    config: ResolvedVc<NextSegmentConfig>,
+    runtime: NextRuntime,
 }
 
 #[turbo_tasks::value_impl]
@@ -60,6 +61,8 @@ impl MiddlewareEndpoint {
         source: ResolvedVc<Box<dyn Source>>,
         app_dir: Option<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<RcStr>,
+        config: ResolvedVc<NextSegmentConfig>,
+        runtime: NextRuntime,
     ) -> Vc<Self> {
         Self {
             project,
@@ -67,6 +70,8 @@ impl MiddlewareEndpoint {
             source,
             app_dir,
             ecmascript_client_reference_transition_name,
+            config,
+            runtime,
         }
         .cell()
     }
@@ -81,20 +86,20 @@ impl MiddlewareEndpoint {
             )
             .module();
 
+        let userland_path = userland_module.ident().path().await?;
+        let is_proxy = userland_path.file_stem() == Some("proxy");
+
         let module = get_middleware_module(
             *self.asset_context,
             self.project.project_path().owned().await?,
             userland_module,
+            is_proxy,
         );
 
-        let runtime = parse_segment_config_from_source(*self.source, ParseSegmentMode::Base)
-            .await?
-            .runtime
-            .unwrap_or(NextRuntime::Edge);
-
-        if matches!(runtime, NextRuntime::NodeJs) {
+        if matches!(self.runtime, NextRuntime::NodeJs) {
             return Ok(module);
         }
+
         Ok(wrap_edge_entry(
             *self.asset_context,
             self.project.project_path().owned().await?,
@@ -152,10 +157,7 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-
-        let config =
-            parse_segment_config_from_source(*self.await?.source, ParseSegmentMode::Base).await?;
-        let runtime = config.runtime.unwrap_or(NextRuntime::Edge);
+        let config = this.config.await?;
 
         let next_config = this.project.next_config();
         let i18n = next_config.i18n().await?;
@@ -223,7 +225,7 @@ impl MiddlewareEndpoint {
             }]
         };
 
-        if matches!(runtime, NextRuntime::NodeJs) {
+        if matches!(this.runtime, NextRuntime::NodeJs) {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
             if this.project.next_mode().await?.is_production() {

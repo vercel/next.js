@@ -1,6 +1,6 @@
 import type { Params } from '../../server/request/params'
 
-import { useContext, useMemo, use } from 'react'
+import React, { useContext, useMemo, use } from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -72,7 +72,7 @@ export function useSearchParams(): ReadonlyURLSearchParams {
   }, [searchParams]) as ReadonlyURLSearchParams
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
     const navigationPromises = use(NavigationPromisesContext)
     if (navigationPromises) {
       return use(navigationPromises.searchParams)
@@ -108,7 +108,7 @@ export function usePathname(): string {
   const pathname = useContext(PathnameContext) as string
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
     const navigationPromises = use(NavigationPromisesContext)
     if (navigationPromises) {
       return use(navigationPromises.pathname)
@@ -176,7 +176,7 @@ export function useParams<T extends Params = Params>(): T {
   const params = useContext(PathParamsContext) as T
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
     const navigationPromises = use(NavigationPromisesContext)
     if (navigationPromises) {
       return use(navigationPromises.params) as T
@@ -222,7 +222,7 @@ export function useSelectedLayoutSegments(
   if (!context) return null
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
     const navigationPromises = use(NavigationPromisesContext)
     if (navigationPromises) {
       const promise =
@@ -265,7 +265,11 @@ export function useSelectedLayoutSegment(
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
 
   // Instrument with Suspense DevTools (dev-only)
-  if (process.env.NODE_ENV !== 'production' && navigationPromises) {
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    navigationPromises &&
+    'use' in React
+  ) {
     const promise =
       navigationPromises.selectedLayoutSegmentPromises?.get(parallelRouteKey)
     if (promise) {

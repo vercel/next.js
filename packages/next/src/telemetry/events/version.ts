@@ -40,7 +40,6 @@ type EventCliSessionStarted = {
   reactCompiler: boolean
   reactCompilerCompilationMode: string | null
   reactCompilerPanicThreshold: string | null
-  mcpServer: boolean | null
 }
 
 export function eventCliSession(
@@ -75,7 +74,6 @@ export function eventCliSession(
     | 'reactCompiler'
     | 'reactCompilerCompilationMode'
     | 'reactCompilerPanicThreshold'
-    | 'mcpServer'
     | 'isRspack'
   >
 ): { eventName: string; payload: EventCliSessionStarted }[] {
@@ -134,11 +132,6 @@ export function eventCliSession(
       typeof nextConfig.reactCompiler !== 'boolean'
         ? (nextConfig.reactCompiler?.panicThreshold ?? null)
         : null,
-    // Default mcpServer to true if not set
-    mcpServer:
-      typeof nextConfig.experimental.mcpServer === 'boolean'
-        ? nextConfig.experimental.mcpServer
-        : true,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

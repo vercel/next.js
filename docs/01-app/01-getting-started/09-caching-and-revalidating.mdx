@@ -38,7 +38,7 @@ export default async function Page() {
 }
 ```
 
-> **Good to know**: Although `fetch` requests are not cached by default, Next.js will [prerender](/docs/app/getting-started/partial-prerendering#static-rendering) routes that have `fetch` requests and cache the HTML. If you want to guarantee a route is [dynamic](/docs/app/getting-started/partial-prerendering#dynamic-rendering), use the [`connection` API](/docs/app/api-reference/functions/connection).
+> **Good to know**: Although `fetch` requests are not cached by default, Next.js will [pre-render](/docs/app/guides/caching#static-rendering) routes that have `fetch` requests and cache the HTML. If you want to guarantee a route is [dynamic](/docs/app/guides/caching#dynamic-rendering), use the [`connection` API](/docs/app/api-reference/functions/connection).
 
 To revalidate the data returned by a `fetch` request, you can use the `next.revalidate` option.
 

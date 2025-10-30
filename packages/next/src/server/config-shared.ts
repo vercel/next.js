@@ -272,12 +272,8 @@ export interface LoggingConfig {
 export interface ExperimentalConfig {
   adapterPath?: string
   useSkewCookie?: boolean
-  cacheHandlers?: {
-    default?: string
-    remote?: string
-    static?: string
-    [handlerName: string]: string | undefined
-  }
+  /** @deprecated use top-level `cacheHandlers` instead */
+  cacheHandlers?: NextConfig['cacheHandlers']
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
   prerenderEarlyExit?: boolean
@@ -303,24 +299,13 @@ export interface ExperimentalConfig {
    */
   staleTimes?: {
     dynamic?: number
+    /** Must be greater than or equal to 30 seconds, to ensure prefetching is not completely wasteful */
     static?: number
   }
   /**
    * @deprecated use top-level `cacheLife` instead
    */
-  cacheLife?: {
-    [profile: string]: {
-      // How long the client can cache a value without checking with the server.
-      stale?: number
-      // How frequently you want the cache to refresh on the server.
-      // Stale values may be served while revalidating.
-      revalidate?: number
-      // In the worst case scenario, where you haven't had traffic in a while,
-      // how stale can a value be until you prefer deopting to dynamic.
-      // Must be longer than revalidate.
-      expire?: number
-    }
-  }
+  cacheLife?: NextConfig['cacheLife']
   // decimal for percent for possible false positives
   // e.g. 0.01 for 10% potential false matches lower
   // percent increases size of the filter
@@ -590,11 +575,6 @@ export interface ExperimentalConfig {
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   taint?: boolean
-
-  /**
-   * Enables the Back/Forward Cache for the router.
-   */
-  routerBFCache?: boolean
 
   /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
@@ -1016,6 +996,13 @@ export interface NextConfig {
    * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/incrementalCacheHandlerPath).
    */
   cacheHandler?: string | undefined
+
+  cacheHandlers?: {
+    default?: string
+    remote?: string
+    static?: string
+    [handlerName: string]: string | undefined
+  }
 
   /**
    * Configure the in-memory cache size in bytes. Defaults to 50 MB.
@@ -1452,14 +1439,14 @@ export const defaultConfig = Object.freeze({
       expire: 60 * 60 * 24 * 365, // 1 year
     },
   },
+  cacheHandlers: {
+    default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,
+    remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
+    static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
+  },
   experimental: {
     adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     useSkewCookie: false,
-    cacheHandlers: {
-      default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,
-      remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
-      static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
-    },
     cssChunking: true,
     multiZoneDraftMode: false,
     appNavFailHandling: false,
@@ -1517,7 +1504,6 @@ export const defaultConfig = Object.freeze({
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     viewTransition: false,
-    routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: !!(
       process.env.__NEXT_TEST_MODE || !isStableBuild()

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import {
-  assertHasRedbox,
+  waitForRedbox,
   findPort,
   getRedboxHeader,
   killApp,
@@ -49,7 +49,7 @@ const showsError = async (pathname, regex, click = false, isWarn = false) => {
         return warnLogs.join('\n')
       }, regex)
     } else {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const errorContent = await getRedboxHeader(browser)
       expect(errorContent).toMatch(regex)
     }

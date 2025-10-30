@@ -54,11 +54,11 @@ where
 
 /// Mode that compares the cell's content with the new value and only updates
 /// if the new value is different.
-pub struct VcCellSharedMode<T> {
+pub struct VcCellCompareMode<T> {
     _phantom: PhantomData<T>,
 }
 
-impl<T> VcCellMode<T> for VcCellSharedMode<T>
+impl<T> VcCellMode<T> for VcCellCompareMode<T>
 where
     T: VcValueType + PartialEq,
 {

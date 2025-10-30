@@ -23,11 +23,11 @@ When navigating to the new page, there's no full page reload or browser loading 
 
 ## Prefetching static vs. dynamic routes
 
-|                                                                   | **Static page** | **Dynamic page**                                                                                               |
-| ----------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------- |
-| **Prefetched**                                                    | Yes, full route | No, unless [`loading.js`](/docs/app/api-reference/file-conventions/loading)                                    |
-| [**Client Cache TTL**](/docs/app/guides/caching#full-route-cache) | 5 min (default) | Off, unless [enabled](/docs/app/api-reference/config/next-config-js/staleTimes)                                |
-| **Server roundtrip on click**                                     | No              | Yes, streamed after [shell](/docs/app/getting-started/partial-prerendering#how-does-partial-prerendering-work) |
+|                                                                   | **Static page** | **Dynamic page**                                                                |
+| ----------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------- |
+| **Prefetched**                                                    | Yes, full route | No, unless [`loading.js`](/docs/app/api-reference/file-conventions/loading)     |
+| [**Client Cache TTL**](/docs/app/guides/caching#full-route-cache) | 5 min (default) | Off, unless [enabled](/docs/app/api-reference/config/next-config-js/staleTimes) |
+| **Server roundtrip on click**                                     | No              | Yes, streamed after [shell](/docs/app/getting-started/cache-components)         |
 
 > **Good to know:** During the initial navigation, the browser fetches the HTML, JavaScript, and React Server Components (RSC) Payload. For subsequent navigations, the browser will fetch the RSC Payload for Server Components and JS bundle for Client Components.
 

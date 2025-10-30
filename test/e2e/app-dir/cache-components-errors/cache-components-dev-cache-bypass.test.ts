@@ -28,13 +28,13 @@ describe('Cache Components Errors', () => {
       it('warns if you render with cache-control: no-cache in dev on client navigation', async () => {
         const from = next.cliOutput.length
 
-        await next.fetch('/', {
+        await next.fetch('/other', {
           headers: { 'cache-control': 'no-cache', RSC: '1' },
         })
 
         expect(stripGetLines(next.cliOutput.slice(from)))
           .toMatchInlineSnapshot(`
-         "Route / is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
+         "Route /other is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
          "
         `)
       })

@@ -113,7 +113,12 @@ describe('cache-components', () => {
       }
     })
 
-    it('should partially prerender pages that use params in a client components', async () => {
+    // Since #85155, we intentionally omit search params from client segments
+    // if the page is otherwise static, and resume using a client fetch
+    // instead. So it's expected that the value is missing pre-hydration.
+    // There are separate tests that verify that it is eventually hydrated.
+    // TODO: Rewrite or update this test.
+    it.skip('should partially prerender pages that use params in a client components', async () => {
       expect(getLines('Route "/params')).toEqual([])
 
       let $ = await next.render$(
@@ -291,7 +296,12 @@ describe('cache-components', () => {
       }
     })
 
-    it('should fully prerender pages that check individual param keys after `use`ing params in a client component', async () => {
+    // Since #85155, we intentionally omit search params from client segments
+    // if the page is otherwise static, and resume using a client fetch
+    // instead. So it's expected that the value is missing pre-hydration.
+    // There are separate tests that verify that it is eventually hydrated.
+    // TODO: Rewrite or update this test.
+    it.skip('should fully prerender pages that check individual param keys after `use`ing params in a client component', async () => {
       expect(getLines('Route "/params')).toEqual([])
       let $ = await next.render$(
         '/params/semantics/one/build/layout-has/client'
@@ -475,7 +485,12 @@ describe('cache-components', () => {
       }
     })
 
-    it('should partially prerender pages that spread `use`ed params in a client component', async () => {
+    // Since #85155, we intentionally omit search params from client segments
+    // if the page is otherwise static, and resume using a client fetch
+    // instead. So it's expected that the value is missing pre-hydration.
+    // There are separate tests that verify that it is eventually hydrated.
+    // TODO: Rewrite or update this test.
+    it.skip('should partially prerender pages that spread `use`ed params in a client component', async () => {
       expect(getLines('Route "/params')).toEqual([])
       let $ = await next.render$(
         '/params/semantics/one/build/layout-spread/client'
@@ -611,7 +626,12 @@ describe('cache-components', () => {
       }
     })
 
-    it('should correctly allow param names like then, value, and status when `use`ing params in a client component', async () => {
+    // Since #85155, we intentionally omit search params from client segments
+    // if the page is otherwise static, and resume using a client fetch
+    // instead. So it's expected that the value is missing pre-hydration.
+    // There are separate tests that verify that it is eventually hydrated.
+    // TODO: Rewrite or update this test.
+    it.skip('should correctly allow param names like then, value, and status when `use`ing params in a client component', async () => {
       expect(getLines('Route "/params')).toEqual([])
       let $ = await next.render$(
         '/params/shadowing/foo/bar/baz/qux/layout/client'

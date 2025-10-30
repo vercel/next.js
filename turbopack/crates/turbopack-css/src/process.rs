@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use anyhow::{Result, bail};
 use lightningcss::{
-    css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
+    css_modules::{CssModuleExport, Pattern, Segment},
     stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
     targets::{BrowserslistConfig, Features, Targets},
     traits::ToCss,
@@ -78,12 +78,13 @@ async fn get_lightningcss_browser_targets(
             Ok(if handle_nesting {
                 Vc::cell(Targets {
                     browsers: browserslist_browsers,
-                    include: Features::Nesting,
+                    include: Features::Nesting | Features::MediaRangeSyntax,
                     ..Default::default()
                 })
             } else {
                 Vc::cell(Targets {
                     browsers: browserslist_browsers,
+                    include: Features::MediaRangeSyntax,
                     ..Default::default()
                 })
             })
@@ -192,25 +193,16 @@ pub enum CssWithPlaceholderResult {
     NotFound,
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none")]
 pub enum FinalCssResult {
     Ok {
         #[turbo_tasks(trace_ignore)]
         output_code: String,
 
-        #[turbo_tasks(trace_ignore)]
-        exports: Option<CssModuleExports>,
-
         source_map: ResolvedVc<OptionStringifiedSourceMap>,
     },
     Unparsable,
     NotFound,
-}
-
-impl PartialEq for FinalCssResult {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
 }
 
 #[turbo_tasks::function]
@@ -284,8 +276,8 @@ pub async fn finalize_css(
                     code,
                     ..
                 } => (stylesheet.to_static(options.clone()), *code),
-                ParseCssResult::Unparsable => return Ok(FinalCssResult::Unparsable.into()),
-                ParseCssResult::NotFound => return Ok(FinalCssResult::NotFound.into()),
+                ParseCssResult::Unparsable => return Ok(FinalCssResult::Unparsable.cell()),
+                ParseCssResult::NotFound => return Ok(FinalCssResult::NotFound.cell()),
             };
 
             let url_references = *url_references;
@@ -326,13 +318,12 @@ pub async fn finalize_css(
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
-                exports: result.exports,
                 source_map: ResolvedVc::cell(srcmap),
             }
-            .into())
+            .cell())
         }
-        CssWithPlaceholderResult::Unparsable => Ok(FinalCssResult::Unparsable.into()),
-        CssWithPlaceholderResult::NotFound => Ok(FinalCssResult::NotFound.into()),
+        CssWithPlaceholderResult::Unparsable => Ok(FinalCssResult::Unparsable.cell()),
+        CssWithPlaceholderResult::NotFound => Ok(FinalCssResult::NotFound.cell()),
     }
 }
 

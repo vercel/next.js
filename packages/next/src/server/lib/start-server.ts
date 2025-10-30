@@ -22,11 +22,7 @@ import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import {
-  RESTART_EXIT_CODE,
-  getFormattedDebugAddress,
-  getNodeDebugType,
-} from './utils'
+import { RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
@@ -304,8 +300,6 @@ export async function startServer(
 
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
-      const nodeDebugType = getNodeDebugType()
-
       const addr = server.address()
       const actualHostname = formatHostname(
         typeof addr === 'object'
@@ -344,13 +338,6 @@ export async function startServer(
         : null
 
       const appUrl = `${protocol}://${formattedHostname}:${port}`
-
-      if (nodeDebugType) {
-        const formattedDebugAddress = getFormattedDebugAddress()
-        Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
-        )
-      }
 
       // Store the selected port to:
       // - expose it to render workers
@@ -418,6 +405,24 @@ export async function startServer(
               nextServer?.close().catch(console.error),
               cleanupListeners?.runAll().catch(console.error),
             ])
+
+            // Flush telemetry if this is a dev server
+            if (isDev) {
+              try {
+                const { traceGlobals } =
+                  require('../../trace/shared') as typeof import('../../trace/shared')
+                const telemetry = traceGlobals.get('telemetry') as
+                  | InstanceType<
+                      typeof import('../../telemetry/storage').Telemetry
+                    >
+                  | undefined
+                if (telemetry) {
+                  await telemetry.flush()
+                }
+              } catch (_) {
+                // Ignore telemetry errors during cleanup
+              }
+            }
 
             debug('start-server process cleanup finished')
             process.exit(0)

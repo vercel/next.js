@@ -500,7 +500,8 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
         if this.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
             let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-                this.last_successful_parse.set(real_result_value.clone());
+                this.last_successful_parse
+                    .set_unconditionally(real_result_value.clone());
                 real_result_value
             } else {
                 let state_ref = this.last_successful_parse.get();

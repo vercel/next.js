@@ -6,7 +6,7 @@ import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import globOrig from 'glob'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   check,
   fetchViaHTTP,
   File,
@@ -32,6 +32,8 @@ export const expectedWhenTrailingSlashTrue = [
   '404.html',
   '404/index.html',
   '__next.__PAGE__.txt',
+  '__next._full.txt',
+  '__next._head.txt',
   '__next._index.txt',
   '__next._tree.txt',
   // Turbopack and plain next.js have different hash output for the file name
@@ -45,16 +47,22 @@ export const expectedWhenTrailingSlashTrue = [
     ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
     : []),
   '_next/static/test-build-id/_ssgManifest.js',
+  '_not-found/__next._full.txt',
+  '_not-found/__next._head.txt',
   '_not-found/__next._index.txt',
   '_not-found/__next._not-found.__PAGE__.txt',
   '_not-found/__next._not-found.txt',
   '_not-found/__next._tree.txt',
   '_not-found/index.html',
   '_not-found/index.txt',
+  'another/__next._full.txt',
+  'another/__next._head.txt',
   'another/__next._index.txt',
   'another/__next._tree.txt',
   'another/__next.another.__PAGE__.txt',
   'another/__next.another.txt',
+  'another/first/__next._full.txt',
+  'another/first/__next._head.txt',
   'another/first/__next._index.txt',
   'another/first/__next._tree.txt',
   'another/first/__next.another.$d$slug.__PAGE__.txt',
@@ -64,6 +72,8 @@ export const expectedWhenTrailingSlashTrue = [
   'another/first/index.txt',
   'another/index.html',
   'another/index.txt',
+  'another/second/__next._full.txt',
+  'another/second/__next._head.txt',
   'another/second/__next._index.txt',
   'another/second/__next._tree.txt',
   'another/second/__next.another.$d$slug.__PAGE__.txt',
@@ -73,6 +83,8 @@ export const expectedWhenTrailingSlashTrue = [
   'another/second/index.txt',
   'api/json',
   'api/txt',
+  'client/__next._full.txt',
+  'client/__next._head.txt',
   'client/__next._index.txt',
   'client/__next._tree.txt',
   'client/__next.client.__PAGE__.txt',
@@ -80,6 +92,8 @@ export const expectedWhenTrailingSlashTrue = [
   'client/index.html',
   'client/index.txt',
   'favicon.ico',
+  'image-import/__next._full.txt',
+  'image-import/__next._head.txt',
   'image-import/__next._index.txt',
   'image-import/__next._tree.txt',
   'image-import/__next.image-import.__PAGE__.txt',
@@ -94,6 +108,8 @@ export const expectedWhenTrailingSlashTrue = [
 const expectedWhenTrailingSlashFalse = [
   '404.html',
   '__next.__PAGE__.txt',
+  '__next._full.txt',
+  '__next._head.txt',
   '__next._index.txt',
   '__next._tree.txt',
   // Turbopack will output favicon in the _next/static/media folder
@@ -108,18 +124,24 @@ const expectedWhenTrailingSlashFalse = [
   '_next/static/test-build-id/_ssgManifest.js',
   '_not-found.html',
   '_not-found.txt',
+  '_not-found/__next._full.txt',
+  '_not-found/__next._head.txt',
   '_not-found/__next._index.txt',
   '_not-found/__next._not-found.__PAGE__.txt',
   '_not-found/__next._not-found.txt',
   '_not-found/__next._tree.txt',
   'another.html',
   'another.txt',
+  'another/__next._full.txt',
+  'another/__next._head.txt',
   'another/__next._index.txt',
   'another/__next._tree.txt',
   'another/__next.another.__PAGE__.txt',
   'another/__next.another.txt',
   'another/first.html',
   'another/first.txt',
+  'another/first/__next._full.txt',
+  'another/first/__next._head.txt',
   'another/first/__next._index.txt',
   'another/first/__next._tree.txt',
   'another/first/__next.another.$d$slug.__PAGE__.txt',
@@ -127,6 +149,8 @@ const expectedWhenTrailingSlashFalse = [
   'another/first/__next.another.txt',
   'another/second.html',
   'another/second.txt',
+  'another/second/__next._full.txt',
+  'another/second/__next._head.txt',
   'another/second/__next._index.txt',
   'another/second/__next._tree.txt',
   'another/second/__next.another.$d$slug.__PAGE__.txt',
@@ -136,6 +160,8 @@ const expectedWhenTrailingSlashFalse = [
   'api/txt',
   'client.html',
   'client.txt',
+  'client/__next._full.txt',
+  'client/__next._head.txt',
   'client/__next._index.txt',
   'client/__next._tree.txt',
   'client/__next.client.__PAGE__.txt',
@@ -143,6 +169,8 @@ const expectedWhenTrailingSlashFalse = [
   'favicon.ico',
   'image-import.html',
   'image-import.txt',
+  'image-import/__next._full.txt',
+  'image-import/__next._head.txt',
   'image-import/__next._index.txt',
   'image-import/__next._tree.txt',
   'image-import/__next.image-import.__PAGE__.txt',
@@ -239,7 +267,7 @@ export async function runTests({
       if (isDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
         const browser = await webdriver(port, url)
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         const header = await getRedboxHeader(browser)
         const source = await getRedboxSource(browser)
         if (expectedErrMsg instanceof RegExp) {

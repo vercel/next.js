@@ -1017,7 +1017,7 @@ async fn output_assets_operation(
         .owned()
         .await?
         .join("diagnostics/analyze")?;
-    let module_graphs = project.whole_app_module_graphs();
+    let whole_app_module_graphs = project.whole_app_module_graphs();
     let analyze_output_root = &analyze_output_root;
     let endpoint_assets_and_analyze_data = project
         .get_all_endpoint_groups(app_dir_only)
@@ -1045,12 +1045,14 @@ async fn output_assets_operation(
             .flat_map(|(assets, _)| assets.iter().copied())
             .collect();
 
-    let nft = next_server_nft_assets(container.project()).await?;
+    let nft = next_server_nft_assets(project).await?;
+
+    whole_app_module_graphs.as_side_effect().await?;
 
     let modules_data = ResolvedVc::upcast(
         ModulesDataOutputAsset::new(
             analyze_output_root.join("modules.data")?,
-            Vc::cell(vec![module_graphs.await?.full]),
+            Vc::cell(vec![whole_app_module_graphs.await?.full]),
         )
         .to_resolved()
         .await?,

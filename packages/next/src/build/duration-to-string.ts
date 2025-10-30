@@ -13,7 +13,7 @@ const NANOSECONDS_IN_MINUTE = 60_000_000_000 // 60 * 1_000_000_000
 const MINUTES_THRESHOLD_NANOSECONDS = 120_000_000_000 // 2 minutes in nanoseconds
 const SECONDS_THRESHOLD_HIGH_NANOSECONDS = 40_000_000_000 // 40 seconds in nanoseconds
 const SECONDS_THRESHOLD_LOW_NANOSECONDS = 2_000_000_000 // 2 seconds in nanoseconds
-const MILLISECONDS_THRESHOLD_NANOSECONDS = 1_000_000 // 1 millisecond in nanoseconds
+const MILLISECONDS_THRESHOLD_NANOSECONDS = 2_000_000 // 2 milliseconds in nanoseconds
 
 /**
  * Converts a duration in seconds to a human-readable string format.
@@ -45,21 +45,21 @@ export function durationToString(compilerDuration: number) {
  * - >= 2 minutes: show in minutes with 1 decimal place (e.g., "2.5min")
  * - >= 40 seconds: show in whole seconds (e.g., "45s")
  * - >= 2 seconds: show in seconds with 1 decimal place (e.g., "3.2s")
- * - >= 1 millisecond: show in whole milliseconds (e.g., "250ms")
- * - < 1 millisecond: show in whole microseconds (e.g., "500µs")
+ * - >= 2 milliseconds: show in whole milliseconds (e.g., "250ms")
+ * - < 2 milliseconds: show in whole microseconds (e.g., "500µs")
  *
  * @param durationBigInt - Duration in nanoseconds as a BigInt
  * @returns Formatted duration string with appropriate unit and precision
  */
 function durationToStringWithNanoseconds(durationBigInt: bigint): string {
   const duration = Number(durationBigInt)
-  if (duration > MINUTES_THRESHOLD_NANOSECONDS) {
+  if (duration >= MINUTES_THRESHOLD_NANOSECONDS) {
     return `${(duration / NANOSECONDS_IN_MINUTE).toFixed(1)}min`
-  } else if (duration > SECONDS_THRESHOLD_HIGH_NANOSECONDS) {
+  } else if (duration >= SECONDS_THRESHOLD_HIGH_NANOSECONDS) {
     return `${(duration / NANOSECONDS_PER_SECOND).toFixed(0)}s`
-  } else if (duration > SECONDS_THRESHOLD_LOW_NANOSECONDS) {
+  } else if (duration >= SECONDS_THRESHOLD_LOW_NANOSECONDS) {
     return `${(duration / NANOSECONDS_PER_SECOND).toFixed(1)}s`
-  } else if (duration > MILLISECONDS_THRESHOLD_NANOSECONDS) {
+  } else if (duration >= MILLISECONDS_THRESHOLD_NANOSECONDS) {
     return `${(duration / NANOSECONDS_PER_MILLISECOND).toFixed(0)}ms`
   } else {
     return `${(duration / NANOSECONDS_PER_MICROSECOND).toFixed(0)}µs`

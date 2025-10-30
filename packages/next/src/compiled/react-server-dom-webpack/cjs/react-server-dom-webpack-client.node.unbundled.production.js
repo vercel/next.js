@@ -754,13 +754,24 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
         var listener = resolveListeners[i];
         if ("function" !== typeof listener) {
           var cyclicHandler = resolveBlockedCycle(chunk, listener);
-          null !== cyclicHandler &&
-            (fulfillReference(listener, cyclicHandler.value),
-            resolveListeners.splice(i, 1),
-            i--,
-            null !== rejectListeners &&
-              ((listener = rejectListeners.indexOf(listener)),
-              -1 !== listener && rejectListeners.splice(listener, 1)));
+          if (null !== cyclicHandler)
+            switch (
+              (fulfillReference(listener, cyclicHandler.value),
+              resolveListeners.splice(i, 1),
+              i--,
+              null !== rejectListeners &&
+                ((listener = rejectListeners.indexOf(listener)),
+                -1 !== listener && rejectListeners.splice(listener, 1)),
+              chunk.status)
+            ) {
+              case "fulfilled":
+                wakeChunk(resolveListeners, chunk.value);
+                return;
+              case "rejected":
+                null !== rejectListeners &&
+                  rejectChunk(rejectListeners, chunk.reason);
+                return;
+            }
         }
       }
     case "pending":
