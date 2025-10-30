@@ -176,7 +176,7 @@ import type { ImageLoaderProps } from 'next/image'
 
 export default function imageengineLoader({ src, width, quality }: ImageLoaderProps) {
   const compression = 100 - (quality || 50)
-  const params = [`w_${width}`, `cmpr_${compression}`)]
+  const params = [`w_${width}`, `cmpr_${compression}`]
   return `https://example.com${src}?imgeng=/${params.join('/')`
 }
 ```
