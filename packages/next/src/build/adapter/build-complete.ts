@@ -966,6 +966,18 @@ export async function handleBuildComplete({
               return {} as Record<string, string>
             }
           )
+
+          // If this is a parallel route we just need to merge
+          // the assets as they share the same pathname
+          const existingOutput = appOutputMap[normalizedPage]
+          if (existingOutput) {
+            Object.assign(existingOutput.assets, assets)
+            existingOutput.assets[path.relative(tracingRoot, pageFile)] =
+              pageFile
+
+            continue
+          }
+
           const functionConfig =
             functionsConfigManifest.functions[normalizedPage] || {}
 
