@@ -20,7 +20,7 @@ This `loaderFile` must point to a file relative to the root of your Next.js appl
 
 <AppOnly>
 
-```js filename="my/image/loader.ts"
+```ts filename="my/image/loader.ts"
 'use client'
 
 import type { ImageLoaderProps } from 'next/image'
@@ -40,7 +40,7 @@ To learn more about configuring the behavior of the built-in [Image Optimization
 
 <PagesOnly>
 
-```js filename="my/image/loader.ts"
+```ts filename="my/image/loader.ts"
 import type { ImageLoaderProps } from 'next/image'
 
 export default function myImageLoader({ src, width, quality }: ImageLoaderProps) {
@@ -75,7 +75,7 @@ To learn more about configuring the behavior of the built-in [Image Optimization
 
 ### Akamai
 
-```js
+```ts
 // Docs: https://techdocs.akamai.com/ivm/reference/test-images-on-demand
 import type { ImageLoaderProps } from 'next/image'
 
@@ -86,7 +86,7 @@ export default function akamaiLoader({ src, width, quality }: ImageLoaderProps) 
 
 ### AWS CloudFront
 
-```js
+```ts
 // Docs: https://aws.amazon.com/developer/application-security-performance/articles/image-optimization
 import type { ImageLoaderProps } from 'next/image'
 
@@ -101,7 +101,7 @@ export default function cloudfrontLoader({ src, width, quality }: ImageLoaderPro
 
 ### Cloudinary
 
-```js
+```ts
 // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
 import type { ImageLoaderProps } from 'next/image'
 
@@ -113,7 +113,7 @@ export default function cloudinaryLoader({ src, width, quality }: ImageLoaderPro
 
 ### Cloudflare
 
-```js
+```ts
 // Docs: https://developers.cloudflare.com/images/transform-images
 import type { ImageLoaderProps } from 'next/image'
 
@@ -125,7 +125,7 @@ export default function cloudflareLoader({ src, width, quality }: ImageLoaderPro
 
 ### Contentful
 
-```js
+```ts
 // Docs: https://www.contentful.com/developers/docs/references/images-api/
 import type { ImageLoaderProps } from 'next/image'
 
@@ -140,7 +140,7 @@ export default function contentfulLoader({ src, width, quality }: ImageLoaderPro
 
 ### Fastly
 
-```js
+```ts
 // Docs: https://developer.fastly.com/reference/io/
 import type { ImageLoaderProps } from 'next/image'
 
@@ -155,7 +155,7 @@ export default function fastlyLoader({ src, width, quality }: ImageLoaderProps) 
 
 ### Gumlet
 
-```js
+```ts
 // Docs: https://docs.gumlet.com/reference/image-transform-size
 import type { ImageLoaderProps } from 'next/image'
 
@@ -170,7 +170,7 @@ export default function gumletLoader({ src, width, quality }: ImageLoaderProps) 
 
 ### ImageEngine
 
-```js
+```ts
 // Docs: https://support.imageengine.io/hc/en-us/articles/360058880672-Directives
 import type { ImageLoaderProps } from 'next/image'
 
@@ -183,7 +183,7 @@ export default function imageengineLoader({ src, width, quality }: ImageLoaderPr
 
 ### Imgix
 
-```js
+```ts
 // Demo: https://static.imgix.net/daisy.png?format=auto&fit=max&w=300
 import type { ImageLoaderProps } from 'next/image'
 
@@ -200,7 +200,7 @@ export default function imgixLoader({ src, width, quality }: ImageLoaderProps) {
 
 ### PixelBin
 
-```js
+```ts
 // Doc (Resize): https://www.pixelbin.io/docs/transformations/basic/resize/#width-w
 // Doc (Optimise): https://www.pixelbin.io/docs/optimizations/quality/#image-quality-when-delivering
 // Doc (Auto Format Delivery): https://www.pixelbin.io/docs/optimizations/format/#automatic-format-selection-with-f_auto-url-parameter
@@ -215,7 +215,7 @@ export default function pixelBinLoader({ src, width, quality }: ImageLoaderProps
 
 ### Sanity
 
-```js
+```ts
 // Docs: https://www.sanity.io/docs/image-urls
 import type { ImageLoaderProps } from 'next/image'
 
@@ -235,7 +235,7 @@ export default function sanityLoader({ src, width, quality }: ImageLoaderProps) 
 
 ### Sirv
 
-```js
+```ts
 // Docs: https://sirv.com/help/articles/dynamic-imaging/
 import type { ImageLoaderProps } from 'next/image'
 
@@ -251,7 +251,7 @@ export default function sirvLoader({ src, width, quality }: ImageLoaderProps) {
 
 ### Supabase
 
-```js
+```ts
 // Docs: https://supabase.com/docs/guides/storage/image-transformations#nextjs-loader
 import type { ImageLoaderProps } from 'next/image'
 
@@ -265,7 +265,7 @@ export default function supabaseLoader({ src, width, quality }: ImageLoaderProps
 
 ### Thumbor
 
-```js
+```ts
 // Docs: https://thumbor.readthedocs.io/en/latest/
 import type { ImageLoaderProps } from 'next/image'
 
@@ -277,7 +277,7 @@ export default function thumborLoader({ src, width, quality }: ImageLoaderProps)
 
 ### ImageKit.io
 
-```js
+```ts
 // Docs: https://imagekit.io/docs/image-transformation
 import type { ImageLoaderProps } from 'next/image'
 
@@ -289,7 +289,7 @@ export default function imageKitLoader({ src, width, quality }: ImageLoaderProps
 
 ### Nitrogen AIO
 
-```js
+```ts
 // Docs: https://docs.n7.io/aio/intergrations/
 import type { ImageLoaderProps } from 'next/image'
 
