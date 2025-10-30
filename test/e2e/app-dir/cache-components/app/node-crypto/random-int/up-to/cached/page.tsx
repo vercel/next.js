@@ -20,7 +20,7 @@ export default async function Page() {
   )
 }
 
-async function getRandomIntUpTo(_nonce: number) {
+async function getRandomIntUpTo(nonce: number) {
   'use cache'
-  return crypto.randomInt(128)
+  return crypto.randomInt(2 ** 48 - 1)
 }
