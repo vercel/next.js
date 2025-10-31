@@ -78,7 +78,7 @@ describe('SSG data 404', () => {
           proxy.web(req, res)
         })
 
-        await new Promise((resolve) => {
+        await new Promise<void>((resolve) => {
           proxyServer.listen(proxyPort, () => resolve())
         })
       })
@@ -120,7 +120,7 @@ describe('SSG data 404', () => {
           })
         })
 
-        await new Promise((resolve) => {
+        await new Promise<void>((resolve) => {
           proxyServer.listen(proxyPort, () => resolve())
         })
       })
