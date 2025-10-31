@@ -297,8 +297,9 @@ export async function handler(
   )
 
   // When a page supports cacheComponents, we can support RDC for Navigations
-  const supportsRDCForNavigations =
-    isRoutePPREnabled && nextConfig.cacheComponents === true
+  // TODO (rdc-for-navigations): Enable this once we support passing data currently provided via headers
+  // (eg NEXT_DID_POSTPONE_HEADER and NEXT_STALE_TIME_HEADER) in the body of the response
+  const supportsRDCForNavigations = false
 
   // In development, we always want to generate dynamic HTML.
   const supportsDynamicResponse: boolean =

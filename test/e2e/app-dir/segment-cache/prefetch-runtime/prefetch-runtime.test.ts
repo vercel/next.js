@@ -4,12 +4,10 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
 describe('runtime prefetching', () => {
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    // TODO (runtime-prefetching): investigate failures when deployed to Vercel.
-    skipDeployment: true,
   })
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     it('is skipped', () => {})
     return
   }
