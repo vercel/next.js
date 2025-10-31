@@ -25,7 +25,7 @@ use crate::{
     VcValueTrait, VcValueType,
     backend::{
         Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
-        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
     capture_future::CaptureFuture,
     event::{Event, EventListener},
@@ -160,7 +160,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         task: TaskId,
         index: CellId,
         content: CellContent,
-        never_equal: bool,
+        verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
     fn set_own_task_aggregation_number(&self, task: TaskId, aggregation_number: u32);
@@ -1365,10 +1365,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         task: TaskId,
         index: CellId,
         content: CellContent,
-        never_equal: bool,
+        verification_mode: VerificationMode,
     ) {
         self.backend
-            .update_task_cell(task, index, content, never_equal, self);
+            .update_task_cell(task, index, content, verification_mode, self);
     }
 
     fn connect_task(&self, task: TaskId) {
@@ -1786,7 +1786,7 @@ impl CurrentCellRef {
                 self.current_task,
                 self.index,
                 CellContent(Some(update)),
-                false,
+                VerificationMode::EqualityCheck,
             )
         }
     }
@@ -1869,7 +1869,7 @@ impl CurrentCellRef {
     }
 
     /// Unconditionally updates the content of the cell.
-    pub fn update<T>(&self, new_value: T, never_equal: bool)
+    pub fn update<T>(&self, new_value: T, verification_mode: VerificationMode)
     where
         T: VcValueType,
     {
@@ -1880,7 +1880,7 @@ impl CurrentCellRef {
             CellContent(Some(SharedReference::new(triomphe::Arc::new(
                 <T::Read as VcRead<T>>::value_to_repr(new_value),
             )))),
-            never_equal,
+            verification_mode,
         )
     }
 
@@ -1892,9 +1892,13 @@ impl CurrentCellRef {
     ///
     /// The [`SharedReference`] is expected to use the `<T::Read as
     /// VcRead<T>>::Repr` type for its representation of the value.
-    pub fn update_with_shared_reference(&self, shared_ref: SharedReference, never_equal: bool) {
+    pub fn update_with_shared_reference(
+        &self,
+        shared_ref: SharedReference,
+        verification_mode: VerificationMode,
+    ) {
         let tt = turbo_tasks();
-        let update = if !never_equal {
+        let update = if matches!(verification_mode, VerificationMode::EqualityCheck) {
             let content = tt
                 .read_own_task_cell(
                     self.current_task,
@@ -1920,7 +1924,7 @@ impl CurrentCellRef {
                 self.current_task,
                 self.index,
                 CellContent(Some(shared_ref)),
-                never_equal,
+                verification_mode,
             )
         }
     }

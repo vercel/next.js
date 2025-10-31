@@ -18,7 +18,7 @@ use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
     CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
     ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
-    backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
+    backend::{CellContent, TaskCollectiblesMap, TypedCellContent, VerificationMode},
     event::{Event, EventListener},
     message_queue::CompilationEvent,
     test_helpers::with_turbo_tasks_for_testing,
@@ -266,7 +266,7 @@ impl TurboTasksApi for VcStorage {
         task: TaskId,
         index: CellId,
         content: CellContent,
-        _never_equal: bool,
+        _verification_mode: VerificationMode,
     ) {
         let mut map = self.cells.lock().unwrap();
         let cell = map.entry((task, index)).or_default();

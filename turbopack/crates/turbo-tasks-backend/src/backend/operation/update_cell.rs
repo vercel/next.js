@@ -2,6 +2,8 @@ use std::mem::take;
 
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+#[cfg(not(feature = "verify_determinism"))]
+use turbo_tasks::backend::VerificationMode;
 use turbo_tasks::{CellId, TaskId, TypedSharedReference, backend::CellContent};
 
 #[cfg(feature = "trace_task_dirty")]
@@ -44,8 +46,8 @@ impl UpdateCellOperation {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
-        #[cfg(feature = "verify_determinism")] never_equal: bool,
-        #[cfg(not(feature = "verify_determinism"))] _never_equal: bool,
+        #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
+        #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext,
     ) {
         let content = if let CellContent(Some(new_content)) = content {
@@ -74,10 +76,13 @@ impl UpdateCellOperation {
 
                 // Check if this assumption holds.
                 #[cfg(feature = "verify_determinism")]
-                if !is_stateful && !never_equal && content.as_ref() != old_content {
+                if !is_stateful
+                    && matches!(verification_mode, VerificationMode::EqualityCheck)
+                    && content.as_ref() != old_content
+                {
                     let task_description = ctx.get_task_description(task_id);
                     let cell_type = turbo_tasks::registry::get_value_type(cell.type_id).global_name;
-                    println!(
+                    eprintln!(
                         "Task {} updated cell #{} (type: {}) while recomputing",
                         task_description, cell.index, cell_type
                     );

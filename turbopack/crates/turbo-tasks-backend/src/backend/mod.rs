@@ -31,7 +31,7 @@ use turbo_tasks::{
     TraitTypeId, TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
-        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
     event::{Event, EventListener},
     message_queue::TimingEvent,
@@ -2681,14 +2681,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
-        never_equal: bool,
+        verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::UpdateCellOperation::run(
             task_id,
             cell,
             content,
-            never_equal,
+            verification_mode,
             self.execute_context(turbo_tasks),
         );
     }
@@ -3282,11 +3282,11 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
-        never_equal: bool,
+        verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0
-            .update_task_cell(task_id, cell, content, never_equal, turbo_tasks);
+            .update_task_cell(task_id, cell, content, verification_mode, turbo_tasks);
     }
 
     fn mark_own_task_as_finished(
