@@ -63,12 +63,27 @@ export function parseDynamicParamFromURLPart(
   // This needs to match the behavior in get-dynamic-param.ts.
   switch (paramType) {
     // Catchalls
-    case 'c':
-    case 'ci': {
+    case 'c': {
       // Catchalls receive all the remaining URL parts. If there are no
       // remaining pathname parts, return an empty array.
       return partIndex < pathnameParts.length
         ? pathnameParts.slice(partIndex).map((s) => encodeURIComponent(s))
+        : []
+    }
+    // Catchall intercepted
+    case 'ci(..)(..)':
+    case 'ci(.)':
+    case 'ci(..)':
+    case 'ci(...)': {
+      const prefix = paramType.length - 2
+      return partIndex < pathnameParts.length
+        ? pathnameParts.slice(partIndex).map((s, i) => {
+            if (i === 0) {
+              return encodeURIComponent(s.slice(prefix))
+            }
+
+            return encodeURIComponent(s)
+          })
         : []
     }
     // Optional catchalls
@@ -80,8 +95,7 @@ export function parseDynamicParamFromURLPart(
         : null
     }
     // Dynamic
-    case 'd':
-    case 'di': {
+    case 'd': {
       if (partIndex >= pathnameParts.length) {
         // The route tree expected there to be more parts in the URL than there
         // actually are. This could happen if the x-nextjs-rewritten-path header
@@ -93,6 +107,25 @@ export function parseDynamicParamFromURLPart(
         return ''
       }
       return encodeURIComponent(pathnameParts[partIndex])
+    }
+    // Dynamic intercepted
+    case 'di(..)(..)':
+    case 'di(.)':
+    case 'di(..)':
+    case 'di(...)': {
+      const prefix = paramType.length - 2
+      if (partIndex >= pathnameParts.length) {
+        // The route tree expected there to be more parts in the URL than there
+        // actually are. This could happen if the x-nextjs-rewritten-path header
+        // is incorrectly set, or potentially due to bug in Next.js. TODO:
+        // Should this be a hard error? During a prefetch, we can just abort.
+        // During a client navigation, we could trigger a hard refresh. But if
+        // it happens during initial render, we don't really have any
+        // recovery options.
+        return ''
+      }
+
+      return encodeURIComponent(pathnameParts[partIndex].slice(prefix))
     }
     default:
       paramType satisfies never

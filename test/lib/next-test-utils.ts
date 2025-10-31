@@ -700,7 +700,7 @@ export async function startCleanStaticServer(dir: string) {
  */
 export async function check(
   contentFn: () => unknown | Promise<unknown>,
-  regex: any
+  regex: boolean | number | string | RegExp
 ): Promise<boolean> {
   let content: unknown
   let lastErr: unknown
@@ -712,7 +712,7 @@ export async function check(
         if (regex === content) {
           return true
         }
-      } else if (regex.test(content)) {
+      } else if (regex.test('' + content)) {
         // found the content
         return true
       }

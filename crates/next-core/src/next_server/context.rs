@@ -16,7 +16,7 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, MangleType, MinifyType, SourceMapsType,
+        ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
         module_id_strategies::ModuleIdStrategy,
     },
     compile_time_defines,
@@ -1060,9 +1060,13 @@ pub async fn get_server_chunking_context_with_client_assets(
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?);
 
-    if next_mode.is_development() {
-        builder = builder.use_file_source_map_uris();
+    builder = builder.source_map_source_type(if next_mode.is_development() {
+        SourceMapSourceType::AbsoluteFileUri
     } else {
+        // TODO(lukesandberg): switch to relative once next is compatible.
+        SourceMapSourceType::TurbopackUri
+    });
+    if next_mode.is_production() {
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
@@ -1142,9 +1146,11 @@ pub async fn get_server_chunking_context(
     .debug_ids(*debug_ids.await?);
 
     if next_mode.is_development() {
-        builder = builder.use_file_source_map_uris()
+        builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
     } else {
         builder = builder
+            // TODO(lukesandberg): switch to relative once next is compatible.
+            .source_map_source_type(SourceMapSourceType::TurbopackUri)
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
