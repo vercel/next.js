@@ -3,19 +3,17 @@ import * as fs from 'fs'
 
 // Cache for fs.readdirSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
-const fsReadDirSyncCache = {}
+const fsReadDirSyncCache: Record<string, fs.Dirent[]> = {}
 
 /**
  * Recursively parse directory for page URLs.
  */
-function parseUrlForPages(urlprefix: string, directory: string) {
+function parseUrlForPages(urlprefix: string, directory: string): string[] {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
-  const res = []
+  const res: string[] = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
     if (/(\.(j|t)sx?)$/.test(dirent.name)) {
       if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
         res.push(
@@ -36,14 +34,12 @@ function parseUrlForPages(urlprefix: string, directory: string) {
 /**
  * Recursively parse app directory for URLs.
  */
-function parseUrlForAppDir(urlprefix: string, directory: string) {
+function parseUrlForAppDir(urlprefix: string, directory: string): string[] {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
-  const res = []
+  const res: string[] = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
     if (/(\.(j|t)sx?)$/.test(dirent.name)) {
       if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
         res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
@@ -52,8 +48,8 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
+        res.push(...parseUrlForAppDir(urlprefix + dirent.name + '/', dirPath))
       }
     }
   })
@@ -63,17 +59,16 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
 /**
  * Takes a URL and does the following things.
  *  - Replaces `index.html` with `/`
- *  - Makes sure all URLs are have a trailing `/`
+ *  - Makes sure all URLs have a trailing `/`
  *  - Removes query string
  */
 export function normalizeURL(url: string) {
   if (!url) {
-    return
+    return ''
   }
   url = url.split('?', 1)[0]
   url = url.split('#', 1)[0]
-  url = url = url.replace(/(\/index\.html)$/, '/')
-  // Empty URLs should not be trailed with `/`, e.g. `#heading`
+  url = url.replace(/(\/index\.html)$/, '/')
   if (url === '') {
     return url
   }
@@ -82,43 +77,23 @@ export function normalizeURL(url: string) {
 }
 
 /**
- * Normalizes an app route so it represents the actual request path. Essentially
- * performing the following transformations:
- *
- * - `/(dashboard)/user/[id]/page` to `/user/[id]`
- * - `/(dashboard)/account/page` to `/account`
- * - `/user/[id]/page` to `/user/[id]`
- * - `/account/page` to `/account`
- * - `/page` to `/`
- * - `/(dashboard)/user/[id]/route` to `/user/[id]`
- * - `/(dashboard)/account/route` to `/account`
- * - `/user/[id]/route` to `/user/[id]`
- * - `/account/route` to `/account`
- * - `/route` to `/`
- * - `/` to `/`
- *
- * @param route the app route to normalize
- * @returns the normalized pathname
+ * Normalizes an app route so it represents the actual request path.
  */
 export function normalizeAppPath(route: string) {
   return ensureLeadingSlash(
     route.split('/').reduce((pathname, segment, index, segments) => {
-      // Empty segments are ignored.
       if (!segment) {
         return pathname
       }
 
-      // Groups are ignored.
       if (isGroupSegment(segment)) {
         return pathname
       }
 
-      // Parallel segments are ignored.
       if (segment[0] === '@') {
         return pathname
       }
 
-      // The last segment (if it's a leaf) should be ignored.
       if (
         (segment === 'page' || segment === 'route') &&
         index === segments.length - 1
@@ -139,14 +114,10 @@ export function getUrlFromPagesDirectories(
   directories: string[]
 ) {
   return Array.from(
-    // De-duplicate similar pages across multiple directories.
     new Set(
       directories
         .flatMap((directory) => parseUrlForPages(urlPrefix, directory))
-        .map(
-          // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
-          (url) => `^${normalizeURL(url)}$`
-        )
+        .map((url) => `^${normalizeURL(url)}$`)
     )
   ).map((urlReg) => {
     urlReg = urlReg.replace(/\[.*\]/g, '((?!.+?\\..+?).*?)')
@@ -159,15 +130,10 @@ export function getUrlFromAppDirectory(
   directories: string[]
 ) {
   return Array.from(
-    // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .map((directory) => parseUrlForAppDir(urlPrefix, directory))
-        .flat()
-        .map(
-          // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
-          (url) => `^${normalizeAppPath(url)}$`
-        )
+        .flatMap((directory) => parseUrlForAppDir(urlPrefix, directory))
+        .map((url) => `^${normalizeAppPath(url)}$`)
     )
   ).map((urlReg) => {
     urlReg = urlReg.replace(/\[.*\]/g, '((?!.+?\\..+?).*?)')
