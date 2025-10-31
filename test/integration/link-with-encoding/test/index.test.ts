@@ -40,11 +40,10 @@ describe('Link Component with Encoding', () => {
             { pathname: encodeURI('/single/hello world ') }
           )`
         )
-        await check(() => browser.hasElementByCssSelector('#query-content'), {
-          test(val) {
-            return Boolean(val)
-          },
-        })
+        await check(
+          () => browser.hasElementByCssSelector('#query-content'),
+          true
+        )
         const text = await browser.elementByCss('#query-content').text()
         expect(text).toMatchInlineSnapshot(`"{"slug":"hello world "}"`)
       } finally {
@@ -57,11 +56,10 @@ describe('Link Component with Encoding', () => {
       try {
         await waitFor(2000)
         await browser.elementByCss('#single-spaces').click()
-        await check(() => browser.hasElementByCssSelector('#query-content'), {
-          test(val) {
-            return Boolean(val)
-          },
-        })
+        await check(
+          () => browser.hasElementByCssSelector('#query-content'),
+          true
+        )
         const text = await browser.elementByCss('#query-content').text()
         expect(text).toMatchInlineSnapshot(`"{"slug":"hello world "}"`)
       } finally {
@@ -91,11 +89,10 @@ describe('Link Component with Encoding', () => {
             { pathname: encodeURI('/single/hello%world') }
           )`
         )
-        await check(() => browser.hasElementByCssSelector('#query-content'), {
-          test(val) {
-            return Boolean(val)
-          },
-        })
+        await check(
+          () => browser.hasElementByCssSelector('#query-content'),
+          true
+        )
         const text = await browser.elementByCss('#query-content').text()
         expect(text).toMatchInlineSnapshot(`"{"slug":"hello%world"}"`)
       } finally {
@@ -108,11 +105,10 @@ describe('Link Component with Encoding', () => {
       try {
         await waitFor(2000)
         await browser.elementByCss('#single-percent').click()
-        await check(() => browser.hasElementByCssSelector('#query-content'), {
-          test(val) {
-            return Boolean(val)
-          },
-        })
+        await check(
+          () => browser.hasElementByCssSelector('#query-content'),
+          true
+        )
         const text = await browser.elementByCss('#query-content').text()
         expect(text).toMatchInlineSnapshot(`"{"slug":"hello%world"}"`)
       } finally {
@@ -145,11 +141,10 @@ describe('Link Component with Encoding', () => {
             { pathname: '/single/hello${encodeURIComponent('/')}world' }
           )`
         )
-        await check(() => browser.hasElementByCssSelector('#query-content'), {
-          test(val) {
-            return Boolean(val)
-          },
-        })
+        await check(
+          () => browser.hasElementByCssSelector('#query-content'),
+          true
+        )
         const text = await browser.elementByCss('#query-content').text()
         expect(text).toMatchInlineSnapshot(`"{"slug":"hello/world"}"`)
       } finally {
@@ -162,11 +157,10 @@ describe('Link Component with Encoding', () => {
       try {
         await waitFor(2000)
         await browser.elementByCss('#single-slash').click()
-        await check(() => browser.hasElementByCssSelector('#query-content'), {
-          test(val) {
-            return Boolean(val)
-          },
-        })
+        await check(
+          () => browser.hasElementByCssSelector('#query-content'),
+          true
+        )
         const text = await browser.elementByCss('#query-content').text()
         expect(text).toMatchInlineSnapshot(`"{"slug":"hello/world"}"`)
       } finally {
@@ -203,11 +197,10 @@ describe('Link Component with Encoding', () => {
             { pathname: '/single/hello${encodeURIComponent('"')}world' }
           )`
         )
-        await check(() => browser.hasElementByCssSelector('#query-content'), {
-          test(val) {
-            return Boolean(val)
-          },
-        })
+        await check(
+          () => browser.hasElementByCssSelector('#query-content'),
+          true
+        )
         const text = await browser.elementByCss('#query-content').text()
         expect(JSON.parse(text)).toMatchInlineSnapshot(`
           {
@@ -224,11 +217,10 @@ describe('Link Component with Encoding', () => {
       try {
         await waitFor(2000)
         await browser.elementByCss('#single-double-quote').click()
-        await check(() => browser.hasElementByCssSelector('#query-content'), {
-          test(val) {
-            return Boolean(val)
-          },
-        })
+        await check(
+          () => browser.hasElementByCssSelector('#query-content'),
+          true
+        )
         const text = await browser.elementByCss('#query-content').text()
         expect(JSON.parse(text)).toMatchInlineSnapshot(`
           {
@@ -265,11 +257,10 @@ describe('Link Component with Encoding', () => {
             { pathname: '/single/hello${encodeURIComponent(':')}world' }
           )`
         )
-        await check(() => browser.hasElementByCssSelector('#query-content'), {
-          test(val) {
-            return Boolean(val)
-          },
-        })
+        await check(
+          () => browser.hasElementByCssSelector('#query-content'),
+          true
+        )
         const text = await browser.elementByCss('#query-content').text()
         expect(text).toMatchInlineSnapshot(`"{"slug":"hello:world"}"`)
       } finally {
@@ -282,11 +273,10 @@ describe('Link Component with Encoding', () => {
       try {
         await waitFor(2000)
         await browser.elementByCss('#single-colon').click()
-        await check(() => browser.hasElementByCssSelector('#query-content'), {
-          test(val) {
-            return Boolean(val)
-          },
-        })
+        await check(
+          () => browser.hasElementByCssSelector('#query-content'),
+          true
+        )
         const text = await browser.elementByCss('#query-content').text()
         expect(text).toMatchInlineSnapshot(`"{"slug":"hello:world"}"`)
       } finally {

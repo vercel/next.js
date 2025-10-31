@@ -82,8 +82,10 @@ const runTests = (isDev) => {
           linkPreload = { index, attribs }
         }
       })
-    expect(metaViewport.attribs.content).toContain('width=device-width')
-    expect(linkPreload.attribs.imagesrcset).toMatch(
+    expect((metaViewport.attribs as any).content).toContain(
+      'width=device-width'
+    )
+    expect((linkPreload.attribs as any).imagesrcset).toMatch(
       /%2F_next%2Fstatic%2Fmedia%2Ftest-rect\.(.*)\.jpg/g
     )
     expect(metaViewport.index).toBeLessThan(linkPreload.index)

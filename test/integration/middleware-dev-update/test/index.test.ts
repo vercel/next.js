@@ -10,6 +10,8 @@ import {
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
+let app
+let appPort
 const context = {
   appDir: join(__dirname, '../'),
   logs: { output: '', stdout: '', stderr: '' },
@@ -19,8 +21,8 @@ const context = {
 describe('Middleware development errors', () => {
   beforeEach(async () => {
     context.logs = { output: '', stdout: '', stderr: '' }
-    context.appPort = await findPort()
-    context.app = await launchApp(context.appDir, context.appPort, {
+    appPort = await findPort()
+    app = await launchApp(context.appDir, appPort, {
       onStdout(msg) {
         context.logs.output += msg
         context.logs.stdout += msg
@@ -34,14 +36,14 @@ describe('Middleware development errors', () => {
 
   afterEach(async () => {
     context.middleware.restore()
-    if (context.app) {
-      await killApp(context.app)
+    if (app) {
+      await killApp(app)
     }
   })
 
   async function assertMiddlewareFetch(hasMiddleware, path = '/') {
     await check(async () => {
-      const res = await fetchViaHTTP(context.appPort, path)
+      const res = await fetchViaHTTP(appPort, path)
       expect(res.status).toBe(200)
       expect(res.headers.get('x-from-middleware')).toBe(
         hasMiddleware ? 'true' : null
@@ -51,7 +53,7 @@ describe('Middleware development errors', () => {
   }
 
   async function assertMiddlewareRender(hasMiddleware, path = '/') {
-    const browser = await webdriver(context.appPort, path)
+    const browser = await webdriver(appPort, path)
     const fromMiddleware = await browser.elementById('from-middleware').text()
     expect(fromMiddleware).toBe(hasMiddleware ? 'true' : 'null')
   }

@@ -13,19 +13,16 @@ import {
   initNextServerScript,
 } from 'next-test-utils'
 
+let app
+let appPort
 const appDir = join(__dirname, '../')
-const context = {}
 
-const startServer = async (optEnv = {}, opts) => {
+const startServer = async (optEnv = {}, opts?: any) => {
   const scriptPath = join(appDir, 'server.js')
-  context.appPort = await getPort()
-  const env = Object.assign(
-    { ...process.env },
-    { PORT: `${context.appPort}` },
-    optEnv
-  )
+  appPort = await getPort()
+  const env = Object.assign({ ...process.env }, { PORT: `${appPort}` }, optEnv)
 
-  context.server = await initNextServerScript(scriptPath, /ready on/i, env)
+  app = await initNextServerScript(scriptPath, /ready on/i, env)
 }
 
 // Tests are skipped in Turbopack because they are not relevant to Turbopack.
@@ -42,33 +39,30 @@ const startServer = async (optEnv = {}, opts) => {
     })
     afterAll(async () => {
       global.isNextDev = originalIsNextDev
-      await killApp(context.server)
+      await killApp(app)
     })
 
     it('should compile pages for SSR', async () => {
       // The buffer of built page uses the on-demand-entries-ping to know which pages should be
       // buffered. Therefore, we need to double each render call with a ping.
-      const pageContent = await renderViaHTTP(context.appPort, '/')
+      const pageContent = await renderViaHTTP(appPort, '/')
       expect(pageContent.includes('Index Page')).toBeTrue()
     })
 
     it('should compile pages for JSON page requests', async () => {
-      await renderViaHTTP(context.appPort, '/about')
+      await renderViaHTTP(appPort, '/about')
       const pageFile = getPageFileFromBuildManifest(appDir, '/about')
-      const pageContent = await renderViaHTTP(
-        context.appPort,
-        join('/_next', pageFile)
-      )
+      const pageContent = await renderViaHTTP(appPort, join('/_next', pageFile))
       expect(pageContent.includes('About Page')).toBeTrue()
     })
 
     it('should dispose inactive pages', async () => {
-      await renderViaHTTP(context.appPort, '/')
+      await renderViaHTTP(appPort, '/')
 
       // Render two pages after the index, since the server keeps at least two pages
-      await renderViaHTTP(context.appPort, '/about')
+      await renderViaHTTP(appPort, '/about')
 
-      await renderViaHTTP(context.appPort, '/third')
+      await renderViaHTTP(appPort, '/third')
 
       // Wait maximum of jest.setTimeout checking
       // for disposing /about
@@ -90,7 +84,7 @@ const startServer = async (optEnv = {}, opts) => {
     it('should navigate to pages with dynamic imports', async () => {
       let browser
       try {
-        browser = await webdriver(context.appPort, '/nav')
+        browser = await webdriver(appPort, '/nav')
 
         await browser.eval('document.getElementById("to-dynamic").click()')
 

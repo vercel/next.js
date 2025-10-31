@@ -58,7 +58,7 @@ describe('next/dynamic with assetPrefix', () => {
         cdnPort = await findPort()
         // lightweight http proxy
         cdn = createServer((clientReq, clientRes) => {
-          const proxyPath = clientReq.url.slice('/path-prefix'.length)
+          const proxyPath = clientReq.url!.slice('/path-prefix'.length)
           const proxyReq = request(
             {
               hostname: 'localhost',
@@ -71,7 +71,7 @@ describe('next/dynamic with assetPrefix', () => {
               // cdn must be configured to allow requests from this origin
               proxyRes.headers['Access-Control-Allow-Origin'] =
                 `http://localhost:${appPort}`
-              clientRes.writeHead(proxyRes.statusCode, proxyRes.headers)
+              clientRes.writeHead(proxyRes.statusCode!, proxyRes.headers)
               // [NOTE] if socket doesn't have a handler to error event and if error
               // event leaks, node.js ends its process with errored exit code.
               // However, there can be failing socket event while running test
@@ -105,7 +105,7 @@ describe('next/dynamic with assetPrefix', () => {
       afterAll(() => cdn.close())
       afterAll(() => nextConfig.restore())
 
-      runTests(true)
+      runTests()
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -115,7 +115,7 @@ describe('next/dynamic with assetPrefix', () => {
         cdnPort = await findPort()
         // lightweight http proxy
         cdn = createServer((clientReq, clientRes) => {
-          const proxyPath = clientReq.url.slice('/path-prefix'.length)
+          const proxyPath = clientReq.url!.slice('/path-prefix'.length)
           const proxyReq = request(
             {
               hostname: 'localhost',
@@ -128,7 +128,7 @@ describe('next/dynamic with assetPrefix', () => {
               // cdn must be configured to allow requests from this origin
               proxyRes.headers['Access-Control-Allow-Origin'] =
                 `http://localhost:${appPort}`
-              clientRes.writeHead(proxyRes.statusCode, proxyRes.headers)
+              clientRes.writeHead(proxyRes.statusCode!, proxyRes.headers)
               // [NOTE] if socket doesn't have a handler to error event and if error
               // event leaks, node.js ends its process with errored exit code.
               // However, there can be failing socket event while running test

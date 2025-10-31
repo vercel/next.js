@@ -54,18 +54,14 @@ const urlPaths = [
 const modePaths = ['fallback-blocking', 'fallback-false', 'fallback-true']
 const pagesDir = join(appDir, '.next/server/pages')
 
-function runTests(isDev) {
+function runTests(isDev: boolean) {
   if (!isDev) {
     it('should output paths correctly', async () => {
       for (const path of prerenderedPaths) {
         for (const mode of modePaths) {
           console.log('checking output', { path, mode })
-          expect(await fs.exists(join(pagesDir, mode, path + '.html'))).toBe(
-            true
-          )
-          expect(await fs.exists(join(pagesDir, mode, path + '.json'))).toBe(
-            true
-          )
+          expect(fs.existsSync(join(pagesDir, mode, path + '.html'))).toBe(true)
+          expect(fs.existsSync(join(pagesDir, mode, path + '.json'))).toBe(true)
         }
       }
     })
@@ -112,18 +108,12 @@ function runTests(isDev) {
               // we don't block on writing incremental data to the
               // disk so use check
               await check(
-                () =>
-                  fs
-                    .exists(join(pagesDir, mode, path + '.html'))
-                    .then((res) => (res ? 'yes' : 'no')),
-                'yes'
+                () => fs.existsSync(join(pagesDir, mode, path + '.html')),
+                true
               )
               await check(
-                () =>
-                  fs
-                    .exists(join(pagesDir, mode, path + '.json'))
-                    .then((res) => (res ? 'yes' : 'no')),
-                'yes'
+                () => fs.existsSync(join(pagesDir, mode, path + '.json')),
+                true
               )
             }
 
@@ -352,7 +342,7 @@ describe('Fallback path encoding', () => {
       })
       afterAll(() => killApp(app))
 
-      runTests()
+      runTests(false)
     }
   )
 })

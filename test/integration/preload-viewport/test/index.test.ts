@@ -52,7 +52,7 @@ describe('Prefetching Links in viewport', () => {
           console.warn('Failed to proxy', err)
         })
 
-        await new Promise((resolve) => {
+        await new Promise<void>((resolve) => {
           proxyServer.listen(appPort, () => resolve())
         })
       })
@@ -65,9 +65,10 @@ describe('Prefetching Links in viewport', () => {
         nextDataRequests = []
         const browser = await webdriver(appPort, '/')
         await browser.eval(function navigate() {
-          window.next.router.push('/ssg/slow')
-          window.next.router.push('/ssg/slow')
-          window.next.router.push('/ssg/slow')
+          ;(window as any).next.router
+            .push('/ssg/slow')(window as any)
+            .next.router.push('/ssg/slow')(window as any)
+            .next.router.push('/ssg/slow')
         })
         await browser.waitForElementByCss('#content')
         expect(
@@ -550,7 +551,7 @@ describe('Prefetching Links in viewport', () => {
           'utf8'
         )
 
-        let self = {}
+        let self: Record<string, any> = {}
         // eslint-disable-next-line no-eval
         eval(content)
         expect([...self.__SSG_MANIFEST].sort()).toMatchInlineSnapshot(`

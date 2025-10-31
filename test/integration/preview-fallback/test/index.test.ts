@@ -26,7 +26,7 @@ const getCacheFile = (path = '') => {
   return join(appDir, '.next', 'server', 'pages', path)
 }
 
-function runTests(isDev) {
+function runTests(isDev: boolean) {
   it('should get preview cookie correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/api/enable')
     previewCookie = ''
@@ -39,15 +39,15 @@ function runTests(isDev) {
       .get('set-cookie')
       .split(',')
       .forEach((c) => {
-        c = cookie.parse(c)
-        const isBypass = c.__prerender_bypass
+        const cookies = cookie.parse(c)
+        const isBypass = cookies.__prerender_bypass
 
-        if (isBypass || c.__next_preview_data) {
+        if (isBypass || cookies.__next_preview_data) {
           if (previewCookie) previewCookie += '; '
 
           previewCookie += `${
             isBypass ? '__prerender_bypass' : '__next_preview_data'
-          }=${c[isBypass ? '__prerender_bypass' : '__next_preview_data']}`
+          }=${cookies[isBypass ? '__prerender_bypass' : '__next_preview_data']}`
         }
       })
   })
@@ -155,9 +155,7 @@ function runTests(isDev) {
     })
 
     if (!isDev) {
-      expect(await fs.exists(getCacheFile('no-fallback/second.html'))).toBe(
-        false
-      )
+      expect(fs.existsSync(getCacheFile('no-fallback/second.html'))).toBe(false)
     }
 
     const res2 = await fetchViaHTTP(appPort, '/no-fallback/second')
@@ -290,7 +288,7 @@ describe('Preview mode with fallback pages', () => {
       })
       afterAll(() => killApp(app))
 
-      runTests()
+      runTests(false)
     }
   )
 })

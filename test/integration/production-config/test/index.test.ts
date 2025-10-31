@@ -41,7 +41,7 @@ describe('Production Config Usage', () => {
       describe('env', () => {
         it('should fail with leading __ in env key', async () => {
           const result = await runNextCommand(['build', appDir], {
-            env: { ENABLE_ENV_FAIL_UNDERSCORE: true },
+            env: { ENABLE_ENV_FAIL_UNDERSCORE: 'true' },
             stdout: true,
             stderr: true,
           })
@@ -51,7 +51,7 @@ describe('Production Config Usage', () => {
 
         it('should fail with NODE_ in env key', async () => {
           const result = await runNextCommand(['build', appDir], {
-            env: { ENABLE_ENV_FAIL_NODE: true },
+            env: { ENABLE_ENV_FAIL_NODE: 'true' },
             stdout: true,
             stderr: true,
           })
@@ -61,7 +61,7 @@ describe('Production Config Usage', () => {
 
         it('should fail with NEXT_RUNTIME in env key', async () => {
           const result = await runNextCommand(['build', appDir], {
-            env: { ENABLE_ENV_NEXT_PRESERVED: true },
+            env: { ENABLE_ENV_NEXT_PRESERVED: 'true' },
             stdout: true,
             stderr: true,
           })
@@ -71,7 +71,7 @@ describe('Production Config Usage', () => {
 
         it('should allow __ within env key', async () => {
           const result = await runNextCommand(['build', appDir], {
-            env: { ENABLE_ENV_WITH_UNDERSCORES: true },
+            env: { ENABLE_ENV_WITH_UNDERSCORES: 'true' },
             stdout: true,
             stderr: true,
           })

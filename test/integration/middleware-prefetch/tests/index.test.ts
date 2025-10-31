@@ -14,6 +14,8 @@ import {
 
 jest.setTimeout(1000 * 60 * 2)
 
+let appPort
+let app
 const context = {
   appDir: join(__dirname, '../'),
   buildLogs: { output: '', stdout: '', stderr: '' },
@@ -24,27 +26,23 @@ describe('Middleware Production Prefetch', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
-      afterAll(() => killApp(context.app))
+      afterAll(() => killApp(app))
       beforeAll(async () => {
         const build = await nextBuild(context.appDir, undefined, {
           stderr: true,
           stdout: true,
         })
 
-        context.buildId = await fs.readFile(
-          join(context.appDir, '.next/BUILD_ID'),
-          'utf8'
-        )
+        await fs.readFile(join(context.appDir, '.next/BUILD_ID'), 'utf8')
 
         context.buildLogs = {
           output: build.stdout + build.stderr,
           stderr: build.stderr,
           stdout: build.stdout,
         }
-        context.dev = false
 
-        context.appPort = await findPort()
-        context.app = await nextStart(context.appDir, context.appPort, {
+        appPort = await findPort()
+        app = await nextStart(context.appDir, appPort, {
           env: {
             MIDDLEWARE_TEST: 'asdf',
           },
@@ -60,7 +58,7 @@ describe('Middleware Production Prefetch', () => {
       })
 
       it(`prefetch correctly for unexistent routes`, async () => {
-        const browser = await webdriver(context.appPort, `/`)
+        const browser = await webdriver(appPort, `/`)
         await browser.elementByCss('#made-up-link').moveTo()
         await check(async () => {
           const scripts = await browser.elementsByCss('script')
@@ -76,7 +74,7 @@ describe('Middleware Production Prefetch', () => {
       })
 
       it(`does not prefetch provided path if it will be rewritten`, async () => {
-        const browser = await webdriver(context.appPort, `/`)
+        const browser = await webdriver(appPort, `/`)
         await browser.elementByCss('#ssg-page-2').moveTo()
         await check(async () => {
           const scripts = await browser.elementsByCss('script')

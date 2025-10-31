@@ -1,4 +1,5 @@
 /* eslint-env jest */
+// @ts-nocheck
 
 import fs from 'fs-extra'
 import { join } from 'path'

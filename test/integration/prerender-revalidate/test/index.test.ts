@@ -109,7 +109,7 @@ describe('SSG Prerender Revalidate', () => {
           app = await nextStart(appDir, appPort, {
             // The lowest size of the LRU cache that can be set is "1"
             // this will cause the cache size to always be exceeded
-            env: { __NEXT_TEST_MAX_ISR_CACHE: 1 },
+            env: { __NEXT_TEST_MAX_ISR_CACHE: '1' },
           })
           buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
         })
