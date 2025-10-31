@@ -15,7 +15,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-const context = {}
+const context: Record<string, any> = {}
 
 describe('disabled runtime JS', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

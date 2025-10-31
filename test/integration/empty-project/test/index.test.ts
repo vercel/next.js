@@ -4,7 +4,7 @@ import { join } from 'path'
 import fs from 'fs'
 import { fetchViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
-const context = {}
+const context: Record<string, any> = {}
 
 describe('Empty Project', () => {
   beforeAll(async () => {
@@ -13,7 +13,7 @@ describe('Empty Project', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort)
   })
 
-  const fetch = (p, q) =>
+  const fetch = (p, q?: any) =>
     fetchViaHTTP(context.appPort, p, q, { timeout: 10_000 })
 
   it('Should not time out and return 404', async () => {

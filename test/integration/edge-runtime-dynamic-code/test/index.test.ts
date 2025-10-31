@@ -18,7 +18,7 @@ const WASM_COMPILE_ERROR = `Dynamic WASM code generation (e. g. 'WebAssembly.com
 const WASM_INSTANTIATE_ERROR = `Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Edge Runtime`
 
 jest.setTimeout(1000 * 60 * 2)
-const context = {
+const context: Record<string, any> = {
   appDir: join(__dirname, '../'),
 }
 

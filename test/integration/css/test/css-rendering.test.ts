@@ -274,8 +274,7 @@ module.exports = {
               await browser.waitForElementByCss('#link-other').click()
               await check(
                 () => browser.eval(`document.body.innerText`),
-                'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).',
-                true
+                'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).'
               )
 
               const newPageStyles = await browser.eval(

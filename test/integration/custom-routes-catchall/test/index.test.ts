@@ -53,7 +53,7 @@ describe('Custom routes', () => {
         buildId = 'development'
       })
       afterAll(() => killApp(app))
-      runTests(true)
+      runTests()
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

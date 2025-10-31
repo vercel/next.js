@@ -14,7 +14,7 @@ import {
 
 jest.setTimeout(1000 * 60 * 2)
 
-const context = {
+const context: Record<string, any> = {
   appDir: join(__dirname, '../'),
   logs: { output: '', stdout: '', stderr: '' },
   api: new File(join(__dirname, '../pages/api/route.js')),

@@ -31,7 +31,7 @@ const runTests = () => {
       ['/fr/redirect-1', '/fr/destination-1'],
       ['/nl-NL/redirect-2', '/destination-2'],
       ['/fr/redirect-2', false],
-    ]) {
+    ] as const) {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })
@@ -158,7 +158,7 @@ describe('Custom routes i18n', () => {
         })}</p>`
       )
     })
-    await new Promise((res, rej) => {
+    await new Promise<void>((res, rej) => {
       server.listen(externalPort, (err) => (err ? rej(err) : res()))
     })
     nextConfig.replace(/__EXTERNAL_PORT__/g, '' + externalPort)
@@ -175,7 +175,7 @@ describe('Custom routes i18n', () => {
         app = await launchApp(appDir, appPort)
       })
       afterAll(() => killApp(app))
-      runTests(true)
+      runTests()
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

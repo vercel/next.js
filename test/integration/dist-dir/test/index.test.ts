@@ -39,12 +39,12 @@ describe('distDir', () => {
 
         it('should build the app within the given `dist` directory', async () => {
           expect(
-            await fs.exists(join(__dirname, `/../dist/${BUILD_ID_FILE}`))
+            fs.existsSync(join(__dirname, `/../dist/${BUILD_ID_FILE}`))
           ).toBeTruthy()
         })
         it('should not build the app within the default `.next` directory', async () => {
           expect(
-            await fs.exists(join(__dirname, `/../${getDistDir()}`))
+            fs.existsSync(join(__dirname, `/../${getDistDir()}`))
           ).toBeFalsy()
         })
       }
@@ -69,12 +69,12 @@ describe('distDir', () => {
       it('should build the app within the given `dist` directory', async () => {
         // In isolated dev build, the distDir for development is `distDir/dev`
         expect(
-          await fs.exists(join(__dirname, `/../dist/dev/${BUILD_MANIFEST}`))
+          fs.existsSync(join(__dirname, `/../dist/dev/${BUILD_MANIFEST}`))
         ).toBeTruthy()
       })
       it('should not build the app within the default `.next` directory', async () => {
         expect(
-          await fs.exists(join(__dirname, `/../${getDistDir()}`))
+          fs.existsSync(join(__dirname, `/../${getDistDir()}`))
         ).toBeFalsy()
       })
     }

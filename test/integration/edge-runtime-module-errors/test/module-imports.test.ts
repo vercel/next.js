@@ -295,7 +295,7 @@ describe('Edge runtime code with imports', () => {
           })
           expect(stderr).toContain(getUnsupportedModuleWarning(moduleName))
 
-          let logs = { stdout: '', stderr: '' }
+          let logs = { stdout: '', stderr: '', output: '' }
           const port = await findPort()
 
           const options = {

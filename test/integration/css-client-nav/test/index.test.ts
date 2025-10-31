@@ -23,7 +23,7 @@ let stallCss
 let appPort
 let app
 
-function runTests(dev) {
+function runTests(dev: boolean) {
   it('should be able to client-side navigate from red to blue', async () => {
     let browser
     try {
@@ -176,7 +176,7 @@ describe('CSS Module client-side navigation', () => {
           console.warn('Failed to proxy', err)
         })
 
-        await new Promise((resolve) => {
+        await new Promise<void>((resolve) => {
           proxyServer.listen(appPort, () => resolve())
         })
       })
@@ -219,7 +219,7 @@ describe('CSS Module client-side navigation', () => {
         }
       })
 
-      runTests()
+      runTests(false)
     }
   )
 

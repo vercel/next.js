@@ -28,7 +28,7 @@ import {
 let appDir = join(__dirname, '..')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const nextConfigPath = join(appDir, 'next.config.js')
-let externalServerHits = new Set()
+let externalServerHits = new Set<string>()
 let nextConfigRestoreContent
 let nextConfigContent
 let externalServerPort
@@ -80,7 +80,7 @@ const runTests = (isDev = false) => {
 
   it('should successfully rewrite a WebSocket request', async () => {
     const messages = []
-    const ws = await new Promise((resolve, reject) => {
+    const ws = await new Promise<WebSocket>((resolve, reject) => {
       let socket = new WebSocket(`ws://localhost:${appPort}/to-websocket`)
       socket.on('message', (data) => {
         messages.push(data.toString())
@@ -104,7 +104,7 @@ const runTests = (isDev = false) => {
   it('should successfully rewrite a WebSocket request to a page', async () => {
     const messages = []
     try {
-      const ws = await new Promise((resolve, reject) => {
+      const ws = await new Promise<WebSocket>((resolve, reject) => {
         let socket = new WebSocket(
           `ws://localhost:${appPort}/websocket-to-page`
         )
@@ -160,7 +160,7 @@ const runTests = (isDev = false) => {
         slug: ['hello', 'world'],
       },
     ]) {
-      const { status = 200, post } = expected
+      const { post } = expected
       const res = await fetchViaHTTP(
         appPort,
         '/has-rewrite-8',
@@ -170,16 +170,14 @@ const runTests = (isDev = false) => {
         }
       )
 
-      expect(res.status).toBe(status)
+      expect(res.status).toBe(200)
 
-      if (status === 200) {
-        const $ = cheerio.load(await res.text())
-        expect(JSON.parse($('#props').text())).toEqual({
-          params: {
-            slug: expected.slug,
-          },
-        })
-      }
+      const $ = cheerio.load(await res.text())
+      expect(JSON.parse($('#props').text())).toEqual({
+        params: {
+          slug: expected.slug,
+        },
+      })
     }
   })
 
@@ -2562,7 +2560,7 @@ describe('Custom routes', () => {
         client.send('hello world')
       })
     })
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       externalServer.listen(externalServerPort, (error) => {
         if (error) return reject(error)
         resolve()
@@ -2661,7 +2659,7 @@ describe('Custom routes', () => {
   )
 
   describe('should load custom routes when only one type is used', () => {
-    const runSoloTests = (isDev) => {
+    const runSoloTests = (isDev: boolean) => {
       const buildAndStart = async () => {
         if (isDev) {
           appPort = await findPort()
@@ -2764,7 +2762,7 @@ describe('Custom routes', () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
-        runSoloTests()
+        runSoloTests(false)
       }
     )
   })

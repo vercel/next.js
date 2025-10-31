@@ -21,7 +21,7 @@ const indexPg = new File(join(appDir, 'pages/index.js'))
 let appPort
 let server
 
-const context = {}
+const context: Record<string, any> = {}
 
 describe.each([
   { title: 'using HTTP', useHttps: false },
@@ -35,7 +35,7 @@ describe.each([
       })
     : undefined
 
-  const startServer = async (optEnv = {}, opts) => {
+  const startServer = async (optEnv = {}, opts?: any) => {
     const scriptPath = join(appDir, 'server.js')
     context.appPort = appPort = await getPort()
     nextUrl = `http${useHttps ? 's' : ''}://localhost:${context.appPort}`
@@ -306,7 +306,7 @@ describe.each([
   })
 
   describe('with middleware $title', () => {
-    beforeAll(() => startServer(undefined, undefined, useHttps))
+    beforeAll(() => startServer(undefined, undefined))
     afterAll(() => killApp(server))
 
     it('should read the expected url protocol in middleware', async () => {
