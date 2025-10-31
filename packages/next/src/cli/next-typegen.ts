@@ -30,6 +30,7 @@ import {
   writeRouteTypesManifest,
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
+import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 
 export type NextTypegenOptions = {
@@ -167,7 +168,11 @@ const nextTypegen = async (
 
   await writeValidatorFile(routeTypesManifest, validatorFilePath)
 
-  console.log('✓ Route types generated successfully')
+  // Generate cache-life types if cacheLife config exists
+  const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')
+  writeCacheLifeTypes(nextConfig.cacheLife, cacheLifeFilePath)
+
+  console.log('✓ Types generated successfully')
 }
 
 export { nextTypegen }

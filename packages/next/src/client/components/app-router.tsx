@@ -97,9 +97,7 @@ function HistoryUpdater({
     // task. Re-prefetch all visible links with the updated values. In most
     // cases, this will not result in any new network requests, only if
     // the prefetch result actually varies on one of these inputs.
-    if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-      pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree)
-    }
+    pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree)
   }, [appRouterState.nextUrl, appRouterState.tree])
 
   return null
@@ -434,9 +432,15 @@ function Router({
       parentTree: tree,
       parentCacheNode: cache,
       parentSegmentPath: null,
+      parentParams: {},
+      // This is the <Activity> "name" that shows up in the Suspense DevTools.
+      // It represents the root of the app.
+      debugNameContext: '/',
       // Root node always has `url`
       // Provided in AppTreeContext to ensure it can be overwritten in layout-router
       url: canonicalUrl,
+      // Root segment is always active
+      isActive: true,
     }
   }, [tree, cache, canonicalUrl])
 

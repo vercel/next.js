@@ -1,2 +1,2 @@
-export type ServerCacheStatus = 'filling' | 'filled'
-export type CacheIndicatorState = 'disabled' | 'ready' | ServerCacheStatus
+export type ServerCacheStatus = 'filling' | 'filled' | 'bypass' | 'ready'
+export type CacheIndicatorState = 'disabled' | ServerCacheStatus

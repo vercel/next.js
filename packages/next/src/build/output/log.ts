@@ -85,3 +85,12 @@ export function warnOnce(...message: any[]) {
     warn(...message)
   }
 }
+
+const errorOnceCache = new LRUCache<string>(10_000, (value) => value.length)
+export function errorOnce(...message: any[]) {
+  const key = message.join(' ')
+  if (!errorOnceCache.has(key)) {
+    errorOnceCache.set(key, key)
+    error(...message)
+  }
+}

@@ -1,7 +1,7 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getRedboxCallStack,
   getRedboxSource,
 } from 'next-test-utils'
@@ -43,7 +43,7 @@ describe('non-root-project-monorepo', () => {
     it('should work on client-side', async () => {
       const browser = await next.browser('/monorepo-package-ssr')
       expect(await browser.elementByCss('p').text()).toBe('Hello Typescript')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('p').text()).toBe('Hello Typescript')
       await browser.close()
     })
@@ -66,7 +66,7 @@ describe('non-root-project-monorepo', () => {
 
     it('should work on client-side', async () => {
       const browser = await next.browser('/import-meta-url-ssr')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       if (isTurbopack) {
         // Turbopack intentionally doesn't expose the full path to the browser bundles
         expect(await browser.elementByCss('p').text()).toBe(
@@ -85,12 +85,12 @@ describe('non-root-project-monorepo', () => {
     describe('source-maps', () => {
       it('should work on RSC', async () => {
         const browser = await next.browser('/source-maps-rsc')
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-           "app/separate-file.ts (1:7) @ {module evaluation}
+           "app/separate-file.ts (1:7) @ module evaluation
 
            > 1 | throw new Error('Expected error')
                |       ^
@@ -98,7 +98,7 @@ describe('non-root-project-monorepo', () => {
           `)
           expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
            [
-             "{module evaluation} app/separate-file.ts (1:7)",
+             "module evaluation app/separate-file.ts (1:7)",
              "innerArrowFunction app/source-maps-rsc/page.tsx (13:28)",
              "innerFunction app/source-maps-rsc/page.tsx (10:3)",
              "Page app/source-maps-rsc/page.tsx (4:5)",
@@ -148,12 +148,12 @@ describe('non-root-project-monorepo', () => {
 
       it('should work on SSR', async () => {
         const browser = await next.browser('/source-maps-ssr')
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-           "app/separate-file.ts (1:7) @ {module evaluation}
+           "app/separate-file.ts (1:7) @ module evaluation
 
            > 1 | throw new Error('Expected error')
                |       ^
@@ -161,7 +161,7 @@ describe('non-root-project-monorepo', () => {
           `)
           expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
            [
-             "{module evaluation} app/separate-file.ts (1:7)",
+             "module evaluation app/separate-file.ts (1:7)",
              "innerArrowFunction app/source-maps-ssr/page.tsx (15:28)",
              "innerFunction app/source-maps-ssr/page.tsx (12:3)",
              "Page app/source-maps-ssr/page.tsx (6:5)",
@@ -211,12 +211,12 @@ describe('non-root-project-monorepo', () => {
 
       it('should work on client-side', async () => {
         const browser = await next.browser('/source-maps-client')
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
 
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-           "app/separate-file.ts (1:7) @ {module evaluation}
+           "app/separate-file.ts (1:7) @ module evaluation
 
            > 1 | throw new Error('Expected error')
                |       ^
@@ -224,7 +224,7 @@ describe('non-root-project-monorepo', () => {
           `)
           expect(await getRedboxCallStack(browser)).toMatchInlineSnapshot(`
            [
-             "{module evaluation} app/separate-file.ts (1:7)",
+             "module evaluation app/separate-file.ts (1:7)",
              "innerArrowFunction app/source-maps-client/page.tsx (16:28)",
              "innerFunction app/source-maps-client/page.tsx (13:3)",
              "effectCallback app/source-maps-client/page.tsx (7:5)",

@@ -58,16 +58,14 @@ function fillCacheHelper(
           !childCacheNode.lazyData ||
           childCacheNode === existingChildCacheNode)
       ) {
-        const incomingSegment = cacheNodeSeedData[0]
-        const rsc = cacheNodeSeedData[1]
-        const loading = cacheNodeSeedData[3]
+        const rsc = cacheNodeSeedData[0]
+        const loading = cacheNodeSeedData[2]
 
         childCacheNode = {
           lazyData: null,
           // When `fillLazyItems` is false, we only want to fill the RSC data for the layout,
           // not the page segment.
-          rsc:
-            fillLazyItems || incomingSegment !== PAGE_SEGMENT_KEY ? rsc : null,
+          rsc: fillLazyItems || segment !== PAGE_SEGMENT_KEY ? rsc : null,
           prefetchRsc: null,
           head: null,
           prefetchHead: null,

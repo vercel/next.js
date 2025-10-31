@@ -10,8 +10,12 @@ import {
   NEXT_REWRITTEN_QUERY_HEADER,
   NEXT_RSC_UNION_QUERY,
 } from './components/app-router-headers'
-import type { NormalizedSearch } from './components/segment-cache'
+import type {
+  NormalizedPathname,
+  NormalizedSearch,
+} from './components/segment-cache'
 import type { RSCResponse } from './components/router-reducer/fetch-server-response'
+import type { ParsedUrlQuery } from 'querystring'
 
 export type RouteParamValue = string | Array<string> | null
 
@@ -22,7 +26,7 @@ export type RouteParam = {
 }
 
 export function getRenderedSearch(
-  response: RSCResponse<unknown>
+  response: RSCResponse<unknown> | Response
 ): NormalizedSearch {
   // If the server performed a rewrite, the search params used to render the
   // page will be different from the params in the request URL. In this case,
@@ -39,14 +43,16 @@ export function getRenderedSearch(
     .search as NormalizedSearch
 }
 
-export function getRenderedPathname(response: RSCResponse<unknown>): string {
+export function getRenderedPathname(
+  response: RSCResponse<unknown> | Response
+): NormalizedPathname {
   // If the server performed a rewrite, the pathname used to render the
   // page will be different from the pathname in the request URL. In this case,
   // the response will include a header that gives the rewritten pathname.
   const rewrittenPath = response.headers.get(NEXT_REWRITTEN_PATH_HEADER)
-  return (
-    rewrittenPath ?? urlToUrlWithoutFlightMarker(new URL(response.url)).pathname
-  )
+  return (rewrittenPath ??
+    urlToUrlWithoutFlightMarker(new URL(response.url))
+      .pathname) as NormalizedPathname
 }
 
 export function parseDynamicParamFromURLPart(
@@ -179,4 +185,23 @@ export function getParamValueFromCacheKey(
     return paramCacheKey.split('/')
   }
   return paramCacheKey
+}
+
+export function urlSearchParamsToParsedUrlQuery(
+  searchParams: URLSearchParams
+): ParsedUrlQuery {
+  // Converts a URLSearchParams object to the same type used by the server when
+  // creating search params props, i.e. the type returned by Node's
+  // "querystring" module.
+  const result: ParsedUrlQuery = {}
+  for (const [key, value] of searchParams.entries()) {
+    if (result[key] === undefined) {
+      result[key] = value
+    } else if (Array.isArray(result[key])) {
+      result[key].push(value)
+    } else {
+      result[key] = [result[key], value]
+    }
+  }
+  return result
 }

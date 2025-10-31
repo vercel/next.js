@@ -2,7 +2,7 @@ import type { NextConfig } from '../../server/config-shared'
 import type { RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
-import { basename } from 'path'
+import { relative } from 'path'
 import { LRUCache } from '../../server/lib/lru-cache'
 import {
   extractExportedConstValue,
@@ -40,6 +40,7 @@ import {
 } from '../segment-config/middleware/middleware-config'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
   /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
@@ -305,16 +306,13 @@ function validateMiddlewareProxyExports({
   ast,
   page,
   pageFilePath,
+  isDev,
 }: {
   ast: any
   page: string
   pageFilePath: string
+  isDev: boolean
 }): void {
-  // Only validate in build. In development, it will error at runtime.
-  if (process.env.NODE_ENV !== 'production') {
-    return
-  }
-
   // Check if this is middleware/proxy
   const isMiddleware =
     page === `/${MIDDLEWARE_FILENAME}` || page === `/src/${MIDDLEWARE_FILENAME}`
@@ -329,7 +327,7 @@ function validateMiddlewareProxyExports({
     return
   }
 
-  const fileName = isProxy ? 'proxy' : 'middleware'
+  const fileName = isProxy ? PROXY_FILENAME : MIDDLEWARE_FILENAME
 
   // Parse AST to get export info (since checkExports doesn't return middleware/proxy info)
   let hasDefaultExport = false
@@ -396,10 +394,33 @@ function validateMiddlewareProxyExports({
     (isMiddleware && hasMiddlewareExport) ||
     (isProxy && hasProxyExport)
 
+  const relativePath = relative(process.cwd(), pageFilePath)
+  const resolvedPath = relativePath.startsWith('.')
+    ? relativePath
+    : `./${relativePath}`
+
   if (!hasValidExport) {
-    throw new Error(
-      `The ${fileName === 'proxy' ? 'Proxy' : 'Middleware'} file "./${basename(pageFilePath)}" must export a function named \`${fileName}\` or a default function.`
-    )
+    const message =
+      `The file "${resolvedPath}" must export a function, either as a default export or as a named "${fileName}" export.\n` +
+      `This function is what Next.js runs for every request handled by this ${fileName === 'proxy' ? 'proxy (previously called middleware)' : 'middleware'}.\n\n` +
+      `Why this happens:\n` +
+      (isProxy
+        ? "- You are migrating from `middleware` to `proxy`, but haven't updated the exported function.\n"
+        : '') +
+      `- The file exists but doesn't export a function.\n` +
+      `- The export is not a function (e.g., an object or constant).\n` +
+      `- There's a syntax error preventing the export from being recognized.\n\n` +
+      `To fix it:\n` +
+      `- Ensure this file has either a default or "${fileName}" function export.\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+
+    if (isDev) {
+      // errorOnce as proxy/middleware runs per request including multiple
+      // internal _next/ routes and spams logs.
+      Log.errorOnce(message)
+    } else {
+      throw new Error(message)
+    }
   }
 }
 
@@ -580,7 +601,7 @@ function warnAboutUnsupportedValue(
 type GetPageStaticInfoParams = {
   pageFilePath: string
   nextConfig: Partial<NextConfig>
-  isDev?: boolean
+  isDev: boolean
   page: string
   pageType: PAGE_TYPES
 }
@@ -604,7 +625,12 @@ export async function getAppPageStaticInfo({
   }
 
   const ast = await parseModule(pageFilePath, content)
-  validateMiddlewareProxyExports({ ast, page, pageFilePath })
+  validateMiddlewareProxyExports({
+    ast,
+    page,
+    pageFilePath,
+    isDev,
+  })
 
   const {
     generateStaticParams,
@@ -655,14 +681,9 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  if (
-    'unstable_prefetch' in config &&
-    (!nextConfig.cacheComponents ||
-      // don't allow in `clientSegmentCache: 'client-only'` mode
-      nextConfig.experimental?.clientSegmentCache !== true)
-  ) {
+  if ('unstable_prefetch' in config && !nextConfig.cacheComponents) {
     throw new Error(
-      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\` and \`experimental.clientSegmentCache\`.`
+      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\`.`
     )
   }
 
@@ -700,7 +721,12 @@ export async function getPagesPageStaticInfo({
   }
 
   const ast = await parseModule(pageFilePath, content)
-  validateMiddlewareProxyExports({ ast, page, pageFilePath })
+  validateMiddlewareProxyExports({
+    ast,
+    page,
+    pageFilePath,
+    isDev,
+  })
 
   const { getServerSideProps, getStaticProps, exports } = checkExports(
     ast,
@@ -737,13 +763,35 @@ export async function getPagesPageStaticInfo({
   const config = parsePagesSegmentConfig(exportedConfig, route)
   const isAnAPIRoute = isAPIRoute(route)
 
-  const resolvedRuntime = config.runtime ?? config.config?.runtime
+  let resolvedRuntime = config.runtime ?? config.config?.runtime
+
+  if (isProxyFile(page) && resolvedRuntime) {
+    const relativePath = relative(process.cwd(), pageFilePath)
+    const resolvedPath = relativePath.startsWith('.')
+      ? relativePath
+      : `./${relativePath}`
+    const message = `Route segment config is not allowed in Proxy file at "${resolvedPath}". Proxy always runs on Node.js runtime. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+
+    if (isDev) {
+      // errorOnce as proxy/middleware runs per request including multiple
+      // internal _next/ routes and spams logs.
+      Log.errorOnce(message)
+      resolvedRuntime = SERVER_RUNTIME.nodejs
+    } else {
+      throw new Error(message)
+    }
+  }
 
   if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
     warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
   }
 
-  if (resolvedRuntime === SERVER_RUNTIME.edge && page && !isAnAPIRoute) {
+  if (
+    !isProxyFile(page) &&
+    resolvedRuntime === SERVER_RUNTIME.edge &&
+    page &&
+    !isAnAPIRoute
+  ) {
     const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
     if (isDev) {
       Log.error(message)

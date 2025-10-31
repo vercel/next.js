@@ -170,13 +170,19 @@ The following options are available for the `next typegen` command:
 | `-h, --help`  | Show all available options.                                                                  |
 | `[directory]` | A directory on which to generate types. If not provided, the current directory will be used. |
 
-Output files are written to `<distDir>/types` (default: `.next/types`):
+Output files are written to `<distDir>/types` (typically: `.next/dev/types` or `.next/types`, see [`isolatedDevBuild`](/docs/app/api-reference/config/next-config-js/isolatedDevBuild)):
 
 ```bash filename="Terminal"
 next typegen
 # or for a specific app
 next typegen ./apps/web
 ```
+
+Additionally, `next typegen` generates a `next-env.d.ts` file. We recommend adding `next-env.d.ts` to your `.gitignore` file.
+
+The `next-env.d.ts` file is included into your `tsconfig.json` file, to make Next.js types available to your project.
+
+To ensure `next-env.d.ts` is present before type-checking run `next typegen`. The commands `next dev` and `next build` also generate the `next-env.d.ts` file, but it is often undesirable to run these just to type-check, for example in CI/CD environments.
 
 > **Good to know**: `next typegen` loads your Next.js config (`next.config.js`, `next.config.mjs`, or `next.config.ts`) using the production build phase. Ensure any required environment variables and dependencies are available so the config can load correctly.
 

@@ -172,7 +172,7 @@ export const experimentalSchema = {
   staleTimes: z
     .object({
       dynamic: z.number().optional(),
-      static: z.number().optional(),
+      static: z.number().gte(30).optional(),
     })
     .optional(),
   cacheLife: z
@@ -192,9 +192,6 @@ export const experimentalSchema = {
   memoryBasedWorkersCount: z.boolean().optional(),
   craCompat: z.boolean().optional(),
   caseSensitiveRoutes: z.boolean().optional(),
-  clientSegmentCache: z
-    .union([z.boolean(), z.literal('client-only')])
-    .optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
   dynamicOnHover: z.boolean().optional(),
   disableOptimizedLoading: z.boolean().optional(),
@@ -249,7 +246,6 @@ export const experimentalSchema = {
   rootParams: z.boolean().optional(),
   isolatedDevBuild: z.boolean().optional(),
   mcpServer: z.boolean().optional(),
-  routerBFCache: z.boolean().optional(),
   removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
   validateRSCRequestHeaders: z.boolean().optional(),
   scrollRestoration: z.boolean().optional(),
@@ -356,6 +352,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     bundlePagesRouterDependencies: z.boolean().optional(),
     cacheComponents: z.boolean().optional(),
     cacheHandler: z.string().min(1).optional(),
+    cacheHandlers: z.record(z.string(), z.string().optional()).optional(),
     cacheLife: z
       .record(
         z.object({

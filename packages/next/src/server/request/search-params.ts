@@ -423,15 +423,16 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
 
   let promise: Promise<SearchParams>
   if (requestStore.asyncApiPromises) {
-    // Deliberately don't wrap each instance of params in a `new Promise()`.
-    // We want React Devtools to consider all the separate `searchParams` promises
-    // that we create for each segment to be triggered by one IO operation --
-    // the resolving of the underlying `sharedParamsParent` promise.
-    // It's created above any userspace code and has a `displayName`,
-    // so it should show up in "suspended by".
-    promise = requestStore.asyncApiPromises.sharedSearchParamsParent.then(
-      () => proxiedUnderlying
-    )
+    // We wrap each instance of searchParams in a `new Promise()`.
+    // This is important when all awaits are in third party which would otherwise
+    // track all the way to the internal params.
+    const sharedSearchParamsParent =
+      requestStore.asyncApiPromises.sharedSearchParamsParent
+    promise = new Promise((resolve, reject) => {
+      sharedSearchParamsParent.then(() => resolve(proxiedUnderlying), reject)
+    })
+    // @ts-expect-error
+    promise.displayName = 'searchParams'
   } else {
     promise = makeDevtoolsIOAwarePromise(
       proxiedUnderlying,

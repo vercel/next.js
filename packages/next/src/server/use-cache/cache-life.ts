@@ -72,17 +72,6 @@ function validateCacheLife(profile: CacheLife) {
       )
     }
   }
-
-  if (profile.stale !== undefined && profile.expire !== undefined) {
-    if (profile.stale > profile.expire) {
-      throw new Error(
-        'If providing both the stale and expire options, ' +
-          'the expire option must be greater than the stale option. ' +
-          'The expire option indicates how many seconds from the start ' +
-          'until it can no longer be used.'
-      )
-    }
-  }
 }
 
 export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {

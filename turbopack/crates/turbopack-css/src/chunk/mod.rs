@@ -18,8 +18,8 @@ use turbopack_core::{
     chunk::{
         AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemExt,
         ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, MinifyType, OutputChunk, OutputChunkRuntimeInfo,
-        round_chunk_item_size,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, MinifyType, OutputChunk,
+        OutputChunkRuntimeInfo, SourceMapSourceType, round_chunk_item_size,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -32,7 +32,10 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets},
     reference_type::ImportContext,
     server_fs::ServerFileSystem,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, utils::fileify_source_map},
+    source_map::{
+        GenerateSourceMap, OptionStringifiedSourceMap,
+        utils::{absolute_fileify_source_map, relative_fileify_source_map},
+    },
 };
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
@@ -96,18 +99,27 @@ impl CssChunk {
 
             let close = write_import_context(&mut body, content.import_context).await?;
 
-            let source_map = if *self
-                .chunking_context()
-                .should_use_file_source_map_uris()
-                .await?
-            {
-                fileify_source_map(
-                    content.source_map.as_ref(),
-                    self.chunking_context().root_path().owned().await?,
-                )
-                .await?
-            } else {
-                content.source_map.clone()
+            let chunking_context = self.chunking_context();
+            let source_map = match *chunking_context.source_map_source_type().await? {
+                SourceMapSourceType::AbsoluteFileUri => {
+                    absolute_fileify_source_map(
+                        content.source_map.as_ref(),
+                        chunking_context.root_path().owned().await?,
+                    )
+                    .await?
+                }
+                SourceMapSourceType::RelativeUri => {
+                    relative_fileify_source_map(
+                        content.source_map.as_ref(),
+                        chunking_context.root_path().owned().await?,
+                        chunking_context
+                            .relative_path_from_chunk_root_to_project_root()
+                            .owned()
+                            .await?,
+                    )
+                    .await?
+                }
+                SourceMapSourceType::TurbopackUri => content.source_map.clone(),
             };
 
             body.push_source(&content.inner_code, source_map);

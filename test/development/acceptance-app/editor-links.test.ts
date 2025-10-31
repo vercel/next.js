@@ -72,15 +72,21 @@ describe('Error overlay - editor links', () => {
         return Boolean(
           [].slice
             .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) =>
-              p.shadowRoot.querySelector('[data-next-mark-loading="false"]')
-            )
+            .find((p) => {
+              const badge = p.shadowRoot.querySelector('[data-next-badge]')
+              // Check if badge exists and is not showing any loading status
+              return (
+                badge &&
+                (badge.getAttribute('data-status') === 'none' ||
+                  !badge.getAttribute('data-status'))
+              )
+            })
         )
       })
       expect(loaded).toBe(true)
     })
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
     await clickSourceFile(browser)
     await check(() => editorRequestsCount, /1/)
   })
@@ -123,7 +129,7 @@ describe('Error overlay - editor links', () => {
       `
         )
 
-        await session.assertHasRedbox()
+        await session.waitForRedbox()
         await clickImportTraceFiles(browser)
         await check(() => editorRequestsCount, /4/)
       })
@@ -164,7 +170,7 @@ describe('Error overlay - editor links', () => {
       `
         )
 
-        await session.assertHasRedbox()
+        await session.waitForRedbox()
         await clickImportTraceFiles(browser)
         await check(() => editorRequestsCount, /3/)
       })

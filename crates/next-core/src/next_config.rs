@@ -10,7 +10,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fetch::FetchClient;
+use turbo_tasks_fetch::FetchClientConfig;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     ConditionItem, ConditionPath, LoaderRuleItem, WebpackRules,
@@ -86,7 +86,7 @@ pub struct NextConfig {
     cache_max_memory_size: Option<f64>,
     /// custom path to a cache handler to use
     cache_handler: Option<RcStr>,
-
+    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
     env: FxIndexMap<String, JsonValue>,
     experimental: ExperimentalConfig,
     images: ImageConfig,
@@ -823,7 +823,6 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
-    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
     cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
@@ -856,8 +855,6 @@ pub struct ExperimentalConfig {
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
-    #[serde(rename = "routerBFCache")]
-    router_bfcache: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -1603,11 +1600,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn experimental_cache_handlers(
-        &self,
-        project_path: FileSystemPath,
-    ) -> Result<Vc<FileSystemPathVec>> {
-        if let Some(handlers) = &self.experimental.cache_handlers {
+    pub fn cache_handlers(&self, project_path: FileSystemPath) -> Result<Vc<FileSystemPathVec>> {
+        if let Some(handlers) = &self.cache_handlers {
             Ok(Vc::cell(
                 handlers
                     .values()
@@ -1765,7 +1759,7 @@ impl NextConfig {
     pub fn cache_kinds(&self) -> Vc<CacheKinds> {
         let mut cache_kinds = CacheKinds::default();
 
-        if let Some(handlers) = self.experimental.cache_handlers.as_ref() {
+        if let Some(handlers) = self.cache_handlers.as_ref() {
             cache_kinds.extend(handlers.keys().cloned());
         }
 
@@ -1914,7 +1908,10 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn fetch_client(&self, env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<FetchClient>> {
+    pub async fn fetch_client(
+        &self,
+        env: Vc<Box<dyn ProcessEnv>>,
+    ) -> Result<Vc<FetchClientConfig>> {
         // Support both an env var and the experimental flag to provide more flexibility to
         // developers on locked down systems, depending on if they want to configure this on a
         // per-system or per-project basis.
@@ -1928,7 +1925,7 @@ impl NextConfig {
             })
             .or(self.experimental.turbopack_use_system_tls_certs)
             .unwrap_or(false);
-        Ok(FetchClient {
+        Ok(FetchClientConfig {
             tls_built_in_webpki_certs: !use_system_tls_certs,
             tls_built_in_native_certs: use_system_tls_certs,
         }

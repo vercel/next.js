@@ -221,7 +221,6 @@ export type FlightSegmentPath =
  * likely change.
  */
 export type CacheNodeSeedData = [
-  segment: Segment,
   node: React.ReactNode | null,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null

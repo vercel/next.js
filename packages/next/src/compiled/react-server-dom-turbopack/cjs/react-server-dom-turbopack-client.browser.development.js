@@ -1535,13 +1535,24 @@
             var listener = resolveListeners[i];
             if ("function" !== typeof listener) {
               var cyclicHandler = resolveBlockedCycle(chunk, listener);
-              null !== cyclicHandler &&
-                (fulfillReference(listener, cyclicHandler.value, chunk),
-                resolveListeners.splice(i, 1),
-                i--,
-                null !== rejectListeners &&
-                  ((listener = rejectListeners.indexOf(listener)),
-                  -1 !== listener && rejectListeners.splice(listener, 1)));
+              if (null !== cyclicHandler)
+                switch (
+                  (fulfillReference(listener, cyclicHandler.value, chunk),
+                  resolveListeners.splice(i, 1),
+                  i--,
+                  null !== rejectListeners &&
+                    ((listener = rejectListeners.indexOf(listener)),
+                    -1 !== listener && rejectListeners.splice(listener, 1)),
+                  chunk.status)
+                ) {
+                  case "fulfilled":
+                    wakeChunk(resolveListeners, chunk.value, chunk);
+                    return;
+                  case "rejected":
+                    null !== rejectListeners &&
+                      rejectChunk(rejectListeners, chunk.reason);
+                    return;
+                }
             }
           }
         case "pending":
@@ -2731,7 +2742,7 @@
       debugValuePromise.status = "fulfilled";
       debugValuePromise.value = streamDebugValue;
       streamState._debugInfo = {
-        name: "RSC stream",
+        name: "rsc stream",
         start: weakResponse._debugStartTime,
         end: weakResponse._debugStartTime,
         byteSize: 0,
@@ -4909,10 +4920,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-f6a48828-20251019",
+      version: "19.3.0-canary-4f931700-20251029",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-f6a48828-20251019",
+      reconcilerVersion: "19.3.0-canary-4f931700-20251029",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

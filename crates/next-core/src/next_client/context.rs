@@ -19,8 +19,8 @@ use turbopack_browser::{
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
-        module_id_strategies::ModuleIdStrategy,
+        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
+        SourceMapsType, module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
@@ -427,6 +427,7 @@ pub struct ClientChunkingContextOptions {
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub debug_ids: Vc<bool>,
+    pub should_use_absolute_url_references: Vc<bool>,
 }
 
 #[turbo_tasks::function]
@@ -448,6 +449,7 @@ pub async fn get_client_chunking_context(
         no_mangling,
         scope_hoisting,
         debug_ids,
+        should_use_absolute_url_references,
     } = options;
 
     let next_mode = mode.await?;
@@ -481,12 +483,13 @@ pub async fn get_client_chunking_context(
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .export_usage(*export_usage.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .debug_ids(*debug_ids.await?);
+    .debug_ids(*debug_ids.await?)
+    .should_use_absolute_url_references(*should_use_absolute_url_references.await?);
 
     if next_mode.is_development() {
         builder = builder
             .hot_module_replacement()
-            .use_file_source_map_uris()
+            .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
             .dynamic_chunk_content_loading(true);
     } else {
         builder = builder

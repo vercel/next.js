@@ -86,6 +86,23 @@ export async function ncc_node_html_parser(task, opts) {
     .target('src/compiled/node-html-parser')
 }
 
+externals['@vercel/routing-utils'] = 'next/dist/compiled/@vercel/routing-utils'
+export async function ncc_vercel_routing_utils(task, opts) {
+  await task
+    .source(
+      relative(
+        __dirname,
+        require.resolve('@vercel/routing-utils/dist/superstatic')
+      )
+    )
+    .ncc({
+      packageName: '@vercel/routing-utils',
+      externals,
+      target: 'es5',
+    })
+    .target('src/compiled/@vercel/routing-utils')
+}
+
 externals['busboy'] = 'next/dist/compiled/busboy'
 export async function ncc_busboy(task, opts) {
   await task
@@ -1201,12 +1218,12 @@ export async function ncc_is_animated(task, opts) {
     .ncc({ packageName: 'is-animated', externals })
     .target('src/compiled/is-animated')
 }
-externals['is-local-address'] = 'next/dist/compiled/is-local-address'
-export async function ncc_is_local_address(task, opts) {
+externals['ipaddr.js'] = 'next/dist/compiled/ipaddr.js'
+export async function ncc_ipaddr_js(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('is-local-address')))
-    .ncc({ packageName: 'is-local-address', externals })
-    .target('src/compiled/is-local-address')
+    .source(relative(__dirname, require.resolve('ipaddr.js')))
+    .ncc({ packageName: 'ipaddr.js', externals })
+    .target('src/compiled/ipaddr.js')
 }
 externals['is-docker'] = 'next/dist/compiled/is-docker'
 export async function ncc_is_docker(task, opts) {
@@ -2231,7 +2248,7 @@ export async function ncc(task, opts) {
         'ncc_http_proxy',
         'ncc_ignore_loader',
         'ncc_is_animated',
-        'ncc_is_local_address',
+        'ncc_ipaddr_js',
         'ncc_is_docker',
         'ncc_is_wsl',
         'ncc_json5',
@@ -2309,6 +2326,7 @@ export async function ncc(task, opts) {
       'ncc_mswjs_interceptors',
       'ncc_rsc_poison_packages',
       'ncc_modelcontextprotocol_sdk',
+      'ncc_vercel_routing_utils',
     ],
     opts
   )
