@@ -85,6 +85,8 @@ where
     turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     _operation_guard: Option<OperationGuard<'e, B>>,
     transaction: TransactionState<'e, 'tx, B>,
+    #[cfg(debug_assertions)]
+    active_task_locks: Arc<std::sync::atomic::AtomicU8>,
 }
 
 impl<'e, 'tx, B: BackingStorage> ExecuteContextImpl<'e, 'tx, B>
@@ -100,6 +102,8 @@ where
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
             transaction: TransactionState::None,
+            #[cfg(debug_assertions)]
+            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 
@@ -113,6 +117,8 @@ where
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
             transaction: TransactionState::Borrowed(transaction),
+            #[cfg(debug_assertions)]
+            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 
@@ -180,6 +186,14 @@ where
     }
 
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl {
+        #[cfg(debug_assertions)]
+        if self.active_task_locks.fetch_add(1, Ordering::AcqRel) != 0 {
+            panic!(
+                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
+                 bug. It can lead to deadlocks."
+            );
+        }
+
         let mut task = self.backend.storage.access_mut(task_id);
         if !task.state().is_restored(category) {
             if task_id.is_transient() {
@@ -208,6 +222,8 @@ where
             backend: self.backend,
             #[cfg(debug_assertions)]
             category,
+            #[cfg(debug_assertions)]
+            active_task_locks: self.active_task_locks.clone(),
         }
     }
 
@@ -228,6 +244,14 @@ where
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl) {
+        #[cfg(debug_assertions)]
+        if self.active_task_locks.fetch_add(2, Ordering::AcqRel) != 0 {
+            panic!(
+                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
+                 bug. It can lead to deadlocks."
+            );
+        }
+
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
         let is_restored1 = task1.state().is_restored(category);
         let is_restored2 = task2.state().is_restored(category);
@@ -264,6 +288,8 @@ where
                 backend: self.backend,
                 #[cfg(debug_assertions)]
                 category,
+                #[cfg(debug_assertions)]
+                active_task_locks: self.active_task_locks.clone(),
             },
             TaskGuardImpl {
                 task: task2,
@@ -271,6 +297,8 @@ where
                 backend: self.backend,
                 #[cfg(debug_assertions)]
                 category,
+                #[cfg(debug_assertions)]
+                active_task_locks: self.active_task_locks.clone(),
             },
         )
     }
@@ -328,6 +356,8 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
             turbo_tasks: self.turbo_tasks,
             _operation_guard: None,
             transaction: TransactionState::None,
+            #[cfg(debug_assertions)]
+            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 }
@@ -376,6 +406,15 @@ pub struct TaskGuardImpl<'a, B: BackingStorage> {
     backend: &'a TurboTasksBackendInner<B>,
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
+    #[cfg(debug_assertions)]
+    active_task_locks: Arc<std::sync::atomic::AtomicU8>,
+}
+
+#[cfg(debug_assertions)]
+impl<B: BackingStorage> Drop for TaskGuardImpl<'_, B> {
+    fn drop(&mut self) {
+        self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
+    }
 }
 
 impl<B: BackingStorage> TaskGuardImpl<'_, B> {
