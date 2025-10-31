@@ -56,7 +56,7 @@ When `/old-blog/post-1?hello=world` is requested, the client will be redirected 
 
 ## Path Matching
 
-Path matches are allowed, for example `/old-blog/:slug` will match `/old-blog/hello-world` (no nested paths):
+Path matches are allowed, for example `/old-blog/:slug` will match `/old-blog/first-post` (no nested paths):
 
 ```js filename="next.config.js"
 module.exports = {
@@ -71,6 +71,12 @@ module.exports = {
   },
 }
 ```
+
+The pattern `/old-blog/:slug` matches `/old-blog/first-post` and `/old-blog/post-1` but not `/old-blog/a/b` (no nested paths). Patterns are anchored to the start: `/old-blog/:slug` will not match `/archive/old-blog/first-post`.
+
+You can use modifiers on parameters: `*` (zero or more), `+` (one or more), `?` (zero or one). For example, `/blog/:slug*` matches `/blog`, `/blog/a`, and `/blog/a/b/c`.
+
+Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp) documentation.
 
 ### Wildcard Path Matching
 
