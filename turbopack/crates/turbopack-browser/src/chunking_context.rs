@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
+    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -13,7 +13,7 @@ use turbopack_core::{
     chunk::{
         Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
         ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
-        EvaluatableAssets, MinifyType, ModuleId, SourceMapsType,
+        EvaluatableAssets, MinifyType, ModuleId, SourceMapSourceType, SourceMapsType,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
@@ -91,8 +91,8 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn use_file_source_map_uris(mut self) -> Self {
-        self.chunking_context.should_use_file_source_map_uris = true;
+    pub fn source_map_source_type(mut self, source_map_source_type: SourceMapSourceType) -> Self {
+        self.chunking_context.source_map_source_type = source_map_source_type;
         self
     }
 
@@ -125,8 +125,8 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn chunk_suffix_path(mut self, chunk_suffix_path: Option<RcStr>) -> Self {
-        self.chunking_context.chunk_suffix_path = chunk_suffix_path;
+    pub fn chunk_suffix_path(mut self, chunk_suffix_path: ResolvedVc<Option<RcStr>>) -> Self {
+        self.chunking_context.chunk_suffix_path = Some(chunk_suffix_path);
         self
     }
 
@@ -168,13 +168,42 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn debug_ids(mut self, debug_ids: bool) -> Self {
+        self.chunking_context.debug_ids = debug_ids;
+        self
+    }
+
+    pub fn should_use_absolute_url_references(
+        mut self,
+        should_use_absolute_url_references: bool,
+    ) -> Self {
+        self.chunking_context.should_use_absolute_url_references =
+            should_use_absolute_url_references;
+        self
+    }
+
+    pub fn asset_root_path_override(mut self, tag: RcStr, path: FileSystemPath) -> Self {
+        self.chunking_context.asset_root_paths.insert(tag, path);
+        self
+    }
+
+    pub fn client_roots_override(mut self, tag: RcStr, path: FileSystemPath) -> Self {
+        self.chunking_context.client_roots.insert(tag, path);
+        self
+    }
+
+    pub fn asset_base_path_override(mut self, tag: RcStr, path: RcStr) -> Self {
+        self.chunking_context.asset_base_paths.insert(tag, path);
+        self
+    }
+
     pub fn chunking_config<T>(mut self, ty: ResolvedVc<T>, chunking_config: ChunkingConfig) -> Self
     where
         T: Upcast<Box<dyn ChunkType>>,
     {
         self.chunking_context
             .chunking_configs
-            .push((ResolvedVc::upcast(ty), chunking_config));
+            .push((ResolvedVc::upcast_non_strict(ty), chunking_config));
         self
     }
 
@@ -195,32 +224,39 @@ impl BrowserChunkingContextBuilder {
 /// It splits "node_modules" separately as these are less likely to change
 /// during development
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[derive(Debug, Clone)]
 pub struct BrowserChunkingContext {
     name: Option<RcStr>,
     /// The root path of the project
     root_path: FileSystemPath,
-    /// Whether to write file sources as file:// paths in source maps
-    should_use_file_source_map_uris: bool,
+    /// The strategy to use for generating source map source uris
+    source_map_source_type: SourceMapSourceType,
     /// This path is used to compute the url to request chunks from
     output_root: FileSystemPath,
     /// The relative path from the output_root to the root_path.
     output_root_to_root_path: RcStr,
     /// This path is used to compute the url to request assets from
     client_root: FileSystemPath,
+    /// This path is used to compute the url to request chunks or assets from
+    client_roots: FxIndexMap<RcStr, FileSystemPath>,
     /// Chunks are placed at this path
     chunk_root_path: FileSystemPath,
     /// Static assets are placed at this path
     asset_root_path: FileSystemPath,
+    /// Static assets are placed at this path
+    asset_root_paths: FxIndexMap<RcStr, FileSystemPath>,
     /// Base path that will be prepended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
     chunk_base_path: Option<RcStr>,
     /// Suffix path that will be appended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
-    chunk_suffix_path: Option<RcStr>,
+    chunk_suffix_path: Option<ResolvedVc<Option<RcStr>>>,
     /// URL prefix that will be prepended to all static asset URLs when loading
     /// them.
     asset_base_path: Option<RcStr>,
+    /// URL prefix that will be prepended to all static asset URLs when loading
+    /// them.
+    asset_base_paths: FxIndexMap<RcStr, RcStr>,
     /// Enable HMR for this chunking
     enable_hot_module_replacement: bool,
     /// Enable tracing for this chunking
@@ -229,6 +265,8 @@ pub struct BrowserChunkingContext {
     enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
     enable_dynamic_chunk_content_loading: bool,
+    /// Enable debug IDs for chunks and source maps.
+    debug_ids: bool,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -249,6 +287,8 @@ pub struct BrowserChunkingContext {
     export_usage: Option<ResolvedVc<ExportUsageInfo>>,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
+    /// Whether to use absolute URLs for static assets (e.g. in CSS: `url("/absolute/path")`)
+    should_use_absolute_url_references: bool,
 }
 
 impl BrowserChunkingContext {
@@ -269,16 +309,20 @@ impl BrowserChunkingContext {
                 output_root,
                 output_root_to_root_path,
                 client_root,
+                client_roots: Default::default(),
                 chunk_root_path,
-                should_use_file_source_map_uris: false,
+                source_map_source_type: SourceMapSourceType::TurbopackUri,
                 asset_root_path,
+                asset_root_paths: Default::default(),
                 chunk_base_path: None,
                 chunk_suffix_path: None,
                 asset_base_path: None,
+                asset_base_paths: Default::default(),
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
+                debug_ids: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -289,6 +333,7 @@ impl BrowserChunkingContext {
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 export_usage: None,
                 chunking_configs: Default::default(),
+                should_use_absolute_url_references: false,
             },
         }
     }
@@ -334,17 +379,16 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn generate_chunk(
         self: Vc<Self>,
-        chunk: Vc<Box<dyn Chunk>>,
+        chunk: ResolvedVc<Box<dyn Chunk>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         Ok(
-            if let Some(ecmascript_chunk) =
-                Vc::try_resolve_downcast_type::<EcmascriptChunk>(chunk).await?
+            if let Some(ecmascript_chunk) = ResolvedVc::try_downcast_type::<EcmascriptChunk>(chunk)
             {
-                Vc::upcast(EcmascriptBrowserChunk::new(self, ecmascript_chunk))
+                Vc::upcast(EcmascriptBrowserChunk::new(self, *ecmascript_chunk))
             } else if let Some(output_asset) =
-                Vc::try_resolve_sidecast::<Box<dyn OutputAsset>>(chunk).await?
+                ResolvedVc::try_sidecast::<Box<dyn OutputAsset>>(chunk)
             {
-                output_asset
+                *output_asset
             } else {
                 bail!("Unable to generate output asset for chunk");
             },
@@ -374,7 +418,11 @@ impl BrowserChunkingContext {
     /// Returns the asset suffix path.
     #[turbo_tasks::function]
     pub fn chunk_suffix_path(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.chunk_suffix_path.clone())
+        if let Some(chunk_suffix_path) = self.chunk_suffix_path {
+            *chunk_suffix_path
+        } else {
+            Vc::cell(None)
+        }
     }
 
     /// Returns the source map type.
@@ -387,6 +435,17 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
+    }
+
+    /// Returns the chunk path information.
+    #[turbo_tasks::function]
+    fn chunk_path_info(&self) -> Vc<ChunkPathInfo> {
+        ChunkPathInfo {
+            root_path: self.root_path.clone(),
+            chunk_root_path: self.chunk_root_path.clone(),
+            content_hashing: self.content_hashing,
+        }
+        .cell()
     }
 }
 
@@ -428,7 +487,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn chunk_path(
-        &self,
+        self: Vc<Self>,
         asset: Option<Vc<Box<dyn Asset>>>,
         ident: Vc<AssetIdent>,
         prefix: Option<RcStr>,
@@ -438,11 +497,15 @@ impl ChunkingContext for BrowserChunkingContext {
             extension.starts_with("."),
             "`extension` should include the leading '.', got '{extension}'"
         );
-        let root_path = self.chunk_root_path.clone();
-        let name = match self.content_hashing {
+        let ChunkPathInfo {
+            chunk_root_path,
+            content_hashing,
+            root_path,
+        } = &*self.chunk_path_info().await?;
+        let name = match *content_hashing {
             None => {
                 ident
-                    .output_name(self.root_path.clone(), prefix, extension)
+                    .output_name(root_path.clone(), prefix, extension)
                     .owned()
                     .await?
             }
@@ -467,23 +530,31 @@ impl ChunkingContext for BrowserChunkingContext {
                 }
             }
         };
-        Ok(root_path.join(&name)?.cell())
+        Ok(chunk_root_path.join(&name)?.cell())
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(&self, ident: FileSystemPath) -> Result<Vc<RcStr>> {
+    async fn asset_url(&self, ident: FileSystemPath, tag: Option<RcStr>) -> Result<Vc<RcStr>> {
         let asset_path = ident.to_string();
+
+        let client_root = tag
+            .as_ref()
+            .and_then(|tag| self.client_roots.get(tag))
+            .unwrap_or(&self.client_root);
+
+        let asset_base_path = tag
+            .as_ref()
+            .and_then(|tag| self.asset_base_paths.get(tag))
+            .or(self.asset_base_path.as_ref());
+
         let asset_path = asset_path
-            .strip_prefix(&format!("{}/", self.client_root.path))
+            .strip_prefix(&format!("{}/", client_root.path))
             .context("expected asset_path to contain client_root")?;
 
         Ok(Vc::cell(
             format!(
                 "{}{}",
-                self.asset_base_path
-                    .as_ref()
-                    .map(|s| s.as_str())
-                    .unwrap_or("/"),
+                asset_base_path.map(|s| s.as_str()).unwrap_or("/"),
                 asset_path
             )
             .into(),
@@ -511,6 +582,7 @@ impl ChunkingContext for BrowserChunkingContext {
         &self,
         content_hash: RcStr,
         original_asset_ident: Vc<AssetIdent>,
+        tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
@@ -525,7 +597,13 @@ impl ChunkingContext for BrowserChunkingContext {
                 content_hash = &content_hash[..8]
             ),
         };
-        Ok(self.asset_root_path.join(&asset_path)?.cell())
+
+        let asset_root_path = tag
+            .as_ref()
+            .and_then(|tag| self.asset_root_paths.get(tag))
+            .unwrap_or(&self.asset_root_path);
+
+        Ok(asset_root_path.join(&asset_path)?.cell())
     }
 
     #[turbo_tasks::function]
@@ -539,8 +617,8 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn should_use_file_source_map_uris(&self) -> Vc<bool> {
-        Vc::cell(self.should_use_file_source_map_uris)
+    fn source_map_source_type(&self) -> Vc<SourceMapSourceType> {
+        self.source_map_source_type.cell()
     }
 
     #[turbo_tasks::function]
@@ -564,6 +642,11 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn should_use_absolute_url_references(&self) -> Vc<bool> {
+        Vc::cell(self.should_use_absolute_url_references)
+    }
+
+    #[turbo_tasks::function]
     async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
@@ -571,16 +654,17 @@ impl ChunkingContext for BrowserChunkingContext {
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!("chunking", name = ident.to_string().await?.to_string());
+        let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
             let this = self.await?;
-            let modules = chunk_group.entries();
+            let entries = chunk_group.entries();
             let input_availability_info = availability_info;
             let MakeChunkGroupResult {
                 chunks,
+                referenced_output_assets,
                 availability_info,
             } = make_chunk_group(
-                modules,
+                entries,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -605,11 +689,12 @@ impl ChunkingContext for BrowserChunkingContext {
                             ident.with_modifier(available_modules.hash().await?.to_string().into());
                     }
                 }
+                let other_assets = Vc::cell(assets.clone());
                 assets.push(
                     self.generate_chunk_list_register_chunk(
                         ident,
                         EvaluatableAssets::empty(),
-                        Vc::cell(assets.clone()),
+                        other_assets,
                         EcmascriptDevChunkListSource::Dynamic,
                     )
                     .to_resolved()
@@ -619,6 +704,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
+                referenced_assets: ResolvedVc::cell(referenced_output_assets),
                 availability_info,
             }
             .cell())
@@ -633,25 +719,25 @@ impl ChunkingContext for BrowserChunkingContext {
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
-        availability_info: AvailabilityInfo,
+        input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = {
-            let ident = ident.to_string().await?.to_string();
-            tracing::info_span!("chunking", chunking_type = "evaluated", ident = ident)
-        };
+        let span = tracing::info_span!(
+            "chunking",
+            name = display(ident.to_string().await?),
+            chunking_type = "evaluated",
+        );
         async move {
             let this = self.await?;
-
             let entries = chunk_group.entries();
-
             let MakeChunkGroupResult {
                 chunks,
+                referenced_output_assets,
                 availability_info,
             } = make_chunk_group(
                 entries,
                 module_graph,
                 ResolvedVc::upcast(self),
-                availability_info,
+                input_availability_info,
             )
             .await?;
 
@@ -674,6 +760,17 @@ impl ChunkingContext for BrowserChunkingContext {
             );
 
             if this.enable_hot_module_replacement {
+                let mut ident = ident;
+                match input_availability_info {
+                    AvailabilityInfo::Root => {}
+                    AvailabilityInfo::Untracked => {
+                        ident = ident.with_modifier(rcstr!("untracked"));
+                    }
+                    AvailabilityInfo::Complete { available_modules } => {
+                        ident =
+                            ident.with_modifier(available_modules.hash().await?.to_string().into());
+                    }
+                }
                 assets.push(
                     self.generate_chunk_list_register_chunk(
                         ident,
@@ -694,6 +791,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
+                referenced_assets: ResolvedVc::cell(referenced_output_assets),
                 availability_info,
             }
             .cell())
@@ -709,6 +807,7 @@ impl ChunkingContext for BrowserChunkingContext {
         _evaluatable_assets: Vc<EvaluatableAssets>,
         _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
+        _extra_referenced_assets: Vc<OutputAssets>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         bail!("Browser chunking context does not support entry chunk groups")
@@ -736,7 +835,7 @@ impl ChunkingContext for BrowserChunkingContext {
             ))
         } else {
             let module = AsyncLoaderModule::new(module, Vc::upcast(self), availability_info);
-            Vc::upcast(module.as_chunk_item(module_graph, Vc::upcast(self)))
+            module.as_chunk_item(module_graph, Vc::upcast(self))
         })
     }
 
@@ -765,4 +864,16 @@ impl ChunkingContext for BrowserChunkingContext {
             Ok(ModuleExportUsage::all())
         }
     }
+
+    #[turbo_tasks::function]
+    async fn debug_ids_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.debug_ids))
+    }
+}
+
+#[turbo_tasks::value]
+struct ChunkPathInfo {
+    root_path: FileSystemPath,
+    chunk_root_path: FileSystemPath,
+    content_hashing: Option<ContentHashing>,
 }

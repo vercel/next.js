@@ -75,32 +75,4 @@ describe('Client Navigation', () => {
       await browser.close()
     })
   })
-
-  describe('with unexpected <a/> nested tag', () => {
-    it('should not redirect if passHref prop is not defined in Link', async () => {
-      const browser = await next.browser('/nav/pass-href-prop')
-      const text = await browser
-        .elementByCss('#without-href')
-        .click()
-        .waitForElementByCss('.nav-pass-href-prop')
-        .elementByCss('p')
-        .text()
-
-      expect(text).toBe('This is the passHref prop page.')
-      await browser.close()
-    })
-
-    it('should redirect if passHref prop is defined in Link', async () => {
-      const browser = await next.browser('/nav/pass-href-prop')
-      const text = await browser
-        .elementByCss('#with-href')
-        .click()
-        .waitForElementByCss('.nav-home')
-        .elementByCss('p')
-        .text()
-
-      expect(text).toBe('This is the home.')
-      await browser.close()
-    })
-  })
 })

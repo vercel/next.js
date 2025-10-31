@@ -35,6 +35,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
@@ -70,6 +71,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
@@ -102,6 +104,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
@@ -138,6 +141,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--src-dir',
           '--tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
@@ -176,6 +180,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--no-tailwind',
           '--empty',
           '--no-import-alias',
+          '--no-react-compiler',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
@@ -216,6 +221,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
           '--tailwind',
           '--empty',
           '--no-import-alias',
+          '--no-react-compiler',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
@@ -242,7 +248,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
     })
   })
   ;(process.env.NEXT_RSPACK ? it.skip : it)(
-    'should enable turbopack dev with --turbopack flag',
+    'should enable webpack dev with --webpack flag',
     async () => {
       await useTempDir(async (cwd) => {
         const projectName = 'pages-turbo'
@@ -252,10 +258,11 @@ describe('create-next-app --no-app (Pages Router)', () => {
             '--ts',
             '--no-app',
             '--eslint',
-            '--turbopack',
+            '--webpack',
             '--no-src-dir',
             '--no-tailwind',
             '--no-import-alias',
+            '--no-react-compiler',
           ],
           nextTgzFilename,
           {
@@ -268,7 +275,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
         const projectRoot = join(cwd, projectName)
         const pkgJson = require(join(projectRoot, 'package.json'))
         // eslint-disable-next-line jest/no-standalone-expect
-        expect(pkgJson.scripts.dev).toBe('next dev --turbopack')
+        expect(pkgJson.scripts.dev).toBe('next dev --webpack')
       })
     }
   )

@@ -4,17 +4,29 @@
 //! tokio. It also avoid having multiple thread pools.
 //! see also https://pwy.io/posts/mimalloc-cigarette/
 
-use std::{sync::LazyLock, thread::available_parallelism};
+use crate::{
+    scope::scope_and_block,
+    util::{Chunk, good_chunk_size, into_chunks},
+};
 
-use crate::{scope::scope_and_block, util::into_chunks};
+struct Chunked {
+    chunk_size: usize,
+    chunk_count: usize,
+}
 
-/// Calculates a good chunk size for parallel processing based on the number of available threads.
-/// This is used to ensure that the workload is evenly distributed across the threads.
-fn good_chunk_size(len: usize) -> usize {
-    static GOOD_CHUNK_COUNT: LazyLock<usize> =
-        LazyLock::new(|| available_parallelism().map_or(16, |c| c.get() * 4));
-    let min_chunk_count = *GOOD_CHUNK_COUNT;
-    len.div_ceil(min_chunk_count)
+fn get_chunked(len: usize) -> Option<Chunked> {
+    if len <= 1 {
+        return None;
+    }
+    let chunk_size = good_chunk_size(len);
+    let chunk_count = len.div_ceil(chunk_size);
+    if chunk_count <= 1 {
+        return None;
+    }
+    Some(Chunked {
+        chunk_size,
+        chunk_count,
+    })
 }
 
 pub fn for_each<'l, T, F>(items: &'l [T], f: F)
@@ -22,18 +34,20 @@ where
     T: Sync,
     F: Fn(&'l T) + Send + Sync,
 {
-    let len = items.len();
-    if len <= 1 {
+    let Some(Chunked {
+        chunk_size,
+        chunk_count,
+    }) = get_chunked(items.len())
+    else {
         for item in items {
             f(item);
         }
         return;
-    }
-    let chunk_size = good_chunk_size(len);
+    };
     let f = &f;
-    let _results = scope_and_block(len.div_ceil(chunk_size), |scope| {
+    let _results = scope_and_block(chunk_count, |scope| {
         for chunk in items.chunks(chunk_size) {
-            scope.spawn(async move {
+            scope.spawn(move || {
                 for item in chunk {
                     f(item);
                 }
@@ -46,18 +60,20 @@ pub fn for_each_owned<T>(items: Vec<T>, f: impl Fn(T) + Send + Sync)
 where
     T: Send + Sync,
 {
-    let len = items.len();
-    if len <= 1 {
+    let Some(Chunked {
+        chunk_size,
+        chunk_count,
+    }) = get_chunked(items.len())
+    else {
         for item in items {
             f(item);
         }
         return;
-    }
-    let chunk_size = good_chunk_size(len);
+    };
     let f = &f;
-    let _results = scope_and_block(len.div_ceil(chunk_size), |scope| {
+    let _results = scope_and_block(chunk_count, |scope| {
         for chunk in into_chunks(items, chunk_size) {
-            scope.spawn(async move {
+            scope.spawn(move || {
                 // SAFETY: Even when f() panics we drop all items in the chunk.
                 for item in chunk {
                     f(item);
@@ -75,18 +91,20 @@ where
     T: Sync,
     E: Send + 'static,
 {
-    let len = items.len();
-    if len <= 1 {
+    let Some(Chunked {
+        chunk_size,
+        chunk_count,
+    }) = get_chunked(items.len())
+    else {
         for item in items {
             f(item)?;
         }
         return Ok(());
-    }
-    let chunk_size = good_chunk_size(len);
+    };
     let f = &f;
-    scope_and_block(len.div_ceil(chunk_size), |scope| {
+    scope_and_block(chunk_count, |scope| {
         for chunk in items.chunks(chunk_size) {
-            scope.spawn(async move {
+            scope.spawn(move || {
                 for item in chunk {
                     f(item)?;
                 }
@@ -105,18 +123,20 @@ where
     T: Send + Sync,
     E: Send + 'static,
 {
-    let len = items.len();
-    if len <= 1 {
+    let Some(Chunked {
+        chunk_size,
+        chunk_count,
+    }) = get_chunked(items.len())
+    else {
         for item in items {
             f(item)?;
         }
         return Ok(());
-    }
-    let chunk_size = good_chunk_size(len);
+    };
     let f = &f;
-    scope_and_block(len.div_ceil(chunk_size), |scope| {
+    scope_and_block(chunk_count, |scope| {
         for chunk in items.chunks_mut(chunk_size) {
-            scope.spawn(async move {
+            scope.spawn(move || {
                 for item in chunk {
                     f(item)?;
                 }
@@ -135,18 +155,20 @@ where
     T: Send + Sync,
     E: Send + 'static,
 {
-    let len = items.len();
-    if len <= 1 {
+    let Some(Chunked {
+        chunk_size,
+        chunk_count,
+    }) = get_chunked(items.len())
+    else {
         for item in items {
             f(item)?;
         }
         return Ok(());
-    }
-    let chunk_size = good_chunk_size(len);
+    };
     let f = &f;
-    scope_and_block(len.div_ceil(chunk_size), |scope| {
+    scope_and_block(chunk_count, |scope| {
         for chunk in into_chunks(items, chunk_size) {
-            scope.spawn(async move {
+            scope.spawn(move || {
                 for item in chunk {
                     f(item)?;
                 }
@@ -166,16 +188,17 @@ where
     PerItemResult: Send + Sync + 'l,
     Result: FromIterator<PerItemResult>,
 {
-    let len = items.len();
-    if len == 0 {
-        return Result::from_iter(std::iter::empty()); // No items to process, return empty
-        // collection
-    }
-    let chunk_size = good_chunk_size(len);
+    let Some(Chunked {
+        chunk_size,
+        chunk_count,
+    }) = get_chunked(items.len())
+    else {
+        return Result::from_iter(items.iter().map(f));
+    };
     let f = &f;
-    scope_and_block(len.div_ceil(chunk_size), |scope| {
+    scope_and_block(chunk_count, |scope| {
         for chunk in items.chunks(chunk_size) {
-            scope.spawn(async move { chunk.iter().map(f).collect::<Vec<_>>() })
+            scope.spawn(move || chunk.iter().map(f).collect::<Vec<_>>())
         }
     })
     .flatten()
@@ -191,19 +214,46 @@ where
     PerItemResult: Send + Sync + 'l,
     Result: FromIterator<PerItemResult>,
 {
-    let len = items.len();
-    if len == 0 {
-        return Result::from_iter(std::iter::empty()); // No items to process, return empty
-        // collection;
-    }
-    let chunk_size = good_chunk_size(len);
+    let Some(Chunked {
+        chunk_size,
+        chunk_count,
+    }) = get_chunked(items.len())
+    else {
+        return Result::from_iter(items.into_iter().map(f));
+    };
     let f = &f;
-    scope_and_block(len.div_ceil(chunk_size), |scope| {
+    scope_and_block(chunk_count, |scope| {
         for chunk in into_chunks(items, chunk_size) {
-            scope.spawn(async move { chunk.map(f).collect::<Vec<_>>() })
+            scope.spawn(move || chunk.map(f).collect::<Vec<_>>())
         }
     })
     .flatten()
+    .collect()
+}
+
+pub fn map_collect_chunked_owned<'l, Item, PerItemResult, Result>(
+    items: Vec<Item>,
+    f: impl Fn(Chunk<Item>) -> PerItemResult + Send + Sync,
+) -> Result
+where
+    Item: Send + Sync,
+    PerItemResult: Send + Sync + 'l,
+    Result: FromIterator<PerItemResult>,
+{
+    let Some(Chunked {
+        chunk_size,
+        chunk_count,
+    }) = get_chunked(items.len())
+    else {
+        let len = items.len();
+        return Result::from_iter(into_chunks(items, len).map(f));
+    };
+    let f = &f;
+    scope_and_block(chunk_count, |scope| {
+        for chunk in into_chunks(items, chunk_size) {
+            scope.spawn(move || f(chunk))
+        }
+    })
     .collect()
 }
 

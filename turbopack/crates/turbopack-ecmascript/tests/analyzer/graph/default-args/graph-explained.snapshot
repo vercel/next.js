@@ -1,8 +1,8 @@
-*arrow function 105* = (...) => value2
+*arrow function 105* (const after eval) = (...) => value2
 
-Fun = (...) => value
+Fun (const after eval) = (...) => value
 
-Fun2 = *arrow function 105*
+Fun2 (const after eval) = *arrow function 105*
 
 value = (arguments[0]["value"] | module<./module.js, {}>["named"])
 

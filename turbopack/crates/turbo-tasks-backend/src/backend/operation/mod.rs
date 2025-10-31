@@ -6,20 +6,21 @@ mod invalidate;
 mod prepare_new_children;
 mod update_cell;
 mod update_collectible;
-mod update_output;
 
 use std::{
     fmt::{Debug, Formatter},
     mem::transmute,
+    sync::{Arc, atomic::Ordering},
 };
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{FxIndexMap, KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
         OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard},
+        TurboTasksBackendJob,
+        storage::{SpecificTaskDataCategory, StorageWriteGuard, iter_many},
     },
     backing_storage::BackingStorage,
     data::{
@@ -46,25 +47,33 @@ enum TransactionState<'a, 'tx, B: BackingStorage> {
 }
 
 pub trait ExecuteContext<'e>: Sized {
+    type TaskGuardImpl: TaskGuard + 'e;
+    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, Self>
+    where
+        'e: 'l;
     fn session_id(&self) -> SessionId;
-    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> impl TaskGuard + 'e;
+    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl;
     fn is_once_task(&self, task_id: TaskId) -> bool;
     fn task_pair(
         &mut self,
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (impl TaskGuard + 'e, impl TaskGuard + 'e);
-    fn schedule(&self, task_id: TaskId);
+    ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl);
+    fn schedule(&mut self, task_id: TaskId);
+    fn schedule_task(&self, task: Self::TaskGuardImpl);
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
     fn suspending_requested(&self) -> bool;
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static;
     fn get_task_description(&self, task_id: TaskId) -> String;
-    fn should_track_children(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
+}
+
+pub trait ChildExecuteContext<'e>: Send + Sized {
+    fn create(self) -> impl ExecuteContext<'e>;
 }
 
 pub struct ExecuteContextImpl<'e, 'tx, B: BackingStorage>
@@ -76,6 +85,8 @@ where
     turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     _operation_guard: Option<OperationGuard<'e, B>>,
     transaction: TransactionState<'e, 'tx, B>,
+    #[cfg(debug_assertions)]
+    active_task_locks: Arc<std::sync::atomic::AtomicU8>,
 }
 
 impl<'e, 'tx, B: BackingStorage> ExecuteContextImpl<'e, 'tx, B>
@@ -91,6 +102,8 @@ where
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
             transaction: TransactionState::None,
+            #[cfg(debug_assertions)]
+            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 
@@ -104,6 +117,8 @@ where
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
             transaction: TransactionState::Borrowed(transaction),
+            #[cfg(debug_assertions)]
+            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
         }
     }
 
@@ -113,6 +128,12 @@ where
         category: TaskDataCategory,
     ) -> Vec<CachedDataItem> {
         if matches!(self.transaction, TransactionState::None) {
+            let check_backing_storage = self.backend.should_restore()
+                && self.backend.local_is_partial.load(Ordering::Acquire);
+            if !check_backing_storage {
+                // If we don't need to restore, we can just return an empty vector
+                return Vec::new();
+            }
             let tx = self.backend.backing_storage.start_read_transaction();
             let tx = tx.map(|tx| {
                 // Safety: self is actually valid for 'a, so it's safe to transmute 'l to 'a
@@ -148,11 +169,31 @@ impl<'e, 'tx, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, '
 where
     'tx: 'e,
 {
+    type TaskGuardImpl = TaskGuardImpl<'e, B>;
+
+    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'tx, 'l, B>
+    where
+        'e: 'l,
+    {
+        ChildExecuteContextImpl {
+            backend: self.backend,
+            turbo_tasks: self.turbo_tasks,
+        }
+    }
+
     fn session_id(&self) -> SessionId {
         self.backend.session_id()
     }
 
-    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> impl TaskGuard + 'e {
+    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> Self::TaskGuardImpl {
+        #[cfg(debug_assertions)]
+        if self.active_task_locks.fetch_add(1, Ordering::AcqRel) != 0 {
+            panic!(
+                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
+                 bug. It can lead to deadlocks."
+            );
+        }
+
         let mut task = self.backend.storage.access_mut(task_id);
         if !task.state().is_restored(category) {
             if task_id.is_transient() {
@@ -181,6 +222,8 @@ where
             backend: self.backend,
             #[cfg(debug_assertions)]
             category,
+            #[cfg(debug_assertions)]
+            active_task_locks: self.active_task_locks.clone(),
         }
     }
 
@@ -200,7 +243,15 @@ where
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (impl TaskGuard + 'e, impl TaskGuard + 'e) {
+    ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl) {
+        #[cfg(debug_assertions)]
+        if self.active_task_locks.fetch_add(2, Ordering::AcqRel) != 0 {
+            panic!(
+                "Concurrent task lock acquisition detected. This is not allowed and indicates a \
+                 bug. It can lead to deadlocks."
+            );
+        }
+
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
         let is_restored1 = task1.state().is_restored(category);
         let is_restored2 = task2.state().is_restored(category);
@@ -237,6 +288,8 @@ where
                 backend: self.backend,
                 #[cfg(debug_assertions)]
                 category,
+                #[cfg(debug_assertions)]
+                active_task_locks: self.active_task_locks.clone(),
             },
             TaskGuardImpl {
                 task: task2,
@@ -244,12 +297,26 @@ where
                 backend: self.backend,
                 #[cfg(debug_assertions)]
                 category,
+                #[cfg(debug_assertions)]
+                active_task_locks: self.active_task_locks.clone(),
             },
         )
     }
 
-    fn schedule(&self, task_id: TaskId) {
-        self.turbo_tasks.schedule(task_id);
+    fn schedule(&mut self, task_id: TaskId) {
+        let task = self.task(task_id, TaskDataCategory::All);
+        self.schedule_task(task);
+    }
+
+    fn schedule_task(&self, mut task: Self::TaskGuardImpl) {
+        if let Some(tasks_to_prefetch) = task.prefetch() {
+            self.turbo_tasks
+                .schedule_backend_background_job(TurboTasksBackendJob::Prefetch {
+                    data: Arc::new(tasks_to_prefetch),
+                    range: None,
+                });
+        }
+        self.turbo_tasks.schedule(task.id());
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
@@ -268,16 +335,30 @@ where
         self.backend.get_task_description(task_id)
     }
 
-    fn should_track_children(&self) -> bool {
-        self.backend.should_track_children()
-    }
-
     fn should_track_dependencies(&self) -> bool {
         self.backend.should_track_dependencies()
     }
 
     fn should_track_activeness(&self) -> bool {
         self.backend.should_track_activeness()
+    }
+}
+
+struct ChildExecuteContextImpl<'e, B: BackingStorage> {
+    backend: &'e TurboTasksBackendInner<B>,
+    turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+}
+
+impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e, B> {
+    fn create(self) -> impl ExecuteContext<'e> {
+        ExecuteContextImpl {
+            backend: self.backend,
+            turbo_tasks: self.turbo_tasks,
+            _operation_guard: None,
+            transaction: TransactionState::None,
+            #[cfg(debug_assertions)]
+            active_task_locks: Arc::new(std::sync::atomic::AtomicU8::new(0)),
+        }
     }
 }
 
@@ -315,21 +396,32 @@ pub trait TaskGuard: Debug {
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
     fn invalidate_serialization(&mut self);
+    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;
 }
 
-struct TaskGuardImpl<'a, B: BackingStorage> {
+pub struct TaskGuardImpl<'a, B: BackingStorage> {
     task_id: TaskId,
     task: StorageWriteGuard<'a>,
     backend: &'a TurboTasksBackendInner<B>,
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
+    #[cfg(debug_assertions)]
+    active_task_locks: Arc<std::sync::atomic::AtomicU8>,
+}
+
+#[cfg(debug_assertions)]
+impl<B: BackingStorage> Drop for TaskGuardImpl<'_, B> {
+    fn drop(&mut self) {
+        self.active_task_locks.fetch_sub(1, Ordering::AcqRel);
+    }
 }
 
 impl<B: BackingStorage> TaskGuardImpl<'_, B> {
     /// Verify that the task guard restored the correct category
     /// before accessing the data.
     #[inline]
+    #[track_caller]
     fn check_access(&self, category: TaskDataCategory) {
         {
             match category {
@@ -382,6 +474,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task_id
     }
 
+    #[track_caller]
     fn add(&mut self, item: CachedDataItem) -> bool {
         let category = item.category();
         self.check_access(category);
@@ -394,12 +487,14 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.add(item)
     }
 
+    #[track_caller]
     fn add_new(&mut self, item: CachedDataItem) {
         self.check_access(item.category());
         let added = self.add(item);
         assert!(added, "Item already exists");
     }
 
+    #[track_caller]
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
         let category = item.category();
         self.check_access(category);
@@ -409,6 +504,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.insert(item)
     }
 
+    #[track_caller]
     fn update(
         &mut self,
         key: CachedDataItemKey,
@@ -422,6 +518,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.update(key, update);
     }
 
+    #[track_caller]
     fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
         let category = key.category();
         self.check_access(category);
@@ -436,6 +533,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.get(key)
     }
 
+    #[track_caller]
     fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
         let category = key.category();
         self.check_access(category);
@@ -445,6 +543,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.get_mut(key)
     }
 
+    #[track_caller]
     fn get_mut_or_insert_with(
         &mut self,
         key: CachedDataItemKey,
@@ -458,11 +557,13 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.get_mut_or_insert_with(key, insert)
     }
 
+    #[track_caller]
     fn has_key(&self, key: &CachedDataItemKey) -> bool {
         self.check_access(key.category());
         self.task.contains_key(key)
     }
 
+    #[track_caller]
     fn count(&self, ty: CachedDataItemType) -> usize {
         self.check_access(ty.category());
         self.task.count(ty)
@@ -480,6 +581,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.shrink_to_fit(ty)
     }
 
+    #[track_caller]
     fn extract_if<'l, F>(
         &'l mut self,
         ty: CachedDataItemType,
@@ -502,6 +604,20 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             self.task.track_modification(SpecificTaskDataCategory::Data);
             self.task.track_modification(SpecificTaskDataCategory::Meta);
         }
+    }
+
+    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>> {
+        if !self.task.state().prefetched() {
+            self.task.state_mut().set_prefetched(true);
+            let map = iter_many!(self, OutputDependency { target } => (target, false))
+                .chain(iter_many!(self, CellDependency { target } => (target.task, true)))
+                .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, true)))
+                .collect::<FxIndexMap<_, _>>();
+            if map.len() > 16 {
+                return Some(map);
+            }
+        }
+        None
     }
 
     fn is_immutable(&self) -> bool {
@@ -536,7 +652,7 @@ macro_rules! impl_operation {
 pub enum AnyOperation {
     ConnectChild(connect_child::ConnectChildOperation),
     Invalidate(invalidate::InvalidateOperation),
-    UpdateOutput(update_output::UpdateOutputOperation),
+    UpdateCell(update_cell::UpdateCellOperation),
     CleanupOldEdges(cleanup_old_edges::CleanupOldEdgesOperation),
     AggregationUpdate(aggregation_update::AggregationUpdateQueue),
     Nested(Vec<AnyOperation>),
@@ -547,7 +663,7 @@ impl AnyOperation {
         match self {
             AnyOperation::ConnectChild(op) => op.execute(ctx),
             AnyOperation::Invalidate(op) => op.execute(ctx),
-            AnyOperation::UpdateOutput(op) => op.execute(ctx),
+            AnyOperation::UpdateCell(op) => op.execute(ctx),
             AnyOperation::CleanupOldEdges(op) => op.execute(ctx),
             AnyOperation::AggregationUpdate(op) => op.execute(ctx),
             AnyOperation::Nested(ops) => {
@@ -561,7 +677,7 @@ impl AnyOperation {
 
 impl_operation!(ConnectChild connect_child::ConnectChildOperation);
 impl_operation!(Invalidate invalidate::InvalidateOperation);
-impl_operation!(UpdateOutput update_output::UpdateOutputOperation);
+impl_operation!(UpdateCell update_cell::UpdateCellOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 
@@ -574,7 +690,7 @@ pub use self::{
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,
+    invalidate::make_task_dirty_internal,
     prepare_new_children::prepare_new_children,
-    update_cell::UpdateCellOperation,
     update_collectible::UpdateCollectibleOperation,
 };

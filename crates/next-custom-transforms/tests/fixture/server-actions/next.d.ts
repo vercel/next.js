@@ -44,6 +44,7 @@ declare module 'private-next-rsc-cache-wrapper' {
     kind: string,
     id: string,
     boundArgsLength: number,
-    fn: TFn
-  ): TFn
+    fn: TFn,
+    argsObj: IArguments
+  ): Promise<any>
 }

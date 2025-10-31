@@ -2,8 +2,9 @@ import { useContext } from 'react'
 import { PathnameContext } from '../../shared/lib/hooks-client-context.shared-runtime'
 
 /**
- * This checks to see if the current render has any unknown route parameters.
- * It's used to trigger a different render path in the error boundary.
+ * This checks to see if the current render has any unknown route parameters that
+ * would cause the pathname to be dynamic. It's used to trigger a different
+ * render path in the error boundary.
  *
  * @returns true if there are any unknown route parameters, false otherwise
  */

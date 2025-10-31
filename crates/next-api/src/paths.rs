@@ -1,29 +1,48 @@
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::AssetBinding};
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_wasm::wasm_edge_var_name;
 
 /// A reference to a server file with content hash for change detection
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[turbo_tasks::value]
+#[derive(Debug, Clone)]
 pub struct ServerPath {
     /// Relative to the root_path
-    pub path: String,
+    pub path: RcStr,
     pub content_hash: u64,
 }
 
 /// A list of server paths
 #[turbo_tasks::value(transparent)]
 pub struct ServerPaths(Vec<ServerPath>);
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionServerPath(Option<ServerPath>);
+
+#[turbo_tasks::function]
+async fn server_path(
+    asset: Vc<Box<dyn OutputAsset>>,
+    node_root: FileSystemPath,
+) -> Result<Vc<OptionServerPath>> {
+    Ok(Vc::cell(
+        if let Some(path) = node_root.get_path_to(&*asset.path().await?) {
+            let content_hash = *asset.content().file_content().hash().await?;
+            Some(ServerPath {
+                path: RcStr::from(path),
+                content_hash,
+            })
+        } else {
+            None
+        },
+    ))
+}
 
 /// Return a list of all server paths with filename and hash for all output
 /// assets references from the `assets` list. Server paths are identified by
@@ -33,38 +52,24 @@ pub async fn all_server_paths(
     assets: Vc<OutputAssets>,
     node_root: FileSystemPath,
 ) -> Result<Vc<ServerPaths>> {
-    let span = tracing::info_span!("all_server_paths");
+    let span = tracing::info_span!(
+        "collect all server paths",
+        assets_count = tracing::field::Empty,
+        server_assets_count = tracing::field::Empty
+    );
+    let span_clone = span.clone();
     async move {
         let all_assets = all_assets_from_entries(assets).await?;
-        let node_root = node_root.clone();
-        Ok(Vc::cell(
-            all_assets
-                .iter()
-                .map(|&asset| {
-                    let node_root = node_root.clone();
-
-                    async move {
-                        Ok(
-                            if let Some(path) = node_root.get_path_to(&*asset.path().await?) {
-                                let content_hash = match *asset.content().await? {
-                                    AssetContent::File(file) => *file.hash().await?,
-                                    AssetContent::Redirect { .. } => 0,
-                                };
-                                Some(ServerPath {
-                                    path: path.to_string(),
-                                    content_hash,
-                                })
-                            } else {
-                                None
-                            },
-                        )
-                    }
-                })
-                .try_flat_join()
-                .await?,
-        ))
+        span.record("assets_count", all_assets.len());
+        let server_paths = all_assets
+            .iter()
+            .map(|&asset| server_path(*asset, node_root.clone()).owned())
+            .try_flat_join()
+            .await?;
+        span.record("server_assets_count", server_paths.len());
+        Ok(Vc::cell(server_paths))
     }
-    .instrument(span)
+    .instrument(span_clone)
     .await
 }
 

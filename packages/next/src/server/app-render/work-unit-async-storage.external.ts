@@ -5,7 +5,7 @@ import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
 import type { DynamicTrackingState } from './dynamic-rendering'
-import type { FallbackRouteParams } from '../request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -19,6 +19,7 @@ import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import type { StagedRenderingController } from './staged-rendering'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -67,8 +68,22 @@ export interface RequestStore extends CommonWorkUnitStore {
 
   // DEV-only
   usedDynamic?: boolean
-  prerenderPhase?: boolean
-  devFallbackParams?: FallbackRouteParams | null
+  devFallbackParams?: OpaqueFallbackRouteParams | null
+  stagedRendering?: StagedRenderingController | null
+  asyncApiPromises?: DevAsyncApiPromises
+  cacheSignal?: CacheSignal | null
+  prerenderResumeDataCache?: PrerenderResumeDataCache | null
+}
+
+type DevAsyncApiPromises = {
+  cookies: Promise<ReadonlyRequestCookies>
+  mutableCookies: Promise<ReadonlyRequestCookies>
+  headers: Promise<ReadonlyHeaders>
+
+  sharedParamsParent: Promise<string>
+  sharedSearchParamsParent: Promise<string>
+
+  connection: Promise<undefined>
 }
 
 /**
@@ -120,6 +135,7 @@ export interface PrerenderStoreModernRuntime
    */
   readonly runtimeStagePromise: Promise<void> | null
 
+  readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']
   readonly draftMode: RequestStore['draftMode']
 }
@@ -191,11 +207,6 @@ interface PrerenderStoreModernCommon
    * subsequent dynamic render.
    */
   readonly hmrRefreshHash: string | undefined
-
-  /**
-   * Only available in dev mode.
-   */
-  readonly captureOwnerStack: undefined | (() => string | null)
 }
 
 interface StaticPrerenderStoreCommon {
@@ -203,7 +214,7 @@ interface StaticPrerenderStoreCommon {
    * The set of unknown route parameters. Accessing these will be tracked as
    * a dynamic access.
    */
-  readonly fallbackRouteParams: FallbackRouteParams | null
+  readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
 
   /**
    * When true, the page is prerendered as a fallback shell, while allowing any
@@ -225,7 +236,7 @@ export interface PrerenderStorePPR
    * The set of unknown route parameters. Accessing these will be tracked as
    * a dynamic access.
    */
-  readonly fallbackRouteParams: FallbackRouteParams | null
+  readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
 
   /**
    * The resume data cache for this prerender.
@@ -294,10 +305,7 @@ export interface PrivateUseCacheStore extends CommonUseCacheStore {
    */
   readonly runtimeStagePromise: Promise<void> | null
 
-  /**
-   * As opposed to the public cache store, the private cache store is allowed to
-   * access the request cookies.
-   */
+  readonly headers: ReadonlyHeaders
   readonly cookies: ReadonlyRequestCookies
 
   /**
@@ -353,8 +361,14 @@ export function getPrerenderResumeDataCache(
       // TODO eliminate fetch caching in client scope and stop exposing this data
       // cache during SSR.
       return workUnitStore.prerenderResumeDataCache
+    case 'request': {
+      // In dev, we might fill caches even during a dynamic request.
+      if (workUnitStore.prerenderResumeDataCache) {
+        return workUnitStore.prerenderResumeDataCache
+      }
+      // fallthrough
+    }
     case 'prerender-legacy':
-    case 'request':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
@@ -369,7 +383,6 @@ export function getRenderResumeDataCache(
 ): RenderResumeDataCache | null {
   switch (workUnitStore.type) {
     case 'request':
-      return workUnitStore.renderResumeDataCache
     case 'prerender':
     case 'prerender-runtime':
     case 'prerender-client':
@@ -382,7 +395,7 @@ export function getRenderResumeDataCache(
     case 'prerender-ppr':
       // Otherwise we return the mutable resume data cache here as an immutable
       // version of the cache as it can also be used for reading.
-      return workUnitStore.prerenderResumeDataCache
+      return workUnitStore.prerenderResumeDataCache ?? null
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
@@ -505,9 +518,15 @@ export function getCacheSignal(
     case 'prerender-client':
     case 'prerender-runtime':
       return workUnitStore.cacheSignal
+    case 'request': {
+      // In dev, we might fill caches even during a dynamic request.
+      if (workUnitStore.cacheSignal) {
+        return workUnitStore.cacheSignal
+      }
+      // fallthrough
+    }
     case 'prerender-ppr':
     case 'prerender-legacy':
-    case 'request':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':

@@ -1,4 +1,3 @@
-/* eslint-disable jest/valid-expect-in-promise */
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'

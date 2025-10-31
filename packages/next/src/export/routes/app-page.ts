@@ -24,7 +24,7 @@ import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 import type { FetchMetrics } from '../../server/base-http'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
-import type { FallbackRouteParams } from '../../server/request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../../server/request/fallback-params'
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
@@ -45,7 +45,7 @@ export async function exportAppPage(
   path: string,
   pathname: string,
   query: NextParsedUrlQuery,
-  fallbackRouteParams: FallbackRouteParams | null,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
   partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>,
   htmlFilepath: string,
   debugOutput: boolean,
@@ -84,7 +84,6 @@ export async function exportAppPage(
       fallbackRouteParams,
       renderOpts,
       undefined,
-      false,
       sharedContext
     )
 
@@ -132,14 +131,15 @@ export async function exportAppPage(
     // If page data isn't available, it means that the page couldn't be rendered
     // properly so long as we don't have unknown route params. When a route doesn't
     // have unknown route params, there will not be any flight data.
-    if (
-      !flightData &&
-      (!fallbackRouteParams || fallbackRouteParams.size === 0)
-    ) {
-      throw new Error(`Invariant: failed to get page data for ${path}`)
-    }
-
-    if (flightData) {
+    if (!flightData) {
+      if (
+        !fallbackRouteParams ||
+        fallbackRouteParams.size === 0 ||
+        renderOpts.cacheComponents
+      ) {
+        throw new Error(`Invariant: failed to get page data for ${path}`)
+      }
+    } else {
       // If PPR is enabled, we want to emit a prefetch rsc file for the page
       // instead of the standard rsc. This is because the standard rsc will
       // contain the dynamic data. We do this if any routes have PPR enabled so
@@ -239,7 +239,10 @@ export async function exportAppPage(
       cacheControl,
       fetchMetrics,
       renderResumeDataCache: renderResumeDataCache
-        ? await stringifyResumeDataCache(renderResumeDataCache)
+        ? await stringifyResumeDataCache(
+            renderResumeDataCache,
+            renderOpts.cacheComponents
+          )
         : undefined,
     }
   } catch (err) {

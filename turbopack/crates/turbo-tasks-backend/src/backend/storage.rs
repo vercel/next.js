@@ -2,7 +2,6 @@ use std::{
     hash::Hash,
     ops::{Deref, DerefMut},
     sync::{Arc, atomic::AtomicBool},
-    thread::available_parallelism,
 };
 
 use bitfield::bitfield;
@@ -101,6 +100,8 @@ bitfield! {
     /// Item was modified after snapshot mode was entered. A snapshot was taken.
     pub meta_snapshot, set_meta_snapshot: 4;
     pub data_snapshot, set_data_snapshot: 5;
+    /// Prefetched dependencies
+    pub prefetched, set_prefetched: 6;
 }
 
 impl InnerStorageState {
@@ -614,17 +615,13 @@ pub struct Storage {
 }
 
 impl Storage {
-    pub fn new(small_preallocation: bool) -> Self {
+    pub fn new(shard_amount: usize, small_preallocation: bool) -> Self {
         let map_capacity: usize = if small_preallocation {
             1024
         } else {
             1024 * 1024
         };
         let modified_capacity: usize = if small_preallocation { 0 } else { 1024 };
-        let shard_factor: usize = if small_preallocation { 4 } else { 64 };
-
-        let shard_amount =
-            (available_parallelism().map_or(4, |v| v.get()) * shard_factor).next_power_of_two();
 
         Self {
             snapshot_mode: AtomicBool::new(false),

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { arch, platform } from 'os'
@@ -10,15 +9,14 @@ import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
-  ReactCompilerOptions,
+  TurbopackLoaderBuiltinCondition,
   TurbopackLoaderItem,
+  TurbopackRuleCondition,
+  TurbopackRuleConfigCollection,
   TurbopackRuleConfigItem,
-  TurbopackRuleConfigItemOptions,
-  TurbopackRuleConfigItemOrShortcut,
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import { type DefineEnvOptions, getDefineEnv } from '../define-env'
-import { getReactCompilerLoader } from '../get-babel-loader-config'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
@@ -30,6 +28,7 @@ import type {
   DefineEnv,
   Endpoint,
   HmrIdentifiers,
+  Lockfile,
   Project,
   ProjectOptions,
   RawEntrypoints,
@@ -185,13 +184,13 @@ export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 export async function loadBindings(
   useWasmBinary: boolean = false
 ): Promise<Binding> {
+  if (pendingBindings) {
+    return pendingBindings
+  }
+
   // Increase Rust stack size as some npm packages being compiled need more than the default.
   if (!process.env.RUST_MIN_STACK) {
     process.env.RUST_MIN_STACK = '8388608'
-  }
-
-  if (pendingBindings) {
-    return pendingBindings
   }
 
   if (process.env.NEXT_TEST_WASM) {
@@ -486,8 +485,7 @@ function bindingToApi(
 
   type NapiMiddleware = {
     endpoint: NapiEndpoint
-    runtime: 'nodejs' | 'edge'
-    matcher?: string[]
+    isProxy: boolean
   }
 
   type NapiInstrumentation = {
@@ -624,7 +622,6 @@ function bindingToApi(
         options.nextConfig,
         path.join(options.rootPath, options.projectPath)
       ),
-      jsConfig: JSON.stringify(options.jsConfig),
       env: rustifyEnv(options.env),
     }
   }
@@ -640,7 +637,6 @@ function bindingToApi(
           options.nextConfig,
           path.join(options.rootPath!, options.projectPath!)
         )),
-      jsConfig: options.jsConfig && JSON.stringify(options.jsConfig),
       env: options.env && rustifyEnv(options.env),
     }
   }
@@ -661,24 +657,42 @@ function bindingToApi(
 
     async writeAllEntrypointsToDisk(
       appDirOnly: boolean
-    ): Promise<TurbopackResult<RawEntrypoints>> {
+    ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
       const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
         this._nativeProject,
         appDirOnly
-      )) as TurbopackResult<NapiEntrypoints>
+      )) as TurbopackResult<Partial<NapiEntrypoints>>
 
-      return napiEntrypointsToRawEntrypoints(napiEndpoints)
+      if ('routes' in napiEndpoints) {
+        return napiEntrypointsToRawEntrypoints(
+          napiEndpoints as TurbopackResult<NapiEntrypoints>
+        )
+      } else {
+        return {
+          issues: napiEndpoints.issues,
+          diagnostics: napiEndpoints.diagnostics,
+        }
+      }
     }
 
     entrypointsSubscribe() {
-      const subscription = subscribe<TurbopackResult<NapiEntrypoints>>(
+      const subscription = subscribe<TurbopackResult<NapiEntrypoints | {}>>(
         false,
         async (callback) =>
           binding.projectEntrypointsSubscribe(this._nativeProject, callback)
       )
       return (async function* () {
         for await (const entrypoints of subscription) {
-          yield napiEntrypointsToRawEntrypoints(entrypoints)
+          if ('routes' in (entrypoints as TurbopackResult<NapiEntrypoints>)) {
+            yield napiEntrypointsToRawEntrypoints(
+              entrypoints as TurbopackResult<NapiEntrypoints>
+            )
+          } else {
+            yield {
+              issues: entrypoints.issues,
+              diagnostics: entrypoints.diagnostics,
+            } as TurbopackResult<{}>
+          }
         }
       })()
     }
@@ -743,8 +757,8 @@ function bindingToApi(
       )
     }
 
-    invalidatePersistentCache(): Promise<void> {
-      return binding.projectInvalidatePersistentCache(this._nativeProject)
+    invalidateFileSystemCache(): Promise<void> {
+      return binding.projectInvalidateFileSystemCache(this._nativeProject)
     }
 
     shutdown(): Promise<void> {
@@ -769,7 +783,7 @@ function bindingToApi(
       )) as TurbopackResult<WrittenEndpoint>
     }
 
-    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>> {
       const clientSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -781,7 +795,7 @@ function bindingToApi(
 
     async serverChanged(
       includeIssues: boolean
-    ): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+    ): Promise<AsyncIterableIterator<TurbopackResult>> {
       const serverSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -796,81 +810,12 @@ function bindingToApi(
     }
   }
 
-  /**
-   * Returns a new copy of next.js config object to avoid mutating the original.
-   *
-   * Also it does some augmentation to the configuration as well, for example set the
-   * turbopack's rules if `experimental.reactCompilerOptions` is set.
-   */
-  function augmentNextConfig(
-    originalNextConfig: NextConfigComplete,
-    projectPath: string
-  ): Record<string, any> {
-    let nextConfig = { ...(originalNextConfig as NextConfigComplete) }
-
-    const reactCompilerOptions = nextConfig.experimental?.reactCompiler
-
-    // It is not easy to set the rules inside of rust as resolving, and passing the context identical to the webpack
-    // config is bit hard, also we can reuse same codes between webpack config in here.
-    if (reactCompilerOptions) {
-      const options: ReactCompilerOptions =
-        typeof reactCompilerOptions === 'object' ? reactCompilerOptions : {}
-      const ruleKeys = ['*.ts', '*.js', '*.jsx', '*.tsx']
-      if (
-        Object.keys(nextConfig?.turbopack?.rules ?? {}).some((key) =>
-          ruleKeys.includes(key)
-        )
-      ) {
-        Log.warn(
-          "The React Compiler cannot be enabled automatically because 'turbopack.rules' contains " +
-            "a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add " +
-            "'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration " +
-            'manually.'
-        )
-      } else {
-        nextConfig.turbopack ??= {}
-        nextConfig.turbopack.conditions ??= {}
-        nextConfig.turbopack.rules ??= {}
-
-        for (const key of ruleKeys) {
-          nextConfig.turbopack.conditions[`#reactCompiler/${key}`] = {
-            path: key,
-            content:
-              options.compilationMode === 'annotation'
-                ? /['"]use memo['"]/
-                : !options.compilationMode ||
-                    options.compilationMode === 'infer'
-                  ? // Matches declaration or useXXX or </ (closing jsx) or /> (self closing jsx)
-                    /['"]use memo['"]|\Wuse[A-Z]|<\/|\/>/
-                  : undefined,
-          }
-          nextConfig.turbopack.rules[`#reactCompiler/${key}`] = {
-            browser: {
-              foreign: false,
-              loaders: [
-                getReactCompilerLoader(
-                  reactCompilerOptions,
-                  projectPath,
-                  nextConfig.dev,
-                  /* isServer */ false,
-                  /* reactCompilerExclude */ undefined
-                ),
-              ],
-            },
-          }
-        }
-      }
-    }
-
-    return nextConfig
-  }
-
   async function serializeNextConfig(
     nextConfig: NextConfigComplete,
     projectPath: string
   ): Promise<string> {
-    // Avoid mutating the existing `nextConfig` object.
-    let nextConfigSerializable = augmentNextConfig(nextConfig, projectPath)
+    // Avoid mutating the existing `nextConfig` object. NOTE: This is only a shallow clone.
+    let nextConfigSerializable: Record<string, any> = { ...nextConfig }
 
     nextConfigSerializable.generateBuildId =
       await nextConfigSerializable.generateBuildId?.()
@@ -878,12 +823,6 @@ function bindingToApi(
     // TODO: these functions takes arguments, have to be supported in a different way
     nextConfigSerializable.exportPathMap = {}
     nextConfigSerializable.webpack = nextConfigSerializable.webpack && {}
-
-    if (nextConfigSerializable.turbopack?.rules) {
-      ensureLoadersHaveSerializableOptions(
-        nextConfigSerializable.turbopack?.rules
-      )
-    }
 
     if (nextConfigSerializable.modularizeImports) {
       nextConfigSerializable.modularizeImports = Object.fromEntries(
@@ -920,108 +859,134 @@ function bindingToApi(
           ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
           : nextConfigSerializable.cacheHandler)
     }
-    if (nextConfigSerializable.experimental?.cacheHandlers) {
-      nextConfigSerializable.experimental = {
-        ...nextConfigSerializable.experimental,
-        cacheHandlers: Object.fromEntries(
-          Object.entries(
-            nextConfigSerializable.experimental.cacheHandlers as Record<
-              string,
-              string
-            >
-          )
-            .filter(([_, value]) => value != null)
-            .map(([key, value]) => [
-              key,
-              './' +
-                (path.isAbsolute(value)
-                  ? path.relative(projectPath, value)
-                  : value),
-            ])
-        ),
-      }
+    if (nextConfigSerializable.cacheHandlers) {
+      nextConfigSerializable.cacheHandlers = Object.fromEntries(
+        Object.entries(
+          nextConfigSerializable.cacheHandlers as Record<string, string>
+        )
+          .filter(([_, value]) => value != null)
+          .map(([key, value]) => [
+            key,
+            './' +
+              (path.isAbsolute(value)
+                ? path.relative(projectPath, value)
+                : value),
+          ])
+      )
     }
 
-    const conditions: (typeof nextConfig)['turbopack']['conditions'] =
-      nextConfigSerializable.turbopack?.conditions
-    if (conditions) {
-      type SerializedConditions = {
-        [key: string]: {
-          path?:
-            | { type: 'regex'; value: { source: string; flags: string } }
-            | { type: 'glob'; value: string }
-          content?: { source: string; flags: string }
-        }
+    if (nextConfigSerializable.turbopack != null) {
+      // clone to allow in-place mutations
+      const turbopack = { ...nextConfigSerializable.turbopack }
+
+      if (turbopack.rules) {
+        turbopack.rules = serializeTurbopackRules(turbopack.rules)
       }
 
-      function regexComponents(regex: RegExp): {
-        source: string
-        flags: string
-      } {
-        return {
-          source: regex.source,
-          flags: regex.flags,
-        }
-      }
-
-      const serializedConditions: SerializedConditions = {}
-      for (const [key, value] of Object.entries(conditions)) {
-        serializedConditions[key] = {
-          ...value,
-          path: !value.path
-            ? undefined
-            : value.path instanceof RegExp
-              ? {
-                  type: 'regex',
-                  value: regexComponents(value.path),
-                }
-              : { type: 'glob', value: value.path },
-          content: !value.content ? undefined : regexComponents(value.content),
-        }
-      }
-      nextConfigSerializable.turbopack.conditions = serializedConditions
+      nextConfigSerializable.turbopack = turbopack
     }
 
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
 
-  function ensureLoadersHaveSerializableOptions(
-    turbopackRules: Record<string, TurbopackRuleConfigItemOrShortcut>
-  ) {
+  type SerializedRuleCondition =
+    | { all: SerializedRuleCondition[] }
+    | { any: SerializedRuleCondition[] }
+    | { not: SerializedRuleCondition }
+    | TurbopackLoaderBuiltinCondition
+    | {
+        path?:
+          | { type: 'regex'; value: { source: string; flags: string } }
+          | { type: 'glob'; value: string }
+        content?: { source: string; flags: string }
+      }
+
+  // converts regexes to a `RegexComponents` object so that it can be JSON-serialized when passed to
+  // Turbopack
+  function serializeRuleCondition(
+    cond: TurbopackRuleCondition
+  ): SerializedRuleCondition {
+    function regexComponents(regex: RegExp) {
+      return {
+        source: regex.source,
+        flags: regex.flags,
+      }
+    }
+
+    if (typeof cond === 'string') {
+      return cond
+    } else if ('all' in cond) {
+      return { ...cond, all: cond.all.map(serializeRuleCondition) }
+    } else if ('any' in cond) {
+      return { ...cond, any: cond.any.map(serializeRuleCondition) }
+    } else if ('not' in cond) {
+      return { ...cond, not: serializeRuleCondition(cond.not) }
+    } else {
+      return {
+        ...cond,
+        path:
+          cond.path == null
+            ? undefined
+            : cond.path instanceof RegExp
+              ? {
+                  type: 'regex',
+                  value: regexComponents(cond.path),
+                }
+              : { type: 'glob', value: cond.path },
+        content: cond.content && regexComponents(cond.content),
+      }
+    }
+  }
+
+  // Note: Returns an updated `turbopackRules` with serialized conditions. Does not mutate in-place.
+  function serializeTurbopackRules(
+    turbopackRules: Record<string, TurbopackRuleConfigCollection>
+  ): Record<string, any> {
+    const serializedRules: Record<string, any> = {}
     for (const [glob, rule] of Object.entries(turbopackRules)) {
       if (Array.isArray(rule)) {
-        checkLoaderItems(rule, glob)
-      } else {
-        checkConfigItem(rule, glob)
-      }
-    }
-
-    function checkConfigItem(rule: TurbopackRuleConfigItem, glob: string) {
-      if (!rule) return
-      if ('loaders' in rule) {
-        checkLoaderItems((rule as TurbopackRuleConfigItemOptions).loaders, glob)
-      } else {
-        for (const value of Object.values(rule)) {
-          if (typeof value === 'object' && value) {
-            checkConfigItem(value, glob)
+        serializedRules[glob] = rule.map((item) => {
+          if (typeof item !== 'string' && 'loaders' in item) {
+            return serializeConfigItem(item, glob)
+          } else {
+            checkLoaderItem(item, glob)
+            return item
           }
-        }
+        })
+      } else {
+        serializedRules[glob] = serializeConfigItem(rule, glob)
       }
     }
 
-    function checkLoaderItems(
-      loaderItems: TurbopackLoaderItem[],
+    return serializedRules
+
+    function serializeConfigItem(
+      rule: TurbopackRuleConfigItem,
       glob: string
-    ) {
-      for (const loaderItem of loaderItems) {
-        if (
-          typeof loaderItem !== 'string' &&
-          !isDeepStrictEqual(loaderItem, JSON.parse(JSON.stringify(loaderItem)))
-        ) {
-          throw new Error(
-            `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. Ensure that options passed are plain JavaScript objects and values.`
-          )
+    ): any {
+      if (!rule) return rule
+      for (const item of rule.loaders) {
+        checkLoaderItem(item, glob)
+      }
+      let serializedRule: any = rule
+      if (rule.condition != null) {
+        serializedRule = {
+          ...rule,
+          condition: serializeRuleCondition(rule.condition),
         }
+      }
+      return serializedRule
+    }
+
+    function checkLoaderItem(loaderItem: TurbopackLoaderItem, glob: string) {
+      if (
+        typeof loaderItem !== 'string' &&
+        !isDeepStrictEqual(loaderItem, JSON.parse(JSON.stringify(loaderItem)))
+      ) {
+        throw new Error(
+          `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. ` +
+            'Ensure that options passed are plain JavaScript objects and values.'
+        )
       }
     }
   }
@@ -1069,19 +1034,19 @@ function bindingToApi(
             type: 'conflict',
           }
           break
-        default:
+        default: {
           const _exhaustiveCheck: never = routeType
           invariant(
             nativeRoute,
             () => `Unknown route type: ${_exhaustiveCheck}`
           )
+        }
       }
       routes.set(pathname, route)
     }
     const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
       endpoint: new EndpointImpl(middleware.endpoint),
-      runtime: middleware.runtime,
-      matcher: middleware.matcher,
+      isProxy: middleware.isProxy,
     })
     const middleware = entrypoints.middleware
       ? napiMiddlewareToMiddleware(entrypoints.middleware)
@@ -1250,7 +1215,10 @@ async function loadWasm(importPath = '') {
           '`turbo.createProject` is not supported by the wasm bindings.'
         )
       },
-      startTurbopackTraceServer(_traceFilePath: string): void {
+      startTurbopackTraceServer(
+        _traceFilePath: string,
+        _port: number | undefined
+      ): void {
         throw new Error(
           '`turbo.startTurbopackTraceServer` is not supported by the wasm bindings.'
         )
@@ -1305,6 +1273,24 @@ async function loadWasm(importPath = '') {
         replacements,
         injections,
         imports
+      )
+    },
+    lockfileTryAcquire(_filePath: string) {
+      throw new Error(
+        '`lockfileTryAcquire` is not supported by the wasm bindings.'
+      )
+    },
+    lockfileTryAcquireSync(_filePath: string) {
+      throw new Error(
+        '`lockfileTryAcquireSync` is not supported by the wasm bindings.'
+      )
+    },
+    lockfileUnlock(_lockfile: Lockfile) {
+      throw new Error('`lockfileUnlock` is not supported by the wasm bindings.')
+    },
+    lockfileUnlockSync(_lockfile: Lockfile) {
+      throw new Error(
+        '`lockfileUnlockSync` is not supported by the wasm bindings.'
       )
     },
   }
@@ -1444,11 +1430,14 @@ function loadNative(importPath?: string) {
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       turbo: {
         createProject: bindingToApi(customBindings ?? bindings, false),
-        startTurbopackTraceServer(traceFilePath) {
+        startTurbopackTraceServer(traceFilePath, port) {
           Log.warn(
-            'Turbopack trace server started. View trace at https://trace.nextjs.org'
+            `Turbopack trace server started. View trace at https://trace.nextjs.org${port != null ? `?port=${port}` : ''}`
           )
-          ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
+          ;(customBindings ?? bindings).startTurbopackTraceServer(
+            traceFilePath,
+            port
+          )
         },
       },
       mdx: {
@@ -1505,6 +1494,18 @@ function loadNative(importPath?: string) {
           injections,
           imports
         )
+      },
+      lockfileTryAcquire(filePath: string) {
+        return bindings.lockfileTryAcquire(filePath)
+      },
+      lockfileTryAcquireSync(filePath: string) {
+        return bindings.lockfileTryAcquireSync(filePath)
+      },
+      lockfileUnlock(lockfile: Lockfile) {
+        return bindings.lockfileUnlock(lockfile)
+      },
+      lockfileUnlockSync(lockfile: Lockfile) {
+        return bindings.lockfileUnlockSync(lockfile)
       },
     }
     return nativeBindings

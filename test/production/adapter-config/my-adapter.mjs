@@ -4,8 +4,12 @@ import fs from 'fs'
 /** @type {import('next').NextAdapter } */
 const myAdapter = {
   name: 'my-custom-adapter',
-  modifyConfig: (config) => {
-    console.log('called modify config in adapter')
+  modifyConfig: (config, { phase }) => {
+    if (process.env.NODE_ENV !== 'production') return config
+    if (typeof phase !== 'string') {
+      throw new Error(`invalid phase value provided to modifyConfig ${phase}`)
+    }
+    console.log('called modify config in adapter with phase', phase)
     config.basePath = '/docs'
     return config
   },

@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { __unsafeCreateTrustedScriptURL } from './trusted-types'
 import { requestIdleCallback } from './request-idle-callback'
@@ -16,7 +16,7 @@ declare global {
   interface Window {
     __BUILD_MANIFEST?: Record<string, string[]>
     __BUILD_MANIFEST_CB?: Function
-    __MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
+    __MIDDLEWARE_MATCHERS?: ProxyMatcher[]
     __MIDDLEWARE_MANIFEST_CB?: Function
     __REACT_LOADABLE_MANIFEST?: any
     __DYNAMIC_CSS_MANIFEST?: any

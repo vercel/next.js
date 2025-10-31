@@ -42,36 +42,6 @@ export const config = {}
 <td>
 
 ```js
-export const config = {}
-// `config.amp` is defined after `config` is exported
-config.amp = true
-
-// `config.amp` contains a dynamic expression
-export const config = {
-  amp: 1 + 1 > 2,
-}
-```
-
-</td>
-<td>
-
-```js
-export const config = {
-  amp: true,
-}
-
-export const config = {
-  amp: false,
-}
-```
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-```js
 // `config.runtime` contains a dynamic expression
 export const config = {
   runtime: `node${'js'}`,
@@ -116,6 +86,5 @@ export const config = {}
 
 ## Useful Links
 
-- [Enabling AMP Support](/docs/pages/guides/amp)
 - [API Routes Request Helpers](/docs/pages/building-your-application/routing/api-routes)
 - [Edge Runtime](/docs/app/api-reference/edge)

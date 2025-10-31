@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use either::Either;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, rope::RopeBuilder};
+use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkingContext, MinifyType, ModuleId},
@@ -96,7 +96,10 @@ impl EcmascriptBrowserChunkContent {
                 Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
             }
         };
-        let mut code = CodeBuilder::new(source_maps);
+        let mut code = CodeBuilder::new(
+            source_maps,
+            *this.chunking_context.debug_ids_enabled().await?,
+        );
 
         // When a chunk is executed, it will either register itself with the current
         // instance of the runtime, or it will push itself onto the list of pending
@@ -139,23 +142,15 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-        let code = self.code().await?;
 
-        let rope = if code.has_source_map() {
-            let mut rope_builder = RopeBuilder::default();
-            rope_builder.concat(code.source_code());
-            let source_map_path = this.source_map.path().await?;
-            write!(
-                rope_builder,
-                "\n\n//# sourceMappingURL={}",
-                urlencoding::encode(source_map_path.file_name())
-            )?;
-            rope_builder.build()
-        } else {
-            code.source_code().clone()
-        };
-
-        Ok(AssetContent::file(File::from(rope).into()))
+        Ok(AssetContent::file(
+            File::from(
+                self.code()
+                    .to_rope_with_magic_comments(|| *this.source_map)
+                    .await?,
+            )
+            .into(),
+        ))
     }
 
     #[turbo_tasks::function]

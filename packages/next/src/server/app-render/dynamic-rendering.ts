@@ -36,6 +36,7 @@ import { DynamicServerError } from '../../client/components/hooks-server-context
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   getRuntimeStagePromise,
+  throwForMissingRequestStore,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
@@ -49,6 +50,7 @@ import {
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { RenderStage } from './staged-rendering'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -297,8 +299,12 @@ export function trackSynchronousPlatformIOAccessInDev(
   requestStore: RequestStore
 ): void {
   // We don't actually have a controller to abort but we do the semantic equivalent by
-  // advancing the request store out of prerender mode
-  requestStore.prerenderPhase = false
+  // advancing the request store out of the prerender stage
+  if (requestStore.stagedRendering) {
+    // TODO: error for sync IO in the runtime stage
+    // (which is not currently covered by the validation render in `spawnDynamicValidationInDev`)
+    requestStore.stagedRendering.advanceStage(RenderStage.Dynamic)
+  }
 }
 
 /**
@@ -340,10 +346,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
     `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
   )
 }
-
-// For now these implementations are the same so we just reexport
-export const trackSynchronousRequestDataAccessInDev =
-  trackSynchronousPlatformIOAccessInDev
 
 /**
  * This component will call `React.postpone` that throws the postponed error.
@@ -595,6 +597,7 @@ export function useDynamicRouteParams(expression: string) {
       case 'prerender-client':
       case 'prerender': {
         const fallbackParams = workUnitStore.fallbackRouteParams
+
         if (fallbackParams && fallbackParams.size > 0) {
           // We are in a prerender with cacheComponents semantics. We are going to
           // hang here and never resolve. This will cause the currently
@@ -636,6 +639,55 @@ export function useDynamicRouteParams(expression: string) {
       default:
         workUnitStore satisfies never
     }
+  }
+}
+
+export function useDynamicSearchParams(expression: string) {
+  const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  if (!workStore) {
+    // We assume pages router context and just return
+    return
+  }
+
+  if (!workUnitStore) {
+    throwForMissingRequestStore(expression)
+  }
+
+  switch (workUnitStore.type) {
+    case 'prerender-client': {
+      React.use(
+        makeHangingPromise(
+          workUnitStore.renderSignal,
+          workStore.route,
+          expression
+        )
+      )
+      break
+    }
+    case 'prerender-legacy':
+    case 'prerender-ppr': {
+      if (workStore.forceStatic) {
+        return
+      }
+      throw new BailoutToCSRError(expression)
+    }
+    case 'prerender':
+    case 'prerender-runtime':
+      throw new InvariantError(
+        `\`${expression}\` was called from a Server Component. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+      )
+    case 'cache':
+    case 'unstable-cache':
+    case 'private-cache':
+      throw new InvariantError(
+        `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+      )
+    case 'request':
+      return
+    default:
+      workUnitStore satisfies never
   }
 }
 
@@ -707,7 +759,11 @@ export function trackAllowedDynamicAccess(
     )
     return
   } else {
-    const message = `Route "${workStore.route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
+    const message =
+      `Route "${workStore.route}": Uncached data was accessed outside of ` +
+      '<Suspense>. This delays the entire page from rendering, resulting in a ' +
+      'slow user experience. Learn more: ' +
+      'https://nextjs.org/docs/messages/blocking-route'
     const error = createErrorWithComponentOrOwnerStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
     return

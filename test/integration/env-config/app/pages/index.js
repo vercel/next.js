@@ -55,7 +55,7 @@ export default function Page({ env }) {
         {process.env.NEXT_PUBLIC_NEW_NEXT_CONFIG_VALUE}
       </div>
       <div id="nextPublicEmptyEnvVar">
-        {`${process.env.NEXT_PUBLIC_EMPTY_ENV_VAR}`}
+        content: {`${process.env.NEXT_PUBLIC_EMPTY_ENV_VAR}`}
       </div>
     </>
   )

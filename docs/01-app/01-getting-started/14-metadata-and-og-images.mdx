@@ -13,6 +13,7 @@ related:
     - app/api-reference/file-conventions/metadata/opengraph-image
     - app/api-reference/file-conventions/metadata/robots
     - app/api-reference/file-conventions/metadata/sitemap
+    - app/api-reference/config/next-config-js/htmlLimitedBots
 ---
 
 The Metadata APIs can be used to define your application metadata for improved SEO and web shareability and include:
@@ -51,16 +52,16 @@ export const metadata: Metadata = {
   description: '...',
 }
 
-export default function Page() {}
+export default function Layout() {}
 ```
 
-```jsx filename="app/blog/layout.tsx" switcher
+```jsx filename="app/blog/layout.js" switcher
 export const metadata = {
   title: 'My Blog',
   description: '...',
 }
 
-export default function Page() {}
+export default function Layout() {}
 ```
 
 You can view a full list of available options, in the [`generateMetadata` documentation](/docs/app/api-reference/functions/generate-metadata#metadata-fields).
@@ -117,9 +118,15 @@ export default function Page({ params, searchParams }) {}
 
 ### Streaming metadata
 
-For dynamically rendered pages, if resolving `generateMetadata` might block rendering, Next.js streams the resolved metadata separately and injects it into the HTML as soon as it's ready.
+For dynamically rendered pages, Next.js streams metadata separately, injecting it into the HTML once `generateMetadata` resolves, without blocking UI rendering.
 
-Statically rendered pages don’t use this behavior since metadata is resolved at build time.
+Streaming metadata improves perceived performance by allowing visual content to stream first.
+
+Streaming metadata is **disabled for bots and crawlers** that expect metadata to be in the `<head>` tag (e.g. `Twitterbot`, `Slackbot`, `Bingbot`). These are detected by using the User Agent header from the incoming request.
+
+You can customize or **disable** streaming metadata completely, with the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots#disabling) option in your Next.js config file.
+
+Statically rendered pages don’t use streaming since metadata is resolved at build time.
 
 Learn more about [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata).
 
@@ -127,7 +134,7 @@ Learn more about [streaming metadata](/docs/app/api-reference/functions/generate
 
 There may be cases where you need to fetch the **same** data for metadata and the page itself. To avoid duplicate requests, you can use React's [`cache` function](https://react.dev/reference/react/cache) to memoize the return value and only fetch the data once. For example, to fetch the blog post information for both the metadata and the page:
 
-```tsx filename="app/lib/data.ts" highlight={5} switcher
+```ts filename="app/lib/data.ts" highlight={5} switcher
 import { cache } from 'react'
 import { db } from '@/app/lib/db'
 
@@ -138,7 +145,7 @@ export const getPost = cache(async (slug: string) => {
 })
 ```
 
-```jsx filename="app/lib/data.js" highlight={5} switcher
+```js filename="app/lib/data.js" highlight={5} switcher
 import { cache } from 'react'
 import { db } from '@/app/lib/db'
 
@@ -242,9 +249,9 @@ The more specific image will take precedence over any OG images above it in the 
 
 The [`ImageResponse` constructor](/docs/app/api-reference/functions/image-response) allows you to generate dynamic images using JSX and CSS. This is useful for OG images that depend on data.
 
-For example, to generate a unique OG image for each blog post, add a `opengraph-image.ts` file inside the `blog` folder, and import the `ImageResponse` constructor from `next/og`:
+For example, to generate a unique OG image for each blog post, add a `opengraph-image.tsx` file inside the `blog` folder, and import the `ImageResponse` constructor from `next/og`:
 
-```tsx filename="app/blog/[slug]/opengraph-image.ts" switcher
+```tsx filename="app/blog/[slug]/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
 import { getPost } from '@/app/lib/data'
 

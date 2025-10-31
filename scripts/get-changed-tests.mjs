@@ -112,7 +112,10 @@ export default async function getChangedTests() {
       .catch(() => false)
 
     if (fileExists && file.match(/^test\/.*?\.test\.(js|ts|tsx)$/)) {
-      if (file.startsWith('test/e2e/')) {
+      if (
+        file.startsWith('test/e2e/') ||
+        file.startsWith('test/integration/')
+      ) {
         devTests.push(file)
         prodTests.push(file)
       } else if (file.startsWith('test/prod')) {

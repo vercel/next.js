@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
+import { Playwright as NextBrowser } from '../../../../lib/next-webdriver'
 import type * as Playwright from 'playwright'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'router-act'
 
 describe('layout sharing in non-static prefetches', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -13,13 +14,14 @@ describe('layout sharing in non-static prefetches', () => {
 
   // Glossary:
   //
-  // - A "full prefetch" is `<Link prefetch="unstable_forceStale">` (a.k.a old `prefetch={true}`, before cacheComponents).
+  // - A "full prefetch" is `<Link prefetch="true">`
   //  It includes cached and uncached IO.
 
-  // - A "runtime prefetch" is the new `<Link prefetch={true}>` (only available in cacheComponents mode).
+  // - A "runtime prefetch" is the new `unstable_prefetch` segment config (only available in cacheComponents mode).
   //   It includes cached IO, and allows access to cookies/params/searchParams/"use cache: private", but excludes uncached IO.
 
-  it('runtime prefetches should omit layouts that were already prefetched with a runtime prefetch', async () => {
+  // TODO (runtime-prefetching): link-level opt-in has been removed. These tests need to be updated to use the segment configuration.
+  it.skip('runtime prefetches should omit layouts that were already prefetched with a runtime prefetch', async () => {
     // Prefetches should re-use results from previous prefetches with the same fetch strategy.
 
     let page: Playwright.Page
@@ -242,7 +244,8 @@ describe('layout sharing in non-static prefetches', () => {
     )
   })
 
-  it('runtime prefetches should omit layouts that were already prefetched with a full prefetch', async () => {
+  // TODO (runtime-prefetching): link-level opt-in has been removed. These tests need to be updated to use the segment configuration.
+  it.skip('runtime prefetches should omit layouts that were already prefetched with a full prefetch', async () => {
     // A prefetch should re-use layouts from past prefetches with more specific fetch strategies.
 
     let page: Playwright.Page
@@ -338,7 +341,8 @@ describe('layout sharing in non-static prefetches', () => {
     )
   })
 
-  it('full prefetches should include layouts that were only prefetched with a runtime prefetch', async () => {
+  // TODO (runtime-prefetching): link-level opt-in has been removed. These tests need to be updated to use the segment configuration.
+  it.skip('full prefetches should include layouts that were only prefetched with a runtime prefetch', async () => {
     // A prefetch should NOT re-use layouts from past prefetches if they used a less specific fetch strategy.
 
     let page: Playwright.Page
@@ -407,7 +411,8 @@ describe('layout sharing in non-static prefetches', () => {
     )
   })
 
-  it('full prefetches should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes', async () => {
+  // TODO (runtime-prefetching): link-level opt-in has been removed. These tests need to be updated to use the segment configuration.
+  it.skip('full prefetches should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes', async () => {
     // If a runtime prefetch gave us a complete segment with no dynamic holes left, then it's equivalent to a full prefetch.
     //
     // TODO: This doesn't work in all cases -- if any segment in a runtime prefetch was partial, we'll mark all of them as partial,
@@ -487,7 +492,8 @@ describe('layout sharing in non-static prefetches', () => {
     )
   })
 
-  it('navigations should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes', async () => {
+  // TODO (runtime-prefetching): link-level opt-in has been removed. These tests need to be updated to use the segment configuration.
+  it.skip('navigations should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes', async () => {
     // If a runtime prefetch gave us a complete segment with no dynamic holes left, then it's equivalent to a full prefetch.
     //
     // TODO: This doesn't work in all cases -- if any segment in a runtime prefetch was partial, we'll mark all of them as partial,
@@ -534,7 +540,15 @@ describe('layout sharing in non-static prefetches', () => {
         `input[data-prefetch="auto"][data-link-accordion="/runtime-prefetchable-layout/two"]`
       )
       await linkToggle.click()
-    })
+    }, [
+      // Should not fetch the shared layout, because that was already prefetched
+      {
+        includes: 'Shared layout',
+        block: 'reject',
+      },
+      // Should fetch the static part of page two
+      { includes: 'Page two' },
+    ])
 
     // Navigate to page two. We need to request the page segment dynamically, but the shared layout should be cached.
     await act(async () => {
@@ -565,6 +579,204 @@ describe('layout sharing in non-static prefetches', () => {
     expect(await browser.elementById('dynamic-content-page').text()).toEqual(
       'Dynamic content from page two'
     )
+  })
+
+  describe('segment-level prefetch config', () => {
+    const clientNavigateToSegmentConfigPage = async (
+      browser: NextBrowser,
+      act: ReturnType<typeof createRouterAct>
+    ) => {
+      // Reveal the link to trigger a (automatic) runtime prefetch for the segment-config entrypoint page
+      await act(async () => {
+        const linkToggle = await browser.elementByCss(
+          `input[data-link-accordion="/segment-config/runtime-prefetchable"]`
+        )
+        await linkToggle.click()
+      }, [
+        {
+          includes: 'runtime-prefetchable-content-layout',
+        },
+      ])
+
+      // Navigate to the segment-config entrypoint page.
+      // The layout is configured as runtime prefetchable, but the page is not.
+      // Both contain runtime-prefetchable content,
+      // but nothing dynamic, so we shouldn't need any extra requests.
+      //
+      // Note that the page itself doesn't specify that it should use a runtime prefetch,
+      // but we'll currently automatically include it in the runtime prefetch request
+      // that we're doing because of the layout's config.
+      await act(async () => {
+        await browser
+          .elementByCss(`a[href="/segment-config/runtime-prefetchable"]`)
+          .click()
+      }, 'no-requests')
+    }
+
+    it('does not unnecessarily use a runtime prefetch for sub-pages of runtime-prefetchable layouts', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+
+      const act = createRouterAct(page)
+
+      // First, we move from the starting page to another page that has a runtime-prefetchable layout.
+      await clientNavigateToSegmentConfigPage(browser, act)
+
+      // Now we're on a page that uses the runtime-prefetchable layout,
+      // sub-pages of the same layout that are configured as static shouldn't automatically issue a runtime prefetch.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            `input[data-link-accordion="/segment-config/runtime-prefetchable/configured-as-static"]`
+          )
+          .click()
+      }, [
+        // We should not prefetch anything from the parent layout again.
+        { includes: 'static-content-layout', block: 'reject' },
+        { includes: 'runtime-prefetchable-content-layout', block: 'reject' },
+
+        // We should prefetch the static content for the page, but nothing more.
+        { includes: 'static-content-page' },
+        { includes: 'dynamic-content-page', block: 'reject' },
+        { includes: 'runtime-prefetchable-content-page', block: 'reject' },
+      ])
+    })
+
+    it('statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+
+      const act = createRouterAct(page)
+
+      // First, we move from the starting page to another page that has a runtime-prefetchable layout.
+      await clientNavigateToSegmentConfigPage(browser, act)
+
+      // Now we're on a page that uses the runtime-prefetchable layout,
+      // sub-pages of the same layout that are configured as static shouldn't automatically issue a runtime prefetch.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            `input[data-link-accordion="/segment-config/runtime-prefetchable/fully-static"]`
+          )
+          .click()
+      }, [
+        // We should not prefetch anything from the parent layout again.
+        { includes: 'static-content-layout', block: 'reject' },
+        { includes: 'runtime-prefetchable-content-layout', block: 'reject' },
+
+        // We should prefetch the static content for the page, but nothing more.
+        { includes: 'static-content-page' },
+      ])
+
+      // The page segment is fully static, so we shouldn't need any extra requests to navigate to it.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            `a[href="/segment-config/runtime-prefetchable/fully-static"]`
+          )
+          .click()
+      }, 'no-requests')
+
+      expect(
+        await (await browser.elementById('static-content-page')).isVisible()
+      ).toBeTrue()
+    })
+
+    it('uses a runtime prefetch for sub-pages of runtime-prefetchable layouts if requested', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+
+      const act = createRouterAct(page)
+
+      // First, we move from the starting page to another page that has a runtime-prefetchable layout.
+      await clientNavigateToSegmentConfigPage(browser, act)
+
+      // Sub-pages of this layout that are configured as runtime-prefetchable should be prefetched as such.
+      // However, if the page also has a sub-layout (not shared with the current page)
+      // that is configured as static, that part shouldn't be runtime-prefetched.
+      //
+      // Note that this is a sub-optimal configuration -- in a real app, we'd likely want the sub-layout
+      // to be runtime-prefetched as well, because it contains some runtime-prefetchable content.
+      // However, this is deliberately set up this way to assert that we don't do a runtime prefetch unless requested.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            `input[data-link-accordion="/segment-config/runtime-prefetchable/configured-as-runtime"]`
+          )
+          .click()
+      }, [
+        // We should not prefetch anything from the parent layout again.
+        { includes: 'static-content-layout', block: 'reject' },
+        { includes: 'runtime-prefetchable-content-layout', block: 'reject' },
+
+        {
+          // We should *not* prefetch the runtime parts of the sub-layout,
+          // because it's not configured as runtime-prefetchable.
+          includes: 'runtime-prefetchable-content-sub-layout',
+          block: 'reject',
+        },
+
+        // ...but we should prefetch the runtime parts of the page.
+        { includes: 'runtime-prefetchable-content-page' },
+        { includes: 'dynamic-content-page', block: 'reject' },
+      ])
+
+      // Navigate to the runtime-prefetchable sub-page.
+      await act(async () => {
+        // We should be able to display what we've prefetched before the navigation request resolves.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              `a[href="/segment-config/runtime-prefetchable/configured-as-runtime"]`
+            )
+            .click()
+        }, 'block')
+
+        // The sub-layout should show static content, but not runtime-prefetchable content.
+        expect(
+          await (
+            await browser.elementById('static-content-sub-layout')
+          ).isVisible()
+        ).toBeTrue()
+        expect(
+          await (
+            await browser.elementById(
+              'runtime-prefetchable-fallback-sub-layout'
+            )
+          ).isVisible()
+        ).toBeTrue()
+
+        // The sub-page should show static/runtime-prefetchable content.
+        expect(
+          await (await browser.elementById('static-content-page')).isVisible()
+        ).toBeTrue()
+        expect(
+          await (
+            await browser.elementById('runtime-prefetchable-content-page')
+          ).isVisible()
+        ).toBeTrue()
+      })
+
+      // After the navigation, we should see the content that wasn't prefetched.
+      // (because the sub-layout was configured as static)
+      expect(
+        await (
+          await browser.elementById('runtime-prefetchable-content-sub-layout')
+        ).isVisible()
+      ).toBeTrue()
+    })
   })
 })
 

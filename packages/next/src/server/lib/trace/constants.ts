@@ -6,7 +6,6 @@
  **/
 
 // eslint typescript has a bug with TS enums
-/* eslint-disable no-shadow */
 
 enum BaseServerSpan {
   handleRequest = 'BaseServer.handleRequest',
@@ -30,6 +29,7 @@ enum LoadComponentsSpan {
 
 enum NextServerSpan {
   getRequestHandler = 'NextServer.getRequestHandler',
+  getRequestHandlerWithMetadata = 'NextServer.getRequestHandlerWithMetadata',
   getServer = 'NextServer.getServer',
   getServerRequestHandler = 'NextServer.getServerRequestHandler',
   createServer = 'createServer.createServer',

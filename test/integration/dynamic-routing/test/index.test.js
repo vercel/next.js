@@ -5,7 +5,7 @@ import { join, dirname } from 'path'
 import fs from 'fs-extra'
 import url from 'url'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   renderViaHTTP,
   fetchViaHTTP,
   findPort,
@@ -1200,7 +1200,7 @@ function runTests({ dev }) {
         await browser
           .elementByCss('#view-post-1-interpolated-incorrectly')
           .click()
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         const header = await getRedboxHeader(browser)
         expect(header).toContain(
           'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
@@ -1456,6 +1456,7 @@ function runTests({ dev }) {
            {
              "destination": "/:path+",
              "internal": true,
+             "priority": true,
              "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$",
              "source": "/:path+/",
              "statusCode": 308,
@@ -1471,8 +1472,10 @@ function runTests({ dev }) {
            "fallback": [],
          },
          "rsc": {
+           "clientParamParsing": false,
            "contentTypeHeader": "text/x-component",
            "didPostponeHeader": "x-nextjs-postponed",
+           "dynamicRSCPrerender": false,
            "header": "rsc",
            "prefetchHeader": "next-router-prefetch",
            "prefetchSegmentDirSuffix": ".segments",

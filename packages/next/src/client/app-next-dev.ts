@@ -10,11 +10,12 @@ import { isRecoverableError } from './react-client-callbacks/on-recoverable-erro
 // eslint-disable-next-line @next/internal/typechecked-require
 const instrumentationHooks = require('../lib/require-instrumentation-client')
 
-appBootstrap(() => {
+appBootstrap((assetPrefix) => {
   const { hydrate } = require('./app-index') as typeof import('./app-index')
   try {
-    hydrate(instrumentationHooks)
+    hydrate(instrumentationHooks, assetPrefix)
   } finally {
-    renderAppDevOverlay(getOwnerStack, isRecoverableError)
+    const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
+    renderAppDevOverlay(getOwnerStack, isRecoverableError, enableCacheIndicator)
   }
 })

@@ -28,8 +28,9 @@ const findSourceMapURL =
  */
 export function useFlightStream<T>(
   flightStream: BinaryStreamOf<T>,
+  debugStream: ReadableStream<Uint8Array> | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
-  nonce?: string
+  nonce: string | undefined
 ): Promise<T> {
   const response = flightResponses.get(flightStream)
 
@@ -52,6 +53,7 @@ export function useFlightStream<T>(
       serverModuleMap: null,
     },
     nonce,
+    debugChannel: debugStream ? { readable: debugStream } : undefined,
   })
 
   // Edge pages are never prerendered so they necessarily cannot have a workUnitStore type
@@ -160,25 +162,17 @@ function writeInitialInstructions(
   scriptStart: string,
   formState: unknown | null
 ) {
+  let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+    JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+  )})`
+
   if (formState != null) {
-    controller.enqueue(
-      encoder.encode(
-        `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-        )});self.__next_f.push(${htmlEscapeJsonString(
-          JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-        )})</script>`
-      )
-    )
-  } else {
-    controller.enqueue(
-      encoder.encode(
-        `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-        )})</script>`
-      )
-    )
+    scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+    )})`
   }
+
+  controller.enqueue(encoder.encode(`${scriptStart}${scriptContents}</script>`))
 }
 
 function writeFlightDataInstruction(

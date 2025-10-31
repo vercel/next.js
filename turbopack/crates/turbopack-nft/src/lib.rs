@@ -4,9 +4,3 @@
 #![feature(arbitrary_self_types_pointers)]
 
 pub mod nft;
-
-pub fn register() {
-    turbopack::register();
-    turbopack_resolve::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

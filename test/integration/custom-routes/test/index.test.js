@@ -9,7 +9,7 @@ import WebSocket from 'ws'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   launchApp,
   killApp,
   findPort,
@@ -296,7 +296,7 @@ const runTests = (isDev = false) => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     if (isDev) {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
   })
 
@@ -1857,6 +1857,7 @@ const runTests = (isDev = false) => {
            {
              "destination": "/:path+",
              "internal": true,
+             "priority": true,
              "regex": "^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))\\/$",
              "source": "/:path+/",
              "statusCode": 308,
@@ -2428,8 +2429,10 @@ const runTests = (isDev = false) => {
            "fallback": [],
          },
          "rsc": {
+           "clientParamParsing": false,
            "contentTypeHeader": "text/x-component",
            "didPostponeHeader": "x-nextjs-postponed",
+           "dynamicRSCPrerender": false,
            "header": "rsc",
            "prefetchHeader": "next-router-prefetch",
            "prefetchSegmentDirSuffix": ".segments",
@@ -2440,6 +2443,12 @@ const runTests = (isDev = false) => {
            "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
          },
          "staticRoutes": [
+           {
+             "namedRegex": "^/api/hello(?:/)?$",
+             "page": "/api/hello",
+             "regex": "^/api/hello(?:/)?$",
+             "routeKeys": {},
+           },
            {
              "namedRegex": "^/auto\\-export/another(?:/)?$",
              "page": "/auto-export/another",

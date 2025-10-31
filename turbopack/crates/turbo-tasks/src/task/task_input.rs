@@ -13,12 +13,15 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
 use crate::{
-    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
+    MagicAny, ReadRef, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
     trace::TraceRawVcs,
 };
 
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
+///
+/// Serialization must be deterministic and compatible with `eq` comparisons.  If two `TaskInputs`
+/// compare equal they must also serialize to the same bytes.
 pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs {
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         async { Ok(self.clone()) }
@@ -109,6 +112,25 @@ where
 
     async fn resolve_input(&self) -> Result<Self> {
         Ok(Arc::new(Box::pin(self.as_ref().resolve_input()).await?))
+    }
+}
+
+impl<T> TaskInput for ReadRef<T>
+where
+    T: TaskInput,
+{
+    fn is_resolved(&self) -> bool {
+        Self::as_raw_ref(self).is_resolved()
+    }
+
+    fn is_transient(&self) -> bool {
+        Self::as_raw_ref(self).is_transient()
+    }
+
+    async fn resolve_input(&self) -> Result<Self> {
+        Ok(ReadRef::new_owned(
+            Box::pin(Self::as_raw_ref(self).resolve_input()).await?,
+        ))
     }
 }
 

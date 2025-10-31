@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  skipMiddlewareUrlNormalize: true,
+  skipProxyUrlNormalize: true,
   skipTrailingSlashRedirect: true,
   experimental: {
-    externalMiddlewareRewritesResolve: true,
+    externalProxyRewritesResolve: true,
   },
   i18n: {
     locales: ['en', 'ja-jp'],

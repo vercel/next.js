@@ -9,6 +9,7 @@ import type { NextFontManifest } from '../../build/webpack/plugins/next-font-man
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { ImageConfigComplete } from '../../shared/lib/image-config'
 import type { __ApiPreviewProps } from '../api-utils'
 
 import s from 'next/dist/compiled/superstruct'
@@ -18,6 +19,7 @@ import type { NextRequestHint } from '../web/adapter'
 import type { BaseNextRequest } from '../base-http'
 import type { IncomingMessage } from 'http'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 
 const dynamicParamTypesSchema = s.enums(['c', 'ci', 'oc', 'd', 'di'])
 
@@ -76,7 +78,9 @@ export interface RenderOptsPartial {
   err?: Error | null
   dev?: boolean
   basePath: string
+  cacheComponents: boolean
   trailingSlash: boolean
+  images: ImageConfigComplete
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   supportsDynamicResponse: boolean
   runtime?: ServerRuntime
@@ -93,8 +97,17 @@ export interface RenderOptsPartial {
   }
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
-  setIsrStatus?: (key: string, value: boolean | null) => void
-  isRevalidate?: boolean
+  setCacheStatus?: (
+    status: ServerCacheStatus,
+    htmlRequestId: string,
+    requestId: string
+  ) => void
+  setIsrStatus?: (key: string, value: boolean | undefined) => void
+  setReactDebugChannel?: (
+    debugChannel: { readable: ReadableStream<Uint8Array> },
+    htmlRequestId: string,
+    requestId: string
+  ) => void
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   onInstrumentationRequestError?: ServerOnInstrumentationRequestError
@@ -124,9 +137,13 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
-    cacheComponents: boolean
-    clientSegmentCache: boolean | 'client-only'
-    clientParamParsing: boolean
+
+    /**
+     * The origins that are allowed to write the rewritten headers when
+     * performing a non-relative rewrite. When undefined, no non-relative
+     * rewrites will get the rewrite headers.
+     */
+    clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
     inlineCss: boolean
     authInterrupts: boolean
@@ -176,11 +193,6 @@ export interface RenderOptsPartial {
    * Prerendering those routes would catch any invalid dynamic accesses.
    */
   allowEmptyStaticShell?: boolean
-
-  /**
-   * next config experimental.devtoolSegmentExplorer
-   */
-  devtoolSegmentExplorer?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

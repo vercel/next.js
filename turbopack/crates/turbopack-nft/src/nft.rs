@@ -6,7 +6,11 @@ use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, ValueToString, 
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
-    module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
+    ecmascript::AnalyzeMode,
+    module_options::{
+        CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
+        TypescriptTransformOptions,
+    },
 };
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -28,8 +32,9 @@ pub async fn node_file_trace(
     input: RcStr,
     graph: bool,
     show_issues: bool,
+    max_depth: Option<usize>,
 ) -> Result<()> {
-    let op = node_file_trace_operation(project_root.clone(), input.clone(), graph);
+    let op = node_file_trace_operation(project_root.clone(), input.clone(), graph, max_depth);
     let result = op.resolve_strongly_consistent().await?;
 
     if show_issues {
@@ -58,6 +63,7 @@ async fn node_file_trace_operation(
     project_root: RcStr,
     input: RcStr,
     graph: bool,
+    max_depth: Option<usize>,
 ) -> Result<Vc<Vec<RcStr>>> {
     let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
         rcstr!("workspace"),
@@ -78,6 +84,9 @@ async fn node_file_trace_operation(
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 ..Default::default()
             },
             css: CssOptionsContext {
@@ -87,18 +96,20 @@ async fn node_file_trace_operation(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
+            analyze_mode: AnalyzeMode::Tracing,
             ..Default::default()
         }
         .cell(),
         ResolveOptionsContext {
             enable_node_native_modules: true,
-            enable_node_modules: Some(input_dir.clone()),
+            enable_node_modules: Some(input_dir),
             custom_conditions: vec![rcstr!("node")],
             loose_errors: true,
+            collect_affecting_sources: true,
             ..Default::default()
         }
         .cell(),
-        Layer::new(rcstr!("test")),
+        Layer::new(rcstr!("externals-tracing")),
     );
     let module = module_asset_context
         .process(Vc::upcast(source), ReferenceType::Undefined)
@@ -107,7 +118,7 @@ async fn node_file_trace_operation(
     let asset = TracedAsset::new(module).to_resolved().await?;
 
     Ok(Vc::cell(if graph {
-        to_graph(ResolvedVc::upcast(asset)).await?
+        to_graph(ResolvedVc::upcast(asset), max_depth.unwrap_or(usize::MAX)).await?
     } else {
         to_list(ResolvedVc::upcast(asset)).await?
     }))
@@ -126,7 +137,7 @@ async fn to_list(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vec<RcStr>> 
     Ok(assets)
 }
 
-async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vec<RcStr>> {
+async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>, max_depth: usize) -> Result<Vec<RcStr>> {
     let mut visited = HashSet::new();
     let mut queue = Vec::new();
     queue.push((0, asset));
@@ -139,8 +150,10 @@ async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vec<RcStr>>
             indent.push_str("  ");
         }
         if visited.insert(asset) {
-            for &asset in references.iter().rev() {
-                queue.push((depth + 1, asset));
+            if depth < max_depth {
+                for &asset in references.iter().rev() {
+                    queue.push((depth + 1, asset));
+                }
             }
             result.push(format!("{}{}", indent, asset.path().to_string().await?).into());
         } else if references.is_empty() {
@@ -149,5 +162,8 @@ async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vec<RcStr>>
             result.push(format!("{}{} *...", indent, asset.path().to_string().await?).into());
         }
     }
+    result.push("".into());
+    result.push("*    : revisited and no references".into());
+    result.push("*... : revisited and references were already printed".into());
     Ok(result)
 }

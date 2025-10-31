@@ -13,7 +13,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-function runTests() {
+function runTests(getOutput: () => string) {
   it('should apply image config for node_modules', async () => {
     const browser = await webdriver(appPort, '/')
     const src = await browser
@@ -26,14 +26,25 @@ function runTests() {
       .getAttribute('srcset')
     expect(srcset).toMatch('1234')
   })
+
+  it('should warn when using images.domains config', async () => {
+    expect(getOutput()).toContain(
+      '`images.domains` is deprecated in favor of `images.remotePatterns`. Please update next.config.js to protect your application from malicious users.'
+    )
+  })
 }
 
 describe('Image Component from node_modules prod mode', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
+      let output = ''
       beforeAll(async () => {
-        await nextBuild(appDir)
+        const result = await nextBuild(appDir, [], {
+          stderr: true,
+          stdout: true,
+        })
+        output = (result.stderr ?? '') + (result.stdout ?? '')
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
       })
@@ -41,19 +52,23 @@ describe('Image Component from node_modules prod mode', () => {
         await killApp(app)
       })
 
-      runTests()
+      runTests(() => output)
     }
   )
 })
 
 describe('Image Component from node_modules development mode', () => {
+  let output = ''
   beforeAll(async () => {
     appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+    app = await launchApp(appDir, appPort, {
+      onStderr: (msg) => (output += msg),
+      onStdout: (msg) => (output += msg),
+    })
   })
   afterAll(async () => {
     await killApp(app)
   })
 
-  runTests()
+  runTests(() => output)
 })

@@ -23,11 +23,11 @@ When navigating to the new page, there's no full page reload or browser loading 
 
 ## Prefetching static vs. dynamic routes
 
-|                                                                   | **Static page** | **Dynamic page**                                                                                               |
-| ----------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------- |
-| **Prefetched**                                                    | Yes, full route | No, unless [`loading.js`](/docs/app/api-reference/file-conventions/loading)                                    |
-| [**Client Cache TTL**](/docs/app/guides/caching#full-route-cache) | 5 min (default) | Off, unless [enabled](/docs/app/api-reference/config/next-config-js/staleTimes)                                |
-| **Server roundtrip on click**                                     | No              | Yes, streamed after [shell](/docs/app/getting-started/partial-prerendering#how-does-partial-prerendering-work) |
+|                                                                   | **Static page** | **Dynamic page**                                                                |
+| ----------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------- |
+| **Prefetched**                                                    | Yes, full route | No, unless [`loading.js`](/docs/app/api-reference/file-conventions/loading)     |
+| [**Client Cache TTL**](/docs/app/guides/caching#full-route-cache) | 5 min (default) | Off, unless [enabled](/docs/app/api-reference/config/next-config-js/staleTimes) |
+| **Server roundtrip on click**                                     | No              | Yes, streamed after [shell](/docs/app/getting-started/cache-components)         |
 
 > **Good to know:** During the initial navigation, the browser fetches the HTML, JavaScript, and React Server Components (RSC) Payload. For subsequent navigations, the browser will fetch the RSC Payload for Server Components and JS bundle for Client Components.
 
@@ -58,16 +58,27 @@ Automatic prefetching runs only in production. Disable with `prefetch={false}` o
 
 ## Manual prefetch
 
+To do manual prefetching, import the `useRouter` hook from `next/navigation`, and call `router.prefetch()` to warm routes outside the viewport or in response to analytics, hover, scroll, etc.
+
 ```tsx
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { CustomLink } from '@components/link'
 
-const router = useRouter()
-router.prefetch('/pricing')
+export function PricingCard() {
+  const router = useRouter()
+
+  return (
+    <div onMouseEnter={() => router.prefetch('/pricing')}>
+      {/* other UI elements */}
+      <CustomLink href="/pricing">View Pricing</CustomLink>
+    </div>
+  )
+}
 ```
 
-Call `router.prefetch()` to warm routes outside the viewport or in response to analytics, hover, scroll, etc.
+If the intent is to prefetch a URL when a component loads, see the extending or rejecting a link [example].
 
 ## Hover-triggered prefetch
 
@@ -176,8 +187,6 @@ function NoPrefetchLink({
 For example, you may still want to have consistent usage of `<Link>` in your application, but links in your footer might not need to be prefetched when entering the viewport.
 
 ## Prefetching optimizations
-
-> **Good to know:** Layout deduplication and prefetch scheduling are part of upcoming optimizations. Currently available in Next.js canary via the `experimental.clientSegmentCache` flag.
 
 ### Client cache
 

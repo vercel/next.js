@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('typed-routes-validator', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
@@ -11,9 +12,9 @@ describe('typed-routes-validator', () => {
   }
 
   it('should generate route validation correctly', async () => {
-    const dts = await next.readFile('.next/types/validator.ts')
+    const dts = await next.readFile(`${getDistDir()}/types/validator.ts`)
     // sanity check that dev generation is working
-    expect(dts).toContain('handler satisfies AppPageConfig')
+    expect(dts).toContain('const handler = {} as typeof import(')
   })
 
   if (isNextStart) {
@@ -51,7 +52,7 @@ describe('typed-routes-validator', () => {
 
       expect(exitCode).toBe(1)
       expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*\)' does not satisfy the expected type 'AppPageConfig<"\/invalid">'/
+        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'AppPageConfig</
       )
     })
 
@@ -111,7 +112,7 @@ describe('typed-routes-validator', () => {
 
       expect(exitCode).toBe(1)
       expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import.*does not satisfy the expected type 'RouteHandlerConfig<"\/invalid">'/
+        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'RouteHandlerConfig</
       )
     })
 
@@ -132,7 +133,9 @@ describe('typed-routes-validator', () => {
       await next.deleteFile('app/invalid-2/route.ts')
 
       expect(exitCode).toBe(1)
-      expect(cliOutput).toContain(`Types of property 'POST' are incompatible.`)
+      expect(cliOutput).toMatch(
+        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'RouteHandlerConfig</
+      )
     })
 
     it('should pass type checking with valid layout exports', async () => {
@@ -174,7 +177,7 @@ describe('typed-routes-validator', () => {
 
       expect(exitCode).toBe(1)
       expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*does not satisfy the expected type 'LayoutConfig<"\/invalid">'/
+        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'LayoutConfig</
       )
     })
 
@@ -220,7 +223,7 @@ describe('typed-routes-validator', () => {
 
       expect(exitCode).toBe(1)
       expect(cliOutput).toMatch(
-        /Type error: Type 'typeof import\(.*does not satisfy the expected type 'ApiRouteConfig'/
+        /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'ApiRouteConfig'/
       )
     })
   }

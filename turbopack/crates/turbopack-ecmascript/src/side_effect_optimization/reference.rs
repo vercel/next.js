@@ -204,7 +204,7 @@ impl EcmascriptModulePartReference {
                     let key = sym.as_str().into();
                     let name = Ident::new(sym.into(), DUMMY_SP, ctxt.unwrap_or_default());
 
-                    let id = module.chunk_item_id(Vc::upcast(chunking_context)).await?;
+                    let id = module.chunk_item_id(chunking_context).await?;
 
                     result.push(CodeGenerationHoistedStmt::new(
                         key,

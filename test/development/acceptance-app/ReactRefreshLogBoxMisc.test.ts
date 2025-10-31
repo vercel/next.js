@@ -8,6 +8,7 @@ describe('ReactRefreshLogBox app', () => {
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   test('server-side only compilation errors', async () => {
     await using sandbox = await createSandbox(next)
@@ -41,6 +42,32 @@ describe('ReactRefreshLogBox app', () => {
        Ecmascript file had an error
        > 3 | export async function getStaticProps() {
            |                       ^^^^^^^^^^^^^^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/page.js
+         × Module build failed:
+         ╰─▶   × Error:   x "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
+               │   |
+               │
+               │    ,-[3:1]
+               │  1 | 'use client'
+               │  2 | import myLibrary from 'my-non-existent-library'
+               │  3 | export async function getStaticProps() {
+               │    :                       ^^^^^^^^^^^^^^
+               │  4 |   return {
+               │  5 |     props: {
+               │  6 |       result: myLibrary()
+               │    \`----
+               │
+       Import trace for requested module:
+       ./app/page.js",
          "stack": [],
        }
       `)

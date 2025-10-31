@@ -103,10 +103,10 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
                 self.references.push(Vc::upcast(ImportAssetReference::new(
                     *self.origin,
                     Request::parse(RcStr::from(src).into()),
-                    ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).into(),
+                    ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).cell(),
                     self.import_context.map(|ctx| *ctx),
                     IssueSource::from_line_col(
-                        ResolvedVc::upcast(self.source),
+                        self.source,
                         SourcePos {
                             line: issue_span.line as _,
                             column: issue_span.column as _,
@@ -141,7 +141,7 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
                 *self.origin,
                 Request::parse(RcStr::from(src).into()),
                 IssueSource::from_line_col(
-                    ResolvedVc::upcast(self.source),
+                    self.source,
                     SourcePos {
                         line: issue_span.line as _,
                         column: issue_span.column as _,

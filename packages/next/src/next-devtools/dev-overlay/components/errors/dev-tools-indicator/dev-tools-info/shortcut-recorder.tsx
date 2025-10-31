@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { css } from '../../../../utils/css'
 
 const SUCCESS_SHOW_DELAY_MS = 180
@@ -308,25 +308,13 @@ function parseKeyCode(code: string | JSX.Element) {
 }
 
 function MetaKey() {
-  // u00A0 = &nbsp;
-  const [label, setLabel] = useState('\u00A0')
-
-  const apple = isApple()
-
-  useEffect(() => {
-    // Meta is Command on Apple devices, otherwise Control
-    if (apple === true) {
-      // eslint-disable-next-line react-hooks/react-compiler -- TODO
-      setLabel('⌘')
-    }
-
-    // Explicitly say "Ctrl" instead of the symbol "⌃"
-    // because most Windows/Linux laptops do not print the symbol
-    // Other keyboard-intensive apps like Linear do this
-    if (apple === false) {
-      setLabel('Ctrl')
-    }
-  }, [apple])
+  const label = isApple()
+    ? // Meta is Command on Apple devices, otherwise Control
+      '⌘'
+    : // Explicitly say "Ctrl" instead of the symbol "⌃"
+      // because most Windows/Linux laptops do not print the symbol
+      // Other keyboard-intensive apps like Linear do this
+      'Ctrl'
 
   return (
     <span style={{ minWidth: '1em', display: 'inline-block' }}>{label}</span>
@@ -499,8 +487,7 @@ export const SHORTCUT_RECORDER_STYLES = css`
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 function testPlatform(re: RegExp): boolean | undefined {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Checking on an unusual environment.
-  return typeof window !== 'undefined' && window.navigator != null
+  return window.navigator != null
     ? re.test(window.navigator.platform)
     : undefined
 }

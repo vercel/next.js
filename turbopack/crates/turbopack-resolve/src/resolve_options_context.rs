@@ -79,6 +79,8 @@ pub struct ResolveOptionsContext {
     pub before_resolve_plugins: Vec<ResolvedVc<Box<dyn BeforeResolvePlugin>>>,
     /// Warn instead of error for resolve errors
     pub loose_errors: bool,
+    /// Collect affecting sources for each resolve result.  Useful for tracing.
+    pub collect_affecting_sources: bool,
 
     #[serde(default)]
     pub placeholder_for_future_extensions: (),
@@ -110,7 +112,7 @@ impl ResolveOptionsContext {
                 .to_resolved()
                 .await?,
         );
-        Ok(resolve_options_context.into())
+        Ok(resolve_options_context.cell())
     }
 
     /// Returns a new [Vc<ResolveOptionsContext>] with its fallback import map
@@ -131,7 +133,7 @@ impl ResolveOptionsContext {
                 .to_resolved()
                 .await?,
         );
-        Ok(resolve_options_context.into())
+        Ok(resolve_options_context.cell())
     }
 }
 
