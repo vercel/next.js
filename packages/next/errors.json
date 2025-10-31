@@ -902,5 +902,6 @@
   "901": "Invalid \"cacheHandlers\" provided, expected an object e.g. { default: '/my-handler.js' }, received %s",
   "902": "Invalid handler fields configured for \"cacheHandlers\":\\n%s",
   "903": "The file \"%s\" must export a function, either as a default export or as a named \"%s\" export.\\nThis function is what Next.js runs for every request handled by this %s.\\n\\nWhy this happens:\\n%s- The file exists but doesn't export a function.\\n- The export is not a function (e.g., an object or constant).\\n- There's a syntax error preventing the export from being recognized.\\n\\nTo fix it:\\n- Ensure this file has either a default or \"%s\" function export.\\n\\nLearn more: https://nextjs.org/docs/messages/middleware-to-proxy",
-  "904": "The file \"%s\" must export a function, either as a default export or as a named \"%s\" export."
+  "904": "The file \"%s\" must export a function, either as a default export or as a named \"%s\" export.",
+  "905": "Page \"%s\" cannot use \\`export const unstable_prefetch = ...\\` without enabling \\`cacheComponents\\`."
 }

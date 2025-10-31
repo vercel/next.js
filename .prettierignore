@@ -17,7 +17,6 @@ packages/next/wasm/@next
 packages/next/errors.json
 
 .github/actions/next-stats-action/.work
-.changeset/*.md
 
 crates/**/tests/**/output*
 crates/core/tests/loader/issue-32553/input.js

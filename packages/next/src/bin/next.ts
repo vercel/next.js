@@ -2,14 +2,23 @@
 
 import '../server/require-hook'
 
-import { Argument, Command, Option } from 'next/dist/compiled/commander'
+import {
+  Argument,
+  Command,
+  InvalidArgumentError,
+  Option,
+} from 'next/dist/compiled/commander'
 
 import { warn } from '../build/output/log'
 import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { parseValidPositiveInteger } from '../server/lib/utils'
+import {
+  getParsedDebugAddress,
+  parseValidPositiveInteger,
+  type DebugAddress,
+} from '../server/lib/utils'
 import {
   SUPPORTED_TEST_RUNNERS_LIST,
   type NextTestOptions,
@@ -57,8 +66,6 @@ class NextRootCommand extends Command {
   createCommand(name: string) {
     const command = new Command(name)
 
-    command.addOption(new Option('--inspect').hideHelp())
-
     command.hook('preAction', (event) => {
       const commandName = event.name()
       const defaultEnv = commandName === 'dev' ? 'development' : 'production'
@@ -81,7 +88,7 @@ class NextRootCommand extends Command {
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-      if (event.getOptionValue('inspect') === true) {
+      if (commandName !== 'dev' && event.getOptionValue('inspect') === true) {
         console.error(
           `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${commandName}`
         )
@@ -91,6 +98,22 @@ class NextRootCommand extends Command {
 
     return command
   }
+}
+
+function parseValidInspectAddress(value: string): DebugAddress {
+  const address = getParsedDebugAddress(value)
+
+  if (Number.isNaN(address.port)) {
+    throw new InvalidArgumentError(
+      'The given value is not a valid inspect address. ' +
+        'Did you mean to pass an app path?\n' +
+        `Try switching the order of the arguments or set the default address explicitly e.g.\n` +
+        `next dev ${value} --inspect\n` +
+        `next dev --inspect= ${value}`
+    )
+  }
+
+  return address
 }
 
 const program = new NextRootCommand()
@@ -162,6 +185,7 @@ program
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
     }
+
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
     return import('../cli/next-build.js').then((mod) =>
@@ -180,6 +204,12 @@ program
     `A directory on which to build the application. ${italic(
       'If no directory is provided, the current directory will be used.'
     )}`
+  )
+  .addOption(
+    new Option(
+      '--inspect [[host:]port]',
+      'Allows inspecting server-side code. See https://nextjs.org/docs/app/guides/debugging#server-side-code'
+    ).argParser(parseValidInspectAddress)
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')

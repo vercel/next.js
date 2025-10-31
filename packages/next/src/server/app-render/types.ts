@@ -137,7 +137,6 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
-    clientSegmentCache: boolean | 'client-only'
 
     /**
      * The origins that are allowed to write the rewritten headers when

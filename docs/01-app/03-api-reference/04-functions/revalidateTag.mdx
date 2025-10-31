@@ -26,7 +26,7 @@ The revalidation behavior depends on whether you provide the second argument:
 ## Parameters
 
 ```ts
-revalidateTag(tag: string, profile?: string | { expire?: number }): void;
+revalidateTag(tag: string, profile: string | { expire?: number }): void;
 ```
 
 - `tag`: A string representing the cache tag associated with the data you want to revalidate. Must not exceed 256 characters. This value is case-sensitive.
@@ -51,6 +51,8 @@ async function getData() {
   // ...
 }
 ```
+
+> **Good to know**: The single-argument form `revalidateTag(tag)` is deprecated. It currently works if TypeScript errors are suppressed, but this behavior may be removed in a future version. Update to the two-argument signature.
 
 ## Returns
 

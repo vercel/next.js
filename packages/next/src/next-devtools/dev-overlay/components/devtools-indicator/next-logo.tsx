@@ -539,6 +539,7 @@ function CacheBypassBadge({
     <div data-issues data-cache-bypass-badge>
       <button
         data-issues-open
+        data-nextjs-dev-tools-button
         aria-label="Open Next.js Dev Tools"
         onClick={onTriggerClick}
       >

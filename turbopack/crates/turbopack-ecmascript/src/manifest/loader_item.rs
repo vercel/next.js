@@ -177,6 +177,6 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
             inner_code: code.into(),
             ..Default::default()
         }
-        .into())
+        .cell())
     }
 }

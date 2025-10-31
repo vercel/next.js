@@ -64,7 +64,7 @@ impl Issue for InvalidImportModuleIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.into()
+        IssueStage::Resolve.cell()
     }
 
     #[turbo_tasks::function]

@@ -100,7 +100,7 @@ fn make_named_import_esm(args: MakeNamedImportArgs) -> ModuleItem {
     );
     // the import source cannot be parametrized in `quote!()`, so patch it manually
     let decl = item.as_mut_module_decl().unwrap().as_mut_import().unwrap();
-    decl.src = Box::new(source.into());
+    *decl.src = source.into();
     item
 }
 

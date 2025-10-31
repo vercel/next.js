@@ -2,7 +2,7 @@ import { FileRef } from 'e2e-utils'
 import { Playwright } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { assertHasDevToolsIndicator, retry } from 'next-test-utils'
+import { waitForDevToolsIndicator, retry } from 'next-test-utils'
 
 describe('client-dev-overlay', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -124,8 +124,8 @@ describe('client-dev-overlay', () => {
   it('should nudge to use Turbopack unless Turbopack is disabled', async () => {
     const browser = await next.browser('/')
 
-    // Don't use openDevToolsIndicatorPopover because this is asserting something in the old dev tools menu which isn't preset yet in the new UI.
-    const devToolsIndicator = await assertHasDevToolsIndicator(browser)
+    // Don't use toggleDevToolsIndicatorPopover because this is asserting something in the old dev tools menu which isn't preset yet in the new UI.
+    const devToolsIndicator = await waitForDevToolsIndicator(browser)
     try {
       await devToolsIndicator.click()
     } catch (cause) {
@@ -175,7 +175,7 @@ describe('client-dev-overlay with Cache Components', () => {
   it('should show Cache Components as enabled in the devtools menu', async () => {
     const browser = await next.browser('/')
 
-    const devToolsIndicator = await assertHasDevToolsIndicator(browser)
+    const devToolsIndicator = await waitForDevToolsIndicator(browser)
     try {
       await devToolsIndicator.click()
     } catch (cause) {

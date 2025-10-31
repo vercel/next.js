@@ -81,7 +81,7 @@ import type { HmrMessageSentToBrowser } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
-import { getNodeDebugType } from '../lib/utils'
+import { getNodeDebugType, getParsedNodeOptions } from '../lib/utils'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
@@ -860,7 +860,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.versionInfo = await this.tracedGetVersionInfo(startSpan)
 
-    const nodeDebugType = getNodeDebugType()
+    const nodeOptions = getParsedNodeOptions()
+    const nodeDebugType = getNodeDebugType(nodeOptions)
     if (nodeDebugType && !this.devtoolsFrontendUrl) {
       const debugPort = process.debugPort
       let debugInfo

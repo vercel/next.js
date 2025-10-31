@@ -725,7 +725,7 @@ static ACTIVE_POOLS: Lazy<IdleProcessQueues> = Lazy::new(Default::default);
 ///
 /// The worker will *not* use the env of the parent process by default. All env
 /// vars need to be provided to make the execution as pure as possible.
-#[turbo_tasks::value(into = "new", cell = "new", serialization = "none", eq = "manual")]
+#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
 pub struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { isNextStart, nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('CSS Import from node_modules', () => {
   const { next, skipped, isTurbopack, isRspack } = nextTestSetup({
@@ -32,7 +32,7 @@ describe('CSS Import from node_modules', () => {
     it('should show a build error', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const errorSource = await getRedboxSource(browser)
 
       if (isTurbopack) {

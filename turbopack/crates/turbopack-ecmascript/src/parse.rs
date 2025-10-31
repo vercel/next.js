@@ -51,7 +51,7 @@ use crate::{
     transform::{EcmascriptInputTransforms, TransformContext},
 };
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
     // Note: Ok must not contain any Vc as it's snapshot by failsafe_parse
@@ -71,15 +71,6 @@ pub enum ParseResult {
         messages: Option<Vec<RcStr>>,
     },
     NotFound,
-}
-
-impl PartialEq for ParseResult {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Ok { .. }, Self::Ok { .. }) => false,
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
-        }
-    }
 }
 
 /// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole

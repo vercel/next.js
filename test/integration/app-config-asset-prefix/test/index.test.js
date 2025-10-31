@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { join } from 'path'
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   killApp,
   findPort,
   launchApp,
@@ -25,7 +25,7 @@ describe('App assetPrefix config', () => {
     const browser = await webdriver(appPort, '/')
     try {
       await waitFor(2000)
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       const title = await browser.elementById('title').text()
       expect(title).toBe('IndexPage')
     } finally {

@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { createSandbox } from 'development-sandbox'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('app-root-param-getters - cache - at runtime', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -13,29 +13,38 @@ describe('app-root-param-getters - cache - at runtime', () => {
 
   if (isNextDev) {
     it('should error when using root params within a "use cache" - dev', async () => {
-      await using sandbox = await createSandbox(
-        next,
-        undefined,
-        '/en/us/use-cache'
-      )
-      const { session } = sandbox
-      await session.assertHasRedbox()
-      expect(await session.getRedboxDescription()).toInclude(
-        'Route /[lang]/[locale]/use-cache used `import(\'next/root-params\').lang()` inside `"use cache"` or `unstable_cache`'
-      )
+      const browser = await next.browser('/en/us/use-cache')
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Route /[lang]/[locale]/use-cache used \`import('next/root-params').lang()\` inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
+         "source": "app/[lang]/[locale]/use-cache/page.tsx (33:28) @ getCachedParams
+       > 33 |   return { lang: await lang(), locale: await locale() }
+            |                            ^",
+         "stack": [
+           "getCachedParams app/[lang]/[locale]/use-cache/page.tsx (33:28)",
+         ],
+       }
+      `)
     })
 
     it('should error when using root params within `unstable_cache` - dev', async () => {
-      await using sandbox = await createSandbox(
-        next,
-        undefined,
-        '/en/us/unstable_cache'
-      )
-      const { session } = sandbox
-      await session.assertHasRedbox()
-      expect(await session.getRedboxDescription()).toInclude(
-        'Route /[lang]/[locale]/unstable_cache used `import(\'next/root-params\').lang()` inside `"use cache"` or `unstable_cache`'
-      )
+      const browser = await next.browser('/en/us/unstable_cache')
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Route /[lang]/[locale]/unstable_cache used \`import('next/root-params').lang()\` inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.",
+         "environmentLabel": "Server",
+         "label": "Runtime Error",
+         "source": "app/[lang]/[locale]/unstable_cache/page.tsx (33:28) @ uncachedGetParams
+       > 33 |   return { lang: await lang(), locale: await locale() }
+            |                            ^",
+         "stack": [
+           "uncachedGetParams app/[lang]/[locale]/unstable_cache/page.tsx (33:28)",
+           "Runtime app/[lang]/[locale]/unstable_cache/page.tsx (17:22)",
+         ],
+       }
+      `)
     })
   } else {
     it('should error when using root params within a "use cache" - start', async () => {
@@ -61,13 +70,9 @@ describe('app-root-param-getters - private cache', () => {
 
   if (isNextDev) {
     it('should allow using root params within a "use cache: private" - dev', async () => {
-      await using sandbox = await createSandbox(
-        next,
-        undefined,
-        '/en/us/use-cache-private'
-      )
-      const { session, browser } = sandbox
-      await session.assertNoRedbox()
+      const browser = await next.browser('/en/us/use-cache-private')
+
+      await waitForNoRedbox(browser)
       expect(await browser.elementById('param').text()).toBe('en us')
     })
   } else {
