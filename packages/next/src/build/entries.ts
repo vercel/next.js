@@ -102,7 +102,7 @@ export async function collectAppFiles(
       validFileMatcher.isRootNotFound(absolutePath) ||
       validFileMatcher.isAppLayoutPage(absolutePath) ||
       validFileMatcher.isAppDefaultPage(absolutePath),
-    ignorePartFilter: (part) => part.startsWith('_'),
+    ignorePartFilter: (part) => part.startsWith('_') || part === 'node_modules',
   })
 
   // Separate app pages, layouts, and defaults
