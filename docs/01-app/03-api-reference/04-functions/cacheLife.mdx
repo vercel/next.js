@@ -328,18 +328,29 @@ export default async function EditorialPage() {
 Use inline profiles when a specific function needs one-off caching behavior:
 
 ```tsx filename="app/api/limited-offer/route.ts"
-'use cache'
 import { cacheLife } from 'next/cache'
+import { getDb } from '@lib/db'
 
-export async function GET() {
-  // Custom timing for limited-time offer
+async function getLimitedOffer() {
+  'use cache'
+
   cacheLife({
     stale: 60, // 1 minute
     revalidate: 300, // 5 minutes
     expire: 3600, // 1 hour
   })
 
-  const offer = await fetchLimitedOffer()
+  const offer = await getDb().offer.findFirst({
+    where: { type: 'limited' },
+    orderBy: { created_at: 'desc' },
+  })
+
+  return offer
+}
+
+export async function GET() {
+  const offer = await getLimitedOffer()
+
   return Response.json(offer)
 }
 ```
