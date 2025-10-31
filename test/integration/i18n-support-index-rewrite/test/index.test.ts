@@ -84,7 +84,7 @@ describe('Custom routes i18n support index rewrite', () => {
         app = await launchApp(appDir, appPort)
       })
       afterAll(() => killApp(app))
-      runTests(true)
+      runTests()
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

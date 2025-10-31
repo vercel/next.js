@@ -40,7 +40,7 @@ describe('Custom routes invalid multi-match', () => {
         })
       })
       afterAll(() => killApp(app))
-      runTests(true)
+      runTests()
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

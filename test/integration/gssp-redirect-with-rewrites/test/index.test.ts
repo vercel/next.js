@@ -12,7 +12,7 @@ import webdriver from 'next-webdriver'
 
 // test suites
 
-const context = {}
+const context: Record<string, any> = {}
 
 describe('getServerSideProps redirects', () => {
   beforeAll(async () => {

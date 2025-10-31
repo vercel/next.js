@@ -18,7 +18,7 @@ const appDir = join(__dirname, '..')
 let app
 let appPort
 
-const runTests = (isDev) => {
+const runTests = (isDev: boolean) => {
   it('should apply temporary redirect when visited directly for GSSP page', async () => {
     const res = await fetchViaHTTP(
       appPort,
@@ -103,7 +103,7 @@ const runTests = (isDev) => {
         post: 'first',
       },
     })
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(() => (window as any).initialHref)
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/redirect-dest-_gsp-blog_first')
   })
@@ -125,7 +125,7 @@ const runTests = (isDev) => {
         post: 'first',
       },
     })
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(() => (window as any).initialHref)
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
@@ -147,7 +147,7 @@ const runTests = (isDev) => {
         post: 'first',
       },
     })
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(() => (window as any).initialHref)
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
@@ -169,7 +169,7 @@ const runTests = (isDev) => {
         post: 'first',
       },
     })
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(() => (window as any).initialHref)
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
@@ -191,7 +191,7 @@ const runTests = (isDev) => {
         post: 'first',
       },
     })
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(() => (window as any).initialHref)
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/first')
   })
@@ -214,7 +214,7 @@ const runTests = (isDev) => {
           post: 'first',
         },
       })
-      const initialHref = await browser.eval(() => window.initialHref)
+      const initialHref = await browser.eval(() => (window as any).initialHref)
       const { pathname } = url.parse(initialHref)
       // since it was cached the initial value is now the redirect
       // result
@@ -229,7 +229,7 @@ const runTests = (isDev) => {
 
     await browser.waitForElementByCss('#index')
 
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(() => (window as any).initialHref)
     const { pathname } = url.parse(initialHref)
     expect(pathname).toBe('/gsp-blog/redirect-dest-_')
   })
@@ -242,7 +242,7 @@ const runTests = (isDev) => {
 
       await browser.waitForElementByCss('#index')
 
-      const initialHref = await browser.eval(() => window.initialHref)
+      const initialHref = await browser.eval(() => (window as any).initialHref)
       const { pathname } = url.parse(initialHref)
       expect(pathname).toBe('/')
     })
@@ -262,7 +262,7 @@ const runTests = (isDev) => {
       /oops not found/
     )
 
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(() => (window as any).initialHref)
     expect(initialHref).toBeFalsy()
 
     const curUrl = await browser.url()
@@ -284,7 +284,7 @@ const runTests = (isDev) => {
       'example.vercel.sh'
     )
 
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(() => (window as any).initialHref)
     expect(initialHref).toBeFalsy()
   })
 
@@ -302,7 +302,7 @@ const runTests = (isDev) => {
       'example.vercel.sh'
     )
 
-    const initialHref = await browser.eval(() => window.initialHref)
+    const initialHref = await browser.eval(() => (window as any).initialHref)
     expect(initialHref).toBeFalsy()
 
     const res = await fetchViaHTTP(
@@ -537,7 +537,7 @@ describe('GS(S)P Redirect Support', () => {
       })
       afterAll(() => killApp(app))
 
-      runTests()
+      runTests(false)
 
       it('should not have errors in output', async () => {
         expect(output).not.toContain('Failed to update prerender files')

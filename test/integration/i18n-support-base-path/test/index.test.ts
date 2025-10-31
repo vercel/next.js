@@ -15,7 +15,7 @@ import {
 
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
-const ctx = {
+const ctx: Record<string, any> = {
   basePath: '/docs',
   appDir,
 }
@@ -27,14 +27,14 @@ describe('i18n Support basePath', () => {
       res.statusCode = 200
       res.end(JSON.stringify({ url: req.url, external: true }))
     })
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       ctx.externalApp.listen(ctx.externalPort, (err) =>
         err ? reject(err) : resolve()
       )
     })
   })
   afterAll(async () => {
-    await new Promise((resolve, reject) =>
+    await new Promise<void>((resolve, reject) =>
       ctx.externalApp.close((err) => {
         err ? reject(err) : resolve()
       })
@@ -43,7 +43,7 @@ describe('i18n Support basePath', () => {
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',
     () => {
-      const curCtx = {
+      const curCtx: Record<string, any> = {
         ...ctx,
         isDev: true,
       }

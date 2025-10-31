@@ -19,7 +19,7 @@ import assert from 'assert'
 
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
-const ctx = {
+const ctx: Record<string, any> = {
   basePath: '',
   appDir,
 }
@@ -31,7 +31,7 @@ describe('i18n Support', () => {
       res.statusCode = 200
       res.end(JSON.stringify({ url: req.url, external: true }))
     })
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       ctx.externalApp.listen(ctx.externalPort, (err) =>
         err ? reject(err) : resolve()
       )
@@ -41,7 +41,7 @@ describe('i18n Support', () => {
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',
     () => {
-      const curCtx = {
+      const curCtx: Record<string, any> = {
         ...ctx,
         isDev: true,
       }
@@ -426,7 +426,7 @@ describe('i18n Support', () => {
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
       'development mode',
       () => {
-        const curCtx = {
+        const curCtx: Record<string, any> = {
           ...ctx,
           isDev: true,
         }
@@ -496,7 +496,7 @@ describe('i18n Support', () => {
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
       'development mode',
       () => {
-        const curCtx = {
+        const curCtx: Record<string, any> = {
           ...ctx,
           isDev: true,
         }

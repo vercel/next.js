@@ -19,7 +19,7 @@ let app
 let apiServerPort
 let apiServer
 
-const startApiServer = async (optEnv = {}, opts) => {
+const startApiServer = async (optEnv = {}, opts?: any) => {
   const scriptPath = join(appDir, 'api-server.js')
   apiServerPort = await findPort()
   const env = Object.assign(

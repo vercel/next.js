@@ -6,7 +6,10 @@ const warningMessage =
 
 describe('Invalid server options', () => {
   test('next() called with no parameters should throw error', () => {
-    expect(() => next()).toThrow(
+    expect(() =>
+      // @ts-expect-error
+      next()
+    ).toThrow(
       'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
     )
   })
@@ -25,7 +28,7 @@ describe('Invalid server options', () => {
 
   test('next() called with dev as string should send warning', () => {
     const consoleSpy = jest.spyOn(console, 'warn')
-    const dev = 'string'
+    const dev: any = 'string'
     next({ dev, dir })
 
     expect(consoleSpy).toHaveBeenCalledWith(warningMessage)
@@ -33,7 +36,7 @@ describe('Invalid server options', () => {
 
   test('next() called with dev as number should send warning', () => {
     const consoleSpy = jest.spyOn(console, 'warn')
-    const dev = 123
+    const dev: any = 123
     next({ dev, dir })
 
     expect(consoleSpy).toHaveBeenCalledWith(warningMessage)
@@ -41,7 +44,7 @@ describe('Invalid server options', () => {
 
   test('next() called with dev as array should send warning', () => {
     const consoleSpy = jest.spyOn(console, 'warn')
-    const dev = ['array']
+    const dev: any = ['array']
     next({ dev, dir })
 
     expect(consoleSpy).toHaveBeenCalledWith(warningMessage)
@@ -49,7 +52,7 @@ describe('Invalid server options', () => {
 
   test('next() called with dev as object should send warning', () => {
     const consoleSpy = jest.spyOn(console, 'warn')
-    const dev = { test: 'goes here' }
+    const dev: any = { test: 'goes here' }
     next({ dev, dir })
 
     expect(consoleSpy).toHaveBeenCalledWith(warningMessage)
@@ -57,7 +60,7 @@ describe('Invalid server options', () => {
 
   test('next() called with dev as function should send warning', () => {
     const consoleSpy = jest.spyOn(console, 'warn')
-    const dev = () => console.log('test')
+    const dev: any = () => console.log('test')
     next({ dev, dir })
 
     expect(consoleSpy).toHaveBeenCalledWith(warningMessage)

@@ -20,7 +20,7 @@ let app
 let appPort
 let indexPageContent
 
-const runTests = (isDev) => {
+const runTests = (isDev: boolean) => {
   const getData = async () => {
     if (isDev) {
       appPort = await findPort()
@@ -96,7 +96,7 @@ describe('gip identifiers', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
-      runTests()
+      runTests(false)
     }
   )
 })

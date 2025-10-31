@@ -27,7 +27,7 @@ function runTests() {
       ['/', { hello: 'world' }],
       ['/en', { hello: 'world' }],
       ['/fr', { hello: 'world' }],
-    ]) {
+    ] as const) {
       const asPath = url.format({ pathname, query })
       const browser = await webdriver(appPort, asPath)
 
@@ -56,7 +56,7 @@ function runTests() {
       ['/dynamic/first', { hello: 'world' }],
       ['/en/dynamic/first', { hello: 'world' }],
       ['/fr/dynamic/first', { hello: 'world' }],
-    ]) {
+    ] as const) {
       const asPath = url.format({ pathname, query })
       const browser = await webdriver(appPort, asPath)
 

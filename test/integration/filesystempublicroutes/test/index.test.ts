@@ -9,7 +9,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let server
 
-const context = {}
+const context: Record<string, any> = {}
 
 const startServer = async (optEnv = {}) => {
   const scriptPath = join(appDir, 'server.js')
@@ -23,7 +23,7 @@ describe('FileSystemPublicRoutes', () => {
   beforeAll(() => startServer())
   afterAll(() => killApp(server))
 
-  const fetch = (p, q) => fetchViaHTTP(context.appPort, p, q)
+  const fetch = (p, q?: any) => fetchViaHTTP(context.appPort, p, q)
 
   it('should not route to the index page', async () => {
     const res = await fetch('/')
