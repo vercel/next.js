@@ -469,7 +469,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let needed_reader_task = if self.should_track_dependencies()
+        let need_reader_task = if self.should_track_dependencies()
             && !matches!(options.tracking, ReadTracking::Untracked)
             && reader.is_some_and(|reader_id| reader_id != task_id)
             && let Some(reader_id) = reader
@@ -479,7 +479,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         } else {
             None
         };
-        let (mut task, mut reader_task) = if let Some(reader_id) = needed_reader_task {
+        let (mut task, mut reader_task) = if let Some(reader_id) = need_reader_task {
             // Having a task_pair here is not optimal, but otherwise this would lead to a race
             // condition. See below.
             // TODO(sokra): solve that in a more performant way.
@@ -556,7 +556,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         &mut ctx,
                     );
                 }
-                (task, reader_task) = if let Some(reader_id) = needed_reader_task {
+                (task, reader_task) = if let Some(reader_id) = need_reader_task {
                     // TODO(sokra): see comment above
                     let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
                     (task, Some(reader))
