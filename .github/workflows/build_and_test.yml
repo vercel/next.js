@@ -33,7 +33,7 @@ jobs:
         id: docs-change
         run: |
           echo "DOCS_ONLY<<EOF" >> $GITHUB_OUTPUT;
-          echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
+          echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
           echo 'EOF' >> $GITHUB_OUTPUT
 
       - name: check for release

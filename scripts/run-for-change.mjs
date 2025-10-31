@@ -1,5 +1,7 @@
-const { promisify } = require('util')
-const { exec: execOrig, spawn } = require('child_process')
+// @ts-check
+import { promisify } from 'util'
+import { exec as execOrig, spawn } from 'child_process'
+import { getDiffRevision, getGitInfo } from './git-info.mjs'
 
 const exec = promisify(execOrig)
 
@@ -55,43 +57,16 @@ const CHANGE_ITEM_GROUPS = {
 }
 
 async function main() {
-  let eventData = {}
+  const { branchName, remoteUrl, isCanary } = await getGitInfo()
+  const diffRevision = await getDiffRevision()
 
-  try {
-    eventData = require(process.env.GITHUB_EVENT_PATH)['pull_request'] || {}
-  } catch (_) {}
+  const changesResult = await exec(
+    `git diff ${diffRevision} --name-only`
+  ).catch((err) => {
+    console.error(err)
+    return { stdout: '' }
+  })
 
-  const branchName =
-    eventData?.head?.ref ||
-    process.env.GITHUB_REF_NAME ||
-    (await exec('git rev-parse --abbrev-ref HEAD')).stdout
-
-  const remoteUrl =
-    eventData?.head?.repo?.full_name ||
-    process.env.GITHUB_REPOSITORY ||
-    (await exec('git remote get-url origin')).stdout
-
-  const isCanary =
-    branchName.trim() === 'canary' && remoteUrl.includes('vercel/next.js')
-
-  try {
-    await exec('git remote set-branches --add origin canary')
-    await exec('git fetch origin canary --depth=20')
-  } catch (err) {
-    console.error(await exec('git remote -v'))
-    console.error(`Failed to fetch origin/canary`, err)
-  }
-  // if we are on the canary branch only diff current commit
-  const toDiff = isCanary
-    ? `${process.env.GITHUB_SHA || 'canary'}~`
-    : 'origin/canary...'
-
-  const changesResult = await exec(`git diff ${toDiff} --name-only`).catch(
-    (err) => {
-      console.error(err)
-      return { stdout: '' }
-    }
-  )
   console.error({ branchName, remoteUrl, isCanary, changesResult })
   const changedFilesOutput = changesResult.stdout
 
@@ -102,7 +77,7 @@ async function main() {
 
   if (!type) {
     throw new Error(
-      `Missing "--type" flag, e.g. "node run-for-change.js --type docs"`
+      `Missing "--type" flag, e.g. "node run-for-change.mjs --type docs"`
     )
   }
   const execArgIndex = process.argv.indexOf('--exec')
@@ -131,7 +106,7 @@ async function main() {
     )
   }
   let changedFilesCount = 0
-  let changedDirectories = []
+  let changedDirectories = new Set()
 
   // always run for canary if flag is enabled
   if (alwaysCanary && branchName === 'canary') {
@@ -151,7 +126,7 @@ async function main() {
       const matchesItem = changeItems.some((item) => {
         const found = file.startsWith(item)
         if (found) {
-          changedDirectories.push(item)
+          changedDirectories.add(item)
         }
         return found
       })
@@ -176,7 +151,7 @@ async function main() {
 
   if (hasMatchingChange) {
     if (listChangedDirectories) {
-      console.log(changedDirectories.join('\n'))
+      console.log(Array.from(changedDirectories).join('\n'))
       return
     }
     const cmd = spawn(execArgs[0], execArgs.slice(1))
