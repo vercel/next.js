@@ -75,7 +75,7 @@ export function initNextServerScript(
       'node',
       [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
       {
-        env: { HOSTNAME: '::', ...env },
+        env: { NEXT_STANDALONE_HOSTNAME: '::', ...env },
         cwd: opts && opts.cwd,
       }
     )
