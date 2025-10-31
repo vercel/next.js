@@ -2,7 +2,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { assertNoRedbox, renderViaHTTP, check } from 'next-test-utils'
+import { waitForNoRedbox, renderViaHTTP, check } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 
 const customDocumentGipContent = `\
@@ -170,7 +170,7 @@ describe('next/dynamic', () => {
         try {
           browser = await webdriver(next.url, basePath + '/dynamic/no-ssr')
           await check(() => browser.elementByCss('body').text(), /navigator/)
-          await assertNoRedbox(browser)
+          await waitForNoRedbox(browser)
         } finally {
           if (browser) {
             await browser.close()
@@ -183,7 +183,7 @@ describe('next/dynamic', () => {
         try {
           browser = await webdriver(next.url, basePath + '/dynamic/no-ssr-esm')
           await check(() => browser.elementByCss('body').text(), /esm.mjs/)
-          await assertNoRedbox(browser)
+          await waitForNoRedbox(browser)
         } finally {
           if (browser) {
             await browser.close()

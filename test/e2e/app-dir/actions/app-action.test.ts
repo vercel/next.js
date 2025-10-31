@@ -1,6 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   retry,
   waitFor,
   getRedboxSource,
@@ -995,7 +995,7 @@ describe('app-dir action handling', () => {
             origContent + '\n\nexport const foo = 1'
           )
 
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           expect(await getRedboxSource(browser)).toContain(
             'Only async functions are allowed to be exported in a "use server" file.'
           )

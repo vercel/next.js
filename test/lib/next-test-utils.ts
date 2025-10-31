@@ -700,7 +700,7 @@ export async function startCleanStaticServer(dir: string) {
  */
 export async function check(
   contentFn: () => unknown | Promise<unknown>,
-  regex: any
+  regex: boolean | number | string | RegExp
 ): Promise<boolean> {
   let content: unknown
   let lastErr: unknown
@@ -712,7 +712,7 @@ export async function check(
         if (regex === content) {
           return true
         }
-      } else if (regex.test(content)) {
+      } else if (regex.test('' + content)) {
         // found the content
         return true
       }
@@ -814,13 +814,13 @@ export async function retry<T>(
   throw new Error('Duration cannot be less than 0.')
 }
 
-export async function assertHasRedbox(browser: Playwright) {
+export async function waitForRedbox(browser: Playwright) {
   const redbox = browser.locateRedbox()
   try {
     await redbox.waitFor({ timeout: 5000 })
   } catch (errorCause) {
     const error = new Error('Expected Redbox but found no visible one.')
-    Error.captureStackTrace(error, assertHasRedbox)
+    Error.captureStackTrace(error, waitForRedbox)
     throw error
   }
 
@@ -832,12 +832,12 @@ export async function assertHasRedbox(browser: Playwright) {
     const error = new Error('Redbox still had suspended content after 10s', {
       cause,
     })
-    Error.captureStackTrace(error, assertHasRedbox)
+    Error.captureStackTrace(error, waitForRedbox)
     throw error
   }
 }
 
-export async function assertNoRedbox(
+export async function waitForNoRedbox(
   browser: Playwright,
   { waitInMs = 5000 }: { waitInMs?: number } = {}
 ) {
@@ -857,12 +857,12 @@ export async function assertNoRedbox(
         `description: ${redboxDescription}\n` +
         `source: ${redboxSource}`
     )
-    Error.captureStackTrace(error, assertNoRedbox)
+    Error.captureStackTrace(error, waitForNoRedbox)
     throw error
   }
 }
 
-export async function assertNoErrorToast(browser: Playwright): Promise<void> {
+export async function waitForNoErrorToast(browser: Playwright): Promise<void> {
   let didOpenRedbox = false
 
   try {
@@ -873,9 +873,9 @@ export async function assertNoErrorToast(browser: Playwright): Promise<void> {
   }
 
   if (didOpenRedbox) {
-    // If a redbox was opened unexpectedly, we use the `assertNoRedbox` helper
+    // If a redbox was opened unexpectedly, we use the `waitForNoRedbox` helper
     // to print a useful error message containing the redbox contents.
-    await assertNoRedbox(browser, {
+    await waitForNoRedbox(browser, {
       // We already know the redbox is open, so we can skip waiting for it.
       waitInMs: 0,
     })
@@ -912,13 +912,13 @@ export async function getToastErrorCount(browser: Playwright): Promise<number> {
 
 /**
  * Has retried version of {@link hasErrorToast} built-in.
- * Success implies {@link assertHasRedbox}.
+ * Success implies {@link waitForRedbox}.
  */
 export async function openRedbox(browser: Playwright): Promise<void> {
   const redbox = browser.locateRedbox()
   if (await redbox.isVisible()) {
     const error = new Error(
-      'Redbox is already open. Use `assertHasRedbox` instead.'
+      'Redbox is already open. Use `waitForRedbox` instead.'
     )
     Error.captureStackTrace(error, openRedbox)
     throw error
@@ -931,19 +931,19 @@ export async function openRedbox(browser: Playwright): Promise<void> {
     Error.captureStackTrace(error, openRedbox)
     throw error
   }
-  await assertHasRedbox(browser)
+  await waitForRedbox(browser)
 }
 
-export async function openDevToolsIndicatorPopover(
+export async function toggleDevToolsIndicatorPopover(
   browser: Playwright
 ): Promise<void> {
-  const devToolsIndicator = await assertHasDevToolsIndicator(browser)
+  const devToolsIndicator = await waitForDevToolsIndicator(browser)
 
   try {
     await devToolsIndicator.click()
   } catch (cause) {
-    const error = new Error('No DevTools Indicator to open.', { cause })
-    Error.captureStackTrace(error, openDevToolsIndicatorPopover)
+    const error = new Error('No DevTools Indicator to toggle.', { cause })
+    Error.captureStackTrace(error, toggleDevToolsIndicatorPopover)
     throw error
   }
 }
@@ -957,7 +957,7 @@ export async function getSegmentExplorerRoute(browser: Playwright) {
 
 export async function getSegmentExplorerContent(browser: Playwright) {
   // open the devtool button
-  await openDevToolsIndicatorPopover(browser)
+  await toggleDevToolsIndicatorPopover(browser)
 
   // open the segment explorer
   await browser.elementByCss('[data-segment-explorer]').click()
@@ -995,7 +995,7 @@ export async function hasDevToolsPanel(browser: Playwright) {
   return result
 }
 
-export async function assertHasDevToolsIndicator(browser: Playwright) {
+export async function waitForDevToolsIndicator(browser: Playwright) {
   const devToolsIndicator = browser.locateDevToolsIndicator()
   try {
     await devToolsIndicator.waitFor({ timeout: 5000 })
@@ -1003,7 +1003,7 @@ export async function assertHasDevToolsIndicator(browser: Playwright) {
     const error = new Error(
       'Expected DevTools Indicator but found no visible one.'
     )
-    Error.captureStackTrace(error, assertHasDevToolsIndicator)
+    Error.captureStackTrace(error, waitForDevToolsIndicator)
     throw error
   }
 
@@ -1022,37 +1022,39 @@ export async function assertNoDevToolsIndicator(browser: Playwright) {
   }
 }
 
-export async function assertStaticIndicator(
+export async function waitForStaticIndicator(
   browser: Playwright,
   expectedRouteType: 'Static' | 'Dynamic' | undefined
 ): Promise<void> {
-  await openDevToolsIndicatorPopover(browser)
+  await toggleDevToolsIndicatorPopover(browser)
 
-  const routeType = await browser.eval(() => {
-    const portal = [].slice
-      .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
+  await retry(async () => {
+    const routeType = await browser.eval(() => {
+      const portal = [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
 
-    return (
-      portal?.shadowRoot
-        // 'Route\nStatic' || 'Route\nDynamic'
-        ?.querySelector('[data-nextjs-route-type]')
-        ?.innerText.split('\n')
-        .pop()
-    )
-  })
-
-  if (routeType !== expectedRouteType) {
-    if (expectedRouteType) {
-      throw new Error(
-        `Expected static indicator with route type ${expectedRouteType}, found ${routeType} instead.`
+      return (
+        portal?.shadowRoot
+          // 'Route\nStatic' || 'Route\nDynamic'
+          ?.querySelector('[data-nextjs-route-type]')
+          ?.innerText.split('\n')
+          .pop()
       )
-    } else {
-      throw new Error(
-        `Expected no static indicator, found ${routeType} instead.`
-      )
+    })
+
+    if (routeType !== expectedRouteType) {
+      if (expectedRouteType) {
+        throw new Error(
+          `Expected static indicator with route type ${expectedRouteType}, found ${routeType} instead.`
+        )
+      } else {
+        throw new Error(
+          `Expected no static indicator, found ${routeType} instead.`
+        )
+      }
     }
-  }
+  })
 }
 
 export function getRedboxHeader(browser: Playwright): Promise<string | null> {

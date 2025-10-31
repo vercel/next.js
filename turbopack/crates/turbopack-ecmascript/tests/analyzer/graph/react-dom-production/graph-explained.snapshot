@@ -3330,8 +3330,10 @@ c#169 = (???*0* | ???*1*)
 - *1* unsupported assign operation
   ⚠️  This value might have side effects
 
-c#171 = (b | ???*0*)
-- *0* unsupported assign operation
+c#171 = (???*0* | ???*1*)
+- *0* compound assignment expression
+  ⚠️  This value might have side effects
+- *1* unsupported assign operation
   ⚠️  This value might have side effects
 
 c#175 = arguments[2]
@@ -4829,8 +4831,14 @@ f#423 = (b["contextType"] | (Zf(b) ? Xf : H["current"]) | b["getDerivedStateFrom
 
 f#424 = (`${a}` | undefined)
 
-f#431 = (...) => (c | (???*0* ? c : d))
-- *0* unsupported expression
+f#431 = (...) => (???*0* | (???*1* ? ???*2* : d) | c)
+- *0* c
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
 f#440 = c["type"]
@@ -6198,7 +6206,7 @@ sh (const after eval) = (...) => (b["ref"] | b | a)
 
 si (const after eval) = (...) => di()["memoizedState"]
 
-sj (const after eval) = (...) => (???*0* | null | f | tj(a, b, g, null) | tj(a, b, g, d) | b)
+sj (const after eval) = (...) => (???*0* | f | tj(a, b, g, null) | tj(a, b, g, d) | b)
 - *0* tj(a, b, g, d)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects

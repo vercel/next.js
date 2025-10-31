@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, assertHasRedbox, getRedboxDescription } from 'next-test-utils'
+import { retry, waitForRedbox, getRedboxDescription } from 'next-test-utils'
 
 describe('app-dir refresh', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -38,7 +38,7 @@ describe('app-dir refresh', () => {
     const browser = await next.browser('/refresh-invalid-render')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const description = await getRedboxDescription(browser)
       expect(description).toContain(
         'refresh can only be called from within a Server Action'
@@ -67,7 +67,7 @@ describe('app-dir refresh', () => {
     const browser = await next.browser('/refresh-invalid-cache')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const description = await getRedboxDescription(browser)
       expect(description).toContain(
         'refresh can only be called from within a Server Action'

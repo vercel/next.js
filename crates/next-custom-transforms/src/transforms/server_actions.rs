@@ -545,9 +545,6 @@ impl<C: Comments> ServerActions<C> {
                                         ..Default::default()
                                     }),
                                 },
-                                decorators: vec![],
-                                span: DUMMY_SP,
-                                is_generator: false,
                                 is_async: true,
                                 ..Default::default()
                             }),
@@ -752,44 +749,49 @@ impl<C: Comments> ServerActions<C> {
             });
         }
 
-        // Create the action export decl from the arrow function
-        // export var cache_ident = async function() {}
+        let inner_fn_body = match *arrow.body.take() {
+            BlockStmtOrExpr::BlockStmt(body) => Some(body),
+            BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                stmts: vec![Stmt::Return(ReturnStmt {
+                    span: DUMMY_SP,
+                    arg: Some(expr),
+                })],
+                ..Default::default()
+            }),
+        };
+
+        let inner_fn = Box::new(Expr::Fn(FnExpr {
+            ident: None,
+            function: Box::new(Function {
+                params: new_params.clone(),
+                body: inner_fn_body,
+                span: arrow.span,
+                is_generator: false,
+                is_async: true,
+                ..Default::default()
+            }),
+        }));
+
+        // Wrap with $$reactCache__(function foo() { return $$cache__(...) })
+        let wrapper_fn = wrap_cache_expr(
+            cache_kind.as_str(),
+            reference_id.as_str(),
+            ids_from_closure.len(),
+            inner_fn,
+            self.arrow_or_fn_expr_ident.clone(),
+            arrow.span,
+        );
+
+        // Create the export: export var $$RSC_SERVER_CACHE_0 = ...
         self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 span: DUMMY_SP,
                 decl: VarDecl {
-                    span: DUMMY_SP,
                     kind: VarDeclKind::Var,
                     decls: vec![VarDeclarator {
                         span: arrow.span,
                         name: Pat::Ident(cache_ident.clone().into()),
-                        init: Some(wrap_cache_expr(
-                            Box::new(Expr::Fn(FnExpr {
-                                ident: None,
-                                function: Box::new(Function {
-                                    params: new_params,
-                                    body: match *arrow.body.take() {
-                                        BlockStmtOrExpr::BlockStmt(body) => Some(body),
-                                        BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
-                                            span: DUMMY_SP,
-                                            stmts: vec![Stmt::Return(ReturnStmt {
-                                                span: DUMMY_SP,
-                                                arg: Some(expr),
-                                            })],
-                                            ..Default::default()
-                                        }),
-                                    },
-                                    decorators: vec![],
-                                    span: DUMMY_SP,
-                                    is_generator: false,
-                                    is_async: true,
-                                    ..Default::default()
-                                }),
-                            })),
-                            &cache_kind,
-                            &reference_id,
-                            ids_from_closure.len(),
-                        )),
+                        init: Some(wrapper_fn),
                         definite: false,
                     }],
                     ..Default::default()
@@ -866,28 +868,40 @@ impl<C: Comments> ServerActions<C> {
             private_ctxt: self.private_ctxt,
         });
 
-        // export var cache_ident = async function() {}
+        let function_body = function.body.take();
+        let function_span = function.span;
+
+        let inner_fn = Box::new(Expr::Fn(FnExpr {
+            ident: fn_name.clone(),
+            function: Box::new(Function {
+                params: new_params.clone(),
+                body: function_body,
+                span: function_span,
+                is_async: true,
+                ..function.take()
+            }),
+        }));
+
+        // Wrap with $$reactCache__(function foo() { return $$cache__(...) })
+        let wrapper_fn = wrap_cache_expr(
+            cache_kind.as_str(),
+            reference_id.as_str(),
+            ids_from_closure.len(),
+            inner_fn,
+            fn_name.clone(),
+            function_span,
+        );
+
+        // Create the export: export var $$RSC_SERVER_CACHE_0 = ...
         self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 span: DUMMY_SP,
                 decl: VarDecl {
-                    span: DUMMY_SP,
                     kind: VarDeclKind::Var,
                     decls: vec![VarDeclarator {
-                        span: function.span,
+                        span: function_span,
                         name: Pat::Ident(cache_ident.clone().into()),
-                        init: Some(wrap_cache_expr(
-                            Box::new(Expr::Fn(FnExpr {
-                                ident: fn_name.clone(),
-                                function: Box::new(Function {
-                                    params: new_params,
-                                    ..function.take()
-                                }),
-                            })),
-                            &cache_kind,
-                            &reference_id,
-                            ids_from_closure.len(),
-                        )),
+                        init: Some(wrapper_fn),
                         definite: false,
                     }],
                     ..Default::default()
@@ -901,7 +915,7 @@ impl<C: Comments> ServerActions<C> {
                 expr: Box::new(annotate_ident_as_server_reference(
                     cache_ident.clone(),
                     reference_id.clone(),
-                    function.span,
+                    function_span,
                 )),
             })));
 
@@ -2049,6 +2063,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         // import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
+        // import { cache as $$reactCache__ } from "react";
         if self.has_cache && self.config.is_react_server_layer {
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
@@ -2068,8 +2083,26 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 phase: Default::default(),
             })));
 
-            // Make it the first item
-            new.rotate_right(1);
+            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                span: DUMMY_SP,
+                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                    span: DUMMY_SP,
+                    local: quote_ident!("$$reactCache__").into(),
+                    imported: Some(quote_ident!("cache").into()),
+                    is_type_only: false,
+                })],
+                src: Box::new(Str {
+                    span: DUMMY_SP,
+                    value: atom!("react"),
+                    raw: None,
+                }),
+                type_only: false,
+                with: None,
+                phase: Default::default(),
+            })));
+
+            // Make them the first items
+            new.rotate_right(2);
         }
 
         if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
@@ -2379,23 +2412,63 @@ fn retain_names_from_declared_idents(
     *child_names = retained_names;
 }
 
-fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str, bound_args_len: usize) -> Box<Expr> {
-    // expr -> $$cache__("name", "id", 0, expr)
-    Box::new(Expr::Call(CallExpr {
-        span: DUMMY_SP,
+fn wrap_cache_expr(
+    cache_kind: &str,
+    reference_id: &str,
+    bound_args_length: usize,
+    inner_fn: Box<Expr>,
+    fn_ident: Option<Ident>,
+    original_span: Span,
+) -> Box<Expr> {
+    let cache_call = CallExpr {
+        span: original_span,
         callee: quote_ident!("$$cache__").as_callee(),
         args: vec![
             ExprOrSpread {
                 spread: None,
-                expr: Box::new(name.into()),
+                expr: Box::new(cache_kind.into()),
             },
             ExprOrSpread {
                 spread: None,
-                expr: Box::new(id.into()),
+                expr: Box::new(reference_id.into()),
             },
-            Number::from(bound_args_len).as_arg(),
-            expr.as_arg(),
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(Expr::Lit(Lit::Num(Number {
+                    span: DUMMY_SP,
+                    value: bound_args_length as f64,
+                    raw: None,
+                }))),
+            },
+            inner_fn.as_arg(),
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(Expr::Ident(private_ident!(DUMMY_SP, "arguments"))),
+            },
         ],
+        ..Default::default()
+    };
+
+    // This wrapper function ensures that we have a user-space call stack frame.
+    let wrapper_fn = Box::new(Expr::Fn(FnExpr {
+        ident: fn_ident,
+        function: Box::new(Function {
+            body: Some(BlockStmt {
+                span: DUMMY_SP,
+                stmts: vec![Stmt::Return(ReturnStmt {
+                    span: DUMMY_SP,
+                    arg: Some(Box::new(Expr::Call(cache_call))),
+                })],
+                ..Default::default()
+            }),
+            span: original_span,
+            ..Default::default()
+        }),
+    }));
+
+    Box::new(Expr::Call(CallExpr {
+        callee: quote_ident!("$$reactCache__").as_callee(),
+        args: vec![wrapper_fn.as_arg()],
         ..Default::default()
     }))
 }

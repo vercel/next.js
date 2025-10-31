@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('app-root-param-getters - cache - at runtime', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -72,7 +72,7 @@ describe('app-root-param-getters - private cache', () => {
     it('should allow using root params within a "use cache: private" - dev', async () => {
       const browser = await next.browser('/en/us/use-cache-private')
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementById('param').text()).toBe('en us')
     })
   } else {

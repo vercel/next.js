@@ -33,7 +33,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
-        EvaluatableAssets, MinifyType, availability_info::AvailabilityInfo,
+        EvaluatableAssets, MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment},
@@ -91,6 +91,8 @@ struct SnapshotOptions {
     production_chunking: bool,
     #[serde(default)]
     enable_debug_ids: bool,
+    #[serde(default)]
+    source_map_source_type: SourceMapSourceType,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -121,6 +123,7 @@ impl Default for SnapshotOptions {
             scope_hoisting: false,
             production_chunking: false,
             enable_debug_ids: false,
+            source_map_source_type: SourceMapSourceType::default(),
         }
     }
 }
@@ -460,7 +463,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
             .export_usage(export_usage)
-            .debug_ids(options.enable_debug_ids);
+            .debug_ids(options.enable_debug_ids)
+            .source_map_source_type(options.source_map_source_type);
 
             if options.production_chunking {
                 builder = builder.chunking_config(
@@ -489,7 +493,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
             .export_usage(export_usage)
-            .debug_ids(options.enable_debug_ids);
+            .debug_ids(options.enable_debug_ids)
+            .source_map_source_type(options.source_map_source_type);
 
             if options.production_chunking {
                 builder = builder.chunking_config(
