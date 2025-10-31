@@ -1354,7 +1354,7 @@ export async function copyTracedFiles(
 
   if(process.env.HOSTNAME) {
     Log.warn(
-      `THe "HOSTNAME" environment variable usage is deprecated for the standalone output listening hostname. Use "NEXT_STANDALONE_HOSTNAME" instead.`
+      `The "HOSTNAME" environment variable usage is deprecated for the standalone output listening hostname. Use "NEXT_STANDALONE_HOSTNAME" instead.`
     )
   }
 
