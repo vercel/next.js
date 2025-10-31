@@ -1352,7 +1352,7 @@ export async function copyTracedFiles(
   )
   await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
 
-  if(process.env.HOSTNAME) {
+  if (process.env.HOSTNAME) {
     Log.warn(
       `The "HOSTNAME" environment variable usage is deprecated for the standalone output listening hostname. Use "NEXT_STANDALONE_HOSTNAME" instead.`
     )
