@@ -9,7 +9,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-const context = {}
+const context: Record<string, any> = {}
 const appDir = join(__dirname, '../')
 
 const navigateTo = async (browser, selector) =>

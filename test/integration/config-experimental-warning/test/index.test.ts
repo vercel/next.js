@@ -8,7 +8,7 @@ import {
   File,
   nextBuild,
   nextStart,
-  check,
+  retry,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -242,7 +242,7 @@ describe('Config Experimental Warning', () => {
           },
         })
 
-        await check(() => {
+        await retry(() => {
           const cliOutput = stripAnsi(stdout)
           const cliOutputErr = stripAnsi(stderr)
           expect(cliOutput).not.toContain(experimentalHeader)

@@ -17,7 +17,6 @@ let app
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        stderr: true,
         nextStart: true,
         onStderr(text) {
           stderr += text

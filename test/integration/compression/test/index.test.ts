@@ -9,7 +9,7 @@ import {
   killApp,
 } from 'next-test-utils'
 
-const context = {}
+const context: Record<string, any> = {}
 
 describe('Compression', () => {
   beforeAll(async () => {

@@ -6,7 +6,7 @@ import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import { join } from 'path'
 
-const context = {}
+const context: Record<string, any> = {}
 
 describe('Configuration', () => {
   beforeAll(async () => {
@@ -33,7 +33,7 @@ describe('Configuration', () => {
     await killApp(context.server)
   })
 
-  async function get$(path, query) {
+  async function get$(path, query?: any) {
     const html = await renderViaHTTP(context.appPort, path, query)
     return cheerio.load(html)
   }

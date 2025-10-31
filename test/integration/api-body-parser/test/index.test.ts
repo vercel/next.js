@@ -11,12 +11,12 @@ import {
 import getPort from 'get-port'
 
 const appDir = join(__dirname, '../')
-let appPort
+let appPort: number
 
 let app
 let server
 
-const context = {}
+const context: { appPort?: number } = {}
 
 function runTests() {
   it('should parse JSON body', async () => {
@@ -66,7 +66,7 @@ async function makeRequestWithInvalidContentType() {
   return status
 }
 
-const startServer = async (optEnv = {}, opts) => {
+const startServer = async (optEnv = {}, opts?: any) => {
   const scriptPath = join(appDir, 'server.js')
   context.appPort = appPort = await getPort()
   const env = Object.assign(

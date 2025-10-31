@@ -22,7 +22,7 @@ let buildId
 let appPort
 let app
 
-const runTests = (isDev) => {
+const runTests = (isDev: boolean) => {
   it('should respond to 404 correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/404')
     expect(res.status).toBe(404)
@@ -118,7 +118,7 @@ describe('404 Page Support SSG', () => {
         buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       })
 
-      runTests()
+      runTests(false)
     }
   )
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
