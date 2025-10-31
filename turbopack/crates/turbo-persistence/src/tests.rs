@@ -836,3 +836,28 @@ fn merge_file_removal() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn lock_file_error() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let _ = fs::remove_dir_all(path);
+
+    let db1 =
+        TurboPersistence::open_with_parallel_scheduler(path.to_path_buf(), RayonParallelScheduler)?;
+
+    let db2_result =
+        TurboPersistence::open_with_parallel_scheduler(path.to_path_buf(), RayonParallelScheduler);
+    assert!(db2_result.is_err());
+    let db2_error = db2_result.err().unwrap();
+    let err = format!("{db2_error:?}");
+    assert!(err.contains(
+        "Failed gain exclusive access to the database. Another process might be using the database"
+    ));
+
+    db1.shutdown()?;
+    drop(db1);
+
+    Ok(())
+}
