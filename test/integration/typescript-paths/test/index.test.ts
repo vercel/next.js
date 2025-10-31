@@ -2,18 +2,26 @@
 
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
+import * as path from 'path'
+import {
+  renderViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
+  File,
+} from 'next-test-utils'
+import * as JSON5 from 'json5'
 
 const appDir = join(__dirname, '..')
 let appPort
 let app
 
-async function get$(path, query) {
+async function get$(path, query?: any) {
   const html = await renderViaHTTP(appPort, path, query)
   return cheerio.load(html)
 }
 
-describe('TypeScript Features', () => {
+function runTests() {
   describe('default behavior', () => {
     beforeAll(async () => {
       appPort = await findPort()
@@ -46,4 +54,34 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/Not aliased to d\.ts file/)
     })
   })
+}
+
+describe('typescript paths', () => {
+  runTests()
+})
+
+const tsconfig = new File(path.resolve(__dirname, '../tsconfig.json'))
+
+describe('typescript paths without baseurl', () => {
+  beforeAll(async () => {
+    const tsconfigContent = JSON5.parse(tsconfig.originalContent)
+    delete tsconfigContent.compilerOptions.baseUrl
+    tsconfigContent.compilerOptions.paths = {
+      'isomorphic-unfetch': ['./types/unfetch.d.ts'],
+      '@c/*': ['./components/*'],
+      '@lib/*': ['./lib/a/*', './lib/b/*'],
+      '@mycomponent': ['./components/hello.tsx'],
+      'd-ts-alias': [
+        './components/alias-to-d-ts.d.ts',
+        './components/alias-to-d-ts.tsx',
+      ],
+    }
+    tsconfig.write(JSON.stringify(tsconfigContent, null, 2))
+  })
+
+  afterAll(() => {
+    tsconfig.restore()
+  })
+
+  runTests()
 })

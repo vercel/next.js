@@ -31,9 +31,6 @@ const expectedErr =
         onStderr(msg) {
           output += msg || ''
         },
-        ontStdout(msg) {
-          output += msg || ''
-        },
       })
 
       expect(output).toMatch(expectedErr)
