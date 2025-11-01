@@ -2973,16 +2973,16 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     ));
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1875 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1876 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preconnects_1889 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1890 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1891 = new Set(),
-    JSCompiler_object_inline_styles_1892 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1893 = new Set(),
-    JSCompiler_object_inline_scripts_1894 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1895 = new Set(),
-    JSCompiler_object_inline_preloads_1896 = {
+  var JSCompiler_object_inline_preconnects_1890 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1891 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1892 = new Set(),
+    JSCompiler_object_inline_styles_1893 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1894 = new Set(),
+    JSCompiler_object_inline_scripts_1895 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1896 = new Set(),
+    JSCompiler_object_inline_preloads_1897 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -3019,7 +3019,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1893.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1894.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src), '"');
       "string" === typeof integrity &&
         bootstrapChunks.push(
@@ -3066,7 +3066,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1893.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1894.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i),
@@ -3088,7 +3088,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push(' async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1875,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1876,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script",
     startInlineStyle: "<style",
@@ -3108,14 +3108,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1889,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1890,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1891,
-    styles: JSCompiler_object_inline_styles_1892,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1893,
-    scripts: JSCompiler_object_inline_scripts_1894,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1895,
-    preloads: JSCompiler_object_inline_preloads_1896,
+    preconnects: JSCompiler_object_inline_preconnects_1890,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1891,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1892,
+    styles: JSCompiler_object_inline_styles_1893,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1894,
+    scripts: JSCompiler_object_inline_scripts_1895,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1896,
+    preloads: JSCompiler_object_inline_preloads_1897,
     nonce: { script: void 0, style: void 0 },
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
@@ -4368,45 +4368,50 @@ function renderSuspenseListRows(request, task, keyPath, rows, revealOrder) {
         0 === --previousSuspenseListRow.pendingTasks &&
           finishSuspenseListRow(request, previousSuspenseListRow);
   else {
-    revealOrder = task.blockedSegment;
-    resumeSlots = revealOrder.children.length;
-    n = revealOrder.chunks.length;
-    for (i = keyPath - 1; 0 <= i; i--) {
-      node = rows[i];
+    resumeSlots = task.blockedSegment;
+    n = resumeSlots.children.length;
+    i = resumeSlots.chunks.length;
+    for (node = 0; node < keyPath; node++) {
+      resumeSegmentID =
+        "unstable_legacy-backwards" === revealOrder ? keyPath - 1 - node : node;
+      var node$39 = rows[resumeSegmentID];
       task.row = previousSuspenseListRow = createSuspenseListRow(
         previousSuspenseListRow
       );
-      task.treeContext = pushTreeContext(prevTreeContext, keyPath, i);
-      resumeSegmentID = createPendingSegment(
+      task.treeContext = pushTreeContext(
+        prevTreeContext,
+        keyPath,
+        resumeSegmentID
+      );
+      var newSegment = createPendingSegment(
         request,
-        n,
+        i,
         null,
         task.formatContext,
-        0 === i ? revealOrder.lastPushedText : !0,
+        0 === resumeSegmentID ? resumeSlots.lastPushedText : !0,
         !0
       );
-      revealOrder.children.splice(resumeSlots, 0, resumeSegmentID);
-      task.blockedSegment = resumeSegmentID;
+      resumeSlots.children.splice(n, 0, newSegment);
+      task.blockedSegment = newSegment;
       try {
-        renderNode(request, task, node, i),
+        renderNode(request, task, node$39, resumeSegmentID),
           pushSegmentFinale(
-            resumeSegmentID.chunks,
+            newSegment.chunks,
             request.renderState,
-            resumeSegmentID.lastPushedText,
-            resumeSegmentID.textEmbedded
+            newSegment.lastPushedText,
+            newSegment.textEmbedded
           ),
-          (resumeSegmentID.status = 1),
+          (newSegment.status = 1),
           0 === --previousSuspenseListRow.pendingTasks &&
             finishSuspenseListRow(request, previousSuspenseListRow);
       } catch (thrownValue) {
         throw (
-          ((resumeSegmentID.status = 12 === request.status ? 3 : 4),
-          thrownValue)
+          ((newSegment.status = 12 === request.status ? 3 : 4), thrownValue)
         );
       }
     }
-    task.blockedSegment = revealOrder;
-    revealOrder.lastPushedText = !1;
+    task.blockedSegment = resumeSlots;
+    resumeSlots.lastPushedText = !1;
   }
   null !== prevRow &&
     null !== previousSuspenseListRow &&
@@ -4483,9 +4488,9 @@ function renderElement(request, task, keyPath, type, props, ref) {
       var defaultProps = type.defaultProps;
       if (defaultProps) {
         newProps === props && (newProps = assign({}, newProps, props));
-        for (var propName$46 in defaultProps)
-          void 0 === newProps[propName$46] &&
-            (newProps[propName$46] = defaultProps[propName$46]);
+        for (var propName$47 in defaultProps)
+          void 0 === newProps[propName$47] &&
+            (newProps[propName$47] = defaultProps[propName$47]);
       }
       var JSCompiler_inline_result = newProps;
       var context = emptyContextObject,
@@ -4618,7 +4623,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
       task.formatContext = prevContext;
       task.keyPath = prevKeyPath$jscomp$0;
     } else {
-      var children$43 = pushStartInstance(
+      var children$44 = pushStartInstance(
         segment.chunks,
         type,
         props,
@@ -4630,13 +4635,13 @@ function renderElement(request, task, keyPath, type, props, ref) {
         segment.lastPushedText
       );
       segment.lastPushedText = !1;
-      var prevContext$44 = task.formatContext,
-        prevKeyPath$45 = task.keyPath;
+      var prevContext$45 = task.formatContext,
+        prevKeyPath$46 = task.keyPath;
       task.keyPath = keyPath;
       if (
         3 ===
         (task.formatContext = getChildFormatContext(
-          prevContext$44,
+          prevContext$45,
           type,
           props
         )).insertionMode
@@ -4653,7 +4658,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
         task.blockedSegment = preambleSegment;
         try {
           (preambleSegment.status = 6),
-            renderNode(request, task, children$43, -1),
+            renderNode(request, task, children$44, -1),
             pushSegmentFinale(
               preambleSegment.chunks,
               request.renderState,
@@ -4664,9 +4669,9 @@ function renderElement(request, task, keyPath, type, props, ref) {
         } finally {
           task.blockedSegment = segment;
         }
-      } else renderNode(request, task, children$43, -1);
-      task.formatContext = prevContext$44;
-      task.keyPath = prevKeyPath$45;
+      } else renderNode(request, task, children$44, -1);
+      task.formatContext = prevContext$45;
+      task.keyPath = prevKeyPath$46;
       a: {
         var target = segment.chunks,
           resumableState = request.resumableState;
@@ -4691,19 +4696,19 @@ function renderElement(request, task, keyPath, type, props, ref) {
           case "wbr":
             break a;
           case "body":
-            if (1 >= prevContext$44.insertionMode) {
+            if (1 >= prevContext$45.insertionMode) {
               resumableState.hasBody = !0;
               break a;
             }
             break;
           case "html":
-            if (0 === prevContext$44.insertionMode) {
+            if (0 === prevContext$45.insertionMode) {
               resumableState.hasHtml = !0;
               break a;
             }
             break;
           case "head":
-            if (1 >= prevContext$44.insertionMode) break a;
+            if (1 >= prevContext$45.insertionMode) break a;
         }
         target.push(endChunkForTag(type));
       }
@@ -4733,10 +4738,10 @@ function renderElement(request, task, keyPath, type, props, ref) {
           request.renderState.generateStaticMarkup ||
             segment$jscomp$0.chunks.push("\x3c!--&--\x3e");
           segment$jscomp$0.lastPushedText = !1;
-          var prevKeyPath$48 = task.keyPath;
+          var prevKeyPath$49 = task.keyPath;
           task.keyPath = keyPath;
           renderNode(request, task, props.children, -1);
-          task.keyPath = prevKeyPath$48;
+          task.keyPath = prevKeyPath$49;
           request.renderState.generateStaticMarkup ||
             segment$jscomp$0.chunks.push("\x3c!--/&--\x3e");
           segment$jscomp$0.lastPushedText = !1;
@@ -4746,11 +4751,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
         a: {
           var children$jscomp$0 = props.children,
             revealOrder = props.revealOrder;
-          if (
-            "forwards" === revealOrder ||
-            "backwards" === revealOrder ||
-            "unstable_legacy-backwards" === revealOrder
-          ) {
+          if ("independent" !== revealOrder && "together" !== revealOrder) {
             if (isArrayImpl(children$jscomp$0)) {
               renderSuspenseListRows(
                 request,
@@ -4781,35 +4782,35 @@ function renderElement(request, task, keyPath, type, props, ref) {
               }
             }
             if ("function" === typeof children$jscomp$0[ASYNC_ITERATOR]) {
-              var iterator$39 = children$jscomp$0[ASYNC_ITERATOR]();
-              if (iterator$39) {
+              var iterator$40 = children$jscomp$0[ASYNC_ITERATOR]();
+              if (iterator$40) {
                 var prevThenableState = task.thenableState;
                 task.thenableState = null;
                 thenableIndexCounter = 0;
                 thenableState = prevThenableState;
                 var rows = [],
                   done = !1;
-                if (iterator$39 === children$jscomp$0)
+                if (iterator$40 === children$jscomp$0)
                   for (
-                    var step$40 = readPreviousThenableFromState();
-                    void 0 !== step$40;
+                    var step$41 = readPreviousThenableFromState();
+                    void 0 !== step$41;
 
                   ) {
-                    if (step$40.done) {
+                    if (step$41.done) {
                       done = !0;
                       break;
                     }
-                    rows.push(step$40.value);
-                    step$40 = readPreviousThenableFromState();
+                    rows.push(step$41.value);
+                    step$41 = readPreviousThenableFromState();
                   }
                 if (!done)
                   for (
-                    var step$41 = unwrapThenable(iterator$39.next());
-                    !step$41.done;
+                    var step$42 = unwrapThenable(iterator$40.next());
+                    !step$42.done;
 
                   )
-                    rows.push(step$41.value),
-                      (step$41 = unwrapThenable(iterator$39.next()));
+                    rows.push(step$42.value),
+                      (step$42 = unwrapThenable(iterator$40.next()));
                 renderSuspenseListRows(
                   request,
                   task,
@@ -4822,7 +4823,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
             }
           }
           if ("together" === revealOrder) {
-            var prevKeyPath$42 = task.keyPath,
+            var prevKeyPath$43 = task.keyPath,
               prevRow = task.row,
               newRow = (task.row = createSuspenseListRow(null));
             newRow.boundaries = [];
@@ -4831,7 +4832,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
             renderNodeDestructive(request, task, children$jscomp$0, -1);
             0 === --newRow.pendingTasks &&
               finishSuspenseListRow(request, newRow);
-            task.keyPath = prevKeyPath$42;
+            task.keyPath = prevKeyPath$43;
             task.row = prevRow;
             null !== prevRow &&
               0 < newRow.pendingTasks &&
@@ -5785,21 +5786,21 @@ function renderNode(request, task, node, childIndex) {
       chunkLength = segment.chunks.length;
     try {
       return renderNodeDestructive(request, task, node, childIndex);
-    } catch (thrownValue$69) {
+    } catch (thrownValue$70) {
       if (
         (resetHooksState(),
         (segment.children.length = childrenLength),
         (segment.chunks.length = chunkLength),
         (node =
-          thrownValue$69 === SuspenseException
+          thrownValue$70 === SuspenseException
             ? getSuspendedThenable()
-            : thrownValue$69),
+            : thrownValue$70),
         12 !== request.status && "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
           segment = node;
           node =
-            thrownValue$69 === SuspenseException
+            thrownValue$70 === SuspenseException
               ? getThenableStateAfterSuspending()
               : null;
           request = spawnNewSuspendedRenderTask(request, task, node).ping;
@@ -5842,7 +5843,7 @@ function renderNode(request, task, node, childIndex) {
         }
         if ("Maximum call stack size exceeded" === node.message) {
           segment =
-            thrownValue$69 === SuspenseException
+            thrownValue$70 === SuspenseException
               ? getThenableStateAfterSuspending()
               : null;
           segment = spawnNewSuspendedRenderTask(request, task, segment);
@@ -6001,16 +6002,16 @@ function abortTask(task, request, error) {
       0 === request.pendingRootTasks && completeShell(request);
     }
   } else {
-    var trackedPostpones$72 = request.trackedPostpones;
+    var trackedPostpones$73 = request.trackedPostpones;
     if (4 !== boundary.status) {
-      if (null !== trackedPostpones$72 && null !== segment)
+      if (null !== trackedPostpones$73 && null !== segment)
         return (
           "object" === typeof error &&
           null !== error &&
           error.$$typeof === REACT_POSTPONE_TYPE
             ? logPostpone(request, error.message, errorInfo)
             : logRecoverableError(request, error, errorInfo),
-          trackPostpone(request, trackedPostpones$72, task, segment),
+          trackPostpone(request, trackedPostpones$73, task, segment),
           boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
             return abortTask(fallbackTask, request, error);
           }),
@@ -6396,13 +6397,13 @@ function performWork(request$jscomp$1) {
                       null !== request.trackedPostpones &&
                       x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
                     ) {
-                      var trackedPostpones$78 = request.trackedPostpones;
+                      var trackedPostpones$79 = request.trackedPostpones;
                       task.abortSet.delete(task);
                       var postponeInfo = getThrownInfo(task.componentStack);
                       logPostpone(request, x$jscomp$0.message, postponeInfo);
                       trackPostpone(
                         request,
-                        trackedPostpones$78,
+                        trackedPostpones$79,
                         task,
                         segment$jscomp$0
                       );
@@ -7051,12 +7052,12 @@ function flushCompletedQueues(request, destination) {
       flushingPartialBoundaries = !0;
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$82 = partialBoundaries[i];
+        var boundary$83 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          flushedByteSize = boundary$82.byteSize;
-          var completedSegments = boundary$82.completedSegments;
+          flushedByteSize = boundary$83.byteSize;
+          var completedSegments = boundary$83.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -7066,7 +7067,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$82,
+                boundary$83,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -7076,10 +7077,10 @@ function flushCompletedQueues(request, destination) {
               break a;
             }
           completedSegments.splice(0, JSCompiler_inline_result);
-          var row = boundary$82.row;
+          var row = boundary$83.row;
           null !== row &&
             row.together &&
-            1 === boundary$82.pendingTasks &&
+            1 === boundary$83.pendingTasks &&
             (1 === row.pendingTasks
               ? unblockSuspenseListRow(
                   clientRenderedBoundaries,
@@ -7089,7 +7090,7 @@ function flushCompletedQueues(request, destination) {
               : row.pendingTasks--);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$82.contentState,
+            boundary$83.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -7175,8 +7176,8 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$84) {
-    logRecoverableError(request, error$84, {}), fatalError(request, error$84);
+  } catch (error$85) {
+    logRecoverableError(request, error$85, {}), fatalError(request, error$85);
   }
 }
 function addToReplayParent(node, parentKeyPath, trackedPostpones) {
@@ -7260,4 +7261,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.3.0-experimental-4f931700-20251029";
+exports.version = "19.3.0-experimental-561ee24d-20251101";

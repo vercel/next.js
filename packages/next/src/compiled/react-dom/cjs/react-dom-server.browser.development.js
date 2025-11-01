@@ -5131,8 +5131,6 @@
       if (null != debugInfo)
         for (var i = debugInfo.length - 1; 0 <= i; i--) {
           var info = debugInfo[i];
-          if ("string" === typeof info.name) break;
-          if ("number" === typeof info.time) break;
           if (null != info.awaited) {
             var bestStack = null == info.debugStack ? info.awaited : info;
             if (void 0 !== bestStack.debugStack) {
@@ -5409,45 +5407,52 @@
             0 === --previousSuspenseListRow.pendingTasks &&
               finishSuspenseListRow(request, previousSuspenseListRow);
       else {
-        revealOrder = task.blockedSegment;
-        resumeSlots = revealOrder.children.length;
-        n = revealOrder.chunks.length;
-        for (i = keyPath - 1; 0 <= i; i--) {
-          node = rows[i];
+        resumeSlots = task.blockedSegment;
+        n = resumeSlots.children.length;
+        i = resumeSlots.chunks.length;
+        for (node = 0; node < keyPath; node++) {
+          resumeSegmentID =
+            "unstable_legacy-backwards" === revealOrder
+              ? keyPath - 1 - node
+              : node;
+          var _node3 = rows[resumeSegmentID];
           task.row = previousSuspenseListRow = createSuspenseListRow(
             previousSuspenseListRow
           );
-          task.treeContext = pushTreeContext(prevTreeContext, keyPath, i);
-          resumeSegmentID = createPendingSegment(
+          task.treeContext = pushTreeContext(
+            prevTreeContext,
+            keyPath,
+            resumeSegmentID
+          );
+          var newSegment = createPendingSegment(
             request,
-            n,
+            i,
             null,
             task.formatContext,
-            0 === i ? revealOrder.lastPushedText : !0,
+            0 === resumeSegmentID ? resumeSlots.lastPushedText : !0,
             !0
           );
-          revealOrder.children.splice(resumeSlots, 0, resumeSegmentID);
-          task.blockedSegment = resumeSegmentID;
-          warnForMissingKey(request, task, node);
+          resumeSlots.children.splice(n, 0, newSegment);
+          task.blockedSegment = newSegment;
+          warnForMissingKey(request, task, _node3);
           try {
-            renderNode(request, task, node, i),
-              resumeSegmentID.lastPushedText &&
-                resumeSegmentID.textEmbedded &&
-                resumeSegmentID.chunks.push(textSeparator),
-              (resumeSegmentID.status = COMPLETED),
-              finishedSegment(request, task.blockedBoundary, resumeSegmentID),
+            renderNode(request, task, _node3, resumeSegmentID),
+              newSegment.lastPushedText &&
+                newSegment.textEmbedded &&
+                newSegment.chunks.push(textSeparator),
+              (newSegment.status = COMPLETED),
+              finishedSegment(request, task.blockedBoundary, newSegment),
               0 === --previousSuspenseListRow.pendingTasks &&
                 finishSuspenseListRow(request, previousSuspenseListRow);
           } catch (thrownValue) {
             throw (
-              ((resumeSegmentID.status =
-                12 === request.status ? ABORTED : ERRORED),
+              ((newSegment.status = 12 === request.status ? ABORTED : ERRORED),
               thrownValue)
             );
           }
         }
-        task.blockedSegment = revealOrder;
-        revealOrder.lastPushedText = !1;
+        task.blockedSegment = resumeSlots;
+        resumeSlots.lastPushedText = !1;
       }
       null !== prevRow &&
         null !== previousSuspenseListRow &&
@@ -6114,11 +6119,7 @@
             a: {
               var children$jscomp$0 = props.children,
                 revealOrder = props.revealOrder;
-              if (
-                "forwards" === revealOrder ||
-                "backwards" === revealOrder ||
-                "unstable_legacy-backwards" === revealOrder
-              ) {
+              if ("independent" !== revealOrder && "together" !== revealOrder) {
                 if (isArrayImpl(children$jscomp$0)) {
                   renderSuspenseListRows(
                     request,
@@ -7546,9 +7547,28 @@
       }
       var errorInfo = getThrownInfo(task.componentStack),
         node = task.node;
-      null !== node &&
+      if (null !== node && "object" === typeof node) {
+        for (
+          var debugInfo = node._debugInfo;
+          "object" === typeof node &&
+          null !== node &&
+          node.$$typeof === REACT_LAZY_TYPE;
+
+        ) {
+          var payload = node._payload;
+          if ("fulfilled" === payload.status) node = payload.value;
+          else break;
+        }
         "object" === typeof node &&
-        pushHaltedAwaitOnComponentStack(task, node._debugInfo);
+          null !== node &&
+          (isArrayImpl(node) ||
+            "function" === typeof node[ASYNC_ITERATOR] ||
+            node.$$typeof === REACT_ELEMENT_TYPE ||
+            node.$$typeof === REACT_LAZY_TYPE) &&
+          isArrayImpl(node._debugInfo) &&
+          (debugInfo = node._debugInfo);
+        pushHaltedAwaitOnComponentStack(task, debugInfo);
+      }
       if (null === boundary) {
         if (13 !== request.status && request.status !== CLOSED) {
           boundary = task.replay;
@@ -8967,11 +8987,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-4f931700-20251029" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-561ee24d-20251101" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-4f931700-20251029\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-561ee24d-20251101\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -8994,6 +9014,7 @@
       REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
+      ASYNC_ITERATOR = Symbol.asyncIterator,
       isArrayImpl = Array.isArray,
       jsxPropsParents = new WeakMap(),
       jsxChildrenParents = new WeakMap(),
@@ -10776,5 +10797,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-canary-4f931700-20251029";
+    exports.version = "19.3.0-canary-561ee24d-20251101";
   })();
