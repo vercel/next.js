@@ -3,11 +3,11 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
 describe('segment cache (staleness)', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
-  if (isNextDev) {
-    test('disabled in development', () => {})
+  if (isNextDev || isNextDeploy) {
+    test('disabled in development / deployment', () => {})
     return
   }
 

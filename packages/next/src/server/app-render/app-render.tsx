@@ -57,7 +57,6 @@ import {
   RSC_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_HMR_REFRESH_HASH_COOKIE,
-  NEXT_DID_POSTPONE_HEADER,
   NEXT_REQUEST_ID_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
@@ -549,6 +548,8 @@ async function generateDynamicRSCPayload(
     b: ctx.sharedContext.buildId,
     f: flightData,
     S: workStore.isStaticGeneration,
+    // Default to false; will be updated by stream transformation if needed
+    iP: false,
   }
 }
 
@@ -829,7 +830,6 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 
 async function generateRuntimePrefetchResult(
   req: BaseNextRequest,
-  res: BaseNextResponse,
   ctx: AppRenderContext,
   requestStore: RequestStore
 ): Promise<RenderResult> {
@@ -894,10 +894,6 @@ async function generateRuntimePrefetchResult(
 
   applyMetadataFromPrerenderResult(response, metadata, workStore)
   metadata.fetchMetrics = ctx.workStore.fetchMetrics
-
-  if (response.isPartial) {
-    res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
-  }
 
   return new FlightRenderResult(response.result.prelude, metadata)
 }
@@ -1038,6 +1034,86 @@ async function prospectiveRuntimeServerPrerender(
   }
 }
 
+/**
+ * Creates a TransformStream that updates the RSC payload to set the `iP` (isPartial) property to true.
+ * This is used when we determine after serialization that a runtime prefetch response contains dynamic holes.
+ */
+function createIsPartialTransformStream(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
+  // Match '"iP":false' and replace with '"iP":true'
+  // The mixed-case property name makes collision with user data extremely unlikely
+  const search = new Uint8Array([34, 105, 80, 34, 58, 102, 97, 108, 115, 101]) // '"iP":false'
+  const replace = new Uint8Array([34, 105, 80, 34, 58, 116, 114, 117, 101]) // '"iP":true'
+  const searchLen = search.length
+  const firstByte = search[0]
+
+  let buffer = new Uint8Array(0)
+  let found = false
+  let scanStart = 0 // next index to begin scanning (avoid rescans)
+
+  function findMatch(limit: number): number {
+    // naive scan with first-byte prefilter; cheap for tiny pattern
+    for (let i = scanStart; i <= limit - searchLen; i++) {
+      if (buffer[i] !== firstByte) continue
+      let j = 1
+      for (; j < searchLen; j++) {
+        if (buffer[i + j] !== search[j]) break
+      }
+      if (j === searchLen) return i
+    }
+    return -1
+  }
+
+  return new TransformStream({
+    transform(chunk, controller) {
+      if (found) {
+        controller.enqueue(chunk)
+        return
+      }
+
+      // Append chunk
+      const next = new Uint8Array(buffer.length + chunk.length)
+      next.set(buffer)
+      next.set(chunk, buffer.length)
+      buffer = next
+
+      // Scan everything we have
+      const matchIndex = findMatch(buffer.length)
+
+      if (matchIndex !== -1) {
+        // Enqueue prefix → replacement → suffix (no giant copy)
+        if (matchIndex > 0) controller.enqueue(buffer.subarray(0, matchIndex))
+        controller.enqueue(replace)
+        const after = matchIndex + searchLen
+        if (after < buffer.length) controller.enqueue(buffer.subarray(after))
+        buffer = new Uint8Array(0)
+        found = true
+        scanStart = 0
+        return
+      }
+
+      // No match yet — flush all but overlap to bound memory
+      const keepBack = searchLen - 1
+      if (buffer.length > keepBack) {
+        const flushLen = buffer.length - keepBack
+        controller.enqueue(buffer.subarray(0, flushLen))
+        buffer = buffer.subarray(flushLen)
+        // After trimming to overlap, start scanning from 0 next time
+        scanStart = 0
+      } else {
+        // Advance scanStart so we don’t rescan the same bytes
+        scanStart = Math.max(0, buffer.length - (searchLen - 1))
+      }
+    },
+
+    flush(controller) {
+      if (buffer.length) controller.enqueue(buffer)
+    },
+  })
+}
+
 async function finalRuntimeServerPrerender(
   ctx: AppRenderContext,
   getPayload: () => any,
@@ -1149,6 +1225,15 @@ async function finalRuntimeServerPrerender(
       finalServerController.abort()
     }
   )
+
+  // If the render was determined to be dynamic, we need to update the RSC payload stream
+  // to reflect that by setting the `iP` (isPartial) property to true.
+  // React has already serialized the payload with `iP: false`, so we need to transform the stream.
+  if (serverIsDynamic) {
+    result.prelude = result.prelude.pipeThrough(
+      createIsPartialTransformStream()
+    )
+  }
 
   return {
     result,
@@ -2001,7 +2086,7 @@ async function renderToHTMLOrFlightImpl(
 
     if (isRSCRequest) {
       if (isRuntimePrefetchRequest) {
-        return generateRuntimePrefetchResult(req, res, ctx, requestStore)
+        return generateRuntimePrefetchResult(req, ctx, requestStore)
       } else {
         if (
           process.env.NODE_ENV === 'development' &&

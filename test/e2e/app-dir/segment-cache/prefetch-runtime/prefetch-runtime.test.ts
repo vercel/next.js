@@ -473,7 +473,8 @@ describe('runtime prefetching', () => {
       await browser.back()
 
       // wait a tick before navigating
-      await waitFor(500)
+      // TODO: Why does this need to be so long when deployed? What other signal do we have that we can wait on?
+      await waitFor(2000)
 
       // Navigate to the page
       await act(async () => {

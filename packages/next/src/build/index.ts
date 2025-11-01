@@ -1651,9 +1651,8 @@ export default async function build(
               clientParamParsing: config.cacheComponents ?? false,
               clientParamParsingOrigins:
                 config.experimental.clientParamParsingOrigins,
-              // TODO (rdc-for-navigations): Enable this once we support passing data currently provided via headers
-              // (eg NEXT_DID_POSTPONE_HEADER and NEXT_STALE_TIME_HEADER) in the body of the response
-              dynamicRSCPrerender: false,
+              dynamicRSCPrerender:
+                isAppPPREnabled && config.cacheComponents === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,

@@ -1654,7 +1654,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const isResponsePartial =
       fetchStrategy === FetchStrategy.PPRRuntime
         ? // A runtime prefetch may have holes.
-          !!response.headers.get(NEXT_DID_POSTPONE_HEADER)
+          serverData.iP === true
         : // Full and LoadingBoundary prefetches cannot have holes.
           // (even if we did set the prefetch header, we only use this codepath for non-PPR-enabled routes)
           false
