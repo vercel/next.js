@@ -327,7 +327,7 @@ Starting with **Next.js 16**, to align with the [Async Request APIs](#async-requ
 ```js filename="app/shop/[slug]/opengraph-image.js"
 // Next.js 16 - asynchronous params access
 export async function generateImageMetadata({ params }) {
-  const { slug } = await params
+  // params is a normal object
   return [{ id: '1' }, { id: '2' }]
 }
 
