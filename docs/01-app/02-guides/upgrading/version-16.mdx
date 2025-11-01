@@ -322,19 +322,19 @@ export default function Image({ params, id }) {
 }
 ```
 
-Starting with **Next.js 16**, to align with the [Async Request APIs](#async-request-apis-breaking-change) change, these are also asynchronous.
+Starting with **Next.js 16**, the image generation functions (the default export in your `opengraph-image`, `twitter-image`, `icon`, and `apple-icon` files) are invoked with async props (they may be Promises and should be `await`ed inside the image function). However, `generateImageMetadata` itself continues to receive `params` synchronously (as it did previously) and should remain a synchronous function that returns metadata.
 
 ```js filename="app/shop/[slug]/opengraph-image.js"
-// Next.js 16 - asynchronous params access
-export async function generateImageMetadata({ params }) {
-  // params is a normal object
+// Next.js 16 - generateImageMetadata remains synchronous
+export function generateImageMetadata({ params }) {
+  const { slug } = params
   return [{ id: '1' }, { id: '2' }]
 }
 
-// Next.js 16 - asynchronous params and id access
+// Next.js 16 - image generation function receives async props and should await them
 export default async function Image({ params, id }) {
-  const { slug } = await params // params now async
-  const imageId = await id // id is now Promise<string> when using generateImageMetadata
+  const { slug } = await params // params may be a Promise
+  const imageId = await id // id may be a Promise when provided by generateImageMetadata
   // ...
 }
 ```
