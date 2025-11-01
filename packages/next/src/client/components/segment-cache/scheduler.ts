@@ -501,10 +501,19 @@ function processQueueInMicrotask() {
         continue
       case PrefetchTaskExitStatus.Done:
         if (task.phase === PrefetchPhase.RouteTree) {
-          // Finished prefetching the route tree. Proceed to prefetching
-          // the segments.
-          task.phase = PrefetchPhase.Segments
-          heapResift(taskHeap, task)
+          // Finished prefetching the route tree.
+          // For PPR prefetches, we only prefetch the route tree metadata,
+          // not the segments. The segments will be fetched on actual navigation.
+          // This matches Next.js 15 behavior and avoids duplicate requests.
+          // For Full/LoadingBoundary/PPRRuntime prefetches, proceed to prefetching the segments.
+          if (task.fetchStrategy === FetchStrategy.PPR) {
+            // PPR prefetch complete - no need to fetch segments
+            heapPop(taskHeap)
+          } else {
+            // Proceed to prefetching the segments
+            task.phase = PrefetchPhase.Segments
+            heapResift(taskHeap, task)
+          }
         } else if (hasBackgroundWork) {
           // The task spawned additional background work. Reschedule the task
           // at background priority.
@@ -667,63 +676,9 @@ function pingRootRouteTree(
 
       switch (fetchStrategy) {
         case FetchStrategy.PPR: {
-          // For Cache Components pages, each segment may be prefetched
-          // statically or using a runtime request, based on various
-          // configurations and heuristics. We'll do this in two passes: first
-          // traverse the tree and perform all the static prefetches.
-          //
-          // Then, if there are any segments that need a runtime request,
-          // do another pass to perform a runtime prefetch.
-          pingStaticHead(now, task, route)
-          const exitStatus = pingSharedPartOfCacheComponentsTree(
-            now,
-            task,
-            route,
-            task.treeAtTimeOfPrefetch,
-            tree
-          )
-          if (exitStatus === PrefetchTaskExitStatus.InProgress) {
-            // Child yielded without finishing.
-            return PrefetchTaskExitStatus.InProgress
-          }
-          const spawnedRuntimePrefetches = task.spawnedRuntimePrefetches
-          if (spawnedRuntimePrefetches !== null) {
-            // During the first pass, we discovered segments that require a
-            // runtime prefetch. Do a second pass to construct a request tree.
-            const spawnedEntries = new Map<
-              SegmentCacheKey,
-              PendingSegmentCacheEntry
-            >()
-            pingRuntimeHead(
-              now,
-              task,
-              route,
-              spawnedEntries,
-              FetchStrategy.PPRRuntime
-            )
-            const requestTree = pingRuntimePrefetches(
-              now,
-              task,
-              route,
-              tree,
-              spawnedRuntimePrefetches,
-              spawnedEntries
-            )
-            let needsDynamicRequest = spawnedEntries.size > 0
-            if (needsDynamicRequest) {
-              // Perform a dynamic prefetch request and populate the cache with
-              // the result.
-              spawnPrefetchSubtask(
-                fetchSegmentPrefetchesUsingDynamicRequest(
-                  task,
-                  route,
-                  FetchStrategy.PPRRuntime,
-                  requestTree,
-                  spawnedEntries
-                )
-              )
-            }
-          }
+          // PPR tasks skip the Segments phase to match Next.js 15 behavior.
+          // They complete after fetching the route tree, and segments are
+          // fetched on actual navigation. This should not be reached.
           return PrefetchTaskExitStatus.Done
         }
         case FetchStrategy.Full:
@@ -776,6 +731,7 @@ function pingRootRouteTree(
   return PrefetchTaskExitStatus.Done
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Preserved for future PPR segment prefetching
 function pingStaticHead(
   now: number,
   task: PrefetchTask,
@@ -826,6 +782,7 @@ function pingRuntimeHead(
 
 // TODO: Rename dynamic -> runtime throughout this module
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Preserved for future PPR segment prefetching
 function pingSharedPartOfCacheComponentsTree(
   now: number,
   task: PrefetchTask,
@@ -1355,6 +1312,7 @@ function pingRouteTreeAndIncludeDynamicData(
   return requestTree
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Preserved for future PPR segment prefetching
 function pingRuntimePrefetches(
   now: number,
   task: PrefetchTask,
