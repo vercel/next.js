@@ -333,6 +333,20 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+### Navigation with Cache Components
+
+When the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag is enabled, Next.js uses React's [`<Activity>`](https://react.dev/reference/react/Activity) component to preserve component state during client-side navigation.
+
+Rather than unmounting the previous route when you navigate away, Next.js sets the Activity mode to [`"hidden"`](https://react.dev/reference/react/Activity#activity). This means:
+
+- Component state is preserved when navigating between routes
+- When you navigate back, the previous route reappears with its state intact
+- Effects are cleaned up when a route is hidden, and recreated when it becomes visible again
+
+This behavior improves the navigation experience by maintaining UI state (form inputs, or expanded sections) when users navigate back and forth between routes.
+
+> **Good to know**: Next.js uses heuristics to keep a few recently visited routes [`"hidden"`](https://react.dev/reference/react/Activity#activity), while older routes are removed from the DOM to prevent excessive growth.
+
 ### Effect on route segment config
 
 When Cache Components is enabled, several route segment config options are no longer needed or supported. Here's what changes and how to migrate:
@@ -560,6 +574,65 @@ export async function Table({ sortPromise }) {
   return '...'
 }
 ```
+
+## Route Handlers with Cache Components
+
+`GET` Route Handlers follow the same model as normal UI routes in your application. They are dynamic by default, can be pre-rendered when deterministic, and you can `use cache` to include more dynamic data in the cached response.
+
+Dynamic example, returns a different number for every request:
+
+```tsx filename="app/api/random-number/route.ts"
+export async function GET() {
+  return Response.json({
+    randomNumber: Math.random(),
+  })
+}
+```
+
+A handler that returns only static data will be pre-rendered at build time:
+
+```tsx filename="app/api/project-info/route.ts"
+export async function GET() {
+  return Response.json({
+    projectName: 'Next.js',
+  })
+}
+```
+
+If you had a route that returned fresh dynamic data on every request, say products from a database:
+
+```tsx filename="app/api/products/route.ts"
+export async function GET() {
+  const products = await db.query('SELECT * FROM products')
+
+  return Response.json(products)
+}
+```
+
+To cache this and avoid hitting the database on every request, extract the dynamic work into a `use cache` function and set `cacheLife('hours')` so the database is queried at most once per hour:
+
+```tsx filename="app/api/products/route.ts"
+import { cacheLife } from 'next/cache'
+
+export async function GET() {
+  const products = await getProducts()
+
+  return Response.json(products)
+}
+
+async function getProducts() {
+  'use cache'
+  cacheLife('hours')
+
+  return await db.query('SELECT * FROM products')
+}
+```
+
+> **Good to know**
+>
+> - `use cache` cannot be used directly inside a Route Handler body; extract to a helper.
+> - Cached responses revalidate according to `cacheLife` when a new request arrives.
+> - Using runtime APIs like [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), or calling [`connection()`](/docs/app/api-reference/functions/connection), always defers to request time (no pre-rendering).
 
 ## Frequently Asked Questions
 

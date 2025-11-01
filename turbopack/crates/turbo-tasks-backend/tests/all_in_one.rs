@@ -25,7 +25,7 @@ async fn all_in_one() {
             value: 42,
             next: Some(MyStructValue::new(a).to_resolved().await?),
         }
-        .into();
+        .cell();
 
         let result = my_function(a, b.get_last(), c, MyEnumValue::Yeah(42));
         assert_eq!(*result.my_trait_function().await?, "42");

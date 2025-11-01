@@ -103,7 +103,7 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
                 self.references.push(Vc::upcast(ImportAssetReference::new(
                     *self.origin,
                     Request::parse(RcStr::from(src).into()),
-                    ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).into(),
+                    ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).cell(),
                     self.import_context.map(|ctx| *ctx),
                     IssueSource::from_line_col(
                         self.source,

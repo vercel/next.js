@@ -20,7 +20,7 @@ use turbopack_core::{
 
 use crate::{StyleSheetLike, embed::CssEmbed};
 
-#[turbo_tasks::value(into = "new")]
+#[turbo_tasks::value]
 pub enum ReferencedAsset {
     Some(ResolvedVc<Box<dyn OutputAsset>>),
     None,
@@ -63,7 +63,7 @@ impl UrlAssetReference {
                     .to_resolved()
                     .await?,
             )
-            .into());
+            .cell());
         }
         Ok(ReferencedAsset::cell(ReferencedAsset::None))
     }

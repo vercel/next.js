@@ -83,14 +83,14 @@ Any non-serializable arguments, props, or closed-over values will turn into refe
 For example, a cached function can take in JSX as a `children` prop and return `<div>{children}</div>`, but it won't be able to introspect the actual `children` object. This allows you to nest uncached content inside a cached component.
 
 ```tsx filename="app/ui/cached-component.tsx" switcher
-function CachedComponent({ children }: { children: ReactNode }) {
+async function CachedComponent({ children }: { children: ReactNode }) {
   'use cache'
   return <div>{children}</div>
 }
 ```
 
 ```jsx filename="app/ui/cached-component.js" switcher
-function CachedComponent({ children }) {
+async function CachedComponent({ children }) {
   'use cache'
   return <div>{children}</div>
 }
@@ -98,7 +98,9 @@ function CachedComponent({ children }) {
 
 ## Return values
 
-The return value of the cacheable function must be serializable. This ensures that the cached data can be stored and retrieved correctly.
+The return value of the cacheable function must be serializable props. This ensures that the cached data can be stored and retrieved correctly.
+
+> **Good to know:** The supported types for arguments and the supported types for returned values are **not the same**. For more details, refer to [Serializable Parameters and Return Values](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) for function arguments and [Serializable Types](https://react.dev/reference/rsc/use-client#serializable-types) for return values.
 
 ## `use cache` at build time
 
@@ -129,12 +131,12 @@ See the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTa
 
 ### Caching an entire route with `use cache`
 
-To prerender an entire route, add `use cache` to the top of **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
+To pre-render an entire route, add `use cache` to the top of **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
 
 ```tsx filename="app/layout.tsx" switcher
 'use cache'
 
-export default function Layout({ children }: { children: ReactNode }) {
+export default async function Layout({ children }: { children: ReactNode }) {
   return <div>{children}</div>
 }
 ```
@@ -142,7 +144,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 ```jsx filename="app/page.tsx" switcher
 'use cache'
 
-export default function Layout({ children }) {
+export default async function Layout({ children }) {
   return <div>{children}</div>
 }
 ```
@@ -157,7 +159,7 @@ async function Users() {
   // loop through users
 }
 
-export default function Page() {
+export default async function Page() {
   return (
     <main>
       <Users />
@@ -174,7 +176,7 @@ async function Users() {
   // loop through users
 }
 
-export default function Page() {
+export default async function Page() {
   return (
     <main>
       <Users />

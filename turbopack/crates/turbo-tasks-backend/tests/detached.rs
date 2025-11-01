@@ -18,6 +18,7 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached() -> anyhow::Result<()> {
     run_once(&REGISTRATION, || async {
+        println!("test_spawns_detached");
         // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`, just
         // disable GC for the test so this can't cause any problems.
         prevent_gc();
@@ -73,7 +74,9 @@ async fn spawns_detached(
     sender: TransientInstance<WatchSenderTaskInput<Option<Vc<u32>>>>,
 ) -> Vc<()> {
     tokio::spawn(turbo_tasks().detached_for_testing(Box::pin(async move {
+        println!("spawns_detached: waiting for notify");
         notify.0.notified().await;
+        println!("spawns_detached: notified, sending value");
         // creating cells after the normal lifetime of the task should be okay, as the parent task
         // is waiting on us before exiting!
         sender.0.send(Some(Vc::cell(42))).unwrap();

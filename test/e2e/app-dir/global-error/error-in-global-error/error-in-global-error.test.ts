@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 
 describe('app dir - global-error - error-in-global-error', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -12,7 +12,7 @@ describe('app dir - global-error - error-in-global-error', () => {
     expect(text).toBe('Custom Global Error')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       await expect(browser).toDisplayRedbox(`
        {
          "description": "error in page",
@@ -37,7 +37,7 @@ describe('app dir - global-error - error-in-global-error', () => {
     )
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       await expect(browser).toDisplayRedbox(`
        [
          {

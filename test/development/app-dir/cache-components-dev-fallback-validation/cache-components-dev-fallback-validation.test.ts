@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('Cache Components Fallback Validation', () => {
   const { isTurbopack, next } = nextTestSetup({
@@ -12,24 +12,24 @@ describe('Cache Components Fallback Validation', () => {
     const browser = await next.browser(
       '/complete/prerendered/wrapped/prerendered'
     )
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     await browser.loadPage(`${next.url}/complete/prerendered/wrapped/novel`)
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     await browser.loadPage(`${next.url}/complete/novel/wrapped/novel`)
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     await browser.loadPage(
       `${next.url}/complete/prerendered/unwrapped/prerendered`
     )
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     await browser.loadPage(`${next.url}/complete/prerendered/unwrapped/novel`)
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     await browser.loadPage(`${next.url}/complete/novel/unwrapped/novel`)
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 
   it('should warn about missing Suspense when accessing params if static params are partially known at build time', async () => {
@@ -38,13 +38,13 @@ describe('Cache Components Fallback Validation', () => {
     const browser = await next.browser(
       '/partial/prerendered/wrapped/prerendered'
     )
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     await browser.loadPage(`${next.url}/partial/prerendered/wrapped/novel`)
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     await browser.loadPage(`${next.url}/partial/novel/wrapped/novel`)
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
 
     await browser.loadPage(
       `${next.url}/partial/prerendered/unwrapped/prerendered`

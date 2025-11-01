@@ -3,7 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 // Only Turbopack runs the transform on the layout once in edge and non-edge contexts
 // so we only test this on Turbopack
 import {
-  assertHasRedbox,
+  waitForRedbox,
   getRedboxDescription,
   getRedboxSource,
 } from 'next-test-utils'
@@ -29,7 +29,7 @@ import {
 
       if (isNextDev) {
         const browser = await next.browser('/edge-with-layout/edge')
-        assertHasRedbox(browser)
+        waitForRedbox(browser)
         const redbox = {
           description: await getRedboxDescription(browser),
           source: await getRedboxSource(browser),

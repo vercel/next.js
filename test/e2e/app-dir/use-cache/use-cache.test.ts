@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
   assertNoConsoleErrors,
-  assertNoErrorToast,
+  waitForNoErrorToast,
   retry,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
@@ -1161,7 +1161,7 @@ describe('use-cache', () => {
       expect(canonicalUrl).toBe('https://example.com/baz/qux')
 
       // There should be no timeout error.
-      await assertNoErrorToast(browser)
+      await waitForNoErrorToast(browser)
     })
 
     it('makes a cached generateMetadata function that implicitly depends on params dynamic during prerendering', async () => {
@@ -1190,7 +1190,7 @@ describe('use-cache', () => {
       browser = await next.browser('/generate-metadata-resume/canonical/foo')
 
       // There should be no timeout error.
-      await assertNoErrorToast(browser)
+      await waitForNoErrorToast(browser)
     })
 
     it('makes a cached generateMetadata function that reads params dynamic during prerendering', async () => {

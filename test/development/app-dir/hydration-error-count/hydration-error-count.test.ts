@@ -13,18 +13,18 @@ describe('hydration-error-count', () => {
        [
          {
            "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary name="bad-nesting/" loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/bad-nesting" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
-                             <SegmentViewNode type="page" pagePath="bad-nestin...">
-                               <SegmentTrieNode>
-                               <ClientPageRoot Component={function Page} serverProvidedParams={null}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                               <Next.js Internal Component>
                                  <Page params={Promise} searchParams={Promise}>
        >                           <p>
        >                             <p>
@@ -62,18 +62,18 @@ describe('hydration-error-count', () => {
        [
          {
            "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary name="bad-nesting/" loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/bad-nesting" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
-                             <SegmentViewNode type="page" pagePath="bad-nestin...">
-                               <SegmentTrieNode>
-                               <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                               <Next.js Internal Component>
                                  <Page params={Promise} searchParams={Promise}>
        >                           <p>
        >                             <p>
@@ -116,18 +116,18 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary name="html-diff/" loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/html-diff" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
-                             <SegmentViewNode type="page" pagePath="html-diff/...">
-                               <SegmentTrieNode>
-                               <ClientPageRoot Component={function Page} serverProvidedParams={null}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                               <Next.js Internal Component>
                                  <Page params={Promise} searchParams={Promise}>
                                    <p>
        +                             client
@@ -151,18 +151,18 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary name="html-diff/" loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/html-diff" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
-                             <SegmentViewNode type="page" pagePath="html-diff/...">
-                               <SegmentTrieNode>
-                               <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                               <Next.js Internal Component>
                                  <Page params={Promise} searchParams={Promise}>
                                    <p>
        +                             client
@@ -193,18 +193,18 @@ describe('hydration-error-count', () => {
        [
          {
            "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary name="two-issues/" loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/two-issues" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
-                             <SegmentViewNode type="page" pagePath="two-issues...">
-                               <SegmentTrieNode>
-                               <ClientPageRoot Component={function Page} serverProvidedParams={null}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                               <Next.js Internal Component>
                                  <Page params={Promise} searchParams={Promise}>
        >                           <p className="client">
        >                             <p>
@@ -225,18 +225,18 @@ describe('hydration-error-count', () => {
          },
          {
            "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary name="two-issues/" loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/two-issues" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
-                             <SegmentViewNode type="page" pagePath="two-issues...">
-                               <SegmentTrieNode>
-                               <ClientPageRoot Component={function Page} serverProvidedParams={null}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                               <Next.js Internal Component>
                                  <Page params={Promise} searchParams={Promise}>
                                    <p
        +                             className="client"
@@ -263,18 +263,18 @@ describe('hydration-error-count', () => {
        [
          {
            "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary name="two-issues/" loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/two-issues" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
-                             <SegmentViewNode type="page" pagePath="two-issues...">
-                               <SegmentTrieNode>
-                               <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                               <Next.js Internal Component>
                                  <Page params={Promise} searchParams={Promise}>
        >                           <p className="client">
        >                             <p>
@@ -295,18 +295,18 @@ describe('hydration-error-count', () => {
          },
          {
            "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary name="two-issues/" loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/two-issues" tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
-                             <SegmentViewNode type="page" pagePath="two-issues...">
-                               <SegmentTrieNode>
-                               <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                               <Next.js Internal Component>
                                  <Page params={Promise} searchParams={Promise}>
                                    <p
        +                             className="client"
@@ -339,18 +339,18 @@ describe('hydration-error-count', () => {
        [
          {
            "componentStack": "...
-           <RenderFromTemplateContext>
-             <ScrollAndFocusHandler segmentPath={[...]}>
-               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                   <LoadingBoundary name="hydration-..." loading={null}>
-                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
-                       <RedirectBoundary>
-                         <RedirectErrorBoundary router={{...}}>
-                           <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} cacheNode={{lazyData:null, ...}} ...>
-                             <SegmentViewNode type="page" pagePath="hydration-...">
-                               <SegmentTrieNode>
-                               <ClientPageRoot Component={function Page} serverProvidedParams={null}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
+                       <Next.js Internal Component>
+                         <Next.js Internal Component>
+                           <Next.js Internal Component>
+                             <Next.js Internal Component>
+                               <Next.js Internal Component>
+                               <Next.js Internal Component>
                                  <Page params={Promise} searchParams={Promise}>
        >                           <p>
        >                             <p>
