@@ -154,7 +154,7 @@ Next.js provides three caching directives, each designed for different use cases
 | **Works in dynamic context**     | No (requires static context)        | Yes (designed for dynamic contexts)                       | Yes                                 |
 | **Access to `await cookies()`**  | No                                  | No                                                        | Yes                                 |
 | **Access to `await headers()`**  | No                                  | No                                                        | Yes                                 |
-| **After `await connection()`**   | No (won't cache)                    | No                                                        | No                                  |
+| **After `await connection()`**   | No (won't cache)                    | Yes                                                       | No                                  |
 | **Stored in cache handler**      | Yes (server-side)                   | Yes (server-side)                                         | No (client-side only)               |
 | **Cache scope**                  | Global (shared)                     | Global (shared)                                           | Per-user (isolated)                 |
 | **Supports runtime prefetching** | N/A (pre-rendered at build)         | No                                                        | Yes (when configured)               |
