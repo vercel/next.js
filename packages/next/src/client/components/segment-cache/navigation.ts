@@ -347,10 +347,7 @@ function readRenderSnapshotFromCache(
   let loading: LoadingModuleData | Promise<LoadingModuleData> = null
   let isPartial: boolean = true
 
-  const canonicalSegmentKeypath = getCanonicalSegmentKeypath(
-    route,
-    tree.cacheKey
-  )
+  const canonicalSegmentKeypath = getCanonicalSegmentKeypath(route, tree)
   const segmentEntry = readSegmentCacheEntry(now, canonicalSegmentKeypath)
   if (segmentEntry !== null) {
     switch (segmentEntry.status) {
@@ -425,7 +422,7 @@ function readHeadSnapshotFromCache(
   let isPartial: boolean = true
   const canonicalSegmentKeypath = getCanonicalSegmentKeypath(
     route,
-    route.metadata.cacheKey
+    route.metadata
   )
   const segmentEntry = readSegmentCacheEntry(now, canonicalSegmentKeypath)
   if (segmentEntry !== null) {

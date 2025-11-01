@@ -409,9 +409,10 @@ export function readRouteCacheEntry(
 
 export function getCanonicalSegmentKeypath(
   route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey
+  tree: RouteTree
 ): SegmentCacheKeypath {
   // Returns the actual keypath for a segment, without omitting any params.
+  const cacheKey = tree.cacheKey
   return [
     cacheKey,
     cacheKey.endsWith('/' + PAGE_SEGMENT_KEY) || isHeadCacheKey(cacheKey)
@@ -425,7 +426,7 @@ export function getCanonicalSegmentKeypath(
 export function getGenericSegmentKeypathFromFetchStrategy(
   fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey
+  tree: RouteTree
 ): SegmentCacheKeypath {
   // Returns the most generic possible keypath for a segment, based on the
   // strategy used to fetch it, i.e. static/PPR versus runtime prefetching.
@@ -437,6 +438,7 @@ export function getGenericSegmentKeypathFromFetchStrategy(
   // we receive it — for example, if the server tells us that the response
   // doesn't vary on a particular param — but even before we send the request,
   // we know somethings based on the fetch strategy alone.
+  const cacheKey = tree.cacheKey
   const doesVaryOnSearchParams =
     // Only page segments and the head may contain search params. There's no
     // reason to include them in the keypath otherwise.
@@ -662,9 +664,9 @@ export function readOrCreateSegmentCacheEntry(
   now: number,
   fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey
+  tree: RouteTree
 ): SegmentCacheEntry {
-  const canonicalKeypath = getCanonicalSegmentKeypath(route, cacheKey)
+  const canonicalKeypath = getCanonicalSegmentKeypath(route, tree)
   const existingEntry = readSegmentCacheEntry(now, canonicalKeypath)
   if (existingEntry !== null) {
     return existingEntry
@@ -673,7 +675,7 @@ export function readOrCreateSegmentCacheEntry(
   const genericKeypath = getGenericSegmentKeypathFromFetchStrategy(
     fetchStrategy,
     route,
-    cacheKey
+    tree
   )
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
   const isRevalidation = false
@@ -685,7 +687,7 @@ export function readOrCreateRevalidatingSegmentEntry(
   now: number,
   fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey
+  tree: RouteTree
 ): SegmentCacheEntry {
   // This function is called when we've already confirmed that a particular
   // segment is cached, but we want to perform another request anyway in case it
@@ -714,7 +716,7 @@ export function readOrCreateRevalidatingSegmentEntry(
   // return a less generic entry upon revalidation. For now, though, this isn't
   // a concern because the keypath is based solely on the prefetch strategy,
   // not on data contained in the response.
-  const canonicalKeypath = getCanonicalSegmentKeypath(route, cacheKey)
+  const canonicalKeypath = getCanonicalSegmentKeypath(route, tree)
   const existingEntry = readRevalidatingSegmentCacheEntry(now, canonicalKeypath)
   if (existingEntry !== null) {
     return existingEntry
@@ -723,7 +725,7 @@ export function readOrCreateRevalidatingSegmentEntry(
   const genericKeypath = getGenericSegmentKeypathFromFetchStrategy(
     fetchStrategy,
     route,
-    cacheKey
+    tree
   )
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
   const isRevalidation = true
@@ -734,7 +736,7 @@ export function readOrCreateRevalidatingSegmentEntry(
 export function overwriteRevalidatingSegmentCacheEntry(
   fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey
+  tree: RouteTree
 ) {
   // This function is called when we've already decided to replace an existing
   // revalidation entry. Create a new entry and write it into the cache,
@@ -742,7 +744,7 @@ export function overwriteRevalidatingSegmentCacheEntry(
   const genericKeypath = getGenericSegmentKeypathFromFetchStrategy(
     fetchStrategy,
     route,
-    cacheKey
+    tree
   )
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
   const isRevalidation = true
@@ -1559,7 +1561,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
   dynamicRequestTree: FlightRouterState,
-  spawnedEntries: Map<SegmentCacheKey, PendingSegmentCacheEntry>
+  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
 ): Promise<PrefetchSubtaskResult<null> | null> {
   const key = task.key
   const url = new URL(route.canonicalUrl, location.origin)
@@ -1567,7 +1569,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 
   if (
     spawnedEntries.size === 1 &&
-    spawnedEntries.has(route.metadata.cacheKey)
+    spawnedEntries.has(route.metadata.requestKey)
   ) {
     // The only thing pending is the head. Instruct the server to
     // skip over everything else.
@@ -1768,7 +1770,7 @@ function writeDynamicTreeResponseIntoCache(
 }
 
 function rejectSegmentEntriesIfStillPending(
-  entries: Map<SegmentCacheKey, SegmentCacheEntry>,
+  entries: Map<SegmentRequestKey, SegmentCacheEntry>,
   staleAt: number
 ): Array<FulfilledSegmentCacheEntry> {
   const fulfilledEntries = []
@@ -1793,7 +1795,7 @@ function writeDynamicRenderResponseIntoCache(
   serverData: NavigationFlightResponse,
   isResponsePartial: boolean,
   route: FulfilledRouteCacheEntry,
-  spawnedEntries: Map<SegmentCacheKey, PendingSegmentCacheEntry> | null
+  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
 ): Array<FulfilledSegmentCacheEntry> | null {
   if (serverData.b !== getAppBuildId()) {
     // The server build does not match the client. Treat as a 404. During
@@ -1834,22 +1836,17 @@ function writeDynamicRenderResponseIntoCache(
       //
       //   [string, Segment, string, Segment, string, Segment, ...]
       const segmentPath = flightData.segmentPath
-      let requestKey = ROOT_SEGMENT_REQUEST_KEY
-      let cacheKey = ROOT_SEGMENT_CACHE_KEY
+      let tree = route.tree
       for (let i = 0; i < segmentPath.length; i += 2) {
         const parallelRouteKey: string = segmentPath[i]
-        const segment: FlightRouterStateSegment = segmentPath[i + 1]
-        const requestKeyPart = createSegmentRequestKeyPart(segment)
-        requestKey = appendSegmentRequestKeyPart(
-          requestKey,
-          parallelRouteKey,
-          requestKeyPart
-        )
-        cacheKey = appendSegmentCacheKeyPart(
-          cacheKey,
-          parallelRouteKey,
-          createSegmentCacheKeyPart(requestKeyPart, segment)
-        )
+        if (tree?.slots?.[parallelRouteKey] !== undefined) {
+          tree = tree.slots[parallelRouteKey]
+        } else {
+          if (spawnedEntries !== null) {
+            rejectSegmentEntriesIfStillPending(spawnedEntries, now + 10 * 1000)
+          }
+          return null
+        }
       }
 
       writeSeedDataIntoCache(
@@ -1857,12 +1854,10 @@ function writeDynamicRenderResponseIntoCache(
         task,
         fetchStrategy,
         route,
+        tree,
         staleAt,
-        flightData.tree,
         seedData,
         isResponsePartial,
-        cacheKey,
-        requestKey,
         spawnedEntries
       )
     }
@@ -1877,7 +1872,7 @@ function writeDynamicRenderResponseIntoCache(
         null,
         flightData.isHeadPartial,
         staleAt,
-        route.metadata.cacheKey,
+        route.metadata,
         spawnedEntries
       )
     }
@@ -1908,14 +1903,12 @@ function writeSeedDataIntoCache(
     | FetchStrategy.PPRRuntime
     | FetchStrategy.Full,
   route: FulfilledRouteCacheEntry,
+  tree: RouteTree,
   staleAt: number,
-  flightRouterState: FlightRouterState,
   seedData: CacheNodeSeedData,
   isResponsePartial: boolean,
-  cacheKey: SegmentCacheKey,
-  requestKey: SegmentRequestKey,
   entriesOwnedByCurrentTask: Map<
-    SegmentCacheKey,
+    SegmentRequestKey,
     PendingSegmentCacheEntry
   > | null
 ) {
@@ -1932,43 +1925,31 @@ function writeSeedDataIntoCache(
     loading,
     isPartial,
     staleAt,
-    cacheKey,
+    tree,
     entriesOwnedByCurrentTask
   )
 
   // Recursively write the child data into the cache.
-  const flightRouterStateChildren = flightRouterState[1]
-  const seedDataChildren = seedData[1]
-  for (const parallelRouteKey in flightRouterStateChildren) {
-    const childFlightRouterState = flightRouterStateChildren[parallelRouteKey]
-    const childSeedData: CacheNodeSeedData | null | void =
-      seedDataChildren[parallelRouteKey]
-    if (childSeedData !== null && childSeedData !== undefined) {
-      const childSegment = childFlightRouterState[0]
-      const childRequestKeyPart = createSegmentRequestKeyPart(childSegment)
-      const childRequestKey = appendSegmentRequestKeyPart(
-        requestKey,
-        parallelRouteKey,
-        childRequestKeyPart
-      )
-      const childCacheKey = appendSegmentCacheKeyPart(
-        cacheKey,
-        parallelRouteKey,
-        createSegmentCacheKeyPart(childRequestKeyPart, childSegment)
-      )
-      writeSeedDataIntoCache(
-        now,
-        task,
-        fetchStrategy,
-        route,
-        staleAt,
-        childFlightRouterState,
-        childSeedData,
-        isResponsePartial,
-        childCacheKey,
-        childRequestKey,
-        entriesOwnedByCurrentTask
-      )
+  const slots = tree.slots
+  if (slots !== null) {
+    const seedDataChildren = seedData[1]
+    for (const parallelRouteKey in slots) {
+      const childTree = slots[parallelRouteKey]
+      const childSeedData: CacheNodeSeedData | null | void =
+        seedDataChildren[parallelRouteKey]
+      if (childSeedData !== null && childSeedData !== undefined) {
+        writeSeedDataIntoCache(
+          now,
+          task,
+          fetchStrategy,
+          route,
+          childTree,
+          staleAt,
+          childSeedData,
+          isResponsePartial,
+          entriesOwnedByCurrentTask
+        )
+      }
     }
   }
 }
@@ -1984,9 +1965,9 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   loading: LoadingModuleData | Promise<LoadingModuleData>,
   isPartial: boolean,
   staleAt: number,
-  cacheKey: SegmentCacheKey,
+  tree: RouteTree,
   entriesOwnedByCurrentTask: Map<
-    SegmentCacheKey,
+    SegmentRequestKey,
     PendingSegmentCacheEntry
   > | null
 ) {
@@ -1995,7 +1976,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   // created by a different task, because that causes data races.
   const ownedEntry =
     entriesOwnedByCurrentTask !== null
-      ? entriesOwnedByCurrentTask.get(cacheKey)
+      ? entriesOwnedByCurrentTask.get(tree.requestKey)
       : undefined
   if (ownedEntry !== undefined) {
     fulfillSegmentCacheEntry(ownedEntry, rsc, loading, staleAt, isPartial)
@@ -2005,7 +1986,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       now,
       fetchStrategy,
       route,
-      cacheKey
+      tree
     )
     if (possiblyNewEntry.status === EntryStatus.Empty) {
       // Confirmed this is a new entry. We can fulfill it.
@@ -2032,11 +2013,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       )
       upsertSegmentEntry(
         now,
-        getGenericSegmentKeypathFromFetchStrategy(
-          fetchStrategy,
-          route,
-          cacheKey
-        ),
+        getGenericSegmentKeypathFromFetchStrategy(fetchStrategy, route, tree),
         newEntry
       )
     }
