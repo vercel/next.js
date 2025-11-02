@@ -4,7 +4,6 @@ import type { BinaryStreamOf } from './app-render'
 import { htmlEscapeJsonString } from '../htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
-import { InvariantError } from '../../shared/lib/invariant-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -61,28 +60,29 @@ export function useFlightStream<T>(
   if (process.env.NEXT_RUNTIME !== 'edge') {
     const workUnitStore = workUnitAsyncStorage.getStore()
 
-    if (!workUnitStore) {
-      throw new InvariantError('Expected workUnitAsyncStorage to have a store.')
-    }
-
-    switch (workUnitStore.type) {
-      case 'prerender-client':
-        const responseOnNextTick = new Promise<T>((resolve) => {
-          process.nextTick(() => resolve(newResponse))
-        })
-        flightResponses.set(flightStream, responseOnNextTick)
-        return responseOnNextTick
-      case 'prerender':
-      case 'prerender-runtime':
-      case 'prerender-ppr':
-      case 'prerender-legacy':
-      case 'request':
-      case 'cache':
-      case 'private-cache':
-      case 'unstable-cache':
-        break
-      default:
-        workUnitStore satisfies never
+    // In some scenarios (e.g., rendering auto-generated error pages like /_global-error),
+    // the workUnitAsyncStorage may not have a store yet. In these cases, we fall through
+    // to the default behavior instead of throwing an error.
+    if (workUnitStore) {
+      switch (workUnitStore.type) {
+        case 'prerender-client':
+          const responseOnNextTick = new Promise<T>((resolve) => {
+            process.nextTick(() => resolve(newResponse))
+          })
+          flightResponses.set(flightStream, responseOnNextTick)
+          return responseOnNextTick
+        case 'prerender':
+        case 'prerender-runtime':
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'cache':
+        case 'private-cache':
+        case 'unstable-cache':
+          break
+        default:
+          workUnitStore satisfies never
+      }
     }
   }
 
