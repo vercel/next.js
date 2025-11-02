@@ -552,7 +552,7 @@ export default function Page({ searchParams }) {
     <section>
       <h1>This will be pre-rendered</h1>
       <Suspense fallback={<TableSkeleton />}>
-        <Table searchParams={searchParams.then((search) => search.sort)} />
+        <Table sortPromise={searchParams.then((search) => search.sort)} />
       </Suspense>
     </section>
   )
