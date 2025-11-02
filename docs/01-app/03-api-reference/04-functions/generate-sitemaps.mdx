@@ -48,6 +48,7 @@ export default async function sitemap({
   const products = await getProducts(
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
+
   return products.map((product) => ({
     url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
@@ -68,13 +69,13 @@ export default async function sitemap({ id }) {
   const products = await getProducts(
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
+
   return products.map((product) => ({
     url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
 ```
-
 ## Version History
 
 | Version   | Changes                                                                                                                                              |
