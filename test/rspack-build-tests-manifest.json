@@ -1879,9 +1879,12 @@
       "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
       "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
       "Cache Components Errors Build With --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with expire < 5 minutes should error the build",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with revalidate: 0 should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` cookies should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` draftMode should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` headers should error the build",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` reading fallback params should error the build",
       "Cache Components Errors Build With --prerender-debug Static Route should not error the build when all routes are static",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
@@ -1918,9 +1921,12 @@
       "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO Guarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
       "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO Unguarded RSC with guarded Client sync IO should error the build with a reason related dynamic data",
       "Cache Components Errors Build Without --prerender-debug Error Attribution with Sync IO unguarded RSC with unguarded Client sync IO should error the build with a reason related to sync IO access",
+      "Cache Components Errors Build Without --prerender-debug Inside `use cache` cacheLife with expire < 5 minutes should error the build",
+      "Cache Components Errors Build Without --prerender-debug Inside `use cache` cacheLife with revalidate: 0 should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` cookies should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` draftMode should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` headers should error the build",
+      "Cache Components Errors Build Without --prerender-debug Inside `use cache` reading fallback params should error the build",
       "Cache Components Errors Build Without --prerender-debug Static Route should not error the build when all routes are static",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
@@ -5863,6 +5869,7 @@
   },
   "test/e2e/app-dir/refresh/refresh.test.ts": {
     "passed": [
+      "app-dir refresh should let you read your write after a redirect and refresh",
       "app-dir refresh should refresh client cache when refresh() is called in a server action",
       "app-dir refresh should throw an error when refresh() is called during page render",
       "app-dir refresh should throw an error when refresh() is called in a route handler",
@@ -5908,6 +5915,16 @@
       "styles encodes characters in app router",
       "styles encodes characters in pages router"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/resume-data-cache/resume-data-cache/resume-data-cache.test.ts": {
+    "passed": [
+      "resume-data-cache should have consistent data between static and dynamic renders with fetch cache",
+      "resume-data-cache should have consistent data between static and dynamic renders with use cache"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6837,12 +6854,13 @@
     "passed": [
       "segment cache prefetch scheduling cancels a viewport-initiated prefetch if the link leaves the viewport before it finishes",
       "segment cache prefetch scheduling increases the priority of a viewport-initiated prefetch on hover",
-      "segment cache prefetch scheduling prioritizes prefetching the route trees before the segments",
       "segment cache prefetch scheduling reschedules a link's prefetch when it re-enters the viewport",
       "segment cache prefetch scheduling reserve special bandwidth for the most recently hovered link"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "segment cache prefetch scheduling prioritizes prefetching the route trees before the segments"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -11399,6 +11417,9 @@
       "CLI Usage dev --experimental-https with provided key/cert",
       "CLI Usage dev --help",
       "CLI Usage dev --hostname",
+      "CLI Usage dev --inspect",
+      "CLI Usage dev --inspect 0",
+      "CLI Usage dev --inspect [port]",
       "CLI Usage dev --port",
       "CLI Usage dev --port 0",
       "CLI Usage dev -H",
@@ -20705,16 +20726,6 @@
   "test/production/app-dir/proxy-build-cli-output/proxy-build-cli-output.test.ts": {
     "passed": [
       "proxy-build-cli-output should print proxy in the build CLI output"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/production/app-dir/resume-data-cache/resume-data-cache.test.ts": {
-    "passed": [
-      "resume-data-cache should have consistent data between static and dynamic renders with fetch cache",
-      "resume-data-cache should have consistent data between static and dynamic renders with use cache"
     ],
     "failed": [],
     "pending": [],
