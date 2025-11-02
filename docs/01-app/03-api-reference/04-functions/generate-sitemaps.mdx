@@ -19,25 +19,31 @@ The `generateSitemaps` returns an array of objects with an `id` property.
 
 Your generated sitemaps will be available at `/.../sitemap/[id].xml`. For example, `/product/sitemap/1.xml`.
 
+## Note
+
+In Next.js 15+, route parameters provided to App Router functions such as `generateSitemaps`, `generateMetadata`, and `generateStaticParams` are **asynchronous** (wrapped in a `Promise`).  
+You should `await` parameters like `id` inside your function to avoid runtime or type errors.
+
 ## Example
 
 For example, to split a sitemap using `generateSitemaps`, return an array of objects with the sitemap `id`. Then, use the `id` to generate the unique sitemaps.
 
 ```ts filename="app/product/sitemap.ts" switcher
+import type { MetadataRoute } from 'next'
 import { BASE_URL } from '@/app/lib/constants'
 
 export async function generateSitemaps() {
-  // Fetch the total number of products and calculate the number of sitemaps needed
   return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
 }
 
 export default async function sitemap({
   id,
 }: {
-  id: number
+  id: Promise<number>
 }): Promise<MetadataRoute.Sitemap> {
-  // Google's limit is 50,000 URLs per sitemap
-  const start = id * 50000
+  const index = await id
+
+  const start = index * 50000
   const end = start + 50000
   const products = await getProducts(
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
@@ -48,24 +54,22 @@ export default async function sitemap({
   }))
 }
 ```
-
-```js filename="app/product/sitemap.js" switcher
 import { BASE_URL } from '@/app/lib/constants'
 
 export async function generateSitemaps() {
-  // Fetch the total number of products and calculate the number of sitemaps needed
   return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
 }
 
 export default async function sitemap({ id }) {
-  // Google's limit is 50,000 URLs per sitemap
-  const start = id * 50000
+  const index = await id
+
+  const start = index * 50000
   const end = start + 50000
   const products = await getProducts(
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`,
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
