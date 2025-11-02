@@ -1167,13 +1167,14 @@
   },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
-      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime",
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
     ],
-    "failed": [],
+    "failed": [
+      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1262,20 +1263,21 @@
   },
   "test/development/basic/gssp-ssr-change-reloading/test/index.test.ts": {
     "passed": [
-      "GS(S)P Server-Side Change Reloading should keep scroll position when updating from change in getStaticProps",
       "GS(S)P Server-Side Change Reloading should not reload page when client-side is changed too GSP",
       "GS(S)P Server-Side Change Reloading should not reload page when client-side is changed too GSSP",
-      "GS(S)P Server-Side Change Reloading should refresh data when server import is updated",
       "GS(S)P Server-Side Change Reloading should show indicator when re-fetching data",
-      "GS(S)P Server-Side Change Reloading should update on props error in getStaticProps",
-      "GS(S)P Server-Side Change Reloading should update on thrown error in getStaticProps",
       "GS(S)P Server-Side Change Reloading should update page when getServerSideProps is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticPaths is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only",
-      "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /another/index",
+      "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /another/index"
+    ],
+    "failed": [
+      "GS(S)P Server-Side Change Reloading should keep scroll position when updating from change in getStaticProps",
+      "GS(S)P Server-Side Change Reloading should refresh data when server import is updated",
+      "GS(S)P Server-Side Change Reloading should update on props error in getStaticProps",
+      "GS(S)P Server-Side Change Reloading should update on thrown error in getStaticProps",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /index"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13153,8 +13155,8 @@
     "runtimeError": false
   },
   "test/integration/app-functional/test/index.test.js": {
-    "passed": ["Document and App should not have any missing key warnings"],
-    "failed": [],
+    "passed": [],
+    "failed": ["Document and App should not have any missing key warnings"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13338,10 +13340,10 @@
     "runtimeError": false
   },
   "test/integration/catches-missing-getStaticProps/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Catches Missing getStaticProps development mode should catch it in development mode"
     ],
-    "failed": [],
     "pending": [
       "Catches Missing getStaticProps production mode should catch it in server build mode"
     ],
@@ -13604,12 +13606,12 @@
     "runtimeError": false
   },
   "test/integration/config/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
       "Configuration should disable X-Powered-By header support",
       "Configuration should have env variables available on the client"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -14633,12 +14635,12 @@
     "runtimeError": false
   },
   "test/integration/dynamic-optional-routing-root-fallback/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Dynamic Optional Routing Root Fallback development mode should render optional catch-all top-level route with no segments",
       "Dynamic Optional Routing Root Fallback development mode should render optional catch-all top-level route with one segment",
       "Dynamic Optional Routing Root Fallback development mode should render optional catch-all top-level route with two segments"
     ],
-    "failed": [],
     "pending": [
       "Dynamic Optional Routing Root Fallback production mode should render optional catch-all top-level route with no segments",
       "Dynamic Optional Routing Root Fallback production mode should render optional catch-all top-level route with one segment",
@@ -15299,7 +15301,8 @@
     "runtimeError": false
   },
   "test/integration/env-config/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Env Config development mode should have process environment override .env",
       "Env Config development mode should inline global values during build",
       "Env Config development mode should load env from .env",
@@ -15315,6 +15318,7 @@
       "Env Config development mode with hot reload should provide env correctly for SSR",
       "Env Config development mode with hot reload should provide env for SSG",
       "Env Config development mode with hot reload should provide global env to next.config.js",
+      "Env Config development mode with hot reload should trigger HMR correctly when NEXT_PUBLIC_ env is changed",
       "Env Config test environment should have process environment override .env",
       "Env Config test environment should inline global values during build",
       "Env Config test environment should load env from .env",
@@ -15322,9 +15326,6 @@
       "Env Config test environment should provide env correctly for SSR",
       "Env Config test environment should provide env for SSG",
       "Env Config test environment should provide global env to next.config.js"
-    ],
-    "failed": [
-      "Env Config development mode with hot reload should trigger HMR correctly when NEXT_PUBLIC_ env is changed"
     ],
     "pending": [
       "Env Config production mode should have process environment override .env",
@@ -17496,12 +17497,12 @@
     "runtimeError": false
   },
   "test/integration/i18n-support-same-page-hash-change/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Hash changes i18n development mode should trigger hash change events",
       "Hash changes i18n development mode should update props on locale change with same hash",
       "Hash changes i18n development mode should update props on locale change with same hash (dynamic page)"
     ],
-    "failed": [],
     "pending": [
       "Hash changes i18n production mode should trigger hash change events",
       "Hash changes i18n production mode should update props on locale change with same hash",
@@ -19495,7 +19496,9 @@
   },
   "test/integration/link-with-encoding/test/index.test.js": {
     "passed": [
-      "Link Component with Encoding colon should have correct parsing of url query params",
+      "Link Component with Encoding colon should have correct parsing of url query params"
+    ],
+    "failed": [
       "Link Component with Encoding colon should have correct query on Router#push",
       "Link Component with Encoding colon should have correct query on SSR",
       "Link Component with Encoding colon should have correct query on simple client-side <Link>",
@@ -19512,7 +19515,6 @@
       "Link Component with Encoding spaces should have correct query on SSR",
       "Link Component with Encoding spaces should have correct query on simple client-side <Link>"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -19703,10 +19705,10 @@
     "runtimeError": false
   },
   "test/integration/next-image-legacy/asset-prefix/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Image Component assetPrefix Tests development mode should include assetPrefix when placeholder=blur during next dev"
     ],
-    "failed": [],
     "pending": [
       "Image Component assetPrefix Tests production mode should use base64 data url with placeholder=blur during next start"
     ],
@@ -20048,14 +20050,14 @@
     "runtimeError": false
   },
   "test/integration/next-image-new/app-dir-localpatterns/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Image localPatterns config development mode should block unmatched image does-not-exist",
       "Image localPatterns config development mode should block unmatched image nested-assets-query",
       "Image localPatterns config development mode should block unmatched image nested-blocked",
       "Image localPatterns config development mode should block unmatched image top-level",
       "Image localPatterns config development mode should load matching images"
     ],
-    "failed": [],
     "pending": [
       "Image localPatterns config production mode should block unmatched image does-not-exist",
       "Image localPatterns config production mode should block unmatched image nested-assets-query",
@@ -20747,13 +20749,14 @@
     "runtimeError": false
   },
   "test/integration/ondemand/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
+      "On Demand Entries should compile pages for JSON page requests",
       "On Demand Entries should compile pages for SSR",
       "On Demand Entries should dispose inactive pages",
       "On Demand Entries should navigate to pages with dynamic imports",
       "On Demand Entries should pass"
     ],
-    "failed": ["On Demand Entries should compile pages for JSON page requests"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -20991,11 +20994,11 @@
     "runtimeError": false
   },
   "test/integration/prerender/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "SSG Prerender development mode getStaticPaths should not cache getStaticPaths errors",
       "SSG Prerender development mode getStaticPaths should work with firebase import and getStaticPaths"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21517,8 +21520,6 @@
   "test/integration/router-is-ready/test/index.test.js": {
     "passed": [
       "router.isReady development mode isReady should be true after query update for auto-export page with query",
-      "router.isReady development mode isReady should be true after query update for dynamic auto-export page with query",
-      "router.isReady development mode isReady should be true after query update for dynamic auto-export page without query",
       "router.isReady development mode isReady should be true after query update for getStaticProps page with query",
       "router.isReady development mode isReady should be true immediately for auto-export page without query",
       "router.isReady development mode isReady should be true immediately for getInitialProps page",
@@ -21527,7 +21528,10 @@
       "router.isReady development mode isReady should be true immediately for getServerSideProps page with query",
       "router.isReady development mode isReady should be true immediately for getStaticProps page without query"
     ],
-    "failed": [],
+    "failed": [
+      "router.isReady development mode isReady should be true after query update for dynamic auto-export page with query",
+      "router.isReady development mode isReady should be true after query update for dynamic auto-export page without query"
+    ],
     "pending": [
       "router.isReady production mode isReady should be true after query update for auto-export page with query",
       "router.isReady production mode isReady should be true after query update for dynamic auto-export page with query",
@@ -21979,11 +21983,11 @@
     "runtimeError": false
   },
   "test/integration/typescript-hmr/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "TypeScript HMR delete a page and add it back should detect the changes to typescript pages and display it",
       "TypeScript HMR should ignore type errors in development"
     ],
-    "failed": [],
     "pending": ["TypeScript HMR should recover from a type error"],
     "flakey": [],
     "runtimeError": false
