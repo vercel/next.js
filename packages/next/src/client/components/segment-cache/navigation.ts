@@ -28,7 +28,7 @@ import {
 } from './cache'
 import { createCacheKey } from './cache-key'
 import { addSearchParamsIfPageSegment } from '../../../shared/lib/segment'
-import { NavigationResultTag } from '../segment-cache'
+import { NavigationResultTag } from './types'
 
 type MPANavigationResult = {
   tag: NavigationResultTag.MPA
