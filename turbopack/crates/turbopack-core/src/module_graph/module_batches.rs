@@ -50,7 +50,7 @@ pub struct ModuleBatchesGraphEdge {
 
 type EntriesList = FxIndexSet<ResolvedVc<Box<dyn Module>>>;
 
-#[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
+#[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct ModuleBatchesGraph {
     graph: TracedDiGraph<ModuleOrBatch, ModuleBatchesGraphEdge>,
 

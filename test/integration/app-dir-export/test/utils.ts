@@ -6,7 +6,7 @@ import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import globOrig from 'glob'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   check,
   fetchViaHTTP,
   File,
@@ -267,7 +267,7 @@ export async function runTests({
       if (isDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
         const browser = await webdriver(port, url)
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         const header = await getRedboxHeader(browser)
         const source = await getRedboxSource(browser)
         if (expectedErrMsg instanceof RegExp) {

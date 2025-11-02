@@ -8,7 +8,7 @@ use turbopack_core::{
     chunk::{
         Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule, ChunkingConfig,
         ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
-        ModuleId, SourceMapsType,
+        ModuleId, SourceMapSourceType, SourceMapsType,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
@@ -99,8 +99,8 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn use_file_source_map_uris(mut self) -> Self {
-        self.chunking_context.should_use_file_source_map_uris = true;
+    pub fn source_map_source_type(mut self, source_map_source_type: SourceMapSourceType) -> Self {
+        self.chunking_context.source_map_source_type = source_map_source_type;
         self
     }
 
@@ -182,8 +182,8 @@ pub struct NodeJsChunkingContext {
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     /// The module export usage info, if available.
     export_usage: Option<ResolvedVc<ExportUsageInfo>>,
-    /// Whether to use file:// uris for source map sources
-    should_use_file_source_map_uris: bool,
+    /// The strategy to use for generating source map source uris
+    source_map_source_type: SourceMapSourceType,
     /// The chunking configs
     chunking_configs: Vec<(ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig)>,
     /// Enable debug IDs for chunks and source maps.
@@ -222,7 +222,7 @@ impl NodeJsChunkingContext {
                 minify_type: MinifyType::NoMinify,
                 source_maps_type: SourceMapsType::Full,
                 manifest_chunks: false,
-                should_use_file_source_map_uris: false,
+                source_map_source_type: SourceMapSourceType::TurbopackUri,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 export_usage: None,
                 chunking_configs: Default::default(),
@@ -387,8 +387,8 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn should_use_file_source_map_uris(&self) -> Vc<bool> {
-        Vc::cell(self.should_use_file_source_map_uris)
+    fn source_map_source_type(&self) -> Vc<SourceMapSourceType> {
+        self.source_map_source_type.cell()
     }
 
     #[turbo_tasks::function]

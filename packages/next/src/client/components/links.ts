@@ -2,20 +2,18 @@ import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import {
   FetchStrategy,
-  isPrefetchTaskDirty,
   type PrefetchTaskFetchStrategy,
-} from './segment-cache'
-import { createCacheKey } from './segment-cache'
+  PrefetchPriority,
+} from './segment-cache/types'
+import { createCacheKey } from './segment-cache/cache-key'
 import {
   type PrefetchTask,
-  PrefetchPriority,
   schedulePrefetchTask as scheduleSegmentPrefetchTask,
   cancelPrefetchTask,
   reschedulePrefetchTask,
-} from './segment-cache'
+  isPrefetchTaskDirty,
+} from './segment-cache/scheduler'
 import { startTransition } from 'react'
-import { PrefetchKind } from './router-reducer/router-reducer-types'
-import { InvariantError } from '../../shared/lib/invariant-error'
 
 type LinkElement = HTMLAnchorElement | SVGAElement
 
@@ -298,13 +296,6 @@ function rescheduleLinkPrefetch(
       return
     }
 
-    if (!process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-      // The old prefetch implementation does not have different priority levels.
-      // Just schedule a new prefetch task.
-      prefetchWithOldCacheImplementation(instance)
-      return
-    }
-
     const { getCurrentAppRouterState } =
       require('./app-router-instance') as typeof import('./app-router-instance')
 
@@ -368,55 +359,4 @@ export function pingVisibleLinks(
       null
     )
   }
-}
-
-function prefetchWithOldCacheImplementation(instance: PrefetchableInstance) {
-  // This is the path used when the Segment Cache is not enabled.
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  const doPrefetch = async () => {
-    // note that `appRouter.prefetch()` is currently sync,
-    // so we have to wrap this call in an async function to be able to catch() errors below.
-
-    let prefetchKind: PrefetchKind
-    switch (instance.fetchStrategy) {
-      case FetchStrategy.PPR: {
-        prefetchKind = PrefetchKind.AUTO
-        break
-      }
-      case FetchStrategy.Full: {
-        prefetchKind = PrefetchKind.FULL
-        break
-      }
-      case FetchStrategy.PPRRuntime: {
-        // We can only get here if Client Segment Cache is off, and in that case
-        // it shouldn't be possible for a link to request a runtime prefetch.
-        throw new InvariantError(
-          'FetchStrategy.PPRRuntime should never be used when `experimental.clientSegmentCache` is disabled'
-        )
-      }
-      default: {
-        instance.fetchStrategy satisfies never
-        // Unreachable, but otherwise typescript will consider the variable unassigned
-        prefetchKind = undefined!
-      }
-    }
-
-    return instance.router.prefetch(instance.prefetchHref, {
-      kind: prefetchKind,
-    })
-  }
-
-  // Prefetch the page if asked (only in the client)
-  // We need to handle a prefetch error here since we may be
-  // loading with priority which can reject but we don't
-  // want to force navigation since this is only a prefetch
-  doPrefetch().catch((err) => {
-    if (process.env.NODE_ENV !== 'production') {
-      // rethrow to show invalid URL errors
-      throw err
-    }
-  })
 }

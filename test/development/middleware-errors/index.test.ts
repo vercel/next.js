@@ -1,4 +1,4 @@
-import { assertNoRedbox, check, getDistDir, retry } from 'next-test-utils'
+import { waitForNoRedbox, check, getDistDir, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -97,7 +97,7 @@ describe('middleware - development errors', () => {
 
       await next.patchFile('middleware.js', `export default function () {}`)
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     })
   })
 
@@ -148,7 +148,7 @@ describe('middleware - development errors', () => {
 
     it('does not render the error', async () => {
       const browser = await next.browser('/')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })
@@ -268,7 +268,7 @@ describe('middleware - development errors', () => {
         expect(next.cliOutput.slice(lengthOfLogs)).toContain('GET / 200')
       }, 10000) // middleware rebuild takes a while in CI
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     })
   })
 
@@ -374,7 +374,7 @@ describe('middleware - development errors', () => {
 
       await next.patchFile('middleware.js', `export default function () {}`)
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     })
   })
 
@@ -409,7 +409,7 @@ describe('middleware - development errors', () => {
 
     it('does not render the error', async () => {
       const browser = await next.browser('/')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })
@@ -447,7 +447,7 @@ describe('middleware - development errors', () => {
 
     it('does not render the error', async () => {
       const browser = await next.browser('/')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })
@@ -528,7 +528,7 @@ describe('middleware - development errors', () => {
 
       await next.patchFile('middleware.js', `export default function () {}`)
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })
@@ -556,7 +556,7 @@ describe('middleware - development errors', () => {
     it('renders the error correctly and recovers', async () => {
       const browser = await next.browser('/')
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
 
       await next.patchFile('middleware.js', `export default function () }`)
 
@@ -614,7 +614,7 @@ describe('middleware - development errors', () => {
 
       await next.patchFile('middleware.js', `export default function () {}`)
 
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
   })

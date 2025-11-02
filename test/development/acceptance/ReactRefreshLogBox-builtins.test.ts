@@ -309,7 +309,7 @@ describe('ReactRefreshLogBox', () => {
         }
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.documentElement.innerHTML)
     ).toContain('index page')

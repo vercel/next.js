@@ -9,7 +9,7 @@ import WebSocket from 'ws'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   launchApp,
   killApp,
   findPort,
@@ -296,7 +296,7 @@ const runTests = (isDev = false) => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     if (isDev) {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
   })
 

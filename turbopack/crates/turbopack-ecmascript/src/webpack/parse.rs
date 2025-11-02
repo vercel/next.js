@@ -225,11 +225,11 @@ pub async fn webpack_runtime(
                         chunk_request_expr: value,
                         context_path: source.ident().path().await?.parent(),
                     }
-                    .into());
+                    .cell());
                 }
             }
         }
         ParseResult::Unparsable { .. } | ParseResult::NotFound => {}
     }
-    Ok(WebpackRuntime::None.into())
+    Ok(WebpackRuntime::None.cell())
 }

@@ -9730,8 +9730,8 @@ c#169 = (???*0* | ???*1*)
   ⚠️  This value might have side effects
 
 c#171 = (???*0* | ???*1*)
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
+- *0* compound assignment expression
+  ⚠️  This value might have side effects
 - *1* unsupported assign operation
   ⚠️  This value might have side effects
 
@@ -17480,8 +17480,14 @@ f#424 = (???*0* | ???*1* | undefined)
 - *2* arguments[2]
   ⚠️  function calls are not analyzed yet
 
-f#431 = (...) => (c | (???*0* ? c : d))
-- *0* unsupported expression
+f#431 = (...) => (???*0* | (???*1* ? ???*2* : d) | c)
+- *0* c
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
 f#440 = ???*0*
@@ -21224,7 +21230,7 @@ sh = (...) => (b["ref"] | b | a)
 
 si = (...) => di()["memoizedState"]
 
-sj = (...) => (???*0* | null | f | tj(a, b, g, null) | tj(a, b, g, d) | b)
+sj = (...) => (???*0* | f | tj(a, b, g, null) | tj(a, b, g, d) | b)
 - *0* tj(a, b, g, d)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
