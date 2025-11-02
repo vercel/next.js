@@ -150,4 +150,28 @@ describe('redirect', () => {
       expect(getURLFromRedirectError(err)).toEqual('/dashboard')
     }
   })
+
+  it('should not incorrectly match partial path prefixes', () => {
+    process.env.__NEXT_ROUTER_BASEPATH = '/app'
+
+    try {
+      redirect('/apple')
+      throw new Error('did not throw')
+    } catch (err: any) {
+      expect(isRedirectError(err)).toBeTruthy()
+      expect(getURLFromRedirectError(err)).toEqual('/app/apple')
+    }
+  })
+
+  it('should not incorrectly match another partial path prefix', () => {
+    process.env.__NEXT_ROUTER_BASEPATH = '/docs'
+
+    try {
+      redirect('/docs-new')
+      throw new Error('did not throw')
+    } catch (err: any) {
+      expect(isRedirectError(err)).toBeTruthy()
+      expect(getURLFromRedirectError(err)).toEqual('/docs/docs-new')
+    }
+  })
 })

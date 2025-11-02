@@ -25,7 +25,8 @@ const prependBasePath = (url: string, basePath: string): string => {
   if (
     url.startsWith('http://') ||
     url.startsWith('https://') ||
-    url.startsWith(basePath)
+    url === basePath ||
+    +url.startsWith(basePath + '/')
   ) {
     return url
   }
