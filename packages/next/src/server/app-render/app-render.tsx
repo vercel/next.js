@@ -452,8 +452,9 @@ function NonIndex({
 async function generateDynamicRSCPayload(
   ctx: AppRenderContext,
   options?: {
-    actionResult: ActionResult
-    skipFlight: boolean
+    actionResult?: ActionResult
+    skipFlight?: boolean
+    isRuntimePrefetch?: boolean
   }
 ): Promise<RSCPayload> {
   // Flight data that is going to be passed to the browser.
@@ -544,13 +545,24 @@ async function generateDynamicRSCPayload(
   }
 
   // Otherwise, it's a regular RSC response.
-  return {
+  const baseResponse = {
     b: ctx.sharedContext.buildId,
     f: flightData,
     S: workStore.isStaticGeneration,
-    // Default to false; will be updated by stream transformation if needed
-    iP: false,
   }
+
+  // For runtime prefetches, we encode the stale time and isPartial flag in the response body
+  // rather than relying on response headers. Both of these values will be transformed
+  // by a transform stream before being sent to the client. We use `-1` as a sentinel value.
+  if (options?.isRuntimePrefetch) {
+    return {
+      ...baseResponse,
+      iP: false,
+      st: -1,
+    }
+  }
+
+  return baseResponse
 }
 
 function createErrorContext(
@@ -851,7 +863,8 @@ async function generateRuntimePrefetchResult(
 
   const metadata: AppPageRenderResultMetadata = {}
 
-  const generatePayload = () => generateDynamicRSCPayload(ctx, undefined)
+  const generatePayload = () =>
+    generateDynamicRSCPayload(ctx, { isRuntimePrefetch: true })
 
   const {
     componentMod: {
@@ -1033,81 +1046,147 @@ async function prospectiveRuntimeServerPrerender(
     return null
   }
 }
-
 /**
- * Creates a TransformStream that updates the RSC payload to set the `iP` (isPartial) property to true.
- * This is used when we determine after serialization that a runtime prefetch response contains dynamic holes.
+ * Updates two fields in the RSC payload as it streams:
+ *   - "iP":false  -> "iP":<true|false> (if isPartial is true; otherwise no-op)
+ *   - "st":-1     -> "st":<staleTime>
+ *
+ * We use a transform stream to do this to avoid needing to trigger an additional render.
+ * Assumes stable wire format (no spaces in these fields).
+ * We use exact byte patterns to avoid TextDecoder overhead
  */
-function createIsPartialTransformStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
-  // Match '"iP":false' and replace with '"iP":true'
-  // The mixed-case property name makes collision with user data extremely unlikely
-  const search = new Uint8Array([34, 105, 80, 34, 58, 102, 97, 108, 115, 101]) // '"iP":false'
-  const replace = new Uint8Array([34, 105, 80, 34, 58, 116, 114, 117, 101]) // '"iP":true'
-  const searchLen = search.length
-  const firstByte = search[0]
+function createRuntimePrefetchTransformStream(
+  isPartial: boolean,
+  staleTime: number
+): TransformStream<Uint8Array, Uint8Array> {
+  // Exact byte patterns (ASCII literals)
+  const searchIP = new Uint8Array([34, 105, 80, 34, 58, 102, 97, 108, 115, 101]) // '"iP":false'
+  const replaceIP = isPartial
+    ? new Uint8Array([34, 105, 80, 34, 58, 116, 114, 117, 101]) // '"iP":true'
+    : searchIP // no-op if not partial
 
-  let buffer = new Uint8Array(0)
-  let found = false
-  let scanStart = 0 // next index to begin scanning (avoid rescans)
+  const searchST = new Uint8Array([34, 115, 116, 34, 58, 45, 49]) // '"st":-1'
+  const staleStr = String(staleTime)
+  const replaceST = new Uint8Array(5 + staleStr.length) // '"st":' + <digits>
+  replaceST[0] = 34 // "
+  replaceST[1] = 115 // s
+  replaceST[2] = 116 // t
+  replaceST[3] = 34 // "
+  replaceST[4] = 58 // :
+  // encode the numeric stale time value
+  for (let i = 0; i < staleStr.length; i++) {
+    replaceST[5 + i] = staleStr.charCodeAt(i)
+  }
 
-  function findMatch(limit: number): number {
-    // naive scan with first-byte prefilter; cheap for tiny pattern
-    for (let i = scanStart; i <= limit - searchLen; i++) {
-      if (buffer[i] !== firstByte) continue
-      let j = 1
-      for (; j < searchLen; j++) {
-        if (buffer[i + j] !== search[j]) break
-      }
-      if (j === searchLen) return i
+  // keep around a small buffer from the previous chunk in case a pattern straddles the boundary
+  const keepBack = Math.max(searchIP.length, searchST.length) - 1
+
+  let buffer: Uint8Array<ArrayBufferLike> = new Uint8Array(0)
+  let finishedPartial = !isPartial // if not partial, we don't need to patch "iP"
+  let finishedStaletime = false
+  let passthrough = false
+
+  /**
+   * Finds the first occurrence of a subarray (`needle`) within a Uint8Array (`hay`).
+   * This is a simple byte-level search loop optimized for small, fixed ASCII patterns.
+   * It behaves like `String#indexOf` but works directly on binary data.
+   */
+  function indexOf(hay: Uint8Array, needle: Uint8Array): number {
+    const n = needle.length
+    if (hay.length < n) return -1
+    outer: for (let i = 0; i <= hay.length - n; i++) {
+      for (let j = 0; j < n; j++) if (hay[i + j] !== needle[j]) continue outer
+      return i
     }
     return -1
   }
 
-  return new TransformStream({
+  function replaceNext(
+    controller: TransformStreamDefaultController<Uint8Array>
+  ): boolean {
+    // Find whichever pattern appears first in the current buffer
+    let bestIdx = Infinity
+    let which: 'ip' | 'st' | null = null
+
+    if (!finishedPartial) {
+      const idx = indexOf(buffer, searchIP)
+      if (idx !== -1 && idx < bestIdx) {
+        bestIdx = idx
+        which = 'ip'
+      }
+    }
+    if (!finishedStaletime) {
+      const idx = indexOf(buffer, searchST)
+      if (idx !== -1 && idx < bestIdx) {
+        bestIdx = idx
+        which = 'st'
+      }
+    }
+    if (which == null) return false
+
+    const search = which === 'ip' ? searchIP : searchST
+    const repl = which === 'ip' ? replaceIP : replaceST
+
+    // flush all bytes before the match
+    if (bestIdx > 0) {
+      controller.enqueue(buffer.subarray(0, bestIdx))
+    }
+
+    // enqueue the replacement bytes
+    controller.enqueue(repl)
+
+    // keep the suffix after the matched pattern
+    buffer = buffer.subarray(bestIdx + search.length)
+
+    if (which === 'ip') {
+      finishedPartial = true
+    } else {
+      finishedStaletime = true
+    }
+
+    return true
+  }
+
+  return new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
-      if (found) {
+      if (passthrough) {
         controller.enqueue(chunk)
         return
       }
 
-      // Append chunk
-      const next = new Uint8Array(buffer.length + chunk.length)
-      next.set(buffer)
-      next.set(chunk, buffer.length)
-      buffer = next
-
-      // Scan everything we have
-      const matchIndex = findMatch(buffer.length)
-
-      if (matchIndex !== -1) {
-        // Enqueue prefix → replacement → suffix (no giant copy)
-        if (matchIndex > 0) controller.enqueue(buffer.subarray(0, matchIndex))
-        controller.enqueue(replace)
-        const after = matchIndex + searchLen
-        if (after < buffer.length) controller.enqueue(buffer.subarray(after))
-        buffer = new Uint8Array(0)
-        found = true
-        scanStart = 0
-        return
+      if (buffer.length === 0) {
+        buffer = chunk
+      } else {
+        const next = new Uint8Array(buffer.length + chunk.length)
+        next.set(buffer)
+        next.set(chunk, buffer.length)
+        buffer = next
       }
 
-      // No match yet — flush all but overlap to bound memory
-      const keepBack = searchLen - 1
-      if (buffer.length > keepBack) {
-        const flushLen = buffer.length - keepBack
-        controller.enqueue(buffer.subarray(0, flushLen))
-        buffer = buffer.subarray(flushLen)
-        // After trimming to overlap, start scanning from 0 next time
-        scanStart = 0
+      // Replace as many as possible with current bytes
+
+      while (!finishedPartial || !finishedStaletime) {
+        const replaced = replaceNext(controller)
+        if (!replaced) break
+      }
+
+      // If still not done, flush all but the overlap to bound memory
+      if (!finishedPartial || !finishedStaletime) {
+        if (buffer.length > keepBack) {
+          const flushLen = buffer.length - keepBack
+          controller.enqueue(buffer.subarray(0, flushLen))
+          buffer = buffer.subarray(flushLen)
+        }
       } else {
-        // Advance scanStart so we don’t rescan the same bytes
-        scanStart = Math.max(0, buffer.length - (searchLen - 1))
+        // Done: flush remainder and switch to pure pass-through
+        if (buffer.length) {
+          controller.enqueue(buffer)
+        }
+
+        buffer = new Uint8Array(0)
+        passthrough = true
       }
     },
-
     flush(controller) {
       if (buffer.length) controller.enqueue(buffer)
     },
@@ -1226,14 +1305,12 @@ async function finalRuntimeServerPrerender(
     }
   )
 
-  // If the render was determined to be dynamic, we need to update the RSC payload stream
-  // to reflect that by setting the `iP` (isPartial) property to true.
-  // React has already serialized the payload with `iP: false`, so we need to transform the stream.
-  if (serverIsDynamic) {
-    result.prelude = result.prelude.pipeThrough(
-      createIsPartialTransformStream()
-    )
-  }
+  // Update the RSC payload stream to set the correct `iP` (isPartial) and `st` (staleTime) values.
+  // React has already serialized the payload with placeholder values, so we need to transform the stream.
+  const collectedStale = selectStaleTime(finalServerPrerenderStore.stale)
+  result.prelude = result.prelude.pipeThrough(
+    createRuntimePrefetchTransformStream(serverIsDynamic, collectedStale)
+  )
 
   return {
     result,
@@ -1243,7 +1320,7 @@ async function finalRuntimeServerPrerender(
     isPartial: serverIsDynamic,
     collectedRevalidate: finalServerPrerenderStore.revalidate,
     collectedExpire: finalServerPrerenderStore.expire,
-    collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
+    collectedStale,
     collectedTags: finalServerPrerenderStore.tags,
   }
 }

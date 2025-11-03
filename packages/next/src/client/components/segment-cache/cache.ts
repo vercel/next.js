@@ -1719,14 +1719,14 @@ function writeDynamicTreeResponseIntoCache(
   }
 
   const flightRouterState = flightData.tree
-  // TODO: Extract to function
-  const staleTimeHeaderSeconds = response.headers.get(
-    NEXT_ROUTER_STALE_TIME_HEADER
-  )
-  const staleTimeMs =
-    staleTimeHeaderSeconds !== null
-      ? getStaleTimeMs(parseInt(staleTimeHeaderSeconds, 10))
-      : STATIC_STALETIME_MS
+  // If the staleTime is present in the response body, use it. Otherwise, fall back to the header.
+  const staleTimeSeconds =
+    typeof serverData.st === 'number'
+      ? serverData.st
+      : parseInt(response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '', 10)
+  const staleTimeMs = !isNaN(staleTimeSeconds)
+    ? getStaleTimeMs(staleTimeSeconds)
+    : STATIC_STALETIME_MS
 
   // If the response contains dynamic holes, then we must conservatively assume
   // that any individual segment might contain dynamic holes, and also the
@@ -1814,13 +1814,14 @@ function writeDynamicRenderResponseIntoCache(
     return null
   }
 
-  const staleTimeHeaderSeconds = response.headers.get(
-    NEXT_ROUTER_STALE_TIME_HEADER
-  )
-  const staleTimeMs =
-    staleTimeHeaderSeconds !== null
-      ? getStaleTimeMs(parseInt(staleTimeHeaderSeconds, 10))
-      : STATIC_STALETIME_MS
+  // If the staleTime is present in the response body, use it. Otherwise, fall back to the header.
+  const staleTimeSeconds =
+    typeof serverData.st === 'number'
+      ? serverData.st
+      : parseInt(response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '', 10)
+  const staleTimeMs = !isNaN(staleTimeSeconds)
+    ? getStaleTimeMs(staleTimeSeconds)
+    : STATIC_STALETIME_MS
   const staleAt = now + staleTimeMs
 
   for (const flightData of flightDatas) {
