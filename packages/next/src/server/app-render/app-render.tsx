@@ -1333,7 +1333,6 @@ async function getRSCPayload(
     ],
     m: missingSlots,
     G: [GlobalError, globalErrorStyles],
-    s: typeof ctx.renderOpts.postponed === 'string',
     S: workStore.isStaticGeneration,
   }
 }
@@ -1458,7 +1457,6 @@ async function getErrorRSCPayload(
       ] as FlightDataPath,
     ],
     G: [GlobalError, globalErrorStyles],
-    s: typeof ctx.renderOpts.postponed === 'string',
     S: workStore.isStaticGeneration,
   } satisfies InitialRSCPayload
 }
