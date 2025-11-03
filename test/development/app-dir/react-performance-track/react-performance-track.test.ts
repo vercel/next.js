@@ -100,18 +100,6 @@ describe('react-performance-track', () => {
           name: '\u200bcookies [Prefetchable]',
           properties: [],
         },
-        // TODO: The error message makes this seem like it shouldn't pop up here.
-        {
-          name: '\u200bcookies',
-          properties: [
-            [
-              'rejected with',
-              'During prerendering, `cookies()` rejects when the prerender is complete. ' +
-                'Typically these errors are handled by React but if you move `cookies()` to a different context by using `setTimeout`, `after`, or similar functions you may observe this error and you should handle it in that context. ' +
-                'This occurred at route "/cookies".',
-            ],
-          ],
-        },
       ])
     )
   })
@@ -144,18 +132,6 @@ describe('react-performance-track', () => {
         {
           name: '\u200bheaders [Prefetchable]',
           properties: [],
-        },
-        // TODO: The error message makes this seem like it shouldn't pop up here.
-        {
-          name: '\u200bheaders',
-          properties: [
-            [
-              'rejected with',
-              'During prerendering, `headers()` rejects when the prerender is complete. ' +
-                'Typically these errors are handled by React but if you move `headers()` to a different context by using `setTimeout`, `after`, or similar functions you may observe this error and you should handle it in that context. ' +
-                'This occurred at route "/headers".',
-            ],
-          ],
         },
       ])
     )
