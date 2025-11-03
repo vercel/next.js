@@ -2484,19 +2484,20 @@ export default async function getBaseWebpackConfig(
   if (dev) {
     if (webpackConfig.module) {
       if (isRspack) {
-        (webpackConfig.module.unsafeCache as any) = NEGATIVE_UNSAFE_CACHE_REGEX;
+        ;(webpackConfig.module.unsafeCache as any) = NEGATIVE_UNSAFE_CACHE_REGEX
       } else {
-        webpackConfig.module.unsafeCache =  (module: any) =>
+        webpackConfig.module.unsafeCache = (module: any) =>
           !UNSAFE_CACHE_REGEX.test(module.resource)
       }
     } else {
       if (isRspack) {
-        (webpackConfig.module as any) = {
+        ;(webpackConfig.module as any) = {
           unsafeCache: NEGATIVE_UNSAFE_CACHE_REGEX,
         }
       } else {
         webpackConfig.module = {
-          unsafeCache: (module: any) => !UNSAFE_CACHE_REGEX.test(module.resource),
+          unsafeCache: (module: any) =>
+            !UNSAFE_CACHE_REGEX.test(module.resource),
         }
       }
     }
