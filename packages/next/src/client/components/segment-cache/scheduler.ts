@@ -24,10 +24,9 @@ import {
   upgradeToPendingSegment,
   waitForSegmentCacheEntry,
   overwriteRevalidatingSegmentCacheEntry,
-  getGenericSegmentKeypathFromFetchStrategy,
   canNewFetchStrategyProvideMoreContent,
-  type SegmentCacheKeypath,
 } from './cache'
+import { getSegmentVaryPathForRequest, type SegmentVaryPath } from './vary-path'
 import type { RouteCacheKey } from './cache-key'
 import { createCacheKey } from './cache-key'
 import {
@@ -1517,11 +1516,7 @@ function pingPPRSegmentRevalidation(
             tree
           )
         ),
-        getGenericSegmentKeypathFromFetchStrategy(
-          FetchStrategy.PPR,
-          route,
-          tree
-        )
+        getSegmentVaryPathForRequest(FetchStrategy.PPR, tree)
       )
       break
     case EntryStatus.Pending:
@@ -1562,7 +1557,7 @@ function pingFullSegmentRevalidation(
     )
     upsertSegmentOnCompletion(
       waitForSegmentCacheEntry(pendingSegment),
-      getGenericSegmentKeypathFromFetchStrategy(fetchStrategy, route, tree)
+      getSegmentVaryPathForRequest(fetchStrategy, tree)
     )
     return pendingSegment
   } else {
@@ -1587,7 +1582,7 @@ function pingFullSegmentRevalidation(
       )
       upsertSegmentOnCompletion(
         waitForSegmentCacheEntry(pendingSegment),
-        getGenericSegmentKeypathFromFetchStrategy(fetchStrategy, route, tree)
+        getSegmentVaryPathForRequest(fetchStrategy, tree)
       )
       return pendingSegment
     }
@@ -1612,13 +1607,13 @@ const noop = () => {}
 
 function upsertSegmentOnCompletion(
   promise: Promise<FulfilledSegmentCacheEntry | null>,
-  keypath: SegmentCacheKeypath
+  varyPath: SegmentVaryPath
 ) {
   // Wait for a segment to finish loading, then upsert it into the cache
   promise.then((fulfilled) => {
     if (fulfilled !== null) {
       // Received new data. Attempt to replace the existing entry in the cache.
-      upsertSegmentEntry(Date.now(), keypath, fulfilled)
+      upsertSegmentEntry(Date.now(), varyPath, fulfilled)
     }
   }, noop)
 }
