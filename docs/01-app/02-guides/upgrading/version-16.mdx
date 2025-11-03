@@ -339,6 +339,37 @@ export default async function Image({ params, id }) {
 }
 ```
 
+## Async `id` parameter for `sitemap` (Breaking change)
+
+Previously, the `id` values returned from [`generateSitemaps`](/docs/app/api-reference/functions/generate-sitemaps) were passed directly to the `sitemap` generating function.
+
+```js filename="app/product/sitemap.js"
+export async function generateSitemaps() {
+  return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
+}
+
+// Next.js 15 - synchronous id access
+export default async function sitemap({ id }) {
+  const start = id * 50000 // id is a number
+  // ...
+}
+```
+
+Starting with **Next.js 16**, the `sitemap` generating function now receives `id` as a promise.
+
+```js filename="app/product/sitemap.js"
+export async function generateSitemaps() {
+  return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
+}
+
+// Next.js 16 - asynchronous id access
+export default async function sitemap({ id }) {
+  const resolvedId = await id // id is now Promise<number>
+  const start = resolvedId * 50000
+  // ...
+}
+```
+
 ## React 19.2
 
 The App Router in **Next.js 16** uses the latest React [Canary release](https://react.dev/blog/2023/05/03/react-canaries), which includes the newly released React 19.2 features and other features being incrementally stabilized. Highlights include:
