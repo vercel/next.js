@@ -17665,7 +17665,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/module-ids/test/index.test.js": {
+  "test/integration/module-ids/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -18872,7 +18872,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/preload-viewport/test/index.test.js": {
+  "test/integration/preload-viewport/test/index.test.ts": {
     "passed": [
       "Prefetching Links in viewport production mode should correctly omit pre-generated dynamic pages from SSG manifest",
       "Prefetching Links in viewport production mode should de-dupe inflight SSG requests",

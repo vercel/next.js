@@ -15564,7 +15564,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/module-ids/test/index.test.js": {
+  "test/integration/module-ids/test/index.test.ts": {
     "passed": [
       "minified module ids production mode should have no long module id for the next client runtime module",
       "minified module ids production mode should have no long module ids for async loader modules",
@@ -16761,7 +16761,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/preload-viewport/test/index.test.js": {
+  "test/integration/preload-viewport/test/index.test.ts": {
     "passed": [
       "Prefetching Links in viewport production mode should correctly omit pre-generated dynamic pages from SSG manifest",
       "Prefetching Links in viewport production mode should de-dupe inflight SSG requests",

@@ -19086,7 +19086,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/module-ids/test/index.test.js": {
+  "test/integration/module-ids/test/index.test.ts": {
     "passed": [
       "minified module ids development mode should have long module id for the next client runtime module",
       "minified module ids development mode should have long module ids for async loader modules",
@@ -20288,7 +20288,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/preload-viewport/test/index.test.js": {
+  "test/integration/preload-viewport/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
