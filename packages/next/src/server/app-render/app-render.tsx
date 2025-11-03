@@ -3229,7 +3229,11 @@ async function renderWithRestartOnCacheMissInDev(
   const runtimeChunks: Array<Uint8Array> = []
   const dynamicChunks: Array<Uint8Array> = []
 
+  // We don't care about sync IO while generating the payload, only during render.
+  initialStageController.enableSyncInterrupt = false
   const initialRscPayload = await getPayload(requestStore)
+  initialStageController.enableSyncInterrupt = true
+
   const maybeInitialServerStream = await workUnitAsyncStorage.run(
     requestStore,
     () =>
@@ -3387,7 +3391,11 @@ async function renderWithRestartOnCacheMissInDev(
   runtimeChunks.length = 0
   dynamicChunks.length = 0
 
+  // We don't care about sync IO while generating the payload, only during render.
+  finalStageController.enableSyncInterrupt = false
   const finalRscPayload = await getPayload(requestStore)
+  finalStageController.enableSyncInterrupt = true
+
   const finalServerStream = await workUnitAsyncStorage.run(requestStore, () =>
     pipelineInSequentialTasks(
       () => {

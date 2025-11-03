@@ -15,6 +15,8 @@ export class StagedRenderingController {
   naturalStage: RenderStage = RenderStage.Static
   staticInterruptReason: Error | null = null
   runtimeInterruptReason: Error | null = null
+  /** Whether sync IO should interrupt the render */
+  enableSyncInterrupt = true
 
   private runtimeStageListeners: Array<() => void> = []
   private dynamicStageListeners: Array<() => void> = []
@@ -63,6 +65,9 @@ export class StagedRenderingController {
   }
 
   canSyncInterrupt() {
+    if (!this.enableSyncInterrupt) {
+      return false
+    }
     const boundaryStage = this.hasRuntimePrefetch
       ? RenderStage.Dynamic
       : RenderStage.Runtime
