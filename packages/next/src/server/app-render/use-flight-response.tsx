@@ -1,6 +1,6 @@
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { BinaryStreamOf } from './app-render'
-import type { Readable } from 'node:stream'
+import { Readable } from 'node:stream'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -44,6 +44,11 @@ export function getFlightStream<T>(
 
   let newResponse: Promise<T>
   if (flightStream instanceof ReadableStream) {
+    // The types of flightStream and debugStream should match.
+    if (debugStream && !(debugStream instanceof ReadableStream)) {
+      throw new InvariantError('Expected debug stream to be a ReadableStream')
+    }
+
     // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
     const { createFromReadableStream } =
       // eslint-disable-next-line import/no-extraneous-dependencies
@@ -59,12 +64,15 @@ export function getFlightStream<T>(
         serverModuleMap: null,
       },
       nonce,
-      // @ts-expect-error -- when the reactServerStream is a ReadableStream we assume the debugStream is too
       debugChannel: debugStream ? { readable: debugStream } : undefined,
     })
   } else {
+    // The types of flightStream and debugStream should match.
+    if (debugStream && !(debugStream instanceof Readable)) {
+      throw new InvariantError('Expected debug stream to be a Readable')
+    }
+
     // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
-    // @ts-expect-error -- node APIs are currently uptyped
     const { createFromNodeStream } =
       // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
