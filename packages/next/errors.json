@@ -906,5 +906,7 @@
   "905": "Page \"%s\" cannot use \\`export const unstable_prefetch = ...\\` without enabling \\`cacheComponents\\`.",
   "906": "Route \"%s\" did not produce a static shell and Next.js was unable to determine a reason.",
   "907": "The next-server runtime is not available in Edge runtime.",
-  "908": "`abandonRender` called on a stage controller that cannot be abandoned."
+  "908": "`abandonRender` called on a stage controller that cannot be abandoned.",
+  "909": "Expected debug stream to be a ReadableStream",
+  "910": "Expected debug stream to be a Readable"
 }
