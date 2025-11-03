@@ -2,6 +2,8 @@ use std::mem::take;
 
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+#[cfg(not(feature = "verify_determinism"))]
+use turbo_tasks::backend::VerificationMode;
 use turbo_tasks::{CellId, TaskId, TypedSharedReference, backend::CellContent};
 
 #[cfg(feature = "trace_task_dirty")]
@@ -13,7 +15,7 @@ use crate::{
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
             invalidate::make_task_dirty_internal,
         },
-        storage::{get_many, remove},
+        storage::{get, get_many, remove},
     },
     data::{CachedDataItem, CachedDataItemKey, CellRef},
 };
@@ -40,18 +42,61 @@ pub enum UpdateCellOperation {
 }
 
 impl UpdateCellOperation {
-    pub fn run(task_id: TaskId, cell: CellId, content: CellContent, mut ctx: impl ExecuteContext) {
+    pub fn run(
+        task_id: TaskId,
+        cell: CellId,
+        content: CellContent,
+        #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
+        #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
+        mut ctx: impl ExecuteContext,
+    ) {
+        let content = if let CellContent(Some(new_content)) = content {
+            Some(new_content.into_typed(cell.type_id))
+        } else {
+            None
+        };
+
         let mut task = ctx.task(task_id, TaskDataCategory::All);
 
+        let is_stateful = task.has_key(&CachedDataItemKey::Stateful {});
         // We need to detect recomputation, because here the content has not actually changed (even
         // if it's not equal to the old content, as not all values implement Eq). We have to
         // assume that tasks are deterministic and pure.
-        let should_invalidate = ctx.should_track_dependencies()
-            && (task.has_key(&CachedDataItemKey::Dirty {}) ||
+        let assume_unchanged = !ctx.should_track_dependencies()
+            || (!task.has_key(&CachedDataItemKey::Dirty {})
             // This is a hack for the streaming hack. Stateful tasks are never recomputed, so this forces invalidation for them in case of this hack.
-            task.has_key(&CachedDataItemKey::Stateful {}));
+            && !is_stateful);
 
-        if should_invalidate {
+        let old_content = get!(task, CellData { cell });
+
+        if assume_unchanged {
+            if old_content.is_some() {
+                // Never update cells when recomputing if they already have a value.
+                // It's not expected that content changes during recomputation.
+
+                // Check if this assumption holds.
+                #[cfg(feature = "verify_determinism")]
+                if !is_stateful
+                    && matches!(verification_mode, VerificationMode::EqualityCheck)
+                    && content.as_ref() != old_content
+                {
+                    let task_description = ctx.get_task_description(task_id);
+                    let cell_type = turbo_tasks::registry::get_value_type(cell.type_id).global_name;
+                    eprintln!(
+                        "Task {} updated cell #{} (type: {}) while recomputing",
+                        task_description, cell.index, cell_type
+                    );
+                }
+                return;
+            } else {
+                // Initial computation, or computation after a cell has been cleared.
+                // We can just set the content, but we don't want to notify dependent tasks,
+                // as we assume that content hasn't changed (deterministic tasks).
+            }
+        } else {
+            // When not recomputing, we need to notify dependent tasks if the content actually
+            // changes.
+
             let dependent_tasks: SmallVec<[TaskId; 4]> = get_many!(
                 task,
                 CellDependent { cell: dependent_cell, task }
@@ -78,12 +123,6 @@ impl UpdateCellOperation {
                 drop(task);
                 drop(old_content);
 
-                let content = if let CellContent(Some(new_content)) = content {
-                    Some(new_content.into_typed(cell.type_id))
-                } else {
-                    None
-                };
-
                 UpdateCellOperation::InvalidateWhenCellDependency {
                     cell_ref: CellRef {
                         task: task_id,
@@ -101,8 +140,7 @@ impl UpdateCellOperation {
         // Fast path: We don't need to invalidate anything.
         // So we can just update the cell content.
 
-        let old_content = if let CellContent(Some(new_content)) = content {
-            let new_content = new_content.into_typed(cell.type_id);
+        let old_content = if let Some(new_content) = content {
             task.insert(CachedDataItem::CellData {
                 cell,
                 value: new_content,

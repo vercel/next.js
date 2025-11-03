@@ -3,5 +3,6 @@
   "runtimeType": "Development",
   "minifyType": "NoMinify",
   "environment": "NodeJs",
-  "enableDebugIds": true
+  "enableDebugIds": true,
+  "sourceMapSourceType": "RelativeUri"
 }

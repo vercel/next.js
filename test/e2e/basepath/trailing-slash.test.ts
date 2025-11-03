@@ -1,7 +1,7 @@
 import webdriver from 'next-webdriver'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('basePath + trailingSlash', () => {
   let next: NextInstance
@@ -42,7 +42,7 @@ describe('basePath + trailingSlash', () => {
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (dev) {
-          await assertNoRedbox(browser)
+          await waitForNoRedbox(browser)
         }
       } finally {
         await browser.close()
@@ -68,7 +68,7 @@ describe('basePath + trailingSlash', () => {
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (dev) {
-          await assertNoRedbox(browser)
+          await waitForNoRedbox(browser)
         }
       } finally {
         await browser.close()

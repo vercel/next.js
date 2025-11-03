@@ -8242,8 +8242,8 @@ ${La}${a}`("SuspenseList")
   ⚠️  nested operation
 - *5* unsupported expression
   ⚠️  This value might have side effects
-- *6* arguments[1]
-  ⚠️  function calls are not analyzed yet
+- *6* compound assignment expression
+  ⚠️  This value might have side effects
 - *7* unsupported assign operation
   ⚠️  This value might have side effects
 
@@ -24836,14 +24836,20 @@ ${La}${a}`("SuspenseList")
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 3401 call = (...) => (c | (???*0* ? c : d))(???*1*, ???*2*, (0 | ???*3*))
-- *0* unsupported expression
+0 -> 3401 call = (...) => (???*0* | (???*1* ? ???*2* : d) | c)(???*3*, ???*4*, (0 | ???*5*))
+- *0* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* max number of linking steps reached
+- *1* unsupported expression
   ⚠️  This value might have side effects
-- *2* max number of linking steps reached
+- *2* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *3* updated with update expression
+- *3* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *4* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *5* updated with update expression
   ⚠️  This value might have side effects
 
 0 -> 3402 conditional = (null === ???*0*)
@@ -24891,14 +24897,20 @@ ${La}${a}`("SuspenseList")
 - *4* arguments[3]
   ⚠️  function calls are not analyzed yet
 
-3409 -> 3413 call = (...) => (c | (???*0* ? c : d))(???*1*, ???*2*, (0 | ???*3*))
-- *0* unsupported expression
+3409 -> 3413 call = (...) => (???*0* | (???*1* ? ???*2* : d) | c)(???*3*, ???*4*, (0 | ???*5*))
+- *0* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* max number of linking steps reached
+- *1* unsupported expression
   ⚠️  This value might have side effects
-- *2* max number of linking steps reached
+- *2* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *3* updated with update expression
+- *3* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *4* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *5* updated with update expression
   ⚠️  This value might have side effects
 
 3409 -> 3414 conditional = (null === ???*0*)
@@ -24963,14 +24975,20 @@ ${La}${a}`("SuspenseList")
 - *6* max number of linking steps reached
   ⚠️  This value might have side effects
 
-3409 -> 3428 call = (...) => (c | (???*0* ? c : d))(???*1*, ???*2*, (0 | ???*3*))
-- *0* unsupported expression
+3409 -> 3428 call = (...) => (???*0* | (???*1* ? ???*2* : d) | c)(???*3*, ???*4*, (0 | ???*5*))
+- *0* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* max number of linking steps reached
+- *1* unsupported expression
   ⚠️  This value might have side effects
-- *2* max number of linking steps reached
+- *2* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *3* updated with update expression
+- *3* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *4* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *5* updated with update expression
   ⚠️  This value might have side effects
 
 3409 -> 3429 conditional = (null === ???*0*)
@@ -25085,14 +25103,20 @@ ${La}${a}`("SuspenseList")
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 3460 call = (...) => (c | (???*0* ? c : d))(???*1*, ???*2*, (0 | ???*3*))
-- *0* unsupported expression
+0 -> 3460 call = (...) => (???*0* | (???*1* ? ???*2* : d) | c)(???*3*, ???*4*, (0 | ???*5*))
+- *0* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* max number of linking steps reached
+- *1* unsupported expression
   ⚠️  This value might have side effects
-- *2* max number of linking steps reached
+- *2* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *3* updated with update expression
+- *3* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *4* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *5* updated with update expression
   ⚠️  This value might have side effects
 
 0 -> 3461 conditional = (null === ???*0*)
@@ -25144,14 +25168,20 @@ ${La}${a}`("SuspenseList")
 - *4* arguments[3]
   ⚠️  function calls are not analyzed yet
 
-3468 -> 3474 call = (...) => (c | (???*0* ? c : d))(???*1*, ???*2*, (0 | ???*3*))
-- *0* unsupported expression
+3468 -> 3474 call = (...) => (???*0* | (???*1* ? ???*2* : d) | c)(???*3*, ???*4*, (0 | ???*5*))
+- *0* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* max number of linking steps reached
+- *1* unsupported expression
   ⚠️  This value might have side effects
-- *2* max number of linking steps reached
+- *2* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *3* updated with update expression
+- *3* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *4* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *5* updated with update expression
   ⚠️  This value might have side effects
 
 3468 -> 3475 conditional = (null === ???*0*)
@@ -25221,14 +25251,20 @@ ${La}${a}`("SuspenseList")
 - *6* max number of linking steps reached
   ⚠️  This value might have side effects
 
-3468 -> 3491 call = (...) => (c | (???*0* ? c : d))(???*1*, ???*2*, (0 | ???*3*))
-- *0* unsupported expression
+3468 -> 3491 call = (...) => (???*0* | (???*1* ? ???*2* : d) | c)(???*3*, ???*4*, (0 | ???*5*))
+- *0* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* max number of linking steps reached
+- *1* unsupported expression
   ⚠️  This value might have side effects
-- *2* max number of linking steps reached
+- *2* c
+  ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *3* updated with update expression
+- *3* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *4* max number of linking steps reached
+  ⚠️  This value might have side effects
+- *5* updated with update expression
   ⚠️  This value might have side effects
 
 3468 -> 3492 conditional = (null === ???*0*)
@@ -35905,7 +35941,7 @@ ${La}${a}`("SuspenseList")
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-4626 -> 4627 call = (...) => (???*0* | null | f | tj(a, b, g, null) | tj(a, b, g, d) | b)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, ???*6*, (???*7* | ???*8*))
+4626 -> 4627 call = (...) => (???*0* | f | tj(a, b, g, null) | tj(a, b, g, d) | b)(???*1*, ???*2*, ???*3*, ???*4*, ???*5*, ???*6*, (???*7* | ???*8*))
 - *0* tj(a, b, g, d)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects

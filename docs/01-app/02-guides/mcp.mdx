@@ -1,46 +1,18 @@
 ---
 title: Enabling Next.js MCP Server for Coding Agents
 nav_title: Next.js MCP Server
-description: Learn how to enable the experimental Next.js MCP server to allow agents access to your application state
+description: Learn how to use Next.js MCP support to allow coding agents access to your application state
 ---
 
 The [Model Context Protocol (MCP)](https://modelcontextprotocol.io) is an open standard that allows AI agents and coding assistants to interact with your applications through a standardized interface.
 
-Next.js provides two MCP servers, we recommend using both together for the best agent experience:
-
-### 1. Next.js MCP Server (Built-in)
-
-**Available in Next.js 16 and above**
-
-The Next.js MCP server exposes your application's internals, allowing agents to:
-
-- Access real-time application state and runtime information
-- Query page metadata, routes, and rendering details
-- Retrieve build errors, runtime errors, and development logs
-- Inspect Server Actions and component hierarchies
-
-This server runs within your Next.js dev server and provides direct access to your application's internal state.
-
-### 2. Next DevTools MCP (External Package)
-
-[`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) is a separate package that provides high-level development tools and guidance:
-
-- **Next.js Knowledge Base**: Query comprehensive Next.js documentation and best practices
-- **Migration and Upgrade Tools**: Automated helpers for upgrading to Next.js 16 with codemods
-- **Cache Components Guide**: Setup and configuration assistance for Cache Components
-- **Browser Testing**: [Playwright MCP](https://github.com/microsoft/playwright-mcp) integration for verifying pages in the browser
-
-Additionally, `next-devtools-mcp` can automatically discover and communicate directly with running Next.js dev servers to access their MCP tools (`get_errors`, `get_logs`, `get_page_metadata`, etc.).
-
-Together, these two MCP servers give agents both low-level application internals and high-level development guidance.
+Next.js 16+ includes MCP support that enables coding agents to access your application's internals in real-time. To use this functionality, install the [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) package.
 
 ## Getting started
 
-The built-in Next.js MCP server is enabled by default in development in Next.js 16 or above.
+**Requirements:** Next.js 16 or above
 
-### Configuring Next DevTools MCP
-
-To use the Next DevTools MCP, add [`next-devtools-mcp`](https://www.npmjs.com/package/next-devtools-mcp) to the `.mcp.json` file at the root of your project
+Add `next-devtools-mcp` to the `.mcp.json` file at the root of your project:
 
 ```json filename=".mcp.json"
 {
@@ -53,20 +25,30 @@ To use the Next DevTools MCP, add [`next-devtools-mcp`](https://www.npmjs.com/pa
 }
 ```
 
-For more devtools functionalities and configuration options, check out the [next-devtools-mcp repository](https://github.com/vercel/next-devtools-mcp).
+That's it! When you start your development server, `next-devtools-mcp` will automatically discover and connect to your running Next.js instance.
 
-## Using with agents
+For more configuration options, see the [next-devtools-mcp repository](https://github.com/vercel/next-devtools-mcp).
 
-MCP-compatible Coding Agents can automatically discover and connect to your Next.js development server. This provides agents with rich context about your project.
+## Capabilities
 
-### Benefits for agent-assisted development
+`next-devtools-mcp` provides coding agents with a growing set of capabilities:
 
-Agents can:
+### Application Runtime Access
 
-- **Make context-aware suggestions**: Recommend the right place to add new features based on your existing structure
-- **Query live application state**: Check current configuration, routes, and middleware during development
-- **Understand your app router pages layout**: Know exactly which page and layout are rendered in the page
-- **Provide accurate implementations**: Generate code that follows your project's patterns and conventions
+- **Error Detection**: Retrieve current build errors, runtime errors, and type errors from your dev server
+- **Live State Queries**: Access real-time application state and runtime information
+- **Page Metadata**: Query page routes, components, and rendering details
+- **Server Actions**: Inspect Server Actions and component hierarchies
+- **Development Logs**: Access development server logs and console output
+
+### Development Tools
+
+- **Next.js Knowledge Base**: Query comprehensive Next.js documentation and best practices
+- **Migration and Upgrade Tools**: Automated helpers for upgrading to Next.js 16 with codemods
+- **Cache Components Guide**: Setup and configuration assistance for Cache Components
+- **Browser Testing**: [Playwright MCP](https://github.com/microsoft/playwright-mcp) integration for verifying pages in the browser
+
+> **Note:** The Next.js team is actively expanding these capabilities. New tools and features are added regularly to improve the agent development experience.
 
 ## Development workflow
 
@@ -76,37 +58,50 @@ Agents can:
 npm run dev
 ```
 
-2. Connect your Coding Agent to the running Next.js instance
+2. Your Coding Agent will automatically connect to the running Next.js instance via `next-devtools-mcp`
 
-3. Open your application in the browser to view the page.
+3. Open your application in the browser to view pages
 
 4. Query your agent for insights and diagnostics (see examples below)
 
-### Available Next.js MCP Tools
+### Available tools
 
-The experimental Next.js MCP server provides the following tools:
+Through `next-devtools-mcp`, agents can use the following tools:
 
 - **`get_errors`**: Retrieve current build errors, runtime errors, and type errors from your dev server
-- **`get_logs`**: Access development server logs and console output
+- **`get_logs`**: Get the path to the development log file containing browser console logs and server output
 - **`get_page_metadata`**: Get metadata about specific pages including routes, components, and rendering information
-- **`get_project_metadata`**: Retrieve project structure, configuration, and overall metadata
-- **`get_server_action_by_id`**: Look up Server Actions by their ID for debugging and inspection
+- **`get_project_metadata`**: Retrieve project structure, configuration, and dev server URL
+- **`get_server_action_by_id`**: Look up Server Actions by their ID to find the source file and function name
+
+## Using with agents
+
+MCP-compatible Coding Agents can automatically discover and connect to your Next.js development server, providing them with rich context about your project.
+
+### Benefits for agent-assisted development
+
+Agents can:
+
+- **Make context-aware suggestions**: Recommend the right place to add new features based on your existing structure
+- **Query live application state**: Check current configuration, routes, and middleware during development
+- **Understand your app router pages layout**: Know exactly which page and layout are rendered
+- **Provide accurate implementations**: Generate code that follows your project's patterns and conventions
 
 ## Examples
 
 ### Error detection and diagnosis
 
-The agent can query your running Next.js application for real-time error information:
+Ask your agent about errors in real-time:
 
 ```bash
 User: "What errors are currently in my application?"
 ```
 
-Agent action:
+The agent will:
 
-- Calls the `get_errors` tool provided by the Next.js MCP server
-- Retrieves current build errors, runtime errors, and type errors from the dev server
-- Analyzes the errors and provides actionable fixes
+- Query your running Next.js application via `next-devtools-mcp`
+- Retrieve current build errors, runtime errors, and type errors
+- Analyze the errors and provide actionable fixes
 
 <details>
 <summary>Agent response (click to expand)</summary>
@@ -141,32 +136,40 @@ Agent action:
 
 </details>
 
-This demonstrates the power of having both MCP servers enabled: the Next.js MCP server provides real-time diagnostics directly from your application, while next-devtools-mcp can provide guidance on best practices and migration paths.
-
 ### Upgrading and best practices
 
-You can also ask for help with Next.js concepts and migrations:
+Get help with Next.js concepts and migrations:
 
 ```bash
 User: "Help me upgrade my Next.js app to version 16"
 ```
 
-The agent will use next-devtools-mcp to analyze your current version, guide you through automated migrations with codemods, and provide step-by-step instructions for handling breaking changes like async Request APIs, dynamic route segments, and route handler return types.
+The agent will analyze your current version, guide you through automated migrations with codemods, and provide step-by-step instructions for handling breaking changes.
 
-You can also ask conceptual questions:
+Ask conceptual questions:
 
 ```bash
 User: "When should I use 'use client' in App Router?"
 ```
 
-The agent will query the Next.js knowledge base via next-devtools-mcp and provide documentation-backed explanations with examples from your codebase.
+The agent will query the Next.js knowledge base and provide documentation-backed explanations with examples from your codebase.
+
+## How it works
+
+Next.js 16+ includes a built-in MCP endpoint at `/_next/mcp` that runs within your development server. The `next-devtools-mcp` package automatically discovers and communicates with these endpoints, allowing it to:
+
+- Connect to multiple Next.js instances running on different ports
+- Forward tool calls to the appropriate Next.js dev server
+- Provide a unified interface for coding agents
+
+This architecture decouples the agent interface from the internal implementation, enabling `next-devtools-mcp` to work seamlessly across different Next.js projects.
 
 ## Troubleshooting
 
 ### MCP server not connecting
 
 - Ensure you're using Next.js v16 or above
+- Verify `next-devtools-mcp` is configured in your `.mcp.json`
 - Start your development server: `npm run dev`
-- Restart your development server
-- Check that your MCP client is configured with the correct path
-- Add MCP server to your agent's settings
+- Restart your development server if it was already running
+- Check that your coding agent has loaded the MCP server configuration

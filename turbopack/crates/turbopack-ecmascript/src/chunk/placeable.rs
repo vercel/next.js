@@ -161,7 +161,7 @@ struct SideEffectsInPackageJsonIssue {
 impl Issue for SideEffectsInPackageJsonIssue {
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.into()
+        IssueStage::Parse.cell()
     }
 
     fn severity(&self) -> IssueSeverity {

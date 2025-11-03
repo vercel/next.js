@@ -1,8 +1,8 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   check,
   renderViaHTTP,
   getRedboxSource,
@@ -82,7 +82,7 @@ describe('jsconfig-path-reloading', () => {
           )}`
         )
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toContain('"@lib/second-data"')
 
         await next.patchFile(
@@ -103,7 +103,7 @@ describe('jsconfig-path-reloading', () => {
           )
         )
 
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
 
         const html2 = await browser.eval('document.documentElement.innerHTML')
         expect(html2).toContain('first button')
@@ -158,7 +158,7 @@ describe('jsconfig-path-reloading', () => {
           indexContent.replace('@mybutton', '@myotherbutton')
         )
 
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
 
         await check(async () => {
           const html2 = await browser.eval('document.documentElement.innerHTML')

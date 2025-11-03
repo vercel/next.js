@@ -13,7 +13,7 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 /// Internally this contains a `CompiledPluginModuleBytes`, which points to the
 /// compiled, serialized wasmer::Module instead of raw file bytes to reduce the
 /// cost of the compilation.
-#[turbo_tasks::value(serialization = "none", eq = "manual", into = "new", cell = "new")]
+#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", shared)]
 pub struct SwcPluginModule(
     #[turbo_tasks(trace_ignore, debug_ignore)]
     #[cfg(feature = "swc_ecma_transform_plugin")]

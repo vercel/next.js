@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
   retry,
-  assertHasRedbox,
+  waitForRedbox,
   getRedboxDescription,
   getRedboxSource,
 } from 'next-test-utils'
@@ -26,7 +26,7 @@ describe('cache-components-segment-configs', () => {
 
     if (isNextDev) {
       const browser = await next.browser('/revalidate')
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const redbox = {
         description: await getRedboxDescription(browser),
         source: await getRedboxSource(browser),
@@ -87,7 +87,7 @@ describe('cache-components-segment-configs', () => {
 
         if (isNextDev) {
           const browser = await next.browser('/revalidate')
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           const redbox = {
             description: await getRedboxDescription(browser),
             source: await getRedboxSource(browser),
