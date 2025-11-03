@@ -15,6 +15,7 @@ import path, { join } from 'path'
 import pkg from 'next/package'
 import http from 'http'
 import stripAnsi from 'strip-ansi'
+import { rmSync } from 'fs'
 
 const dirBasic = join(__dirname, '../basic')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
@@ -848,6 +849,13 @@ describe('CLI Usage', () => {
     })
 
     itCI('--experimental-https', async () => {
+      // set by runNextCommandDev
+      const nextDir = path.dirname(require.resolve('next/package'))
+      // hardcoded by Next.js relative to cwd of Next.js
+      const certDir = path.resolve(nextDir, 'certificates')
+      try {
+        rmSync(certDir, { recursive: true, force: true })
+      } catch {}
       // only runs on CI as it requires administrator privileges
       const port = await findPort()
       let output = ''

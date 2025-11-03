@@ -8994,6 +8994,29 @@
     "styles": ["italic"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Momo Signature": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Momo Trust Display": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Momo Trust Sans": {
+    "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
   "Mona Sans": {
     "weights": [
       "200",
@@ -11247,6 +11270,30 @@
     ],
     "subsets": ["latin", "latin-ext", "syriac"]
   },
+  "Noto Sans Syriac Western": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "syriac"]
+  },
   "Noto Sans TC": {
     "weights": [
       "100",
@@ -12852,7 +12899,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["latin", "latin-ext", "vietnamese"]
+    "subsets": ["arabic", "latin", "latin-ext", "vietnamese"]
   },
   "Parisienne": {
     "weights": ["400"],
