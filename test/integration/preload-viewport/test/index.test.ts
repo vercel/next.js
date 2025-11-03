@@ -65,10 +65,9 @@ describe('Prefetching Links in viewport', () => {
         nextDataRequests = []
         const browser = await webdriver(appPort, '/')
         await browser.eval(function navigate() {
-          ;(window as any).next.router
-            .push('/ssg/slow')(window as any)
-            .next.router.push('/ssg/slow')(window as any)
-            .next.router.push('/ssg/slow')
+          ;(window as any).next.router.push('/ssg/slow')
+          ;(window as any).next.router.push('/ssg/slow')
+          ;(window as any).next.router.push('/ssg/slow')
         })
         await browser.waitForElementByCss('#content')
         expect(

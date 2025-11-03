@@ -103,9 +103,9 @@ describe('minified module ids', () => {
         staticBundles += output
       }
     })
-    afterAll(() => {
+    afterAll(async () => {
       global.isNextDev = originalIsNextDev
-      killApp(app)
+      await killApp(app)
     })
 
     it('should have long module ids for basic modules', async () => {
