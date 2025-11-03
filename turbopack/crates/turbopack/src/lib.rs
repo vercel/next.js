@@ -740,9 +740,11 @@ pub async fn externals_tracing_module_context(
     Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         compile_time_info,
-        // Keep these options more or less in sync with
-        // turbopack/crates/turbopack/tests/node-file-trace.rs to ensure that the NFT unit tests
-        // are actually representative of what Turbopack does.
+        // This config should be kept in sync with
+        // turbopack/crates/turbopack-tracing/tests/node-file-trace.rs and
+        // turbopack/crates/turbopack-tracing/tests/unit.rs and
+        // turbopack/crates/turbopack/src/lib.rs and
+        // turbopack/crates/turbopack-nft/src/nft.rs
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
                 enable_typescript_transform: Some(
@@ -762,6 +764,9 @@ pub async fn externals_tracing_module_context(
             // node-file-trace.
             environment: None,
             analyze_mode: AnalyzeMode::Tracing,
+            // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
+            // execute at runtime.
+            tree_shaking_mode: None,
             ..Default::default()
         }
         .cell(),

@@ -168,8 +168,8 @@ pub enum SpecifiedModuleType {
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeShakingMode {
-    #[default]
     ModuleFragments,
+    #[default]
     ReexportsOnly,
 }
 
