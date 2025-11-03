@@ -1,6 +1,6 @@
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { BinaryStreamOf } from './app-render'
-import { Readable } from 'node:stream'
+import { Readable } from 'stream'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
