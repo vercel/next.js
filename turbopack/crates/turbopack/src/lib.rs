@@ -391,8 +391,9 @@ impl ModuleAssetContext {
         })
     }
 
+    /// Doesn't replace external resolve results with a CachedExternalModule.
     #[turbo_tasks::function]
-    fn new_without_replace_externals(
+    pub fn new_without_replace_externals(
         transitions: ResolvedVc<TransitionOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         module_options_context: ResolvedVc<ModuleOptionsContext>,

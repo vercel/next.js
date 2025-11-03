@@ -358,7 +358,7 @@ async fn node_file_trace_operation(
         }
         .resolved_cell(),
     ));
-    let module_asset_context = ModuleAssetContext::new(
+    let module_asset_context = ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         // TODO These test cases should move into the `node-file-trace` crate and use the same
         // config.
