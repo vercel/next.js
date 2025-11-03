@@ -966,6 +966,18 @@ export async function handleBuildComplete({
               return {} as Record<string, string>
             }
           )
+
+          // If this is a parallel route we just need to merge
+          // the assets as they share the same pathname
+          const existingOutput = appOutputMap[normalizedPage]
+          if (existingOutput) {
+            Object.assign(existingOutput.assets, assets)
+            existingOutput.assets[path.relative(tracingRoot, pageFile)] =
+              pageFile
+
+            continue
+          }
+
           const functionConfig =
             functionsConfigManifest.functions[normalizedPage] || {}
 
@@ -1502,12 +1514,7 @@ export async function handleBuildComplete({
           route.page
         ) + getDestinationQuery(route.routeKeys)
 
-      if (
-        appPageKeys &&
-        appPageKeys.length > 0 &&
-        (config.experimental.cacheComponents ||
-          config.experimental.clientSegmentCache)
-      ) {
+      if (appPageKeys && appPageKeys.length > 0 && config.cacheComponents) {
         // If we have fallback root params (implying we've already
         // emitted a rewrite for the /_tree request), or if the route
         // has PPR enabled and client param parsing is enabled, then

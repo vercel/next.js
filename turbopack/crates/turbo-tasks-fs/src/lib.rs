@@ -2201,25 +2201,25 @@ impl FileContent {
 
     #[turbo_tasks::function]
     pub fn parse_json(&self) -> Result<Vc<FileJsonContent>> {
-        Ok(self.parse_json_ref().into())
+        Ok(self.parse_json_ref().cell())
     }
 
     #[turbo_tasks::function]
     pub async fn parse_json_with_comments(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
         let this = self.await?;
-        Ok(this.parse_json_with_comments_ref().into())
+        Ok(this.parse_json_with_comments_ref().cell())
     }
 
     #[turbo_tasks::function]
     pub async fn parse_json5(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
         let this = self.await?;
-        Ok(this.parse_json5_ref().into())
+        Ok(this.parse_json5_ref().cell())
     }
 
     #[turbo_tasks::function]
     pub async fn lines(self: Vc<Self>) -> Result<Vc<FileLinesContent>> {
         let this = self.await?;
-        Ok(this.lines_ref().into())
+        Ok(this.lines_ref().cell())
     }
 
     #[turbo_tasks::function]
@@ -2464,7 +2464,7 @@ impl FileSystem for NullFileSystem {
 
     #[turbo_tasks::function]
     fn read_link(&self, _fs_path: FileSystemPath) -> Vc<LinkContent> {
-        LinkContent::NotFound.into()
+        LinkContent::NotFound.cell()
     }
 
     #[turbo_tasks::function]

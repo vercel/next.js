@@ -1008,8 +1008,9 @@ async fn output_assets_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
 ) -> Result<Vc<OutputAssets>> {
-    let endpoint_assets = container
-        .project()
+    let project = container.project();
+    let whole_app_module_graphs = project.whole_app_module_graphs();
+    let endpoint_assets = project
         .get_all_endpoints(app_dir_only)
         .await?
         .iter()
@@ -1022,7 +1023,9 @@ async fn output_assets_operation(
         .flat_map(|assets| assets.iter().copied())
         .collect();
 
-    let nft = next_server_nft_assets(container.project()).await?;
+    let nft = next_server_nft_assets(project).await?;
+
+    whole_app_module_graphs.as_side_effect().await?;
 
     Ok(Vc::cell(
         output_assets

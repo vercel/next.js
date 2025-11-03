@@ -561,11 +561,87 @@ describe('CLI Usage', () => {
       )
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(() => output, /- Debugger port:\s+\d+/)
         await check(() => errOutput, /Debugger listening on/)
         expect(errOutput).not.toContain('address already in use')
-        expect(output).toContain(
-          'the --inspect option was detected, the Next.js router server should be inspected at'
-        )
+      } finally {
+        await killApp(app)
+      }
+    })
+
+    test('--inspect', async () => {
+      const port = await findPort()
+      let output = ''
+      let errOutput = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port, '--inspect'],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          onStderr(msg) {
+            errOutput += stripAnsi(msg)
+          },
+        }
+      )
+      try {
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(() => output, /- Debugger port:\s+9229/)
+        await check(() => errOutput, /Debugger listening on/)
+        expect(errOutput).not.toContain('address already in use')
+      } finally {
+        await killApp(app)
+      }
+    })
+
+    test('--inspect 0', async () => {
+      const port = await findPort()
+      let output = ''
+      let errOutput = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port, '--inspect', '0'],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          onStderr(msg) {
+            errOutput += stripAnsi(msg)
+          },
+        }
+      )
+      try {
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(() => output, /- Debugger port:\s+\d+/)
+        await check(() => errOutput, /Debugger listening on/)
+        expect(errOutput).not.toContain('address already in use')
+      } finally {
+        await killApp(app)
+      }
+    })
+
+    test('--inspect [port]', async () => {
+      const port = await findPort()
+      let output = ''
+      let errOutput = ''
+      const app = await runNextCommandDev(
+        [dirBasic, '--port', port, '--inspect', '9230'],
+        undefined,
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          onStderr(msg) {
+            errOutput += stripAnsi(msg)
+          },
+        }
+      )
+      try {
+        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(() => output, /- Debugger port:\s+9230/)
+        await check(() => errOutput, /Debugger listening on/)
+        expect(errOutput).not.toContain('address already in use')
       } finally {
         await killApp(app)
       }
@@ -590,11 +666,11 @@ describe('CLI Usage', () => {
       )
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(() => output, /- Debugger port:\s+\d+/)
         await check(() => errOutput, /Debugger listening on/)
         expect(errOutput).not.toContain('address already in use')
         expect(errOutput).toContain('Debugger listening on')
         console.log(output)
-        expect(output).toContain('the --inspect option was detected')
       } finally {
         await killApp(app)
       }

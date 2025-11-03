@@ -24,7 +24,7 @@ describe('TypeScript HMR', () => {
         // Events can be finicky in CI. This switches to a more reliable
         // polling method.
         CHOKIDAR_USEPOLLING: 'true',
-        CHOKIDAR_INTERVAL: 500,
+        CHOKIDAR_INTERVAL: '500',
       },
     })
   })
@@ -102,18 +102,10 @@ describe('TypeScript HMR', () => {
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
       await fs.writeFile(pagePath, errContent)
-      const res = await check(
-        async () => {
-          const html = await browser.eval(
-            'document.querySelector("p").innerText'
-          )
-          return html.match(/hello with error/) ? 'success' : 'fail'
-        },
-        /success/,
-        false
-      )
-
-      expect(res).toBe(true)
+      await check(async () => {
+        const html = await browser.eval('document.querySelector("p").innerText')
+        return html.match(/hello with error/) ? 'success' : 'fail'
+      }, /success/)
     } finally {
       if (browser) browser.close()
       await fs.writeFile(pagePath, origContent)

@@ -309,7 +309,7 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
                 },
                 ..Default::default()
             }
-            .into())
+            .cell())
         }
         .instrument(span)
         .await

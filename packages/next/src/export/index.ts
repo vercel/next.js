@@ -395,10 +395,6 @@ async function exportAppImpl(
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,
-      clientSegmentCache:
-        nextConfig.experimental.clientSegmentCache === 'client-only'
-          ? 'client-only'
-          : Boolean(nextConfig.experimental.clientSegmentCache),
       clientParamParsingOrigins:
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,

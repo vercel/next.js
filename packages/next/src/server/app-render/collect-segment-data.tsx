@@ -24,6 +24,7 @@ import {
   createSegmentRequestKeyPart,
   appendSegmentRequestKeyPart,
   ROOT_SEGMENT_REQUEST_KEY,
+  HEAD_REQUEST_KEY,
 } from '../../shared/lib/segment-cache/segment-value-encoding'
 import { getDigestForWellKnownError } from './create-error-handler'
 
@@ -32,8 +33,6 @@ import { getDigestForWellKnownError } from './create-error-handler'
 export type RootTreePrefetch = {
   buildId: string
   tree: TreePrefetch
-  head: HeadData
-  isHeadPartial: boolean
   staleTime: number
 }
 
@@ -225,7 +224,21 @@ async function PrefetchTreeData({
     segmentTasks
   )
 
-  const isHeadPartial = await isPartialRSCData(head, clientModules)
+  // Also spawn a task to produce a prefetch response for the "head" segment.
+  // The head contains metadata, like the title; it's not really a route
+  // segment, but it contains RSC data, so it's treated like a segment by
+  // the client cache.
+  segmentTasks.push(
+    waitAtLeastOneReactRenderTask().then(() =>
+      renderSegmentPrefetch(
+        buildId,
+        head,
+        null,
+        HEAD_REQUEST_KEY,
+        clientModules
+      )
+    )
+  )
 
   // Notify the abort controller that we're done processing the route tree.
   // Anything async that happens after this point must be due to hanging
@@ -236,8 +249,6 @@ async function PrefetchTreeData({
   const treePrefetch: RootTreePrefetch = {
     buildId,
     tree,
-    head,
-    isHeadPartial,
     staleTime,
   }
   return treePrefetch
@@ -292,7 +303,13 @@ function collectSegmentDataImpl(
       // Since we're already in the middle of a render, wait until after the
       // current task to escape the current rendering context.
       waitAtLeastOneReactRenderTask().then(() =>
-        renderSegmentPrefetch(buildId, seedData, requestKey, clientModules)
+        renderSegmentPrefetch(
+          buildId,
+          seedData[0],
+          seedData[2],
+          requestKey,
+          clientModules
+        )
       )
     )
   } else {
@@ -333,15 +350,14 @@ function collectSegmentDataImpl(
 
 async function renderSegmentPrefetch(
   buildId: string,
-  seedData: CacheNodeSeedData,
+  rsc: React.ReactNode,
+  loading: LoadingModuleData | Promise<LoadingModuleData>,
   requestKey: SegmentRequestKey,
   clientModules: ManifestNode
 ): Promise<[SegmentRequestKey, Buffer]> {
   // Render the segment data to a stream.
   // In the future, this is where we can include additional metadata, like the
   // stale time and cache tags.
-  const rsc = seedData[0]
-  const loading = seedData[2]
   const segmentPrefetch: SegmentPrefetch = {
     buildId,
     rsc,

@@ -5,8 +5,8 @@ import {
   getRedboxHeader,
   getRedboxSource,
   getVersionCheckerText,
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   waitFor,
   openRedbox,
   getRedboxDescriptionWarning,
@@ -131,11 +131,11 @@ export async function createSandbox(
           await next.renameFolder(...args)
         },
         evaluate,
-        async assertHasRedbox() {
-          return assertHasRedbox(browser)
+        async waitForRedbox() {
+          return waitForRedbox(browser)
         },
-        async assertNoRedbox() {
-          return assertNoRedbox(browser)
+        async waitForNoRedbox() {
+          return waitForNoRedbox(browser)
         },
         async openRedbox() {
           return openRedbox(browser)

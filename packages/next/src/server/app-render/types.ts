@@ -21,7 +21,19 @@ import type { IncomingMessage } from 'http'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 
-const dynamicParamTypesSchema = s.enums(['c', 'ci', 'oc', 'd', 'di'])
+const dynamicParamTypesSchema = s.enums([
+  'c',
+  'ci(..)(..)',
+  'ci(.)',
+  'ci(..)',
+  'ci(...)',
+  'oc',
+  'd',
+  'di(..)(..)',
+  'di(.)',
+  'di(..)',
+  'di(...)',
+])
 
 const segmentSchema = s.union([
   s.string(),
@@ -137,7 +149,6 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
-    clientSegmentCache: boolean | 'client-only'
 
     /**
      * The origins that are allowed to write the rewritten headers when

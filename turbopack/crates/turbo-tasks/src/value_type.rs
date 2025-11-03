@@ -2,7 +2,6 @@ use std::{
     any::{Any, type_name},
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
-    sync::Arc,
 };
 
 use auto_hash_map::{AutoMap, AutoSet};
@@ -10,16 +9,11 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
-    RawVc, VcValueType,
-    id::TraitTypeId,
-    macro_helpers::NativeFunction,
-    magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed},
-    registry,
-    task::shared_reference::TypedSharedReference,
+    RawVc, VcValueType, id::TraitTypeId, macro_helpers::NativeFunction,
+    magic_any::AnyDeserializeSeed, registry, task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
 };
 
-type MagicSerializationFn = fn(&dyn MagicAny) -> &dyn erased_serde::Serialize;
 type AnySerializationFn = fn(&(dyn Any + Sync + Send)) -> &dyn erased_serde::Serialize;
 type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
 
@@ -43,7 +37,6 @@ pub struct ValueType {
     trait_methods: AutoMap<&'static TraitMethod, &'static NativeFunction>,
 
     /// Functors for serialization
-    magic_serialization: Option<(MagicSerializationFn, MagicAnyDeserializeSeed)>,
     any_serialization: Option<(AnySerializationFn, AnyDeserializeSeed)>,
 
     /// An implementation of
@@ -113,7 +106,6 @@ impl ValueType {
             global_name,
             traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
-            magic_serialization: None,
             any_serialization: None,
             raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
         }
@@ -130,21 +122,8 @@ impl ValueType {
             global_name,
             traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
-            magic_serialization: None,
             any_serialization: Some((any_as_serialize::<T>, AnyDeserializeSeed::new::<T>())),
             raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
-        }
-    }
-
-    pub fn magic_as_serializable<'a>(
-        &self,
-        arc: &'a Arc<dyn MagicAny>,
-    ) -> Option<&'a dyn erased_serde::Serialize> {
-        if let Some(s) = self.magic_serialization {
-            let r: &dyn MagicAny = arc;
-            Some((s.0)(r))
-        } else {
-            None
         }
     }
 
@@ -161,10 +140,6 @@ impl ValueType {
 
     pub fn is_serializable(&self) -> bool {
         self.any_serialization.is_some()
-    }
-
-    pub fn get_magic_deserialize_seed(&self) -> Option<MagicAnyDeserializeSeed> {
-        self.magic_serialization.map(|s| s.1)
     }
 
     pub fn get_any_deserialize_seed(&self) -> Option<AnyDeserializeSeed> {

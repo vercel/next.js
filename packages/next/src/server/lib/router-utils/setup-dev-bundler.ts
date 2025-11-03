@@ -85,6 +85,7 @@ import {
   writeRouteTypesManifest,
   writeValidatorFile,
 } from './route-types-utils'
+import { writeCacheLifeTypes } from './cache-life-type-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile } from '../../../build/lockfile'
@@ -1165,6 +1166,10 @@ async function startWatcher(
             opts.nextConfig
           )
           await writeValidatorFile(routeTypesManifest, validatorFilePath)
+
+          // Generate cache-life types if cacheLife config exists
+          const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
+          writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
         }
 
         if (!resolved) {
