@@ -2304,7 +2304,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/duplicate-layout-components/duplicate-layout-components.test.js": {
+  "test/e2e/app-dir/duplicate-layout-components/duplicate-layout-components.test.ts": {
     "passed": [
       "app dir - duplicate layout components should not duplicate layout elements when navigating to 404"
     ],
@@ -2744,7 +2744,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.js": {
+  "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.ts": {
     "passed": [
       "i18n-hybrid does not resolve /en-CA/blog/first-post",
       "i18n-hybrid does not resolve /en-US/blog/first-post",
@@ -3283,7 +3283,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/middleware-rewrite-catchall-priority-with-parallel-route/middleware-rewrite-catchall-priority-with-parallel-route.test.js": {
+  "test/e2e/app-dir/middleware-rewrite-catchall-priority-with-parallel-route/middleware-rewrite-catchall-priority-with-parallel-route.test.ts": {
     "passed": [
       "app-dir - middleware rewrite with catch-all and parallel routes should rewrite to the specific page instead of the catch-all with parallel route",
       "app-dir - middleware rewrite with catch-all and parallel routes should redirect to the specific page instead of the catch-all with parallel route",
@@ -6560,7 +6560,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/disable-js-preload/test/index.test.js": {
+  "test/e2e/disable-js-preload/test/index.test.ts": {
     "passed": [
       "disabled JS preloads should not have JS preload links",
       "disabled JS preloads should render the page"
@@ -8878,7 +8878,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/typescript-custom-tsconfig/test/index.test.js": {
+  "test/e2e/typescript-custom-tsconfig/test/index.test.ts": {
     "passed": [
       "Custom TypeScript Config app router: allows a user-specific tsconfig via the next config",
       "Custom TypeScript Config middleware: allows a user-specific tsconfig via the next config",
@@ -8998,7 +8998,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/404-page-app/test/index.test.js": {
+  "test/integration/404-page-app/test/index.test.ts": {
     "passed": [
       "404 Page Support with _app production mode should build successfully",
       "404 Page Support with _app production mode should not output static 404 if _app has getInitialProps",
@@ -9012,7 +9012,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/404-page-custom-error/test/index.test.js": {
+  "test/integration/404-page-custom-error/test/index.test.ts": {
     "passed": [
       "Default 404 Page with custom _error production mode should build successfully",
       "Default 404 Page with custom _error production mode should have output 404.html",
@@ -9030,7 +9030,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/404-page-ssg/test/index.test.js": {
+  "test/integration/404-page-ssg/test/index.test.ts": {
     "passed": [
       "404 Page Support SSG production mode should build successfully",
       "404 Page Support SSG production mode should have 404 page in prerender-manifest",
@@ -9051,7 +9051,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/404-page/test/index.test.js": {
+  "test/integration/404-page/test/index.test.ts": {
     "passed": [
       "404 Page Support development mode 2 does not show error with getStaticProps in pages/404 dev",
       "404 Page Support development mode 2 falls back to _error correctly without pages/404",
@@ -9082,7 +9082,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/500-page/test/gsp-gssp.test.js": {
+  "test/integration/500-page/test/gsp-gssp.test.ts": {
     "passed": [
       "gsp-gssp production mode does build 500 statically with getInitialProps in _app and getStaticProps in pages/500",
       "gsp-gssp production mode does not build 500 statically with no pages/500 and getServerSideProps in _error",
@@ -9097,7 +9097,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/500-page/test/index.test.js": {
+  "test/integration/500-page/test/index.test.ts": {
     "passed": [
       "500 Page Support development mode 2 shows error with getInitialProps in pages/500 dev",
       "500 Page Support production mode 2 builds 500 statically by default with no pages/500",
@@ -9122,7 +9122,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/absolute-assetprefix/test/index.test.js": {
+  "test/integration/absolute-assetprefix/test/index.test.ts": {
     "passed": [
       "absolute assetPrefix with path prefix production mode should fetch from cache correctly",
       "absolute assetPrefix with path prefix production mode should not fetch static data from a CDN",
@@ -9135,7 +9135,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/api-body-parser/test/index.test.js": {
+  "test/integration/api-body-parser/test/index.test.ts": {
     "passed": [
       "should not throw if request body is already parsed in custom middleware",
       "should not throw if request's content-type is invalid",
@@ -9146,7 +9146,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/api-catch-all/test/index.test.js": {
+  "test/integration/api-catch-all/test/index.test.ts": {
     "passed": [
       "API routes dev support should return data when catch-all",
       "API routes dev support should return data when catch-all with index and no trailing slash",
@@ -9162,7 +9162,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/api-support/test/index.test.js": {
+  "test/integration/api-support/test/index.test.ts": {
     "passed": [
       "API routes dev support should 404 on optional dynamic api page",
       "API routes dev support should compile only server code in development",
@@ -9272,7 +9272,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-aspath/test/index.test.js": {
+  "test/integration/app-aspath/test/index.test.ts": {
     "passed": [
       "App asPath should not have any changes in asPath after a bundle rebuild"
     ],
@@ -9281,7 +9281,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-config-asset-prefix/test/index.test.js": {
+  "test/integration/app-config-asset-prefix/test/index.test.ts": {
     "passed": [
       "App assetPrefix config should render correctly with assetPrefix: \"/\""
     ],
@@ -9410,7 +9410,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-document-add-hmr/test/index.test.js": {
+  "test/integration/app-document-add-hmr/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -9420,7 +9420,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-document-import-order/test/index.test.js": {
+  "test/integration/app-document-import-order/test/index.test.ts": {
     "passed": [
       "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects"
     ],
@@ -9433,7 +9433,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-document-remove-hmr/test/index.test.js": {
+  "test/integration/app-document-remove-hmr/test/index.test.ts": {
     "passed": [
       "_app removal HMR should HMR when _app is removed",
       "_app removal HMR should HMR when _document is removed"
@@ -9443,7 +9443,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-document-style-fragment/test/index.test.js": {
+  "test/integration/app-document-style-fragment/test/index.test.ts": {
     "passed": [
       "Custom Document Fragment Styles production mode correctly adds styles from fragment styles key"
     ],
@@ -9461,14 +9461,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-functional/test/index.test.js": {
+  "test/integration/app-functional/test/index.test.ts": {
     "passed": ["Document and App should not have any missing key warnings"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-tree/test/index.test.js": {
+  "test/integration/app-tree/test/index.test.ts": {
     "passed": [
       "AppTree production mode should pass AppTree to NextPageContext",
       "AppTree production mode should provide router context in AppTree on CSR",
@@ -9483,7 +9483,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-types/app-types.test.js": {
+  "test/integration/app-types/app-types.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -9495,7 +9495,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/auto-export-error-bail/test/index.test.js": {
+  "test/integration/auto-export-error-bail/test/index.test.ts": {
     "passed": [
       "Auto Export _error bail production mode should not opt-out of auto static optimization from invalid _error"
     ],
@@ -9504,7 +9504,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/auto-export-query-error/test/index.test.js": {
+  "test/integration/auto-export-query-error/test/index.test.ts": {
     "passed": [
       "Auto Export production mode should show warning for query provided for auto exported page correctly"
     ],
@@ -9513,7 +9513,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/auto-export/test/index.test.js": {
+  "test/integration/auto-export/test/index.test.ts": {
     "passed": [
       "Auto Export dev Refreshes query on mount",
       "Auto Export dev Supports commonjs 1",
@@ -9532,7 +9532,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/babel-custom/test/index.test.js": {
+  "test/integration/babel-custom/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -9544,7 +9544,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/babel-next-image/babel-next-image.test.js": {
+  "test/integration/babel-next-image/babel-next-image.test.ts": {
     "passed": [],
     "failed": [],
     "pending": ["babel-next-image should work with babel and next/image"],
@@ -9560,7 +9560,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/basepath-root-catch-all/test/index.test.js": {
+  "test/integration/basepath-root-catch-all/test/index.test.ts": {
     "passed": [
       "production mode should use correct data URL for root catch-all"
     ],
@@ -9571,7 +9571,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/bigint/test/index.test.js": {
+  "test/integration/bigint/test/index.test.ts": {
     "passed": [
       "bigint API route support production mode should return 200",
       "bigint API route support production mode should return the BigInt result text"
@@ -9584,7 +9584,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/broken-webpack-plugin/test/index.test.js": {
+  "test/integration/broken-webpack-plugin/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -9607,7 +9607,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/build-output/test/index.test.js": {
+  "test/integration/build-output/test/index.test.ts": {
     "passed": [
       "Build Output production mode Basic Application Output (experimental: {\"gzipSize\":false}) should not emit extracted comments",
       "Build Output production mode Basic Application Output (experimental: {\"gzipSize\":false}) should not include internal pages",
@@ -9628,7 +9628,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/build-trace-extra-entries-turbo/test/index.test.js": {
+  "test/integration/build-trace-extra-entries-turbo/test/index.test.ts": {
     "passed": [
       "build trace with extra entries production mode should build and trace correctly"
     ],
@@ -9637,7 +9637,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/build-trace-extra-entries/test/index.test.js": {
+  "test/integration/build-trace-extra-entries/test/index.test.ts": {
     "passed": [
       "build trace with extra entries production mode should build and trace correctly"
     ],
@@ -9646,7 +9646,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/build-warnings/test/index.test.js": {
+  "test/integration/build-warnings/test/index.test.ts": {
     "passed": [
       "Build warnings production mode should not shown warning about minification without any modification",
       "Build warnings production mode should not warn about missing cache in non-CI",
@@ -9661,7 +9661,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/catches-missing-getStaticProps/test/index.test.js": {
+  "test/integration/catches-missing-getStaticProps/test/index.test.ts": {
     "passed": [
       "Catches Missing getStaticProps production mode should catch it in server build mode"
     ],
@@ -9672,7 +9672,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/chunking/test/index.test.js": {
+  "test/integration/chunking/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -9689,7 +9689,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/clean-distdir/test/index.test.js": {
+  "test/integration/clean-distdir/test/index.test.ts": {
     "passed": [
       "Cleaning distDir production mode disabled write should not clean up .next before build start",
       "Cleaning distDir production mode should clean up .next before build start"
@@ -9699,7 +9699,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/cli/test/index.test.js": {
+  "test/integration/cli/test/index.test.ts": {
     "passed": [
       "CLI Usage dev --experimental-https",
       "CLI Usage dev --experimental-https with provided key/cert",
@@ -9768,7 +9768,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/client-404/test/index.test.js": {
+  "test/integration/client-404/test/index.test.ts": {
     "passed": [
       "Client 404 production mode Client Navigation 404 should hard navigate to URL on failing to load bundle",
       "Client 404 production mode Client Navigation 404 should hard navigate to URL on failing to load missing bundle",
@@ -9782,7 +9782,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/client-navigation-a11y/test/index.test.js": {
+  "test/integration/client-navigation-a11y/test/index.test.ts": {
     "passed": [
       "Client Navigation accessibility <RouteAnnouncer /> There is a title and a h1 tag has the innerText equal to the value of h1",
       "Client Navigation accessibility <RouteAnnouncer /> There is a title but no h1 tag has the innerText equal to the value of document.title",
@@ -9796,7 +9796,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/client-shallow-routing/test/index.test.js": {
+  "test/integration/client-shallow-routing/test/index.test.ts": {
     "passed": [
       "Client Shallow Routing production mode should not shallowly navigate back in history when current page was not shallow",
       "Client Shallow Routing production mode should not shallowly navigate forwards in history when current page was not shallow"
@@ -9809,14 +9809,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/compression/test/index.test.js": {
+  "test/integration/compression/test/index.test.ts": {
     "passed": ["Compression should compress responses by default"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-devtool-dev/test/index.test.js": {
+  "test/integration/config-devtool-dev/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -9825,7 +9825,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-experimental-warning/test/index.test.js": {
+  "test/integration/config-experimental-warning/test/index.test.ts": {
     "passed": [
       "Config Experimental Warning production mode should not show next app info in next start",
       "Config Experimental Warning production mode should show next app info with all experimental features in next build",
@@ -9883,7 +9883,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-promise-error/test/index.test.js": {
+  "test/integration/config-promise-error/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -9892,7 +9892,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-resolve-alias/test/index.test.js": {
+  "test/integration/config-resolve-alias/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -9901,7 +9901,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-syntax-error/test/index.test.js": {
+  "test/integration/config-syntax-error/test/index.test.ts": {
     "passed": [
       "Invalid config syntax production mode should error when next.config.js contains syntax error",
       "Invalid config syntax production mode should error when next.config.mjs contains syntax error"
@@ -9923,7 +9923,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config/test/index.test.js": {
+  "test/integration/config/test/index.test.ts": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
       "Configuration renders public config on the server only",
@@ -9936,7 +9936,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/conflicting-public-file-page/test/index.test.js": {
+  "test/integration/conflicting-public-file-page/test/index.test.ts": {
     "passed": [
       "Errors on conflict between public file and page file production mode Throws error during build"
     ],
