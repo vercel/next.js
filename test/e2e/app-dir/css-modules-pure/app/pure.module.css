@@ -1,0 +1,9 @@
+.root {
+  color: red;
+}
+
+:not(:global(.dark-theme)) {
+  .root {
+    color: blue;
+  }
+}

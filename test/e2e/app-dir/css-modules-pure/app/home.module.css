@@ -1,0 +1,16 @@
+div {
+  width: 20px;
+}
+
+:global(.foo) {
+  width: 20px;
+}
+
+[foo='bar'] {
+  width: 20px;
+}
+
+div,
+.foo {
+  width: 20px;
+}

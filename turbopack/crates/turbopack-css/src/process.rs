@@ -5,10 +5,7 @@ use lightningcss::{
     css_modules::{CssModuleExport, Pattern, Segment},
     stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
     targets::{BrowserslistConfig, Features, Targets},
-    traits::ToCss,
     values::url::Url,
-    visit_types,
-    visitor::Visit,
 };
 use rustc_hash::FxHashMap;
 use smallvec::smallvec;
@@ -425,6 +422,7 @@ async fn process_content(
                 dashed_idents: false,
                 grid: false,
                 container: false,
+                pure: true,
                 ..Default::default()
             }),
 
@@ -446,15 +444,6 @@ async fn process_content(
             },
         ) {
             Ok(mut ss) => {
-                if matches!(ty, CssModuleAssetType::Module) {
-                    let mut validator = CssValidator { errors: Vec::new() };
-                    ss.visit(&mut validator).unwrap();
-
-                    for err in validator.errors {
-                        err.report(source);
-                    }
-                }
-
                 // We need to collect here because we need to avoid holding the lock while calling
                 // `.await` in the loop.
                 let warnings = warnings.read().unwrap().iter().cloned().collect::<Vec<_>>();
@@ -564,100 +553,6 @@ async fn process_content(
     .cell())
 }
 
-/// Visitor that lints wrong css module usage.
-///
-/// ```css
-/// button {
-/// }
-/// ```
-///
-/// is wrong for a css module because it doesn't have a class name.
-struct CssValidator {
-    errors: Vec<CssError>,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum CssError {
-    CssSelectorInModuleNotPure { selector: String },
-}
-
-impl CssError {
-    fn report(self, source: ResolvedVc<Box<dyn Source>>) {
-        match self {
-            CssError::CssSelectorInModuleNotPure { selector } => {
-                ParsingIssue {
-                    msg: format!(
-                        "Selector \"{selector}\" is not pure. Pure selectors must contain at \
-                         least one local class or id."
-                    )
-                    .into(),
-                    stage: IssueStage::Transform,
-                    // TODO: This should include the location of the selector in the file.
-                    source: IssueSource::from_source_only(source),
-                }
-                .resolved_cell()
-                .emit();
-            }
-        }
-    }
-}
-
-/// We only visit top-level selectors.
-impl lightningcss::visitor::Visitor<'_> for CssValidator {
-    type Error = ();
-
-    fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
-        visit_types!(SELECTORS)
-    }
-
-    fn visit_selector(
-        &mut self,
-        selector: &mut lightningcss::selector::Selector<'_>,
-    ) -> Result<(), Self::Error> {
-        fn is_selector_problematic(sel: &lightningcss::selector::Selector) -> bool {
-            sel.iter_raw_parse_order_from(0).all(is_problematic)
-        }
-
-        fn is_problematic(c: &lightningcss::selector::Component) -> bool {
-            match c {
-                parcel_selectors::parser::Component::ID(..)
-                | parcel_selectors::parser::Component::Class(..) => false,
-
-                parcel_selectors::parser::Component::Combinator(..)
-                | parcel_selectors::parser::Component::AttributeOther(..)
-                | parcel_selectors::parser::Component::AttributeInNoNamespaceExists { .. }
-                | parcel_selectors::parser::Component::AttributeInNoNamespace { .. }
-                | parcel_selectors::parser::Component::ExplicitUniversalType
-                | parcel_selectors::parser::Component::Negation(..) => true,
-
-                parcel_selectors::parser::Component::Where(sel) => {
-                    sel.iter().all(is_selector_problematic)
-                }
-
-                parcel_selectors::parser::Component::LocalName(local) => {
-                    // Allow html and body. They are not pure selectors but are allowed.
-                    !matches!(&*local.name.0, "html" | "body")
-                }
-                _ => false,
-            }
-        }
-
-        if is_selector_problematic(selector) {
-            let selector_string = selector
-                .to_css_string(PrinterOptions {
-                    minify: false,
-                    ..Default::default()
-                })
-                .expect("selector.to_css_string should not fail");
-            self.errors.push(CssError::CssSelectorInModuleNotPure {
-                selector: selector_string,
-            });
-        }
-
-        Ok(())
-    }
-}
-
 fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<Rope> {
     let mut builder = SourceMapBuilder::new(None);
 
@@ -734,13 +629,11 @@ impl Issue for ParsingIssue {
 mod tests {
     use lightningcss::{
         css_modules::Pattern,
+        error::MinifyErrorKind,
         stylesheet::{ParserOptions, StyleSheet},
-        visitor::Visit,
     };
 
-    use super::{CssError, CssValidator};
-
-    fn lint_lightningcss(code: &str) -> Vec<CssError> {
+    fn lint_lightningcss(code: &str) -> Result<(), lightningcss::error::Error<MinifyErrorKind>> {
         let mut ss = StyleSheet::parse(
             code,
             ParserOptions {
@@ -749,6 +642,7 @@ mod tests {
                     dashed_idents: false,
                     grid: false,
                     container: false,
+                    pure: true,
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -756,20 +650,17 @@ mod tests {
         )
         .unwrap();
 
-        let mut validator = CssValidator { errors: Vec::new() };
-        ss.visit(&mut validator).unwrap();
-
-        validator.errors
+        ss.minify(Default::default())
     }
 
     #[track_caller]
     fn assert_lint_success(code: &str) {
-        assert_eq!(lint_lightningcss(code), vec![], "lightningcss: {code}");
+        assert!(lint_lightningcss(code).is_ok());
     }
 
     #[track_caller]
     fn assert_lint_failure(code: &str) {
-        assert_ne!(lint_lightningcss(code), vec![], "lightningcss: {code}");
+        assert!(lint_lightningcss(code).is_err());
     }
 
     #[test]
@@ -896,6 +787,13 @@ mod tests {
         assert_lint_failure(
             ":where(div) {
                 color: red;
+            }",
+        );
+        assert_lint_success(
+            ":not(:global(.dark-theme)){
+                .class {
+                    color: red;
+                }
             }",
         );
     }
