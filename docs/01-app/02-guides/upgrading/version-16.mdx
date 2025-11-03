@@ -322,12 +322,11 @@ export default function Image({ params, id }) {
 }
 ```
 
-Starting with **Next.js 16**, to align with the [Async Request APIs](#async-request-apis-breaking-change) change, these are also asynchronous.
+Starting with **Next.js 16**, to align with the [Async Request APIs](#async-request-apis-breaking-change) change, the image generating function now receives `params` and `id` as promises. The `generateImageMetadata` function continues to receive synchronous `params`.
 
 ```js filename="app/shop/[slug]/opengraph-image.js"
-// Next.js 16 - asynchronous params access
 export async function generateImageMetadata({ params }) {
-  const { slug } = await params
+  const { slug } = params
   return [{ id: '1' }, { id: '2' }]
 }
 
