@@ -11040,7 +11040,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/dynamic-routing/test/index.test.js": {
+  "test/integration/dynamic-routing/test/index.test.ts": {
     "passed": [
       "Dynamic Routing production mode [catch all] should not decode slashes (end)",
       "Dynamic Routing production mode [catch all] should not decode slashes (middle)",
