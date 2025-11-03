@@ -2260,6 +2260,11 @@ export default async function getBaseWebpackConfig(
         : undefined,
   }
 
+  if (isRspack) {
+    // The layers experiment is now stable in Rspack
+    delete webpack5Config.experiments!.layers
+  }
+
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
