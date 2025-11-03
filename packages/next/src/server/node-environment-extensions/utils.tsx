@@ -85,7 +85,7 @@ export function io(expression: string, type: ApiType) {
     case 'request':
       if (process.env.NODE_ENV === 'development') {
         const stageController = workUnitStore.stagedRendering
-        if (stageController && stageController.canInterrupt()) {
+        if (stageController && stageController.canSyncInterrupt()) {
           let message: string
           if (stageController.currentStage === RenderStage.Static) {
             switch (type) {
@@ -134,7 +134,7 @@ export function io(expression: string, type: ApiType) {
           }
 
           const syncIOError = applyOwnerStack(new Error(message))
-          stageController.interruptCurrentStageWithReason(syncIOError)
+          stageController.syncInterruptCurrentStageWithReason(syncIOError)
         }
       }
       break

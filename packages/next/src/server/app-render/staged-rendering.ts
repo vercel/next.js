@@ -62,14 +62,14 @@ export class StagedRenderingController {
     }
   }
 
-  canInterrupt() {
+  canSyncInterrupt() {
     const boundaryStage = this.hasRuntimePrefetch
       ? RenderStage.Dynamic
       : RenderStage.Runtime
     return this.currentStage < boundaryStage
   }
 
-  interruptCurrentStageWithReason(reason: Error) {
+  syncInterruptCurrentStageWithReason(reason: Error) {
     if (this.mayAbandon) {
       return this.abandonRenderImpl()
     } else {
