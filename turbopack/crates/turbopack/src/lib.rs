@@ -166,8 +166,12 @@ async fn apply_module_type(
             if runtime_code {
                 ResolvedVc::upcast(module)
             } else {
-                if matches!(&part, Some(ModulePart::Evaluation)) {
-                    // Skip the evaluation part if the module is marked as side effect free.
+                let options_value = options.await?;
+                if options_value.tree_shaking_mode.is_some()
+                    && matches!(&part, Some(ModulePart::Evaluation))
+                {
+                    // If we are tree shaking, skip the evaluation part if the module is marked as
+                    // side effect free.
                     let side_effect_free_packages = module_asset_context
                         .side_effect_free_packages()
                         .resolve()
@@ -181,7 +185,6 @@ async fn apply_module_type(
                     }
                 }
 
-                let options_value = options.await?;
                 match options_value.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
                         Vc::upcast(EcmascriptModulePartAsset::select_part(
