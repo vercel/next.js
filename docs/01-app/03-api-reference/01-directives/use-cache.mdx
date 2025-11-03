@@ -79,29 +79,22 @@ A cache entry's key is generated using a serialized version of its inputs, which
 3. **Serializable arguments** - Props (for components) or function arguments
 4. **HMR refresh hash** (development only) - Invalidates cache on hot module replacement
 
-Only the arguments explicitly passed to the cached function become part of the cache key. Values from parent scope are NOT automatically captured—you must pass them as arguments to include them in the cache key.
+When a cached function references variables from outer scopes, those variables are automatically captured and bound as arguments, making them part of the cache key.
 
 ```tsx filename="lib/data.ts"
-const userId = '123' // NOT part of cache key
+function Component({ userId }: { userId: string }) {
+  const getData = async (filter: string) => {
+    'use cache'
+    // Cache key includes both userId (from closure) and filter (argument)
+    return fetch(`/api/users/${userId}/data?filter=${filter}`)
+  }
 
-async function getCachedDataWrong(options: { filter?: string }) {
-  'use cache'
-  // Cache key = buildId + functionId + hash(options)
-  // userId is NOT captured, even though it's used!
-  return fetch(`/api/users/${userId}/data?filter=${options.filter}`)
+  return getData('active')
 }
 
-// Correct: Pass all values that should affect caching as arguments
-async function getCachedData(userId: string, options: { filter?: string }) {
-  'use cache'
-  // Cache key = buildId + functionId + hash(userId, options)
-  return fetch(`/api/users/${userId}/data?filter=${options.filter}`)
-}
-
-// Different cache entries:
-getCachedData('123', { filter: 'active' })
-getCachedData('456', { filter: 'active' })
-getCachedData('123', { filter: 'archived' })
+// These create separate cache entries due to different userId values:
+<Component userId="123" /> // Cache entry 1
+<Component userId="456" /> // Cache entry 2
 ```
 
 ## Serialization
