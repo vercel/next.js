@@ -287,6 +287,10 @@ export function hasExternalOtelApiPackage(): boolean {
 
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
+const NEGATIVE_UNSAFE_CACHE_REGEX = new RegExp(
+  `^(?!.*${UNSAFE_CACHE_REGEX.source}).*$`
+)
+
 export function getCacheDirectories(
   configs: webpack.Configuration[]
 ): Set<string> {
@@ -2479,11 +2483,21 @@ export default async function getBaseWebpackConfig(
 
   if (dev) {
     if (webpackConfig.module) {
-      webpackConfig.module.unsafeCache = (module: any) =>
-        !UNSAFE_CACHE_REGEX.test(module.resource)
+      if (isRspack) {
+        (webpackConfig.module.unsafeCache as any) = NEGATIVE_UNSAFE_CACHE_REGEX;
+      } else {
+        webpackConfig.module.unsafeCache =  (module: any) =>
+          !UNSAFE_CACHE_REGEX.test(module.resource)
+      }
     } else {
-      webpackConfig.module = {
-        unsafeCache: (module: any) => !UNSAFE_CACHE_REGEX.test(module.resource),
+      if (isRspack) {
+        (webpackConfig.module as any) = {
+          unsafeCache: NEGATIVE_UNSAFE_CACHE_REGEX,
+        }
+      } else {
+        webpackConfig.module = {
+          unsafeCache: (module: any) => !UNSAFE_CACHE_REGEX.test(module.resource),
+        }
       }
     }
   }
