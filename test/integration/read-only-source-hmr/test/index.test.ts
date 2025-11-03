@@ -45,7 +45,7 @@ describe('Read-only source HMR', () => {
         // Events can be finicky in CI. This switches to a more reliable
         // polling method.
         CHOKIDAR_USEPOLLING: 'true',
-        CHOKIDAR_INTERVAL: '500,',
+        CHOKIDAR_INTERVAL: '500',
       },
     })
   })

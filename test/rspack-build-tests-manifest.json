@@ -19117,7 +19117,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/re-export-all-exports-from-page-disallowed/test/index.test.js": {
+  "test/integration/re-export-all-exports-from-page-disallowed/test/index.test.ts": {
     "passed": [
       "Re-export all exports from page is disallowed production mode builds without error when no `export * from \"...\"` is used in pages",
       "Re-export all exports from page is disallowed production mode shows error when a page re-export all exports"
@@ -19157,7 +19157,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/react-profiling-mode/test/index.test.js": {
+  "test/integration/react-profiling-mode/test/index.test.ts": {
     "passed": [
       "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for client component",
       "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for pages",
@@ -19169,7 +19169,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/read-only-source-hmr/test/index.test.js": {
+  "test/integration/read-only-source-hmr/test/index.test.ts": {
     "passed": [
       "Read-only source HMR should detect a new page",
       "Read-only source HMR should detect changes to a page",
@@ -19180,7 +19180,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/relay-graphql-swc-multi-project/test/index.test.js": {
+  "test/integration/relay-graphql-swc-multi-project/test/index.test.ts": {
     "passed": [
       "Relay Compiler Transform - Multi Project Config production mode project-a should resolve index page correctly",
       "Relay Compiler Transform - Multi Project Config production mode project-b should resolve index page correctly"
@@ -19193,7 +19193,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/relay-graphql-swc-single-project/test/index.test.js": {
+  "test/integration/relay-graphql-swc-single-project/test/index.test.ts": {
     "passed": [
       "Relay Compiler Transform - Single Project Config production mode should resolve index page correctly"
     ],
@@ -19204,14 +19204,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/render-error-on-module-error/test/index.test.js": {
+  "test/integration/render-error-on-module-error/test/index.test.ts": {
     "passed": ["Module Init Error production mode should render error page"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/render-error-on-top-level-error/with-get-initial-props/test/index.test.js": {
+  "test/integration/render-error-on-top-level-error/with-get-initial-props/test/index.test.ts": {
     "passed": [
       "Top Level Error production mode should render error page with getInitialProps"
     ],
@@ -19220,14 +19220,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/render-error-on-top-level-error/without-get-initial-props/test/index.test.js": {
+  "test/integration/render-error-on-top-level-error/without-get-initial-props/test/index.test.ts": {
     "passed": ["Top Level Error production mode should render error page"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/repeated-slashes/test/index.test.js": {
+  "test/integration/repeated-slashes/test/index.test.ts": {
     "passed": [
       "404 handling custom _error next dev should handle backslashes correctly",
       "404 handling custom _error next dev should handle double slashes correctly",
@@ -19305,7 +19305,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/required-server-files-ssr-404/test/index.test.js": {
+  "test/integration/required-server-files-ssr-404/test/index.test.ts": {
     "passed": [
       "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com",
       "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello",
@@ -19337,7 +19337,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/revalidate-as-path/test/index.test.js": {
+  "test/integration/revalidate-as-path/test/index.test.ts": {
     "passed": [
       "Revalidate asPath Normalizing production mode should render with correct asPath with / requested",
       "Revalidate asPath Normalizing production mode should render with correct asPath with /_next/data /another/index requested",
@@ -19349,7 +19349,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/rewrite-with-browser-history/test/index.test.js": {
+  "test/integration/rewrite-with-browser-history/test/index.test.ts": {
     "passed": [
       "rewrites persist with browser history actions production mode back-button should go back to rewritten path successfully"
     ],
@@ -19360,7 +19360,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/rewrites-client-resolving/test/index.test.js": {
+  "test/integration/rewrites-client-resolving/test/index.test.ts": {
     "passed": [
       "Client-side rewrites resolving production mode should break rewrites chain after matching /category",
       "Client-side rewrites resolving production mode should break rewrites chain when dynamic catch-all route matches",
@@ -19379,7 +19379,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/rewrites-destination-query-array/test/index.test.js": {
+  "test/integration/rewrites-destination-query-array/test/index.test.ts": {
     "passed": [
       "rewrites destination query production mode should contain all values passed in param as array"
     ],
@@ -19390,7 +19390,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/rewrites-has-condition/test/index.test.js": {
+  "test/integration/rewrites-has-condition/test/index.test.ts": {
     "passed": [
       "rewrites has condition production mode should navigate to a has rewrite without error",
       "rewrites has condition production mode should navigate to a simple rewrite without error"
@@ -19403,7 +19403,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/rewrites-manual-href-as/test/index.test.js": {
+  "test/integration/rewrites-manual-href-as/test/index.test.ts": {
     "passed": [
       "rewrites manual href/as production mode should allow manual href/as on dynamic page",
       "rewrites manual href/as production mode should allow manual href/as on index page"
@@ -19416,7 +19416,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/root-catchall-cache/test/index.test.js": {
+  "test/integration/root-catchall-cache/test/index.test.ts": {
     "passed": ["Root Catch-all Cache production mode should cache / correctly"],
     "failed": [],
     "pending": [],
@@ -19434,7 +19434,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/route-index/test/index.test.js": {
+  "test/integration/route-index/test/index.test.ts": {
     "passed": [
       "Route index handling production mode should handle / correctly",
       "Route index handling production mode should handle /index correctly",
@@ -19453,7 +19453,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/route-indexes/test/index.test.js": {
+  "test/integration/route-indexes/test/index.test.ts": {
     "passed": [
       "Route indexes handling production mode should handle / correctly",
       "Route indexes handling production mode should handle /api/sub correctly",
@@ -19494,7 +19494,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/route-load-cancel-css/test/index.test.js": {
+  "test/integration/route-load-cancel-css/test/index.test.ts": {
     "passed": [
       "route cancel via CSS production mode should cancel slow page loads on re-navigation"
     ],
@@ -19503,7 +19503,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/route-load-cancel/test/index.test.js": {
+  "test/integration/route-load-cancel/test/index.test.ts": {
     "passed": [
       "next/dynamic production mode should cancel slow page loads on re-navigation"
     ],
@@ -19514,7 +19514,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/router-hash-navigation/test/index.test.js": {
+  "test/integration/router-hash-navigation/test/index.test.ts": {
     "passed": [
       "router.isReady production mode scrolls to top when href=\"/\" and url already contains a hash"
     ],
@@ -19525,7 +19525,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/router-is-ready-app-gip/test/index.test.js": {
+  "test/integration/router-is-ready-app-gip/test/index.test.ts": {
     "passed": [
       "router.isReady with appGip production mode isReady should be true after query update for getStaticProps page with query",
       "router.isReady with appGip production mode isReady should be true immediately for getStaticProps page without query",
@@ -19542,7 +19542,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/router-is-ready/test/index.test.js": {
+  "test/integration/router-is-ready/test/index.test.ts": {
     "passed": [
       "router.isReady production mode isReady should be true after query update for auto-export page with query",
       "router.isReady production mode isReady should be true after query update for dynamic auto-export page with query",
@@ -19571,7 +19571,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/router-prefetch/test/index.test.js": {
+  "test/integration/router-prefetch/test/index.test.ts": {
     "passed": [
       "Router prefetch production mode should resolve prefetch promise with invalid href"
     ],
@@ -19583,7 +19583,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/router-rerender/test/index.test.js": {
+  "test/integration/router-rerender/test/index.test.ts": {
     "passed": [
       "router rerender production mode with middleware should not trigger unnecessary rerenders when middleware is used"
     ],
@@ -19630,7 +19630,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scroll-back-restoration/test/index.test.js": {
+  "test/integration/scroll-back-restoration/test/index.test.ts": {
     "passed": [
       "Scroll Back Restoration Support production mode should restore the scroll position on navigating back"
     ],
@@ -19641,7 +19641,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scroll-forward-restoration/test/index.test.js": {
+  "test/integration/scroll-forward-restoration/test/index.test.ts": {
     "passed": [
       "Scroll Forward Restoration Support production mode should restore the scroll position on navigating forward"
     ],
@@ -19652,7 +19652,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/server-asset-modules/test/index.test.js": {
+  "test/integration/server-asset-modules/test/index.test.ts": {
     "passed": [
       "serverside asset modules production mode should enable reading local files in api routes"
     ],
@@ -19663,7 +19663,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/server-side-dev-errors/test/index.test.js": {
+  "test/integration/server-side-dev-errors/test/index.test.ts": {
     "passed": [
       "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic api route correctly",
@@ -19687,7 +19687,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/src-dir-support-double-dir/test/index.test.js": {
+  "test/integration/src-dir-support-double-dir/test/index.test.ts": {
     "passed": [
       "Dynamic Routing production mode should render from pages",
       "Dynamic Routing production mode should render not render from src/pages"
@@ -19700,7 +19700,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/src-dir-support/test/index.test.js": {
+  "test/integration/src-dir-support/test/index.test.ts": {
     "passed": [
       "Dynamic Routing production mode should navigate to a dynamic page successfully",
       "Dynamic Routing production mode should navigate to a nested dynamic page successfully",
@@ -19725,7 +19725,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/ssg-data-404/test/index.test.js": {
+  "test/integration/ssg-data-404/test/index.test.ts": {
     "passed": [
       "SSG data 404 production mode should hard navigate when a new deployment occurs"
     ],
@@ -19736,7 +19736,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/ssg-dynamic-routes-404-page/test/index.test.js": {
+  "test/integration/ssg-dynamic-routes-404-page/test/index.test.ts": {
     "passed": [
       "Custom 404 Page for static site generation with dynamic routes production mode should build successfully",
       "Custom 404 Page for static site generation with dynamic routes production mode should respond to a not existing page with 404"
@@ -19748,7 +19748,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/static-404/test/index.test.js": {
+  "test/integration/static-404/test/index.test.ts": {
     "passed": [
       "Static 404 page With config enabled production mode should export 404 page without custom _error",
       "Static 404 page With config enabled production mode should not export 404 page with custom _error GIP",
@@ -19759,7 +19759,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/static-page-name/test/index.test.js": {
+  "test/integration/static-page-name/test/index.test.ts": {
     "passed": [
       "Static Page Name production mode should navigate to static page name correctly",
       "Static Page Name production mode should render the page via SSR correctly"
@@ -19772,7 +19772,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/styled-jsx-plugin/test/index.test.js": {
+  "test/integration/styled-jsx-plugin/test/index.test.ts": {
     "passed": [
       "styled-jsx using in node_modules production mode should serve a page correctly"
     ],
@@ -19781,7 +19781,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/telemetry/test/config.test.js": {
+  "test/integration/telemetry/test/config.test.ts": {
     "passed": [
       "config telemetry production mode detects i18n and image configs for session start",
       "config telemetry production mode detects output config for session start",
@@ -19811,7 +19811,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/telemetry/test/index.test.js": {
+  "test/integration/telemetry/test/index.test.ts": {
     "passed": [
       "Telemetry CLI can disable telemetry with env NEXT_TELEMETRY_DISABLED",
       "Telemetry CLI can disable telemetry with flag",
@@ -19839,7 +19839,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/telemetry/test/page-features.test.js": {
+  "test/integration/telemetry/test/page-features.test.ts": {
     "passed": [
       "page features telemetry detects correctly for `next dev` stopped (no turbo)",
       "page features telemetry production mode detect with reportWebVitals correctly for `next build`",
@@ -19852,7 +19852,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/trailing-slash-dist/test/index.test.js": {
+  "test/integration/trailing-slash-dist/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -19861,7 +19861,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/trailing-slashes-href-resolving/test/index.test.js": {
+  "test/integration/trailing-slashes-href-resolving/test/index.test.ts": {
     "passed": [
       "href resolving trailing-slash production mode should preload SSG routes correctly",
       "href resolving trailing-slash production mode should route to /another/ correctly",
@@ -19883,7 +19883,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/trailing-slashes-rewrite/test/index.test.js": {
+  "test/integration/trailing-slashes-rewrite/test/index.test.ts": {
     "passed": [
       "Trailing Slash Rewrite Proxying production mode should proxy non-existent page correctly",
       "Trailing Slash Rewrite Proxying production mode should resolve a catch-all page correctly",
@@ -19902,7 +19902,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/tsconfig-verifier/test/index.test.js": {
+  "test/integration/tsconfig-verifier/test/index.test.ts": {
     "passed": [
       "tsconfig.json verifier Creates a default tsconfig.json when one is missing",
       "tsconfig.json verifier Updates an existing tsconfig.json without losing comments",
@@ -19932,7 +19932,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/turborepo-access-trace/test/index.test.js": {
+  "test/integration/turborepo-access-trace/test/index.test.ts": {
     "passed": [
       "build with proxy trace production mode should build and output trace correctly"
     ],
@@ -19941,7 +19941,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/turbotrace-with-webpack-worker/test/index.test.js": {
+  "test/integration/turbotrace-with-webpack-worker/test/index.test.ts": {
     "passed": [
       "build trace with extra entries production mode should build and trace correctly"
     ],
@@ -19950,7 +19950,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typeof-window-replace/test/index.test.js": {
+  "test/integration/typeof-window-replace/test/index.test.ts": {
     "passed": [
       "typeof window replace production mode Does not replace `typeof window` for `node_modules` code",
       "typeof window replace production mode Replaces `typeof window` with object for client code",
@@ -19961,7 +19961,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-app-type-declarations/test/index.test.js": {
+  "test/integration/typescript-app-type-declarations/test/index.test.ts": {
     "passed": [
       "TypeScript App Type Declarations should not touch an existing correct next-env.d.ts",
       "TypeScript App Type Declarations should overwrite next-env.d.ts if an incorrect one exists",
@@ -19972,14 +19972,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-baseurl/test/index.test.js": {
+  "test/integration/typescript-baseurl/test/index.test.ts": {
     "passed": ["TypeScript Features default behavior should render the page"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-custom-tsconfig/test/index.test.js": {
+  "test/integration/typescript-custom-tsconfig/test/index.test.ts": {
     "passed": [
       "Custom TypeScript Config production mode should warn when using custom typescript path"
     ],
@@ -19988,7 +19988,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-external-dir/project/test/index.test.js": {
+  "test/integration/typescript-external-dir/project/test/index.test.ts": {
     "passed": [
       "TypeScript Features default behavior should render the page with external TS/TSX dependencies"
     ],
@@ -20072,7 +20072,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript/test/index.test.js": {
+  "test/integration/typescript/test/index.test.ts": {
     "passed": [
       "TypeScript Features default behavior should not fail to render when an inactive page has an error",
       "TypeScript Features default behavior should render the angle bracket type assertions page",
