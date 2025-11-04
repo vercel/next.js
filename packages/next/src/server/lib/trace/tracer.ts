@@ -353,11 +353,18 @@ class NextTracerImpl implements NextTracer {
               )
             )
           }
-          try {
-            if (fn.length > 1) {
+          if (fn.length > 1) {
+            try {
               return fn(span, (err) => closeSpanWithError(span, err))
+            } catch (err: any) {
+              closeSpanWithError(span, err)
+              throw err
+            } finally {
+              onCleanup()
             }
+          }
 
+          try {
             const result = fn(span)
             if (isThenable(result)) {
               // If there's error make sure it throws
@@ -375,14 +382,14 @@ class NextTracerImpl implements NextTracer {
                 .finally(onCleanup)
             } else {
               span.end()
+              onCleanup()
             }
 
             return result
           } catch (err: any) {
             closeSpanWithError(span, err)
-            throw err
-          } finally {
             onCleanup()
+            throw err
           }
         }
       )
