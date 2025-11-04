@@ -502,9 +502,6 @@ impl PagesProject {
     async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
             self.project().project_path().owned().await?,
-            // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
-            // matter (for now at least) because `get_server_resolve_options_context` doesn't
-            // differentiate between the two.
             ServerContextType::Pages {
                 pages_dir: self.pages_dir().owned().await?,
             },
@@ -519,9 +516,6 @@ impl PagesProject {
     async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
             self.project().project_path().owned().await?,
-            // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
-            // matter (for now at least) because `get_server_resolve_options_context` doesn't
-            // differentiate between the two.
             ServerContextType::Pages {
                 pages_dir: self.pages_dir().owned().await?,
             },

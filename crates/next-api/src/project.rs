@@ -61,7 +61,8 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, StyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage,
+        OptionStyledString, StyledString,
     },
     module::Module,
     module_graph::{
@@ -1530,15 +1531,14 @@ impl Project {
         // In development watch mode, keep issues so individual routes can report them.
         // In non-watch dev mode (e.g. next build --debug-prerender) or production, drop issues
         // so every route doesn't redundantly re-report all shared graph issues.
-        let module_graphs_vc = if !self.next_mode().await?.is_production()
-            && *self.is_watch_enabled().await?
-        {
-            module_graphs_op.connect()
-        } else {
-            let vc = module_graphs_op.resolve().strongly_consistent().await?;
-            module_graphs_op.drop_issues();
-            *vc
-        };
+        let module_graphs_vc =
+            if !self.next_mode().await?.is_production() && *self.is_watch_enabled().await? {
+                module_graphs_op.connect()
+            } else {
+                let vc = module_graphs_op.resolve().strongly_consistent().await?;
+                module_graphs_op.drop_issues();
+                *vc
+            };
         scale_down_node_pool(self).await?;
         Ok(module_graphs_vc)
     }
