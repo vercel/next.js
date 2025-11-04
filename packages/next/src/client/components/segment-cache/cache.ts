@@ -1654,7 +1654,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const isResponsePartial =
       fetchStrategy === FetchStrategy.PPRRuntime
         ? // A runtime prefetch may have holes.
-          serverData.iP === true
+          serverData.rp?.[0] === true
         : // Full and LoadingBoundary prefetches cannot have holes.
           // (even if we did set the prefetch header, we only use this codepath for non-PPR-enabled routes)
           false
@@ -1719,10 +1719,11 @@ function writeDynamicTreeResponseIntoCache(
   }
 
   const flightRouterState = flightData.tree
-  // If the staleTime is present in the response body, use it. Otherwise, fall back to the header.
+  // For runtime prefetches, stale time is in the payload at rp[1].
+  // For other responses, fall back to the header.
   const staleTimeSeconds =
-    typeof serverData.st === 'number'
-      ? serverData.st
+    typeof serverData.rp?.[1] === 'number'
+      ? serverData.rp[1]
       : parseInt(response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '', 10)
   const staleTimeMs = !isNaN(staleTimeSeconds)
     ? getStaleTimeMs(staleTimeSeconds)
@@ -1814,10 +1815,11 @@ function writeDynamicRenderResponseIntoCache(
     return null
   }
 
-  // If the staleTime is present in the response body, use it. Otherwise, fall back to the header.
+  // For runtime prefetches, stale time is in the payload at rp[1].
+  // For other responses, fall back to the header.
   const staleTimeSeconds =
-    typeof serverData.st === 'number'
-      ? serverData.st
+    typeof serverData.rp?.[1] === 'number'
+      ? serverData.rp[1]
       : parseInt(response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '', 10)
   const staleTimeMs = !isNaN(staleTimeSeconds)
     ? getStaleTimeMs(staleTimeSeconds)

@@ -300,10 +300,8 @@ export type NavigationFlightResponse = {
   f: FlightData
   /** prerendered */
   S: boolean
-  /** isPartial - indicates if response is partial. Only present in runtime prefetch responses. */
-  iP?: boolean
-  /** staleTime - how long (in seconds) the client should cache this response. Only present in runtime prefetch responses. */
-  st?: number
+  /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
+  rp?: [boolean, number]
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

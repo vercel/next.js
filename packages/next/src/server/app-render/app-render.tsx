@@ -47,6 +47,7 @@ import {
   streamToString,
   continueStaticFallbackPrerender,
 } from '../stream-utils/node-web-streams-helper'
+import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_HMR_REFRESH_HEADER,
@@ -454,7 +455,7 @@ async function generateDynamicRSCPayload(
   options?: {
     actionResult?: ActionResult
     skipFlight?: boolean
-    isRuntimePrefetch?: boolean
+    runtimePrefetchSentinel?: number
   }
 ): Promise<RSCPayload> {
   // Flight data that is going to be passed to the browser.
@@ -553,14 +554,11 @@ async function generateDynamicRSCPayload(
 
   // For runtime prefetches, we encode the stale time and isPartial flag in the response body
   // rather than relying on response headers. Both of these values will be transformed
-  // by a transform stream before being sent to the client. Rather than initializing with
-  // real values, we use sentinel values that will be replaced by a transform stream after
-  // we've collected the values during render.
-  if (options?.isRuntimePrefetch) {
+  // by a transform stream before being sent to the client.
+  if (options?.runtimePrefetchSentinel !== undefined) {
     return {
       ...baseResponse,
-      iP: '__NEXT_POSTPONED_SENTINEL__' as any,
-      st: '__NEXT_STALE_TIME_SENTINEL__' as any,
+      rp: [options.runtimePrefetchSentinel] as any,
     }
   }
 
@@ -865,8 +863,14 @@ async function generateRuntimePrefetchResult(
 
   const metadata: AppPageRenderResultMetadata = {}
 
+  // Generate a random sentinel that will be used as a placeholder in the payload
+  // and later replaced by the transform stream
+  const runtimePrefetchSentinel = Math.floor(
+    Math.random() * Number.MAX_SAFE_INTEGER
+  )
+
   const generatePayload = () =>
-    generateDynamicRSCPayload(ctx, { isRuntimePrefetch: true })
+    generateDynamicRSCPayload(ctx, { runtimePrefetchSentinel })
 
   const {
     componentMod: {
@@ -904,7 +908,8 @@ async function generateRuntimePrefetchResult(
     requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode,
-    onError
+    onError,
+    runtimePrefetchSentinel
   )
 
   applyMetadataFromPrerenderResult(response, metadata, workStore)
@@ -1049,141 +1054,154 @@ async function prospectiveRuntimeServerPrerender(
   }
 }
 /**
- * Updates two fields in the RSC payload as it streams:
- *   - "iP":"__NEXT_POSTPONED_SENTINEL__"  -> "iP":<true|false>
- *   - "st":"__NEXT_STALE_TIME_SENTINEL__" -> "st":<staleTime>
+ * Updates the runtime prefetch metadata in the RSC payload as it streams:
+ *   "rp":[<sentinel>] -> "rp":[<isPartial>,<staleTime>]
  *
  * We use a transform stream to do this to avoid needing to trigger an additional render.
- * We use exact byte patterns to avoid TextDecoder overhead.
+ * A random sentinel number guarantees no collision with user data.
  */
 function createRuntimePrefetchTransformStream(
+  sentinel: number,
   isPartial: boolean,
   staleTime: number
 ): TransformStream<Uint8Array, Uint8Array> {
   const encoder = new TextEncoder()
-  // Pattern 1: "iP":"__NEXT_POSTPONED_SENTINEL__"
-  const searchIP = encoder.encode('"iP":"__NEXT_POSTPONED_SENTINEL__"')
-  const replaceIP = encoder.encode(`"iP":${isPartial}`)
 
-  // Pattern 2: "st":"__NEXT_STALE_TIME_SENTINEL__"
-  const searchST = encoder.encode('"st":"__NEXT_STALE_TIME_SENTINEL__"')
-  const replaceST = encoder.encode(`"st":${staleTime}`)
+  // Search for: "rp":[<sentinel>]
+  // Replace with: "rp":[<isPartial>,<staleTime>]
+  const search = encoder.encode(`"rp":[${sentinel}]`)
+  const replace = encoder.encode(`"rp":[${isPartial},${staleTime}]`)
 
-  // keep around a small buffer from the previous chunk in case a pattern straddles the boundary
-  const keepBack = Math.max(searchIP.length, searchST.length) - 1
+  const searchLen = search.length
 
-  let buffer: Uint8Array = new Uint8Array(0)
-  let finishedPartial = false
-  let finishedStaletime = false
-  let passthrough = false
+  // Reusable boundary buffer for cross-chunk checks (last N-1 of prev + first N-1 of curr)
+  const boundaryBuf: Uint8Array<ArrayBufferLike> = new Uint8Array(
+    Math.max(0, (searchLen - 1) * 2)
+  )
 
-  /**
-   * Finds the first occurrence of a subarray (`needle`) within a Uint8Array (`hay`).
-   * This is a simple byte-level search loop optimized for small, fixed ASCII patterns.
-   * It behaves like `String#indexOf` but works directly on binary data.
-   */
-  function indexOf(hay: Uint8Array, needle: Uint8Array): number {
-    const n = needle.length
-    if (hay.length < n) return -1
-    const first = needle[0] // first-byte prefilter to skip most positions quickly
-    for (let i = 0; i <= hay.length - n; i++) {
-      if (hay[i] !== first) continue
-      let j = 1
-      for (; j < n; j++) {
-        if (hay[i + j] !== needle[j]) break
-      }
-      if (j === n) return i
-    }
-    return -1
-  }
-
-  function replaceNext(
-    controller: TransformStreamDefaultController<Uint8Array>
-  ): boolean {
-    // Find whichever pattern appears first in the current buffer
-    let bestIdx = Infinity
-    let which: 'ip' | 'st' | null = null
-
-    if (!finishedPartial) {
-      const idx = indexOf(buffer, searchIP)
-      if (idx !== -1 && idx < bestIdx) {
-        bestIdx = idx
-        which = 'ip'
-      }
-    }
-    if (!finishedStaletime) {
-      const idx = indexOf(buffer, searchST)
-      if (idx !== -1 && idx < bestIdx) {
-        bestIdx = idx
-        which = 'st'
-      }
-    }
-    if (which == null) return false
-
-    const search = which === 'ip' ? searchIP : searchST
-    const repl = which === 'ip' ? replaceIP : replaceST
-
-    // flush all bytes before the match
-    if (bestIdx > 0) {
-      controller.enqueue(buffer.subarray(0, bestIdx))
-    }
-
-    // enqueue the replacement bytes
-    controller.enqueue(repl)
-
-    // keep the suffix after the matched pattern
-    buffer = buffer.subarray(bestIdx + search.length)
-
-    if (which === 'ip') {
-      finishedPartial = true
-    } else {
-      finishedStaletime = true
-    }
-
-    return true
-  }
+  let previousChunk: Uint8Array<ArrayBufferLike> | null = null
+  let found = false
 
   return new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
-      if (passthrough) {
+      if (found) {
+        // Already replaced, just pass through
         controller.enqueue(chunk)
         return
       }
 
-      if (buffer.length === 0) {
-        buffer = chunk
-      } else {
-        const next = new Uint8Array(buffer.length + chunk.length)
-        next.set(buffer)
-        next.set(chunk, buffer.length)
-        buffer = next
-      }
-
-      // Replace as many as possible with current bytes
-      while (!finishedPartial || !finishedStaletime) {
-        const replaced = replaceNext(controller)
-        if (!replaced) break
-      }
-
-      // If still not done, flush all but the overlap to bound memory
-      if (!finishedPartial || !finishedStaletime) {
-        if (buffer.length > keepBack) {
-          const flushLen = buffer.length - keepBack
-          controller.enqueue(buffer.subarray(0, flushLen))
-          buffer = buffer.subarray(flushLen)
+      if (previousChunk === null) {
+        // First chunk: scan it immediately (don’t hold if we can finish now)
+        const idx = indexOfUint8Array(chunk, search)
+        if (idx !== -1) {
+          if (idx > 0) controller.enqueue(chunk.subarray(0, idx))
+          controller.enqueue(replace)
+          const after = idx + searchLen
+          if (after < chunk.length) controller.enqueue(chunk.subarray(after))
+          found = true
+          return
         }
-      } else {
-        // Done: flush remainder and switch to pure pass-through
-        if (buffer.length) {
-          controller.enqueue(buffer)
+        // Not found; hold it to check boundary on next chunk
+        previousChunk = chunk
+        return
+      }
+
+      // 1) Check if pattern lives entirely in the previous chunk
+      let matchIndex = indexOfUint8Array(previousChunk, search)
+      if (matchIndex !== -1) {
+        if (matchIndex > 0)
+          controller.enqueue(previousChunk.subarray(0, matchIndex))
+        controller.enqueue(replace)
+        const afterPrev = matchIndex + searchLen
+        if (afterPrev < previousChunk.length) {
+          controller.enqueue(previousChunk.subarray(afterPrev))
+        }
+        controller.enqueue(chunk) // pass current chunk through untouched
+        previousChunk = null
+        found = true
+        return
+      }
+
+      // 2) Check if pattern spans the boundary prev|curr
+      const tailLen = Math.min(previousChunk.length, searchLen - 1)
+      const headLen = Math.min(chunk.length, searchLen - 1)
+      const boundaryLen = tailLen + headLen
+
+      // Fill boundary: tail of prev + head of curr
+      if (boundaryLen > 0) {
+        if (tailLen > 0) {
+          boundaryBuf.set(
+            previousChunk.subarray(
+              previousChunk.length - tailLen,
+              previousChunk.length
+            ),
+            0
+          )
+        }
+        if (headLen > 0) {
+          boundaryBuf.set(chunk.subarray(0, headLen), tailLen)
+        }
+      }
+
+      matchIndex = indexOfUint8Array(
+        boundaryBuf.subarray(0, boundaryLen),
+        search
+      )
+      if (matchIndex !== -1) {
+        // Compute start of the match in the concatenated (prev + curr) space
+        const startInConcat = previousChunk.length - tailLen + matchIndex
+
+        // Emit prefix from prev up to the start, then replacement
+        if (startInConcat > 0) {
+          controller.enqueue(previousChunk.subarray(0, startInConcat))
+        }
+        controller.enqueue(replace)
+
+        // Figure out how much of the match consumed prev vs curr
+        const endInConcat = startInConcat + searchLen
+        if (endInConcat <= previousChunk.length) {
+          // Match ends inside prev; emit remaining prev and the whole current chunk
+          if (endInConcat < previousChunk.length) {
+            controller.enqueue(previousChunk.subarray(endInConcat))
+          }
+          controller.enqueue(chunk)
+        } else {
+          // Match spills into current chunk; emit the remainder of current after the match
+          const consumedFromCurr = endInConcat - previousChunk.length
+          if (consumedFromCurr < chunk.length) {
+            controller.enqueue(chunk.subarray(consumedFromCurr))
+          }
         }
 
-        buffer = new Uint8Array(0)
-        passthrough = true
+        previousChunk = null
+        found = true
+        return
       }
+
+      // 3) No match (not in prev and not across the boundary) — emit prev, hold curr
+      controller.enqueue(previousChunk)
+      previousChunk = chunk
     },
+
     flush(controller) {
-      if (buffer.length) controller.enqueue(buffer)
+      if (!previousChunk) return
+
+      if (!found) {
+        const matchIndex = indexOfUint8Array(previousChunk, search)
+        if (matchIndex !== -1) {
+          if (matchIndex > 0) {
+            controller.enqueue(previousChunk.subarray(0, matchIndex))
+          }
+          controller.enqueue(replace)
+          const after = matchIndex + searchLen
+          if (after < previousChunk.length) {
+            controller.enqueue(previousChunk.subarray(after))
+          }
+          return
+        }
+      }
+
+      controller.enqueue(previousChunk)
     },
   })
 }
@@ -1197,7 +1215,8 @@ async function finalRuntimeServerPrerender(
   headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode'],
-  onError: (err: unknown) => string | undefined
+  onError: (err: unknown) => string | undefined,
+  runtimePrefetchSentinel: number
 ) {
   const { implicitTags, renderOpts } = ctx
 
@@ -1300,11 +1319,15 @@ async function finalRuntimeServerPrerender(
     }
   )
 
-  // Update the RSC payload stream to set the correct `iP` (isPartial) and `st` (staleTime) values.
-  // React has already serialized the payload with sentinel values, so we need to transform the stream.
+  // Update the RSC payload stream to replace the sentinel with actual values.
+  // React has already serialized the payload with the sentinel, so we need to transform the stream.
   const collectedStale = selectStaleTime(finalServerPrerenderStore.stale)
   result.prelude = result.prelude.pipeThrough(
-    createRuntimePrefetchTransformStream(serverIsDynamic, collectedStale)
+    createRuntimePrefetchTransformStream(
+      runtimePrefetchSentinel,
+      serverIsDynamic,
+      collectedStale
+    )
   )
 
   return {
