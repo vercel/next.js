@@ -6,7 +6,8 @@ import {
   formatNodeOptions,
   getNodeDebugType,
   getParsedDebugAddress,
-  getParsedNodeOptionsWithoutInspect,
+  getParsedNodeOptions,
+  type DebugAddress,
 } from '../server/lib/utils'
 
 type FarmOptions = NonNullable<ConstructorParameters<typeof JestWorker>[1]>
@@ -78,19 +79,25 @@ export class Worker {
       this.close()
     })
 
-    const nodeOptions = getParsedNodeOptionsWithoutInspect()
-
+    const nodeOptions = getParsedNodeOptions()
+    const originalOptions = { ...nodeOptions }
+    delete nodeOptions.inspect
+    delete nodeOptions['inspect-brk']
+    delete nodeOptions['inspect_brk']
     if (debuggerPortOffset !== -1) {
-      const nodeDebugType = getNodeDebugType()
+      const nodeDebugType = getNodeDebugType(originalOptions)
       if (nodeDebugType) {
-        const address = getParsedDebugAddress()
-        address.port =
-          address.port === 0
-            ? 0
-            : address.port +
-              // current process runs on `address.port`
-              1 +
-              debuggerPortOffset
+        const debuggerAddress = getParsedDebugAddress(
+          originalOptions[nodeDebugType]
+        )
+        const address: DebugAddress = {
+          host: debuggerAddress.host,
+          // current process runs on `address.port`
+          port:
+            debuggerAddress.port === 0
+              ? 0
+              : debuggerAddress.port + 1 + debuggerPortOffset,
+        }
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
       }
     }

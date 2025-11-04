@@ -198,9 +198,6 @@ export function getDefineEnv({
       clientRouterFilters?.staticFilter ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_D_FILTER':
       clientRouterFilters?.dynamicFilter ?? false,
-    'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
-      config.experimental.clientSegmentCache
-    ),
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),

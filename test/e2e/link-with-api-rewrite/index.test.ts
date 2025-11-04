@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
@@ -27,8 +27,8 @@ describe('link-with-api-rewrite', () => {
       // unset).
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementById('rewrite').click()
-      await check(() => browser.eval('window.beforeNav'), {
-        test: (content) => content !== 'hi',
+      await retry(async () => {
+        expect(await browser.eval('window.beforeNav')).not.toEqual('hi')
       })
 
       // Check to see that we were in fact navigated to the correct page.
@@ -54,8 +54,8 @@ describe('link-with-api-rewrite', () => {
       // unset).
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementById('direct').click()
-      await check(() => browser.eval('window.beforeNav'), {
-        test: (content) => content !== 'hi',
+      await retry(async () => {
+        expect(await browser.eval('window.beforeNav')).not.toEqual('hi')
       })
 
       // Check to see that we were in fact navigated to the correct page.

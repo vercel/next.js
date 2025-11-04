@@ -176,7 +176,7 @@ impl GraphEntries {
     }
 }
 
-#[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
+#[turbo_tasks::value(cell = "new", eq = "manual")]
 #[derive(Clone, Default)]
 pub struct SingleModuleGraph {
     pub graph: TracedDiGraph<SingleModuleGraphNode, RefData>,
@@ -1241,7 +1241,6 @@ macro_rules! get_node_idx {
         }
     }};
 }
-pub(crate) use get_node_idx;
 
 impl ModuleGraph {
     pub async fn read_graphs(self: Vc<ModuleGraph>) -> Result<ModuleGraphRef> {

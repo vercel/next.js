@@ -19,6 +19,10 @@ on:
         description: Override the proxy address to use for the test
         default: ''
         type: string
+      continueOnError:
+        description: whether the tests should continue on failure
+        default: false
+        type: boolean
 
 env:
   TURBO_TEAM: 'vercel'
@@ -81,6 +85,7 @@ jobs:
         NEXT_E2E_TEST_TIMEOUT=240000 \
         NEXT_TEST_MODE=deploy \
         IS_WEBPACK_TEST=1 \
+        NEXT_TEST_CONTINUE_ON_ERROR="${{ github.event.inputs.continueOnError || false }}" \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \

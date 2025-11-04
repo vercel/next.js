@@ -143,7 +143,7 @@ fn load_image_internal(
     bytes: &[u8],
     extension: &str,
 ) -> Result<(ImageBuffer, Option<ImageFormat>)> {
-    let reader = image::io::Reader::new(Cursor::new(&bytes));
+    let reader = image::ImageReader::new(Cursor::new(&bytes));
     let mut reader = reader
         .with_guessed_format()
         .context("unable to determine image format from file content")?;

@@ -85,6 +85,7 @@ import {
   writeRouteTypesManifest,
   writeValidatorFile,
 } from './route-types-utils'
+import { writeCacheLifeTypes } from './cache-life-type-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile } from '../../../build/lockfile'
@@ -370,6 +371,7 @@ async function startWatcher(
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
+    let initialWatchTime = performance.now() + performance.timeOrigin
     wp.on('aggregated', async () => {
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
@@ -444,14 +446,21 @@ async function startWatcher(
         const meta = knownFiles.get(fileName)
 
         const watchTime = fileWatchTimes.get(fileName)
+        const nextWatchTime = meta?.timestamp
         // If the file is showing up for the first time or the meta.timestamp is changed since last time
-        const watchTimeChange =
-          watchTime === undefined ||
-          (watchTime && watchTime !== meta?.timestamp)
-        fileWatchTimes.set(fileName, meta?.timestamp)
+        // Files that were created before we started watching are not considered changed.
+        // If any file was created by Next.js while booting, we assume those changes
+        // are handled in the bootstrap phase.
+        // Files that existed before we booted should be handled during bootstrapping.
+        const fileChanged =
+          (watchTime === undefined &&
+            (nextWatchTime === undefined ||
+              nextWatchTime >= initialWatchTime)) ||
+          (watchTime && watchTime !== nextWatchTime)
+        fileWatchTimes.set(fileName, nextWatchTime)
 
         if (envFiles.includes(fileName)) {
-          if (watchTimeChange) {
+          if (fileChanged) {
             envChange = true
           }
           continue
@@ -461,7 +470,7 @@ async function startWatcher(
           if (fileName.endsWith('tsconfig.json')) {
             enabledTypeScript = true
           }
-          if (watchTimeChange) {
+          if (fileChanged) {
             tsconfigChange = true
           }
           continue
@@ -1165,6 +1174,10 @@ async function startWatcher(
             opts.nextConfig
           )
           await writeValidatorFile(routeTypesManifest, validatorFilePath)
+
+          // Generate cache-life types if cacheLife config exists
+          const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
+          writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
         }
 
         if (!resolved) {

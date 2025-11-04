@@ -115,7 +115,7 @@ describe('Error recovery app', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     await check(
       () => session.evaluate(() => document.querySelector('p').textContent),
@@ -384,7 +384,7 @@ describe('Error recovery app', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(await session.hasErrorToast()).toBe(false)
 
     expect(
@@ -395,7 +395,7 @@ describe('Error recovery app', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(await session.hasErrorToast()).toBe(false)
   })
 
@@ -472,7 +472,7 @@ describe('Error recovery app', () => {
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     // expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello')
@@ -566,7 +566,7 @@ describe('Error recovery app', () => {
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     // expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello')
@@ -868,7 +868,7 @@ describe('Error recovery app', () => {
     )
 
     // Expected: this fixes the problem
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262

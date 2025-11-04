@@ -14,7 +14,7 @@ pub(crate) struct NextFontIssue {
 impl Issue for NextFontIssue {
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::CodeGen.into()
+        IssueStage::CodeGen.cell()
     }
 
     fn severity(&self) -> IssueSeverity {
