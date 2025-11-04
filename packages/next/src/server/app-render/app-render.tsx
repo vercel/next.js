@@ -553,12 +553,14 @@ async function generateDynamicRSCPayload(
 
   // For runtime prefetches, we encode the stale time and isPartial flag in the response body
   // rather than relying on response headers. Both of these values will be transformed
-  // by a transform stream before being sent to the client. We use `-1` as a sentinel value.
+  // by a transform stream before being sent to the client. Rather than initializing with
+  // real values, we use sentinel values that will be replaced by a transform stream after
+  // we've collected the values during render.
   if (options?.isRuntimePrefetch) {
     return {
       ...baseResponse,
-      iP: false,
-      st: -1,
+      iP: '__NEXT_POSTPONED_SENTINEL__' as any,
+      st: '__NEXT_STALE_TIME_SENTINEL__' as any,
     }
   }
 
@@ -1048,41 +1050,30 @@ async function prospectiveRuntimeServerPrerender(
 }
 /**
  * Updates two fields in the RSC payload as it streams:
- *   - "iP":false  -> "iP":<true|false> (if isPartial is true; otherwise no-op)
- *   - "st":-1     -> "st":<staleTime>
+ *   - "iP":"__NEXT_POSTPONED_SENTINEL__"  -> "iP":<true|false>
+ *   - "st":"__NEXT_STALE_TIME_SENTINEL__" -> "st":<staleTime>
  *
  * We use a transform stream to do this to avoid needing to trigger an additional render.
- * Assumes stable wire format (no spaces in these fields).
- * We use exact byte patterns to avoid TextDecoder overhead
+ * We use exact byte patterns to avoid TextDecoder overhead.
  */
 function createRuntimePrefetchTransformStream(
   isPartial: boolean,
   staleTime: number
 ): TransformStream<Uint8Array, Uint8Array> {
-  // Exact byte patterns (ASCII literals)
-  const searchIP = new Uint8Array([34, 105, 80, 34, 58, 102, 97, 108, 115, 101]) // '"iP":false'
-  const replaceIP = isPartial
-    ? new Uint8Array([34, 105, 80, 34, 58, 116, 114, 117, 101]) // '"iP":true'
-    : searchIP // no-op if not partial
+  const encoder = new TextEncoder()
+  // Pattern 1: "iP":"__NEXT_POSTPONED_SENTINEL__"
+  const searchIP = encoder.encode('"iP":"__NEXT_POSTPONED_SENTINEL__"')
+  const replaceIP = encoder.encode(`"iP":${isPartial}`)
 
-  const searchST = new Uint8Array([34, 115, 116, 34, 58, 45, 49]) // '"st":-1'
-  const staleStr = String(staleTime)
-  const replaceST = new Uint8Array(5 + staleStr.length) // '"st":' + <digits>
-  replaceST[0] = 34 // "
-  replaceST[1] = 115 // s
-  replaceST[2] = 116 // t
-  replaceST[3] = 34 // "
-  replaceST[4] = 58 // :
-  // encode the numeric stale time value
-  for (let i = 0; i < staleStr.length; i++) {
-    replaceST[5 + i] = staleStr.charCodeAt(i)
-  }
+  // Pattern 2: "st":"__NEXT_STALE_TIME_SENTINEL__"
+  const searchST = encoder.encode('"st":"__NEXT_STALE_TIME_SENTINEL__"')
+  const replaceST = encoder.encode(`"st":${staleTime}`)
 
   // keep around a small buffer from the previous chunk in case a pattern straddles the boundary
   const keepBack = Math.max(searchIP.length, searchST.length) - 1
 
-  let buffer: Uint8Array<ArrayBufferLike> = new Uint8Array(0)
-  let finishedPartial = !isPartial // if not partial, we don't need to patch "iP"
+  let buffer: Uint8Array = new Uint8Array(0)
+  let finishedPartial = false
   let finishedStaletime = false
   let passthrough = false
 
@@ -1094,9 +1085,14 @@ function createRuntimePrefetchTransformStream(
   function indexOf(hay: Uint8Array, needle: Uint8Array): number {
     const n = needle.length
     if (hay.length < n) return -1
-    outer: for (let i = 0; i <= hay.length - n; i++) {
-      for (let j = 0; j < n; j++) if (hay[i + j] !== needle[j]) continue outer
-      return i
+    const first = needle[0] // first-byte prefilter to skip most positions quickly
+    for (let i = 0; i <= hay.length - n; i++) {
+      if (hay[i] !== first) continue
+      let j = 1
+      for (; j < n; j++) {
+        if (hay[i + j] !== needle[j]) break
+      }
+      if (j === n) return i
     }
     return -1
   }
@@ -1164,7 +1160,6 @@ function createRuntimePrefetchTransformStream(
       }
 
       // Replace as many as possible with current bytes
-
       while (!finishedPartial || !finishedStaletime) {
         const replaced = replaceNext(controller)
         if (!replaced) break
@@ -1306,7 +1301,7 @@ async function finalRuntimeServerPrerender(
   )
 
   // Update the RSC payload stream to set the correct `iP` (isPartial) and `st` (staleTime) values.
-  // React has already serialized the payload with placeholder values, so we need to transform the stream.
+  // React has already serialized the payload with sentinel values, so we need to transform the stream.
   const collectedStale = selectStaleTime(finalServerPrerenderStore.stale)
   result.prelude = result.prelude.pipeThrough(
     createRuntimePrefetchTransformStream(serverIsDynamic, collectedStale)
