@@ -1,6 +1,6 @@
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { BinaryStreamOf } from './app-render'
-import { Readable } from 'stream'
+import type { Readable } from 'stream'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -69,6 +69,8 @@ export function getFlightStream<T>(
       endTime: debugEndTime,
     })
   } else {
+    const { Readable } = require('stream') as typeof import('stream')
+
     // The types of flightStream and debugStream should match.
     if (debugStream && !(debugStream instanceof Readable)) {
       throw new InvariantError('Expected debug stream to be a Readable')
