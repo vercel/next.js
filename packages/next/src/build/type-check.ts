@@ -7,7 +7,6 @@ import { Worker } from '../lib/worker'
 import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'
 import isError from '../lib/is-error'
-import { hrtimeDurationToString } from './duration-to-string'
 
 /**
  * typescript will be loaded in "next/lib/verify-typescript-setup" and
@@ -127,11 +126,7 @@ export async function startTypeChecking({
       )
 
     if (typeCheckingSpinner) {
-      typeCheckingSpinner.stop()
-
-      createSpinner(
-        `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
-      )?.stopAndPersist()
+      typeCheckingSpinner.stopAndPersist()
     }
 
     if (!ignoreTypeScriptErrors && verifyResult) {

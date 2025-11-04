@@ -12,33 +12,36 @@ describe('next build --debug', () => {
     output = stripAnsi(next.cliOutput)
   })
 
-  const str = `
-
-
-Redirects
-┌ source: /:path+/
-├ destination: /:path+
-└ permanent: true
-
-┌ source: /redirects
-├ destination: /
-└ permanent: true
-
-
-Headers
-┌ source: /
-└ headers:
-  └ x-custom-headers: headers
-
-
-Rewrites
-┌ source: /rewrites
-└ destination: /
-
-
-Route (app)`
-
   it('should log Redirects above Route(app)', async () => {
-    expect(output).toContain(str)
+    let data = output
+      .slice(output.indexOf('Redirects\n'), output.indexOf('○  (Static)'))
+      .trim()
+
+    expect(data).toMatchInlineSnapshot(`
+     "Redirects
+     ┌ source: /:path+/
+     ├ destination: /:path+
+     └ permanent: true
+
+     ┌ source: /redirects
+     ├ destination: /
+     └ permanent: true
+
+
+     Headers
+     ┌ source: /
+     └ headers:
+       └ x-custom-headers: headers
+
+
+     Rewrites
+     ┌ source: /rewrites
+     └ destination: /
+
+
+     Route (app)
+     ┌ ○ /
+     └ ○ /_not-found"
+    `)
   })
 })

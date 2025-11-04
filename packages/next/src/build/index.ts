@@ -211,7 +211,7 @@ import { turbopackBuild } from './turbopack-build'
 import { isFileSystemCacheEnabledForBuild } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
-import { durationToString, hrtimeDurationToString } from './duration-to-string'
+import { durationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
 import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
@@ -1915,7 +1915,6 @@ export default async function build(
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
-      const collectingPageDataStart = process.hrtime()
       const postCompileSpinner = createSpinner('Collecting page data')
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
@@ -2478,10 +2477,6 @@ export default async function build(
       })
 
       if (postCompileSpinner) {
-        const collectingPageDataEnd = process.hrtime(collectingPageDataStart)
-        postCompileSpinner.setText(
-          `Collecting page data in ${hrtimeDurationToString(collectingPageDataEnd)}`
-        )
         postCompileSpinner.stopAndPersist()
       }
       traceMemoryUsage('Finished collecting page data', nextBuildSpan)
@@ -3987,15 +3982,6 @@ export default async function build(
           .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
       }
 
-      const finalizingPageOptimizationStart = process.hrtime()
-      const postBuildSpinner = createSpinner('Finalizing page optimization')
-      let buildTracesSpinner
-      let buildTracesStart
-      if (buildTracesPromise) {
-        buildTracesStart = process.hrtime()
-        buildTracesSpinner = createSpinner('Collecting build traces')
-      }
-
       // ensure the worker is not left hanging
       worker.end()
 
@@ -4141,17 +4127,15 @@ export default async function build(
           })
       }
 
+      let buildTracesSpinner
+      if (buildTracesPromise) {
+        buildTracesSpinner = createSpinner('Collecting build traces')
+      }
+
       await buildTracesPromise
 
       if (buildTracesSpinner) {
-        if (buildTracesStart) {
-          const buildTracesEnd = process.hrtime(buildTracesStart)
-          buildTracesSpinner.setText(
-            `Collecting build traces in ${hrtimeDurationToString(buildTracesEnd)}`
-          )
-        }
         buildTracesSpinner.stopAndPersist()
-        buildTracesSpinner = undefined
       }
 
       if (proxyFilePath && bundler !== Bundler.Turbopack) {
@@ -4172,6 +4156,7 @@ export default async function build(
       }
 
       if (config.output === 'export') {
+        const spinner = createSpinner('Outputting static export')
         await nextBuildSpan
           .traceChild('output-export-full-static-export')
           .traceAsyncFn(async () => {
@@ -4184,6 +4169,8 @@ export default async function build(
               appDirOnly
             )
           })
+
+        spinner.stopAndPersist()
       }
 
       // This should come after output: export handling but before
@@ -4191,6 +4178,7 @@ export default async function build(
       // not be allowed if an adapter with onBuildComplete is configured
       const adapterPath = config.experimental.adapterPath
       if (adapterPath) {
+        const spinner = createSpinner('Finalizing build with adapter')
         await nextBuildSpan
           .traceChild('adapter-handle-build-complete')
           .traceAsyncFn(async () => {
@@ -4218,9 +4206,11 @@ export default async function build(
               requiredServerFiles: requiredServerFilesManifest.files,
             })
           })
+        spinner.stopAndPersist()
       }
 
       if (config.output === 'standalone') {
+        const spinner = createSpinner('Generating standalone output')
         await nextBuildSpan
           .traceChild('output-standalone')
           .traceAsyncFn(async () => {
@@ -4239,18 +4229,8 @@ export default async function build(
               appDir
             )
           })
+        spinner.stopAndPersist()
       }
-
-      if (postBuildSpinner) {
-        const finalizingPageOptimizationEnd = process.hrtime(
-          finalizingPageOptimizationStart
-        )
-        postBuildSpinner.setText(
-          `Finalizing page optimization in ${hrtimeDurationToString(finalizingPageOptimizationEnd)}`
-        )
-        postBuildSpinner.stopAndPersist()
-      }
-      console.log()
 
       if (debugOutput) {
         nextBuildSpan

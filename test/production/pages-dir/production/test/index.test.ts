@@ -116,8 +116,8 @@ describe('Production Usage', () => {
     expect(next.cliOutput).toContain(
       `Generating static pages (${pageCount}/${pageCount})`
     )
-    // we should only have 4 segments and the initial message logged out
-    expect(next.cliOutput.match(/Generating static pages/g).length).toBe(5)
+    // we should have 4 segments, the initial message, and the final one with time
+    expect(next.cliOutput.match(/Generating static pages/g).length).toBe(6)
   })
 
   it('should output traces', async () => {

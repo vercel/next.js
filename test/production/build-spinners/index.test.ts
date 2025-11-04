@@ -144,7 +144,6 @@ describe('build-spinners', () => {
     let optimizedBuildIdx = -1
     let collectingPageDataIdx = -1
     let generatingStaticIdx = -1
-    let finalizingOptimization = -1
 
     // order matters so we check output from end to start
     for (let i = output.length - 1; i--; i >= 0) {
@@ -174,24 +173,15 @@ describe('build-spinners', () => {
       ) {
         generatingStaticIdx = i
       }
-
-      if (
-        finalizingOptimization === -1 &&
-        line.includes('Finalizing page optimization')
-      ) {
-        finalizingOptimization = i
-      }
     }
 
     expect(compiledIdx).not.toBe(-1)
     expect(optimizedBuildIdx).not.toBe(-1)
     expect(collectingPageDataIdx).not.toBe(-1)
     expect(generatingStaticIdx).not.toBe(-1)
-    expect(finalizingOptimization).not.toBe(-1)
 
     expect(optimizedBuildIdx).toBeLessThan(compiledIdx)
     expect(compiledIdx).toBeLessThan(collectingPageDataIdx)
     expect(collectingPageDataIdx).toBeLessThan(generatingStaticIdx)
-    expect(generatingStaticIdx).toBeLessThan(finalizingOptimization)
   })
 })
