@@ -214,7 +214,6 @@ if (clientResumeFetch) {
       callServer,
       findSourceMapURL,
       debugChannel,
-      // @ts-expect-error This is not yet part of the React types
       startTime: 0,
     }
   )
