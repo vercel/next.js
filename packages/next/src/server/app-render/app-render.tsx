@@ -840,6 +840,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       dynamicChunks,
       staticInterruptReason,
       runtimeInterruptReason,
+      staticStageEndTime,
       runtimeStageEndTime,
       debugChannel: returnedDebugChannel,
       requestStore: finalRequestStore,
@@ -867,6 +868,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         dynamicChunks,
         staticInterruptReason,
         runtimeInterruptReason,
+        staticStageEndTime,
         runtimeStageEndTime,
         ctx,
         clientReferenceManifest,
@@ -2718,6 +2720,7 @@ async function renderToStream(
           dynamicChunks,
           staticInterruptReason,
           runtimeInterruptReason,
+          staticStageEndTime,
           runtimeStageEndTime,
           debugChannel: returnedDebugChannel,
           requestStore: finalRequestStore,
@@ -2745,6 +2748,7 @@ async function renderToStream(
           dynamicChunks,
           staticInterruptReason,
           runtimeInterruptReason,
+          staticStageEndTime,
           runtimeStageEndTime,
           ctx,
           clientReferenceManifest,
@@ -3337,6 +3341,7 @@ async function renderWithRestartOnCacheMissInDev(
       staticInterruptReason: initialStageController.getStaticInterruptReason(),
       runtimeInterruptReason:
         initialStageController.getRuntimeInterruptReason(),
+      staticStageEndTime: initialStageController.getStaticStageEndTime(),
       runtimeStageEndTime: initialStageController.getRuntimeStageEndTime(),
       debugChannel,
       requestStore,
@@ -3454,6 +3459,7 @@ async function renderWithRestartOnCacheMissInDev(
     dynamicChunks,
     staticInterruptReason: finalStageController.getStaticInterruptReason(),
     runtimeInterruptReason: finalStageController.getRuntimeInterruptReason(),
+    staticStageEndTime: initialStageController.getStaticStageEndTime(),
     runtimeStageEndTime: initialStageController.getRuntimeStageEndTime(),
     debugChannel,
     requestStore,
@@ -3613,6 +3619,7 @@ async function spawnStaticShellValidationInDev(
   dynamicServerChunks: Array<Uint8Array>,
   staticInterruptReason: Error | null,
   runtimeInterruptReason: Error | null,
+  staticStageEndTime: number,
   runtimeStageEndTime: number,
   ctx: AppRenderContext,
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
@@ -3692,17 +3699,11 @@ async function spawnStaticShellValidationInDev(
     debugChannelClient.on('data', (c) => debugChunks.push(c))
   }
 
-  // For both runtime and static validation we use the same end time which is
-  // when the runtime stage ended. This ensures that any I/O that is awaited
-  // (start of the await) in the dynamic stage won't be considered by React when
-  // constructing the owner stacks that we use for the validation errors.
-  const debugEndTime = runtimeStageEndTime
-
   const runtimeResult = await validateStagedShell(
     runtimeServerChunks,
     dynamicServerChunks,
     debugChunks,
-    debugEndTime,
+    runtimeStageEndTime,
     rootParams,
     fallbackRouteParams,
     allowEmptyStaticShell,
@@ -3725,7 +3726,7 @@ async function spawnStaticShellValidationInDev(
     staticServerChunks,
     dynamicServerChunks,
     debugChunks,
-    debugEndTime,
+    staticStageEndTime,
     rootParams,
     fallbackRouteParams,
     allowEmptyStaticShell,

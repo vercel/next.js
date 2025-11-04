@@ -15,6 +15,7 @@ export class StagedRenderingController {
   naturalStage: RenderStage = RenderStage.Static
   staticInterruptReason: Error | null = null
   runtimeInterruptReason: Error | null = null
+  staticStageEndTime: number = Infinity
   runtimeStageEndTime: number = Infinity
   /** Whether sync IO should interrupt the render */
   enableSyncInterrupt = true
@@ -130,6 +131,10 @@ export class StagedRenderingController {
     return this.runtimeInterruptReason
   }
 
+  getStaticStageEndTime() {
+    return this.staticStageEndTime
+  }
+
   getRuntimeStageEndTime() {
     return this.runtimeStageEndTime
   }
@@ -185,6 +190,7 @@ export class StagedRenderingController {
     this.currentStage = stage
 
     if (currentStage < RenderStage.Runtime && stage >= RenderStage.Runtime) {
+      this.staticStageEndTime = performance.now() + performance.timeOrigin
       const runtimeListeners = this.runtimeStageListeners
       for (let i = 0; i < runtimeListeners.length; i++) {
         runtimeListeners[i]()
