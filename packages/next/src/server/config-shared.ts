@@ -667,6 +667,11 @@ export interface ExperimentalConfig {
   reactDebugChannel?: boolean
 
   /**
+   * Will enable the `react@experimental` build for the `app` directory.
+   */
+  reactExperimental?: boolean
+
+  /**
    * @deprecated use top-level `cacheComponents` instead
    */
   cacheComponents?: boolean
@@ -1511,6 +1516,7 @@ export const defaultConfig = Object.freeze({
     },
     allowDevelopmentBuild: undefined,
     reactDebugChannel: false,
+    reactExperimental: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,

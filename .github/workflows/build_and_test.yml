@@ -702,6 +702,7 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_REACT=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
@@ -933,6 +934,7 @@ jobs:
       nodeVersion: 20.9.0
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_REACT=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export IS_WEBPACK_TEST=1
@@ -956,6 +958,7 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_REACT=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
@@ -981,6 +984,7 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_REACT=true
         export __NEXT_EXPERIMENTAL_DEBUG_CHANNEL=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start

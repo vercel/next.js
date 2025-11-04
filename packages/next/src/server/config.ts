@@ -1870,6 +1870,24 @@ function enforceExperimentalFeatures(
     config.reactCompiler = true
     // TODO: Report if we enable non-experimental features via env
   }
+
+  if (
+    process.env.__NEXT_EXPERIMENTAL_REACT === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.reactExperimental === undefined ||
+      (isDefaultConfig && !config.experimental.reactExperimental))
+  ) {
+    config.experimental.reactExperimental = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'reactExperimental',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_REACT`'
+      )
+    }
+  }
 }
 
 function addConfiguredExperimentalFeature<

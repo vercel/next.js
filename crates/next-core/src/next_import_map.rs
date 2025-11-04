@@ -128,7 +128,7 @@ pub async fn get_next_client_import_map(
         ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
             // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
-            let react_flavor = if *next_config.enable_taint().await? {
+            let react_flavor = if *next_config.enable_react_experimental().await? || *next_config.enable_taint().await? {
                 "-experimental"
             } else {
                 ""
@@ -830,7 +830,8 @@ async fn apply_vendored_react_aliases_server(
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
     let taint = *next_config.enable_taint().await?;
-    let react_channel = if taint { "-experimental" } else { "" };
+    let react_experimental = *next_config.enable_react_experimental().await?;
+    let react_channel = if taint || react_experimental { "-experimental" } else { "" };
     let react_condition = if ty.should_use_react_server_condition() {
         "server"
     } else {

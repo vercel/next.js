@@ -854,6 +854,7 @@ pub struct ExperimentalConfig {
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
+    react_experimental: Option<bool>,
     taint: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
@@ -1726,6 +1727,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_taint(&self) -> Vc<bool> {
         Vc::cell(self.experimental.taint.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_react_experimental(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.react_experimental.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
