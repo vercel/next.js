@@ -64,6 +64,7 @@ const fetchRandom = async (entropy: string) => {
     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
   )
   // The error should point at the fetch above, and not at the following fetch.
+  // FIXME: On the first load after starting the dev server that doesn't work.
   await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy + 'x'
   )
