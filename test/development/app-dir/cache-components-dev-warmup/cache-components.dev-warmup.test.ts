@@ -308,6 +308,51 @@ describe.each([
           await testNavigation(path, assertLogs)
         }
       })
+
+      it('sync IO in the static phase', async () => {
+        const path = '/sync-io/static'
+
+        const assertLogs = async (browser: Playwright) => {
+          const logs = await browser.log()
+
+          assertLog(logs, 'after first cache', 'Prerender')
+          // sync IO in the static stage errors and advances to Server.
+          assertLog(logs, 'after sync io', 'Server')
+          assertLog(logs, 'after cache read - page', 'Server')
+        }
+
+        if (isInitialLoad) {
+          await testInitialLoad(path, assertLogs)
+        } else {
+          await testNavigation(path, assertLogs)
+        }
+      })
+
+      it('sync IO in the runtime phase', async () => {
+        const path = '/sync-io/runtime'
+
+        const assertLogs = async (browser: Playwright) => {
+          const logs = await browser.log()
+
+          assertLog(logs, 'after first cache', 'Prerender')
+          assertLog(logs, 'after cookies', RUNTIME_ENV)
+          if (hasRuntimePrefetch) {
+            // if runtime prefetching is on, sync IO in the runtime stage errors and advances to Server.
+            assertLog(logs, 'after sync io', 'Server')
+            assertLog(logs, 'after cache read - page', 'Server')
+          } else {
+            // if runtime prefetching is not on, sync IO in the runtime stage does nothing.
+            assertLog(logs, 'after sync io', RUNTIME_ENV)
+            assertLog(logs, 'after cache read - page', RUNTIME_ENV)
+          }
+        }
+
+        if (isInitialLoad) {
+          await testInitialLoad(path, assertLogs)
+        } else {
+          await testNavigation(path, assertLogs)
+        }
+      })
     })
   }
 )
