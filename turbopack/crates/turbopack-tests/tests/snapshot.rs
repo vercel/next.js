@@ -50,7 +50,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         export_usage::compute_export_usage_info,
     },
-    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -541,6 +541,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                         .asset,
                 ]),
                 referenced_assets: ResolvedVc::cell(vec![]),
+                references: ResolvedVc::cell(vec![]),
             }
             .cell()
         }
@@ -583,7 +584,7 @@ async fn walk_asset(
         diff(path.clone(), asset.content()).await?;
     }
 
-    queue.extend(asset.references().await?.iter().copied());
+    queue.extend(asset.references().direct_assets().await?.iter().copied());
 
     Ok(())
 }

@@ -10,6 +10,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     source::Source,
 };
 
@@ -86,6 +87,9 @@ struct InlinedBytesJsChunkItem {
     module: ResolvedVc<InlinedBytesJsModule>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for InlinedBytesJsChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for InlinedBytesJsChunkItem {

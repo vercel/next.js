@@ -10,7 +10,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::{OutputAssets, OutputAssetsWithReferenced},
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use super::module::WorkerLoaderModule;
@@ -81,6 +81,14 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for WorkerLoaderChunkItem {
+    #[turbo_tasks::function]
+    fn references(self: Vc<Self>) -> Vc<OutputAssetsWithReferenced> {
+        self.chunk_group()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for WorkerLoaderChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -90,11 +98,6 @@ impl ChunkItem for WorkerLoaderChunkItem {
     #[turbo_tasks::function]
     fn content_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.chunk_group().all_assets()
     }
 
     #[turbo_tasks::function]

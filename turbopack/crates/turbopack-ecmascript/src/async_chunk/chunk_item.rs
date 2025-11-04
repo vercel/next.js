@@ -11,7 +11,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
-    output::{OutputAssets, OutputAssetsWithReferenced},
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use crate::{
@@ -50,6 +50,7 @@ impl AsyncLoaderChunkItem {
                 return Ok(OutputAssetsWithReferenced {
                     assets: ResolvedVc::cell(vec![]),
                     referenced_assets: ResolvedVc::cell(vec![]),
+                    references: ResolvedVc::cell(vec![]),
                 }
                 .cell());
             }
@@ -151,6 +152,14 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for AsyncLoaderChunkItem {
+    #[turbo_tasks::function]
+    fn references(self: Vc<Self>) -> Vc<OutputAssetsWithReferenced> {
+        self.chunk_group()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for AsyncLoaderChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -162,11 +171,6 @@ impl ChunkItem for AsyncLoaderChunkItem {
         let ident = self.module().ident();
 
         Ok(ident.with_modifier(self.chunks_data().hash().await?.to_string().into()))
-    }
-
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.chunk_group().all_assets()
     }
 
     #[turbo_tasks::function]

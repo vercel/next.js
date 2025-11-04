@@ -83,6 +83,7 @@ impl ManifestAsyncModule {
                 return Ok(OutputAssetsWithReferenced {
                     assets: ResolvedVc::cell(vec![]),
                     referenced_assets: ResolvedVc::cell(vec![]),
+                    references: ResolvedVc::cell(vec![]),
                 }
                 .cell());
             }

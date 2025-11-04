@@ -13,6 +13,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
 };
@@ -153,6 +154,9 @@ struct HmrEntryChunkItem {
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for HmrEntryChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for HmrEntryChunkItem {

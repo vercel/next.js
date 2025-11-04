@@ -31,12 +31,12 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{
-        ChunkItem, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId,
+        ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId,
         availability_info::AvailabilityInfo,
     },
     module::Module,
     module_graph::{ModuleGraph, SingleModuleGraph},
-    output::OutputAssets,
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use crate::module_graph::DynamicImportEntriesWithImporter;
@@ -72,6 +72,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
                             )?,
                         )
                         .context("Client reference chunk group not found for next/dynamic import")?
+                        .await?
                         .availability_info
                 }
                 NextDynamicChunkAvailability::AvailabilityInfo(availability_info) => {
@@ -103,7 +104,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
 pub struct DynamicImportedChunks(
     pub  FxIndexMap<
         ResolvedVc<NextDynamicEntryModule>,
-        (ResolvedVc<ModuleId>, ResolvedVc<OutputAssets>),
+        (ResolvedVc<ModuleId>, ResolvedVc<OutputAssetsWithReferenced>),
     >,
 );
 

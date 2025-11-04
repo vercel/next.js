@@ -662,6 +662,7 @@ impl ChunkingContext for BrowserChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 referenced_output_assets,
+                references,
                 availability_info,
             } = make_chunk_group(
                 entries,
@@ -705,6 +706,7 @@ impl ChunkingContext for BrowserChunkingContext {
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
                 referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                references: ResolvedVc::cell(references),
                 availability_info,
             }
             .cell())
@@ -732,6 +734,7 @@ impl ChunkingContext for BrowserChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 referenced_output_assets,
+                references,
                 availability_info,
             } = make_chunk_group(
                 entries,
@@ -792,6 +795,7 @@ impl ChunkingContext for BrowserChunkingContext {
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
                 referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                references: ResolvedVc::cell(references),
                 availability_info,
             }
             .cell())

@@ -9,7 +9,6 @@
 
 pub mod evaluate_context;
 pub mod global_module_ids;
-mod graph;
 pub mod module_options;
 pub mod transition;
 
@@ -21,11 +20,10 @@ use ecmascript::{
     references::{FollowExportsResult, follow_reexports},
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
 };
-use graph::{AggregatedGraph, AggregatedGraphNodeContent, aggregate};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -40,7 +38,7 @@ use turbopack_core::{
     issue::{IssueExt, IssueSource, module::ModuleIssue},
     module::Module,
     node_addon_module::NodeAddonModule,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
     raw_module::RawModule,
     reference_type::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, ImportWithType,
@@ -974,57 +972,6 @@ impl AssetContext for ModuleAssetContext {
 }
 
 #[turbo_tasks::function]
-pub async fn emit_with_completion(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    emit_assets_aggregated(asset, output_dir)
-        .as_side_effect()
-        .await
-}
-
-#[turbo_tasks::function(operation)]
-pub fn emit_with_completion_operation(
-    asset: ResolvedVc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Vc<()> {
-    emit_with_completion(*asset, output_dir)
-}
-
-#[turbo_tasks::function]
-async fn emit_assets_aggregated(
-    asset: Vc<Box<dyn OutputAsset>>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    let aggregated = aggregate(asset);
-    emit_aggregated_assets(aggregated, output_dir)
-        .as_side_effect()
-        .await
-}
-
-#[turbo_tasks::function]
-async fn emit_aggregated_assets(
-    aggregated: Vc<AggregatedGraph>,
-    output_dir: FileSystemPath,
-) -> Result<()> {
-    match &*aggregated.content().await? {
-        AggregatedGraphNodeContent::Asset(asset) => {
-            emit_asset_into_dir(**asset, output_dir)
-                .as_side_effect()
-                .await?;
-        }
-        AggregatedGraphNodeContent::Children(children) => {
-            for aggregated in children {
-                emit_aggregated_assets(**aggregated, output_dir.clone())
-                    .as_side_effect()
-                    .await?;
-            }
-        }
-    }
-    Ok(())
-}
-
-#[turbo_tasks::function]
 pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
     asset
         .content()
@@ -1045,6 +992,32 @@ pub async fn emit_asset_into_dir(
         emit_asset(asset).as_side_effect().await?;
     }
     Ok(())
+}
+
+#[turbo_tasks::function]
+pub async fn emit_assets_into_dir(
+    assets: Vc<OutputAssets>,
+    output_dir: FileSystemPath,
+) -> Result<()> {
+    let assets = assets.await?;
+    let paths = assets.iter().map(|&asset| asset.path()).try_join().await?;
+    for (&asset, path) in assets.iter().zip(paths.iter()) {
+        if path.is_inside_ref(&output_dir) {
+            emit_asset(*asset).as_side_effect().await?;
+        }
+    }
+    Ok(())
+}
+
+#[turbo_tasks::function(operation)]
+pub async fn emit_assets_into_dir_operation(
+    assets: ResolvedVc<OutputAssets>,
+    output_dir: FileSystemPath,
+) -> Result<Vc<()>> {
+    emit_assets_into_dir(*assets, output_dir)
+        .as_side_effect()
+        .await?;
+    Ok(Vc::cell(()))
 }
 
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.

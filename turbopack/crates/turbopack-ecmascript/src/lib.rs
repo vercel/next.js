@@ -100,6 +100,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, OptionModule},
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
@@ -868,6 +869,9 @@ struct ModuleChunkItem {
     module: ResolvedVc<EcmascriptModuleAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ModuleChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {

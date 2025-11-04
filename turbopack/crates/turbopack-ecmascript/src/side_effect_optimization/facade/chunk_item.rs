@@ -4,6 +4,7 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,
     module::Module,
+    output::OutputAssetsReference,
 };
 
 use super::module::EcmascriptModuleFacadeModule;
@@ -52,6 +53,9 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
         ))
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptModuleFacadeChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModuleFacadeChunkItem {

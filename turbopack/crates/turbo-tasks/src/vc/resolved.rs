@@ -221,6 +221,21 @@ where
         }
     }
 
+    /// Upcasts the given `Vec<ResolvedVc<T>>` to a `Vec<ResolvedVc<K>>`.
+    ///
+    /// See also: [`Vc::upcast`].
+    #[inline(always)]
+    pub fn upcast_vec<K>(vec: Vec<Self>) -> Vec<ResolvedVc<K>>
+    where
+        T: UpcastStrict<K>,
+        K: VcValueTrait + ?Sized,
+    {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<ResolvedVc<K>>());
+        debug_assert!(size_of::<Vec<ResolvedVc<T>>>() == size_of::<Vec<ResolvedVc<K>>>());
+        // Safety: The memory layout of `ResolvedVc<T>` and `ResolvedVc<K>` is the same.
+        unsafe { transmute::<Vec<ResolvedVc<T>>, Vec<ResolvedVc<K>>>(vec) }
+    }
+
     /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
     pub fn deref_vec(vec: Vec<ResolvedVc<T>>) -> Vec<Vc<T>> {
         debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());

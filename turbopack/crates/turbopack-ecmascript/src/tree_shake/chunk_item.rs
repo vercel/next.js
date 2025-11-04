@@ -6,6 +6,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
 };
 
 use super::asset::EcmascriptModulePartAsset;
@@ -60,6 +61,9 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptModulePartChunkItem {}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -90,6 +94,9 @@ pub(super) struct SideEffectsModuleChunkItem {
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for SideEffectsModuleChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for SideEffectsModuleChunkItem {

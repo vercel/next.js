@@ -7,7 +7,6 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::OutputAssets,
 };
 
 #[turbo_tasks::function]
@@ -18,12 +17,7 @@ pub async fn get_app_client_shared_chunk_group(
     client_chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkGroupResult>> {
     if app_client_runtime_entries.await?.is_empty() {
-        return Ok(ChunkGroupResult {
-            assets: OutputAssets::empty().to_resolved().await?,
-            referenced_assets: OutputAssets::empty().to_resolved().await?,
-            availability_info: AvailabilityInfo::Root,
-        }
-        .cell());
+        return Ok(ChunkGroupResult::empty());
     }
 
     let span = tracing::trace_span!("app client shared");

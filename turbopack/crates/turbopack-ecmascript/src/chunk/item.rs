@@ -17,6 +17,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
+    output::OutputAssetsReference,
     source_map::utils::{absolute_fileify_source_map, relative_fileify_source_map},
 };
 
@@ -223,7 +224,7 @@ impl EcmascriptChunkItemWithAsyncInfo {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkItem: ChunkItem {
+pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent>;
     #[turbo_tasks::function]

@@ -20,6 +20,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     resolve::ModulePart,
     source::Source,
     source_map::GenerateSourceMap,
@@ -137,6 +138,9 @@ struct RawEcmascriptChunkItem {
     module: ResolvedVc<RawEcmascriptModule>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for RawEcmascriptChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for RawEcmascriptChunkItem {

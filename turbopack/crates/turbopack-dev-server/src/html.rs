@@ -15,7 +15,7 @@ use turbopack_core::{
     },
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     version::{Version, VersionedContent},
 };
 
@@ -41,15 +41,18 @@ pub struct DevHtmlAsset {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for DevHtmlAsset {
+    #[turbo_tasks::function]
+    fn references(self: Vc<Self>) -> Vc<OutputAssetsWithReferenced> {
+        self.chunk_group()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for DevHtmlAsset {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
         self.path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.chunk_group().all_assets()
     }
 }
 
@@ -176,6 +179,7 @@ impl DevHtmlAsset {
                 Ok((
                     asset_with_referenced.assets.await?,
                     asset_with_referenced.referenced_assets.await?,
+                    asset_with_referenced.references.await?,
                 ))
             })
             .try_join()
@@ -183,14 +187,17 @@ impl DevHtmlAsset {
 
         let mut all_assets = Vec::new();
         let mut all_referenced_assets = Vec::new();
-        for (asset, referenced_asset) in all_chunk_groups {
+        let mut all_references = Vec::new();
+        for (asset, referenced_asset, reference) in all_chunk_groups {
             all_assets.extend(asset);
             all_referenced_assets.extend(referenced_asset);
+            all_references.extend(reference);
         }
 
         Ok(OutputAssetsWithReferenced {
             assets: ResolvedVc::cell(all_assets),
             referenced_assets: ResolvedVc::cell(all_referenced_assets),
+            references: ResolvedVc::cell(all_references),
         }
         .cell())
     }

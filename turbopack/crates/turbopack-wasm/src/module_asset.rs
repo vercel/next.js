@@ -12,7 +12,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, OptionModule},
     module_graph::ModuleGraph,
-    output::OutputAssets,
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
     reference::{ModuleReferences, SingleChunkableModuleReference},
     reference_type::ReferenceType,
     resolve::{ExportUsage, origin::ResolveOrigin, parse::Request},
@@ -207,16 +207,19 @@ struct ModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for ModuleChunkItem {
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let loader_references = self.module.loader().references().await?;
+        references_to_output_assets(&*loader_references).await
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let loader_references = self.module.loader().references().await?;
-        references_to_output_assets(&*loader_references).await
     }
 
     #[turbo_tasks::function]

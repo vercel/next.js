@@ -11,6 +11,7 @@ use turbopack_core::{
     ident::{AssetIdent, Layer},
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     raw_module::RawModule,
     reference::{ModuleReference, ModuleReferences, TracedModuleReference},
     reference_type::ReferenceType,
@@ -371,6 +372,9 @@ pub struct CachedExternalModuleChunkItem {
     module: ResolvedVc<CachedExternalModule>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for CachedExternalModuleChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for CachedExternalModuleChunkItem {

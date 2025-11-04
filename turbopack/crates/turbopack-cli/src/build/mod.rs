@@ -37,7 +37,6 @@ use turbopack_core::{
         export_usage::compute_export_usage_info,
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
-    reference::all_assets_from_entries,
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         origin::{PlainResolveOrigin, ResolveOriginExt},
@@ -433,29 +432,20 @@ async fn build_internal(
                         ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module)
                     {
                         match target {
-                            Target::Browser => {
-                                *chunking_context
-                                    .evaluated_chunk_group_assets(
-                                        AssetIdent::from_path(
-                                            build_output_root
-                                                .join(
-                                                    ecmascript
-                                                        .ident()
-                                                        .path()
-                                                        .await?
-                                                        .file_stem()
-                                                        .unwrap(),
-                                                )?
-                                                .with_extension("entry.js"),
-                                        ),
-                                        ChunkGroup::Entry(
-                                            [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
-                                        ),
-                                        module_graph,
-                                        AvailabilityInfo::Root,
-                                    )
-                                    .await?
-                            }
+                            Target::Browser => chunking_context.evaluated_chunk_group_assets(
+                                AssetIdent::from_path(
+                                    build_output_root
+                                        .join(
+                                            ecmascript.ident().path().await?.file_stem().unwrap(),
+                                        )?
+                                        .with_extension("entry.js"),
+                                ),
+                                ChunkGroup::Entry(
+                                    [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
+                                ),
+                                module_graph,
+                                AvailabilityInfo::Root,
+                            ),
                             Target::Node => OutputAssetsWithReferenced {
                                 assets: ResolvedVc::cell(vec![
                                     chunking_context
@@ -480,7 +470,9 @@ async fn build_internal(
                                         .asset,
                                 ]),
                                 referenced_assets: ResolvedVc::cell(vec![]),
-                            },
+                                references: ResolvedVc::cell(vec![]),
+                            }
+                            .cell(),
                         }
                     } else {
                         bail!(
@@ -496,18 +488,8 @@ async fn build_internal(
 
     let all_assets = async move {
         let mut all_assets: FxHashSet<ResolvedVc<Box<dyn OutputAsset>>> = FxHashSet::default();
-        for OutputAssetsWithReferenced {
-            assets,
-            referenced_assets,
-        } in entry_chunk_groups
-        {
-            all_assets.extend(all_assets_from_entries(*assets).await?.into_iter().copied());
-            all_assets.extend(
-                all_assets_from_entries(*referenced_assets)
-                    .await?
-                    .into_iter()
-                    .copied(),
-            );
+        for group in entry_chunk_groups {
+            all_assets.extend(group.all_assets().await?);
         }
         anyhow::Ok(all_assets)
     }

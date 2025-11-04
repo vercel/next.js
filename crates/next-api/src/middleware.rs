@@ -2,7 +2,6 @@ use std::future::IntoFuture;
 
 use anyhow::{Result, bail};
 use next_core::{
-    all_assets_from_entries,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
@@ -26,6 +25,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
+    reference::all_assets_from_entries,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,

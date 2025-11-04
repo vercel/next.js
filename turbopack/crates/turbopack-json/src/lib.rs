@@ -22,6 +22,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
+    output::OutputAssetsReference,
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -94,6 +95,9 @@ struct JsonChunkItem {
     module: ResolvedVc<JsonModuleAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for JsonChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for JsonChunkItem {

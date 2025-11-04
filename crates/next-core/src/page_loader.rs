@@ -12,7 +12,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     proxied_asset::ProxiedAsset,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -154,6 +154,16 @@ impl PageLoaderAsset {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for PageLoaderAsset {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        Ok(OutputAssetsWithReferenced::from_assets(
+            *self.await?.page_chunks,
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
@@ -170,11 +180,6 @@ impl OutputAsset for PageLoaderAsset {
                 .chunking_context
                 .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
         }
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        Ok(*self.await?.page_chunks)
     }
 }
 
