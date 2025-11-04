@@ -397,7 +397,7 @@ futures = "0.3.31"
 futures-util = "0.3.31"
 futures-retry = "0.6.0"
 hashbrown = "0.14.5"
-image = { version = "0.25.0", default-features = false }
+image = { version = "0.25.8", default-features = false }
 indexmap = "2.7.1"
 indoc = "2.0.0"
 itertools = "0.10.5"

@@ -21,7 +21,7 @@ import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
 import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
-} from '../components/segment-cache'
+} from '../components/segment-cache/types'
 import { errorOnce } from '../../shared/lib/utils/error-once'
 
 type Url = string | UrlObject

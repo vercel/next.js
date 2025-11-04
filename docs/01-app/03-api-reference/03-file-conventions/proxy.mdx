@@ -122,6 +122,7 @@ Configured matchers:
 2. Can include named parameters: `/about/:path` matches `/about/a` and `/about/b` but not `/about/a/c`
 3. Can have modifiers on named parameters (starting with `:`): `/about/:path*` matches `/about/a/b/c` because `*` is _zero or more_. `?` is _zero or one_ and `+` _one or more_
 4. Can use regular expression enclosed in parenthesis: `/about/(.*)` is the same as `/about/:path*`
+5. Are anchored to the start of the path: `/about` matches `/about` and `/about/team` but not `/blog/about`
 
 Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp#path-to-regexp-1) documentation.
 

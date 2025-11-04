@@ -114,12 +114,29 @@ export type ReadyCacheNode = {
 
 export type DynamicParamTypes =
   | 'catchall'
-  | 'catchall-intercepted'
+  | 'catchall-intercepted-(..)(..)'
+  | 'catchall-intercepted-(.)'
+  | 'catchall-intercepted-(..)'
+  | 'catchall-intercepted-(...)'
   | 'optional-catchall'
   | 'dynamic'
-  | 'dynamic-intercepted'
+  | 'dynamic-intercepted-(..)(..)'
+  | 'dynamic-intercepted-(.)'
+  | 'dynamic-intercepted-(..)'
+  | 'dynamic-intercepted-(...)'
 
-export type DynamicParamTypesShort = 'c' | 'ci' | 'oc' | 'd' | 'di'
+export type DynamicParamTypesShort =
+  | 'c'
+  | 'ci(..)(..)'
+  | 'ci(.)'
+  | 'ci(..)'
+  | 'ci(...)'
+  | 'oc'
+  | 'd'
+  | 'di(..)(..)'
+  | 'di(.)'
+  | 'di(..)'
+  | 'di(...)'
 
 export type Segment =
   | string

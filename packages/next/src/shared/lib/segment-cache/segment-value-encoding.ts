@@ -1,6 +1,6 @@
 import { PAGE_SEGMENT_KEY } from '../segment'
 import type { Segment as FlightRouterStateSegment } from '../app-router-types'
-import type { NormalizedPathname } from '../../../client/components/segment-cache'
+import type { NormalizedPathname } from '../../../client/components/segment-cache/cache-key'
 
 // TypeScript trick to simulate opaque types, like in Flow.
 type Opaque<K, T> = T & { __brand: K }
