@@ -1295,11 +1295,12 @@ async fn directory_tree_to_loader_tree_internal(
 
     // make sure we don't have a match for other slots if there's an intercepting route match
     // we only check subtrees as the current level could trigger `is_intercepting`
-    if tree
+    let has_intercepting_parallel_route = tree
         .parallel_routes
         .iter()
-        .any(|(_, parallel_tree)| parallel_tree.is_intercepting())
-    {
+        .any(|(_, parallel_tree)| parallel_tree.is_intercepting());
+
+    if has_intercepting_parallel_route {
         let mut keys_to_replace = Vec::new();
 
         for (key, parallel_tree) in &tree.parallel_routes {
@@ -1339,34 +1340,60 @@ async fn directory_tree_to_loader_tree_internal(
                 .emit();
             }
 
+            // For slots being replaced due to interception, use null default if EITHER:
+            // 1. The app_page path contains interception markers, OR
+            // 2. Any parallel route contains interception (checked above)
+            let is_in_interception_context =
+                app_page.contains_interception() || has_intercepting_parallel_route;
+
             tree.parallel_routes.insert(
                 key.clone(),
-                default_route_tree(app_dir.clone(), global_metadata, app_page.clone(), default)
-                    .await?,
+                default_route_tree(
+                    app_dir.clone(),
+                    global_metadata,
+                    app_page.clone(),
+                    default,
+                    key.clone(),
+                    is_in_interception_context,
+                )
+                .await?,
             );
         }
     }
 
     if tree.parallel_routes.is_empty() {
         if modules.default.is_some() || current_level_is_parallel_route {
+            let is_in_interception_context =
+                app_page.contains_interception() || has_intercepting_parallel_route;
+
             tree = default_route_tree(
                 app_dir.clone(),
                 global_metadata,
-                app_page,
+                app_page.clone(),
                 modules.default.clone(),
+                rcstr!("children"),
+                is_in_interception_context,
             )
             .await?;
         } else {
             return Ok(None);
         }
     } else if tree.parallel_routes.get("children").is_none() {
+        // When creating a children default, use null default if EITHER:
+        // 1. The app_page path contains interception markers, OR
+        // 2. Any parallel route contains interception (computed earlier)
+        let is_in_interception_context =
+            app_page.contains_interception() || has_intercepting_parallel_route;
+
         tree.parallel_routes.insert(
             rcstr!("children"),
             default_route_tree(
                 app_dir.clone(),
                 global_metadata,
-                app_page,
+                app_page.clone(),
                 modules.default.clone(),
+                rcstr!("children"),
+                is_in_interception_context,
             )
             .await?,
         );
@@ -1388,6 +1415,8 @@ async fn default_route_tree(
     global_metadata: Vc<GlobalMetadata>,
     app_page: AppPage,
     default_component: Option<FileSystemPath>,
+    slot_name: RcStr,
+    is_in_interception_context: bool,
 ) -> Result<AppPageLoaderTree> {
     Ok(AppPageLoaderTree {
         page: app_page.clone(),
@@ -1399,13 +1428,21 @@ async fn default_route_tree(
                 ..Default::default()
             }
         } else {
-            // default fallback component
+            // When we host applications on Vercel, the status code affects the
+            // underlying behavior of the route, which when we are missing the
+            // children slot of an interception route, will yield a full 404
+            // response for the RSC request instead. For this reason, we expect
+            // that if a default file is missing when we're rendering an
+            // interception route, we instead always render null for the default
+            // slot to avoid the full 404 response.
+            let default_file = if is_in_interception_context && slot_name == "children" {
+                "dist/client/components/builtin/default-null.js"
+            } else {
+                "dist/client/components/builtin/default.js"
+            };
+
             AppDirModules {
-                default: Some(
-                    get_next_package(app_dir)
-                        .await?
-                        .join("dist/client/components/builtin/default.js")?,
-                ),
+                default: Some(get_next_package(app_dir).await?.join(default_file)?),
                 ..Default::default()
             }
         },
