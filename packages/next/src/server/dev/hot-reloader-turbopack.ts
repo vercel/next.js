@@ -777,6 +777,9 @@ export async function createHotReloaderTurbopack(
           getMcpMiddleware({
             projectPath,
             distDir,
+            nextConfig,
+            pagesDir: opts.pagesDir,
+            appDir: opts.appDir,
             sendHmrMessage: (message) => hotReloader.send(message),
             getActiveConnectionCount: () =>
               clientsWithoutRequestId.size + clientsByRequestId.size,
