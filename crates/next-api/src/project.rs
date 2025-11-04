@@ -1350,20 +1350,7 @@ impl Project {
                     if !app_dir_only {
                         endpoint_groups.push((
                             EndpointGroupKey::Route(key.clone()),
-                            EndpointGroup {
-                                primary: vec![EndpointGroupEntry {
-                                    endpoint: *html_endpoint,
-                                    sub_name: None,
-                                }],
-                                // This only exists in development mode for HMR
-                                additional: data_endpoint
-                                    .iter()
-                                    .map(|endpoint| EndpointGroupEntry {
-                                        endpoint: *endpoint,
-                                        sub_name: None,
-                                    })
-                                    .collect(),
-                            },
+                            EndpointGroup::from(*html_endpoint),
                         ));
                         add_pages_entries = true;
                     }
