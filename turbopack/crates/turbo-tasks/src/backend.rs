@@ -497,6 +497,11 @@ impl From<anyhow::Error> for TurboTasksExecutionError {
     }
 }
 
+pub enum VerificationMode {
+    EqualityCheck,
+    Skip,
+}
+
 pub trait Backend: Sync + Send {
     #[allow(unused_variables)]
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
@@ -621,6 +626,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         index: CellId,
         content: CellContent,
+        verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 

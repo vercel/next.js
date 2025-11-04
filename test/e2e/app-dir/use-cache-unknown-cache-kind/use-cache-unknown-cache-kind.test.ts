@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getRedboxDescription,
   getRedboxSource,
   retry,
@@ -102,14 +102,14 @@ describe('use-cache-unknown-cache-kind', () => {
     it('should not show an error for default cache kinds', async () => {
       await using sandbox = await createSandbox(next, undefined, '/remote')
       const { browser } = sandbox
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     })
 
     it('should show a build error', async () => {
       await using sandbox = await createSandbox(next, undefined, '/')
       const { browser } = sandbox
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
@@ -175,7 +175,7 @@ describe('use-cache-unknown-cache-kind', () => {
       await using sandbox = await createSandbox(next, undefined, '/')
       const { browser, session } = sandbox
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       await session.patch(
         'next.config.js',
@@ -191,7 +191,7 @@ describe('use-cache-unknown-cache-kind', () => {
 
       await retry(async () => {
         expect(await browser.elementByCss('p').text()).toBe('hello world')
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       })
     })
   }

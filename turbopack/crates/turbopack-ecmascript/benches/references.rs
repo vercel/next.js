@@ -86,7 +86,11 @@ async fn setup(
         ResolvedVc::upcast(module_asset_context),
         EcmascriptInputTransforms::empty().to_resolved().await?,
         EcmascriptOptions {
-            tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+            tree_shaking_mode: if analyze_mode == AnalyzeMode::Tracing {
+                None
+            } else {
+                Some(TreeShakingMode::ReexportsOnly)
+            },
             analyze_mode,
             ..Default::default()
         }

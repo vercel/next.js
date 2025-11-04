@@ -97,9 +97,7 @@ function HistoryUpdater({
     // task. Re-prefetch all visible links with the updated values. In most
     // cases, this will not result in any new network requests, only if
     // the prefetch result actually varies on one of these inputs.
-    if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-      pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree)
-    }
+    pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree)
   }, [appRouterState.nextUrl, appRouterState.tree])
 
   return null

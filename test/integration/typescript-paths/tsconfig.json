@@ -1,5 +1,4 @@
-/* This is a single line comment to check if that works */
-{
+/* This is a single line comment to check if that works */ {
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
@@ -28,6 +27,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"],
   "include": ["next-env.d.ts", "components", "pages"]
 }

@@ -29,14 +29,18 @@ export function getSegmentParam(segment: string): {
 
   if (segment.startsWith('[...') && segment.endsWith(']')) {
     return {
-      type: interceptionMarker ? 'catchall-intercepted' : 'catchall',
+      type: interceptionMarker
+        ? `catchall-intercepted-${interceptionMarker}`
+        : 'catchall',
       param: segment.slice(4, -1),
     }
   }
 
   if (segment.startsWith('[') && segment.endsWith(']')) {
     return {
-      type: interceptionMarker ? 'dynamic-intercepted' : 'dynamic',
+      type: interceptionMarker
+        ? `dynamic-intercepted-${interceptionMarker}`
+        : 'dynamic',
       param: segment.slice(1, -1),
     }
   }
@@ -46,10 +50,19 @@ export function getSegmentParam(segment: string): {
 
 export function isCatchAll(
   type: DynamicParamTypes
-): type is 'catchall' | 'catchall-intercepted' | 'optional-catchall' {
+): type is
+  | 'catchall'
+  | 'catchall-intercepted-(..)(..)'
+  | 'catchall-intercepted-(.)'
+  | 'catchall-intercepted-(..)'
+  | 'catchall-intercepted-(...)'
+  | 'optional-catchall' {
   return (
     type === 'catchall' ||
-    type === 'catchall-intercepted' ||
+    type === 'catchall-intercepted-(..)(..)' ||
+    type === 'catchall-intercepted-(.)' ||
+    type === 'catchall-intercepted-(..)' ||
+    type === 'catchall-intercepted-(...)' ||
     type === 'optional-catchall'
   )
 }
@@ -63,7 +76,10 @@ export function getParamProperties(paramType: DynamicParamTypes): {
 
   switch (paramType) {
     case 'catchall':
-    case 'catchall-intercepted':
+    case 'catchall-intercepted-(..)(..)':
+    case 'catchall-intercepted-(.)':
+    case 'catchall-intercepted-(..)':
+    case 'catchall-intercepted-(...)':
       repeat = true
       break
     case 'optional-catchall':
@@ -71,7 +87,10 @@ export function getParamProperties(paramType: DynamicParamTypes): {
       optional = true
       break
     case 'dynamic':
-    case 'dynamic-intercepted':
+    case 'dynamic-intercepted-(..)(..)':
+    case 'dynamic-intercepted-(.)':
+    case 'dynamic-intercepted-(..)':
+    case 'dynamic-intercepted-(...)':
       break
     default:
       paramType satisfies never

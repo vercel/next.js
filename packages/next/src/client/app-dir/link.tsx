@@ -21,7 +21,7 @@ import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
 import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
-} from '../components/segment-cache'
+} from '../components/segment-cache/types'
 import { errorOnce } from '../../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
@@ -153,7 +153,7 @@ type InternalLinkProps = {
    * </Link>
    * ```
    */
-  prefetch?: boolean | 'auto' | null | 'unstable_forceStale'
+  prefetch?: boolean | 'auto' | null
 
   /**
    * (unstable) Switch to a full prefetch on hover. Effectively the same as
@@ -468,12 +468,11 @@ export default function LinkComponent(
         if (
           props[key] != null &&
           valType !== 'boolean' &&
-          props[key] !== 'auto' &&
-          props[key] !== 'unstable_forceStale'
+          props[key] !== 'auto'
         ) {
           throw createPropError({
             key,
-            expected: '`boolean | "auto" | "unstable_forceStale"`',
+            expected: '`boolean | "auto"`',
             actual: valType,
           })
         }
@@ -747,19 +746,8 @@ export const useLinkStatus = () => {
 function getFetchStrategyFromPrefetchProp(
   prefetchProp: Exclude<LinkProps['prefetch'], undefined | false>
 ): PrefetchTaskFetchStrategy {
-  if (
-    process.env.__NEXT_CACHE_COMPONENTS &&
-    process.env.__NEXT_CLIENT_SEGMENT_CACHE
-  ) {
-    // In the new implementation:
-    // - `prefetch={true}` is a runtime prefetch
-    //   (includes cached IO + params + cookies, with dynamic holes for uncached IO).
-    // - `unstable_forceStale` is a "full" prefetch
-    //   (forces inclusion of all dynamic data, i.e. the old behavior of `prefetch={true}`)
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
     if (prefetchProp === true) {
-      return FetchStrategy.PPRRuntime
-    }
-    if (prefetchProp === 'unstable_forceStale') {
       return FetchStrategy.Full
     }
 
@@ -767,13 +755,10 @@ function getFetchStrategyFromPrefetchProp(
     // This will also include invalid prop values that don't match the types specified here.
     // (although those should've been filtered out by prop validation in dev)
     prefetchProp satisfies null | 'auto'
-    // In `clientSegmentCache`, we default to PPR, and we'll discover whether or not the route supports it with the initial prefetch.
-    // If we're not using `clientSegmentCache`, this will be converted into a `PrefetchKind.AUTO`.
     return FetchStrategy.PPR
   } else {
     return prefetchProp === null || prefetchProp === 'auto'
-      ? // In `clientSegmentCache`, we default to PPR, and we'll discover whether or not the route supports it with the initial prefetch.
-        // If we're not using `clientSegmentCache`, this will be converted into a `PrefetchKind.AUTO`.
+      ? // We default to PPR, and we'll discover whether or not the route supports it with the initial prefetch.
         FetchStrategy.PPR
       : // In the old implementation without runtime prefetches, `prefetch={true}` forces all dynamic data to be prefetched.
         // To preserve backwards-compatibility, anything other than `false`, `null`, or `"auto"` results in a full prefetch.

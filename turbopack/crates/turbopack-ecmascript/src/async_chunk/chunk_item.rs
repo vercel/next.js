@@ -146,7 +146,7 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
             inner_code: code.into(),
             ..Default::default()
         }
-        .into())
+        .cell())
     }
 }
 

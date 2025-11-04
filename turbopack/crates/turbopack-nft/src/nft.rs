@@ -79,8 +79,10 @@ async fn node_file_trace_operation(
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
         // This config should be kept in sync with
-        // turbopack/crates/turbopack/tests/node-file-trace.rs and
-        // turbopack/crates/turbopack/src/lib.rs
+        // turbopack/crates/turbopack-tracing/tests/node-file-trace.rs and
+        // turbopack/crates/turbopack-tracing/tests/unit.rs and
+        // turbopack/crates/turbopack/src/lib.rs and
+        // turbopack/crates/turbopack-nft/src/nft.rs
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
@@ -97,6 +99,9 @@ async fn node_file_trace_operation(
             // node-file-trace.
             environment: None,
             analyze_mode: AnalyzeMode::Tracing,
+            // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
+            // execute at runtime.
+            tree_shaking_mode: None,
             ..Default::default()
         }
         .cell(),

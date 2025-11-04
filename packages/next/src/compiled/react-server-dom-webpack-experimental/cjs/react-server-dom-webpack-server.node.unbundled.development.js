@@ -2058,8 +2058,13 @@
       return task;
     }
     function visitAsyncNode(request, task, node, visited, cutOff) {
-      if (visited.has(node)) return null;
-      visited.add(node);
+      if (visited.has(node)) return visited.get(node);
+      visited.set(node, null);
+      request = visitAsyncNodeImpl(request, task, node, visited, cutOff);
+      null !== request && visited.set(node, request);
+      return request;
+    }
+    function visitAsyncNodeImpl(request, task, node, visited, cutOff) {
       if (0 <= node.end && node.end <= request.timeOrigin) return null;
       var previousIONode = null;
       if (
@@ -2110,7 +2115,7 @@
             ((node = promise._debugInfo),
             null == node ||
               visited.has(node) ||
-              (visited.add(node), forwardDebugInfo(request, task, node)));
+              (visited.set(node, null), forwardDebugInfo(request, task, node)));
           return previousIONode;
         case 4:
           return previousIONode;
@@ -2135,6 +2140,7 @@
                   ? (request.status === ABORTING &&
                       startTime > request.abortTime) ||
                     (serializeIONode(request, promise, awaited.promise),
+                    visited.set(promise, null),
                     null != node.owner &&
                       outlineComponentInfo(request, node.owner),
                     (cutOff = (0, request.environmentName)()),
@@ -2159,7 +2165,7 @@
             ((node = node._debugInfo),
             null == node ||
               visited.has(node) ||
-              (visited.add(node), forwardDebugInfo(request, task, node)));
+              (visited.set(node, null), forwardDebugInfo(request, task, node)));
           return previousIONode;
         default:
           throw Error("Unknown AsyncSequence tag. This is a bug in React.");
@@ -2173,8 +2179,8 @@
       owner,
       stack
     ) {
-      var visited = new Set();
-      alreadyForwardedDebugInfo && visited.add(alreadyForwardedDebugInfo);
+      var visited = new Map();
+      alreadyForwardedDebugInfo && visited.set(alreadyForwardedDebugInfo, null);
       node = visitAsyncNode(request, task, node, visited, task.time);
       void 0 !== node &&
         null !== node &&
@@ -5763,27 +5769,37 @@
             pendingOperations.set(asyncId, trigger);
           },
           before: function (asyncId) {
-            asyncId = pendingOperations.get(asyncId);
-            if (void 0 !== asyncId)
-              switch (asyncId.tag) {
+            var node = pendingOperations.get(asyncId);
+            if (void 0 !== node)
+              switch (node.tag) {
                 case 0:
                   lastRanAwait = null;
-                  asyncId.end = performance.now();
+                  0 > node.end
+                    ? (node.end = performance.now())
+                    : ((node = {
+                        tag: 0,
+                        owner: node.owner,
+                        stack: node.stack,
+                        start: node.start,
+                        end: performance.now(),
+                        promise: node.promise,
+                        awaited: node.awaited,
+                        previous: node.previous
+                      }),
+                      pendingOperations.set(asyncId, node));
                   break;
                 case 4:
                   lastRanAwait = resolvePromiseOrAwaitNode(
-                    asyncId,
+                    node,
                     performance.now()
                   );
                   break;
                 case 2:
-                  lastRanAwait = asyncId;
+                  lastRanAwait = node;
                   break;
                 case 3:
-                  resolvePromiseOrAwaitNode(
-                    asyncId,
-                    performance.now()
-                  ).previous = lastRanAwait;
+                  resolvePromiseOrAwaitNode(node, performance.now()).previous =
+                    lastRanAwait;
                   lastRanAwait = null;
                   break;
                 default:
