@@ -115,6 +115,8 @@ declare module 'react-server-dom-webpack/client.browser' {
     replayConsoleLogs?: boolean
     temporaryReferences?: TemporaryReferenceSet
     debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+    startTime?: number
+    endTime?: number
   }
 
   export function createFromFetch<T>(
@@ -316,6 +318,8 @@ declare module 'react-server-dom-webpack/client.edge' {
     replayConsoleLogs?: boolean
     environmentName?: string
     debugChannel?: { readable?: ReadableStream }
+    startTime?: number
+    endTime?: number
   }
 
   export type EncodeFormActionCallback = <A>(

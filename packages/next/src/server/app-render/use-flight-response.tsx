@@ -33,6 +33,7 @@ const findSourceMapURL =
 export function getFlightStream<T>(
   flightStream: Readable | BinaryStreamOf<T>,
   debugStream: Readable | ReadableStream<Uint8Array> | undefined,
+  debugEndTime: number | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   nonce: string | undefined
 ): Promise<T> {
@@ -65,6 +66,7 @@ export function getFlightStream<T>(
       },
       nonce,
       debugChannel: debugStream ? { readable: debugStream } : undefined,
+      endTime: debugEndTime,
     })
   } else {
     // The types of flightStream and debugStream should match.
@@ -90,6 +92,7 @@ export function getFlightStream<T>(
         findSourceMapURL,
         nonce,
         debugChannel: debugStream,
+        endTime: debugEndTime,
       }
     )
   }

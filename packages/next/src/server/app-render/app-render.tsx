@@ -843,6 +843,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       dynamicChunks,
       staticInterruptReason,
       runtimeInterruptReason,
+      runtimeStageEndTime,
       debugChannel: returnedDebugChannel,
       requestStore: finalRequestStore,
     } = await renderWithRestartOnCacheMissInDev(
@@ -869,6 +870,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         dynamicChunks,
         staticInterruptReason,
         runtimeInterruptReason,
+        runtimeStageEndTime,
         ctx,
         clientReferenceManifest,
         finalRequestStore,
@@ -1683,6 +1685,7 @@ function assertClientReferenceManifest(
 function App<T>({
   reactServerStream,
   reactDebugStream,
+  debugEndTime,
   preinitScripts,
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
@@ -1692,6 +1695,7 @@ function App<T>({
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   reactServerStream: Readable | BinaryStreamOf<T>
   reactDebugStream: Readable | ReadableStream<Uint8Array> | undefined
+  debugEndTime: number | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: ComponentType<{
@@ -1705,6 +1709,7 @@ function App<T>({
     getFlightStream<InitialRSCPayload>(
       reactServerStream,
       reactDebugStream,
+      debugEndTime,
       clientReferenceManifest,
       nonce
     )
@@ -1750,7 +1755,6 @@ function App<T>({
 // consistent for now.
 function ErrorApp<T>({
   reactServerStream,
-  reactDebugStream,
   preinitScripts,
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
@@ -1758,7 +1762,6 @@ function ErrorApp<T>({
   images,
 }: {
   reactServerStream: BinaryStreamOf<T>
-  reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: ComponentType<{
@@ -1772,7 +1775,8 @@ function ErrorApp<T>({
   const response = ReactClient.use(
     getFlightStream<InitialRSCPayload>(
       reactServerStream,
-      reactDebugStream,
+      undefined,
+      undefined,
       clientReferenceManifest,
       nonce
     )
@@ -2713,6 +2717,7 @@ async function renderToStream(
           dynamicChunks,
           staticInterruptReason,
           runtimeInterruptReason,
+          runtimeStageEndTime,
           debugChannel: returnedDebugChannel,
           requestStore: finalRequestStore,
         } = await renderWithRestartOnCacheMissInDev(
@@ -2739,6 +2744,7 @@ async function renderToStream(
           dynamicChunks,
           staticInterruptReason,
           runtimeInterruptReason,
+          runtimeStageEndTime,
           ctx,
           clientReferenceManifest,
           finalRequestStore,
@@ -2859,6 +2865,7 @@ async function renderToStream(
           <App
             reactServerStream={reactServerResult.tee()}
             reactDebugStream={reactDebugStream}
+            debugEndTime={undefined}
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -2905,6 +2912,7 @@ async function renderToStream(
       <App
         reactServerStream={reactServerResult.tee()}
         reactDebugStream={reactDebugStream}
+        debugEndTime={undefined}
         preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3065,7 +3073,6 @@ async function renderToStream(
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}
-              reactDebugStream={undefined}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
@@ -3329,6 +3336,7 @@ async function renderWithRestartOnCacheMissInDev(
       staticInterruptReason: initialStageController.getStaticInterruptReason(),
       runtimeInterruptReason:
         initialStageController.getRuntimeInterruptReason(),
+      runtimeStageEndTime: initialStageController.getRuntimeStageEndTime(),
       debugChannel,
       requestStore,
     }
@@ -3445,6 +3453,7 @@ async function renderWithRestartOnCacheMissInDev(
     dynamicChunks,
     staticInterruptReason: finalStageController.getStaticInterruptReason(),
     runtimeInterruptReason: finalStageController.getRuntimeInterruptReason(),
+    runtimeStageEndTime: initialStageController.getRuntimeStageEndTime(),
     debugChannel,
     requestStore,
   }
@@ -3603,6 +3612,7 @@ async function spawnStaticShellValidationInDev(
   dynamicServerChunks: Array<Uint8Array>,
   staticInterruptReason: Error | null,
   runtimeInterruptReason: Error | null,
+  runtimeStageEndTime: number,
   ctx: AppRenderContext,
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
   requestStore: RequestStore,
@@ -3611,7 +3621,7 @@ async function spawnStaticShellValidationInDev(
 ): Promise<void> {
   // TODO replace this with a delay on the entire dev render once the result is propagated
   // via the websocket and not the main render itself
-  await new Promise((r) => setTimeout(r, 300))
+  await new Promise((r) => setTimeout(r, 2000))
   const {
     componentMod: ComponentMod,
     getDynamicParamFromSegment,
@@ -3681,10 +3691,17 @@ async function spawnStaticShellValidationInDev(
     debugChannelClient.on('data', (c) => debugChunks.push(c))
   }
 
+  // For both runtime and static validation we use the same end time which is
+  // when the runtime stage ended. This ensures that any I/O that is awaited
+  // (start of the await) in the dynamic stage won't be considered by React when
+  // constructing the owner stacks that we use for the validation errors.
+  const debugEndTime = runtimeStageEndTime
+
   const runtimeResult = await validateStagedShell(
     runtimeServerChunks,
     dynamicServerChunks,
     debugChunks,
+    debugEndTime,
     rootParams,
     fallbackRouteParams,
     allowEmptyStaticShell,
@@ -3707,6 +3724,7 @@ async function spawnStaticShellValidationInDev(
     staticServerChunks,
     dynamicServerChunks,
     debugChunks,
+    debugEndTime,
     rootParams,
     fallbackRouteParams,
     allowEmptyStaticShell,
@@ -3781,6 +3799,7 @@ async function warmupModuleCacheForRuntimeValidationInDev(
     <App
       reactServerStream={runtimeServerStream}
       reactDebugStream={undefined}
+      debugEndTime={undefined}
       preinitScripts={preinitScripts}
       clientReferenceManifest={clientReferenceManifest}
       ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3857,6 +3876,7 @@ async function validateStagedShell(
   stageChunks: Array<Uint8Array>,
   allServerChunks: Array<Uint8Array>,
   debugChunks: null | Array<Uint8Array>,
+  debugEndTime: number | undefined,
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   allowEmptyStaticShell: boolean,
@@ -3930,6 +3950,7 @@ async function validateStagedShell(
             <App
               reactServerStream={serverStream}
               reactDebugStream={debugChannelClient}
+              debugEndTime={debugEndTime}
               preinitScripts={preinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4426,6 +4447,7 @@ async function prerenderToStream(
           <App
             reactServerStream={initialServerResult.asUnclosingStream()}
             reactDebugStream={undefined}
+            debugEndTime={undefined}
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4659,6 +4681,7 @@ async function prerenderToStream(
               <App
                 reactServerStream={reactServerResult.asUnclosingStream()}
                 reactDebugStream={undefined}
+                debugEndTime={undefined}
                 preinitScripts={preinitScripts}
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4818,6 +4841,7 @@ async function prerenderToStream(
             <App
               reactServerStream={foreverStream}
               reactDebugStream={undefined}
+              debugEndTime={undefined}
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4975,6 +4999,7 @@ async function prerenderToStream(
           <App
             reactServerStream={reactServerResult.asUnclosingStream()}
             reactDebugStream={undefined}
+            debugEndTime={undefined}
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -5118,6 +5143,7 @@ async function prerenderToStream(
             <App
               reactServerStream={foreverStream}
               reactDebugStream={undefined}
+              debugEndTime={undefined}
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -5204,6 +5230,7 @@ async function prerenderToStream(
         <App
           reactServerStream={reactServerResult.asUnclosingStream()}
           reactDebugStream={undefined}
+          debugEndTime={undefined}
           preinitScripts={preinitScripts}
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -5379,7 +5406,6 @@ async function prerenderToStream(
             // eslint-disable-next-line @next/internal/no-ambiguous-jsx
             <ErrorApp
               reactServerStream={errorServerStream}
-              reactDebugStream={undefined}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}

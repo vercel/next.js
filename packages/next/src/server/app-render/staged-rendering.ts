@@ -15,6 +15,7 @@ export class StagedRenderingController {
   naturalStage: RenderStage = RenderStage.Static
   staticInterruptReason: Error | null = null
   runtimeInterruptReason: Error | null = null
+  runtimeStageEndTime: number = Infinity
   /** Whether sync IO should interrupt the render */
   enableSyncInterrupt = true
 
@@ -129,6 +130,10 @@ export class StagedRenderingController {
     return this.runtimeInterruptReason
   }
 
+  getRuntimeStageEndTime() {
+    return this.runtimeStageEndTime
+  }
+
   abandonRender() {
     if (!this.mayAbandon) {
       throw new InvariantError(
@@ -188,6 +193,7 @@ export class StagedRenderingController {
       this.runtimeStagePromise.resolve()
     }
     if (currentStage < RenderStage.Dynamic && stage >= RenderStage.Dynamic) {
+      this.runtimeStageEndTime = performance.now() + performance.timeOrigin
       const dynamicListeners = this.dynamicStageListeners
       for (let i = 0; i < dynamicListeners.length; i++) {
         dynamicListeners[i]()
