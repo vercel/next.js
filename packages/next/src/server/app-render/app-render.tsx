@@ -3459,8 +3459,8 @@ async function renderWithRestartOnCacheMissInDev(
     dynamicChunks,
     staticInterruptReason: finalStageController.getStaticInterruptReason(),
     runtimeInterruptReason: finalStageController.getRuntimeInterruptReason(),
-    staticStageEndTime: initialStageController.getStaticStageEndTime(),
-    runtimeStageEndTime: initialStageController.getRuntimeStageEndTime(),
+    staticStageEndTime: finalStageController.getStaticStageEndTime(),
+    runtimeStageEndTime: finalStageController.getRuntimeStageEndTime(),
     debugChannel,
     requestStore,
   }
