@@ -1652,7 +1652,6 @@
         for (var debugInfo = [], i = 0; i < value._debugInfo.length; i++) {
           var info = value._debugInfo[i];
           if ("number" === typeof info.time && info.time > response) break;
-          if (null != info.awaited && info.awaited.end > response) break;
           debugInfo.push(info);
         }
         value._debugInfo = debugInfo;
