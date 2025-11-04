@@ -176,15 +176,9 @@ pub async fn parse(
         ty = display(&ty)
     );
 
-    match parse_internal(
-        source,
-        ty,
-        transforms,
-        is_external_tracing && matches!(ty, EcmascriptModuleAssetType::EcmascriptExtensionless),
-        inline_helpers,
-    )
-    .instrument(span)
-    .await
+    match parse_internal(source, ty, transforms, is_external_tracing, inline_helpers)
+        .instrument(span)
+        .await
     {
         Ok(result) => Ok(result),
         Err(error) => Err(error.context(format!(
