@@ -78,7 +78,7 @@ impl ManifestAsyncModule {
             let module_or_batch = batches.get_entry(inner_module).await?;
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch).await?
+                && *chunk_items.get(chunkable_module_or_batch.into()).await?
             {
                 return Ok(OutputAssetsWithReferenced {
                     assets: ResolvedVc::cell(vec![]),
