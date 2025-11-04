@@ -425,7 +425,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     await session.patch(
       'index.js',
@@ -547,7 +547,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('hello')
@@ -664,7 +664,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('hello new')
@@ -689,7 +689,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     // Syntax error
     await session.patch('index.module.css', `.button`)
@@ -829,7 +829,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await browser.elementByCss('button').click()
 
     if (isReact18) {
@@ -880,7 +880,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await browser.elementByCss('button').click()
 
     if (isReact18) {
@@ -931,7 +931,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await browser.elementByCss('button').click()
 
     if (isReact18) {
@@ -982,7 +982,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await browser.elementByCss('button').click()
 
     if (isReact18) {
@@ -1033,7 +1033,7 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await browser.elementByCss('button').click()
 
     if (isReact18) {
@@ -1116,7 +1116,7 @@ describe('ReactRefreshLogBox', () => {
         }
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await session.patch(
       'index.js',
       outdent`
@@ -1166,7 +1166,7 @@ describe('ReactRefreshLogBox', () => {
         }
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await session.patch(
       'index.js',
       outdent`
@@ -1212,7 +1212,7 @@ describe('ReactRefreshLogBox', () => {
         }
       `
     )
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     await session.patch(
       'index.js',
       outdent`

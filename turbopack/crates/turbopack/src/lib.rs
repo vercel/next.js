@@ -166,8 +166,12 @@ async fn apply_module_type(
             if runtime_code {
                 ResolvedVc::upcast(module)
             } else {
-                if matches!(&part, Some(ModulePart::Evaluation)) {
-                    // Skip the evaluation part if the module is marked as side effect free.
+                let options_value = options.await?;
+                if options_value.tree_shaking_mode.is_some()
+                    && matches!(&part, Some(ModulePart::Evaluation))
+                {
+                    // If we are tree shaking, skip the evaluation part if the module is marked as
+                    // side effect free.
                     let side_effect_free_packages = module_asset_context
                         .side_effect_free_packages()
                         .resolve()
@@ -181,7 +185,6 @@ async fn apply_module_type(
                     }
                 }
 
-                let options_value = options.await?;
                 match options_value.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
                         Vc::upcast(EcmascriptModulePartAsset::select_part(
@@ -740,9 +743,11 @@ pub async fn externals_tracing_module_context(
     Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         compile_time_info,
-        // Keep these options more or less in sync with
-        // turbopack/crates/turbopack/tests/node-file-trace.rs to ensure that the NFT unit tests
-        // are actually representative of what Turbopack does.
+        // This config should be kept in sync with
+        // turbopack/crates/turbopack-tracing/tests/node-file-trace.rs and
+        // turbopack/crates/turbopack-tracing/tests/unit.rs and
+        // turbopack/crates/turbopack/src/lib.rs and
+        // turbopack/crates/turbopack-nft/src/nft.rs
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
                 enable_typescript_transform: Some(
@@ -762,6 +767,9 @@ pub async fn externals_tracing_module_context(
             // node-file-trace.
             environment: None,
             analyze_mode: AnalyzeMode::Tracing,
+            // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
+            // execute at runtime.
+            tree_shaking_mode: None,
             ..Default::default()
         }
         .cell(),

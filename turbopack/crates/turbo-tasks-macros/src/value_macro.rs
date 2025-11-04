@@ -15,38 +15,9 @@ use turbo_tasks_macros_shared::get_value_type_ident;
 
 use crate::global_name::global_name;
 
-enum IntoMode {
-    None,
-    New,
-    Shared,
-}
-
-impl Parse for IntoMode {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let ident = input.parse::<LitStr>()?;
-        Self::try_from(ident)
-    }
-}
-
-impl TryFrom<LitStr> for IntoMode {
-    type Error = Error;
-
-    fn try_from(lit: LitStr) -> std::result::Result<Self, Self::Error> {
-        match lit.value().as_str() {
-            "none" => Ok(IntoMode::None),
-            "new" => Ok(IntoMode::New),
-            "shared" => Ok(IntoMode::Shared),
-            _ => Err(Error::new_spanned(
-                &lit,
-                "expected \"none\", \"new\" or \"shared\"",
-            )),
-        }
-    }
-}
-
 enum CellMode {
+    Compare,
     New,
-    Shared,
 }
 
 impl Parse for CellMode {
@@ -61,9 +32,9 @@ impl TryFrom<LitStr> for CellMode {
 
     fn try_from(lit: LitStr) -> std::result::Result<Self, Self::Error> {
         match lit.value().as_str() {
+            "compare" => Ok(CellMode::Compare),
             "new" => Ok(CellMode::New),
-            "shared" => Ok(CellMode::Shared),
-            _ => Err(Error::new_spanned(&lit, "expected \"new\" or \"shared\"")),
+            _ => Err(Error::new_spanned(&lit, "expected \"new\" or \"compare\"")),
         }
     }
 }
@@ -99,7 +70,7 @@ impl TryFrom<LitStr> for SerializationMode {
 
 struct ValueArguments {
     serialization_mode: SerializationMode,
-    into_mode: IntoMode,
+    shared: bool,
     cell_mode: CellMode,
     manual_eq: bool,
     transparent: bool,
@@ -111,8 +82,8 @@ impl Parse for ValueArguments {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut result = ValueArguments {
             serialization_mode: SerializationMode::Auto,
-            into_mode: IntoMode::None,
-            cell_mode: CellMode::Shared,
+            shared: false,
+            cell_mode: CellMode::Compare,
             manual_eq: false,
             transparent: false,
             operation: None,
@@ -128,20 +99,7 @@ impl Parse for ValueArguments {
                 meta,
             ) {
                 ("shared", Meta::Path(_)) => {
-                    result.into_mode = IntoMode::Shared;
-                    result.cell_mode = CellMode::Shared;
-                }
-                (
-                    "into",
-                    Meta::NameValue(MetaNameValue {
-                        value:
-                            Expr::Lit(ExprLit {
-                                lit: Lit::Str(str), ..
-                            }),
-                        ..
-                    }),
-                ) => {
-                    result.into_mode = IntoMode::try_from(str)?;
+                    result.shared = true;
                 }
                 (
                     "serialization",
@@ -210,7 +168,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
     let ValueArguments {
         serialization_mode,
-        into_mode,
+        shared,
         cell_mode,
         manual_eq,
         transparent,
@@ -287,15 +245,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     };
 
-    let cell_mode = match cell_mode {
-        CellMode::New => quote! {
-            turbo_tasks::VcCellNewMode<#ident>
-        },
-        CellMode::Shared => quote! {
-            turbo_tasks::VcCellSharedMode<#ident>
-        },
-    };
-
     let (cell_prefix, cell_access_content, read) = if let Some(inner_type) = &inner_type {
         (
             quote! { pub },
@@ -308,7 +257,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         )
     } else {
         (
-            if let IntoMode::New | IntoMode::Shared = into_mode {
+            if shared {
                 quote! { pub }
             } else {
                 quote! {}
@@ -318,6 +267,15 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 turbo_tasks::VcDefaultRead::<#ident>
             },
         )
+    };
+
+    let cell_mode = match cell_mode {
+        CellMode::New => quote! {
+            turbo_tasks::VcCellNewMode<#ident>
+        },
+        CellMode::Compare => quote! {
+            turbo_tasks::VcCellCompareMode<#ident>
+        },
     };
 
     let cell_struct = quote! {
@@ -337,18 +295,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             let content = self;
             turbo_tasks::ResolvedVc::cell_private(#cell_access_content)
         }
-    };
-
-    let into = if let IntoMode::New | IntoMode::Shared = into_mode {
-        quote! {
-            impl ::std::convert::From<#ident> for turbo_tasks::Vc<#ident> {
-                fn from(value: #ident) -> Self {
-                    value.cell()
-                }
-            }
-        }
-    } else {
-        quote! {}
     };
 
     match serialization_mode {
@@ -444,8 +390,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         impl #ident {
             #cell_struct
         }
-
-        #into
 
         #value_type_and_register_code
 
