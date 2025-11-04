@@ -601,13 +601,6 @@ export function Errors({
     setActiveIndex,
   } = useActiveRuntimeError({ runtimeErrors, getSquashedHydrationErrorDetails })
 
-  console.log({
-    errorCode,
-    errorType,
-    errorDetails,
-    activeError,
-  })
-
   // Get parsed frames data
   const frames = useFrames(activeError)
 
