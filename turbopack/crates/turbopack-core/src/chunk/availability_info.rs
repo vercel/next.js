@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
 use super::available_modules::{AvailableModules, AvailableModulesSet};
@@ -18,8 +19,6 @@ use super::available_modules::{AvailableModules, AvailableModulesSet};
     Deserialize,
 )]
 pub enum AvailabilityInfo {
-    /// Availability of modules is not tracked
-    Untracked,
     /// Availability of modules is tracked, but no modules are available
     Root,
     /// There are modules already available.
@@ -29,9 +28,12 @@ pub enum AvailabilityInfo {
 }
 
 impl AvailabilityInfo {
+    pub fn root() -> Self {
+        AvailabilityInfo::Root
+    }
+
     pub fn available_modules(&self) -> Option<ResolvedVc<AvailableModules>> {
         match self {
-            Self::Untracked => None,
             Self::Root => None,
             Self::Complete {
                 available_modules, ..
@@ -41,7 +43,6 @@ impl AvailabilityInfo {
 
     pub async fn with_modules(self, modules: Vc<AvailableModulesSet>) -> Result<Self> {
         Ok(match self {
-            AvailabilityInfo::Untracked => AvailabilityInfo::Untracked,
             AvailabilityInfo::Root => AvailabilityInfo::Complete {
                 available_modules: AvailableModules::new(modules).to_resolved().await?,
             },
@@ -51,6 +52,15 @@ impl AvailabilityInfo {
                     .to_resolved()
                     .await?,
             },
+        })
+    }
+
+    pub async fn ident(&self) -> Result<Option<RcStr>> {
+        Ok(match self {
+            AvailabilityInfo::Root => None,
+            AvailabilityInfo::Complete { available_modules } => {
+                Some(available_modules.hash().await?.to_string().into())
+            }
         })
     }
 }

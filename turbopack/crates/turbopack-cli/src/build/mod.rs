@@ -444,7 +444,7 @@ async fn build_internal(
                                     [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                 ),
                                 module_graph,
-                                AvailabilityInfo::Root,
+                                AvailabilityInfo::root(),
                             ),
                             Target::Node => OutputAssetsWithReferenced {
                                 assets: ResolvedVc::cell(vec![
@@ -464,7 +464,7 @@ async fn build_internal(
                                             module_graph,
                                             OutputAssets::empty(),
                                             OutputAssets::empty(),
-                                            AvailabilityInfo::Root,
+                                            AvailabilityInfo::root(),
                                         )
                                         .await?
                                         .asset,

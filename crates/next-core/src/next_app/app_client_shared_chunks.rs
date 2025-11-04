@@ -33,7 +33,7 @@ pub async fn get_app_client_shared_chunk_group(
                         .collect(),
                 ),
                 module_graph,
-                AvailabilityInfo::Root,
+                AvailabilityInfo::root(),
             )
             .resolve()
             .await

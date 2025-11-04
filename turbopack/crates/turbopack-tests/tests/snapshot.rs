@@ -518,7 +518,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             entry_module.ident(),
             ChunkGroup::Entry(entry_modules.into_iter().collect()),
             module_graph,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         ),
         Runtime::NodeJs => {
             OutputAssetsWithReferenced {
@@ -535,7 +535,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             module_graph,
                             OutputAssets::empty(),
                             OutputAssets::empty(),
-                            AvailabilityInfo::Root,
+                            AvailabilityInfo::root(),
                         )
                         .await?
                         .asset,

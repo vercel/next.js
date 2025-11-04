@@ -680,15 +680,9 @@ impl ChunkingContext for BrowserChunkingContext {
 
             if this.enable_hot_module_replacement {
                 let mut ident = ident;
-                match input_availability_info {
-                    AvailabilityInfo::Root => {}
-                    AvailabilityInfo::Untracked => {
-                        ident = ident.with_modifier(rcstr!("untracked"));
-                    }
-                    AvailabilityInfo::Complete { available_modules } => {
-                        ident =
-                            ident.with_modifier(available_modules.hash().await?.to_string().into());
-                    }
+                if let Some(input_availability_info_ident) = input_availability_info.ident().await?
+                {
+                    ident = ident.with_modifier(input_availability_info_ident);
                 }
                 let other_assets = Vc::cell(assets.clone());
                 assets.push(
@@ -764,15 +758,9 @@ impl ChunkingContext for BrowserChunkingContext {
 
             if this.enable_hot_module_replacement {
                 let mut ident = ident;
-                match input_availability_info {
-                    AvailabilityInfo::Root => {}
-                    AvailabilityInfo::Untracked => {
-                        ident = ident.with_modifier(rcstr!("untracked"));
-                    }
-                    AvailabilityInfo::Complete { available_modules } => {
-                        ident =
-                            ident.with_modifier(available_modules.hash().await?.to_string().into());
-                    }
+                if let Some(input_availability_info_ident) = input_availability_info.ident().await?
+                {
+                    ident = ident.with_modifier(input_availability_info_ident);
                 }
                 assets.push(
                     self.generate_chunk_list_register_chunk(

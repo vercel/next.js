@@ -107,7 +107,7 @@ impl InstrumentationEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         ))
     }
 
@@ -134,7 +134,7 @@ impl InstrumentationEndpoint {
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
-                AvailabilityInfo::Root,
+                AvailabilityInfo::root(),
             )
             .await?;
         Ok(*chunk)

@@ -781,7 +781,7 @@ impl PageEndpoint {
                 AssetIdent::from_path(this.page.await?.base_path.clone()),
                 ChunkGroup::Entry(evaluatable_assets),
                 module_graph,
-                AvailabilityInfo::Root,
+                AvailabilityInfo::root(),
             );
 
             Ok(client_chunk_group)

@@ -104,7 +104,7 @@ impl ChunkGroupResult {
             assets: ResolvedVc::cell(vec![]),
             referenced_assets: ResolvedVc::cell(vec![]),
             references: ResolvedVc::cell(vec![]),
-            availability_info: AvailabilityInfo::Root,
+            availability_info: AvailabilityInfo::root(),
         }
         .cell()
     }
@@ -114,7 +114,7 @@ impl ChunkGroupResult {
             assets: ResolvedVc::cell(vec![]),
             referenced_assets: ResolvedVc::cell(vec![]),
             references: ResolvedVc::cell(vec![]),
-            availability_info: AvailabilityInfo::Root,
+            availability_info: AvailabilityInfo::root(),
         }
         .resolved_cell()
     }
@@ -521,7 +521,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<ChunkGroupResult> {
-        self.chunk_group(ident, chunk_group, module_graph, AvailabilityInfo::Root)
+        self.chunk_group(ident, chunk_group, module_graph, AvailabilityInfo::root())
     }
 
     fn root_chunk_group_assets(
@@ -588,7 +588,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
             module_graph,
             extra_chunks,
             extra_referenced_assets,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         )
     }
 
@@ -607,7 +607,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
             module_graph,
             extra_chunks,
             extra_referenced_assets,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         )
     }
 

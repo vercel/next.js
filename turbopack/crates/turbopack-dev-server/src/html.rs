@@ -163,7 +163,7 @@ impl DevHtmlAsset {
                                     .collect(),
                             ),
                             *module_graph,
-                            AvailabilityInfo::Root,
+                            AvailabilityInfo::root(),
                         )
                         .await?
                 } else {

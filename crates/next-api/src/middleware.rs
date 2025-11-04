@@ -119,7 +119,7 @@ impl MiddlewareEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         );
         Ok(edge_chunk_grou)
     }
@@ -147,7 +147,7 @@ impl MiddlewareEndpoint {
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
-                AvailabilityInfo::Root,
+                AvailabilityInfo::root(),
             )
             .await?;
         Ok(*chunk)

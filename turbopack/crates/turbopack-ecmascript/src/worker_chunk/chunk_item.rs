@@ -40,7 +40,7 @@ impl WorkerLoaderChunkItem {
             module.inner.ident().with_modifier(rcstr!("worker")),
             ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
             *self.module_graph,
-            AvailabilityInfo::Root,
+            AvailabilityInfo::root(),
         ))
     }
 
