@@ -536,12 +536,13 @@ describe('Cache Components Errors', () => {
            Learn more: https://nextjs.org/docs/messages/blocking-route",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": "app/dynamic-root/page.tsx (45:56) @ FetchingComponent
-           > 45 |       {cached ? await fetchRandomCached(nonce) : await fetchRandom(nonce)}
-                |                                                        ^",
+               "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
+           > 63 |   const response = await fetch(
+                |                          ^",
                "stack": [
-                 "FetchingComponent app/dynamic-root/page.tsx (45:56)",
-                 "Page app/dynamic-root/page.tsx (22:9)",
+                 "fetchRandom app/dynamic-root/page.tsx (63:26)",
+                 "FetchingComponent app/dynamic-root/page.tsx (46:50)",
+                 "Page app/dynamic-root/page.tsx (23:9)",
                  "ReportValidation <anonymous>",
                ],
              },
@@ -561,12 +562,13 @@ describe('Cache Components Errors', () => {
            Learn more: https://nextjs.org/docs/messages/blocking-route",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": "app/dynamic-root/page.tsx (45:56) @ FetchingComponent
-           > 45 |       {cached ? await fetchRandomCached(nonce) : await fetchRandom(nonce)}
-                |                                                        ^",
+               "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
+           > 63 |   const response = await fetch(
+                |                          ^",
                "stack": [
-                 "FetchingComponent app/dynamic-root/page.tsx (45:56)",
-                 "Page app/dynamic-root/page.tsx (27:7)",
+                 "fetchRandom app/dynamic-root/page.tsx (63:26)",
+                 "FetchingComponent app/dynamic-root/page.tsx (46:50)",
+                 "Page app/dynamic-root/page.tsx (28:7)",
                  "ReportValidation <anonymous>",
                ],
              },
@@ -2684,10 +2686,6 @@ describe('Cache Components Errors', () => {
                "source": null,
                "stack": [
                  "Page [Prerender] <anonymous>",
-                 "main <anonymous>",
-                 "body <anonymous>",
-                 "html <anonymous>",
-                 "Root [Prerender] <anonymous>",
                  "ReportValidation <anonymous>",
                ],
              }
