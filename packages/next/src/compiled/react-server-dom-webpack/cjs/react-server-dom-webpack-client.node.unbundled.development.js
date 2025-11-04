@@ -5103,10 +5103,7 @@
         options && null != options.startTime ? options.startTime : void 0,
         options && null != options.endTime ? options.endTime : void 0,
         options && void 0 !== options.debugChannel
-          ? {
-              hasReadable: void 0 !== options.debugChannel.readable,
-              callback: null
-            }
+          ? { hasReadable: !0, callback: null }
           : void 0
       )._weakResponse;
       if (options && options.debugChannel) {
