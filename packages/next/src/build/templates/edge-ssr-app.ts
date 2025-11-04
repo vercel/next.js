@@ -158,7 +158,6 @@ async function requestHandler(
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
-        clientSegmentCache: Boolean(nextConfig.experimental.clientSegmentCache),
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),

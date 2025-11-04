@@ -349,11 +349,10 @@ export async function generateSitemaps() {
   return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
 }
 
-export default async function sitemap({
-  id,
-}: {
-  id: number
+export default async function sitemap(props: {
+  id: Promise<number>
 }): Promise<MetadataRoute.Sitemap> {
+  const id = await props.id
   // Google's limit is 50,000 URLs per sitemap
   const start = id * 50000
   const end = start + 50000
@@ -375,7 +374,8 @@ export async function generateSitemaps() {
   return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
 }
 
-export default async function sitemap({ id }) {
+export default async function sitemap(props) {
+  const id = await props.id
   // Google's limit is 50,000 URLs per sitemap
   const start = id * 50000
   const end = start + 50000
@@ -420,6 +420,7 @@ type Sitemap = Array<{
 
 | Version    | Changes                                                      |
 | ---------- | ------------------------------------------------------------ |
+| `v16.0.0`  | `id` is now a promise that resolves to a number.             |
 | `v14.2.0`  | Add localizations support.                                   |
 | `v13.4.14` | Add `changeFrequency` and `priority` attributes to sitemaps. |
 | `v13.3.0`  | `sitemap` introduced.                                        |

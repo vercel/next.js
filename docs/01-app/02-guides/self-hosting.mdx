@@ -10,6 +10,10 @@ When [deploying](/docs/app/getting-started/deploying) your Next.js app, you may 
 
 > **🎥 Watch:** Learn more about self-hosting Next.js → [YouTube (45 minutes)](https://www.youtube.com/watch?v=sIVL4JMqRfc).
 
+## Reverse Proxy
+
+When self-hosting, it's recommended to use a reverse proxy (like nginx) in front of your Next.js server rather than exposing it directly to the internet. A reverse proxy can handle malformed requests, slow connection attacks, payload size limits, rate limiting, and other security concerns, offloading these tasks from the Next.js server. This allows the server to dedicate its resources to rendering rather than request validation.
+
 ## Image Optimization
 
 [Image Optimization](/docs/app/api-reference/components/image) through `next/image` works self-hosted with zero configuration when deploying using `next start`. If you would prefer to have a separate service to optimize images, you can [configure an image loader](/docs/app/api-reference/components/image#loader).
@@ -186,9 +190,9 @@ When the application is reloaded, there may be a loss of application state if it
 
 ## Streaming and Suspense
 
-The Next.js App Router supports [streaming responses](/docs/app/api-reference/file-conventions/loading) when self-hosting. If you are using Nginx or a similar proxy, you will need to configure it to disable buffering to enable streaming.
+The Next.js App Router supports [streaming responses](/docs/app/api-reference/file-conventions/loading) when self-hosting. If you are using nginx or a similar proxy, you will need to configure it to disable buffering to enable streaming.
 
-For example, you can disable buffering in Nginx by setting `X-Accel-Buffering` to `no`:
+For example, you can disable buffering in nginx by setting `X-Accel-Buffering` to `no`:
 
 ```js filename="next.config.js"
 module.exports = {

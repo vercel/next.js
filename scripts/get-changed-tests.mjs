@@ -2,6 +2,7 @@
 import fs from 'fs/promises'
 import execa from 'execa'
 import path from 'path'
+import { getDiffRevision, getGitInfo } from './git-info.mjs'
 
 /**
  * Detects changed tests files by comparing the current branch with `origin/canary`
@@ -9,76 +10,17 @@ import path from 'path'
  * that the current branch is pointing to
  */
 export default async function getChangedTests() {
-  let eventData = {}
-
   /** @type import('execa').Options */
   const EXECA_OPTS = { shell: true }
-  /** @type import('execa').Options */
-  const EXECA_OPTS_STDIO = { ...EXECA_OPTS, stdio: 'inherit' }
 
-  try {
-    eventData =
-      JSON.parse(
-        await fs.readFile(process.env.GITHUB_EVENT_PATH || '', 'utf8')
-      )['pull_request'] || {}
-  } catch (_) {}
-
-  const branchName =
-    eventData?.head?.ref ||
-    process.env.GITHUB_REF_NAME ||
-    (await execa('git rev-parse --abbrev-ref HEAD', EXECA_OPTS)).stdout
-
-  const remoteUrl =
-    eventData?.head?.repo?.full_name ||
-    process.env.GITHUB_REPOSITORY ||
-    (await execa('git remote get-url origin', EXECA_OPTS)).stdout
-
-  const commitSha =
-    eventData?.head?.sha ||
-    process.env.GITHUB_SHA ||
-    (await execa('git rev-parse HEAD', EXECA_OPTS)).stdout
-
-  const isCanary =
-    branchName.trim() === 'canary' && remoteUrl.includes('vercel/next.js')
+  const { branchName, remoteUrl, commitSha, isCanary } = await getGitInfo()
 
   if (isCanary) {
     console.log(`Skipping flake detection for canary`)
     return { devTests: [], prodTests: [] }
   }
 
-  let diffRevision
-  if (
-    process.env.GITHUB_ACTIONS === 'true' &&
-    process.env.GITHUB_EVENT_NAME === 'pull_request'
-  ) {
-    // GH Actions for `pull_request` run on the merge commit so HEAD~1:
-    // 1. includes all changes in the PR
-    //    e.g. in
-    //    A-B-C-main - F
-    //     \          /
-    //      D-E-branch
-    //    GH actions for `branch` runs on F, so a diff for HEAD~1 includes the diff of D and E combined
-    // 2. Includes all changes of the commit for pushes
-    diffRevision = 'HEAD~1'
-  } else {
-    try {
-      await execa(
-        'git remote set-branches --add origin canary',
-        EXECA_OPTS_STDIO
-      )
-      await execa('git fetch origin canary --depth=20', EXECA_OPTS_STDIO)
-    } catch (err) {
-      console.error(await execa('git remote -v', EXECA_OPTS_STDIO))
-      console.error(`Failed to fetch origin/canary`, err)
-    }
-    // TODO: We should diff against the merge base with origin/canary not directly against origin/canary.
-    // A --- B ---- origin/canary
-    //  \
-    //   \-- C ---- HEAD
-    // `git diff origin/canary` includes B and C
-    // But we should only include C.
-    diffRevision = 'origin/canary'
-  }
+  const diffRevision = await getDiffRevision()
 
   const changesResult = await execa(
     `git diff ${diffRevision} --name-only`,
@@ -112,7 +54,10 @@ export default async function getChangedTests() {
       .catch(() => false)
 
     if (fileExists && file.match(/^test\/.*?\.test\.(js|ts|tsx)$/)) {
-      if (file.startsWith('test/e2e/')) {
+      if (
+        file.startsWith('test/e2e/') ||
+        file.startsWith('test/integration/')
+      ) {
         devTests.push(file)
         prodTests.push(file)
       } else if (file.startsWith('test/prod')) {

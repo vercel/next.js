@@ -31,7 +31,7 @@ use turbo_tasks::{
     TraitTypeId, TurboTasksBackendApi, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
-        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
     event::{Event, EventListener},
     message_queue::TimingEvent,
@@ -423,6 +423,8 @@ struct TaskExecutionCompletePrepareResult {
     pub new_children: FxHashSet<TaskId>,
     pub removed_data: Vec<CachedDataItem>,
     pub is_now_immutable: bool,
+    #[cfg(feature = "verify_determinism")]
+    pub no_output_set: bool,
     pub new_output: Option<OutputValue>,
     pub output_dependent_tasks: SmallVec<[TaskId; 4]>,
 }
@@ -467,11 +469,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let (mut task, reader_task) = if self.should_track_dependencies()
+        let need_reader_task = if self.should_track_dependencies()
             && !matches!(options.tracking, ReadTracking::Untracked)
+            && reader.is_some_and(|reader_id| reader_id != task_id)
             && let Some(reader_id) = reader
             && reader_id != task_id
         {
+            Some(reader_id)
+        } else {
+            None
+        };
+        let (mut task, mut reader_task) = if let Some(reader_id) = need_reader_task {
             // Having a task_pair here is not optimal, but otherwise this would lead to a race
             // condition. See below.
             // TODO(sokra): solve that in a more performant way.
@@ -532,6 +540,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     break;
                 }
                 drop(task);
+                drop(reader_task);
                 {
                     let _span = tracing::trace_span!(
                         "make root node for strongly consistent read",
@@ -547,7 +556,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         &mut ctx,
                     );
                 }
-                task = ctx.task(task_id, TaskDataCategory::All);
+                (task, reader_task) = if let Some(reader_id) = need_reader_task {
+                    // TODO(sokra): see comment above
+                    let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
+                    (task, Some(reader))
+                } else {
+                    (ctx.task(task_id, TaskDataCategory::All), None)
+                }
             }
 
             let is_dirty =
@@ -695,6 +710,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         )
                     }
                 });
+                drop(reader_task);
                 drop(task);
                 if !task_ids_to_schedule.is_empty() {
                     let mut queue = AggregationUpdateQueue::new();
@@ -891,6 +907,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 ctx.get_task_description(task_id)
             );
         }
+        drop(reader_task);
 
         // Cell should exist, but data was dropped or is not serializable. We need to recompute the
         // task the get the cell content.
@@ -1765,6 +1782,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             new_children,
             mut removed_data,
             is_now_immutable,
+            #[cfg(feature = "verify_determinism")]
+            no_output_set,
             new_output,
             output_dependent_tasks,
         }) = self.task_execution_completed_prepare(
@@ -1809,6 +1828,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if self.task_execution_completed_finish(
             &mut ctx,
             task_id,
+            #[cfg(feature = "verify_determinism")]
+            no_output_set,
             new_output,
             &mut removed_data,
             is_now_immutable,
@@ -1843,6 +1864,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 new_children: Default::default(),
                 removed_data: Default::default(),
                 is_now_immutable: false,
+                #[cfg(feature = "verify_determinism")]
+                no_output_set: false,
                 new_output: None,
                 output_dependent_tasks: Default::default(),
             });
@@ -2021,6 +2044,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Check if output need to be updated
         let current_output = get!(task, Output);
+        #[cfg(feature = "verify_determinism")]
+        let no_output_set = current_output.is_none();
         let new_output = match result {
             Ok(RawVc::TaskOutput(output_task_id)) => {
                 if let Some(OutputValue::Output(current_task_id)) = current_output
@@ -2092,6 +2117,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             new_children,
             removed_data,
             is_now_immutable,
+            #[cfg(feature = "verify_determinism")]
+            no_output_set,
             new_output,
             output_dependent_tasks,
         })
@@ -2232,6 +2259,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
+        #[cfg(feature = "verify_determinism")] no_output_set: bool,
         new_output: Option<OutputValue>,
         removed_data: &mut Vec<CachedDataItem>,
         is_now_immutable: bool,
@@ -2306,7 +2334,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             None
         };
 
-        let data_update = if old_dirty_state != new_dirty_state {
+        let dirty_changed = old_dirty_state != new_dirty_state;
+        let data_update = if dirty_changed {
             if let Some(new_dirty_state) = new_dirty_state {
                 task.insert(CachedDataItem::Dirty {
                     value: new_dirty_state,
@@ -2353,17 +2382,32 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             None
         };
 
-        drop(task);
-        drop(old_content);
+        #[cfg(feature = "verify_determinism")]
+        let reschedule = (dirty_changed || no_output_set) && !task_id.is_transient();
+        #[cfg(not(feature = "verify_determinism"))]
+        let reschedule = false;
+        if reschedule {
+            task.add_new(CachedDataItem::InProgress {
+                value: InProgressState::Scheduled {
+                    done_event,
+                    reason: TaskExecutionReason::Stale,
+                },
+            });
+            drop(task);
+        } else {
+            drop(task);
 
-        // Notify dependent tasks that are waiting for this task to finish
-        done_event.notify(usize::MAX);
+            // Notify dependent tasks that are waiting for this task to finish
+            done_event.notify(usize::MAX);
+        }
+
+        drop(old_content);
 
         if let Some(data_update) = data_update {
             AggregationUpdateQueue::run(data_update, ctx);
         }
 
-        false
+        reschedule
     }
 
     fn task_execution_completed_cleanup(&self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
@@ -2652,12 +2696,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
+        verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::UpdateCellOperation::run(
             task_id,
             cell,
             content,
+            verification_mode,
             self.execute_context(turbo_tasks),
         );
     }
@@ -3251,9 +3297,11 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
+        verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        self.0.update_task_cell(task_id, cell, content, turbo_tasks);
+        self.0
+            .update_task_cell(task_id, cell, content, verification_mode, turbo_tasks);
     }
 
     fn mark_own_task_as_finished(

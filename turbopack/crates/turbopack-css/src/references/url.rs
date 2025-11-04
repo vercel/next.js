@@ -2,6 +2,7 @@ use std::convert::Infallible;
 
 use anyhow::Result;
 use lightningcss::{
+    stylesheet::StyleSheet,
     values::url::Url,
     visit_types,
     visitor::{Visit, Visitor},
@@ -18,7 +19,7 @@ use turbopack_core::{
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
 };
 
-use crate::{StyleSheetLike, embed::CssEmbed};
+use crate::embed::CssEmbed;
 
 #[turbo_tasks::value]
 pub enum ReferencedAsset {
@@ -122,12 +123,9 @@ pub async fn resolve_url_reference(
     Ok(Vc::cell(None))
 }
 
-pub fn replace_url_references(
-    ss: &mut StyleSheetLike<'static, 'static>,
-    urls: &FxHashMap<RcStr, RcStr>,
-) {
+pub fn replace_url_references<'i, 'o>(ss: &mut StyleSheet<'i, 'o>, urls: &FxHashMap<RcStr, RcStr>) {
     let mut replacer = AssetReferenceReplacer { urls };
-    ss.0.visit(&mut replacer).unwrap();
+    ss.visit(&mut replacer).unwrap();
 }
 
 struct AssetReferenceReplacer<'a> {

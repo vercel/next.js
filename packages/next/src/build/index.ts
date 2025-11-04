@@ -3002,10 +3002,7 @@ export default async function build(
                     // following enabled. This is because the flight data now
                     // does not contain any of the route params and is instead
                     // completely static.
-                    !(
-                      config.experimental.clientSegmentCache &&
-                      config.cacheComponents
-                    )
+                    !config.cacheComponents
                   ) {
                     return
                   }
@@ -3313,16 +3310,12 @@ export default async function build(
                 if (
                   !isAppRouteHandler &&
                   isAppPPREnabled &&
-                  // Don't add a prefetch data route if we have both
-                  // clientSegmentCache and clientParamParsing enabled. This is
+                  // Don't add a prefetch data route if we have
+                  // cacheComponents enabled. This is
                   // because we don't actually use the prefetch data route in
                   // this case. This only applies if we have PPR enabled for
                   // this route.
-                  !(
-                    config.experimental.clientSegmentCache &&
-                    config.cacheComponents &&
-                    isRoutePPREnabled
-                  )
+                  !(config.cacheComponents && isRoutePPREnabled)
                 ) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
@@ -3424,12 +3417,11 @@ export default async function build(
                 )
                 if (!isAppRouteHandler && isAppPPREnabled) {
                   if (
-                    // Don't add a prefetch data route if we have both
-                    // clientSegmentCache and clientParamParsing enabled. This is
+                    // Don't add a prefetch data route if we have
+                    // cacheComponents enabled. This is
                     // because we don't actually use the prefetch data route in
                     // this case. This only applies if we have PPR enabled for
                     // this route.
-                    !config.experimental.clientSegmentCache ||
                     !config.cacheComponents ||
                     !isRoutePPREnabled
                   ) {

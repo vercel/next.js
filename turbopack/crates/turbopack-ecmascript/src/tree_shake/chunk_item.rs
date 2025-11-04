@@ -13,7 +13,7 @@ use crate::{
     EcmascriptAnalyzableExt,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
-        EcmascriptChunkPlaceable, EcmascriptChunkType,
+        EcmascriptChunkPlaceable, EcmascriptChunkType, item::RewriteSourcePath,
     },
     references::async_module::AsyncModuleOptions,
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
@@ -166,7 +166,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
             source_map: None,
-            rewrite_source_path: None,
+            rewrite_source_path: RewriteSourcePath::None,
             options: EcmascriptChunkItemOptions {
                 strict: true,
                 async_module: if has_top_level_await {
