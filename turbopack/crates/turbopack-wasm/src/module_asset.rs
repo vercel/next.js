@@ -251,6 +251,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let loader_asset = self.module.loader();
         let item = loader_asset.as_chunk_item(*self.module_graph, *self.chunking_context);
@@ -260,7 +261,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
 
         let chunk_item_content = ecmascript_item
-            .content_with_async_module_info(async_module_info)
+            .content_with_async_module_info(async_module_info, false)
             .owned()
             .await?;
 

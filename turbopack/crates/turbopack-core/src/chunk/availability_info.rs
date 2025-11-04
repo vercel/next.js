@@ -10,6 +10,7 @@ bitfield! {
     #[derive(Clone, Copy, Default, TaskInput, TraceRawVcs, NonLocalValue, Serialize, Deserialize, PartialEq, Eq, Hash)]
     pub struct AvailabilityFlags(u8);
     impl Debug;
+    pub is_in_of_async_module, set_is_in_of_async_module: 0;
 }
 
 #[derive(
@@ -60,6 +61,19 @@ impl AvailabilityInfo {
                 available_modules: Some(AvailableModules::new(modules).to_resolved().await?),
             }
         })
+    }
+
+    pub fn in_async_module(self) -> Self {
+        let mut flags = self.flags;
+        flags.set_is_in_of_async_module(true);
+        Self {
+            flags,
+            available_modules: self.available_modules,
+        }
+    }
+
+    pub fn is_in_async_module(&self) -> bool {
+        self.flags.is_in_of_async_module()
     }
 
     pub async fn ident(&self) -> Result<Option<RcStr>> {

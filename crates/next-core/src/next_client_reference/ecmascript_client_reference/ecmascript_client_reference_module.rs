@@ -329,9 +329,10 @@ impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
     fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent> {
         self.inner_chunk_item
-            .content_with_async_module_info(async_module_info)
+            .content_with_async_module_info(async_module_info, estimated)
     }
 }
 

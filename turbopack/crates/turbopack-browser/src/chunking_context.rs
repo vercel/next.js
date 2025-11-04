@@ -101,6 +101,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn nested_async_availability(mut self, enable_nested_async_availability: bool) -> Self {
+        self.chunking_context.enable_nested_async_availability = enable_nested_async_availability;
+        self
+    }
+
     pub fn module_merging(mut self, enable_module_merging: bool) -> Self {
         self.chunking_context.enable_module_merging = enable_module_merging;
         self
@@ -261,6 +266,8 @@ pub struct BrowserChunkingContext {
     enable_hot_module_replacement: bool,
     /// Enable tracing for this chunking
     enable_tracing: bool,
+    /// Enable nested async availability for this chunking
+    enable_nested_async_availability: bool,
     /// Enable module merging
     enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
@@ -320,6 +327,7 @@ impl BrowserChunkingContext {
                 asset_base_paths: Default::default(),
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
+                enable_nested_async_availability: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
                 debug_ids: false,
@@ -624,6 +632,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn is_tracing_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_tracing)
+    }
+
+    #[turbo_tasks::function]
+    fn is_nested_async_availability_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_nested_async_availability)
     }
 
     #[turbo_tasks::function]

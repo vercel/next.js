@@ -54,6 +54,9 @@ pub async fn make_chunk_group(
         *chunking_context.environment().chunk_loading().await?,
         ChunkLoading::Edge
     );
+    let is_nested_async_availability_enabled = *chunking_context
+        .is_nested_async_availability_enabled()
+        .await?;
     let should_trace = *chunking_context.is_tracing_enabled().await?;
     let should_merge_modules = *chunking_context.is_module_merging_enabled().await?;
     let batching_config = chunking_context.batching_config();
@@ -63,15 +66,17 @@ pub async fn make_chunk_group(
         batch_groups,
         async_modules,
         traced_modules,
-        availability_info,
+        availability_info: new_availability_info,
     } = chunk_group_content(
         module_graph,
         chunk_group_entries.clone(),
-        availability_info,
-        can_split_async,
-        should_trace,
-        should_merge_modules,
-        batching_config,
+        ChunkGroupContentOptions {
+            availability_info,
+            can_split_async,
+            should_trace,
+            should_merge_modules,
+            batching_config,
+        },
     )
     .await?;
 
@@ -109,11 +114,17 @@ pub async fn make_chunk_group(
         .await?;
 
     // Insert async chunk loaders for every referenced async module
+    let async_availability_info =
+        if is_nested_async_availability_enabled || !availability_info.is_in_async_module() {
+            new_availability_info.in_async_module()
+        } else {
+            availability_info
+        };
     let async_loaders = async_modules
         .into_iter()
         .map(async |module| {
             chunking_context
-                .async_loader_chunk_item(*module, module_graph, availability_info)
+                .async_loader_chunk_item(*module, module_graph, async_availability_info)
                 .to_resolved()
                 .await
         })
@@ -153,7 +164,7 @@ pub async fn make_chunk_group(
         chunks,
         referenced_output_assets,
         references: ResolvedVc::upcast_vec(async_loaders),
-        availability_info,
+        availability_info: new_availability_info,
     })
 }
 
@@ -180,16 +191,43 @@ pub async fn references_to_output_assets(
     .cell())
 }
 
+pub struct ChunkGroupContentOptions {
+    /// The availability info of the chunk group
+    pub availability_info: AvailabilityInfo,
+    /// Whether async modules can be split into separate chunks
+    pub can_split_async: bool,
+    /// Whether traced modules should be collected
+    pub should_trace: bool,
+    /// Whether module merging is enabled
+    pub should_merge_modules: bool,
+    /// The batching config to use
+    pub batching_config: Vc<BatchingConfig>,
+}
+
+/// Computes the content of a chunk group.
+///
+/// ### Parameters:
+/// - module_graph: the module graph
+/// - chunk_group_entries: the entries of the chunk group
+/// - availability_info: the availability info of the chunk group
+/// - can_split_async: indicates whether async modules can be split into separate chunks
+/// - update_availability_info: indicates whether to return a new availability info which includes
+///   all chunk items.
+/// - should_trace: indicates whether traced modules should be collected
+/// - should_merge_modules: indicates whether module merging is enabled
+/// - batching_config: the batching config to use
 pub async fn chunk_group_content(
     module_graph: Vc<ModuleGraph>,
     chunk_group_entries: impl IntoIterator<
         IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send,
     > + Send,
-    availability_info: AvailabilityInfo,
-    can_split_async: bool,
-    should_trace: bool,
-    should_merge_modules: bool,
-    batching_config: Vc<BatchingConfig>,
+    ChunkGroupContentOptions {
+        availability_info,
+        can_split_async,
+        should_trace,
+        should_merge_modules,
+        batching_config,
+    }: ChunkGroupContentOptions,
 ) -> Result<ChunkGroupContent> {
     let module_batches_graph = module_graph.module_batches(batching_config).await?;
 

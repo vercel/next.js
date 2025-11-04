@@ -227,10 +227,12 @@ impl EcmascriptChunkItemWithAsyncInfo {
 pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent>;
+
     #[turbo_tasks::function]
     fn content_with_async_module_info(
         self: Vc<Self>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent> {
         self.content()
     }
@@ -257,7 +259,7 @@ async fn module_factory_with_code_generation_issue(
     async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<Code>> {
     let content = match chunk_item
-        .content_with_async_module_info(async_module_info)
+        .content_with_async_module_info(async_module_info, false)
         .await
     {
         Ok(item) => item.module_factory().await,

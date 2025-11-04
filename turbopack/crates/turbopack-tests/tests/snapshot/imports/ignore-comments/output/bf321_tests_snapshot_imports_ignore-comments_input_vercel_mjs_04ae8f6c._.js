@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/bf321_tests_snapshot_imports_ignore-comments_input_vercel_mjs_1a6404e3._.js",
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/bf321_tests_snapshot_imports_ignore-comments_input_vercel_mjs_04ae8f6c._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)", ((__turbopack_context__) => {
 
 __turbopack_context__.v((parentImport) => {

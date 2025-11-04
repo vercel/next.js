@@ -43,6 +43,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
     async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let analyze = self.module.analyze();
         let analyze_ref = analyze.await?;

@@ -151,6 +151,7 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
     async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let module = self.module.await?;
         let modules = &module.modules;

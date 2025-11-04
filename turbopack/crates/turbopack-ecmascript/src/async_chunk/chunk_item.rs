@@ -3,8 +3,8 @@ use indoc::formatdoc;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
-        ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt, ChunksData,
-        ModuleChunkItemIdExt,
+        AsyncModuleInfo, ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt,
+        ChunksData, ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     module::Module,
@@ -149,6 +149,30 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
         }
         .cell())
     }
+
+    #[turbo_tasks::function]
+    fn content_with_async_module_info(
+        self: Vc<Self>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
+    ) -> Vc<EcmascriptChunkItemContent> {
+        if estimated {
+            let code = formatdoc! {
+                r#"
+                    {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                        return Promise.all([].map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{}});
+                    }});
+                "#,
+            };
+            EcmascriptChunkItemContent {
+                inner_code: code.into(),
+                ..Default::default()
+            }
+            .cell()
+        } else {
+            self.content()
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -168,9 +192,26 @@ impl ChunkItem for AsyncLoaderChunkItem {
 
     #[turbo_tasks::function]
     async fn content_ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        let ident = self.module().ident();
+        let mut ident = self.module().ident();
 
-        Ok(ident.with_modifier(self.chunks_data().hash().await?.to_string().into()))
+        let this = self.await?;
+
+        let nested_async_availability = this
+            .chunking_context
+            .is_nested_async_availability_enabled()
+            .await?;
+
+        let availability_ident = if *nested_async_availability {
+            Some(self.chunks_data().hash().await?.to_string().into())
+        } else {
+            this.module.await?.availability_info.ident().await?
+        };
+
+        if let Some(availability_ident) = availability_ident {
+            ident = ident.with_modifier(availability_ident)
+        }
+
+        Ok(ident)
     }
 
     #[turbo_tasks::function]

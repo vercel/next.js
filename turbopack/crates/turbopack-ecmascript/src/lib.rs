@@ -909,6 +909,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     async fn content_with_async_module_info(
         self: Vc<Self>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let span = tracing::info_span!(
             "code generation",
