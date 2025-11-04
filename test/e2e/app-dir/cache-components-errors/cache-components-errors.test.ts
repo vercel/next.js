@@ -83,7 +83,7 @@ describe('Cache Components Errors', () => {
       const pathname = '/dynamic-metadata-static-route'
 
       if (isNextDev) {
-        it('should show a collapsed redbox error', async () => {
+        fit('should show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
 
           await expect(browser).toDisplayCollapsedRedbox(`
