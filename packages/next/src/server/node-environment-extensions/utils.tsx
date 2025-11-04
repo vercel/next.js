@@ -104,9 +104,13 @@ export function io(expression: string, type: ApiType) {
                 )
             }
           } else {
+            // We're in the Runtime stage.
+            // We only error for Sync IO in the Runtime stage if the route has a runtime prefetch config.
+            // This check is implemented in `stageController.canSyncInterrupt()` --
+            // if runtime prefetching isn't enabled, then we won't get here.
+
             let accessStatement: string
             let additionalInfoLink: string
-            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`.`
 
             switch (type) {
               case 'time':
