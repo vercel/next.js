@@ -39,7 +39,7 @@
   "scripts": {
     "dev": "pnpm build",
     "build": "swc -d dist src && pnpm types",
-    "types": "tsc --skipLibCheck --declaration --emitDeclarationOnly --esModuleInterop --outDir dist",
+    "types": "tsc --skipLibCheck --declaration --emitDeclarationOnly --esModuleInterop --declarationDir dist --rootDir src",
     "prepublishOnly": "cd ../../ && turbo run build"
   },
   "exports": {
