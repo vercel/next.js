@@ -87,7 +87,8 @@ impl ConditionalKind {
             | ConditionalKind::Else { r#else: block }
             | ConditionalKind::And { expr: block, .. }
             | ConditionalKind::Or { expr: block, .. }
-            | ConditionalKind::NullishCoalescing { expr: block, .. } => {
+            | ConditionalKind::NullishCoalescing { expr: block, .. }
+            | ConditionalKind::Labeled { body: block } => {
                 for effect in &mut block.effects {
                     effect.normalize();
                 }
@@ -106,11 +107,6 @@ impl ConditionalKind {
                     for effect in &mut block.effects {
                         effect.normalize();
                     }
-                }
-            }
-            ConditionalKind::Labeled { body } => {
-                for effect in &mut body.effects {
-                    effect.normalize();
                 }
             }
         }
