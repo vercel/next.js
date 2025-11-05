@@ -59,6 +59,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
@@ -856,7 +857,8 @@ impl AppProject {
         has_layout_segments: bool,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         if *self.project.per_page_module_graph().await? {
-            let should_trace = self.project.next_mode().await?.is_production();
+            let next_mode = self.project.next_mode();
+            let should_trace = next_mode.await?.is_production();
             let client_shared_entries = client_shared_entries
                 .await?
                 .into_iter()
@@ -949,10 +951,31 @@ impl AppProject {
                 );
                 graphs.push(additional_module_graph);
 
-                let full = ModuleGraph::from_graphs(graphs);
+                let full_with_unused_references =
+                    ModuleGraph::from_graphs(graphs).to_resolved().await?;
+
+                let full = if *self
+                    .project
+                    .next_config()
+                    .turbopack_remove_unused_imports(next_mode)
+                    .await?
+                {
+                    full_with_unused_references
+                        .without_unused_references(
+                            *compute_binding_usage_info(full_with_unused_references, true)
+                                .resolve_strongly_consistent()
+                                .await?,
+                        )
+                        .to_resolved()
+                        .await?
+                } else {
+                    full_with_unused_references
+                };
+
                 Ok(BaseAndFullModuleGraph {
                     base: base.to_resolved().await?,
-                    full: full.to_resolved().await?,
+                    full_with_unused_references,
+                    full,
                 }
                 .cell())
             }

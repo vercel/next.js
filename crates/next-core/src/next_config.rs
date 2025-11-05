@@ -1757,13 +1757,24 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn turbopack_remove_unused_imports(&self, _mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.experimental
-                .turbopack_remove_unused_imports
-                // TODO enable by default once stable
-                .unwrap_or(false),
-        ))
+    pub async fn turbopack_remove_unused_imports(
+        self: Vc<Self>,
+        mode: Vc<NextMode>,
+    ) -> Result<Vc<bool>> {
+        let remove_unused_imports = self
+            .await?
+            .experimental
+            .turbopack_remove_unused_imports
+            .unwrap_or(matches!(*mode.await?, NextMode::Build));
+
+        if remove_unused_imports && !*self.turbopack_remove_unused_exports(mode).await? {
+            bail!(
+                "`experimental.turbopackRemoveUnusedImports` cannot be enabled without also \
+                 enabling `experimental.turbopackRemoveUnusedExports`"
+            );
+        }
+
+        Ok(Vc::cell(remove_unused_imports))
     }
 
     #[turbo_tasks::function]

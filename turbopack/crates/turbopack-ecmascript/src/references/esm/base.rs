@@ -23,12 +23,12 @@ use turbopack_core::{
         OptionStyledString, StyledString,
     },
     module::Module,
-    module_graph::export_usage::ModuleExportUsageInfo,
+    module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
-        ExportUsage, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        RequestKey,
+        BindingUsage, ExportUsage, ExternalType, ImportUsage, ModulePart, ModuleResolveResult,
+        ModuleResolveResultItem, RequestKey,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -325,6 +325,7 @@ pub struct EsmAssetReference {
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
     pub export_name: Option<ModulePart>,
+    pub import_usage: ImportUsage,
     pub import_externals: bool,
     pub is_pure_import: bool,
 }
@@ -346,6 +347,7 @@ impl EsmAssetReference {
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
+        import_usage: ImportUsage,
         import_externals: bool,
     ) -> Self {
         EsmAssetReference {
@@ -354,6 +356,7 @@ impl EsmAssetReference {
             issue_source,
             annotations,
             export_name,
+            import_usage,
             import_externals,
             is_pure_import: false,
         }
@@ -365,6 +368,7 @@ impl EsmAssetReference {
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
+        import_usage: ImportUsage,
         import_externals: bool,
     ) -> Self {
         EsmAssetReference {
@@ -373,6 +377,7 @@ impl EsmAssetReference {
             issue_source,
             annotations,
             export_name,
+            import_usage,
             import_externals,
             is_pure_import: true,
         }
@@ -512,12 +517,16 @@ impl ChunkableModuleReference for EsmAssetReference {
     }
 
     #[turbo_tasks::function]
-    fn export_usage(&self) -> Vc<ExportUsage> {
-        match &self.export_name {
-            Some(ModulePart::Export(export_name)) => ExportUsage::named(export_name.clone()),
-            Some(ModulePart::Evaluation) => ExportUsage::evaluation(),
-            _ => ExportUsage::all(),
+    fn binding_usage(&self) -> Vc<BindingUsage> {
+        BindingUsage {
+            import: self.import_usage.clone(),
+            export: match &self.export_name {
+                Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
+                Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
+                _ => ExportUsage::All,
+            },
         }
+        .cell()
     }
 }
 
@@ -528,6 +537,13 @@ impl EsmAssetReference {
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
+
+        if *chunking_context
+            .is_reference_unused(Vc::upcast(self))
+            .await?
+        {
+            return Ok(CodeGeneration::empty());
+        }
 
         // only chunked references can be imported
         if this.annotations.chunking_type().is_none_or(|v| v != "none") {
@@ -571,7 +587,7 @@ impl EsmAssetReference {
                     }
 
                     if merged_index.is_some()
-                        && matches!(*self.export_usage().await?, ExportUsage::Evaluation)
+                        && matches!(this.export_name, Some(ModulePart::Evaluation))
                     {
                         // No need to import, the module was already executed and is available in
                         // the same scope hoisting group (unless it's a
