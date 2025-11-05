@@ -1779,7 +1779,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         connectReactDebugChannel(
           htmlRequestId,
           debugChannel,
-          this.sendToClient.bind(null, client)
+          this.sendToClient.bind(this, client)
         )
       } else {
         // Otherwise, we'll do that when the client connects and just store
@@ -1793,7 +1793,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       connectReactDebugChannel(
         requestId,
         debugChannel,
-        this.sendToClient.bind(null, client)
+        this.sendToClient.bind(this, client)
       )
     }
   }
