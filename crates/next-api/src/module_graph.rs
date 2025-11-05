@@ -19,13 +19,13 @@ use turbo_tasks::{
     CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_core::{
     context::AssetContext,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraphWithBindingUsage},
 };
+use turbopack_css::{CssModuleAsset, ModuleCssAsset};
 
 use crate::{
     client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
