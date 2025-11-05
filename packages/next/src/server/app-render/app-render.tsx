@@ -3618,7 +3618,18 @@ async function logMessagesAndSendErrorsToBrowser(
 
   const errors: Error[] = []
   for (const message of messages) {
-    console.error(message)
+    // Log the error to the CLI. Prevent the logs from being dimmed, which we
+    // apply for other logs during the spawned validation.
+    consoleAsyncStorage.exit(() => {
+      console.error(message)
+    })
+
+    // Error instances are also sent to the browser. We're currently using a
+    // non-Error message only in debug build mode as a message that is only
+    // meant for the CLI. FIXME: This is a bit spooky action at a distance. We
+    // should maybe have a more explicit way of determining which messages
+    // should be sent to the browser. Regardless, only real errors with a proper
+    // stack make sense to be "replayed" in the browser.
     if (message instanceof Error) {
       errors.push(message)
     }
