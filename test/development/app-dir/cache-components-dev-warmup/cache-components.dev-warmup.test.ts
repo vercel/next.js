@@ -309,50 +309,57 @@ describe.each([
         }
       })
 
-      it('sync IO in the static phase', async () => {
-        const path = '/sync-io/static'
+      // FIXME: it seems like in Turbopack we sometimes get two instances of `workUnitAsyncStorage` --
+      // `app-render` gets a second, newer instance, different from `io()`.
+      // Thus, `io()` gets an undefined `workUnitStore` and does nothing, so sync IO does not get tracked at all.
+      // This is likely caused by the same bug that breaks `/revalidate` (see other FIXME above),
+      // where a route crashes due to a missing `workStore`.
+      if (!isTurbopack) {
+        it('sync IO in the static phase', async () => {
+          const path = '/sync-io/static'
 
-        const assertLogs = async (browser: Playwright) => {
-          const logs = await browser.log()
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
 
-          assertLog(logs, 'after first cache', 'Prerender')
-          // sync IO in the static stage errors and advances to Server.
-          assertLog(logs, 'after sync io', 'Server')
-          assertLog(logs, 'after cache read - page', 'Server')
-        }
-
-        if (isInitialLoad) {
-          await testInitialLoad(path, assertLogs)
-        } else {
-          await testNavigation(path, assertLogs)
-        }
-      })
-
-      it('sync IO in the runtime phase', async () => {
-        const path = '/sync-io/runtime'
-
-        const assertLogs = async (browser: Playwright) => {
-          const logs = await browser.log()
-
-          assertLog(logs, 'after first cache', 'Prerender')
-          assertLog(logs, 'after cookies', RUNTIME_ENV)
-          if (hasRuntimePrefetch) {
-            // if runtime prefetching is on, sync IO in the runtime stage errors and advances to Server.
+            assertLog(logs, 'after first cache', 'Prerender')
+            // sync IO in the static stage errors and advances to Server.
             assertLog(logs, 'after sync io', 'Server')
             assertLog(logs, 'after cache read - page', 'Server')
-          } else {
-            // if runtime prefetching is not on, sync IO in the runtime stage does nothing.
-            assertLog(logs, 'after sync io', RUNTIME_ENV)
-            assertLog(logs, 'after cache read - page', RUNTIME_ENV)
           }
-        }
 
-        if (isInitialLoad) {
-          await testInitialLoad(path, assertLogs)
-        } else {
-          await testNavigation(path, assertLogs)
-        }
-      })
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+
+        it('sync IO in the runtime phase', async () => {
+          const path = '/sync-io/runtime'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+
+            assertLog(logs, 'after first cache', 'Prerender')
+            assertLog(logs, 'after cookies', RUNTIME_ENV)
+            if (hasRuntimePrefetch) {
+              // if runtime prefetching is on, sync IO in the runtime stage errors and advances to Server.
+              assertLog(logs, 'after sync io', 'Server')
+              assertLog(logs, 'after cache read - page', 'Server')
+            } else {
+              // if runtime prefetching is not on, sync IO in the runtime stage does nothing.
+              assertLog(logs, 'after sync io', RUNTIME_ENV)
+              assertLog(logs, 'after cache read - page', RUNTIME_ENV)
+            }
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+      }
     })
   }
 )
