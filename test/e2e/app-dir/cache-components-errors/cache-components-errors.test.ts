@@ -3875,7 +3875,7 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (12:9)",
-                 "LogSafely <anonymous>",
+                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -3999,7 +3999,7 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6)",
                  "Page app/sync-io-node-crypto/generate-key-sync/page.tsx (12:9)",
-                 "LogSafely <anonymous>",
+                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4123,7 +4123,7 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39)",
                  "Page app/sync-io-node-crypto/generate-prime-sync/page.tsx (12:9)",
-                 "LogSafely <anonymous>",
+                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4247,7 +4247,7 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/get-random-values/page.tsx (21:10)",
                  "Page app/sync-io-node-crypto/get-random-values/page.tsx (12:9)",
-                 "LogSafely <anonymous>",
+                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4371,7 +4371,7 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-bytes/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-bytes/page.tsx (12:9)",
-                 "LogSafely <anonymous>",
+                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4495,7 +4495,7 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10)",
                  "Page app/sync-io-node-crypto/random-fill-sync/page.tsx (12:9)",
-                 "LogSafely <anonymous>",
+                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4619,7 +4619,7 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-int-between/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-int-between/page.tsx (12:9)",
-                 "LogSafely <anonymous>",
+                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4743,7 +4743,7 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-int-up-to/page.tsx (12:9)",
-                 "LogSafely <anonymous>",
+                 "ReportValidation <anonymous>",
                ],
              }
             `)
@@ -4867,7 +4867,7 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "SyncIOComponent app/sync-io-node-crypto/random-uuid/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-uuid/page.tsx (12:9)",
-                 "LogSafely <anonymous>",
+                 "ReportValidation <anonymous>",
                ],
              }
             `)
