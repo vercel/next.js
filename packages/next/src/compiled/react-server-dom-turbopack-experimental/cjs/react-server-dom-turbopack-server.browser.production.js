@@ -540,7 +540,6 @@ var REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
-  REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
@@ -852,7 +851,6 @@ function RequestInstance(
   model,
   bundlerConfig,
   onError,
-  onPostpone,
   onAllReady,
   onFatalError,
   identifierPrefix,
@@ -893,7 +891,6 @@ function RequestInstance(
   this.identifierCount = 1;
   this.taintCleanupQueue = cleanupQueue;
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
-  this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
   type = createTask(this, model, null, !1, 0, abortSet);
@@ -1375,13 +1372,8 @@ function createTask(
             (task.implicitSlot = prevImplicitSlot),
             request.pendingChunks++,
             (prevKeyPath = request.nextChunkId++),
-            "object" === typeof value &&
-            null !== value &&
-            value.$$typeof === REACT_POSTPONE_TYPE
-              ? (logPostpone(request, value.message, task),
-                emitPostponeChunk(request, prevKeyPath))
-              : ((prevImplicitSlot = logRecoverableError(request, value, task)),
-                emitErrorChunk(request, prevKeyPath, prevImplicitSlot)),
+            (prevImplicitSlot = logRecoverableError(request, value, task)),
+            emitErrorChunk(request, prevKeyPath, prevImplicitSlot),
             (JSCompiler_inline_result = parentPropertyName
               ? serializeLazyID(prevKeyPath)
               : serializeByValueID(prevKeyPath));
@@ -1841,16 +1833,6 @@ function renderModelDestructive(
       describeObjectForErrorMessage(parent, parentPropertyName)
   );
 }
-function logPostpone(request, reason) {
-  var prevRequest = currentRequest;
-  currentRequest = null;
-  try {
-    var onPostpone = request.onPostpone;
-    onPostpone(reason);
-  } finally {
-    currentRequest = prevRequest;
-  }
-}
 function logRecoverableError(request, error) {
   var prevRequest = currentRequest;
   currentRequest = null;
@@ -1878,11 +1860,6 @@ function fatalError(request, error) {
   request.cacheController.abort(
     Error("The render was aborted due to a fatal error.", { cause: error })
   );
-}
-function emitPostponeChunk(request, id) {
-  id = id.toString(16) + ":P\n";
-  id = stringToChunk(id);
-  request.completedErrorChunks.push(id);
 }
 function emitErrorChunk(request, id, digest) {
   digest = { digest: digest };
@@ -1970,13 +1947,8 @@ function emitChunk(request, task, value) {
 }
 function erroredTask(request, task, error) {
   task.status = 4;
-  "object" === typeof error &&
-  null !== error &&
-  error.$$typeof === REACT_POSTPONE_TYPE
-    ? (logPostpone(request, error.message, task),
-      emitPostponeChunk(request, task.id))
-    : ((error = logRecoverableError(request, error, task)),
-      emitErrorChunk(request, task.id, error));
+  error = logRecoverableError(request, error, task);
+  emitErrorChunk(request, task.id, error);
   request.abortableTasks.delete(task);
   callOnAllReadyIfReady(request);
 }
@@ -2208,23 +2180,7 @@ function abort(request, reason) {
             scheduleWork(function () {
               return finishHalt(request, abortableTasks);
             });
-        else if (
-          "object" === typeof reason &&
-          null !== reason &&
-          reason.$$typeof === REACT_POSTPONE_TYPE
-        ) {
-          logPostpone(request, reason.message, null);
-          var errorId = request.nextChunkId++;
-          request.fatalError = errorId;
-          request.pendingChunks++;
-          emitPostponeChunk(request, errorId, reason);
-          abortableTasks.forEach(function (task) {
-            return abortTask(task, request, errorId);
-          });
-          scheduleWork(function () {
-            return finishAbort(request, abortableTasks, errorId);
-          });
-        } else {
+        else {
           var error =
               void 0 === reason
                 ? Error(
@@ -2238,15 +2194,15 @@ function abort(request, reason) {
                     )
                   : reason,
             digest = logRecoverableError(request, error, null),
-            errorId$26 = request.nextChunkId++;
-          request.fatalError = errorId$26;
+            errorId = request.nextChunkId++;
+          request.fatalError = errorId;
           request.pendingChunks++;
-          emitErrorChunk(request, errorId$26, digest, error, !1, null);
+          emitErrorChunk(request, errorId, digest, error, !1, null);
           abortableTasks.forEach(function (task) {
-            return abortTask(task, request, errorId$26);
+            return abortTask(task, request, errorId);
           });
           scheduleWork(function () {
-            return finishAbort(request, abortableTasks, errorId$26);
+            return finishAbort(request, abortableTasks, errorId);
           });
         }
       else {
@@ -2254,9 +2210,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$27) {
-      logRecoverableError(request, error$27, null),
-        fatalError(request, error$27);
+    } catch (error$26) {
+      logRecoverableError(request, error$26, null),
+        fatalError(request, error$26);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2702,8 +2658,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$30 = createPendingChunk(response);
-        chunk$30.then(
+        var chunk$29 = createPendingChunk(response);
+        chunk$29.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2711,10 +2667,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$30;
+        previousBlockedChunk = chunk$29;
         chunk.then(function () {
-          previousBlockedChunk === chunk$30 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$30, json, -1);
+          previousBlockedChunk === chunk$29 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$29, json, -1);
         });
       }
     },
@@ -3041,7 +2997,6 @@ exports.prerender = function (model, turbopackMap, options) {
       model,
       turbopackMap,
       options ? options.onError : void 0,
-      options ? options.onPostpone : void 0,
       function () {
         var stream = new ReadableStream(
           {
@@ -3104,7 +3059,6 @@ exports.renderToReadableStream = function (model, turbopackMap, options) {
     model,
     turbopackMap,
     options ? options.onError : void 0,
-    options ? options.onPostpone : void 0,
     noop,
     noop,
     options ? options.identifierPrefix : void 0,

@@ -1681,9 +1681,6 @@
           100
         )));
     }
-    function createErrorChunk(response, error) {
-      return new ReactPromise("rejected", null, error);
-    }
     function filterDebugInfo(response, value) {
       if (null !== response._debugEndTime) {
         response = response._debugEndTime - performance.timeOrigin;
@@ -2114,7 +2111,7 @@
         chunk = chunks.get(id);
       chunk ||
         ((chunk = response._closed
-          ? createErrorChunk(response, response._closedReason)
+          ? new ReactPromise("rejected", null, response._closedReason)
           : createPendingChunk(response)),
         chunks.set(id, chunk));
       return chunk;
@@ -4479,7 +4476,7 @@
           chunk
             ? (resolveChunkDebugInfo(response, streamState, chunk),
               triggerErrorOnChunk(response, chunk, error))
-            : ((row = createErrorChunk(response, error)),
+            : ((row = new ReactPromise("rejected", null, error)),
               resolveChunkDebugInfo(response, streamState, row),
               tag.set(id, row));
           break;
@@ -4539,26 +4536,6 @@
           (response = response._chunks.get(id)) &&
             "fulfilled" === response.status &&
             response.reason.close("" === row ? '"$undefined"' : row);
-          break;
-        case 80:
-          row = JSON.parse(row);
-          row = buildFakeCallStack(
-            response,
-            row.stack,
-            row.env,
-            !1,
-            Error.bind(null, row.reason || "")
-          );
-          tag = response._debugRootTask;
-          tag = null != tag ? tag.run(row) : row();
-          tag.$$typeof = REACT_POSTPONE_TYPE;
-          row = response._chunks;
-          (chunk = row.get(id))
-            ? (resolveChunkDebugInfo(response, streamState, chunk),
-              triggerErrorOnChunk(response, chunk, tag))
-            : ((tag = createErrorChunk(response, tag)),
-              resolveChunkDebugInfo(response, streamState, tag),
-              row.set(id, tag));
           break;
         default:
           if ("" === row) {
@@ -4725,7 +4702,7 @@
                 owner = initializingHandler;
                 initializingHandler = owner.parent;
                 if (owner.errored) {
-                  stack = createErrorChunk(response, owner.reason);
+                  stack = new ReactPromise("rejected", null, owner.reason);
                   initializeElement(response, value, null);
                   owner = {
                     name: getComponentNameFromType(value.type) || "",
@@ -4930,7 +4907,6 @@
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
-      REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
