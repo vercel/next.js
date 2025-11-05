@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxHeader } from 'next-test-utils'
+import { waitForRedbox, getRedboxHeader } from 'next-test-utils'
 
 describe('withRouter', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
@@ -65,7 +65,7 @@ describe('withRouter', () => {
     describe('SSR', () => {
       it('should show an error when trying to use router methods during SSR', async () => {
         const browser = await next.browser('/router-method-ssr')
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           `No router instance found. you should only use "next/router" inside the client side of your app. https://`
         )

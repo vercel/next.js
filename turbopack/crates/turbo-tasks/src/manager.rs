@@ -25,7 +25,7 @@ use crate::{
     VcValueTrait, VcValueType,
     backend::{
         Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
-        TransientTaskType, TurboTasksExecutionError, TypedCellContent,
+        TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
     capture_future::CaptureFuture,
     event::{Event, EventListener},
@@ -155,7 +155,13 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<TypedCellContent>;
-    fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent);
+    fn update_own_task_cell(
+        &self,
+        task: TaskId,
+        index: CellId,
+        content: CellContent,
+        verification_mode: VerificationMode,
+    );
     fn mark_own_task_as_finished(&self, task: TaskId);
     fn set_own_task_aggregation_number(&self, task: TaskId, aggregation_number: u32);
     fn mark_own_task_as_session_dependent(&self, task: TaskId);
@@ -572,7 +578,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             .scope(
                 self.pin(),
                 CURRENT_TASK_STATE.scope(current_task_state, async {
-                    let (result, _duration, _alloc_info) = CaptureFuture::new(future).await;
+                    let result = CaptureFuture::new(future).await;
 
                     // wait for all spawned local tasks using `local` to finish
                     let ltt =
@@ -730,7 +736,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     };
 
                     async {
-                        let (result, duration, alloc_info) = CaptureFuture::new(future).await;
+                        let result = CaptureFuture::new(future).await;
 
                         // wait for all spawned local tasks using `local` to finish
                         let ltt = CURRENT_TASK_STATE
@@ -752,8 +758,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
                         this.backend.task_execution_completed(
                             task_id,
-                            duration,
-                            alloc_info.memory_usage(),
                             result,
                             &cell_counters,
                             stateful,
@@ -829,7 +833,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             let TaskExecutionSpec { future, span } =
                 crate::task::local_task::get_local_task_execution_spec(&*this, &ty, persistence);
             async move {
-                let (result, _duration, _memory_usage) = CaptureFuture::new(future).await;
+                let result = CaptureFuture::new(future).await;
 
                 let result = match result {
                     Ok(Ok(raw_vc)) => Ok(raw_vc),
@@ -1354,8 +1358,15 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.try_read_own_task_cell(task, index, options)
     }
 
-    fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent) {
-        self.backend.update_task_cell(task, index, content, self);
+    fn update_own_task_cell(
+        &self,
+        task: TaskId,
+        index: CellId,
+        content: CellContent,
+        verification_mode: VerificationMode,
+    ) {
+        self.backend
+            .update_task_cell(task, index, content, verification_mode, self);
     }
 
     fn connect_task(&self, task: TaskId) {
@@ -1769,7 +1780,12 @@ impl CurrentCellRef {
             .ok();
         let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
         if let Some(update) = update {
-            tt.update_own_task_cell(self.current_task, self.index, CellContent(Some(update)))
+            tt.update_own_task_cell(
+                self.current_task,
+                self.index,
+                CellContent(Some(update)),
+                VerificationMode::EqualityCheck,
+            )
         }
     }
 
@@ -1851,7 +1867,7 @@ impl CurrentCellRef {
     }
 
     /// Unconditionally updates the content of the cell.
-    pub fn update<T>(&self, new_value: T)
+    pub fn update<T>(&self, new_value: T, verification_mode: VerificationMode)
     where
         T: VcValueType,
     {
@@ -1862,6 +1878,7 @@ impl CurrentCellRef {
             CellContent(Some(SharedReference::new(triomphe::Arc::new(
                 <T::Read as VcRead<T>>::value_to_repr(new_value),
             )))),
+            verification_mode,
         )
     }
 
@@ -1873,27 +1890,40 @@ impl CurrentCellRef {
     ///
     /// The [`SharedReference`] is expected to use the `<T::Read as
     /// VcRead<T>>::Repr` type for its representation of the value.
-    pub fn update_with_shared_reference(&self, shared_ref: SharedReference) {
+    pub fn update_with_shared_reference(
+        &self,
+        shared_ref: SharedReference,
+        verification_mode: VerificationMode,
+    ) {
         let tt = turbo_tasks();
-        let content = tt
-            .read_own_task_cell(
-                self.current_task,
-                self.index,
-                ReadCellOptions {
-                    // INVALIDATION: Reading our own cell must be untracked
-                    tracking: ReadTracking::Untracked,
-                    ..Default::default()
-                },
-            )
-            .ok();
-        let update = if let Some(TypedCellContent(_, CellContent(Some(shared_ref_exp)))) = content {
-            // pointer equality (not value equality)
-            shared_ref_exp != shared_ref
+        let update = if matches!(verification_mode, VerificationMode::EqualityCheck) {
+            let content = tt
+                .read_own_task_cell(
+                    self.current_task,
+                    self.index,
+                    ReadCellOptions {
+                        // INVALIDATION: Reading our own cell must be untracked
+                        tracking: ReadTracking::Untracked,
+                        ..Default::default()
+                    },
+                )
+                .ok();
+            if let Some(TypedCellContent(_, CellContent(Some(shared_ref_exp)))) = content {
+                // pointer equality (not value equality)
+                shared_ref_exp != shared_ref
+            } else {
+                true
+            }
         } else {
             true
         };
         if update {
-            tt.update_own_task_cell(self.current_task, self.index, CellContent(Some(shared_ref)))
+            tt.update_own_task_cell(
+                self.current_task,
+                self.index,
+                CellContent(Some(shared_ref)),
+                verification_mode,
+            )
         }
     }
 }

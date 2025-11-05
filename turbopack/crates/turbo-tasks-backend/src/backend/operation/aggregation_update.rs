@@ -31,8 +31,8 @@ use crate::{
         storage::{count, get, get_many, iter_many, remove, update, update_count},
     },
     data::{
-        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CollectibleRef,
-        DirtyContainerCount,
+        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
+        CollectibleRef, DirtyContainerCount,
     },
     utils::swap_retain,
 };
@@ -2295,12 +2295,12 @@ impl AggregationUpdateQueue {
                 // When converted from leaf to aggregating node, all children become
                 // followers
                 let children: Vec<_> = get_many!(task, Child { task } => task);
-                for child_id in children {
-                    task.add_new(CachedDataItem::Follower {
-                        task: child_id,
-                        value: 1,
-                    });
-                }
+                task.extend_new(
+                    CachedDataItemType::Follower,
+                    children
+                        .iter()
+                        .map(|&task| CachedDataItem::Follower { task, value: 1 }),
+                );
             }
 
             if is_aggregating_node(aggregation_number) {

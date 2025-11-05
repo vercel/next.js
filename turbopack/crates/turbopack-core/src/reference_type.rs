@@ -290,6 +290,7 @@ pub enum WorkerReferenceSubType {
     WebWorker,
     SharedWorker,
     ServiceWorker,
+    NodeWorker,
     Custom(u8),
     Undefined,
 }

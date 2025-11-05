@@ -146,7 +146,7 @@ impl NextFontGoogleReplacer {
 impl ImportMappingReplacement for NextFontGoogleReplacer {
     #[turbo_tasks::function]
     fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Ignore.into()
+        ReplacedImportMapping::Ignore.cell()
     }
 
     /// Intercepts requests for `next/font/google/target.css` and returns a
@@ -166,14 +166,14 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
             fragment: _,
         } = request
         else {
-            return Ok(ImportMapResult::NoEntry.into());
+            return Ok(ImportMapResult::NoEntry.cell());
         };
 
         let this = &*self.await?;
         if can_use_next_font(this.project_path.clone(), query).await? {
             Ok(self.import_map_result(query.clone()))
         } else {
-            Ok(ImportMapResult::NoEntry.into())
+            Ok(ImportMapResult::NoEntry.cell())
         }
     }
 }
@@ -338,7 +338,7 @@ impl NextFontGoogleCssModuleReplacer {
 impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
     #[turbo_tasks::function]
     fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Ignore.into()
+        ReplacedImportMapping::Ignore.cell()
     }
 
     /// Intercepts requests for the css module made by the virtual JavaScript

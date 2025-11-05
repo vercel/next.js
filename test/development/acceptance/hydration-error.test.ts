@@ -141,7 +141,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
     `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     expect(await browser.elementByCss('.child').text()).toBe('Value')
   })
@@ -1175,6 +1175,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
     const { session } = sandbox
     // FIXME: Should have a redbox just like with App router
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 })

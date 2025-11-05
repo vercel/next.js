@@ -166,7 +166,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                         "{}.js",
                         get_request_id(options_vc.font_family().await?, request_hash)
                     ))?,
-                    AssetContent::file(FileContent::Content(file_content.into()).into()),
+                    AssetContent::file(FileContent::Content(file_content.into()).cell()),
                 )
                 .to_resolved()
                 .await?;

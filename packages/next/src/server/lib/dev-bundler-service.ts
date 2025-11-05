@@ -98,10 +98,9 @@ export class DevBundlerService {
 
   public setCacheStatus(
     status: ServerCacheStatus,
-    htmlRequestId: string,
-    requestId: string
+    htmlRequestId: string
   ): void {
-    this.bundler.hotReloader.setCacheStatus(status, htmlRequestId, requestId)
+    this.bundler.hotReloader.setCacheStatus(status, htmlRequestId)
   }
 
   public setIsrStatus(key: string, value: boolean | undefined) {

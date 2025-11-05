@@ -188,8 +188,6 @@ For example, you may still want to have consistent usage of `<Link>` in your app
 
 ## Prefetching optimizations
 
-> **Good to know:** Layout deduplication and prefetch scheduling are part of upcoming optimizations. Currently available in Next.js canary via the `experimental.clientSegmentCache` flag.
-
 ### Client cache
 
 Next.js stores prefetched React Server Component payloads in memory, keyed by route segments. When navigating between sibling routes (e.g. `/dashboard/settings` → `/dashboard/analytics`), it reuses the parent layout and only fetches the updated leaf page. This reduces network traffic and improves navigation speed.

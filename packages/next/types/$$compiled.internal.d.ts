@@ -156,7 +156,6 @@ declare module 'react-server-dom-webpack/server.edge' {
           ) => boolean)
         | undefined
       onError?: (error: unknown) => void
-      onPostpone?: (reason: string) => void
       signal?: AbortSignal
       debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
     }
@@ -291,7 +290,6 @@ declare module 'react-server-dom-webpack/static' {
       signal?: AbortSignal
       temporaryReferences?: TemporaryReferenceSet
       onError?: (error: unknown) => void
-      onPostpone?: (reason: string) => void
     }
   ): Promise<{
     prelude: ReadableStream<Uint8Array>

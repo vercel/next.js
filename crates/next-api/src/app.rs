@@ -81,8 +81,10 @@ use crate::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
-    project::{ModuleGraphs, Project},
-    route::{AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, Route, Routes},
+    project::{BaseAndFullModuleGraph, Project},
+    route::{
+        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
+    },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     webpack_stats::generate_webpack_stats,
 };
@@ -850,7 +852,7 @@ impl AppProject {
         rsc_entry: ResolvedVc<Box<dyn Module>>,
         client_shared_entries: Vc<EvaluatableAssets>,
         has_layout_segments: bool,
-    ) -> Result<Vc<ModuleGraphs>> {
+    ) -> Result<Vc<BaseAndFullModuleGraph>> {
         if *self.project.per_page_module_graph().await? {
             let should_trace = self.project.next_mode().await?.is_production();
             let client_shared_entries = client_shared_entries
@@ -946,7 +948,7 @@ impl AppProject {
                 graphs.push(additional_module_graph);
 
                 let full = ModuleGraph::from_graphs(graphs);
-                Ok(ModuleGraphs {
+                Ok(BaseAndFullModuleGraph {
                     base: base.to_resolved().await?,
                     full: full.to_resolved().await?,
                 }
@@ -2101,6 +2103,22 @@ impl Endpoint for AppEndpoint {
         Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
             server_actions_loader,
         ])]))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
+        let this = self.await?;
+        let app_entry = self.app_endpoint_entry().await?;
+        let module_graphs = this
+            .app_project
+            .app_module_graphs(
+                self,
+                *app_entry.rsc_entry,
+                this.app_project.client_runtime_entries(),
+                matches!(this.ty, AppEndpointType::Page { .. }),
+            )
+            .await?;
+        Ok(Vc::cell(vec![module_graphs.full]))
     }
 }
 
