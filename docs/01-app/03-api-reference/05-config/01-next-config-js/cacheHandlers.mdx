@@ -34,7 +34,10 @@ Custom handlers are also useful for:
 
 ## Usage
 
-To configure custom cache handlers, add them to your `next.config.js` file:
+To configure custom cache handlers:
+
+1. Define your cache handler in a separate file, see [examples](#examples) for implementation details.
+2. Reference the file path in your Next config file
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -63,7 +66,7 @@ module.exports = {
 - **`default`**: Used by the `'use cache'` directive
 - **`remote`**: Used by the `'use cache: remote'` directive
 
-If you don't configure `cacheHandlers`, Next.js uses an in-memory LRU cache for both `default` and `remote`. You can view the [default implementation](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/default.ts) as a reference.
+If you don't configure `cacheHandlers`, Next.js uses an in-memory LRU (Least Recently Used) cache for both `default` and `remote`. You can view the [default implementation](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/lib/cache-handlers/default.ts) as a reference.
 
 You can also define additional named handlers (e.g., `sessions`, `analytics`) and reference them with `'use cache: <name>'`.
 
