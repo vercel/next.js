@@ -844,11 +844,10 @@
       "app dir - prefetching (custom staleTime) should fetch again when a static page was prefetched when navigating to it after the stale time has passed",
       "app dir - prefetching (custom staleTime) should fetch again when the initially visited static page is visited after the stale time has passed",
       "app dir - prefetching (custom staleTime) should not fetch again when a static page was prefetched when navigating to it twice",
+      "app dir - prefetching (custom staleTime) should not re-fetch cached data when navigating back to a route group",
       "app dir - prefetching (custom staleTime) should renew the stale time after refetching expired RSC data"
     ],
-    "failed": [
-      "app dir - prefetching (custom staleTime) should not re-fetch cached data when navigating back to a route group"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11402,11 +11401,11 @@
     "runtimeError": false
   },
   "test/integration/clean-distdir/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Cleaning distDir production mode disabled write should not clean up .next before build start",
       "Cleaning distDir production mode should clean up .next before build start"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11660,7 +11659,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/conflicting-ssg-paths/test/index.test.js": {
+  "test/integration/conflicting-ssg-paths/test/index.test.ts": {
     "passed": [
       "Conflicting SSG paths production mode should show proper error when a dynamic SSG route conflicts with SSR route",
       "Conflicting SSG paths production mode should show proper error when a dynamic SSG route conflicts with normal route",
@@ -11887,7 +11886,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/critical-css/test/index.test.js": {
+  "test/integration/critical-css/test/index.test.ts": {
     "passed": [
       "CSS optimization for SSR apps production mode should have all CSS files in manifest",
       "CSS optimization for SSR apps production mode should inline critical CSS",
@@ -11899,7 +11898,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css-client-nav/test/index.test.js": {
+  "test/integration/css-client-nav/test/index.test.ts": {
     "passed": [
       "CSS Module client-side navigation dev should be able to client-side navigate from blue to red",
       "CSS Module client-side navigation dev should be able to client-side navigate from none to blue",
@@ -11916,7 +11915,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css-customization/test/index.test.js": {
+  "test/integration/css-customization/test/index.test.ts": {
     "passed": [
       "CSS Customization production mode Bad CSS Customization Array (1) should fail the build",
       "CSS Customization production mode Bad CSS Customization Array (2) should fail the build",
@@ -11944,7 +11943,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css-features/test/browserslist.test.js": {
+  "test/integration/css-features/test/browserslist.test.ts": {
     "passed": [
       "Browserslist: New production mode should've emitted a single CSS file",
       "Browserslist: Old production mode should've emitted a single CSS file"
@@ -11954,7 +11953,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css-features/test/css-modules.test.js": {
+  "test/integration/css-features/test/css-modules.test.ts": {
     "passed": [
       "CSS Modules: Import Exports production mode should've emitted a single CSS file",
       "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
@@ -11968,7 +11967,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css-features/test/index.test.js": {
+  "test/integration/css-features/test/index.test.ts": {
     "passed": [
       "Custom Properties: Pass-Through IE11 production mode should've emitted a single CSS file",
       "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file",
@@ -11979,7 +11978,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css-minify/test/index.test.js": {
+  "test/integration/css-minify/test/index.test.ts": {
     "passed": [
       "css-minify production mode should minify correctly by removing whitespace"
     ],
@@ -11988,7 +11987,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css-modules/test/index.test.js": {
+  "test/integration/css-modules/test/index.test.ts": {
     "passed": [
       "3rd Party CSS Module Support production mode should have compiled successfully",
       "3rd Party CSS Module Support production mode should've emitted a single CSS file",
@@ -12026,7 +12025,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css/test/basic-global-support.test.js": {
+  "test/integration/css/test/basic-global-support.test.ts": {
     "passed": [
       "Basic Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
       "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
@@ -12051,7 +12050,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css/test/css-and-styled-jsx.test.js": {
+  "test/integration/css/test/css-and-styled-jsx.test.ts": {
     "passed": [
       "Ordering with styled-jsx (dev) should have the correct color (css ordering)",
       "Ordering with styled-jsx (prod) production mode should have compiled successfully",
@@ -12062,7 +12061,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css/test/css-compilation.test.js": {
+  "test/integration/css/test/css-compilation.test.ts": {
     "passed": [
       "CSS Property Ordering production mode useLightnincsss(false) should have the border width (property ordering)",
       "CSS Property Ordering production mode useLightnincsss(true) should have the border width (property ordering)",
@@ -12085,7 +12084,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css/test/css-modules.test.js": {
+  "test/integration/css/test/css-modules.test.ts": {
     "passed": [
       "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on load)",
@@ -12140,7 +12139,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css/test/css-rendering.test.js": {
+  "test/integration/css/test/css-rendering.test.ts": {
     "passed": [
       "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
       "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering",
@@ -12166,7 +12165,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css/test/dev-css-handling.test.js": {
+  "test/integration/css/test/dev-css-handling.test.ts": {
     "passed": [
       "Body is not hidden when broken in Development should have body visible",
       "Body is not hidden when unused in Development should have body visible",
@@ -12179,7 +12178,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css/test/valid-invalid-css.test.js": {
+  "test/integration/css/test/valid-invalid-css.test.ts": {
     "passed": [
       "Invalid CSS in _document production mode should fail to build",
       "Invalid Global CSS production mode should fail to build",
@@ -12192,7 +12191,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/custom-error-page-exception/test/index.test.js": {
+  "test/integration/custom-error-page-exception/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -12201,7 +12200,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/custom-error/test/index.test.js": {
+  "test/integration/custom-error/test/index.test.ts": {
     "passed": [
       "Custom _error development mode 1 should not warn with /_error and /404 when rendering error first",
       "Custom _error development mode 2 should not warn with /_error and /404",
@@ -12214,7 +12213,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/custom-page-extension/test/index.test.js": {
+  "test/integration/custom-page-extension/test/index.test.ts": {
     "passed": [
       "Custom page extension production mode should work dynamic page",
       "Custom page extension production mode should work with normal page"
@@ -12227,7 +12226,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/custom-routes-catchall/test/index.test.js": {
+  "test/integration/custom-routes-catchall/test/index.test.ts": {
     "passed": [
       "Custom routes production mode should rewrite and render page correctly",
       "Custom routes production mode should rewrite to /_next/static correctly",
@@ -12244,7 +12243,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/custom-routes-i18n-index-redirect/test/index.test.js": {
+  "test/integration/custom-routes-i18n-index-redirect/test/index.test.ts": {
     "passed": [
       "Custom routes i18n with index redirect production mode should respond to default locale redirects correctly for index redirect"
     ],
@@ -12255,7 +12254,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/custom-routes-i18n/test/index.test.js": {
+  "test/integration/custom-routes-i18n/test/index.test.ts": {
     "passed": [
       "Custom routes i18n production mode should navigate on the client with rewrites correctly",
       "Custom routes i18n production mode should respond to default locale redirects correctly",
@@ -12272,7 +12271,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/custom-routes/test/index.test.js": {
+  "test/integration/custom-routes/test/index.test.ts": {
     "passed": [
       "Custom routes no-op rewrite should not error for no-op rewrite and auto export dynamic route",
       "Custom routes production mode should add refresh header for 308 redirect",
@@ -12490,14 +12489,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/custom-server-types/test/index.test.js": {
+  "test/integration/custom-server-types/test/index.test.ts": {
     "passed": ["Custom Server TypeScript should build server.ts correctly"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/custom-server/test/index.test.js": {
+  "test/integration/custom-server/test/index.test.ts": {
     "passed": [
       "Custom Server using HTTP Error when rendering without starting slash production mode should warn in production mode",
       "Custom Server using HTTP Error when rendering without starting slash should warn in development mode",
@@ -12549,7 +12548,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/data-fetching-errors/test/index.test.js": {
+  "test/integration/data-fetching-errors/test/index.test.ts": {
     "passed": [
       "GS(S)P Page Errors production mode Error stack printed to stderr",
       "GS(S)P Page Errors production mode should show error for getServerSideProps as component member",
@@ -12568,7 +12567,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/dedupes-scripts/test/index.test.js": {
+  "test/integration/dedupes-scripts/test/index.test.ts": {
     "passed": [
       "De-dedupes scripts in _document production mode Does not have duplicate script references"
     ],
@@ -12577,14 +12576,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/development-hmr-refresh/test/index.test.js": {
+  "test/integration/development-hmr-refresh/test/index.test.ts": {
     "passed": ["page should not reload when the file is not changed"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/disable-js/test/index.test.js": {
+  "test/integration/disable-js/test/index.test.ts": {
     "passed": [
       "disabled runtime JS production mode should not have __NEXT_DATA__ script",
       "disabled runtime JS production mode should not have preload links",
@@ -12600,7 +12599,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/dist-dir/test/index.test.js": {
+  "test/integration/dist-dir/test/index.test.ts": {
     "passed": [
       "distDir With basic usage production mode should build the app within the given `dist` directory",
       "distDir With basic usage production mode should not build the app within the default `.next` directory",
@@ -12617,7 +12616,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/document-file-dependencies/test/index.test.js": {
+  "test/integration/document-file-dependencies/test/index.test.ts": {
     "passed": [
       "File Dependencies production mode should apply styles defined in global and module css files in 404 page",
       "File Dependencies production mode should apply styles defined in global and module css files in a standard page.",
@@ -12628,7 +12627,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/document-head-warnings/test/index.test.js": {
+  "test/integration/document-head-warnings/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -12666,7 +12665,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/dynamic-optional-routing-root-fallback/test/index.test.js": {
+  "test/integration/dynamic-optional-routing-root-fallback/test/index.test.ts": {
     "passed": [
       "Dynamic Optional Routing Root Fallback production mode should render optional catch-all top-level route with no segments",
       "Dynamic Optional Routing Root Fallback production mode should render optional catch-all top-level route with one segment",
@@ -12681,7 +12680,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/dynamic-optional-routing-root-static-paths/test/index.test.js": {
+  "test/integration/dynamic-optional-routing-root-static-paths/test/index.test.ts": {
     "passed": [
       "Dynamic Optional Routing production mode should render optional catch-all top-level route with no segments",
       "Dynamic Optional Routing production mode should render optional catch-all top-level route with one segment",
@@ -12696,7 +12695,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/dynamic-optional-routing/test/index.test.js": {
+  "test/integration/dynamic-optional-routing/test/index.test.ts": {
     "passed": [
       "Dynamic Optional Routing production mode should fail to build when mixed with regular catch-all",
       "Dynamic Optional Routing production mode should fail to build when optional but no catch-all",
@@ -12762,7 +12761,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/dynamic-require/test/index.test.js": {
+  "test/integration/dynamic-require/test/index.test.ts": {
     "passed": [
       "Dynamic require should not throw error when dynamic require is used"
     ],
@@ -12771,7 +12770,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/dynamic-route-rename/test/index.test.js": {
+  "test/integration/dynamic-route-rename/test/index.test.ts": {
     "passed": [
       "Dynamic route rename casing should not throw error when changing casing of dynamic route file"
     ],
@@ -12938,7 +12937,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/dynamic-routing/test/middleware.test.js": {
+  "test/integration/dynamic-routing/test/middleware.test.ts": {
     "passed": [
       "Dynamic Routing production mode [catch all] should not decode slashes (end)",
       "Dynamic Routing production mode [catch all] should not decode slashes (middle)",
@@ -13095,7 +13094,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/edge-runtime-configurable-guards/test/index.test.js": {
+  "test/integration/edge-runtime-configurable-guards/test/index.test.ts": {
     "passed": [
       "Edge runtime configurable guards Edge API with use of Function as a type does not warn in dev at runtime",
       "Edge runtime configurable guards Edge API with use of Function as a type production mode build and does not warn at runtime",
@@ -13123,7 +13122,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/edge-runtime-dynamic-code/test/index.test.js": {
+  "test/integration/edge-runtime-dynamic-code/test/index.test.ts": {
     "passed": [
       "Page using eval in development mode does not issue dynamic code evaluation warnings"
     ],
@@ -13146,7 +13145,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/edge-runtime-module-errors/test/index.test.js": {
+  "test/integration/edge-runtime-module-errors/test/index.test.ts": {
     "passed": [
       "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",
       "Edge runtime code with imports Edge API dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
@@ -13175,7 +13174,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/edge-runtime-module-errors/test/module-imports.test.js": {
+  "test/integration/edge-runtime-module-errors/test/module-imports.test.ts": {
     "passed": [
       "Edge runtime code with imports Edge API dynamically importing 3rd party module production mode does not build and reports module not found error",
       "Edge runtime code with imports Edge API dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
@@ -13199,7 +13198,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/edge-runtime-response-error/test/index.test.js": {
+  "test/integration/edge-runtime-response-error/test/index.test.ts": {
     "passed": [
       "Edge runtime code with imports test error if response is not Response type Edge API dev test Response",
       "Edge runtime code with imports test error if response is not Response type Middleware dev test Response",
@@ -13314,7 +13313,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/empty-object-getInitialProps/test/index.test.js": {
+  "test/integration/empty-object-getInitialProps/test/index.test.ts": {
     "passed": [
       "Empty Project It should not show empty object warning for page without `getInitialProps`",
       "Empty Project It should show empty object warning on SSR",
@@ -13325,14 +13324,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/empty-project/test/index.test.js": {
+  "test/integration/empty-project/test/index.test.ts": {
     "passed": ["Empty Project Should not time out and return 404"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/env-config/test/index.test.js": {
+  "test/integration/env-config/test/index.test.ts": {
     "passed": [
       "Env Config production mode should have process environment override .env",
       "Env Config production mode should inline global values during build",
@@ -13371,7 +13370,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/error-in-error/test/index.test.js": {
+  "test/integration/error-in-error/test/index.test.ts": {
     "passed": [
       "Handles an Error in _error production mode Handles error during SSR",
       "Handles an Error in _error production mode Handles error during client transition"
@@ -13381,7 +13380,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/error-load-fail/test/index.test.js": {
+  "test/integration/error-load-fail/test/index.test.ts": {
     "passed": [
       "Failing to load _error production mode handles failing to load _error correctly"
     ],
@@ -13390,7 +13389,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/error-plugin-stack-overflow/test/index.test.js": {
+  "test/integration/error-plugin-stack-overflow/test/index.test.ts": {
     "passed": [
       "Reports stack trace when webpack plugin stack overflows shows details in next build"
     ],
@@ -13399,7 +13398,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/errors-on-output-to-public/test/index.test.js": {
+  "test/integration/errors-on-output-to-public/test/index.test.ts": {
     "passed": [
       "Errors on output to public production mode Throws error when `distDir` is set to public",
       "Errors on output to public production mode Throws error when export out dir is public"
@@ -13409,7 +13408,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/errors-on-output-to-static/test/index.test.js": {
+  "test/integration/errors-on-output-to-static/test/index.test.ts": {
     "passed": [
       "Errors on output to static production mode Throws error when export out dir is static"
     ],
@@ -13418,7 +13417,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/export-404/test/index.test.js": {
+  "test/integration/export-404/test/index.test.ts": {
     "passed": [
       "Export with a page named 404.js production mode should export a custom 404.html instead of default 404.html",
       "Static 404 Export production mode export 404.html and 404/index.html when trailingSlash: true",
@@ -13429,7 +13428,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/export-dynamic-pages/test/index.test.js": {
+  "test/integration/export-dynamic-pages/test/index.test.ts": {
     "passed": [
       "Export Dynamic Pages production mode should hydrate with correct asPath",
       "Export Dynamic Pages production mode should of exported with correct asPath"
@@ -13439,7 +13438,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/export-fallback-true-error/test/index.test.js": {
+  "test/integration/export-fallback-true-error/test/index.test.ts": {
     "passed": [
       "Export error for fallback: true production mode should build successfully"
     ],
@@ -13448,7 +13447,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/export-getInitialProps-warn/test/index.test.js": {
+  "test/integration/export-getInitialProps-warn/test/index.test.ts": {
     "passed": [
       "Export with getInitialProps production mode should show warning with next export"
     ],
@@ -13457,7 +13456,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/export-image-default/test/index.test.js": {
+  "test/integration/export-image-default/test/index.test.ts": {
     "passed": [
       "Export with default loader next/image component production mode should error during next build"
     ],
@@ -13466,7 +13465,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/export-image-loader-legacy/test/index.test.js": {
+  "test/integration/export-image-loader-legacy/test/index.test.ts": {
     "passed": [
       "Export with cloudinary loader next/legacy/image component production mode should build successfully",
       "Export with cloudinary loader next/legacy/image component production mode should contain img element in html output",
@@ -13481,7 +13480,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/export-image-loader/test/index.test.js": {
+  "test/integration/export-image-loader/test/index.test.ts": {
     "passed": [
       "Export with cloudinary loader next/image component production mode should build successfully",
       "Export with cloudinary loader next/image component production mode should contain img element in html output",
@@ -13507,7 +13506,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/export-intent/test/index.test.js": {
+  "test/integration/export-intent/test/index.test.ts": {
     "passed": [
       "Application Export Intent Output Bad Export production mode should build and export",
       "Application Export Intent Output Bad Export production mode should have the expected outputs for export",
@@ -17486,7 +17485,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/link-ref-app/test/index.test.js": {
+  "test/integration/link-ref-app/test/index.test.ts": {
     "passed": [
       "Invalid hrefs production mode should not have a race condition with a click handler",
       "Invalid hrefs production mode should preload with child ref with React.createRef",
@@ -17506,7 +17505,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/link-ref-pages/test/index.test.js": {
+  "test/integration/link-ref-pages/test/index.test.ts": {
     "passed": [
       "Invalid hrefs production mode should not have a race condition with a click handler",
       "Invalid hrefs production mode should preload with child ref with React.createRef",
@@ -17526,7 +17525,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/link-with-encoding/test/index.test.js": {
+  "test/integration/link-with-encoding/test/index.test.ts": {
     "passed": [
       "Link Component with Encoding colon should have correct parsing of url query params",
       "Link Component with Encoding colon should have correct query on Router#push",
@@ -17550,7 +17549,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/link-without-router/test/index.test.js": {
+  "test/integration/link-without-router/test/index.test.tsx": {
     "passed": [
       "Link without a router production mode should not throw when rendered"
     ],
@@ -17561,14 +17560,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/middleware-basic/test/index.test.js": {
+  "test/integration/middleware-basic/test/index.test.ts": {
     "passed": ["production mode loads a middleware"],
     "failed": [],
     "pending": ["development mode loads a middleware"],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/middleware-build-errors/test/index.test.js": {
+  "test/integration/middleware-build-errors/test/index.test.ts": {
     "passed": [
       "Middleware validation during build production mode given a middleware building body with JSON.stringify does not throw an error",
       "Middleware validation during build production mode given a middleware building response body with a variable does not throw an error",
@@ -17583,7 +17582,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/middleware-dev-update/test/index.test.js": {
+  "test/integration/middleware-dev-update/test/index.test.ts": {
     "passed": [
       "Middleware development errors when matcher is added sends response correctly",
       "Middleware development errors when middleware is added sends response correctly",
@@ -17604,7 +17603,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/middleware-prefetch/tests/index.test.js": {
+  "test/integration/middleware-prefetch/tests/index.test.ts": {
     "passed": [
       "Middleware Production Prefetch production mode does not prefetch provided path if it will be rewritten",
       "Middleware Production Prefetch production mode prefetch correctly for unexistent routes"
@@ -17614,7 +17613,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/middleware-src-node/test/index.test.js": {
+  "test/integration/middleware-src-node/test/index.test.ts": {
     "passed": [
       "Middleware in src/ and / folders production mode should warn about middleware on export",
       "Middleware in src/ folder production mode should warn about middleware on export"
@@ -17627,7 +17626,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/middleware-src/test/index.test.js": {
+  "test/integration/middleware-src/test/index.test.ts": {
     "passed": [
       "Middleware in src/ and / folders production mode should warn about middleware on export",
       "Middleware in src/ folder production mode should warn about middleware on export"
@@ -17640,7 +17639,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/missing-document-component-error/test/index.test.js": {
+  "test/integration/missing-document-component-error/test/index.test.ts": {
     "passed": [
       "Missing _document components error should detect missing Head component",
       "Missing _document components error should detect missing Html component",
@@ -17653,7 +17652,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/mixed-ssg-serverprops-error/test/index.test.js": {
+  "test/integration/mixed-ssg-serverprops-error/test/index.test.ts": {
     "passed": [
       "Mixed getStaticProps and getServerSideProps error production mode should error when exporting both getStaticPaths and getServerSideProps",
       "Mixed getStaticProps and getServerSideProps error production mode should error when exporting both getStaticProps and getServerSideProps",
@@ -17681,7 +17680,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-dynamic-css-asset-prefix/test/index.test.js": {
+  "test/integration/next-dynamic-css-asset-prefix/test/index.test.ts": {
     "passed": [
       "next/dynamic with assetPrefix production mode should load a App Router page correctly",
       "next/dynamic with assetPrefix production mode should load a Pages Router page correctly"
@@ -17694,7 +17693,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-dynamic-css/test/index.test.js": {
+  "test/integration/next-dynamic-css/test/index.test.ts": {
     "passed": [
       "next/dynamic production mode should load a App Router page correctly",
       "next/dynamic production mode should load a Pages Router page correctly"
@@ -17707,7 +17706,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-dynamic-lazy-compilation/test/index.test.js": {
+  "test/integration/next-dynamic-lazy-compilation/test/index.test.ts": {
     "passed": [
       "next/dynamic lazy compilation production mode should render dynamic server rendered values before hydration",
       "next/dynamic lazy compilation production mode should render dynamic server rendered values on client mount",
@@ -17722,7 +17721,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-dynamic/test/index.test.js": {
+  "test/integration/next-dynamic/test/index.test.ts": {
     "passed": [
       "next/dynamic production mode should render dynamic server rendered values on client mount",
       "next/dynamic production mode should render server value"
@@ -18271,7 +18270,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-image-new/asset-prefix/test/index.test.js": {
+  "test/integration/next-image-new/asset-prefix/test/index.test.ts": {
     "passed": [
       "Image Component assetPrefix Tests production mode should not log a deprecation warning about using `images.domains`",
       "Image Component assetPrefix Tests production mode should use base64 data url with placeholder=blur during next start"
@@ -18284,7 +18283,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-image-new/base-path/test/index.test.js": {
+  "test/integration/next-image-new/base-path/test/index.test.ts": {
     "passed": [
       "Image Component basePath Tests production mode should correctly ignore prose styles",
       "Image Component basePath Tests production mode should load the images",
@@ -18304,7 +18303,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-image-new/base-path/test/static.test.js": {
+  "test/integration/next-image-new/base-path/test/static.test.ts": {
     "passed": [
       "Static Image Component Tests for basePath production mode Should allow an image with a static src to omit height and width",
       "Static Image Component Tests for basePath production mode Should automatically provide an image height and width",
@@ -18665,7 +18664,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/no-op-export/test/index.test.js": {
+  "test/integration/no-op-export/test/index.test.ts": {
     "passed": [
       "no-op export production mode should not error for all server-side pages build",
       "no-op export production mode should not error for empty exportPathMap"
@@ -18675,7 +18674,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/no-override-next-props/test/index.test.js": {
+  "test/integration/no-override-next-props/test/index.test.ts": {
     "passed": [
       "Dynamic require should show error when a Next prop is returned in _app.getInitialProps"
     ],
@@ -18684,7 +18683,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/no-page-props/test/index.test.js": {
+  "test/integration/no-page-props/test/index.test.ts": {
     "passed": [
       "Error no pageProps production mode should load 404 page correctly",
       "Error no pageProps production mode should load auto-export page correctly",
@@ -18703,7 +18702,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/node-fetch-keep-alive/test/index.test.js": {
+  "test/integration/node-fetch-keep-alive/test/index.test.ts": {
     "passed": [
       "node-fetch-keep-alive dev should send keep-alive for getServerSideProps",
       "node-fetch-keep-alive dev should send keep-alive for getStaticPaths",
@@ -18719,7 +18718,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/non-next-dist-exclude/test/index.test.js": {
+  "test/integration/non-next-dist-exclude/test/index.test.ts": {
     "passed": [
       "Non-Next externalization production mode Externalized non-Next dist-using package"
     ],
@@ -18728,7 +18727,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/non-standard-node-env-warning/test/index.test.js": {
+  "test/integration/non-standard-node-env-warning/test/index.test.ts": {
     "passed": [
       "Non-Standard NODE_ENV production mode should show the warning with NODE_ENV set to development with next build",
       "Non-Standard NODE_ENV production mode should show the warning with NODE_ENV set to development with next start",
@@ -18745,7 +18744,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/not-found-revalidate/test/index.test.js": {
+  "test/integration/not-found-revalidate/test/index.test.ts": {
     "passed": [
       "SSG notFound revalidate production mode should revalidate after notFound is returned for fallback: blocking",
       "SSG notFound revalidate production mode should revalidate after notFound is returned for fallback: true",
@@ -18756,7 +18755,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/nullish-config/test/index.test.js": {
+  "test/integration/nullish-config/test/index.test.ts": {
     "passed": [
       "Nullish configs in next.config.js production mode should ignore configs set to `null` in next.config.js",
       "Nullish configs in next.config.js production mode should ignore configs set to `undefined` in next.config.js"
@@ -18769,7 +18768,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/numeric-sep/test/index.test.js": {
+  "test/integration/numeric-sep/test/index.test.ts": {
     "passed": [
       "Numeric Separator Support production mode should successfully build for a JavaScript file"
     ],
@@ -18778,7 +18777,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/ondemand/test/index.test.js": {
+  "test/integration/ondemand/test/index.test.ts": {
     "passed": [
       "On Demand Entries should compile pages for SSR",
       "On Demand Entries should dispose inactive pages",
@@ -18790,7 +18789,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/optional-chaining-nullish-coalescing/test/index.test.js": {
+  "test/integration/optional-chaining-nullish-coalescing/test/index.test.ts": {
     "passed": [
       "Optional chaining and nullish coalescing support production mode should support nullish coalescing",
       "Optional chaining and nullish coalescing support production mode should support optional chaining"
@@ -18803,7 +18802,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/page-config/test/index.test.js": {
+  "test/integration/page-config/test/index.test.ts": {
     "passed": [
       "Page Config production mode builds without error when export const config is used outside page",
       "Page Config production mode shows error when page config has spread properties",
@@ -18817,7 +18816,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/page-extensions/test/index.test.js": {
+  "test/integration/page-extensions/test/index.test.ts": {
     "passed": [
       "Page Extensions production mode should not throw if .d.ts file inside the pages folder",
       "Page Extensions production mode should throw if pageExtensions has invalid extensions",
@@ -18829,7 +18828,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/plugin-mdx-rs/test/index.test.js": {
+  "test/integration/plugin-mdx-rs/test/index.test.ts": {
     "passed": [
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page correctly",
       "MDX-rs Configuration MDX-rs Plugin support should render an MDX page with component correctly",
@@ -18841,7 +18840,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/polyfilling-minimal/test/index.test.js": {
+  "test/integration/polyfilling-minimal/test/index.test.ts": {
     "passed": [
       "Polyfilling (minimal) production mode should compile successfully"
     ],
@@ -18850,7 +18849,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/polyfills/test/index.test.js": {
+  "test/integration/polyfills/test/index.test.ts": {
     "passed": [
       "Polyfills production mode should alias fetch",
       "Polyfills production mode should allow using process.env when there is an element with `id` of `process`",
@@ -18861,7 +18860,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/port-env-var/test/index.test.js": {
+  "test/integration/port-env-var/test/index.test.ts": {
     "passed": [
       "PORT environment variable production mode should serve on the configured port"
     ],
@@ -18901,7 +18900,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/prerender-export/test/index.test.js": {
+  "test/integration/prerender-export/test/index.test.ts": {
     "passed": [
       "SSG Prerender export production mode export mode should copy prerender files and honor exportTrailingSlash",
       "SSG Prerender export production mode export mode should navigate between pages successfully"
@@ -18911,7 +18910,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/prerender-fallback-encoding/test/index.test.js": {
+  "test/integration/prerender-fallback-encoding/test/index.test.ts": {
     "passed": [
       "Fallback path encoding production mode should handle non-prerendered paths correctly",
       "Fallback path encoding production mode should navigate client-side correctly with interpolating",
@@ -18932,7 +18931,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/prerender-invalid-catchall-params/test/index.test.js": {
+  "test/integration/prerender-invalid-catchall-params/test/index.test.ts": {
     "passed": [
       "Invalid Prerender Catchall Params production mode should fail the build"
     ],
@@ -18941,7 +18940,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/prerender-invalid-paths/test/index.test.js": {
+  "test/integration/prerender-invalid-paths/test/index.test.ts": {
     "passed": [
       "Legacy Prerender production mode handles old getStaticParams should fail the build"
     ],
@@ -18950,7 +18949,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/prerender-no-revalidate/test/index.test.js": {
+  "test/integration/prerender-no-revalidate/test/index.test.ts": {
     "passed": [
       "SSG Prerender No Revalidate production mode [/] should not revalidate /_next/data when set to false",
       "SSG Prerender No Revalidate production mode [/] should not revalidate when set to false",
@@ -18966,7 +18965,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/prerender-preview/test/index.test.js": {
+  "test/integration/prerender-preview/test/index.test.ts": {
     "passed": [
       "Prerender Preview Mode production mode should compile successfully",
       "Prerender Preview Mode production mode should enable preview mode",
@@ -18997,7 +18996,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/prerender-revalidate/test/index.test.js": {
+  "test/integration/prerender-revalidate/test/index.test.ts": {
     "passed": [
       "SSG Prerender Revalidate [regression] production mode and incremental cache size exceeded production mode [/] should regenerate /_next/data when revalidate time exceeded",
       "SSG Prerender Revalidate [regression] production mode and incremental cache size exceeded production mode [/] should regenerate page when revalidate time exceeded",
@@ -19022,7 +19021,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/prerender/test/index.test.js": {
+  "test/integration/prerender/test/index.test.ts": {
     "passed": [
       "SSG Prerender development mode getStaticPaths should not cache getStaticPaths errors",
       "SSG Prerender development mode getStaticPaths should work with firebase import and getStaticPaths"
@@ -19032,7 +19031,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/preview-fallback/test/index.test.js": {
+  "test/integration/preview-fallback/test/index.test.ts": {
     "passed": [
       "Preview mode with fallback pages production mode should get preview cookie correctly",
       "Preview mode with fallback pages production mode should not write preview dynamic SSG page to cache no fallback",
@@ -19053,7 +19052,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/production-build-dir/test/index.test.js": {
+  "test/integration/production-build-dir/test/index.test.ts": {
     "passed": [
       "Production Custom Build Directory production mode With basic usage should render the page"
     ],
@@ -19062,7 +19061,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/production-config/test/index.test.js": {
+  "test/integration/production-config/test/index.test.ts": {
     "passed": [
       "Production Config Usage production mode env should allow __ within env key",
       "Production Config Usage production mode env should fail with NEXT_RUNTIME in env key",
@@ -19075,7 +19074,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/production-nav/test/index.test.js": {
+  "test/integration/production-nav/test/index.test.ts": {
     "passed": [
       "Production Usage production mode should navigate forward and back correctly"
     ],
@@ -19084,7 +19083,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/production-start-no-build/test/index.test.js": {
+  "test/integration/production-start-no-build/test/index.test.ts": {
     "passed": [
       "Production Usage without production build should show error when there is no production build"
     ],
@@ -19093,7 +19092,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/query-with-encoding/test/index.test.js": {
+  "test/integration/query-with-encoding/test/index.test.ts": {
     "passed": [
       "Query String with Encoding production mode new line should have correct query on Router#push",
       "Query String with Encoding production mode new line should have correct query on SSR",
@@ -19423,7 +19422,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/root-optional-revalidate/test/index.test.js": {
+  "test/integration/root-optional-revalidate/test/index.test.ts": {
     "passed": [
       "Root Optional Catch-all Revalidate production mode should render / correctly",
       "Root Optional Catch-all Revalidate production mode should render /a correctly",
@@ -19997,7 +19996,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-filtered-files/test/index.test.js": {
+  "test/integration/typescript-filtered-files/test/index.test.ts": {
     "passed": [
       "TypeScript filtered files production mode should fail to build the app with a file named con*test*.js"
     ],
@@ -20006,7 +20005,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-hmr/test/index.test.js": {
+  "test/integration/typescript-hmr/test/index.test.ts": {
     "passed": [
       "TypeScript HMR delete a page and add it back should detect the changes to typescript pages and display it",
       "TypeScript HMR should ignore type errors in development"
@@ -20016,7 +20015,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-ignore-errors/test/index.test.js": {
+  "test/integration/typescript-ignore-errors/test/index.test.ts": {
     "passed": [
       "TypeScript with error handling options production mode ignoreBuildErrors: false Next fails to build the application despite type errors in incremental mode",
       "TypeScript with error handling options production mode ignoreBuildErrors: false Next fails to build the application despite type errors without incremental mode",
@@ -20028,7 +20027,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-only-remove-type-imports/test/index.test.js": {
+  "test/integration/typescript-only-remove-type-imports/test/index.test.ts": {
     "passed": [
       "TypeScript onlyRemoveTypeImports production mode should render a normal page correctly",
       "TypeScript onlyRemoveTypeImports production mode should render a page with type import correctly"
@@ -20041,7 +20040,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-paths/test/index.test.js": {
+  "test/integration/typescript-paths/test/index.test.ts": {
     "passed": [
       "typescript paths default behavior should alias components",
       "typescript paths default behavior should not resolve to .d.ts files",
@@ -20059,7 +20058,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
+  "test/integration/typescript-workspaces-paths/packages/www/test/index.test.ts": {
     "passed": [
       "TypeScript Features default behavior should alias components",
       "TypeScript Features default behavior should not resolve to .d.ts files",
@@ -20096,7 +20095,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/undefined-webpack-config/test/index.test.js": {
+  "test/integration/undefined-webpack-config/test/index.test.ts": {
     "passed": [
       "undefined webpack config error should show in development mode"
     ],
@@ -20107,7 +20106,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/webpack-bun-externals/test/index.test.js": {
+  "test/integration/webpack-bun-externals/test/index.test.ts": {
     "passed": [
       "Webpack - Bun Externals should externalize Bun builtins in server bundles",
       "Webpack - Bun Externals should not bundle Bun module implementations",
@@ -20118,7 +20117,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/webpack-config-extensionalias/test/index.test.js": {
+  "test/integration/webpack-config-extensionalias/test/index.test.ts": {
     "passed": [
       "webpack config with extensionAlias setting should run correctly with an tsx file import with .js extension"
     ],
@@ -20127,7 +20126,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/webpack-config-mainjs/test/index.test.js": {
+  "test/integration/webpack-config-mainjs/test/index.test.ts": {
     "passed": [
       "Customized webpack config with main.js should run correctly with main.js customized"
     ],
@@ -20136,7 +20135,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/webpack-require-hook/test/index.test.js": {
+  "test/integration/webpack-require-hook/test/index.test.ts": {
     "passed": [
       "Handles Webpack Require Hook build Does not error during build"
     ],
@@ -20147,7 +20146,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/with-electron/test/index.test.js": {
+  "test/integration/with-electron/test/index.test.ts": {
     "passed": [
       "Should skip testing electron without process.env.TEST_ELECTRON set"
     ],
@@ -20156,7 +20155,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/worker-webpack5/test/index.test.js": {
+  "test/integration/worker-webpack5/test/index.test.ts": {
     "passed": [
       "Web Workers with webpack 5 production mode should pass on both client and worker"
     ],
@@ -21326,7 +21325,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/jest/rsc/lib/utils.test.js": {
+  "test/production/jest/rsc/lib/utils.test.ts": {
     "passed": ["works with server-only code"],
     "failed": [],
     "pending": [],
@@ -21851,6 +21850,15 @@
       "minimal-mode-response-cache app router revalidate should work with previous response cache dynamic",
       "minimal-mode-response-cache should have correct \"Started server on\" log",
       "minimal-mode-response-cache should have correct responses"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/standalone-mode/tracing-side-effects-false/tracing-side-effects-false.test.ts": {
+    "passed": [
+      "standalone mode - tracing-side-effects-false should trace sideeffect imports even when sideEffects is false"
     ],
     "failed": [],
     "pending": [],
