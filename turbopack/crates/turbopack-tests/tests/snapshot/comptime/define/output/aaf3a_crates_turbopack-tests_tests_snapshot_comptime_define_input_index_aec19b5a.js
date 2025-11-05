@@ -54,9 +54,8 @@ console.log(("TURBOPACK compile-time value", "development"));
 if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
 ;
 ("TURBOPACK compile-time falsy", 0) ? "TURBOPACK unreachable" : console.log('development');
-// TODO short-circuit is not implemented yet
-("TURBOPACK compile-time value", "development") != 'production' && console.log('development');
-("TURBOPACK compile-time value", "development") == 'production' && console.log('production');
+("TURBOPACK compile-time truthy", 1) && console.log('development');
+("TURBOPACK compile-time value", "development") == 'production' && "TURBOPACK unreachable";
 console.log(("TURBOPACK compile-time value", "/ROOT/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input"));
 }),
 ]);
