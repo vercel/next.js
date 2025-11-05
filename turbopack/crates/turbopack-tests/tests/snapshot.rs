@@ -84,6 +84,8 @@ struct SnapshotOptions {
     #[serde(default)]
     tree_shaking_mode: Option<TreeShakingMode>,
     #[serde(default)]
+    remove_unused_imports: bool,
+    #[serde(default)]
     remove_unused_exports: bool,
     #[serde(default)]
     scope_hoisting: bool,
@@ -119,6 +121,7 @@ impl Default for SnapshotOptions {
             runtime_type: default_runtime_type(),
             environment: Default::default(),
             tree_shaking_mode: None,
+            remove_unused_imports: false,
             remove_unused_exports: false,
             scope_hoisting: false,
             production_chunking: false,

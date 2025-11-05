@@ -239,6 +239,7 @@ async fn run_inner_operation(
 struct TestOptions {
     #[serde(default = "default_tree_shaking_mode")]
     tree_shaking_mode: Option<TreeShakingMode>,
+    remove_unused_imports: Option<bool>,
     remove_unused_exports: Option<bool>,
     scope_hoisting: Option<bool>,
     #[serde(default)]
@@ -256,6 +257,7 @@ impl Default for TestOptions {
         Self {
             tree_shaking_mode: default_tree_shaking_mode(),
             remove_unused_exports: None,
+            remove_unused_imports: None,
             scope_hoisting: None,
             minify: false,
             production_chunking: false,
@@ -395,6 +397,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .resolved_cell(),
     );
 
+    let remove_unused_imports = options.remove_unused_imports.unwrap_or(true);
     let remove_unused_exports = options.remove_unused_exports.unwrap_or(true);
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
