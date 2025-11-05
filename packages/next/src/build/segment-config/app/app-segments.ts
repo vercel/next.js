@@ -12,14 +12,15 @@ import {
   isAppPageRouteModule,
 } from '../../../server/route-modules/checks'
 import { isClientReference } from '../../../lib/client-and-server-references'
-import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
+import {
+  getSegmentParam,
+  type SegmentParam,
+} from '../../../shared/lib/router/utils/get-segment-param'
 import {
   getLayoutOrPageModule,
   type LoaderTree,
 } from '../../../server/lib/app-dir-module'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
-import type { FallbackRouteParam } from '../../static-paths/types'
-import { createFallbackRouteParam } from '../../static-paths/utils'
 import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
@@ -223,17 +224,17 @@ export function collectSegments(
 }
 
 /**
- * Collects the fallback route params for a given app page route module. This is
- * a variant of the `collectSegments` function that only collects the fallback
- * route params without importing anything.
+ * Collects the segment params for a given app page route module. This is
+ * a variant of the `collectSegments` function that only collects the segment
+ * params without importing anything.
  *
  * @param routeModule the app page route module
- * @returns the fallback route params for the app page route module
+ * @returns the segment params for the app page route module
  */
-export function collectFallbackRouteParams(
+export function collectSegmentParams(
   routeModule: AppPageRouteModule
-): readonly FallbackRouteParam[] {
-  const uniqueSegments = new Map<string, FallbackRouteParam>()
+): readonly SegmentParam[] {
+  const uniqueSegments = new Map<string, SegmentParam>()
 
   // Queue will store tuples of [loaderTree, isParallelRouteSegment]
   type QueueItem = [loaderTree: LoaderTree, isParallelRouteSegment: boolean]
@@ -248,14 +249,7 @@ export function collectFallbackRouteParams(
     if (segmentParam) {
       const key = `${name}-${segmentParam.param}-${isParallelRouteSegment ? 'pr' : 'np'}`
       if (!uniqueSegments.has(key)) {
-        uniqueSegments.set(
-          key,
-          createFallbackRouteParam(
-            segmentParam.param,
-            segmentParam.type,
-            isParallelRouteSegment
-          )
-        )
+        uniqueSegments.set(key, segmentParam)
       }
     }
 
