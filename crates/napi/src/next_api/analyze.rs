@@ -4,9 +4,7 @@ use anyhow::Result;
 use next_api::{
     analyze::{AnalyzeDataOutputAsset, ModulesDataOutputAsset},
     project::ProjectContainer,
-    route::EndpointGroupKey,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{Effects, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{diagnostics::PlainDiagnostic, issue::PlainIssue, output::OutputAssets};
 
@@ -77,7 +75,7 @@ async fn get_analyze_data_operation(
             let output_assets = endpoint_group.output_assets();
             let analyze_data = AnalyzeDataOutputAsset::new(
                 analyze_output_root
-                    .join(&encode_analyze_data_path(key))?
+                    .join(&key.to_string())?
                     .join("analyze.data")?,
                 output_assets,
             )
@@ -107,9 +105,4 @@ async fn get_analyze_data_operation(
             .chain(once(modules_data))
             .collect(),
     ))
-}
-
-fn encode_analyze_data_path(key: &EndpointGroupKey) -> RcStr {
-    // While `~` is fine on most file systems, the browser filesystem api won't allow it.
-    key.to_string().replace("~", "%7E").into()
 }

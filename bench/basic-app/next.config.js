@@ -1,10 +1,5 @@
-/** @type {import('next').NextConfig} */
-const config = {
+module.exports = {
   experimental: {
     serverMinification: true,
-    turbopackSourceMaps: true,
   },
-  productionBrowserSourceMaps: true,
 }
-
-module.exports = config

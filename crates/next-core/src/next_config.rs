@@ -110,7 +110,7 @@ pub struct NextConfig {
     dev_indicators: Option<DevIndicatorsConfig>,
     output: Option<OutputType>,
     turbopack: Option<TurbopackConfig>,
-    pub production_browser_source_maps: bool,
+    production_browser_source_maps: bool,
     output_file_tracing_includes: Option<serde_json::Value>,
     output_file_tracing_excludes: Option<serde_json::Value>,
     // TODO: This option is not respected, it uses Turbopack's root instead.
