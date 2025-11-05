@@ -1159,7 +1159,7 @@ importers:
         version: 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(react-dom@19.3.0-canary-f646e8ff-20251104(react@19.3.0-canary-f646e8ff-20251104))(react@19.3.0-canary-f646e8ff-20251104)(storybook@8.6.0(prettier@3.6.2))(typescript@5.9.2)
       '@storybook/react-webpack5':
         specifier: 8.6.0
-        version: 8.6.0(@rspack/core@1.5.0(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)(react-dom@19.3.0-canary-f646e8ff-20251104(react@19.3.0-canary-f646e8ff-20251104))(react@19.3.0-canary-f646e8ff-20251104)(storybook@8.6.0(prettier@3.6.2))(typescript@5.9.2)
+        version: 8.6.0(@rspack/core@1.6.0(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)(react-dom@19.3.0-canary-f646e8ff-20251104(react@19.3.0-canary-f646e8ff-20251104))(react@19.3.0-canary-f646e8ff-20251104)(storybook@8.6.0(prettier@3.6.2))(typescript@5.9.2)
       '@storybook/test':
         specifier: 8.6.0
         version: 8.6.0(storybook@8.6.0(prettier@3.6.2))
@@ -1791,8 +1791,8 @@ importers:
   packages/next-rspack:
     dependencies:
       '@next/rspack-core':
-        specifier: npm:@next-rspack/core@1.0.1-beta.2
-        version: '@next-rspack/core@1.0.1-beta.2(@swc/helpers@0.5.15)'
+        specifier: 1.0.1
+        version: 1.0.1(@swc/helpers@0.5.15)
 
   packages/next-swc:
     devDependencies:
@@ -4279,77 +4279,77 @@ packages:
   '@napi-rs/wasm-runtime@1.0.7':
     resolution: {integrity: sha512-SeDnOO0Tk7Okiq6DbXmmBODgOAb9dp9gjlphokTUxmt8U3liIP1ZsozBahH69j/RJv+Rfs6IwUKHTgQYJ/HBAw==}
 
-  '@next-rspack/binding-android-arm-eabi@1.0.1-beta.2':
-    resolution: {integrity: sha512-KGXa2ts9ddmKB+7OKrit7Jw5xH8MU26ZNXpn3uQZAEqSF/U9SQ9rbEBDZlFff6TRTmdAIaLikfX/TttFanVc4g==}
-    cpu: [arm]
-    os: [android]
-
-  '@next-rspack/binding-android-arm64@1.0.1-beta.2':
-    resolution: {integrity: sha512-hB1MPteDulX5GMpOi19EpfOuPGlw1mlYEmS85xGtIRJW4n67La5nLqDkCQiAXVo+n3oOXTV8+BEvi4+uhDFzJg==}
-    cpu: [arm64]
-    os: [android]
-
-  '@next-rspack/binding-darwin-arm64@1.0.1-beta.2':
-    resolution: {integrity: sha512-4ZDBZGhCOl5uzr5RSTMArtiPq0amwBjR+yGhdDpxr1ZR7/3VAubd51cnbdUmeUIaY4blMokSQvEP71DiQpTgBA==}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@next-rspack/binding-darwin-x64@1.0.1-beta.2':
-    resolution: {integrity: sha512-cfrnw7wlhAV8KoI/NEtyTaLVJFuez1j79Z86Dwjs5hsK5iMj6HrkRNNZsdOVpjFGwFA/2UB/V64RjxPx4DgxMg==}
-    cpu: [x64]
-    os: [darwin]
-
-  '@next-rspack/binding-linux-arm-gnueabihf@1.0.1-beta.2':
-    resolution: {integrity: sha512-XPysy85y3BkzvHrIQm5cmKwsb7C+S4myWBqiczHFXramXS3dEvsj3qm3Uxyd8DJ1JWmcWR1V98H29aNmaTrtCw==}
-    cpu: [arm]
-    os: [linux]
-
-  '@next-rspack/binding-linux-arm64-gnu@1.0.1-beta.2':
-    resolution: {integrity: sha512-JNXEUjuyj2N4L5taj9/a7cICJ5x8/WqirTnond8I9Y0bjJjhz/n+WT2qk9pxJh0WyN3m+Whi+W+OL+UZ20YhfQ==}
-    cpu: [arm64]
-    os: [linux]
-
-  '@next-rspack/binding-linux-arm64-musl@1.0.1-beta.2':
-    resolution: {integrity: sha512-ZDie2LcZDHPpHVpNlumehgDaqWHmPyE74gRVAC5g5IEHSFclvApdjjJGcYitHAwKN0iUhQBnOCQIdq6/vI2OUw==}
-    cpu: [arm64]
-    os: [linux]
-
-  '@next-rspack/binding-linux-x64-gnu@1.0.1-beta.2':
-    resolution: {integrity: sha512-xve6438jVb6vbpaGRbqWd1pDy4Bs4iVjdbBR433MBTkr8be+VOUzqf1xh5PKCjECtHGkaBlnwxMS0808wyVzfQ==}
-    cpu: [x64]
-    os: [linux]
-
-  '@next-rspack/binding-linux-x64-musl@1.0.1-beta.2':
-    resolution: {integrity: sha512-uns3EtHEpndhcEeFp6d/pwzyUSbKXoZD+cPkogJ8CAaouYgEyQSKnP7YX0MG96NKZesNmDk8Rjizt4/Z9UbDWw==}
-    cpu: [x64]
-    os: [linux]
-
-  '@next-rspack/binding-win32-arm64-msvc@1.0.1-beta.2':
-    resolution: {integrity: sha512-oCmjkwLaYsGupiGeRhqokb5ypP44+rzOzGMPZp5y7L9I9JwShPTtRMXyWeDvPHtX2I5bLAcEoOauxqxG5LQzNA==}
-    cpu: [arm64]
-    os: [win32]
-
-  '@next-rspack/binding-win32-ia32-msvc@1.0.1-beta.2':
-    resolution: {integrity: sha512-hUd9xJUY12x7F+0w0NRn6Zuzc03SJsvIpL2rgvEDv33hpyCkW67OXspcGhlbLpJwNhVXLFswbLK1g0Paflqitw==}
-    cpu: [ia32]
-    os: [win32]
-
-  '@next-rspack/binding-win32-x64-msvc@1.0.1-beta.2':
-    resolution: {integrity: sha512-bJnwmHAMoamC67WBjBCnInvFcY0v4Jo285ekLv91nyPv5yghpFl3Gwtu8vwX2CpeU8tYSs0qTdGLkzeiEisAFQ==}
-    cpu: [x64]
-    os: [win32]
-
-  '@next-rspack/binding@1.0.1-beta.2':
-    resolution: {integrity: sha512-dvQlA378QjUkg3dgonCAfAWXZutKRr6a1IJo/cBCdOp35d+RoH+kP6DdAQn7txknrpvLyEWxdtEI7X4YwBe5jw==}
-
-  '@next-rspack/core@1.0.1-beta.2':
-    resolution: {integrity: sha512-9vUr7n4uVs8an5dQj8FlSvxLtPkdVFJmmhy+RDtHpDfZNesJcUzofCt/9BGCG6gmkp+Zz2Nz3W/SljVWMmiwtQ==}
-
   '@next/env@15.5.3':
     resolution: {integrity: sha512-RSEDTRqyihYXygx/OJXwvVupfr9m04+0vH8vyy0HfZ7keRto6VX9BbEk0J2PUk0VGy6YhklJUSrgForov5F9pw==}
 
   '@next/eslint-plugin-next@16.0.2-canary.4':
     resolution: {integrity: sha512-Lwv3pvOx0pGB2k8i5E/NWkCEehIeMR2lTfyLMyJB09Q412kpNpqEUgyiDLrnH0k/ok1hbvFs8cnI8SGq7pYTnA==}
+
+  '@next/rspack-binding-android-arm-eabi@1.0.1':
+    resolution: {integrity: sha512-ZLEy3shsHk8FpJDeoU4gN3a7eVaOagA7AW2BXSVefBAO4hR6j3Kt/T732FUmf9G5328C2vsbMAWskHRHPbhTig==}
+    cpu: [arm]
+    os: [android]
+
+  '@next/rspack-binding-android-arm64@1.0.1':
+    resolution: {integrity: sha512-6jXb1doalByUbdCDr1LNi3zk+RUtghQ91yBU4DEJ/FKdAyefv+80oUAz7szAKHgJDq4T9USZRBS6W5qhllbplg==}
+    cpu: [arm64]
+    os: [android]
+
+  '@next/rspack-binding-darwin-arm64@1.0.1':
+    resolution: {integrity: sha512-siAzVe3Z+fmcJcg2dysias9fFBXr8fChQ2uPjXH6sHBkjUKQg4TK5c0Akqd0r7ctBJLEpnV0fScXYhkTrnp94w==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@next/rspack-binding-darwin-x64@1.0.1':
+    resolution: {integrity: sha512-7tS4r20oDWjbMu1gLzrpuGtlCGGg8lhZuFgkKpSRoE0Fko/TZnO1qSPTyXu/uPNA2ge5Mw0k+sCIYdrSzVwynA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@next/rspack-binding-linux-arm-gnueabihf@1.0.1':
+    resolution: {integrity: sha512-oHx+ETUMqqQ8y8go3KwpEdBr0MVS4mrqpi0i1c0r9bAVG79xssbTDF+ky4VBeFAyRwamXMmxrEOtq7wCZgukcA==}
+    cpu: [arm]
+    os: [linux]
+
+  '@next/rspack-binding-linux-arm64-gnu@1.0.1':
+    resolution: {integrity: sha512-XeEjwVf1C/k1KS/CXpnE3cyqywxPiruWwDHvtAl0ZSY38AouageT7FY3cgFAbcfmyr44NW9JGQmHADSIKVBI8A==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@next/rspack-binding-linux-arm64-musl@1.0.1':
+    resolution: {integrity: sha512-enNGf9vE6IUVX6Q8QEA2hH5RgCPAXV3vutfRPRtwN+CHalQKBBefKUqqLJU6XDl7nFHHq+rMTeL6/qa87y7wuQ==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@next/rspack-binding-linux-x64-gnu@1.0.1':
+    resolution: {integrity: sha512-71mBFBaTkNk/AzBsQXf9cDYFD9wWTNlL6voL7pQfLRTFfyY2N6Xzt+E18DMquFXbklLO7bqzhexxkL8E8qqBjg==}
+    cpu: [x64]
+    os: [linux]
+
+  '@next/rspack-binding-linux-x64-musl@1.0.1':
+    resolution: {integrity: sha512-ThWWbJi+YgqqHI4PiNhG1A/EIUbkZgsTlHAY83ih7LqUozesPh0ck8zdma4sh6yNFdX23v64WeOBj8jwdGJJbw==}
+    cpu: [x64]
+    os: [linux]
+
+  '@next/rspack-binding-win32-arm64-msvc@1.0.1':
+    resolution: {integrity: sha512-eea32wRgJmPBNY9XEC7h2SjhBViGuRvk35vwWPxcVIHoeXxpdLBCqa76j1CVfvUez/UwV09qU5Vej17mwD6rlw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@next/rspack-binding-win32-ia32-msvc@1.0.1':
+    resolution: {integrity: sha512-TbjdJI9NFH9FmqxT++koSLfRPC+VbPJnrXEZWlftQG93l0tvs2AimoCq47yBgai3XCxyUFOj+WgUN7ShU4+j6A==}
+    cpu: [ia32]
+    os: [win32]
+
+  '@next/rspack-binding-win32-x64-msvc@1.0.1':
+    resolution: {integrity: sha512-JntbZxZkXCLi36f5BHp+PCTzqwMUsdzlr/kcw/IVZ1tZ67OAco7Corv8yYKZumUuNMguxwndHH0pKlTZ667l+Q==}
+    cpu: [x64]
+    os: [win32]
+
+  '@next/rspack-binding@1.0.1':
+    resolution: {integrity: sha512-GPLPMHHDb/cK9ppmNzUi//L5WSV4PPUyfVo+oXITIutdh+nMFFN09WDnc7O6Fv6ZlHY2j6CM06t2vzyCB+gAXA==}
+
+  '@next/rspack-core@1.0.1':
+    resolution: {integrity: sha512-08np3obem5g/ptYxybbD6ovZaNFrpA+6LL9OzwLNKX/zU5+rgg3CZR09xda9oIgtplTDCbZdB8nZffDoqpwQsw==}
 
   '@next/swc-darwin-arm64@15.5.3':
     resolution: {integrity: sha512-nzbHQo69+au9wJkGKTU9lP7PXv0d1J5ljFpvb+LnEomLtSbJkbZyEs6sbF3plQmiOB2l9OBtN2tNSvCH1nQ9Jg==}
@@ -20832,69 +20832,69 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
-  '@next-rspack/binding-android-arm-eabi@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding-android-arm64@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding-darwin-arm64@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding-darwin-x64@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding-linux-arm-gnueabihf@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding-linux-arm64-gnu@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding-linux-arm64-musl@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding-linux-x64-gnu@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding-linux-x64-musl@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding-win32-arm64-msvc@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding-win32-ia32-msvc@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding-win32-x64-msvc@1.0.1-beta.2':
-    optional: true
-
-  '@next-rspack/binding@1.0.1-beta.2':
-    optionalDependencies:
-      '@next-rspack/binding-android-arm-eabi': 1.0.1-beta.2
-      '@next-rspack/binding-android-arm64': 1.0.1-beta.2
-      '@next-rspack/binding-darwin-arm64': 1.0.1-beta.2
-      '@next-rspack/binding-darwin-x64': 1.0.1-beta.2
-      '@next-rspack/binding-linux-arm-gnueabihf': 1.0.1-beta.2
-      '@next-rspack/binding-linux-arm64-gnu': 1.0.1-beta.2
-      '@next-rspack/binding-linux-arm64-musl': 1.0.1-beta.2
-      '@next-rspack/binding-linux-x64-gnu': 1.0.1-beta.2
-      '@next-rspack/binding-linux-x64-musl': 1.0.1-beta.2
-      '@next-rspack/binding-win32-arm64-msvc': 1.0.1-beta.2
-      '@next-rspack/binding-win32-ia32-msvc': 1.0.1-beta.2
-      '@next-rspack/binding-win32-x64-msvc': 1.0.1-beta.2
-
-  '@next-rspack/core@1.0.1-beta.2(@swc/helpers@0.5.15)':
-    dependencies:
-      '@next/rspack-binding': '@next-rspack/binding@1.0.1-beta.2'
-      '@rspack/core': 1.6.0(@swc/helpers@0.5.15)
-    transitivePeerDependencies:
-      - '@swc/helpers'
-
   '@next/env@15.5.3': {}
 
   '@next/eslint-plugin-next@16.0.2-canary.4':
     dependencies:
       fast-glob: 3.3.1
+
+  '@next/rspack-binding-android-arm-eabi@1.0.1':
+    optional: true
+
+  '@next/rspack-binding-android-arm64@1.0.1':
+    optional: true
+
+  '@next/rspack-binding-darwin-arm64@1.0.1':
+    optional: true
+
+  '@next/rspack-binding-darwin-x64@1.0.1':
+    optional: true
+
+  '@next/rspack-binding-linux-arm-gnueabihf@1.0.1':
+    optional: true
+
+  '@next/rspack-binding-linux-arm64-gnu@1.0.1':
+    optional: true
+
+  '@next/rspack-binding-linux-arm64-musl@1.0.1':
+    optional: true
+
+  '@next/rspack-binding-linux-x64-gnu@1.0.1':
+    optional: true
+
+  '@next/rspack-binding-linux-x64-musl@1.0.1':
+    optional: true
+
+  '@next/rspack-binding-win32-arm64-msvc@1.0.1':
+    optional: true
+
+  '@next/rspack-binding-win32-ia32-msvc@1.0.1':
+    optional: true
+
+  '@next/rspack-binding-win32-x64-msvc@1.0.1':
+    optional: true
+
+  '@next/rspack-binding@1.0.1':
+    optionalDependencies:
+      '@next/rspack-binding-android-arm-eabi': 1.0.1
+      '@next/rspack-binding-android-arm64': 1.0.1
+      '@next/rspack-binding-darwin-arm64': 1.0.1
+      '@next/rspack-binding-darwin-x64': 1.0.1
+      '@next/rspack-binding-linux-arm-gnueabihf': 1.0.1
+      '@next/rspack-binding-linux-arm64-gnu': 1.0.1
+      '@next/rspack-binding-linux-arm64-musl': 1.0.1
+      '@next/rspack-binding-linux-x64-gnu': 1.0.1
+      '@next/rspack-binding-linux-x64-musl': 1.0.1
+      '@next/rspack-binding-win32-arm64-msvc': 1.0.1
+      '@next/rspack-binding-win32-ia32-msvc': 1.0.1
+      '@next/rspack-binding-win32-x64-msvc': 1.0.1
+
+  '@next/rspack-core@1.0.1(@swc/helpers@0.5.15)':
+    dependencies:
+      '@next/rspack-binding': 1.0.1
+      '@rspack/core': 1.6.0(@swc/helpers@0.5.15)
+    transitivePeerDependencies:
+      - '@swc/helpers'
 
   '@next/swc-darwin-arm64@15.5.3':
     optional: true
@@ -22190,7 +22190,7 @@ snapshots:
       '@storybook/react-docgen-typescript-plugin': 1.0.6--canary.9.0c3f3b7.0(typescript@5.9.2)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9))
       '@types/semver': 7.5.6
       find-up: 5.0.0
-      magic-string: 0.30.17
+      magic-string: 0.30.19
       react: 19.3.0-canary-f646e8ff-20251104
       react-docgen: 7.1.0
       react-dom: 19.3.0-canary-f646e8ff-20251104(react@19.3.0-canary-f646e8ff-20251104)
@@ -22233,9 +22233,9 @@ snapshots:
       react-dom: 19.3.0-canary-f646e8ff-20251104(react@19.3.0-canary-f646e8ff-20251104)
       storybook: 8.6.0(prettier@3.6.2)
 
-  '@storybook/react-webpack5@8.6.0(@rspack/core@1.5.0(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)(react-dom@19.3.0-canary-f646e8ff-20251104(react@19.3.0-canary-f646e8ff-20251104))(react@19.3.0-canary-f646e8ff-20251104)(storybook@8.6.0(prettier@3.6.2))(typescript@5.9.2)':
+  '@storybook/react-webpack5@8.6.0(@rspack/core@1.6.0(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)(react-dom@19.3.0-canary-f646e8ff-20251104(react@19.3.0-canary-f646e8ff-20251104))(react@19.3.0-canary-f646e8ff-20251104)(storybook@8.6.0(prettier@3.6.2))(typescript@5.9.2)':
     dependencies:
-      '@storybook/builder-webpack5': 8.6.0(@rspack/core@1.5.0(@swc/helpers@0.5.15))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)(storybook@8.6.0(prettier@3.6.2))(typescript@5.9.2)
+      '@storybook/builder-webpack5': 8.6.0(@rspack/core@1.6.0(@swc/helpers@0.5.15))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)(storybook@8.6.0(prettier@3.6.2))(typescript@5.9.2)
       '@storybook/preset-react-webpack': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9)(react-dom@19.3.0-canary-f646e8ff-20251104(react@19.3.0-canary-f646e8ff-20251104))(react@19.3.0-canary-f646e8ff-20251104)(storybook@8.6.0(prettier@3.6.2))(typescript@5.9.2)
       '@storybook/react': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(react-dom@19.3.0-canary-f646e8ff-20251104(react@19.3.0-canary-f646e8ff-20251104))(react@19.3.0-canary-f646e8ff-20251104)(storybook@8.6.0(prettier@3.6.2))(typescript@5.9.2)
       react: 19.3.0-canary-f646e8ff-20251104
