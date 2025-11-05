@@ -1,10 +1,9 @@
 use anyhow::Result;
 use either::Either;
-use tracing::{Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
+    FxIndexSet, ResolvedVc, ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_fs::FileSystemPath;
 
@@ -102,6 +101,9 @@ impl OutputAssets {
         ResolvedVc::cell(vec![])
     }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct ExpandedOutputAssets(Vec<ResolvedVc<Box<dyn OutputAsset>>>);
 
 /// A set of [OutputAsset]s
 #[turbo_tasks::value(transparent)]
@@ -211,45 +213,15 @@ impl OutputAssetsWithReferenced {
     }
 }
 
-struct OutputAssetVisit {
-    emit_spans: bool,
-    inner_output_assets: bool,
-}
-impl Visit<(ExpandOutputAssetsInput, Option<ReadRef<RcStr>>)> for OutputAssetVisit {
-    type Edge = (ExpandOutputAssetsInput, Option<ReadRef<RcStr>>);
-    type EdgesIntoIter = Vec<Self::Edge>;
-    type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
-
-    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Self::Edge> {
-        VisitControlFlow::Continue(edge)
-    }
-
-    fn edges(
-        &mut self,
-        node: &(ExpandOutputAssetsInput, Option<ReadRef<RcStr>>),
-    ) -> Self::EdgesFuture {
-        get_referenced_assets(self.emit_spans, self.inner_output_assets, node.0)
-    }
-
-    fn span(&mut self, node: &(ExpandOutputAssetsInput, Option<ReadRef<RcStr>>)) -> tracing::Span {
-        if let Some(ident) = &node.1 {
-            tracing::trace_span!("asset", name = display(ident))
-        } else {
-            Span::current()
-        }
-    }
-}
-
 /// Computes the list of all chunk children of a given chunk.
 async fn get_referenced_assets(
-    emit_spans: bool,
     inner_output_assets: bool,
     input: ExpandOutputAssetsInput,
-) -> Result<Vec<(ExpandOutputAssetsInput, Option<ReadRef<RcStr>>)>> {
+) -> Result<impl Iterator<Item = ExpandOutputAssetsInput>> {
     let refs = match input {
         ExpandOutputAssetsInput::Asset(output_asset) => {
             if !inner_output_assets {
-                return Ok(vec![]);
+                return Ok(Either::Left(std::iter::empty()));
             }
             output_asset.references().await?
         }
@@ -259,32 +231,15 @@ async fn get_referenced_assets(
         .assets
         .await?
         .into_iter()
-        .chain(refs.referenced_assets.await?.into_iter());
-    let assets = if emit_spans {
-        Either::Left(
-            assets
-                .map(async |&asset| {
-                    Ok((
-                        ExpandOutputAssetsInput::Asset(asset),
-                        // INVALIDATION: we don't need to invalidate when the span name changes
-                        Some(asset.path_string().untracked().await?),
-                    ))
-                })
-                .try_join()
-                .await?
-                .into_iter(),
-        )
-    } else {
-        Either::Right(assets.map(|&asset| (ExpandOutputAssetsInput::Asset(asset), None)))
-    };
-    Ok(assets
+        .chain(refs.referenced_assets.await?.into_iter())
+        .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
         .chain(
             refs.references
                 .await?
                 .into_iter()
-                .map(|&reference| (ExpandOutputAssetsInput::Reference(reference), None)),
-        )
-        .collect())
+                .map(|&reference| ExpandOutputAssetsInput::Reference(reference)),
+        );
+    Ok(Either::Right(assets))
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
@@ -297,43 +252,18 @@ pub async fn expand_output_assets(
     inputs: impl Iterator<Item = ExpandOutputAssetsInput>,
     inner_output_assets: bool,
 ) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
-    let emit_spans = tracing::enabled!(Level::INFO);
-    let inputs = if emit_spans {
-        let inputs = inputs
-            .map(async |asset| {
-                Ok((
-                    asset,
-                    match &asset {
-                        ExpandOutputAssetsInput::Asset(output_asset) => {
-                            // INVALIDATION: we don't need to invalidate when the span name changes
-                            Some(output_asset.path_string().untracked().await?)
-                        }
-                        ExpandOutputAssetsInput::Reference(_) => None,
-                    },
-                ))
-            })
-            .try_join()
-            .await?;
-        Either::Left(inputs.into_iter())
-    } else {
-        Either::Right(inputs.map(|asset| (asset, None)))
-    };
     let edges = AdjacencyMap::new()
         .skip_duplicates()
-        .visit(
-            inputs,
-            OutputAssetVisit {
-                emit_spans,
-                inner_output_assets,
-            },
-        )
+        .visit(inputs, async |input| {
+            get_referenced_assets(inner_output_assets, input).await
+        })
         .await
         .completed()?
         .into_inner()
         .into_postorder_topological();
 
     let mut assets = Vec::new();
-    for (input, _) in edges {
+    for input in edges {
         match input {
             ExpandOutputAssetsInput::Asset(asset) => {
                 assets.push(asset);
