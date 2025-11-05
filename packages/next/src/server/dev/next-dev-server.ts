@@ -813,6 +813,7 @@ export default class DevServer extends Server {
             this.nextConfig.cacheComponents &&
             // Ensure this is not the first invocation.
             result &&
+            // Ideally, we would want to compare the whole objects, but that is too expensive.
             result.prerenderedRoutes?.length !== prerenderedRoutes?.length
           ) {
             this.bundlerService.triggerHMR({
