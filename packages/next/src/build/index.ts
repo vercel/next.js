@@ -230,6 +230,7 @@ import {
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { Lockfile } from './lockfile'
+import { validateAppPaths } from './validate-app-paths'
 
 type Fallback = null | boolean | string
 
@@ -1406,6 +1407,13 @@ export default async function build(
       }
 
       const appPaths = Array.from(appPageKeys)
+
+      // Validate that the app paths are valid. This is currently duplicating
+      // the logic from packages/next/src/shared/lib/router/utils/sorted-routes.ts
+      // but is instead specifically focused on code that can be shared
+      // eventually with the development code.
+      validateAppPaths(appPaths)
+
       // Interception routes are modelled as beforeFiles rewrites
       rewrites.beforeFiles.push(
         ...generateInterceptionRoutesRewrites(appPaths, config.basePath)
