@@ -3500,14 +3500,26 @@ async function accumulateStreamChunks(
         break
       }
       switch (stageController.currentStage) {
+        case RenderStage.Before:
+          throw new InvariantError(
+            'Unexpected stream chunk while in Before stage'
+          )
         case RenderStage.Static:
           staticTarget.push(value)
         // fall through
         case RenderStage.Runtime:
           runtimeTarget.push(value)
         // fall through
-        default:
+        case RenderStage.Dynamic:
           dynamicTarget.push(value)
+          break
+        case RenderStage.Abandoned:
+          // If the render was abandoned, we won't use the chunks,
+          // so there's no need to accumulate them
+          break
+        default:
+          stageController.currentStage satisfies never
+          break
       }
     }
   } catch {

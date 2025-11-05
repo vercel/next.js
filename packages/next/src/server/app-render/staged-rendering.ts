@@ -110,6 +110,8 @@ export class StagedRenderingController {
         }
         return
       }
+      case RenderStage.Dynamic:
+      case RenderStage.Abandoned:
       default:
     }
   }
