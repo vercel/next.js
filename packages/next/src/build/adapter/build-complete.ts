@@ -1114,7 +1114,7 @@ export async function handleBuildComplete({
         route: string,
         isAppPage: boolean
       ): Promise<AppRouteMeta> => {
-        const basename = route.endsWith(path.sep) ? `${route}index` : route;
+        const basename = route.endsWith('/') ? `${route}index` : route;
         const meta: AppRouteMeta = isAppPage
           ? JSON.parse(
               await fs
