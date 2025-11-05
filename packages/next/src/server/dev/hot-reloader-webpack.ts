@@ -115,7 +115,11 @@ import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
-import { streamToUint8Array } from '../stream-utils/node-web-streams-helper'
+import {
+  sendSerializedErrorsToClient,
+  sendSerializedErrorsToClientForHtmlRequest,
+  setErrorsRscStreamForHtmlRequest,
+} from './serialized-errors'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -260,10 +264,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
   private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
-  private errorsRscStreamsByHtmlRequestId = new Map<
-    string,
-    ReadableStream<Uint8Array>
-  >()
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -652,6 +652,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           this.sendToClient.bind(this, client)
         )
 
+        sendSerializedErrorsToClientForHtmlRequest(
+          htmlRequestId,
+          this.sendToClient.bind(this, client)
+        )
+
         if (enableCacheComponents) {
           const status = this.cacheStatusesByRequestId.get(htmlRequestId)
           if (status) {
@@ -661,18 +666,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             })
             this.cacheStatusesByRequestId.delete(htmlRequestId)
           }
-        }
-
-        const errorsRscStream =
-          this.errorsRscStreamsByHtmlRequestId.get(htmlRequestId)
-        if (errorsRscStream !== undefined) {
-          streamToUint8Array(errorsRscStream).then((serializedErrors) => {
-            this.sendToClient(client, {
-              type: HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER,
-              serializedErrors,
-            })
-          })
-          this.errorsRscStreamsByHtmlRequestId.delete(htmlRequestId)
         }
       }
 
@@ -1824,17 +1817,17 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     htmlRequestId: string
   ): void {
     const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
-    if (client !== undefined) {
-      streamToUint8Array(errorsRscStream).then((serializedErrors) => {
-        this.sendToClient(client, {
-          type: HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER,
-          serializedErrors,
-        })
-      })
+
+    if (client) {
+      // If the client is connected, we can send the errors immediately.
+      sendSerializedErrorsToClient(
+        errorsRscStream,
+        this.sendToClient.bind(this, client)
+      )
     } else {
-      // If the client is not connected, store the errors stream so that we can
-      // send it when the client connects.
-      this.errorsRscStreamsByHtmlRequestId.set(htmlRequestId, errorsRscStream)
+      // Otherwise, store the errors stream so that we can send it when the
+      // client connects.
+      setErrorsRscStreamForHtmlRequest(htmlRequestId, errorsRscStream)
     }
   }
 
