@@ -1010,9 +1010,6 @@ async function prospectiveRuntimeServerPrerender(
           printDebugThrownValueForProspectiveRender(err, workStore.route)
         }
       },
-      // we don't care to track postpones during the prospective render because we need
-      // to always do a final render anyway
-      onPostpone: undefined,
       // We don't want to stop rendering until the cacheSignal is complete so we pass
       // a different signal to this render call than is used by dynamic APIs to signify
       // transitioning out of the prerender environment
@@ -3547,9 +3544,6 @@ async function spawnDynamicValidationInDev(
           printDebugThrownValueForProspectiveRender(err, workStore.route)
         }
       },
-      // we don't care to track postpones during the prospective render because we need
-      // to always do a final render anyway
-      onPostpone: undefined,
       // We don't want to stop rendering until the cacheSignal is complete so we pass
       // a different signal to this render call than is used by dynamic APIs to signify
       // transitioning out of the prerender environment
@@ -4299,9 +4293,6 @@ async function prerenderToStream(
               printDebugThrownValueForProspectiveRender(err, workStore.route)
             }
           },
-          // we don't care to track postpones during the prospective render because we need
-          // to always do a final render anyway
-          onPostpone: undefined,
           // We don't want to stop rendering until the cacheSignal is complete so we pass
           // a different signal to this render call than is used by dynamic APIs to signify
           // transitioning out of the prerender environment
