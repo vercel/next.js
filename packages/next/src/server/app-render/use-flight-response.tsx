@@ -1,6 +1,6 @@
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { BinaryStreamOf } from './app-render'
-import type { Readable } from 'stream'
+import type { Readable } from 'node:stream'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -69,34 +69,42 @@ export function getFlightStream<T>(
       endTime: debugEndTime,
     })
   } else {
-    const { Readable } = require('stream') as typeof import('stream')
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      console.error('getFlightStream - not a ReadableStream', flightStream)
+      throw new InvariantError(
+        'getFlightStream should always receive a ReadableStream when using the edge runtime'
+      )
+    } else {
+      const { Readable } =
+        require('node:stream') as typeof import('node:stream')
 
-    // The types of flightStream and debugStream should match.
-    if (debugStream && !(debugStream instanceof Readable)) {
-      throw new InvariantError('Expected debug stream to be a Readable')
-    }
-
-    // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
-    const { createFromNodeStream } =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
-
-    newResponse = createFromNodeStream<T>(
-      flightStream,
-      {
-        moduleLoading: clientReferenceManifest.moduleLoading,
-        moduleMap: isEdgeRuntime
-          ? clientReferenceManifest.edgeSSRModuleMapping
-          : clientReferenceManifest.ssrModuleMapping,
-        serverModuleMap: null,
-      },
-      {
-        findSourceMapURL,
-        nonce,
-        debugChannel: debugStream,
-        endTime: debugEndTime,
+      // The types of flightStream and debugStream should match.
+      if (debugStream && !(debugStream instanceof Readable)) {
+        throw new InvariantError('Expected debug stream to be a Readable')
       }
-    )
+
+      // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
+      const { createFromNodeStream } =
+        // eslint-disable-next-line import/no-extraneous-dependencies
+        require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
+
+      newResponse = createFromNodeStream<T>(
+        flightStream,
+        {
+          moduleLoading: clientReferenceManifest.moduleLoading,
+          moduleMap: isEdgeRuntime
+            ? clientReferenceManifest.edgeSSRModuleMapping
+            : clientReferenceManifest.ssrModuleMapping,
+          serverModuleMap: null,
+        },
+        {
+          findSourceMapURL,
+          nonce,
+          debugChannel: debugStream,
+          endTime: debugEndTime,
+        }
+      )
+    }
   }
 
   // Edge pages are never prerendered so they necessarily cannot have a workUnitStore type

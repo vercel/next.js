@@ -5642,24 +5642,30 @@ function WarnForBypassCachesInDev({ route }: { route: string }) {
 }
 
 function nodeStreamFromReadableStream<T>(stream: ReadableStream<T>) {
-  const reader = stream.getReader()
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      'nodeStreamFromReadableStream cannot be used in the edge runtime'
+    )
+  } else {
+    const reader = stream.getReader()
 
-  const { Readable } = require('node:stream') as typeof import('node:stream')
+    const { Readable } = require('node:stream') as typeof import('node:stream')
 
-  return new Readable({
-    read() {
-      reader
-        .read()
-        .then(({ done, value }) => {
-          if (done) {
-            this.push(null)
-          } else {
-            this.push(value)
-          }
-        })
-        .catch((err) => this.destroy(err))
-    },
-  })
+    return new Readable({
+      read() {
+        reader
+          .read()
+          .then(({ done, value }) => {
+            if (done) {
+              this.push(null)
+            } else {
+              this.push(value)
+            }
+          })
+          .catch((err) => this.destroy(err))
+      },
+    })
+  }
 }
 
 function createNodeStreamFromChunks(
@@ -5667,40 +5673,46 @@ function createNodeStreamFromChunks(
   allChunks: Array<Uint8Array>,
   signal: AbortSignal
 ): Readable {
-  const { Readable } = require('node:stream') as typeof import('node:stream')
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      'createNodeStreamFromChunks cannot be used in the edge runtime'
+    )
+  } else {
+    const { Readable } = require('node:stream') as typeof import('node:stream')
 
-  let nextIndex = 0
+    let nextIndex = 0
 
-  const readable = new Readable({
-    read() {
-      while (nextIndex < partialChunks.length) {
-        this.push(partialChunks[nextIndex])
-        nextIndex++
-      }
-    },
-  })
+    const readable = new Readable({
+      read() {
+        while (nextIndex < partialChunks.length) {
+          this.push(partialChunks[nextIndex])
+          nextIndex++
+        }
+      },
+    })
 
-  signal.addEventListener(
-    'abort',
-    () => {
-      // Flush any remaining chunks from the original set
-      while (nextIndex < partialChunks.length) {
-        readable.push(partialChunks[nextIndex])
-        nextIndex++
-      }
-      // Flush all chunks since we're now aborted and can't schedule
-      // any new work but these chunks might unblock debugInfo
-      while (nextIndex < allChunks.length) {
-        readable.push(allChunks[nextIndex])
-        nextIndex++
-      }
+    signal.addEventListener(
+      'abort',
+      () => {
+        // Flush any remaining chunks from the original set
+        while (nextIndex < partialChunks.length) {
+          readable.push(partialChunks[nextIndex])
+          nextIndex++
+        }
+        // Flush all chunks since we're now aborted and can't schedule
+        // any new work but these chunks might unblock debugInfo
+        while (nextIndex < allChunks.length) {
+          readable.push(allChunks[nextIndex])
+          nextIndex++
+        }
 
-      setImmediate(() => {
-        readable.push(null)
-      })
-    },
-    { once: true }
-  )
+        setImmediate(() => {
+          readable.push(null)
+        })
+      },
+      { once: true }
+    )
 
-  return readable
+    return readable
+  }
 }
