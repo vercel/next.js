@@ -27,11 +27,14 @@ const runTests = () => {
 
     expect(scrollRestoration).toBe('manual')
 
-    const scrollX = Math.floor(await browser.eval(() => window.scrollX))
-    const scrollY = Math.floor(await browser.eval(() => window.scrollY))
+    let scrollX, scrollY
+    await retry(async () => {
+      scrollX = Math.floor(await browser.eval(() => window.scrollX))
+      expect(scrollX).not.toBe(0)
 
-    expect(scrollX).not.toBe(0)
-    expect(scrollY).not.toBe(0)
+      scrollY = Math.floor(await browser.eval(() => window.scrollY))
+      expect(scrollY).not.toBe(0)
+    })
 
     await browser.eval(() => window.next.router.push('/another'))
 
@@ -46,18 +49,20 @@ const runTests = () => {
       expect(await browser.eval(() => window.didHydrate)).toBe(true)
     })
 
-    const newScrollX = Math.floor(await browser.eval(() => window.scrollX))
-    const newScrollY = Math.floor(await browser.eval(() => window.scrollY))
+    await retry(async () => {
+      const newScrollX = Math.floor(await browser.eval(() => window.scrollX))
+      const newScrollY = Math.floor(await browser.eval(() => window.scrollY))
 
-    console.log({
-      scrollX,
-      scrollY,
-      newScrollX,
-      newScrollY,
+      console.log({
+        scrollX,
+        scrollY,
+        newScrollX,
+        newScrollY,
+      })
+
+      expect(scrollX).toBe(newScrollX)
+      expect(scrollY).toBe(newScrollY)
     })
-
-    expect(scrollX).toBe(newScrollX)
-    expect(scrollY).toBe(newScrollY)
   })
 }
 
