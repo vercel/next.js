@@ -1112,6 +1112,7 @@ impl AggregationUpdateQueue {
                     let upper_ids = get_uppers(&upper);
 
                     // Add the same amount of follower edges
+                    assert!(upper_id != task_id, "Circular dependency");
                     if update_count!(upper, Follower { task: task_id }, count) {
                         // May optimize the task
                         if count!(upper, Follower).is_power_of_two() {
@@ -1630,6 +1631,7 @@ impl AggregationUpdateQueue {
                 && upper_aggregation_number <= follower_aggregation_number
             {
                 // It's a follower of the upper node
+                assert!(upper_id != new_follower_id, "Circular dependency");
                 if update_count!(
                     upper,
                     Follower {
@@ -1683,6 +1685,7 @@ impl AggregationUpdateQueue {
             let mut uppers_count: Option<usize> = None;
             let mut persistent_uppers = 0;
             swap_retain(&mut upper_ids, |&mut upper_id| {
+                assert!(upper_id != new_follower_id, "Circular dependency");
                 if update_count!(follower, Upper { task: upper_id }, 1) {
                     // It's a new upper
                     let uppers_count = uppers_count.get_or_insert_with(|| {
@@ -1834,6 +1837,7 @@ impl AggregationUpdateQueue {
                             return true;
                         }
                         // It's a follower of the upper node
+                        assert!(upper_id != *follower_id, "Circular dependency");
                         if update_count!(upper, Follower { task: *follower_id }, 1) {
                             // May optimize the task
                             if count!(upper, Follower).is_power_of_two() {
@@ -1876,6 +1880,7 @@ impl AggregationUpdateQueue {
                         // For performance reasons this should stay `Meta` and not `All`
                         TaskDataCategory::Meta,
                     );
+                    assert!(upper_id != inner_id, "Circular dependency");
                     if update_count!(inner, Upper { task: upper_id }, 1) {
                         if count!(inner, Upper).is_power_of_two() {
                             self.push_optimize_task(inner_id);
@@ -2036,6 +2041,7 @@ impl AggregationUpdateQueue {
             let _span = trace_span!("new follower").entered();
 
             // It's a follower of the upper node
+            assert!(upper_id != new_follower_id, "Circular dependency");
             if update_count!(
                 upper,
                 Follower {
@@ -2089,6 +2095,7 @@ impl AggregationUpdateQueue {
                 // For performance reasons this should stay `Meta` and not `All`
                 TaskDataCategory::Meta,
             );
+            assert!(upper_id != new_follower_id, "Circular dependency");
             if update_count!(inner, Upper { task: upper_id }, 1) {
                 if count!(inner, Upper).is_power_of_two() {
                     self.push_optimize_task(new_follower_id);
@@ -2296,6 +2303,7 @@ impl AggregationUpdateQueue {
                 // followers
                 let children: Vec<_> = get_many!(task, Child { task } => task);
                 for child_id in children {
+                    assert!(task_id != child_id, "Circular dependency");
                     task.add_new(CachedDataItem::Follower {
                         task: child_id,
                         value: 1,
