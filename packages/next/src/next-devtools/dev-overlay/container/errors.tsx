@@ -753,8 +753,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
         <DynamicMetadataErrorDescription variant={errorDetails.variant} />
       )
       break
-    default:
+    case 'empty':
       errorMessage = <GenericErrorDescription error={error} />
+      break
+    default:
+      errorDetails satisfies never
   }
 
   return (
