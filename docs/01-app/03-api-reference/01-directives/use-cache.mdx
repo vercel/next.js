@@ -91,11 +91,9 @@ async function Component({ userId }: { userId: string }) {
 
   return getData('active')
 }
-
-// These create separate cache entries due to different userId values:
-<Component userId="123" /> // Cache entry 1
-<Component userId="456" /> // Cache entry 2
 ```
+
+In the snippet above, `userId` is captured from the outer scope and `filter` is passed as an argument, so both become part of the `getData` function's cache key. This means different user and filter combinations will have separate cache entries.
 
 ## Serialization
 
@@ -189,6 +187,21 @@ async function CachedForm({ action }: { action: () => Promise<void> }) {
 ## Constraints
 
 Cached functions and components **cannot** directly access runtime APIs like `cookies()`, `headers()`, or `searchParams`. Instead, read these values outside the cached scope and pass them as arguments.
+
+### Runtime caching considerations
+
+While `use cache` is designed primarily to include dynamic data in the static shell, it can also cache data at runtime using in-memory LRU (Least Recently Used) storage.
+
+Runtime cache behavior depends on your hosting environment:
+
+| Environment     | Runtime Caching Behavior                                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Serverless**  | Cache entries may not persist across requests (each request can be a different instance). Build-time caching works normally.                                      |
+| **Self-hosted** | Cache entries persist across requests. Control cache size with [`cacheMaxMemorySize`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath). |
+
+If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
+
+Very rarely, for compliance requirements where certain data must never be cached on the server (even ephemerally), or when a component within a `use cache` scope needs to access runtime APIs like `cookies()` and restructuring the component tree is impractical, you might need **[`use cache: private`](/docs/app/api-reference/directives/use-cache-private)**.
 
 ## `use cache` at runtime
 
