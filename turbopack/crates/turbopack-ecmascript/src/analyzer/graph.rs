@@ -2352,6 +2352,52 @@ impl VisitAstPath for Analyzer<'_> {
         );
     }
 
+    fn visit_bin_expr<'ast: 'r, 'r>(
+        &mut self,
+        expr: &'ast BinExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        // Some binary operators have control flow semantics.
+        match expr.op {
+            BinaryOp::LogicalAnd | BinaryOp::LogicalOr | BinaryOp::NullishCoalescing => {
+                // Visit the left hand node
+                {
+                    let mut ast_path =
+                        ast_path.with_guard(AstParentNodeRef::BinExpr(expr, BinExprField::Left));
+                    expr.left.visit_with_ast_path(self, &mut ast_path);
+                };
+                let prev_effects = take(&mut self.effects);
+                let right = {
+                    let mut ast_path =
+                        ast_path.with_guard(AstParentNodeRef::BinExpr(expr, BinExprField::Right));
+                    expr.right.visit_with_ast_path(self, &mut ast_path);
+                    Box::new(EffectsBlock {
+                        effects: take(&mut self.effects),
+                        range: AstPathRange::Exact(as_parent_path(&ast_path)),
+                    })
+                };
+                self.effects = prev_effects;
+                self.add_conditional_effect(
+                    &expr.left,
+                    ast_path,
+                    AstParentKind::BinExpr(BinExprField::Left),
+                    expr.span(),
+                    match expr.op {
+                        BinaryOp::LogicalAnd => ConditionalKind::And { expr: right },
+                        BinaryOp::LogicalOr => ConditionalKind::Or { expr: right },
+                        BinaryOp::NullishCoalescing => {
+                            ConditionalKind::NullishCoalescing { expr: right }
+                        }
+                        _ => unreachable!(),
+                    },
+                );
+            }
+            _ => <BinExpr as VisitWithAstPath<Self>>::visit_children_with_ast_path(
+                expr, self, ast_path,
+            ),
+        }
+    }
+
     fn visit_if_stmt<'ast: 'r, 'r>(
         &mut self,
         stmt: &'ast IfStmt,
