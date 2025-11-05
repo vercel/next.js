@@ -151,7 +151,7 @@ use crate::{
         },
         ident::IdentReplacement,
         member::MemberReplacement,
-        node::PackageJsonReference,
+        node::{FilePathModuleReference, PackageJsonReference},
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
     },
@@ -1646,8 +1646,27 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             .await
     };
 
-    let make_issue_source =
+    let get_traced_project_dir = async || -> Result<FileSystemPath> {
+        // readFileSync("./foo") should always be relative to the project root, but this is
+        // dangerous inside of node_modules as it can cause a lot of false positives in the tracing,
+        // if some package does `path.join(dynamic)`, it would include everything from the project
+        // root as well.
+        //
+        // Also, when there's no cwd set (i.e. in a tracing-specific module context, as we shouldn't
+        // assume a `process.cwd()` for all of node_modules), fallback to the source file directory.
+        // This still allows relative file accesses, just not from the project root.
+        if allow_project_root_tracing
+            && let Some(cwd) = compile_time_info.environment().cwd().owned().await?
+        {
+            Ok(cwd)
+        } else {
+            Ok(source.ident().path().await?.parent())
+        }
+    };
+
+    let get_issue_source =
         || IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32());
+
     if new {
         match func {
             JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor) => {
@@ -1726,9 +1745,54 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 // Ignore (e.g. dynamic parameter or string literal), just as Webpack does
                 return Ok(());
             }
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeWorkerConstructor)
+                if analysis.analyze_mode.is_tracing() =>
+            {
+                // Only for tracing, not for bundling (yet?)
+                let args = linked_args(args).await?;
+                if !args.is_empty() {
+                    let pat = js_value_to_pattern(&args[0]);
+                    if !pat.has_constant_parts() {
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("new Worker({args}) is very dynamic{hints}",),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                    }
+                    analysis.add_reference(
+                        FilePathModuleReference::new(
+                            origin.asset_context(),
+                            get_traced_project_dir().await?,
+                            Pattern::new(pat),
+                            collect_affecting_sources,
+                            get_issue_source(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
+                    return Ok(());
+                }
+                let (args, hints) = explain_args(&args);
+                handler.span_warn_with_code(
+                    span,
+                    &format!("new Worker({args}) is not statically analyze-able{hints}",),
+                    DiagnosticId::Error(
+                        errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                    ),
+                );
+                // Ignore (e.g. dynamic parameter or string literal)
+                return Ok(());
+            }
             _ => {}
         }
 
+        // linked_args wasn't called, so manually add the closure effects
         for arg in args {
             if let EffectArg::Closure(_, block) = arg {
                 add_effects(block.effects);
@@ -1736,24 +1800,6 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         }
         return Ok(());
     }
-
-    let get_traced_project_dir = async || -> Result<FileSystemPath> {
-        // readFileSync("./foo") should always be relative to the project root, but this is
-        // dangerous inside of node_modules as it can cause a lot of false positives in the tracing,
-        // if some package does `path.join(dynamic)`, it would include everything from the project
-        // root as well.
-        //
-        // Also, when there's no cwd set (i.e. in a tracing-specific module context, as we shouldn't
-        // assume a `process.cwd()` for all of node_modules), fallback to the source file directory.
-        // This still allows relative file accesses, just not from the project root.
-        if allow_project_root_tracing
-            && let Some(cwd) = compile_time_info.environment().cwd().owned().await?
-        {
-            Ok(cwd)
-        } else {
-            Ok(source.ident().path().await?.parent())
-        }
-    };
 
     match func {
         JsValue::Alternatives {
@@ -1988,7 +2034,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         get_traced_project_dir().await?,
                         Pattern::new(pat),
                         collect_affecting_sources,
-                        make_issue_source(),
+                        get_issue_source(),
                     )
                     .to_resolved()
                     .await?,
@@ -2041,7 +2087,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 DirAssetReference::new(
                     get_traced_project_dir().await?,
                     Pattern::new(pat),
-                    make_issue_source(),
+                    get_issue_source(),
                 )
                 .to_resolved()
                 .await?,
@@ -2085,7 +2131,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 DirAssetReference::new(
                     get_traced_project_dir().await?,
                     Pattern::new(pat),
-                    make_issue_source(),
+                    get_issue_source(),
                 )
                 .to_resolved()
                 .await?,
@@ -2376,7 +2422,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                 DirAssetReference::new(
                                     get_traced_project_dir().await?,
                                     Pattern::new(abs_pattern),
-                                    make_issue_source(),
+                                    get_issue_source(),
                                 )
                                 .to_resolved()
                                 .await?,
@@ -2443,7 +2489,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     DirAssetReference::new(
                         get_traced_project_dir().await?,
                         Pattern::new(abs_pattern),
-                        make_issue_source(),
+                        get_issue_source(),
                     )
                     .to_resolved()
                     .await?,
@@ -2512,7 +2558,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         DirAssetReference::new(
                             context_dir.clone(),
                             Pattern::new(Pattern::Constant(dir.into())),
-                            make_issue_source(),
+                            get_issue_source(),
                         )
                         .to_resolved()
                     })
@@ -3147,7 +3193,7 @@ async fn value_visitor_inner(
             ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-            "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+            "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
             _ => return Ok((v, false)),

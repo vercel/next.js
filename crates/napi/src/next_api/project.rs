@@ -8,6 +8,7 @@ use napi::{
     bindgen_prelude::{External, within_runtime_if_available},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
+use napi_derive::napi;
 use next_api::{
     entrypoints::Entrypoints,
     next_server_nft::next_server_nft_assets,

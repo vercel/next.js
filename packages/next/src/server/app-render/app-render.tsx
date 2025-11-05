@@ -57,7 +57,6 @@ import {
   RSC_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_HMR_REFRESH_HASH_COOKIE,
-  NEXT_DID_POSTPONE_HEADER,
   NEXT_REQUEST_ID_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
@@ -453,8 +452,9 @@ function NonIndex({
 async function generateDynamicRSCPayload(
   ctx: AppRenderContext,
   options?: {
-    actionResult: ActionResult
-    skipFlight: boolean
+    actionResult?: ActionResult
+    skipFlight?: boolean
+    runtimePrefetchSentinel?: number
   }
 ): Promise<RSCPayload> {
   // Flight data that is going to be passed to the browser.
@@ -545,11 +545,23 @@ async function generateDynamicRSCPayload(
   }
 
   // Otherwise, it's a regular RSC response.
-  return {
+  const baseResponse = {
     b: ctx.sharedContext.buildId,
     f: flightData,
     S: workStore.isStaticGeneration,
   }
+
+  // For runtime prefetches, we encode the stale time and isPartial flag in the response body
+  // rather than relying on response headers. Both of these values will be transformed
+  // by a transform stream before being sent to the client.
+  if (options?.runtimePrefetchSentinel !== undefined) {
+    return {
+      ...baseResponse,
+      rp: [options.runtimePrefetchSentinel] as any,
+    }
+  }
+
+  return baseResponse
 }
 
 function createErrorContext(
@@ -829,7 +841,6 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 
 async function generateRuntimePrefetchResult(
   req: BaseNextRequest,
-  res: BaseNextResponse,
   ctx: AppRenderContext,
   requestStore: RequestStore
 ): Promise<RenderResult> {
@@ -851,7 +862,14 @@ async function generateRuntimePrefetchResult(
 
   const metadata: AppPageRenderResultMetadata = {}
 
-  const generatePayload = () => generateDynamicRSCPayload(ctx, undefined)
+  // Generate a random sentinel that will be used as a placeholder in the payload
+  // and later replaced by the transform stream
+  const runtimePrefetchSentinel = Math.floor(
+    Math.random() * Number.MAX_SAFE_INTEGER
+  )
+
+  const generatePayload = () =>
+    generateDynamicRSCPayload(ctx, { runtimePrefetchSentinel })
 
   const {
     componentMod: {
@@ -889,15 +907,12 @@ async function generateRuntimePrefetchResult(
     requestStore.headers,
     requestStore.cookies,
     requestStore.draftMode,
-    onError
+    onError,
+    runtimePrefetchSentinel
   )
 
   applyMetadataFromPrerenderResult(response, metadata, workStore)
   metadata.fetchMetrics = ctx.workStore.fetchMetrics
-
-  if (response.isPartial) {
-    res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
-  }
 
   return new FlightRenderResult(response.result.prelude, metadata)
 }
@@ -1037,6 +1052,117 @@ async function prospectiveRuntimeServerPrerender(
     return null
   }
 }
+/**
+ * Updates the runtime prefetch metadata in the RSC payload as it streams:
+ *   "rp":[<sentinel>] -> "rp":[<isPartial>,<staleTime>]
+ *
+ * We use a transform stream to do this to avoid needing to trigger an additional render.
+ * A random sentinel number guarantees no collision with user data.
+ */
+function createRuntimePrefetchTransformStream(
+  sentinel: number,
+  isPartial: boolean,
+  staleTime: number
+): TransformStream<Uint8Array, Uint8Array> {
+  const encoder = new TextEncoder()
+
+  // Search for: [<sentinel>]
+  // Replace with: [<isPartial>,<staleTime>]
+  const search = encoder.encode(`[${sentinel}]`)
+  const first = search[0]
+  const replace = encoder.encode(`[${isPartial},${staleTime}]`)
+  const searchLen = search.length
+
+  let currentChunk: Uint8Array | null = null
+  let found = false
+
+  function processChunk(
+    controller: TransformStreamDefaultController<Uint8Array>,
+    nextChunk: null | Uint8Array
+  ) {
+    if (found) {
+      if (nextChunk) {
+        controller.enqueue(nextChunk)
+      }
+      return
+    }
+
+    if (currentChunk) {
+      // We can't search past the index that can contain a full match
+      let exclusiveUpperBound = currentChunk.length - (searchLen - 1)
+      if (nextChunk) {
+        // If we have any overflow bytes we can search up to the chunk's final byte
+        exclusiveUpperBound += Math.min(nextChunk.length, searchLen - 1)
+      }
+      if (exclusiveUpperBound < 1) {
+        // we can't match the current chunk.
+        controller.enqueue(currentChunk)
+        currentChunk = nextChunk // advance so we don't process this chunk again
+        return
+      }
+
+      let currentIndex = currentChunk.indexOf(first)
+
+      // check the current candidate match if it is within the bounds of our search space for the currentChunk
+      candidateLoop: while (
+        -1 < currentIndex &&
+        currentIndex < exclusiveUpperBound
+      ) {
+        // We already know index 0 matches because we used indexOf to find the candidateIndex so we start at index 1
+        let matchIndex = 1
+        while (matchIndex < searchLen) {
+          const candidateIndex = currentIndex + matchIndex
+          const candidateValue =
+            candidateIndex < currentChunk.length
+              ? currentChunk[candidateIndex]
+              : // if we ever hit this condition it is because there is a nextChunk we can read from
+                nextChunk![candidateIndex - currentChunk.length]
+          if (candidateValue !== search[matchIndex]) {
+            // No match, reset and continue the search from the next position
+            currentIndex = currentChunk.indexOf(first, currentIndex + 1)
+            continue candidateLoop
+          }
+          matchIndex++
+        }
+        // We found a complete match. currentIndex is our starting point to replace the value.
+        found = true
+        // enqueue everything up to the match
+        controller.enqueue(currentChunk.subarray(0, currentIndex))
+        // enqueue the replacement value
+        controller.enqueue(replace)
+        // If there are bytes in the currentChunk after the match enqueue them
+        if (currentIndex + searchLen < currentChunk.length) {
+          controller.enqueue(currentChunk.subarray(currentIndex + searchLen))
+        }
+        // If we have a next chunk we enqueue it now
+        if (nextChunk) {
+          // if replacement spills over to the next chunk we first exclude the replaced bytes
+          const overflowBytes = currentIndex + searchLen - currentChunk.length
+          const truncatedChunk =
+            overflowBytes > 0 ? nextChunk!.subarray(overflowBytes) : nextChunk
+          controller.enqueue(truncatedChunk)
+        }
+        // We are now in found mode and don't need to track currentChunk anymore
+        currentChunk = null
+        return
+      }
+      // No match found in this chunk, emit it and wait for the next one
+      controller.enqueue(currentChunk)
+    }
+
+    // Advance to the next chunk
+    currentChunk = nextChunk
+  }
+
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      processChunk(controller, chunk)
+    },
+    flush(controller) {
+      processChunk(controller, null)
+    },
+  })
+}
 
 async function finalRuntimeServerPrerender(
   ctx: AppRenderContext,
@@ -1047,7 +1173,8 @@ async function finalRuntimeServerPrerender(
   headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode'],
-  onError: (err: unknown) => string | undefined
+  onError: (err: unknown) => string | undefined,
+  runtimePrefetchSentinel: number
 ) {
   const { implicitTags, renderOpts } = ctx
 
@@ -1150,6 +1277,17 @@ async function finalRuntimeServerPrerender(
     }
   )
 
+  // Update the RSC payload stream to replace the sentinel with actual values.
+  // React has already serialized the payload with the sentinel, so we need to transform the stream.
+  const collectedStale = selectStaleTime(finalServerPrerenderStore.stale)
+  result.prelude = result.prelude.pipeThrough(
+    createRuntimePrefetchTransformStream(
+      runtimePrefetchSentinel,
+      serverIsDynamic,
+      collectedStale
+    )
+  )
+
   return {
     result,
     // TODO(runtime-ppr): do we need to produce a digest map here?
@@ -1158,7 +1296,7 @@ async function finalRuntimeServerPrerender(
     isPartial: serverIsDynamic,
     collectedRevalidate: finalServerPrerenderStore.revalidate,
     collectedExpire: finalServerPrerenderStore.expire,
-    collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
+    collectedStale,
     collectedTags: finalServerPrerenderStore.tags,
   }
 }
@@ -1333,7 +1471,6 @@ async function getRSCPayload(
     ],
     m: missingSlots,
     G: [GlobalError, globalErrorStyles],
-    s: typeof ctx.renderOpts.postponed === 'string',
     S: workStore.isStaticGeneration,
   }
 }
@@ -1458,7 +1595,6 @@ async function getErrorRSCPayload(
       ] as FlightDataPath,
     ],
     G: [GlobalError, globalErrorStyles],
-    s: typeof ctx.renderOpts.postponed === 'string',
     S: workStore.isStaticGeneration,
   } satisfies InitialRSCPayload
 }
@@ -2003,7 +2139,7 @@ async function renderToHTMLOrFlightImpl(
 
     if (isRSCRequest) {
       if (isRuntimePrefetchRequest) {
-        return generateRuntimePrefetchResult(req, res, ctx, requestStore)
+        return generateRuntimePrefetchResult(req, ctx, requestStore)
       } else {
         if (
           process.env.NODE_ENV === 'development' &&

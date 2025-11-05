@@ -58,6 +58,19 @@ impl DynamicStorage {
         self.get_or_create_map_mut(ty).add(item)
     }
 
+    pub fn extend(
+        &mut self,
+        ty: CachedDataItemType,
+        item: impl Iterator<Item = CachedDataItem>,
+    ) -> bool {
+        let map = self.get_or_create_map_mut(ty);
+        let mut added = true;
+        for item in item {
+            added = map.add(item) && added;
+        }
+        added
+    }
+
     pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
         let ty = item.ty();
         self.get_or_create_map_mut(ty).insert(item)

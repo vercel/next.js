@@ -1654,7 +1654,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const isResponsePartial =
       fetchStrategy === FetchStrategy.PPRRuntime
         ? // A runtime prefetch may have holes.
-          !!response.headers.get(NEXT_DID_POSTPONE_HEADER)
+          serverData.rp?.[0] === true
         : // Full and LoadingBoundary prefetches cannot have holes.
           // (even if we did set the prefetch header, we only use this codepath for non-PPR-enabled routes)
           false
@@ -1719,14 +1719,15 @@ function writeDynamicTreeResponseIntoCache(
   }
 
   const flightRouterState = flightData.tree
-  // TODO: Extract to function
-  const staleTimeHeaderSeconds = response.headers.get(
-    NEXT_ROUTER_STALE_TIME_HEADER
-  )
-  const staleTimeMs =
-    staleTimeHeaderSeconds !== null
-      ? getStaleTimeMs(parseInt(staleTimeHeaderSeconds, 10))
-      : STATIC_STALETIME_MS
+  // For runtime prefetches, stale time is in the payload at rp[1].
+  // For other responses, fall back to the header.
+  const staleTimeSeconds =
+    typeof serverData.rp?.[1] === 'number'
+      ? serverData.rp[1]
+      : parseInt(response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '', 10)
+  const staleTimeMs = !isNaN(staleTimeSeconds)
+    ? getStaleTimeMs(staleTimeSeconds)
+    : STATIC_STALETIME_MS
 
   // If the response contains dynamic holes, then we must conservatively assume
   // that any individual segment might contain dynamic holes, and also the
@@ -1814,13 +1815,15 @@ function writeDynamicRenderResponseIntoCache(
     return null
   }
 
-  const staleTimeHeaderSeconds = response.headers.get(
-    NEXT_ROUTER_STALE_TIME_HEADER
-  )
-  const staleTimeMs =
-    staleTimeHeaderSeconds !== null
-      ? getStaleTimeMs(parseInt(staleTimeHeaderSeconds, 10))
-      : STATIC_STALETIME_MS
+  // For runtime prefetches, stale time is in the payload at rp[1].
+  // For other responses, fall back to the header.
+  const staleTimeSeconds =
+    typeof serverData.rp?.[1] === 'number'
+      ? serverData.rp[1]
+      : parseInt(response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '', 10)
+  const staleTimeMs = !isNaN(staleTimeSeconds)
+    ? getStaleTimeMs(staleTimeSeconds)
+    : STATIC_STALETIME_MS
   const staleAt = now + staleTimeMs
 
   for (const flightData of flightDatas) {

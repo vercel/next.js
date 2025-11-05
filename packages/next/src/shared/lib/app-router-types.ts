@@ -288,8 +288,6 @@ export type InitialRSCPayload = {
   m: Set<string> | undefined
   /** GlobalError */
   G: [React.ComponentType<any>, React.ReactNode | undefined]
-  /** postponed */
-  s: boolean
   /** prerendered */
   S: boolean
 }
@@ -302,6 +300,8 @@ export type NavigationFlightResponse = {
   f: FlightData
   /** prerendered */
   S: boolean
+  /** runtimePrefetch - [isPartial, staleTime]. Only present in runtime prefetch responses. */
+  rp?: [boolean, number]
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

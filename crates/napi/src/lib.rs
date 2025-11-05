@@ -32,9 +32,6 @@ DEALINGS IN THE SOFTWARE.
 #![feature(arbitrary_self_types_pointers)]
 #![feature(iter_intersperse)]
 
-#[macro_use]
-extern crate napi_derive;
-
 use std::sync::Arc;
 
 use napi::bindgen_prelude::*;

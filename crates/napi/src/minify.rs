@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 use anyhow::Context;
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use serde::Serialize;
 use swc_core::{
     base::{config::JsMinifyOptions, try_with_handler},
