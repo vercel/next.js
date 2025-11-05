@@ -38,6 +38,9 @@ import {
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
 import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createFromReadableStream } from 'react-server-dom-webpack/client.browser'
+import { findSourceMapURL } from '../../../app-find-source-map-url'
 
 export interface StaticIndicatorState {
   pathname: string | null
@@ -502,6 +505,29 @@ export function processMessage(
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR: {
       dispatcher.onCacheIndicator(message.state)
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
+      createFromReadableStream<Error[]>(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(message.serializedErrors)
+            controller.close()
+          },
+        }),
+        { findSourceMapURL }
+      ).then(
+        (errors) => {
+          for (const error of errors) {
+            console.error(error)
+          }
+        },
+        (err) => {
+          console.error(
+            new Error('Failed to deserialize errors.', { cause: err })
+          )
+        }
+      )
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:

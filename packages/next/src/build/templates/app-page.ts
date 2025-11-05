@@ -545,6 +545,7 @@ export async function handler(
           setCacheStatus: routerServerContext?.setCacheStatus,
           setIsrStatus: routerServerContext?.setIsrStatus,
           setReactDebugChannel: routerServerContext?.setReactDebugChannel,
+          sendErrorsToBrowser: routerServerContext?.sendErrorsToBrowser,
 
           dir:
             process.env.NEXT_RUNTIME === 'nodejs'
