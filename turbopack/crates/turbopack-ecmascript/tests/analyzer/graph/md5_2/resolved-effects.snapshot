@@ -44,7 +44,11 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-13 -> 15 conditional = (???*0* | (???*1* === "binary"))
+13 -> 14 conditional = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+13 -> 16 conditional = (???*0* | (???*1* === "binary"))
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*["encoding"]
@@ -52,7 +56,7 @@
 - *2* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-15 -> 17 member call = module<charenc, {}>["bin"]["stringToBytes"](
+16 -> 18 member call = module<charenc, {}>["bin"]["stringToBytes"](
     (
       | ???*0*
       | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
@@ -84,7 +88,7 @@
 - *8* message
   ⚠️  circular variable reference
 
-15 -> 19 member call = module<charenc, {}>["utf8"]["stringToBytes"](
+16 -> 20 member call = module<charenc, {}>["utf8"]["stringToBytes"](
     (
       | ???*0*
       | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
@@ -116,7 +120,7 @@
 - *8* message
   ⚠️  circular variable reference
 
-13 -> 20 call = module<is-buffer, {}>(
+13 -> 21 call = module<is-buffer, {}>(
     (
       | ???*0*
       | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
@@ -148,7 +152,7 @@
 - *8* message
   ⚠️  circular variable reference
 
-13 -> 21 conditional = module<is-buffer, {}>((???*0* | ???*1* | ???*3*))
+13 -> 22 conditional = module<is-buffer, {}>((???*0* | ???*1* | ???*3*))
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* module<charenc, {}>["bin"]["stringToBytes"](???*2*)
@@ -168,9 +172,9 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-21 -> 25 free var = FreeVar(Array)
+22 -> 26 free var = FreeVar(Array)
 
-21 -> 26 member call = ???*0*["call"](
+22 -> 27 member call = ???*0*["call"](
     (
       | ???*3*
       | module<charenc, {}>["bin"]["stringToBytes"](???*4*)
@@ -212,9 +216,9 @@
 - *11* message
   ⚠️  circular variable reference
 
-21 -> 28 free var = FreeVar(Array)
+22 -> 29 free var = FreeVar(Array)
 
-21 -> 29 member call = ???*0*["isArray"](
+22 -> 30 member call = ???*0*["isArray"](
     (
       | ???*1*
       | module<charenc, {}>["bin"]["stringToBytes"](???*2*)
@@ -249,7 +253,7 @@
 - *9* message
   ⚠️  circular variable reference
 
-21 -> 30 conditional = !(???*0*)
+22 -> 31 conditional = !(???*0*)
 - *0* ???*1*["isArray"](message)
   ⚠️  unknown callee object
   ⚠️  This value might have side effects
@@ -257,7 +261,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-30 -> 32 member call = (
+31 -> 33 member call = (
   | ???*0*
   | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
   | module<charenc, {}>["utf8"]["stringToBytes"](???*2*)
@@ -287,7 +291,7 @@
 - *8* message
   ⚠️  circular variable reference
 
-0 -> 34 member call = module<crypt, {}>["bytesToWords"](
+0 -> 35 member call = module<crypt, {}>["bytesToWords"](
     (
       | ???*0*
       | module<charenc, {}>["bin"]["stringToBytes"](???*1*)
@@ -319,7 +323,7 @@
 - *8* message
   ⚠️  circular variable reference
 
-0 -> 50 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 51 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -363,7 +367,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 52 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 53 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -407,7 +411,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 54 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 55 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -449,7 +453,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 56 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 57 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -493,7 +497,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 58 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 59 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -537,7 +541,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 60 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 61 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -579,7 +583,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 62 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 63 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -623,7 +627,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 64 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 65 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -667,7 +671,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 66 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 67 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -709,7 +713,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 68 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 69 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -753,7 +757,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 70 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 71 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -797,7 +801,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 72 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 73 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -841,7 +845,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 74 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 75 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -883,7 +887,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 76 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 77 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -927,7 +931,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 78 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 79 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -971,7 +975,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 80 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
+0 -> 81 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1013,7 +1017,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 82 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 83 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1057,7 +1061,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 84 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 85 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1101,7 +1105,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 86 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 87 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1143,7 +1147,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 88 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 89 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1187,7 +1191,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 90 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 91 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1231,7 +1235,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 92 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 93 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1273,7 +1277,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 94 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 95 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1317,7 +1321,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 96 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 97 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1361,7 +1365,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 98 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 99 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1403,7 +1407,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 100 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 101 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1447,7 +1451,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 102 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 103 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1491,7 +1495,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 104 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 105 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1533,7 +1537,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 106 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 107 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1577,7 +1581,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 108 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 109 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1621,7 +1625,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 110 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 111 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1663,7 +1667,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 112 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
+0 -> 113 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1707,7 +1711,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 114 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 115 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1751,7 +1755,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 116 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 117 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1795,7 +1799,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 118 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 119 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1837,7 +1841,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 120 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 121 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1881,7 +1885,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 122 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 123 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1925,7 +1929,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 124 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 125 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -1967,7 +1971,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 126 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 127 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2011,7 +2015,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 128 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 129 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2055,7 +2059,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 130 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 131 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2097,7 +2101,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 132 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 133 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2141,7 +2145,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 134 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 135 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2185,7 +2189,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 136 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 137 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2227,7 +2231,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 138 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 139 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2271,7 +2275,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 140 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 141 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2315,7 +2319,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 142 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 143 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2357,7 +2361,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 144 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
+0 -> 145 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2401,7 +2405,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 146 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 147 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2445,7 +2449,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 148 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 149 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2487,7 +2491,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 150 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 151 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2531,7 +2535,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 152 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 153 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2575,7 +2579,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 154 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 155 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2617,7 +2621,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 156 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 157 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2661,7 +2665,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 158 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 159 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2705,7 +2709,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 160 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 161 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2749,7 +2753,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 162 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 163 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2791,7 +2795,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 164 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 165 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2835,7 +2839,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 166 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 167 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2879,7 +2883,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 168 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 169 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2921,7 +2925,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 170 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 171 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -2965,7 +2969,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 172 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 173 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -3009,7 +3013,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 174 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 175 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -3051,7 +3055,7 @@
 - *13* i
   ⚠️  circular variable reference
 
-0 -> 176 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
+0 -> 177 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
@@ -3095,7 +3099,7 @@
 - *14* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 178 member call = module<crypt, {}>["endian"]([???*0*, ???*1*, ???*2*, ???*3*])
+0 -> 179 member call = module<crypt, {}>["endian"]([???*0*, ???*1*, ???*2*, ???*3*])
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 - *1* max number of linking steps reached
@@ -3105,54 +3109,62 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 179 unreachable = ???*0*
+0 -> 180 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 181 unreachable = ???*0*
+0 -> 182 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 183 unreachable = ???*0*
+0 -> 184 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 185 unreachable = ???*0*
+0 -> 186 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 187 unreachable = ???*0*
+0 -> 188 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 191 free var = FreeVar(module)
+0 -> 192 free var = FreeVar(module)
 
-0 -> 192 conditional = ((???*0* === undefined) | (???*1* === null))
+0 -> 193 conditional = (???*0* === undefined)
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+0 -> 194 conditional = ((???*0* === undefined) | (???*1* === null))
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-192 -> 193 free var = FreeVar(Error)
+194 -> 195 free var = FreeVar(Error)
 
-192 -> 194 call = new ???*0*(`Illegal argument ${???*1*}`)
+194 -> 196 call = new ???*0*(`Illegal argument ${???*1*}`)
 - *0* FreeVar(Error)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-0 -> 196 call = (...) => crypt["endian"]([a, b, c, d])(???*0*, ???*1*)
+0 -> 198 call = (...) => crypt["endian"]([a, b, c, d])(???*0*, ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-0 -> 197 member call = module<crypt, {}>["wordsToBytes"](???*0*)
+0 -> 199 member call = module<crypt, {}>["wordsToBytes"](???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 199 conditional = (???*0* | ???*1*)
+0 -> 200 conditional = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+0 -> 202 conditional = (???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*["asBytes"]
@@ -3160,7 +3172,11 @@
 - *2* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-199 -> 201 conditional = (???*0* | ???*1*)
+202 -> 203 conditional = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+202 -> 205 conditional = (???*0* | ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 - *1* ???*2*["asString"]
@@ -3168,14 +3184,14 @@
 - *2* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-201 -> 203 member call = module<charenc, {}>["bin"]["bytesToString"](???*0*)
+205 -> 207 member call = module<charenc, {}>["bin"]["bytesToString"](???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-201 -> 205 member call = module<crypt, {}>["bytesToHex"](???*0*)
+205 -> 209 member call = module<crypt, {}>["bytesToHex"](???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 206 unreachable = ???*0*
+0 -> 210 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects

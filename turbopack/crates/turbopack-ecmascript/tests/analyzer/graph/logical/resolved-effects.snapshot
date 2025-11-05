@@ -1,15 +1,77 @@
-0 -> 1 free var = FreeVar(global)
+0 -> 1 conditional = true
 
-0 -> 2 free var = FreeVar(global)
+0 -> 2 conditional = true
 
-0 -> 3 free var = FreeVar(global)
+0 -> 3 conditional = true
 
-0 -> 4 free var = FreeVar(global)
+0 -> 4 conditional = 1
 
-0 -> 5 free var = FreeVar(global)
+0 -> 5 conditional = 2
 
-0 -> 6 free var = FreeVar(global)
+0 -> 6 conditional = 3
 
-0 -> 7 free var = FreeVar(global)
+6 -> 7 free var = FreeVar(global)
 
-0 -> 8 free var = FreeVar(global)
+0 -> 8 conditional = 1
+
+0 -> 9 conditional = 2
+
+9 -> 10 free var = FreeVar(global)
+
+0 -> 11 conditional = ???*0*
+- *0* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 12 conditional = (???*0* | 3){truthy}
+- *0* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 13 conditional = 1
+
+0 -> 14 conditional = 2
+
+14 -> 15 free var = FreeVar(global)
+
+0 -> 16 conditional = ???*0*
+- *0* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 17 conditional = (???*0* | 3)
+- *0* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 18 conditional = 1
+
+0 -> 19 conditional = 2
+
+0 -> 20 conditional = 0
+
+20 -> 21 free var = FreeVar(global)
+
+0 -> 22 conditional = 0
+
+0 -> 23 free var = FreeVar(global)
+
+0 -> 24 conditional = ???*0*
+- *0* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 25 conditional = true
+
+25 -> 26 free var = FreeVar(global)
+
+0 -> 27 free var = FreeVar(global)
+
+0 -> 28 conditional = ???*0*
+- *0* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 29 conditional = false
+
+29 -> 30 free var = FreeVar(global)

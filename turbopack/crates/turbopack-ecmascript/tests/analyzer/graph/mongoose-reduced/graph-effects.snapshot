@@ -88,6 +88,89 @@
         ],
         span: 16..22,
     },
+    Conditional {
+        condition: Member(
+            3,
+            FreeVar(
+                "global",
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "MONGOOSE_DRIVER_PATH",
+                    ),
+                ),
+            ),
+        ),
+        kind: Or {
+            expr: EffectsBlock {
+                effects: [],
+                range: Exact(
+                    [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                0,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Bin,
+                        ),
+                        BinExpr(
+                            Right,
+                        ),
+                    ],
+                ),
+            },
+        },
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+        ],
+        span: 16..78,
+    },
     FreeVar {
         var: "require",
         ast_path: [
