@@ -1263,21 +1263,20 @@
   },
   "test/development/basic/gssp-ssr-change-reloading/test/index.test.ts": {
     "passed": [
+      "GS(S)P Server-Side Change Reloading should keep scroll position when updating from change in getStaticProps",
       "GS(S)P Server-Side Change Reloading should not reload page when client-side is changed too GSP",
       "GS(S)P Server-Side Change Reloading should not reload page when client-side is changed too GSSP",
+      "GS(S)P Server-Side Change Reloading should refresh data when server import is updated",
       "GS(S)P Server-Side Change Reloading should show indicator when re-fetching data",
+      "GS(S)P Server-Side Change Reloading should update on props error in getStaticProps",
+      "GS(S)P Server-Side Change Reloading should update on thrown error in getStaticProps",
       "GS(S)P Server-Side Change Reloading should update page when getServerSideProps is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticPaths is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only",
-      "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /another/index"
-    ],
-    "failed": [
-      "GS(S)P Server-Side Change Reloading should keep scroll position when updating from change in getStaticProps",
-      "GS(S)P Server-Side Change Reloading should refresh data when server import is updated",
-      "GS(S)P Server-Side Change Reloading should update on props error in getStaticProps",
-      "GS(S)P Server-Side Change Reloading should update on thrown error in getStaticProps",
+      "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /another/index",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /index"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3002,7 +3001,6 @@
       "app dir - css HMR should not create duplicate link tags during HMR",
       "app dir - css HMR should support HMR for CSS imports in client components",
       "app dir - css HMR should support HMR for CSS imports in server components",
-      "app dir - css HMR should support HMR with sass/scss",
       "app dir - css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
       "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support client components should support css modules inside client components",
@@ -3041,7 +3039,7 @@
       "app dir - css sass support server pages should support global sass/scss inside server pages",
       "app dir - css sass support server pages should support sass/scss modules inside server pages"
     ],
-    "failed": [],
+    "failed": ["app dir - css HMR should support HMR with sass/scss"],
     "pending": [
       "app dir - css css support multiple entries should only inject the same style once if used by different layers",
       "app dir - css css support multiple entries should only load chunks for the css module that is used by the specific entrypoint",
@@ -14171,10 +14169,11 @@
   "test/integration/custom-error/test/index.test.js": {
     "passed": [
       "Custom _error development mode 1 should not warn with /_error and /404 when rendering error first",
-      "Custom _error development mode 2 should not warn with /_error and /404",
+      "Custom _error development mode 2 should not warn with /_error and /404"
+    ],
+    "failed": [
       "Custom _error development mode 2 should warn on custom /_error without custom /404"
     ],
-    "failed": [],
     "pending": [
       "Custom _error production mode renders custom _error successfully",
       "Custom _error production mode should not contain /_error in build output"
@@ -15301,7 +15300,13 @@
     "runtimeError": false
   },
   "test/integration/env-config/test/index.test.js": {
-    "passed": [],
+    "passed": [
+      "Env Config test environment should inline global values during build",
+      "Env Config test environment should load env from .env",
+      "Env Config test environment should provide env correctly for API routes",
+      "Env Config test environment should provide env correctly for SSR",
+      "Env Config test environment should provide env for SSG"
+    ],
     "failed": [
       "Env Config development mode should have process environment override .env",
       "Env Config development mode should inline global values during build",
@@ -15320,11 +15325,6 @@
       "Env Config development mode with hot reload should provide global env to next.config.js",
       "Env Config development mode with hot reload should trigger HMR correctly when NEXT_PUBLIC_ env is changed",
       "Env Config test environment should have process environment override .env",
-      "Env Config test environment should inline global values during build",
-      "Env Config test environment should load env from .env",
-      "Env Config test environment should provide env correctly for API routes",
-      "Env Config test environment should provide env correctly for SSR",
-      "Env Config test environment should provide env for SSG",
       "Env Config test environment should provide global env to next.config.js"
     ],
     "pending": [
@@ -19705,10 +19705,10 @@
     "runtimeError": false
   },
   "test/integration/next-image-legacy/asset-prefix/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Image Component assetPrefix Tests development mode should include assetPrefix when placeholder=blur during next dev"
     ],
+    "failed": [],
     "pending": [
       "Image Component assetPrefix Tests production mode should use base64 data url with placeholder=blur during next start"
     ],
@@ -21200,7 +21200,8 @@
     "runtimeError": false
   },
   "test/integration/repeated-slashes/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "404 handling custom _error next dev should handle backslashes correctly",
       "404 handling custom _error next dev should handle double slashes correctly",
       "404 handling custom _error next dev should handle double slashes correctly with encoded",
@@ -21214,7 +21215,6 @@
       "404 handling custom _error next dev should have no error from encoded slashes in router push",
       "404 handling custom _error next dev should normalize repeated slashes in redirects correctly"
     ],
-    "failed": [],
     "pending": [
       "404 handling custom _error production mode next export should handle backslashes correctly",
       "404 handling custom _error production mode next export should handle double slashes correctly",
@@ -21398,7 +21398,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/root-optional-revalidate/test/index.test.js": {
+  "test/integration/root-optional-revalidate/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21973,7 +21973,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-filtered-files/test/index.test.js": {
+  "test/integration/typescript-filtered-files/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21982,7 +21982,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-hmr/test/index.test.js": {
+  "test/integration/typescript-hmr/test/index.test.ts": {
     "passed": [],
     "failed": [
       "TypeScript HMR delete a page and add it back should detect the changes to typescript pages and display it",
@@ -21992,7 +21992,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-ignore-errors/test/index.test.js": {
+  "test/integration/typescript-ignore-errors/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -22004,7 +22004,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-only-remove-type-imports/test/index.test.js": {
+  "test/integration/typescript-only-remove-type-imports/test/index.test.ts": {
     "passed": [
       "TypeScript onlyRemoveTypeImports development mode should render a normal page correctly",
       "TypeScript onlyRemoveTypeImports development mode should render a page with type import correctly"
@@ -22017,7 +22017,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-paths/test/index.test.js": {
+  "test/integration/typescript-paths/test/index.test.ts": {
     "passed": [
       "typescript paths default behavior should alias components",
       "typescript paths default behavior should not resolve to .d.ts files",
@@ -22035,7 +22035,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
+  "test/integration/typescript-workspaces-paths/packages/www/test/index.test.ts": {
     "passed": [
       "TypeScript Features default behavior should alias components",
       "TypeScript Features default behavior should not resolve to .d.ts files",
@@ -22072,7 +22072,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/undefined-webpack-config/test/index.test.js": {
+  "test/integration/undefined-webpack-config/test/index.test.ts": {
     "passed": [
       "undefined webpack config error should show in development mode"
     ],
@@ -22083,7 +22083,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/webpack-bun-externals/test/index.test.js": {
+  "test/integration/webpack-bun-externals/test/index.test.ts": {
     "passed": [
       "Webpack - Bun Externals should externalize Bun builtins in server bundles",
       "Webpack - Bun Externals should not bundle Bun module implementations",
@@ -22094,7 +22094,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/webpack-config-extensionalias/test/index.test.js": {
+  "test/integration/webpack-config-extensionalias/test/index.test.ts": {
     "passed": [
       "webpack config with extensionAlias setting should run correctly with an tsx file import with .js extension"
     ],
@@ -22103,7 +22103,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/webpack-config-mainjs/test/index.test.js": {
+  "test/integration/webpack-config-mainjs/test/index.test.ts": {
     "passed": [
       "Customized webpack config with main.js should run correctly with main.js customized"
     ],
@@ -22112,7 +22112,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/webpack-require-hook/test/index.test.js": {
+  "test/integration/webpack-require-hook/test/index.test.ts": {
     "passed": [
       "Handles Webpack Require Hook build Does not error during build",
       "Handles Webpack Require Hook development mode Applies and does not error during development"
@@ -22122,7 +22122,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/with-electron/test/index.test.js": {
+  "test/integration/with-electron/test/index.test.ts": {
     "passed": [
       "Should skip testing electron without process.env.TEST_ELECTRON set"
     ],
@@ -22131,7 +22131,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/worker-webpack5/test/index.test.js": {
+  "test/integration/worker-webpack5/test/index.test.ts": {
     "passed": [
       "Web Workers with webpack 5 development mode should pass on both client and worker"
     ],
