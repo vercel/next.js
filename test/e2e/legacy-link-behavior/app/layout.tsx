@@ -8,11 +8,11 @@ export default async function Root({
 }) {
   return (
     <html>
-      <Suspense>
-        <Connection>
-          <body>{children}</body>
-        </Connection>
-      </Suspense>
+      <body>
+        <Suspense>
+          <Connection>{children}</Connection>
+        </Suspense>
+      </body>
     </html>
   )
 }

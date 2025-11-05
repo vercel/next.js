@@ -548,7 +548,6 @@
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
-      REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
@@ -1030,11 +1029,6 @@
         ? dispatcher.getCacheForType(resourceType)
         : resourceType();
     };
-    exports.unstable_postpone = function (reason) {
-      reason = Error(reason);
-      reason.$$typeof = REACT_POSTPONE_TYPE;
-      throw reason;
-    };
     exports.use = function (usable) {
       return resolveDispatcher().use(usable);
     };
@@ -1050,5 +1044,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.3.0-experimental-f646e8ff-20251104";
+    exports.version = "19.3.0-experimental-dd048c3b-20251105";
   })();

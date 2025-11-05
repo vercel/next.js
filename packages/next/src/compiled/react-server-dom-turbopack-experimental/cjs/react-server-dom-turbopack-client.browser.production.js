@@ -109,7 +109,6 @@ var ReactDOMSharedInternals =
     ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
   REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-  REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -570,9 +569,6 @@ function readChunk(chunk) {
       throw chunk.reason;
   }
 }
-function createErrorChunk(response, error) {
-  return new ReactPromise("rejected", null, error);
-}
 function wakeChunk(response, listeners, value) {
   for (var i = 0; i < listeners.length; i++) {
     var listener = listeners[i];
@@ -786,7 +782,7 @@ function getChunk(response, id) {
     chunk = chunks.get(id);
   chunk ||
     ((chunk = response._closed
-      ? createErrorChunk(response, response._closedReason)
+      ? new ReactPromise("rejected", null, response._closedReason)
       : new ReactPromise("pending", null, null)),
     chunks.set(id, chunk));
   return chunk;
@@ -1674,7 +1670,7 @@ function processFullBinaryRow(response, streamState, id, tag, buffer, chunk) {
       streamState.digest = buffer.digest;
       chunk
         ? triggerErrorOnChunk(response, chunk, streamState)
-        : ((response = createErrorChunk(response, streamState)),
+        : ((response = new ReactPromise("rejected", null, streamState)),
           tag.set(id, response));
       break;
     case 84:
@@ -1708,18 +1704,6 @@ function processFullBinaryRow(response, streamState, id, tag, buffer, chunk) {
         "fulfilled" === id.status &&
         id.reason.close("" === buffer ? '"$undefined"' : buffer);
       break;
-    case 80:
-      tag = Error(
-        "A Server Component was postponed. The reason is omitted in production builds to avoid leaking sensitive details."
-      );
-      tag.$$typeof = REACT_POSTPONE_TYPE;
-      tag.stack = "Error: " + tag.message;
-      buffer = response._chunks;
-      (chunk = buffer.get(id))
-        ? triggerErrorOnChunk(response, chunk, tag)
-        : ((response = createErrorChunk(response, tag)),
-          buffer.set(id, response));
-      break;
     default:
       (tag = response._chunks),
         (chunk = tag.get(id))
@@ -1749,7 +1733,7 @@ function createFromJSONCallback(response) {
             (initializingHandler = value.parent),
             value.errored)
           )
-            (key = createErrorChunk(response, value.reason)),
+            (key = new ReactPromise("rejected", null, value.reason)),
               (key = createLazyChunkWrapper(key));
           else if (0 < value.deps) {
             var blockedChunk = new ReactPromise("blocked", null, null);

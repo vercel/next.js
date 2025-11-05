@@ -8,7 +8,7 @@ const appDir = join(__dirname, '..')
 let appPort
 let app
 
-async function get$(path, query) {
+async function get$(path, query?: any) {
   const html = await renderViaHTTP(appPort, path, query)
   return cheerio.load(html)
 }

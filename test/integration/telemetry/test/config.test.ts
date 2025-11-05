@@ -23,7 +23,7 @@ describe('config telemetry', () => {
 
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         await fs.rename(
@@ -53,7 +53,7 @@ describe('config telemetry', () => {
 
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         await fs.rename(
@@ -101,7 +101,7 @@ describe('config telemetry', () => {
             stderr2 += msg || ''
           },
           env: {
-            NEXT_TELEMETRY_DEBUG: 1,
+            NEXT_TELEMETRY_DEBUG: '1',
           },
         })
         await check(() => stderr2, /NEXT_CLI_SESSION_STARTED/)
@@ -142,7 +142,7 @@ describe('config telemetry', () => {
         try {
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
 
           try {
@@ -166,7 +166,7 @@ describe('config telemetry', () => {
         async () => {
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
           const featureUsageEvents = findAllTelemetryEvents(
             stderr,
@@ -210,7 +210,7 @@ describe('config telemetry', () => {
           )
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
           await fs.rename(
             path.join(appDir, 'next.config.js'),
@@ -268,7 +268,7 @@ describe('config telemetry', () => {
 
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         await fs.rename(
@@ -294,7 +294,7 @@ describe('config telemetry', () => {
 
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         await fs.rename(
@@ -320,7 +320,7 @@ describe('config telemetry', () => {
 
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         await fs.rename(
@@ -346,7 +346,7 @@ describe('config telemetry', () => {
 
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         await fs.remove(path.join(appDir, 'middleware.js'))
@@ -378,7 +378,7 @@ describe('config telemetry', () => {
 
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         await fs.rename(
@@ -416,7 +416,7 @@ describe('config telemetry', () => {
         async () => {
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
           const featureUsageEvents = findAllTelemetryEvents(
             stderr,
@@ -443,7 +443,7 @@ describe('config telemetry', () => {
         async () => {
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
           const featureUsageEvents = findAllTelemetryEvents(
             stderr,
@@ -468,7 +468,7 @@ describe('config telemetry', () => {
 
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
 
           await fs.rename(
@@ -499,7 +499,7 @@ describe('config telemetry', () => {
 
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
 
           await fs.rename(
@@ -527,7 +527,7 @@ describe('config telemetry', () => {
       it('emits telemetry for default React Compiler options', async () => {
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         try {
@@ -554,7 +554,7 @@ describe('config telemetry', () => {
         try {
           const app = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
           stderr = app.stderr
           const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
@@ -585,7 +585,7 @@ describe('config telemetry', () => {
         try {
           const app = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
           stderr = app.stderr
           const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
@@ -623,7 +623,7 @@ describe('config telemetry', () => {
 
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
 
           await fs.rename(
@@ -662,7 +662,7 @@ describe('config telemetry', () => {
         try {
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
 
           try {
@@ -697,7 +697,7 @@ describe('config telemetry', () => {
 
         try {
           app = await launchApp(appDir, await findPort(), {
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
             onStderr(msg) {
               stderr += msg || ''
             },
@@ -733,7 +733,7 @@ describe('config telemetry', () => {
         try {
           const app = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
           stderr = app.stderr
 
@@ -761,7 +761,7 @@ describe('config telemetry', () => {
         try {
           const app = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
           stderr = app.stderr
 

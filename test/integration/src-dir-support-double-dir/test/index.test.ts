@@ -14,7 +14,7 @@ let app
 let appPort
 const appDir = join(__dirname, '../')
 
-function runTests(dev) {
+function runTests(dev: boolean) {
   it('should render from pages', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/PAGES/)
@@ -50,7 +50,7 @@ describe('Dynamic Routing', () => {
       })
       afterAll(() => killApp(app))
 
-      runTests()
+      runTests(false)
     }
   )
 })

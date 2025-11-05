@@ -8,7 +8,7 @@ import {
   launchApp,
   nextStart,
   nextBuild,
-  retry,
+  check,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -16,8 +16,15 @@ let appPort
 let app
 
 const runTests = () => {
-  it('should restore the scroll position on navigating back', async () => {
-    const browser = await webdriver(appPort, '/')
+  it('should restore the scroll position on navigating forward', async () => {
+    const browser = await webdriver(appPort, '/another')
+    await browser.elementByCss('#to-index').click()
+
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /the end/
+    )
+
     await browser.eval(() =>
       document.querySelector('#to-another').scrollIntoView()
     )
@@ -33,18 +40,17 @@ const runTests = () => {
     expect(scrollX).not.toBe(0)
     expect(scrollY).not.toBe(0)
 
-    await browser.eval(() => window.next.router.push('/another'))
-
-    await retry(async () => {
-      const html = await browser.eval(() => document.documentElement.innerHTML)
-      expect(html).toMatch(/hi from another/)
-    })
-    await browser.eval(() => (window.didHydrate = false))
-
     await browser.eval(() => window.history.back())
-    await retry(async () => {
-      expect(await browser.eval(() => window.didHydrate)).toBe(true)
-    })
+
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /hi from another/
+    )
+
+    await browser.eval(() => ((window as any).didHydrate = false))
+    await browser.eval(() => window.history.forward())
+
+    await check(() => browser.eval(() => (window as any).didHydrate), true)
 
     const newScrollX = Math.floor(await browser.eval(() => window.scrollX))
     const newScrollY = Math.floor(await browser.eval(() => window.scrollY))
@@ -61,7 +67,7 @@ const runTests = () => {
   })
 }
 
-describe('Scroll Back Restoration Support', () => {
+describe('Scroll Forward Restoration Support', () => {
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',
     () => {

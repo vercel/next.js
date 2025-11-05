@@ -317,6 +317,7 @@ turbopack-cli-utils = { path = "turbopack/crates/turbopack-cli-utils" }
 turbopack-core = { path = "turbopack/crates/turbopack-core" }
 turbopack-create-test-app = { path = "turbopack/crates/turbopack-create-test-app" }
 turbopack-css = { path = "turbopack/crates/turbopack-css" }
+turbopack-analyze = { path = "turbopack/crates/turbopack-analyze" }
 turbopack-browser = { path = "turbopack/crates/turbopack-browser" }
 turbopack-dev-server = { path = "turbopack/crates/turbopack-dev-server" }
 turbopack-ecmascript = { path = "turbopack/crates/turbopack-ecmascript" }
@@ -377,6 +378,7 @@ async-compression = { version = "0.3.13", default-features = false, features = [
 ] }
 async-trait = "0.1.64"
 bitfield = "0.18.0"
+byteorder = "1.5.0"
 bytes = "1.1.0"
 bytes-str = "0.2.7"
 chrono = "0.4.23"

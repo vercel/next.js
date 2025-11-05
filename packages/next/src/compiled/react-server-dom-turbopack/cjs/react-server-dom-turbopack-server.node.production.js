@@ -24,9 +24,8 @@ var async_hooks = require("async_hooks"),
   REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-  REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
-Symbol.for("react.postpone");
-var REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+  REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
+  REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -847,7 +846,6 @@ function RequestInstance(
   model,
   bundlerConfig,
   onError,
-  onPostpone,
   onAllReady,
   onFatalError,
   identifierPrefix,
@@ -886,7 +884,6 @@ function RequestInstance(
   this.identifierCount = 1;
   this.taintCleanupQueue = [];
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
-  this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
   type = createTask(this, model, null, !1, 0, abortSet);
@@ -3108,7 +3105,6 @@ exports.prerender = function (model, turbopackMap, options) {
       model,
       turbopackMap,
       options ? options.onError : void 0,
-      options ? options.onPostpone : void 0,
       function () {
         var writable,
           stream = new ReadableStream(
@@ -3155,7 +3151,6 @@ exports.prerenderToNodeStream = function (model, turbopackMap, options) {
       model,
       turbopackMap,
       options ? options.onError : void 0,
-      options ? options.onPostpone : void 0,
       function () {
         var readable = new stream.Readable({
             read: function () {
@@ -3211,7 +3206,6 @@ exports.renderToPipeableStream = function (model, turbopackMap, options) {
       model,
       turbopackMap,
       options ? options.onError : void 0,
-      options ? options.onPostpone : void 0,
       noop,
       noop,
       options ? options.identifierPrefix : void 0,
@@ -3252,7 +3246,6 @@ exports.renderToReadableStream = function (model, turbopackMap, options) {
     model,
     turbopackMap,
     options ? options.onError : void 0,
-    options ? options.onPostpone : void 0,
     noop,
     noop,
     options ? options.identifierPrefix : void 0,

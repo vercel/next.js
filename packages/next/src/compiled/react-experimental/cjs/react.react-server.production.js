@@ -49,7 +49,6 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
-  REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
@@ -545,11 +544,6 @@ exports.unstable_getCacheForType = function (resourceType) {
   var dispatcher = ReactSharedInternals.A;
   return dispatcher ? dispatcher.getCacheForType(resourceType) : resourceType();
 };
-exports.unstable_postpone = function (reason) {
-  reason = Error(reason);
-  reason.$$typeof = REACT_POSTPONE_TYPE;
-  throw reason;
-};
 exports.use = function (usable) {
   return ReactSharedInternals.H.use(usable);
 };
@@ -563,4 +557,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.3.0-experimental-f646e8ff-20251104";
+exports.version = "19.3.0-experimental-dd048c3b-20251105";

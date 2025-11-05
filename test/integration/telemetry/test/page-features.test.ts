@@ -23,7 +23,7 @@ describe('page features telemetry', () => {
       let app = await launchApp(appDir, port, {
         onStderr: handleStderr,
         env: {
-          NEXT_TELEMETRY_DEBUG: 1,
+          NEXT_TELEMETRY_DEBUG: '1',
         },
         turbo: true,
       })
@@ -58,7 +58,7 @@ describe('page features telemetry', () => {
       let app = await launchApp(appDir, port, {
         onStderr: handleStderr,
         env: {
-          NEXT_TELEMETRY_DEBUG: 1,
+          NEXT_TELEMETRY_DEBUG: '1',
         },
         turbo: true,
       })
@@ -94,7 +94,7 @@ describe('page features telemetry', () => {
       let app = await launchApp(appDir, port, {
         onStderr: handleStderr,
         env: {
-          NEXT_TELEMETRY_DEBUG: 1,
+          NEXT_TELEMETRY_DEBUG: '1',
         },
       })
 
@@ -163,7 +163,7 @@ describe('page features telemetry', () => {
           )
           const { stderr } = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
 
           try {
@@ -198,7 +198,7 @@ describe('page features telemetry', () => {
           let build = await nextBuild(appDir, [], {
             stderr: 'log',
             stdout: 'log',
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
 
           expect(build.stderr).toContain('NEXT_BUILD_OPTIMIZED')
@@ -222,7 +222,7 @@ describe('page features telemetry', () => {
 
           const build = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
 
           await fs.rename(
@@ -256,7 +256,7 @@ describe('page features telemetry', () => {
 
           const build = await nextBuild(appDir, [], {
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: { NEXT_TELEMETRY_DEBUG: '1' },
           })
 
           await fs.rename(

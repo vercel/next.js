@@ -297,6 +297,9 @@ export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export declare function projectEntrypoints(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
@@ -373,6 +376,10 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: RcStr
 ): string | null
+export declare function projectWriteAnalyzeData(
+  project: { __napiType: 'Project' },
+  appDirOnly: boolean
+): Promise<TurbopackResult>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *

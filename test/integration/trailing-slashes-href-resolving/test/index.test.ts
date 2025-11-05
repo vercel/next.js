@@ -15,7 +15,7 @@ let app
 let appPort
 const appDir = join(__dirname, '../')
 
-const runTests = (dev) => {
+const runTests = (dev: boolean) => {
   it('should route to /blog/another/ correctly', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.elementByCss('#to-blog-another').click()
@@ -115,7 +115,7 @@ describe('href resolving trailing-slash', () => {
       })
       afterAll(() => killApp(app))
 
-      runTests()
+      runTests(false)
     }
   )
 })

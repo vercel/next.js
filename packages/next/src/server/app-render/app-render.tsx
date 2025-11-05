@@ -792,7 +792,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     // Before we kick off the render, we set the cache status back to it's initial state
     // in case a previous render bypassed the cache.
     if (setCacheStatus) {
-      setCacheStatus('ready', htmlRequestId, requestId)
+      setCacheStatus('ready', htmlRequestId)
     }
 
     const result = await renderWithRestartOnCacheMissInDev(
@@ -812,7 +812,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 
     // Set cache status to bypass when specifically bypassing caches in dev
     if (setCacheStatus) {
-      setCacheStatus('bypass', htmlRequestId, requestId)
+      setCacheStatus('bypass', htmlRequestId)
     }
 
     debugChannel = setReactDebugChannel && createDebugChannel()
@@ -1010,9 +1010,6 @@ async function prospectiveRuntimeServerPrerender(
           printDebugThrownValueForProspectiveRender(err, workStore.route)
         }
       },
-      // we don't care to track postpones during the prospective render because we need
-      // to always do a final render anyway
-      onPostpone: undefined,
       // We don't want to stop rendering until the cacheSignal is complete so we pass
       // a different signal to this render call than is used by dynamic APIs to signify
       // transitioning out of the prerender environment
@@ -2613,7 +2610,7 @@ async function renderToStream(
           // This lets the client know not to cache anything based on this render.
           if (renderOpts.setCacheStatus) {
             // we know this is available  when cacheComponents is enabled, but typeguard to be safe
-            renderOpts.setCacheStatus('bypass', htmlRequestId, requestId)
+            renderOpts.setCacheStatus('bypass', htmlRequestId)
           }
           payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
             route: workStore.route,
@@ -3060,7 +3057,6 @@ async function renderWithRestartOnCacheMissInDev(
   const {
     htmlRequestId,
     renderOpts,
-    requestId,
     componentMod: {
       routeModule: {
         userland: { loaderTree },
@@ -3203,7 +3199,7 @@ async function renderWithRestartOnCacheMissInDev(
   }
 
   if (process.env.NODE_ENV === 'development' && setCacheStatus) {
-    setCacheStatus('filling', htmlRequestId, requestId)
+    setCacheStatus('filling', htmlRequestId)
   }
 
   // Cache miss. We will use the initial render to fill caches, and discard its result.
@@ -3276,7 +3272,7 @@ async function renderWithRestartOnCacheMissInDev(
   )
 
   if (process.env.NODE_ENV === 'development' && setCacheStatus) {
-    setCacheStatus('filled', htmlRequestId, requestId)
+    setCacheStatus('filled', htmlRequestId)
   }
 
   return {
@@ -3548,9 +3544,6 @@ async function spawnDynamicValidationInDev(
           printDebugThrownValueForProspectiveRender(err, workStore.route)
         }
       },
-      // we don't care to track postpones during the prospective render because we need
-      // to always do a final render anyway
-      onPostpone: undefined,
       // We don't want to stop rendering until the cacheSignal is complete so we pass
       // a different signal to this render call than is used by dynamic APIs to signify
       // transitioning out of the prerender environment
@@ -4300,9 +4293,6 @@ async function prerenderToStream(
               printDebugThrownValueForProspectiveRender(err, workStore.route)
             }
           },
-          // we don't care to track postpones during the prospective render because we need
-          // to always do a final render anyway
-          onPostpone: undefined,
           // We don't want to stop rendering until the cacheSignal is complete so we pass
           // a different signal to this render call than is used by dynamic APIs to signify
           // transitioning out of the prerender environment

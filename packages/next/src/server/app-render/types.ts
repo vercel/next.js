@@ -109,11 +109,7 @@ export interface RenderOptsPartial {
   }
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
-  setCacheStatus?: (
-    status: ServerCacheStatus,
-    htmlRequestId: string,
-    requestId: string
-  ) => void
+  setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
     debugChannel: { readable: ReadableStream<Uint8Array> },

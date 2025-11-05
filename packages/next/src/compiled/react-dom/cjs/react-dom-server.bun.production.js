@@ -3795,7 +3795,6 @@ function RequestInstance(
   onShellReady,
   onShellError,
   onFatalError,
-  onPostpone,
   formState
 ) {
   var abortSet = new Set();
@@ -3818,7 +3817,6 @@ function RequestInstance(
   this.partialBoundaries = [];
   this.trackedPostpones = null;
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
-  this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
   this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
   this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
   this.onShellError = void 0 === onShellError ? noop : onShellError;
@@ -3836,7 +3834,6 @@ function createRequest(
   onShellReady,
   onShellError,
   onFatalError,
-  onPostpone,
   formState
 ) {
   resumableState = new RequestInstance(
@@ -3849,7 +3846,6 @@ function createRequest(
     onShellReady,
     onShellError,
     onFatalError,
-    onPostpone,
     formState
   );
   renderState = createPendingSegment(
@@ -3892,8 +3888,7 @@ function createPrerenderRequest(
   onAllReady,
   onShellReady,
   onShellError,
-  onFatalError,
-  onPostpone
+  onFatalError
 ) {
   children = createRequest(
     children,
@@ -3906,7 +3901,6 @@ function createPrerenderRequest(
     onShellReady,
     onShellError,
     onFatalError,
-    onPostpone,
     void 0
   );
   children.trackedPostpones = {
@@ -3924,8 +3918,7 @@ function resumeRequest(
   onAllReady,
   onShellReady,
   onShellError,
-  onFatalError,
-  onPostpone
+  onFatalError
 ) {
   renderState = new RequestInstance(
     postponedState.resumableState,
@@ -3937,7 +3930,6 @@ function resumeRequest(
     onShellReady,
     onShellError,
     onFatalError,
-    onPostpone,
     null
   );
   renderState.nextSegmentId = postponedState.nextSegmentId;
@@ -4005,8 +3997,7 @@ function resumeAndPrerenderRequest(
   onAllReady,
   onShellReady,
   onShellError,
-  onFatalError,
-  onPostpone
+  onFatalError
 ) {
   children = resumeRequest(
     children,
@@ -4016,8 +4007,7 @@ function resumeAndPrerenderRequest(
     onAllReady,
     onShellReady,
     onShellError,
-    onFatalError,
-    onPostpone
+    onFatalError
   );
   children.trackedPostpones = {
     workingMap: new Map(),
@@ -5056,8 +5046,8 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 contentRootSegment.status = 3;
                 var error = request.fatalError;
               } else (contentRootSegment.status = 4), (error = thrownValue$31);
-              var thrownInfo = getThrownInfo(task.componentStack);
-              var errorDigest = logRecoverableError(request, error, thrownInfo);
+              var thrownInfo = getThrownInfo(task.componentStack),
+                errorDigest = logRecoverableError(request, error, thrownInfo);
               newBoundary.errorDigest = errorDigest;
               untrackBoundary(request, newBoundary);
             } finally {
@@ -5246,12 +5236,12 @@ function retryNode(request, task) {
                           name +
                           ">. The tree doesn't match so React will fallback to client rendering."
                       );
-                    var childNodes = node$jscomp$0[2];
-                    name = node$jscomp$0[3];
-                    keyOrIndex = task.node;
+                    var childNodes = node$jscomp$0[2],
+                      childSlots = node$jscomp$0[3];
+                    name = task.node;
                     task.replay = {
                       nodes: childNodes,
-                      slots: name,
+                      slots: childSlots,
                       pendingTasks: 1
                     };
                     try {
@@ -5272,7 +5262,7 @@ function retryNode(request, task) {
                           "function" === typeof x.then)
                       )
                         throw (
-                          (task.node === keyOrIndex
+                          (task.node === name
                             ? (task.replay = replay)
                             : childIndex.splice(node, 1),
                           x)
@@ -5287,7 +5277,7 @@ function retryNode(request, task) {
                         key,
                         request,
                         childNodes,
-                        name,
+                        childSlots,
                         type,
                         props
                       );
@@ -5301,16 +5291,15 @@ function retryNode(request, task) {
                           ">. The tree doesn't match so React will fallback to client rendering."
                       );
                     b: {
-                      replay = void 0;
-                      type = node$jscomp$0[5];
-                      ref = node$jscomp$0[2];
-                      name = node$jscomp$0[3];
-                      keyOrIndex =
+                      replay = node$jscomp$0[5];
+                      type = node$jscomp$0[2];
+                      ref = node$jscomp$0[3];
+                      name =
                         null === node$jscomp$0[4] ? [] : node$jscomp$0[4][2];
                       node$jscomp$0 =
                         null === node$jscomp$0[4] ? null : node$jscomp$0[4][3];
-                      var prevKeyPath = task.keyPath,
-                        prevContext = task.formatContext,
+                      keyOrIndex = task.keyPath;
+                      var prevContext = task.formatContext,
                         prevRow = task.row,
                         previousReplaySet = task.replay,
                         parentBoundary = task.blockedBoundary,
@@ -5335,7 +5324,7 @@ function retryNode(request, task) {
                               null
                             );
                       props.parentFlushed = !0;
-                      props.rootSegmentID = type;
+                      props.rootSegmentID = replay;
                       task.blockedBoundary = props;
                       task.hoistableState = props.contentState;
                       task.keyPath = key;
@@ -5345,8 +5334,8 @@ function retryNode(request, task) {
                       );
                       task.row = null;
                       task.replay = {
-                        nodes: ref,
-                        slots: name,
+                        nodes: type,
+                        slots: ref,
                         pendingTasks: 1
                       };
                       try {
@@ -5367,30 +5356,26 @@ function retryNode(request, task) {
                       } catch (error) {
                         (props.status = 4),
                           (childNodes = getThrownInfo(task.componentStack)),
-                          (replay = logRecoverableError(
+                          (childSlots = logRecoverableError(
                             request,
                             error,
                             childNodes
                           )),
-                          (props.errorDigest = replay),
+                          (props.errorDigest = childSlots),
                           task.replay.pendingTasks--,
                           request.clientRenderedBoundaries.push(props);
                       } finally {
                         (task.blockedBoundary = parentBoundary),
                           (task.hoistableState = parentHoistableState),
                           (task.replay = previousReplaySet),
-                          (task.keyPath = prevKeyPath),
+                          (task.keyPath = keyOrIndex),
                           (task.formatContext = prevContext),
                           (task.row = prevRow);
                       }
                       childNodes = createReplayTask(
                         request,
                         null,
-                        {
-                          nodes: keyOrIndex,
-                          slots: node$jscomp$0,
-                          pendingTasks: 0
-                        },
+                        { nodes: name, slots: node$jscomp$0, pendingTasks: 0 },
                         fallback,
                         -1,
                         parentBoundary,
@@ -5438,10 +5423,10 @@ function retryNode(request, task) {
         if ((childNodes = childNodes.call(node))) {
           node = childNodes.next();
           if (!node.done) {
-            props = [];
-            do props.push(node.value), (node = childNodes.next());
+            childSlots = [];
+            do childSlots.push(node.value), (node = childNodes.next());
             while (!node.done);
-            renderChildrenArray(request, task, props, childIndex);
+            renderChildrenArray(request, task, childSlots, childIndex);
           }
           return;
         }
@@ -6148,38 +6133,37 @@ function finishedTask(request, boundary, row, segment) {
           tryToResolveTogetherRow(request, boundary);
   0 === request.allPendingTasks && completeAll(request);
 }
-function performWork(request$jscomp$2) {
-  if (14 !== request$jscomp$2.status && 13 !== request$jscomp$2.status) {
+function performWork(request$jscomp$1) {
+  if (14 !== request$jscomp$1.status && 13 !== request$jscomp$1.status) {
     var prevContext = currentActiveSnapshot,
       prevDispatcher = ReactSharedInternals.H;
     ReactSharedInternals.H = HooksDispatcher;
     var prevAsyncDispatcher = ReactSharedInternals.A;
     ReactSharedInternals.A = DefaultAsyncDispatcher;
     var prevRequest = currentRequest;
-    currentRequest = request$jscomp$2;
+    currentRequest = request$jscomp$1;
     var prevResumableState = currentResumableState;
-    currentResumableState = request$jscomp$2.resumableState;
+    currentResumableState = request$jscomp$1.resumableState;
     try {
-      var pingedTasks = request$jscomp$2.pingedTasks,
+      var pingedTasks = request$jscomp$1.pingedTasks,
         i;
       for (i = 0; i < pingedTasks.length; i++) {
         var task = pingedTasks[i],
-          request = request$jscomp$2,
+          request = request$jscomp$1,
           segment = task.blockedSegment;
         if (null === segment) {
-          var request$jscomp$0 = request;
           if (0 !== task.replay.pendingTasks) {
             switchContext(task.context);
             try {
               "number" === typeof task.replay.slots
                 ? resumeNode(
-                    request$jscomp$0,
+                    request,
                     task,
                     task.replay.slots,
                     task.node,
                     task.childIndex
                   )
-                : retryNode(request$jscomp$0, task);
+                : retryNode(request, task);
               if (
                 1 === task.replay.pendingTasks &&
                 0 < task.replay.nodes.length
@@ -6189,12 +6173,7 @@ function performWork(request$jscomp$2) {
                 );
               task.replay.pendingTasks--;
               task.abortSet.delete(task);
-              finishedTask(
-                request$jscomp$0,
-                task.blockedBoundary,
-                task.row,
-                null
-              );
+              finishedTask(request, task.blockedBoundary, task.row, null);
             } catch (thrownValue) {
               resetHooksState();
               var x =
@@ -6215,69 +6194,62 @@ function performWork(request$jscomp$2) {
               } else {
                 task.replay.pendingTasks--;
                 task.abortSet.delete(task);
-                var errorInfo = getThrownInfo(task.componentStack);
-                request = void 0;
-                var request$jscomp$1 = request$jscomp$0,
+                var errorInfo = getThrownInfo(task.componentStack),
+                  request$jscomp$0 = request,
                   boundary = task.blockedBoundary,
                   error$jscomp$0 =
-                    12 === request$jscomp$0.status
-                      ? request$jscomp$0.fatalError
-                      : x,
+                    12 === request.status ? request.fatalError : x,
                   replayNodes = task.replay.nodes,
-                  resumeSlots = task.replay.slots;
-                request = logRecoverableError(
-                  request$jscomp$1,
-                  error$jscomp$0,
-                  errorInfo
-                );
+                  resumeSlots = task.replay.slots,
+                  errorDigest = logRecoverableError(
+                    request$jscomp$0,
+                    error$jscomp$0,
+                    errorInfo
+                  );
                 abortRemainingReplayNodes(
-                  request$jscomp$1,
+                  request$jscomp$0,
                   boundary,
                   replayNodes,
                   resumeSlots,
                   error$jscomp$0,
-                  request
+                  errorDigest
                 );
-                request$jscomp$0.pendingRootTasks--;
-                0 === request$jscomp$0.pendingRootTasks &&
-                  completeShell(request$jscomp$0);
-                request$jscomp$0.allPendingTasks--;
-                0 === request$jscomp$0.allPendingTasks &&
-                  completeAll(request$jscomp$0);
+                request.pendingRootTasks--;
+                0 === request.pendingRootTasks && completeShell(request);
+                request.allPendingTasks--;
+                0 === request.allPendingTasks && completeAll(request);
               }
             } finally {
             }
           }
         } else if (
-          ((request$jscomp$0 = void 0),
-          (request$jscomp$1 = segment),
-          0 === request$jscomp$1.status)
+          ((request$jscomp$0 = segment), 0 === request$jscomp$0.status)
         ) {
-          request$jscomp$1.status = 6;
+          request$jscomp$0.status = 6;
           switchContext(task.context);
-          var childrenLength = request$jscomp$1.children.length,
-            chunkLength = request$jscomp$1.chunks.length;
+          var childrenLength = request$jscomp$0.children.length,
+            chunkLength = request$jscomp$0.chunks.length;
           try {
             retryNode(request, task),
               pushSegmentFinale(
-                request$jscomp$1.chunks,
+                request$jscomp$0.chunks,
                 request.renderState,
-                request$jscomp$1.lastPushedText,
-                request$jscomp$1.textEmbedded
+                request$jscomp$0.lastPushedText,
+                request$jscomp$0.textEmbedded
               ),
               task.abortSet.delete(task),
-              (request$jscomp$1.status = 1),
-              finishedSegment(request, task.blockedBoundary, request$jscomp$1),
+              (request$jscomp$0.status = 1),
+              finishedSegment(request, task.blockedBoundary, request$jscomp$0),
               finishedTask(
                 request,
                 task.blockedBoundary,
                 task.row,
-                request$jscomp$1
+                request$jscomp$0
               );
           } catch (thrownValue) {
             resetHooksState();
-            request$jscomp$1.children.length = childrenLength;
-            request$jscomp$1.chunks.length = chunkLength;
+            request$jscomp$0.children.length = childrenLength;
+            request$jscomp$0.chunks.length = chunkLength;
             var x$jscomp$0 =
               thrownValue === SuspenseException
                 ? getSuspendedThenable()
@@ -6289,19 +6261,19 @@ function performWork(request$jscomp$2) {
                 thrownInfo = getThrownInfo(task.componentStack);
               task.abortSet.delete(task);
               logRecoverableError(request, x$jscomp$0, thrownInfo);
-              trackPostpone(request, trackedPostpones, task, request$jscomp$1);
+              trackPostpone(request, trackedPostpones, task, request$jscomp$0);
               finishedTask(
                 request,
                 task.blockedBoundary,
                 task.row,
-                request$jscomp$1
+                request$jscomp$0
               );
             } else if (
               "object" === typeof x$jscomp$0 &&
               null !== x$jscomp$0 &&
               "function" === typeof x$jscomp$0.then
             ) {
-              request$jscomp$1.status = 0;
+              request$jscomp$0.status = 0;
               task.thenableState =
                 thrownValue === SuspenseException
                   ? getThenableStateAfterSuspending()
@@ -6311,14 +6283,14 @@ function performWork(request$jscomp$2) {
             } else {
               var errorInfo$jscomp$0 = getThrownInfo(task.componentStack);
               task.abortSet.delete(task);
-              request$jscomp$1.status = 4;
+              request$jscomp$0.status = 4;
               var boundary$jscomp$0 = task.blockedBoundary,
                 row = task.row;
               null !== row &&
                 0 === --row.pendingTasks &&
                 finishSuspenseListRow(request, row);
               request.allPendingTasks--;
-              request$jscomp$0 = logRecoverableError(
+              var errorDigest$jscomp$0 = logRecoverableError(
                 request,
                 x$jscomp$0,
                 errorInfo$jscomp$0
@@ -6329,7 +6301,7 @@ function performWork(request$jscomp$2) {
                 4 !== boundary$jscomp$0.status)
               ) {
                 boundary$jscomp$0.status = 4;
-                boundary$jscomp$0.errorDigest = request$jscomp$0;
+                boundary$jscomp$0.errorDigest = errorDigest$jscomp$0;
                 untrackBoundary(request, boundary$jscomp$0);
                 var boundaryRow = boundary$jscomp$0.row;
                 null !== boundaryRow &&
@@ -6349,11 +6321,11 @@ function performWork(request$jscomp$2) {
         }
       }
       pingedTasks.splice(0, i);
-      null !== request$jscomp$2.destination &&
-        flushCompletedQueues(request$jscomp$2, request$jscomp$2.destination);
+      null !== request$jscomp$1.destination &&
+        flushCompletedQueues(request$jscomp$1, request$jscomp$1.destination);
     } catch (error) {
-      logRecoverableError(request$jscomp$2, error, {}),
-        fatalError(request$jscomp$2, error);
+      logRecoverableError(request$jscomp$1, error, {}),
+        fatalError(request$jscomp$1, error);
     } finally {
       (currentResumableState = prevResumableState),
         (ReactSharedInternals.H = prevDispatcher),
@@ -7076,11 +7048,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-f646e8ff-20251104" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-dd048c3b-20251105" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-canary-f646e8ff-20251104\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-canary-dd048c3b-20251105\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7123,7 +7095,6 @@ function createRequestImpl(children, options) {
     options ? options.onShellReady : void 0,
     options ? options.onShellError : void 0,
     void 0,
-    options ? options.onPostpone : void 0,
     options ? options.formState : void 0
   );
 }
@@ -7160,8 +7131,7 @@ function resumeRequestImpl(children, postponedState, options) {
     options ? options.onAllReady : void 0,
     options ? options.onShellReady : void 0,
     options ? options.onShellError : void 0,
-    void 0,
-    options ? options.onPostpone : void 0
+    void 0
   );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7248,8 +7218,7 @@ exports.prerender = function (children, options) {
         },
         void 0,
         void 0,
-        reject,
-        options ? options.onPostpone : void 0
+        reject
       );
     if (options && options.signal) {
       var signal = options.signal;
@@ -7303,8 +7272,7 @@ exports.prerenderToNodeStream = function (children, options) {
         },
         void 0,
         void 0,
-        reject,
-        options ? options.onPostpone : void 0
+        reject
       );
     if (options && options.signal) {
       var signal = options.signal;
@@ -7417,7 +7385,6 @@ exports.renderToReadableStream = function (children, options) {
           reject(error);
         },
         onFatalError,
-        options ? options.onPostpone : void 0,
         options ? options.formState : void 0
       );
     if (options && options.signal) {
@@ -7483,8 +7450,7 @@ exports.resume = function (children, postponedState, options) {
           allReady.catch(function () {});
           reject(error);
         },
-        onFatalError,
-        options ? options.onPostpone : void 0
+        onFatalError
       );
     if (options && options.signal) {
       var signal = options.signal;
@@ -7538,8 +7504,7 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
       },
       void 0,
       void 0,
-      reject,
-      options ? options.onPostpone : void 0
+      reject
     );
     if (options && options.signal) {
       var signal = options.signal;
@@ -7585,8 +7550,7 @@ exports.resumeAndPrerenderToNodeStream = function (
       },
       void 0,
       void 0,
-      reject,
-      options ? options.onPostpone : void 0
+      reject
     );
     if (options && options.signal) {
       var signal = options.signal;
@@ -7633,4 +7597,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.3.0-canary-f646e8ff-20251104";
+exports.version = "19.3.0-canary-dd048c3b-20251105";

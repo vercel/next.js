@@ -2289,6 +2289,17 @@ pub struct FileLine {
     pub bytes_offset: u32,
 }
 
+impl FileLine {
+    pub fn len(&self) -> usize {
+        self.content.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
 #[turbo_tasks::value(shared, serialization = "none")]
 pub enum FileLinesContent {
     Lines(#[turbo_tasks(trace_ignore)] Vec<FileLine>),

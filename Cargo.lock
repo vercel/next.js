@@ -4253,6 +4253,7 @@ name = "next-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "byteorder",
  "either",
  "futures",
  "indexmap 2.9.0",
@@ -4274,6 +4275,7 @@ dependencies = [
  "turbo-tasks-malloc",
  "turbo-unix-path",
  "turbopack",
+ "turbopack-analyze",
  "turbopack-browser",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -6492,16 +6494,6 @@ dependencies = [
  "percent-encoding",
  "serde",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "serde_regex"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8136f1a4ea815d7eac4101cfd0b16dc0cb5e1fe1b8609dfd728058656b7badf"
-dependencies = [
- "regex",
- "serde",
 ]
 
 [[package]]
@@ -9209,7 +9201,6 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
- "serde_regex",
  "shrink-to-fit",
  "smallvec",
  "thiserror 1.0.69",
@@ -9478,6 +9469,23 @@ dependencies = [
  "turbopack-resolve",
  "turbopack-static",
  "turbopack-wasm",
+]
+
+[[package]]
+name = "turbopack-analyze"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "rustc-hash 2.1.1",
+ "serde",
+ "serde_json",
+ "tokio",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-fs",
+ "turbo-tasks-testing",
+ "turbopack-core",
 ]
 
 [[package]]
