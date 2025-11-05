@@ -47,7 +47,6 @@ import {
   streamToString,
   continueStaticFallbackPrerender,
 } from '../stream-utils/node-web-streams-helper'
-import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_HMR_REFRESH_HEADER,
@@ -1067,141 +1066,99 @@ function createRuntimePrefetchTransformStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   const encoder = new TextEncoder()
 
-  // Search for: "rp":[<sentinel>]
-  // Replace with: "rp":[<isPartial>,<staleTime>]
-  const search = encoder.encode(`"rp":[${sentinel}]`)
-  const replace = encoder.encode(`"rp":[${isPartial},${staleTime}]`)
-
+  // Search for: [<sentinel>]
+  // Replace with: [<isPartial>,<staleTime>]
+  const search = encoder.encode(`[${sentinel}]`)
+  const first = search[0]
+  const replace = encoder.encode(`[${isPartial},${staleTime}]`)
   const searchLen = search.length
 
-  // Reusable boundary buffer for cross-chunk checks (last N-1 of prev + first N-1 of curr)
-  const boundaryBuf: Uint8Array<ArrayBufferLike> = new Uint8Array(
-    Math.max(0, (searchLen - 1) * 2)
-  )
-
-  let previousChunk: Uint8Array<ArrayBufferLike> | null = null
+  let currentChunk: Uint8Array | null = null
   let found = false
+
+  function processChunk(
+    controller: TransformStreamDefaultController<Uint8Array>,
+    nextChunk: null | Uint8Array
+  ) {
+    if (found) {
+      if (nextChunk) {
+        controller.enqueue(nextChunk)
+      }
+      return
+    }
+
+    if (currentChunk) {
+      // We can't search past the index that can contain a full match
+      let exclusiveUpperBound = currentChunk.length - (searchLen - 1)
+      if (nextChunk) {
+        // If we have any overflow bytes we can search up to the chunk's final byte
+        exclusiveUpperBound += Math.min(nextChunk.length, searchLen - 1)
+      }
+      if (exclusiveUpperBound < 1) {
+        // we can't match the current chunk.
+        controller.enqueue(currentChunk)
+        return
+      }
+
+      let currentIndex = currentChunk.indexOf(first)
+
+      // check the current candidate match if it is within the bounds of our search space for the currentChunk
+      candidateLoop: while (
+        -1 < currentIndex &&
+        currentIndex < exclusiveUpperBound
+      ) {
+        // We already know index 0 matches because we used indexOf to find the candidateIndex so we start at index 1
+        let matchIndex = 1
+        while (matchIndex < searchLen) {
+          const candidateIndex = currentIndex + matchIndex
+          const candidateValue =
+            candidateIndex < currentChunk.length
+              ? currentChunk[candidateIndex]
+              : // if we ever hit this condition it is because there is a nextChunk we can read from
+                nextChunk![candidateIndex - currentChunk.length]
+          if (candidateValue !== search[matchIndex]) {
+            // No match, reset and continue the search from the next position
+            currentIndex = currentChunk.indexOf(first, currentIndex + 1)
+            continue candidateLoop
+          }
+          matchIndex++
+        }
+        // We found a complete match. currentIndex is our starting point to replace the value.
+        found = true
+        // enqueue everything up to the match
+        controller.enqueue(currentChunk.subarray(0, currentIndex))
+        // enqueue the replacement value
+        controller.enqueue(replace)
+        // If there are bytes in the currentChunk after the match enqueue them
+        if (currentIndex + searchLen < currentChunk.length) {
+          controller.enqueue(currentChunk.slice(currentIndex + searchLen))
+        }
+        // If we have a next chunk we enqueue it now
+        if (nextChunk) {
+          // if replacement spills over to the next chunk we first exclude the replaced bytes
+          const overflowBytes = currentIndex + searchLen - currentChunk.length
+          const truncatedChunk =
+            overflowBytes > 0 ? nextChunk!.subarray(overflowBytes) : nextChunk
+          controller.enqueue(truncatedChunk)
+        }
+        // We are now in found mode and don't need to track currentChunk anymore
+        currentChunk = null
+        return
+      }
+      // No match found in this chunk, emit it and wait for the next one
+      controller.enqueue(currentChunk)
+    }
+
+    // Advance to the next chunk
+    currentChunk = nextChunk
+  }
 
   return new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
-      if (found) {
-        // Already replaced, just pass through
-        controller.enqueue(chunk)
-        return
-      }
-
-      if (previousChunk === null) {
-        // First chunk: scan it immediately (don’t hold if we can finish now)
-        const idx = indexOfUint8Array(chunk, search)
-        if (idx !== -1) {
-          if (idx > 0) controller.enqueue(chunk.subarray(0, idx))
-          controller.enqueue(replace)
-          const after = idx + searchLen
-          if (after < chunk.length) controller.enqueue(chunk.subarray(after))
-          found = true
-          return
-        }
-        // Not found; hold it to check boundary on next chunk
-        previousChunk = chunk
-        return
-      }
-
-      // 1) Check if pattern lives entirely in the previous chunk
-      let matchIndex = indexOfUint8Array(previousChunk, search)
-      if (matchIndex !== -1) {
-        if (matchIndex > 0)
-          controller.enqueue(previousChunk.subarray(0, matchIndex))
-        controller.enqueue(replace)
-        const afterPrev = matchIndex + searchLen
-        if (afterPrev < previousChunk.length) {
-          controller.enqueue(previousChunk.subarray(afterPrev))
-        }
-        controller.enqueue(chunk) // pass current chunk through untouched
-        previousChunk = null
-        found = true
-        return
-      }
-
-      // 2) Check if pattern spans the boundary prev|curr
-      const tailLen = Math.min(previousChunk.length, searchLen - 1)
-      const headLen = Math.min(chunk.length, searchLen - 1)
-      const boundaryLen = tailLen + headLen
-
-      // Fill boundary: tail of prev + head of curr
-      if (boundaryLen > 0) {
-        if (tailLen > 0) {
-          boundaryBuf.set(
-            previousChunk.subarray(
-              previousChunk.length - tailLen,
-              previousChunk.length
-            ),
-            0
-          )
-        }
-        if (headLen > 0) {
-          boundaryBuf.set(chunk.subarray(0, headLen), tailLen)
-        }
-      }
-
-      matchIndex = indexOfUint8Array(
-        boundaryBuf.subarray(0, boundaryLen),
-        search
-      )
-      if (matchIndex !== -1) {
-        // Compute start of the match in the concatenated (prev + curr) space
-        const startInConcat = previousChunk.length - tailLen + matchIndex
-
-        // Emit prefix from prev up to the start, then replacement
-        if (startInConcat > 0) {
-          controller.enqueue(previousChunk.subarray(0, startInConcat))
-        }
-        controller.enqueue(replace)
-
-        // Figure out how much of the match consumed prev vs curr
-        const endInConcat = startInConcat + searchLen
-        if (endInConcat <= previousChunk.length) {
-          // Match ends inside prev; emit remaining prev and the whole current chunk
-          if (endInConcat < previousChunk.length) {
-            controller.enqueue(previousChunk.subarray(endInConcat))
-          }
-          controller.enqueue(chunk)
-        } else {
-          // Match spills into current chunk; emit the remainder of current after the match
-          const consumedFromCurr = endInConcat - previousChunk.length
-          if (consumedFromCurr < chunk.length) {
-            controller.enqueue(chunk.subarray(consumedFromCurr))
-          }
-        }
-
-        previousChunk = null
-        found = true
-        return
-      }
-
-      // 3) No match (not in prev and not across the boundary) — emit prev, hold curr
-      controller.enqueue(previousChunk)
-      previousChunk = chunk
+      processChunk(controller, chunk)
     },
-
     flush(controller) {
-      if (!previousChunk) return
-
-      if (!found) {
-        const matchIndex = indexOfUint8Array(previousChunk, search)
-        if (matchIndex !== -1) {
-          if (matchIndex > 0) {
-            controller.enqueue(previousChunk.subarray(0, matchIndex))
-          }
-          controller.enqueue(replace)
-          const after = matchIndex + searchLen
-          if (after < previousChunk.length) {
-            controller.enqueue(previousChunk.subarray(after))
-          }
-          return
-        }
-      }
-
-      controller.enqueue(previousChunk)
+      processChunk(controller, null)
     },
   })
 }
